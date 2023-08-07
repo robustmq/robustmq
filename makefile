@@ -1,1 +1,1 @@
-make
+echo 1
