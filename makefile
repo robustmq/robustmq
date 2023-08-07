@@ -1,1 +1,2 @@
-make
+all:
+	cargo build
