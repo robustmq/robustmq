@@ -1,1 +1,2 @@
-echo 1
+all:
+	cargo build
