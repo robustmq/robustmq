@@ -4,7 +4,7 @@
   </picture>
 </p>
  <h3 align="center">
-    The next-generation Cloud native Message Queue with exetrmely high performance.
+    The next-generation Cloud native Message Queue with extremely high performance.
 </h3>
 
 ## What is RobustMQ?
@@ -18,7 +18,7 @@ It is hoped that its architecture can naturally support the easy adaptation of m
 
 It is hoped that it naturally supports containerized deployment, supports elastic Serverless computing layer and storage layer architecture, and can rapidly expand and shrink capacity. In order to solve the problem of cluster elasticity, improve the utilization rate of cluster, so as to realize the payment according to quantity and use on demand.
 
-- High performance
+- Extremely High performance
 
 it is developed by Rust programming language which is well known as its outstanding performance and smallest memory. RobustMQ tends to be the best performer in Message Queue industry.
 
