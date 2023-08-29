@@ -1,4 +1,14 @@
-### Introductory
+<p align="center">
+  <picture>
+    <img alt="GreptimeDB Logo" src="docs/RobustMQ-logo.jpg" width="400px">
+  </picture>
+</p>
+
+<h3 align="center">
+    The next-generation Cloud native Message Queue with exetrmely high performance.
+</h3>
+
+### Introduction
 RobustMQ is a multi-protocol, cloud-native, Serverless, and simple architecture converged message queue.
 
 - Multi-protocol support
