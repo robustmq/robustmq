@@ -1,6 +1,6 @@
 <p  align="center">
   <picture>
-    <img alt="GreptimeDB Logo" src="image/logo2.jpg" width="314" height="128">
+    <img alt="GreptimeDB Logo" src="image/logo2.jpg" width="220" height="90">
   </picture>
 </p>
  <h3 align="center">
