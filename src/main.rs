@@ -1,3 +1,3 @@
 fn main() {
-    println!("Hello, world! loboxu");
+    println!("Hello, world! RobustMQ");
 }
