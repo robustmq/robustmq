@@ -1,7 +1,6 @@
 <p  align="center">
   <picture>
-    <img alt="GreptimeDB Logo" src="image/robustmq-logo.png">
-    <img alt="GreptimeDB Logo" src="image/logo1.png">
+    <img alt="GreptimeDB Logo" src="docs/RobustMQ-logo.jpg" width="300" height="200">
   </picture>
 </p>
  <h3 align="center">
