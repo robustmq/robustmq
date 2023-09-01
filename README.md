@@ -31,4 +31,4 @@ It is designed with flexible architecture with different plugins to support diff
 It is expected that its system architecture is only composed of brokers, and the cluster is formed by AD hoc networking between brokers. That is, at least one of them can be used to build a cluster, and it also has the ability to expand the cluster horizontally. To reduce deployment and O&M costs. So that it can meet the edge computing scenarios and cloud computing central cluster scenarios.
 
 ## Architecture
-![架构图](image/robustmq-architecture.png)
+![架构图](docs/robustmq-architecture.png)
