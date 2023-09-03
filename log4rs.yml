@@ -1,0 +1,24 @@
+refresh_rate: 5 seconds
+appenders:
+  stdout:
+    kind: console
+    encoder:
+      pattern: "{d} [{t}] {h({l})} {M}:{m}{n}"
+  champion:
+    kind: file
+    path: "log/requests.log"
+    encoder:
+      pattern: "{d} - {m}{n}"
+root:
+  level: debug
+  appenders:
+    - stdout
+    - champion
+loggers:
+  app::backend::db:
+    level: info
+  app::requests:
+    level: info
+    appenders:
+      - requests
+    additive: false
