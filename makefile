@@ -2,8 +2,6 @@ TARGET = robustmq
 VERSION = v0.0.1
 BUILD_FOLD = ./build
 PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)-release
-all:
-	cargo build
 
 release:
 	mkdir -p ${BUILD_FOLD}
