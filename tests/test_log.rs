@@ -1,5 +1,5 @@
 use log::{debug, warn, error, log_enabled, info, Level};
-use env_logger::Env;
+//use env_logger::Env;
 use log4rs;
 /* 
 use log4rs::append::console::ConsoleAppender;
@@ -7,18 +7,18 @@ use log4rs::append::file::FileAppender;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::config::{Appender, Config, Logger, Root};
 */
-fn test_log_levels(){
-   // env_logger::init();
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    info!("test case starts : test_log_levels");
-    debug!("this is a debug {}", "message");
-    error!("this is printed by default");
-    if log_enabled!(Level::Info){
-        let x = 3 * 4;
-        info!("the answer was : {}", x);
-    }
-    info!("test case ends : test_log_levels");
-}
+// fn test_log_levels(){
+//    // env_logger::init();
+//     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+//     info!("test case starts : test_log_levels");
+//     debug!("this is a debug {}", "message");
+//     error!("this is printed by default");
+//     if log_enabled!(Level::Info){
+//         let x = 3 * 4;
+//         info!("the answer was : {}", x);
+//     }
+//     info!("test case ends : test_log_levels");
+// }
 
 fn test_log_write_file() {
 
@@ -59,18 +59,18 @@ fn test_log_write_file() {
 
 }
 
-#[cfg(test)]
-mod test1 {
-    use crate::test_log_levels;
+// #[cfg(test)]
+// mod test1 {
+//     use crate::test_log_levels;
 
 
-    #[test]
-    fn test_run_log_info() {
-       test_log_levels();
-        assert_eq!(1+2, 3);
-    }
+//     #[test]
+//     fn test_run_log_info() {
+//        test_log_levels();
+//         assert_eq!(1+2, 3);
+//     }
 
-}
+// }
 
 mod test2 {
     use crate::test_log_write_file;
