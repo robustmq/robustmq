@@ -62,12 +62,6 @@ mod tests {
             port: Option<u16>,
         }
 
-        // #[derive(Deserialize)]
-        // struct Admin {
-        //     addr: String,
-        //     port: Option<u16>,
-        // }
-
         let file_path = "config/server.toml";
         let mut file = File::open(file_path).expect("Failed to open file");
         let mut contents = String::new();
