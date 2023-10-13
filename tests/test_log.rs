@@ -60,8 +60,8 @@ fn test_log_write_file() {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::{test_log_levels, test_log_write_file};
+mod test1 {
+    use crate::test_log_levels;
 
 
     #[test]
@@ -69,6 +69,11 @@ mod tests {
        test_log_levels();
         assert_eq!(1+2, 3);
     }
+
+}
+
+mod test2 {
+    use crate::test_log_write_file;
 
     #[test]
     fn test_run_log_write_file() {
