@@ -1,4 +1,6 @@
 target
 src/cmd/target
-.vscode
 build
+.vscode
+log
+.DS_Store
