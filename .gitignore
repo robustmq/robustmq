@@ -152,3 +152,4 @@ build/robustmq-v0.0.1-release/bin/robust-server
 build/robustmq-v0.0.1-release/config/server.toml
 build/robustmq-v0.0.1-release/libs/robustmq
 build/robustmq-v0.0.1-release/libs/robustmq-cmd
+
