@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "robustmq"
-version = "0.0.1"
+name = "robustmq-cmd"
+version = "0.1.0"
