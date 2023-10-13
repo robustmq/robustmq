@@ -4,46 +4,30 @@ appenders:
     kind: console
     encoder:
       pattern: "{d} [{t}] {h({l})} {M}:{m}{n}"
-  requests:
-    kind: file
-    path: "log/requests.log"
+  server:
+    kind: rolling_file
+    path: "log/server.{}.log"
+    append: true
     encoder:
       pattern: "{d} [{t}] {h({l})} {M}: {m}{n}"
-  foo:
-  #限制日志文件大小的配置
-    kind: rolling_file
-    path: "log/foo.{}.log"
-    policy:
-      trigger:
-        kind: size
-        limit: 1024
-      roller:
-        kind: delete
-  bar:
-  #限制日志文件数量的配置
-    kind: rolling_file
-    path: "log/foo.{}.log"
     policy:
       kind: compound
       trigger:
         kind: size
-        limit: 200
+        limit: 1024mb
       roller:
         kind: fixed_window
-        pattern: 'log/foo.{}.log'
+        pattern: 'log/server.{}.log'
         base: 0
-        count: 5
+        count: 50
 
 root:
   level: debug
   appenders:
     - stdout
-    - bar
 loggers:
-  app::backend::db:
-    level: info
-  app::requests:
+  app::server:
     level: info
     appenders:
-      - requests
+      - server
     additive: false

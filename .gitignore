@@ -1,4 +1,6 @@
 target
+src/cmd/target
+build
 .vscode
 log
 .DS_Store

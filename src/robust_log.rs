@@ -12,19 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log4rs;
-
-mod robust_log;
-
-fn main() {
-    self::init();
-    robust_log::server_info("RobustMQ Server was successfully started");
-    robust_log::info("11")
+pub fn info(msg: &str) -> () {
+     log::info!("{}", msg)
 }
 
-
-fn init() -> () {
-    log4rs::init_file("config/log4rs.yml", Default::default()).unwrap();
+pub fn server_info(msg: &str) -> (){
+     log::info!(target:"app::server", "{}",msg)
 }
-
-
