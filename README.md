@@ -1,6 +1,6 @@
 <p  align="center">
   <picture>
-    <img alt="GreptimeDB Logo" src="docs/RobustMQ-logo-formal.png" width="300">
+    <img alt="RobustMQ Logo" src="docs/RobustMQ-logo-formal.png" width="300">
   </picture>
 </p>
  <h3 align="center">
@@ -30,5 +30,19 @@ It is designed with flexible architecture with different plugins to support diff
 
 It is expected that its system architecture is only composed of brokers, and the cluster is formed by AD hoc networking between brokers. That is, at least one of them can be used to build a cluster, and it also has the ability to expand the cluster horizontally. To reduce deployment and O&M costs. So that it can meet the edge computing scenarios and cloud computing central cluster scenarios.
 
+### Get Start
+Start RobustMQ from source code, in standalone mode:
+```
+cargo run -- standalone start
+```
+
+
 ## Architecture
-![架构图](docs/robustmq-architecture.png)
+![Architecture Image](docs/robustmq-architecture.png)
+
+## License
+RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
+
+## Contributing
+Please refer to contribution [guidelines](https://github.com/robustmq/robustmq) for more information.
+
