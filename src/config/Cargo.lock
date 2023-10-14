@@ -460,22 +460,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "robustmq"
-version = "0.0.1"
-dependencies = [
- "config",
- "env_logger",
- "indoc",
- "log",
- "log4rs",
- "rlog",
- "serde",
- "serde_derive",
- "serde_yaml 0.9.25",
- "toml",
-]
-
-[[package]]
 name = "rustix"
 version = "0.38.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -869,9 +853,9 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "winnow"
-version = "0.5.16"
+version = "0.5.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "037711d82167854aff2018dfd193aa0fef5370f456732f0d5a0c59b0f1b4b907"
+checksum = "a3b801d0e0a6726477cc207f60162da452f3a95adb368399bef20a946e06f65c"
 dependencies = [
  "memchr",
 ]
