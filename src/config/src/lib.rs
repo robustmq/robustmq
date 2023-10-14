@@ -24,7 +24,7 @@ pub struct Admin {
     pub port: Option<u16>,
 }
 
-pub fn parse(config_path: &String) -> RobustServerConfig {
+pub fn new(config_path: &String) -> RobustServerConfig {
     rlog::info(&format!("Configuration file path:{}.", config_path));
 
     if !path::Path::new(config_path).exists() {
