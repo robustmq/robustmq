@@ -6,7 +6,7 @@ appenders:
       pattern: "{d} [{t}] {h({l})} {M}:{m}{n}"
   server:
     kind: rolling_file
-    path: "log/server.{}.log"
+    path: "log/server.log"
     append: true
     encoder:
       pattern: "{d} [{t}] {h({l})} {M}: {m}{n}"
@@ -29,5 +29,6 @@ loggers:
   app::server:
     level: info
     appenders:
+      - stdout
       - server
     additive: false
