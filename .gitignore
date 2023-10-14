@@ -2,5 +2,7 @@ target
 src/cmd/target
 build
 .vscode
-log
+./log
 .DS_Store
+log/server.log
+src/rlog/log/server.log

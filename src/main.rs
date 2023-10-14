@@ -12,19 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use config;
 use log4rs;
+use rlog;
+use std::env;
 
-mod robust_log;
+struct ArgsParams {
+    config_path: String,
+}
 
 fn main() {
     self::init();
-    robust_log::server_info("RobustMQ Server was successfully started");
-    robust_log::info("11")
+    let args = parse_args();
+    let conf: config::RobustServerConfig = config::parse(&args.config_path);
+    println!("{}", conf.broker.addr);
+    rlog::server_info("RobustMQ Server was successfully started");
 }
-
 
 fn init() -> () {
-    log4rs::init_file("config/log4rs.yml", Default::default()).unwrap();
+    log4rs::init_file(rlog::DEFAULT_LOG_CONFIG, Default::default()).unwrap();
 }
 
+fn parse_args() -> ArgsParams {
+    let args: Vec<String> = env::args().collect();
+    let mut config_path = config::DEFAULT_SERVER_CONFIG;
 
+    if args.len() > 1 {
+        config_path = &args[1];
+    }
+
+    return ArgsParams {
+        config_path: config_path.to_string(),
+    };
+}
