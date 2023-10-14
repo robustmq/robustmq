@@ -8,6 +8,10 @@ pub fn server_info(msg: &str) -> () {
     log::info!(target:"app::server", "{}",msg)
 }
 
+pub fn new(){
+    log4rs::init_file(DEFAULT_LOG_CONFIG, Default::default()).unwrap();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -13,24 +13,25 @@
 // limitations under the License.
 
 use config;
-use log4rs;
+use metrics;
 use rlog;
-use std::env;
+use std::{env,thread,time};
 
 struct ArgsParams {
     config_path: String,
 }
 
 fn main() {
-    self::init();
-    let args = parse_args();
-    let conf: config::RobustServerConfig = config::parse(&args.config_path);
-    println!("{}", conf.broker.addr);
-    rlog::server_info("RobustMQ Server was successfully started");
-}
+    rlog::new();
 
-fn init() -> () {
-    log4rs::init_file(rlog::DEFAULT_LOG_CONFIG, Default::default()).unwrap();
+    let args = parse_args();
+    let conf: config::RobustServerConfig = config::new(&args.config_path);
+
+    metrics::new(&conf.addr, conf.prometheus.port);
+    metrics::server::set_server_status_running();
+    
+    rlog::server_info("RobustMQ Server was successfully started");
+    thread::sleep(time::Duration::from_secs(1000));
 }
 
 fn parse_args() -> ArgsParams {
