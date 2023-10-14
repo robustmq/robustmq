@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(server.broker.port, Some(1226u16));
 
         println!("ip is : {}", server.admin.addr);
-        assert_eq!(server.admin.addr, "127.0.0.2");
+        assert_eq!(server.admin.addr, "127.0.0.1");
         assert_eq!(server.admin.port, Some(1227u16));
         // assert_eq!(config.keys.github, "xxxxxxxxxxxxxxxxx");
         // assert_eq!(config.keys.travis.as_ref().unwrap(), "yyyyyyyyyyyyyyyyy");
