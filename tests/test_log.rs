@@ -54,6 +54,7 @@ fn test_log_write_file() {
     warn!("warn goes to stderr and file");
     debug!("debug goes to file only");
     info!(target:"app::requests", "info to target testing");
+    info!(target:"app::server", "info to target server");
     info!("test cases ends: test_log_write_file");
 
 
