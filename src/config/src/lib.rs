@@ -8,19 +8,24 @@ pub const DEFAULT_SERVER_CONFIG: &str = "config/server.toml";
 
 #[derive(Deserialize)]
 pub struct RobustServerConfig {
+    pub addr: String,
     pub broker: Broker,
     pub admin: Admin,
+    pub prometheus: Prometheus
 }
 
 #[derive(Deserialize)]
 pub struct Broker {
-    pub addr: String,
     pub port: Option<u16>,
 }
 
 #[derive(Deserialize)]
 pub struct Admin {
-    pub addr: String,
+    pub port: Option<u16>,
+}
+
+#[derive(Deserialize)]
+pub struct Prometheus{
     pub port: Option<u16>,
 }
 
@@ -36,7 +41,7 @@ pub fn new(config_path: &String) -> RobustServerConfig {
         config_path
     ));
 
-    rlog::info(&content);
+    rlog::info(&format!("server config content:\n============================\n{}\n============================\n",content));
 
     let server_config: RobustServerConfig = toml::from_str(&content).unwrap();
     return server_config;
@@ -56,10 +61,9 @@ mod tests {
 
         let conf: RobustServerConfig = parse(&format!("../../{}", DEFAULT_SERVER_CONFIG));
 
-        assert_eq!(conf.broker.addr, "127.0.0.1".to_string());
+        assert_eq!(conf.addr, "127.0.0.1".to_string());
         assert_eq!(conf.broker.port, Some(1226));
-
-        assert_eq!(conf.admin.addr, "127.0.0.1".to_string());
         assert_eq!(conf.admin.port, Some(1227));
+        assert_eq!(conf.prometheus.port, Some(9184));
     }
 }
