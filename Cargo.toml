@@ -18,3 +18,6 @@ toml ="0.8.2"
 rlog = { path = "src/rlog", version = "0.1.0" }
 config = { path = "src/config", version = "0.1.0" }
 metrics = { path = "src/metrics", version = "0.1.0" }
+
+[profile.release]
+panic = 'abort'
