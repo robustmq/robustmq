@@ -15,9 +15,10 @@
 use config;
 use metrics;
 use rlog;
-use std::{env, thread, time};
+use std::env;
+mod admin;
+mod server;
 
-mod admin_server;
 struct ArgsParams {
     config_path: String,
 }
@@ -28,13 +29,13 @@ fn main() {
     let args = parse_args();
     let conf: config::RobustServerConfig = config::new(&args.config_path);
 
-    admin_server::start(conf.admin.port);
-    
+    admin::start(conf.admin.port);
+
+    server::start(conf.broker.port);
+
     metrics::SERVER_METRICS.set_server_status_running();
-    println!("{}",metrics::SERVER_METRICS.gather());
-    
+
     rlog::server_info("RobustMQ Server was successfully started");
-    thread::sleep(time::Duration::from_secs(1000));
 }
 
 fn parse_args() -> ArgsParams {
