@@ -1,6 +1,6 @@
-use std::{net::{SocketAddr, IpAddr, Ipv4Addr}, str::FromStr};
+use std::{net::SocketAddr, str::FromStr};
 
-use axum::{routing::{get, post}, Router};
+use axum::{routing::get, Router};
 
 const ROUTE_ROOT: &str = "/";
 const ROUTE_METRICS: &str = "/metrics";

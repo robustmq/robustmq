@@ -32,7 +32,7 @@ fn main() {
 
     admin::start(&conf.addr, conf.admin.port,9);
 
-    server::start(conf.broker.port);
+    server::start();
 
     metrics::SERVER_METRICS.set_server_status_running();
 
