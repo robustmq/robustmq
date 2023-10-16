@@ -29,13 +29,13 @@ fn main() {
     let args = parse_args();
     let conf: config::RobustServerConfig = config::new(&args.config_path);
 
-    let admin_handle = admin::start(conf.addr.clone(), conf.admin.port,9);
+    let admin_handle = admin::start(conf.addr.clone(), conf.admin.port,conf.admin.work_thread.unwrap() as usize);
 
     meta::start();
 
     metrics::SERVER_METRICS.set_server_status_running();
     rlog::server_info("RobustMQ Server was successfully started");
-    
+
     admin_handle.join().unwrap();
 }
 

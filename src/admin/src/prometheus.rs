@@ -1,3 +1,6 @@
-pub async fn handler() -> &'static str {
-    "Hello, World!"
+use metrics::SERVER_METRICS;
+
+pub async fn handler() -> String {
+    let mtr = SERVER_METRICS.gather();    
+    return mtr;
 }

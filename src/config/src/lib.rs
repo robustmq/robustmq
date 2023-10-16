@@ -11,7 +11,6 @@ pub struct RobustServerConfig {
     pub addr: String,
     pub broker: Broker,
     pub admin: Admin,
-    pub prometheus: Prometheus,
 }
 
 #[derive(Debug, Deserialize)]
@@ -22,11 +21,7 @@ pub struct Broker {
 #[derive(Debug, Deserialize)]
 pub struct Admin {
     pub port: Option<u16>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct Prometheus {
-    pub port: Option<u16>,
+    pub work_thread: Option<u16>,
 }
 
 pub fn new(config_path: &String) -> RobustServerConfig {
