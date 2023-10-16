@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use admin;
 use config;
 use metrics;
 use rlog;
-use std::{env,thread,time};
+use meta;
+use std::env;
 
 struct ArgsParams {
     config_path: String,
@@ -27,11 +29,14 @@ fn main() {
     let args = parse_args();
     let conf: config::RobustServerConfig = config::new(&args.config_path);
 
-    metrics::new(&conf.addr, conf.prometheus.port);
-    metrics::server::set_server_status_running();
-    
+    let admin_handle = admin::start(conf.addr.clone(), conf.admin.port,conf.admin.work_thread.unwrap() as usize);
+
+    meta::start();
+
+    metrics::SERVER_METRICS.set_server_status_running();
     rlog::server_info("RobustMQ Server was successfully started");
-    thread::sleep(time::Duration::from_secs(1000));
+
+    admin_handle.join().unwrap();
 }
 
 fn parse_args() -> ArgsParams {

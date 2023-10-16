@@ -6,27 +6,22 @@ use toml;
 
 pub const DEFAULT_SERVER_CONFIG: &str = "config/server.toml";
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct RobustServerConfig {
     pub addr: String,
     pub broker: Broker,
     pub admin: Admin,
-    pub prometheus: Prometheus
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Broker {
     pub port: Option<u16>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct Admin {
     pub port: Option<u16>,
-}
-
-#[derive(Deserialize)]
-pub struct Prometheus{
-    pub port: Option<u16>,
+    pub work_thread: Option<u16>,
 }
 
 pub fn new(config_path: &String) -> RobustServerConfig {
@@ -41,7 +36,10 @@ pub fn new(config_path: &String) -> RobustServerConfig {
         config_path
     ));
 
-    rlog::info(&format!("server config content:\n============================\n{}\n============================\n",content));
+    rlog::info(&format!(
+        "server config content:\n============================\n{}\n============================\n",
+        content
+    ));
 
     let server_config: RobustServerConfig = toml::from_str(&content).unwrap();
     return server_config;
