@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use admin;
 use config;
 use metrics;
 use rlog;
 use std::env;
-mod admin;
+
 mod server;
 
 struct ArgsParams {
@@ -29,7 +30,7 @@ fn main() {
     let args = parse_args();
     let conf: config::RobustServerConfig = config::new(&args.config_path);
 
-    admin::start(conf.admin.port);
+    admin::start(&conf.addr, conf.admin.port,9);
 
     server::start(conf.broker.port);
 
