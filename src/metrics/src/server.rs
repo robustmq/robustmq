@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use lazy_static::lazy_static;
-use prometheus::{Registry, IntGauge};
+use prometheus::{IntGauge, Registry, Encoder};
 use std::collections::HashMap;
 
 lazy_static! {
@@ -22,23 +22,47 @@ lazy_static! {
 
 const METRICS_SERVER_PRIFIX: &str = "robustmq_server";
 
-pub fn register() {
-    let mut labels = HashMap::new();
-    labels.insert("name".to_string(), "loboxu".to_string());
-
-    let registry = Registry::new_custom(Some(String::from(METRICS_SERVER_PRIFIX)), Some(labels)).unwrap();
-    registry.register(Box::new(SERVER_STATUS.clone())).unwrap();
-    SERVER_STATUS.set(0)
+pub struct ServerMetrics {
+    pub registry: Registry,
 }
 
-pub fn set_server_status_starting() {
-    SERVER_STATUS.set(0)
-}
+impl ServerMetrics {
 
-pub fn set_server_status_running() {
-    SERVER_STATUS.set(1)
-}
+    pub fn new() -> Self {
+        ServerMetrics {
+            registry: ServerMetrics::build_registry(),
+        }
+    }
 
-pub fn set_server_status_stop() {
-    SERVER_STATUS.set(2)
+    fn build_registry() -> Registry {
+        let mut labels = HashMap::new();
+        labels.insert("name".to_string(), "loboxu".to_string());
+        Registry::new_custom(Some(String::from(METRICS_SERVER_PRIFIX)), Some(labels)).unwrap()
+    }
+
+    pub fn register_metrics(&self) {
+        self.registry
+            .register(Box::new(SERVER_STATUS.clone()))
+            .unwrap();
+    }
+
+    pub fn set_server_status_starting(&self) {
+        SERVER_STATUS.set(0);
+    }
+
+    pub fn set_server_status_running(&self) {
+        SERVER_STATUS.set(1);
+    }
+
+    pub fn set_server_status_stop(&self) {
+        SERVER_STATUS.set(2);
+    }
+
+    pub fn gather(&self) -> String{
+        let mut buf = Vec::<u8>::new();
+        let encoder = prometheus::TextEncoder::new();
+        encoder.encode(&self.registry.gather(), &mut buf).unwrap();
+        return String::from_utf8(buf.clone()).unwrap();
+    }
+
 }

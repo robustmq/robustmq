@@ -12,34 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use rlog;
-use std::net::SocketAddr;
+use server::ServerMetrics;
+use lazy_static::lazy_static;
+mod server;
 
-pub mod server;
-
-pub fn new(ip: &str, port: Option<u16>) {
-    server::register();
-    self::start_prometheus_export(ip, port);
+lazy_static! {
+    pub static ref SERVER_METRICS:ServerMetrics = server_metrics();
 }
 
-fn start_prometheus_export(ip: &str, port: Option<u16>) {
-    let addr_raw = format!("{}:{}", ip, port.unwrap());
-    rlog::info(&format!("prometrics export Binding address: {}", addr_raw));
-
-    let addr: SocketAddr = addr_raw
-        .parse()
-        .expect(&format!("can not parse listen addr,addr:{:?}", addr_raw));
-    prometheus_exporter::start(addr).expect("can not start peometheus exporter");
-
-    rlog::info("Prometrics Export started successfully. ")
+/// Start Metrics Register
+pub fn server_metrics() -> ServerMetrics{
+    let server_metrics: ServerMetrics = ServerMetrics::new();
+    server_metrics.register_metrics();
+    return server_metrics;
 }
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        self::new("", 1201)
-    }
+    fn it_works() {}
 }

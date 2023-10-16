@@ -10,11 +10,16 @@ log = "0.4.0"
 env_logger = "0.10.0"
 log4rs = "1.2.0"
 serde = "1.0"
-serde_yaml = "0.9"
-indoc = "2.0"
-serde_derive = "1.0"
 toml ="0.8.2"
+signal-hook = "0.3.17"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7.9", features = ["codec"] }
+axum="0.6.16"
 
 rlog = { path = "src/rlog", version = "0.1.0" }
 config = { path = "src/config", version = "0.1.0" }
 metrics = { path = "src/metrics", version = "0.1.0" }
+admin = { path = "src/admin", version = "0.1.0" }
+
+[profile.release]
+panic = 'abort'
