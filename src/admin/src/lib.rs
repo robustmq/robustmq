@@ -1,5 +1,5 @@
 use std::{net::SocketAddr, str::FromStr, thread::{self, JoinHandle}};
-
+use rlog;
 use axum::{routing::get, Router};
 
 const ROUTE_ROOT: &str = "/";
@@ -12,6 +12,7 @@ pub fn start(addr: String, port: Option<u16>, worker_threads: usize) -> JoinHand
     let handle = thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .worker_threads(worker_threads)
+            .max_blocking_threads(2048)
             .thread_name("admin-http")
             .enable_io()
             .build()
@@ -23,11 +24,12 @@ pub fn start(addr: String, port: Option<u16>, worker_threads: usize) -> JoinHand
                 .route(ROUTE_ROOT, get(welcome::handler));
 
             let ip = SocketAddr::from_str(&format!("{}:{}", addr, port.unwrap())).unwrap();
+            rlog::info(&format!("http server start success. bind:{}",ip.to_string()));
             axum::Server::bind(&ip)
                 .serve(app.into_make_service())
                 .await
                 .unwrap();
-        })
+        });
     });
    return handle;
 }

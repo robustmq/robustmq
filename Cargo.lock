@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "metrics",
+ "rlog",
  "serde",
  "tokio",
  "tokio-util",
@@ -602,6 +603,14 @@ checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
 [[package]]
 name = "meta"
 version = "0.1.0"
+dependencies = [
+ "axum",
+ "metrics",
+ "rlog",
+ "serde",
+ "tokio",
+ "tokio-util",
+]
 
 [[package]]
 name = "metrics"
