@@ -31,7 +31,7 @@ fn main() {
 
     let admin_handle = admin::start(conf.addr.clone(), conf.admin.port,conf.admin.work_thread.unwrap() as usize);
 
-    meta::start();
+    // meta::start();
 
     metrics::SERVER_METRICS.set_server_status_running();
     rlog::server_info("RobustMQ Server was successfully started");
