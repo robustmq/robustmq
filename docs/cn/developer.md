@@ -26,3 +26,5 @@
         //注意：这里需要填写license文件的本地绝对路径
 		"uriIsLocalFile": true
 	}
+	
+3、新建源码文件后，执行快捷键control + option + H 生成带license的注释文件头
