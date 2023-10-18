@@ -12,3 +12,4 @@ tokio-util = { version = "0.7.9", features = ["codec"] }
 axum="0.6.16"
 
 metrics = { path = "../metrics", version = "0.1.0" }
+rlog = { path = "../rlog", version = "0.1.0" }
