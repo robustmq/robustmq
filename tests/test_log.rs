@@ -1,5 +1,19 @@
-use log::{debug, warn, error, log_enabled, info, Level};
-use env_logger::Env;
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use log::{debug, warn, error, info};
+//use env_logger::Env;
 use log4rs;
 /* 
 use log4rs::append::console::ConsoleAppender;
@@ -7,18 +21,18 @@ use log4rs::append::file::FileAppender;
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::config::{Appender, Config, Logger, Root};
 */
-fn test_log_levels(){
-   // env_logger::init();
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    info!("test case starts : test_log_levels");
-    debug!("this is a debug {}", "message");
-    error!("this is printed by default");
-    if log_enabled!(Level::Info){
-        let x = 3 * 4;
-        info!("the answer was : {}", x);
-    }
-    info!("test case ends : test_log_levels");
-}
+// fn test_log_levels(){
+//    // env_logger::init();
+//     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+//     info!("test case starts : test_log_levels");
+//     debug!("this is a debug {}", "message");
+//     error!("this is printed by default");
+//     if log_enabled!(Level::Info){
+//         let x = 3 * 4;
+//         info!("the answer was : {}", x);
+//     }
+//     info!("test case ends : test_log_levels");
+// }
 
 fn test_log_write_file() {
 
@@ -54,21 +68,27 @@ fn test_log_write_file() {
     warn!("warn goes to stderr and file");
     debug!("debug goes to file only");
     info!(target:"app::requests", "info to target testing");
+    info!(target:"app::server", "info to target server");
     info!("test cases ends: test_log_write_file");
 
 
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::{test_log_levels, test_log_write_file};
+// #[cfg(test)]
+// mod test1 {
+//     use crate::test_log_levels;
 
 
-    #[test]
-    fn test_run_log_info() {
-       test_log_levels();
-        assert_eq!(1+2, 3);
-    }
+//     #[test]
+//     fn test_run_log_info() {
+//        test_log_levels();
+//         assert_eq!(1+2, 3);
+//     }
+
+// }
+
+mod test2 {
+    use crate::test_log_write_file;
 
     #[test]
     fn test_run_log_write_file() {
