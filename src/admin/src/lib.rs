@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{net::SocketAddr, str::FromStr, thread::{self, JoinHandle}};
-use rlog;
 use axum::{routing::get, Router};
+use rlog;
+use std::{net::SocketAddr, str::FromStr};
+use tokio::runtime::Runtime;
 
 const ROUTE_ROOT: &str = "/";
 const ROUTE_METRICS: &str = "/metrics";
@@ -22,30 +23,33 @@ const ROUTE_METRICS: &str = "/metrics";
 mod prometheus;
 mod welcome;
 
-pub fn start(addr: String, port: Option<u16>, worker_threads: usize) -> JoinHandle<()>{
-    let handle = thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .worker_threads(worker_threads)
-            .max_blocking_threads(2048)
-            .thread_name("admin-http")
-            .enable_io()
-            .build()
+pub fn start(addr: String, port: Option<u16>, worker_threads: usize) -> Runtime {
+    let runtime: Runtime = tokio::runtime::Builder::new_current_thread()
+        .worker_threads(worker_threads)
+        .max_blocking_threads(2048)
+        .thread_name("admin-http")
+        .enable_io()
+        .build()
+        .unwrap();
+    let _guard = runtime.enter();
+
+    runtime.block_on(async move {
+        let app = Router::new()
+            .route(ROUTE_METRICS, get(prometheus::handler))
+            .route(ROUTE_ROOT, get(welcome::handler));
+
+        let ip = format!("{}:{}", addr, port.unwrap());
+        let ip_addr = SocketAddr::from_str(&ip).unwrap();
+
+        rlog::info(&format!("http server start success. bind:{}", ip));
+
+        axum::Server::bind(&ip_addr)
+            .serve(app.into_make_service())
+            .await
             .unwrap();
-
-        runtime.block_on(async {
-            let app = Router::new()
-                .route(ROUTE_METRICS, get(prometheus::handler))
-                .route(ROUTE_ROOT, get(welcome::handler));
-
-            let ip = SocketAddr::from_str(&format!("{}:{}", addr, port.unwrap())).unwrap();
-            rlog::info(&format!("http server start success. bind:{}",ip.to_string()));
-            axum::Server::bind(&ip)
-                .serve(app.into_make_service())
-                .await
-                .unwrap();
-        });
     });
-   return handle;
+
+    return runtime;
 }
 
 #[cfg(test)]

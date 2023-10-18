@@ -16,8 +16,7 @@ use admin;
 use config;
 use metrics;
 use rlog;
-use meta;
-use std::env;
+use std::{env, time::Duration};
 
 struct ArgsParams {
     config_path: String,
@@ -29,14 +28,14 @@ fn main() {
     let args = parse_args();
     let conf: config::RobustServerConfig = config::new(&args.config_path);
 
-    let admin_handle = admin::start(conf.addr.clone(), conf.admin.port,conf.admin.work_thread.unwrap() as usize);
+    let admin_rumtime = admin::start(conf.addr.clone(), conf.admin.port,conf.admin.work_thread.unwrap() as usize);
 
     // meta::start();
 
     metrics::SERVER_METRICS.set_server_status_running();
     rlog::server_info("RobustMQ Server was successfully started");
-
-    admin_handle.join().unwrap();
+    
+    admin_rumtime.shutdown_timeout(Duration::from_secs(30))
 }
 
 fn parse_args() -> ArgsParams {
@@ -51,3 +50,4 @@ fn parse_args() -> ArgsParams {
         config_path: config_path.to_string(),
     };
 }
+
