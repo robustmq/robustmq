@@ -6,3 +6,7 @@ build
 .DS_Store
 log/server.log
 src/rlog/log/server.log
+.idea/.gitignore
+.idea/modules.xml
+.idea/robustmq.iml
+.idea/vcs.xml

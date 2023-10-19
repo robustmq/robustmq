@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use lazy_static::lazy_static;
-use prometheus::{IntGauge, Registry, Encoder};
+use prometheus::{Encoder, IntGauge, Registry};
 use std::collections::HashMap;
+use std::fmt;
 
 lazy_static! {
     static ref SERVER_STATUS: IntGauge = IntGauge::new("server_status", "generic counter").unwrap();
@@ -26,8 +27,15 @@ pub struct ServerMetrics {
     pub registry: Registry,
 }
 
-impl ServerMetrics {
+impl fmt::Debug for ServerMetrics{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point")
+         .field("x", &String::from("value"))
+         .finish()
+    }
+}
 
+impl ServerMetrics {
     pub fn new() -> Self {
         ServerMetrics {
             registry: ServerMetrics::build_registry(),
@@ -40,13 +48,13 @@ impl ServerMetrics {
         Registry::new_custom(Some(String::from(METRICS_SERVER_PRIFIX)), Some(labels)).unwrap()
     }
 
-    pub fn register_metrics(&self) {
+    pub fn init(&self) {
         self.registry
             .register(Box::new(SERVER_STATUS.clone()))
             .unwrap();
     }
 
-    pub fn set_server_status_starting(&self) {
+    pub fn _set_server_status_starting(&self) {
         SERVER_STATUS.set(0);
     }
 
@@ -58,11 +66,10 @@ impl ServerMetrics {
         SERVER_STATUS.set(2);
     }
 
-    pub fn gather(&self) -> String{
+    pub fn gather(&self) -> String {
         let mut buf = Vec::<u8>::new();
         let encoder = prometheus::TextEncoder::new();
         encoder.encode(&self.registry.gather(), &mut buf).unwrap();
         return String::from_utf8(buf.clone()).unwrap();
     }
-
 }

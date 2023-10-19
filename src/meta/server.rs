@@ -12,26 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use server::ServerMetrics;
-use lazy_static::lazy_static;
-mod server;
+pub struct Server {}
 
-lazy_static! {
-    pub static ref SERVER_METRICS:ServerMetrics = server_metrics();
-}
-
-/// Start Metrics Register
-pub fn server_metrics() -> ServerMetrics{
-    let server_metrics: ServerMetrics = ServerMetrics::new();
-    server_metrics.register_metrics();
-    return server_metrics;
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {}
+impl Server {
+    pub fn new() {}
 }
