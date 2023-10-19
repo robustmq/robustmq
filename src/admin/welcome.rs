@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metrics::SERVER_METRICS;
-
-pub async fn handler() -> String {
-    let mtr = SERVER_METRICS.gather();    
-    return mtr;
+pub async fn handler() -> &'static str {
+    "Welcome to RobustMQ"
 }
