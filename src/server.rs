@@ -87,7 +87,8 @@ fn shutdown_hook(admin_runtime: Runtime) {
         let terminate = std::future::pending::<()>();
 
         tokio::select! {
-            c1 = ctrl_c => {
+            _ = ctrl_c => {
+                log::info("Process receives the signal ctrl + c");
                 sx_sender.send(1).unwrap();
             },
             c2 = terminate => {
@@ -102,13 +103,12 @@ fn shutdown_hook(admin_runtime: Runtime) {
             Ok(value) => {
                 println!("{}",value);
                 if value == 3{
+
+                    admin_runtime.shutdown_timeout(Duration::from_secs(1000));
                     break;
                 }
             }
-            Err(err) => {
-                println!("{:?}",err);
-            }
+            Err(_) => {}
         }
     }
-    admin_runtime.shutdown_timeout(Duration::from_secs(1000));
 }
