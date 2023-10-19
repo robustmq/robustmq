@@ -89,7 +89,6 @@ fn shutdown_hook(admin_runtime: Runtime) {
         tokio::select! {
             c1 = ctrl_c => {
                 sx_sender.send(1).unwrap();
-                println!("222{:?}",c1)
             },
             c2 = terminate => {
                 sx_sender.send(1).unwrap();
