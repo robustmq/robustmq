@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metrics::ServerMetrics;
-use std::{env, thread, time::Duration};
-use tokio::{runtime::Runtime, signal};
 use lazy_static::lazy_static;
+use metrics::ServerMetrics;
+use std::{
+    env,
+    sync::mpsc::{self, Receiver, Sender},
+    time::Duration,
+};
+
+use tokio::{runtime::Runtime, signal};
 
 mod admin;
 mod config;
@@ -27,7 +32,7 @@ struct ArgsParams {
 }
 
 lazy_static! {
-    static ref SERVER_METRICS:ServerMetrics = ServerMetrics::new();
+    static ref SERVER_METRICS: ServerMetrics = ServerMetrics::new();
 }
 
 fn main() {
@@ -35,6 +40,7 @@ fn main() {
 
     let args = parse_args();
     let conf: config::RobustConfig = config::new(&args.config_path);
+
     SERVER_METRICS.init();
 
     let admin_server = admin::AdminServer::new(&conf);
@@ -59,34 +65,51 @@ fn parse_args() -> ArgsParams {
     };
 }
 
-async fn _signal_hook() {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        c1 = ctrl_c => {println!("{:?}",c1)},
-        c2 = terminate => {println!("{:?}",c2)},
-    }
-}
-
 fn shutdown_hook(admin_runtime: Runtime) {
+    let (sx_sender, rx_receiver): (Sender<u16>, Receiver<u16>) = mpsc::channel();
+
+    admin_runtime.spawn(async move {
+        let ctrl_c = async {
+            signal::ctrl_c()
+                .await
+                .expect("failed to install Ctrl+C handler");
+        };
+
+        #[cfg(unix)]
+        let terminate = async {
+            signal::unix::signal(signal::unix::SignalKind::terminate())
+                .expect("failed to install signal handler")
+                .recv()
+                .await;
+        };
+
+        #[cfg(not(unix))]
+        let terminate = std::future::pending::<()>();
+
+        tokio::select! {
+            c1 = ctrl_c => {
+                sx_sender.send(1).unwrap();
+                println!("222{:?}",c1)
+            },
+            c2 = terminate => {
+                sx_sender.send(1).unwrap();
+                println!("3333{:?}",c2)
+        },
+        }
+    });
+
     loop {
-        thread::sleep(Duration::from_secs(1000));
-        break;
+        match rx_receiver.recv() {
+            Ok(value) => {
+                println!("{}",value);
+                if value == 3{
+                    break;
+                }
+            }
+            Err(err) => {
+                println!("{:?}",err);
+            }
+        }
     }
     admin_runtime.shutdown_timeout(Duration::from_secs(1000));
 }
