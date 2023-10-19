@@ -12,57 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::config::RobustConfig;
 use crate::log;
-use crate::metrics::ServerMetrics;
 use std::{net::SocketAddr, str::FromStr};
 use tokio::runtime::Runtime;
 
+mod common;
 mod management_api;
-mod prometheus;
 mod route;
-mod welcome;
 
 #[derive(Debug)]
 pub struct AdminServer<'a> {
-    addr: String,
-    port: Option<u16>,
-    worker_threads: usize,
-    server_metrics: &'a ServerMetrics,
-    runtime: Runtime,
+    config: &'a RobustConfig,
 }
 
 impl<'a> AdminServer<'a> {
-    pub fn new(
-        addr: String,
-        port: Option<u16>,
-        worker_threads: usize,
-        server_metrics: &'a ServerMetrics,
-    ) -> Self {
+    pub fn new(config: &'a RobustConfig) -> Self {
+        return AdminServer { config };
+    }
+
+    pub fn start(&self) -> Runtime {
         let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(worker_threads)
+            .worker_threads(self.config.admin.work_thread.unwrap() as usize)
             .max_blocking_threads(2048)
             .thread_name("admin-http")
             .enable_io()
             .build()
             .unwrap();
 
-        return AdminServer {
-            addr,
-            port,
-            worker_threads,
-            server_metrics,
-            runtime,
-        };
-    }
+        let _guard = runtime.enter();
+        let ip = format!("{}:{}", self.config.addr, self.config.admin.port.unwrap());
 
-    pub fn start(&self) {
-        let _guard = self.runtime.enter();
-        let ip = format!("{}:{}", self.addr, self.port.unwrap());
-        
-        self.runtime.spawn(async move {
-            let app = route::router_construct();
-
+        runtime.spawn(async move {
             let ip_addr = SocketAddr::from_str(&ip).unwrap();
+    
+            let app = route::routes();
+    
             log::info(&format!("http server start success. bind:{}", ip));
 
             axum::Server::bind(&ip_addr)
@@ -70,11 +55,12 @@ impl<'a> AdminServer<'a> {
                 .await
                 .unwrap();
         });
+
+        return runtime;
     }
 
-    pub fn stop(&self) {
-        println!("{},{:?}", self.worker_threads, self.server_metrics)
-        // self.runtime.shutdown_timeout(Duration::from_secs(30));
+    fn _print_config(&self) {
+        println!("{}", self.config.addr);
     }
 }
 

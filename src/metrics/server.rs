@@ -62,11 +62,11 @@ impl ServerMetrics {
         SERVER_STATUS.set(1);
     }
 
-    pub fn _set_server_status_stop(&self) {
+    pub fn set_server_status_stop(&self) {
         SERVER_STATUS.set(2);
     }
 
-    pub fn _gather(&self) -> String {
+    pub fn gather(&self) -> String {
         let mut buf = Vec::<u8>::new();
         let encoder = prometheus::TextEncoder::new();
         encoder.encode(&self.registry.gather(), &mut buf).unwrap();

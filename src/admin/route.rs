@@ -1,18 +1,19 @@
-use axum::{routing::get, Router};
+use axum::Router;
+use axum::routing::get;
 use crate::admin::management_api;
-use crate::admin::prometheus;
-use crate::admin::welcome;
+use crate::admin::common;
 
-const ROUTE_ROOT: &str = "/";
-const ROUTE_METRICS: &str = "/metrics";
-const ROUTE_MANAGEMENT_API_OVERVIEW: &str = "/api/overview";
-const ROUTE_MANAGEMENT_API_CLUSTER: &str = "/api/cluster-name";
-const ROUTE_MANAGEMENT_API_NODES: &str = "/api/nodes";
-const ROUTE_MANAGEMENT_API_NODE_NAME: &str = "/api/nodes/name";
+pub const ROUTE_ROOT: &str = "/";
+pub const ROUTE_METRICS: &str = "/metrics";
+pub const ROUTE_MANAGEMENT_API_OVERVIEW: &str = "/api/overview";
+pub const ROUTE_MANAGEMENT_API_CLUSTER: &str = "/api/cluster-name";
+pub const ROUTE_MANAGEMENT_API_NODES: &str = "/api/nodes";
+pub const ROUTE_MANAGEMENT_API_NODE_NAME: &str = "/api/nodes/name";
 
-pub fn router_construct() -> Router {
-    // define Management API routes separately
-    let management_api_routes = Router::new()
+
+pub fn routes() -> Router {
+
+    let management = Router::new()
         .route(
             ROUTE_MANAGEMENT_API_OVERVIEW,
             get(management_api::api_overview_get_handler),
@@ -30,13 +31,13 @@ pub fn router_construct() -> Router {
             get(management_api::api_node_name_handler),
         );
 
-    let other_routes = Router::new()
-        .route(ROUTE_METRICS, get(prometheus::handler))
-        .route(ROUTE_ROOT, get(welcome::handler));
+    let common = Router::new()
+        .route(ROUTE_METRICS, get(common::metrics_handler))
+        .route(ROUTE_ROOT, get(common::welcome_handler));
 
-    let router = Router::new()
-        .merge(management_api_routes)
-        .merge(other_routes);
-    
-    router
+    let app = Router::new()
+        .merge(management)
+        .merge(common);
+
+    return app;
 }

@@ -14,6 +14,8 @@
 
 use metrics::ServerMetrics;
 use std::{env, thread, time::Duration};
+use tokio::{runtime::Runtime, signal};
+use lazy_static::lazy_static;
 
 mod admin;
 mod config;
@@ -24,28 +26,24 @@ struct ArgsParams {
     config_path: String,
 }
 
+lazy_static! {
+    static ref SERVER_METRICS:ServerMetrics = ServerMetrics::new();
+}
+
 fn main() {
     log::new();
 
     let args = parse_args();
     let conf: config::RobustConfig = config::new(&args.config_path);
+    SERVER_METRICS.init();
 
-    let server_metrics: ServerMetrics = ServerMetrics::new();
-    server_metrics.init();
+    let admin_server = admin::AdminServer::new(&conf);
+    let admin_runtime = admin_server.start();
 
-    let admin_server = admin::AdminServer::new(
-        conf.addr.clone(),
-        conf.admin.port,
-        conf.admin.work_thread.unwrap() as usize,
-        &server_metrics,
-    );
-    admin_server.start();
-
-    server_metrics.set_server_status_running();
+    SERVER_METRICS.set_server_status_running();
     log::server_info("RobustMQ Server was successfully started");
 
-    shutdown_hook();
-    admin_server.stop();
+    shutdown_hook(admin_runtime);
 }
 
 fn parse_args() -> ArgsParams {
@@ -61,8 +59,34 @@ fn parse_args() -> ArgsParams {
     };
 }
 
-fn shutdown_hook() {
-    loop {
-        thread::sleep(Duration::from_secs(10));
+async fn _signal_hook() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        c1 = ctrl_c => {println!("{:?}",c1)},
+        c2 = terminate => {println!("{:?}",c2)},
     }
+}
+
+fn shutdown_hook(admin_runtime: Runtime) {
+    loop {
+        thread::sleep(Duration::from_secs(1000));
+        break;
+    }
+    admin_runtime.shutdown_timeout(Duration::from_secs(1000));
 }
