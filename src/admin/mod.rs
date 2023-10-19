@@ -38,7 +38,7 @@ impl<'a> AdminServer<'a> {
         worker_threads: usize,
         server_metrics: &'a ServerMetrics,
     ) -> Self {
-        let runtime: Runtime = tokio::runtime::Builder::new_current_thread()
+        let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(worker_threads)
             .max_blocking_threads(2048)
             .thread_name("admin-http")
