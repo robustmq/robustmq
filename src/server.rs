@@ -12,30 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use admin;
-use config;
-use metrics;
-use rlog;
-use std::{env, time::Duration};
+use metrics::ServerMetrics;
+use std::{env, thread, time::Duration};
+
+mod admin;
+mod config;
+mod log;
+mod metrics;
 
 struct ArgsParams {
     config_path: String,
 }
 
 fn main() {
-    rlog::new();
+    log::new();
 
     let args = parse_args();
-    let conf: config::RobustServerConfig = config::new(&args.config_path);
+    let conf: config::RobustConfig = config::new(&args.config_path);
 
-    let admin_rumtime = admin::start(conf.addr.clone(), conf.admin.port,conf.admin.work_thread.unwrap() as usize);
+    let server_metrics: ServerMetrics = ServerMetrics::new();
+    server_metrics.init();
 
-    // meta::start();
+    let admin_server = admin::AdminServer::new(
+        conf.addr.clone(),
+        conf.admin.port,
+        conf.admin.work_thread.unwrap() as usize,
+        &server_metrics,
+    );
+    admin_server.start();
 
-    metrics::SERVER_METRICS.set_server_status_running();
-    rlog::server_info("RobustMQ Server was successfully started");
-    
-    admin_rumtime.shutdown_timeout(Duration::from_secs(30))
+    server_metrics.set_server_status_running();
+    log::server_info("RobustMQ Server was successfully started");
+
+    shutdown_hook();
+    admin_server.stop();
 }
 
 fn parse_args() -> ArgsParams {
@@ -51,3 +61,8 @@ fn parse_args() -> ArgsParams {
     };
 }
 
+fn shutdown_hook() {
+    loop {
+        thread::sleep(Duration::from_secs(10));
+    }
+}

@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use metrics::SERVER_METRICS;
+pub async fn handler() -> String { 
 
-pub async fn handler() -> String {
-    let mtr = SERVER_METRICS.gather();    
-    return mtr;
+    return String::from("value");
 }

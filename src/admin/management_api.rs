@@ -7,10 +7,6 @@ pub async fn api_cluster_get_handler() -> &'static str {
     "cluster name: cluster_production"
 }
 
-pub async fn api_cluster_post_handler() -> &'static str {
-    "cluster name: production_cluster updated"
-}
-
 pub async fn api_nodes_handler() -> &'static str {
     "cluster nodes: node 1, node 2, node 3"
 }
