@@ -4,7 +4,7 @@ build
 .vscode
 ./log
 .DS_Store
-log/server.log
+log/*
 src/rlog/log/server.log
 .idea/.gitignore
 .idea/modules.xml
