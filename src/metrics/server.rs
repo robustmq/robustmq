@@ -15,6 +15,7 @@
 use lazy_static::lazy_static;
 use prometheus::{Encoder, IntGauge, Registry};
 use std::collections::HashMap;
+use std::fmt;
 
 lazy_static! {
     static ref SERVER_STATUS: IntGauge = IntGauge::new("server_status", "generic counter").unwrap();
@@ -24,6 +25,14 @@ const METRICS_SERVER_PRIFIX: &str = "robustmq_server";
 
 pub struct ServerMetrics {
     pub registry: Registry,
+}
+
+impl fmt::Debug for ServerMetrics{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Point")
+         .field("x", &String::from("value"))
+         .finish()
+    }
 }
 
 impl ServerMetrics {

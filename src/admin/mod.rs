@@ -12,49 +12,75 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::log;
+use crate::metrics::ServerMetrics;
 use std::{net::SocketAddr, str::FromStr};
 use tokio::runtime::Runtime;
-use crate::log;
 
 mod management_api;
 mod prometheus;
-mod welcome;
 mod route;
+mod welcome;
 
-pub fn start(addr: String, port: Option<u16>, worker_threads: usize) -> Runtime {
-    let runtime: Runtime = tokio::runtime::Builder::new_current_thread()
-        .worker_threads(worker_threads)
-        .max_blocking_threads(2048)
-        .thread_name("admin-http")
-        .enable_io()
-        .build()
-        .unwrap();
-    
-    let _guard = runtime.enter();
+#[derive(Debug)]
+pub struct AdminServer<'a> {
+    addr: String,
+    port: Option<u16>,
+    worker_threads: usize,
+    server_metrics: &'a ServerMetrics,
+    runtime: Runtime,
+}
 
-    runtime.spawn(async move {
-        let app = route::router_construct();
-
-        let ip = format!("{}:{}", addr, port.unwrap());
-        let ip_addr = SocketAddr::from_str(&ip).unwrap();
-
-        log::info(&format!("http server start success. bind:{}", ip));
-
-        axum::Server::bind(&ip_addr)
-            .serve(app.into_make_service())
-            .await
+impl<'a> AdminServer<'a> {
+    pub fn new(
+        addr: String,
+        port: Option<u16>,
+        worker_threads: usize,
+        server_metrics: &'a ServerMetrics,
+    ) -> Self {
+        let runtime: Runtime = tokio::runtime::Builder::new_current_thread()
+            .worker_threads(worker_threads)
+            .max_blocking_threads(2048)
+            .thread_name("admin-http")
+            .enable_io()
+            .build()
             .unwrap();
-    });
 
-    return runtime;
+        return AdminServer {
+            addr,
+            port,
+            worker_threads,
+            server_metrics,
+            runtime,
+        };
+    }
+
+    pub fn start(&self) {
+        let _guard = self.runtime.enter();
+        let ip = format!("{}:{}", self.addr, self.port.unwrap());
+        
+        self.runtime.spawn(async move {
+            let app = route::router_construct();
+
+            let ip_addr = SocketAddr::from_str(&ip).unwrap();
+            log::info(&format!("http server start success. bind:{}", ip));
+
+            axum::Server::bind(&ip_addr)
+                .serve(app.into_make_service())
+                .await
+                .unwrap();
+        });
+    }
+
+    pub fn stop(&self) {
+        println!("{},{:?}", self.worker_threads, self.server_metrics)
+        // self.runtime.shutdown_timeout(Duration::from_secs(30));
+    }
 }
 
 #[cfg(test)]
 mod tests {
 
     #[test]
-    fn it_works() {
-       
-    }
+    fn it_works() {}
 }

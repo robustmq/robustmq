@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{env, time::Duration, thread};
 use metrics::ServerMetrics;
+use std::{env, thread, time::Duration};
 
-
-mod metrics;
-mod log;
-mod config;
 mod admin;
-
+mod config;
+mod log;
+mod metrics;
 
 struct ArgsParams {
     config_path: String,
@@ -35,18 +33,19 @@ fn main() {
     let server_metrics: ServerMetrics = ServerMetrics::new();
     server_metrics.init();
 
-    let admin_rumtime = admin::start(
+    let admin_server = admin::AdminServer::new(
         conf.addr.clone(),
         conf.admin.port,
         conf.admin.work_thread.unwrap() as usize,
+        &server_metrics,
     );
-
+    admin_server.start();
 
     server_metrics.set_server_status_running();
     log::server_info("RobustMQ Server was successfully started");
-    
+
     shutdown_hook();
-    admin_rumtime.shutdown_timeout(Duration::from_secs(30))
+    admin_server.stop();
 }
 
 fn parse_args() -> ArgsParams {
@@ -62,7 +61,7 @@ fn parse_args() -> ArgsParams {
     };
 }
 
-fn shutdown_hook(){
+fn shutdown_hook() {
     loop {
         thread::sleep(Duration::from_secs(10));
     }

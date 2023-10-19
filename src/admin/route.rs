@@ -37,5 +37,6 @@ pub fn router_construct() -> Router {
     let router = Router::new()
         .merge(management_api_routes)
         .merge(other_routes);
+    
     router
 }
