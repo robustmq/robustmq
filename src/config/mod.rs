@@ -30,6 +30,7 @@ pub struct RobustConfig {
 #[derive(Debug, Deserialize)]
 pub struct Broker {
     pub port: Option<u16>,
+    pub work_thread: Option<u16>,
 }
 
 #[derive(Debug, Deserialize)]
