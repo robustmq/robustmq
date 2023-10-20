@@ -858,6 +858,7 @@ name = "robustmq"
 version = "0.0.1"
 dependencies = [
  "axum",
+ "bytes",
  "env_logger",
  "futures",
  "lazy_static",

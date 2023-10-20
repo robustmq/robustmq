@@ -25,6 +25,7 @@ use tokio::{runtime::Runtime, signal};
 mod admin;
 mod config;
 mod log;
+mod meta;
 mod metrics;
 
 struct ArgsParams {
@@ -46,10 +47,13 @@ fn main() {
     let admin_server = admin::AdminServer::new(&conf);
     let admin_runtime = admin_server.start();
 
+    let meta_server = meta::MetaServer::new(&conf);
+    let meta_runtime = meta_server.start();
+
     SERVER_METRICS.set_server_status_running();
     log::server_info("RobustMQ Server was successfully started");
 
-    shutdown_hook(admin_runtime);
+    shutdown_hook(admin_runtime, meta_runtime);
 }
 
 fn parse_args() -> ArgsParams {
@@ -65,7 +69,7 @@ fn parse_args() -> ArgsParams {
     };
 }
 
-fn shutdown_hook(admin_runtime: Runtime) {
+fn shutdown_hook(admin_runtime: Runtime, meta_runtime: Runtime) {
     let (sx_sender, rx_receiver): (Sender<u16>, Receiver<u16>) = mpsc::channel();
 
     admin_runtime.spawn(async move {
@@ -101,10 +105,10 @@ fn shutdown_hook(admin_runtime: Runtime) {
     loop {
         match rx_receiver.recv() {
             Ok(value) => {
-                println!("{}",value);
-                if value == 3{
-
+                println!("{}", value);
+                if value == 3 {
                     admin_runtime.shutdown_timeout(Duration::from_secs(1000));
+                    meta_runtime.shutdown_timeout(Duration::from_secs(1000));
                     break;
                 }
             }
