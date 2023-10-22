@@ -27,6 +27,7 @@ mod config;
 mod log;
 mod meta;
 mod metrics;
+mod broker;
 
 struct ArgsParams {
     config_path: String,

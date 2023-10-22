@@ -20,20 +20,20 @@ use toml;
 
 pub const DEFAULT_SERVER_CONFIG: &str = "config/server.toml";
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize,Default)]
 pub struct RobustConfig {
     pub addr: String,
     pub broker: Broker,
     pub admin: Admin,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize,Default)]
 pub struct Broker {
     pub port: Option<u16>,
     pub work_thread: Option<u16>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize,Default)]
 pub struct Admin {
     pub port: Option<u16>,
     pub work_thread: Option<u16>,
