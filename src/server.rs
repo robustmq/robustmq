@@ -12,24 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use config::{server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG, meta::MetaConfig};
 use lazy_static::lazy_static;
 use metrics::ServerMetrics;
 use std::{
-    env,
     sync::mpsc::{self, Receiver, Sender},
     time::Duration,
 };
-
+use clap::Parser;
+use clap::command;
 use tokio::{runtime::Runtime, signal};
 
 mod admin;
+mod broker;
 mod config;
 mod log;
 mod meta;
 mod metrics;
 
+#[derive(Parser, Debug)]
+#[command(author="robustmq", version="1.1", about="RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
+#[command(next_line_help = true)]
 struct ArgsParams {
-    config_path: String,
+    /// broker server configuration file path
+    #[arg(short, long, default_value_t=String::from(DEFAULT_SERVER_CONFIG))]
+    server_conf: String,
+
+    /// MetaService Indicates the path of the configuration file
+    #[arg(short, long, default_value_t=String::from(DEFAULT_META_CONFIG))]
+    meta_conf: String,
 }
 
 lazy_static! {
@@ -37,36 +48,34 @@ lazy_static! {
 }
 
 fn main() {
+    let args = ArgsParams::parse();
     log::new();
 
-    let args = parse_args();
-    let conf: config::RobustConfig = config::new(&args.config_path);
+    let server_conf: RobustConfig = config::parse_server(&args.server_conf);
+    let meta_conf: MetaConfig = config::parse_meta(&args.meta_conf);
 
     SERVER_METRICS.init();
 
-    let admin_server = admin::AdminServer::new(&conf);
+    let admin_server = admin::AdminServer::new(&server_conf);
     let admin_runtime = admin_server.start();
 
-    let meta_server = meta::MetaServer::new(&conf);
-    let meta_runtime = meta_server.start();
+    let meta_runtime = start_meta(&meta_conf);
 
+    start_broker(&server_conf);
     SERVER_METRICS.set_server_status_running();
     log::server_info("RobustMQ Server was successfully started");
 
     shutdown_hook(admin_runtime, meta_runtime);
 }
 
-fn parse_args() -> ArgsParams {
-    let args: Vec<String> = env::args().collect();
-    let mut config_path = config::DEFAULT_SERVER_CONFIG;
+fn start_meta(conf: &MetaConfig) -> Runtime {
+    let meta_server = meta::MetaServer::new(&conf);
+    let meta_runtime = meta_server.start();
+    return meta_runtime;
+}
 
-    if args.len() > 1 {
-        config_path = &args[1];
-    }
-
-    return ArgsParams {
-        config_path: config_path.to_string(),
-    };
+fn start_broker(_: &RobustConfig){
+    
 }
 
 fn shutdown_hook(admin_runtime: Runtime, meta_runtime: Runtime) {
