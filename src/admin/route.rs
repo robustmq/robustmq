@@ -5,18 +5,19 @@ use crate::admin::common;
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_METRICS: &str = "/metrics";
-pub const ROUTE_MANAGEMENT_API_OVERVIEW: &str = "/api/overview";
+// pub const ROUTE_MANAGEMENT_API_OVERVIEW: &str = "/api/overview";
 pub const ROUTE_MANAGEMENT_API_CLUSTER: &str = "/api/cluster-name";
 pub const ROUTE_MANAGEMENT_API_NODES: &str = "/api/nodes";
-pub const ROUTE_MANAGEMENT_API_NODE_NAME: &str = "/api/nodes/name";
+pub const ROUTE_MANAGEMENT_API_NODE_NAME: &str = "/api/nodes/:node_id";
+pub const ROUTE_MANAGEMENT_API_NAME: &str = "/api/:name";
 
 
 pub fn routes() -> Router {
 
     let management = Router::new()
         .route(
-            ROUTE_MANAGEMENT_API_OVERVIEW,
-            get(management_api::api_overview_get_handler),
+            ROUTE_MANAGEMENT_API_NAME,
+            get(management_api::api_get_handler),
         )
         .route(
             ROUTE_MANAGEMENT_API_CLUSTER,

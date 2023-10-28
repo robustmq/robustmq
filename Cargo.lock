@@ -1343,6 +1343,7 @@ dependencies = [
  "serde_json",
  "signal-hook",
  "tokio 1.33.0",
+ "thiserror",
  "tokio-util",
  "toml",
 ]
