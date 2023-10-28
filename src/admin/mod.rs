@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::RobustConfig;
+use crate::config::server::RobustConfig;
 use crate::log;
 use std::{net::SocketAddr, str::FromStr};
 use tokio::runtime::Runtime;

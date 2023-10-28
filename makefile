@@ -19,5 +19,4 @@ release:
 
 clean:
 	cargo clean
-	cd src/cmd && cargo clean && cd ../../
 	rm -rf build

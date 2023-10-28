@@ -31,11 +31,26 @@ It is designed with flexible architecture with different plugins to support diff
 It is expected that its system architecture is only composed of brokers, and the cluster is formed by AD hoc networking between brokers. That is, at least one of them can be used to build a cluster, and it also has the ability to expand the cluster horizontally. To reduce deployment and O&M costs. So that it can meet the edge computing scenarios and cloud computing central cluster scenarios.
 
 ### Get Start
-Start RobustMQ from source code, in standalone mode:
+- Cargo run starts the service and displays help information:
 ```
-cargo run -- standalone start
-```
+# cargo run -- --help
+RobustMQ: Next generation cloud-native converged high-performance message queue.
 
+Usage: robustmq-server [OPTIONS]
+
+Options:
+  -s, --server-conf <SERVER_CONF>
+          broker server configuration file path [default: config/server.toml]
+  -m, --meta-conf <META_CONF>
+          MetaService Indicates the path of the configuration file [default: config/meta.toml]
+  -h, --help
+          Print help
+  -V, --version
+```
+- Cargo run starts the service:
+```
+cargo run
+```
 
 ## Architecture
 ![Architecture Image](docs/robustmq-architecture.png)

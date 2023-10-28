@@ -13,44 +13,21 @@
 // limitations under the License.
 
 use crate::log;
-use serde::Deserialize;
+use server::RobustConfig;
 use std::fs;
 use std::path;
 use toml;
+use self::meta::MetaConfig;
+
+pub mod meta;
+pub mod server;
 
 pub const DEFAULT_SERVER_CONFIG: &str = "config/server.toml";
+pub const DEFAULT_META_CONFIG: &str = "config/meta.toml";
 
-#[derive(Debug, Deserialize,Default)]
-pub struct RobustConfig {
-    pub addr: String,
-    pub broker: Broker,
-    pub admin: Admin,
-}
-
-#[derive(Debug, Deserialize,Default)]
-pub struct Broker {
-    pub port: Option<u16>,
-    pub work_thread: Option<u16>,
-}
-
-#[derive(Debug, Deserialize,Default)]
-pub struct Admin {
-    pub port: Option<u16>,
-    pub work_thread: Option<u16>,
-}
-
-
-pub fn new(config_path: &String) -> RobustConfig {
-    log::info(&format!("Configuration file path:{}.", config_path));
-
-    if !path::Path::new(config_path).exists() {
-        panic!("The configuration file does not exist.");
-    }
-
-    let content: String = fs::read_to_string(&config_path).expect(&format!(
-        "Failed to read the configuration file. File path:{}.",
-        config_path
-    ));
+/// Parsing reads the RobustMQ Server configuration
+pub fn parse_server(config_path: &String) -> RobustConfig {
+    let content = read_file(config_path);
 
     log::info(&format!(
         "server config content:\n============================\n{}\n============================\n",
@@ -61,10 +38,35 @@ pub fn new(config_path: &String) -> RobustConfig {
     return server_config;
 }
 
+/// Parsing reads the MetaService configuration
+pub fn parse_meta(config_path: &String) -> MetaConfig {
+    let content = read_file(config_path);
+
+    log::info(&format!(
+        "server config content:\n============================\n{}\n============================\n",
+        content
+    ));
+
+    let meta_config: MetaConfig = toml::from_str(&content).unwrap();
+    return meta_config;
+}
+
+fn read_file(config_path: &String) -> String {
+    log::info(&format!("Configuration file path:{}.", config_path));
+
+    if !path::Path::new(config_path).exists() {
+        panic!("The configuration file does not exist.");
+    }
+
+    let content: String = fs::read_to_string(&config_path).expect(&format!(
+        "Failed to read the configuration file. File path:{}.",
+        config_path
+    ));
+    return content;
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
-    fn it_works() {
-        
-    }
+    fn it_works() {}
 }

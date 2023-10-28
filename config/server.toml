@@ -7,3 +7,7 @@ work_thread = 3
 [admin]
 port = 1227
 work_thread = 3
+
+[meta]
+port = 1228
+dataFold = "/data/robustmq/meta"
