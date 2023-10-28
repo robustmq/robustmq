@@ -20,6 +20,7 @@ use tokio::runtime::Runtime;
 mod common;
 mod management_api;
 mod route;
+mod error;
 
 #[derive(Debug)]
 pub struct AdminServer<'a> {
