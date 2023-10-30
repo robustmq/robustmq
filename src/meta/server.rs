@@ -35,7 +35,7 @@ impl<'a> GrpcServer<'a> {
         };
     }
 
-    pub fn start(&self) -> Runtime{
+    pub fn start(&self) -> Runtime {
         let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
             // .worker_threads(self.config.work_thread.unwrap() as usize)
             .max_blocking_threads(2048)
@@ -49,15 +49,18 @@ impl<'a> GrpcServer<'a> {
             "{}:{}",
             self.meta_config.addr,
             self.meta_config.port.unwrap()
-        ).parse().unwrap();
+        )
+        .parse()
+        .unwrap();
 
-        log::info(&format!("GreeterServer listening on {}", &ip));
-        runtime.spawn(async move{
+        log::info(&format!("MetaSerice listening on {}", &ip));
+        runtime.spawn(async move {
             let meta_service_handle = MetaServiceHandler::default();
             Server::builder()
                 .add_service(MetaServiceServer::new(meta_service_handle))
                 .serve(ip)
-                .await.unwrap();
+                .await
+                .unwrap();
         });
         return runtime;
     }
@@ -65,7 +68,12 @@ impl<'a> GrpcServer<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::{thread, time::Duration};
+
+    use tokio::runtime::Runtime;
     use tonic_build;
+
+    use crate::meta::proto::meta::{meta_service_client::MetaServiceClient, HelloRequest};
     #[test]
     fn create_rust_pb() {
         tonic_build::configure()
@@ -76,5 +84,36 @@ mod tests {
                 &["src/meta/proto/"], // specify the root location to search proto dependencies
             )
             .unwrap();
+    }
+
+    #[test]
+    fn grpc_client() {
+        let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
+            // .worker_threads(self.config.work_thread.unwrap() as usize)
+            .max_blocking_threads(2048)
+            .thread_name("meta-http")
+            .enable_io()
+            .build()
+            .unwrap();
+
+        let _gurad = runtime.enter();
+
+        runtime.spawn(async move {
+            let mut client = MetaServiceClient::connect("http://127.0.0.1:1228")
+                .await
+                .unwrap();
+
+            let request = tonic::Request::new(HelloRequest {
+                name: "lobo11".into(),
+            });
+
+            let response = client.say_hello(request).await.unwrap();
+
+            println!("response={:?}", response);
+        });
+
+        loop {
+            thread::sleep(Duration::from_secs(300));
+        }
     }
 }
