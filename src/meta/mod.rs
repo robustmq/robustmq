@@ -11,63 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+use server::GrpcServer;
+use tokio::runtime::Runtime;
 use crate::config::meta::MetaConfig;
-use crate::log;
-use bytes::Bytes;
-use futures::{SinkExt, StreamExt};
-use tokio::{net::TcpListener, runtime::Runtime};
-use tokio_util::codec::{Framed, LengthDelimitedCodec};
-
-use self::storage::RocksDBStorage;
-
 mod server;
-mod storage;
+mod proto;
 
-pub struct MetaServer<'a> {
-    config: &'a MetaConfig,
-}
-
-impl<'a> MetaServer<'a> {
-    pub fn new(config: &'a MetaConfig) -> Self {
-        return MetaServer { config };
-    }
-
-    pub fn start(&self) -> Runtime {
-        let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
-            // .worker_threads(self.config.work_thread.unwrap() as usize)
-            .max_blocking_threads(2048)
-            .thread_name("meta-http")
-            .enable_io()
-            .build()
-            .unwrap();
-
-        let _gurad = runtime.enter();
-        let ip = format!("{}:{}", self.config.addr, self.config.port.unwrap());
-
-        runtime.spawn(async {
-            log::info(&format!("http server start success. bind:{}", ip));
-            let listener = TcpListener::bind(ip).await.unwrap();
-            loop {
-                let (stream, _) = listener.accept().await.unwrap();
-                let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
-                tokio::spawn(async move {
-                    while let Some(Ok(data)) = stream.next().await {
-                        println!("Got: {:?}", String::from_utf8_lossy(&data));
-
-                        // 发送的消息也只需要发送消息主体，不需要提供长度
-                        // Framed/LengthDelimitedCodec 会自动计算并添加
-                        //    let response = &data[0..5];
-                        stream.send(Bytes::from(data)).await.unwrap();
-                    }
-                });
-            }
-        });
-        return runtime;
-    }
-
-    fn _test(conf: &MetaConfig){
-        let rs = RocksDBStorage::new(conf);
-        rs.cf_meta();
-    }
+pub fn start(config:&MetaConfig) -> Runtime{
+    let server = GrpcServer::new(config);
+    return server.start();
 }

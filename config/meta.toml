@@ -1,5 +1,6 @@
+addr = "127.0.0.1"
 port = 1228
-dataFold = "/data/robustmq/meta"
+data_path = "/data/robustmq/meta"
 
 [rocksdb]
 max_open_files = 10000
