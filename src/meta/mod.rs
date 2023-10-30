@@ -12,28 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::RobustConfig;
+use crate::config::meta::MetaConfig;
 use crate::log;
 use bytes::Bytes;
 use futures::{SinkExt, StreamExt};
 use tokio::{net::TcpListener, runtime::Runtime};
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
-mod server;
+use self::storage::RocksDBStorage;
 
+mod server;
+mod storage;
 
 pub struct MetaServer<'a> {
-    config: &'a RobustConfig,
+    config: &'a MetaConfig,
 }
 
 impl<'a> MetaServer<'a> {
-    pub fn new(config: &'a RobustConfig) -> Self {
+    pub fn new(config: &'a MetaConfig) -> Self {
         return MetaServer { config };
     }
 
     pub fn start(&self) -> Runtime {
         let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(self.config.broker.work_thread.unwrap() as usize)
+            // .worker_threads(self.config.work_thread.unwrap() as usize)
             .max_blocking_threads(2048)
             .thread_name("meta-http")
             .enable_io()
@@ -41,7 +43,7 @@ impl<'a> MetaServer<'a> {
             .unwrap();
 
         let _gurad = runtime.enter();
-        let ip = format!("{}:{}", self.config.addr, self.config.broker.port.unwrap());
+        let ip = format!("{}:{}", self.config.addr, self.config.port.unwrap());
 
         runtime.spawn(async {
             log::info(&format!("http server start success. bind:{}", ip));
@@ -62,5 +64,10 @@ impl<'a> MetaServer<'a> {
             }
         });
         return runtime;
+    }
+
+    fn _test(conf: &MetaConfig){
+        let rs = RocksDBStorage::new(conf);
+        rs.cf_meta();
     }
 }

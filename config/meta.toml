@@ -1,0 +1,5 @@
+port = 1228
+dataFold = "/data/robustmq/meta"
+
+[rocksdb]
+max_open_files = 10000
