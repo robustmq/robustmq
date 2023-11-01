@@ -1,3 +1,5 @@
+use raft::Storage as RaftStorage;
+
 struct RaftRocksDBStorage{
 
 }
@@ -10,7 +12,10 @@ impl RaftRocksDBStorage{
     }
 }
 
-impl Storate for RaftRocksDBStorage{
+impl RaftStorage for RaftRocksDBStorage{
+    fn initial_state(&self) -> raft::Result<raft::RaftState> {
+        
+    }
 
 }
 
