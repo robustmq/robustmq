@@ -85,6 +85,7 @@ mod tests {
             )
             .unwrap();
     }
+    
 
     #[test]
     fn grpc_client() {
