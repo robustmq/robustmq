@@ -16,6 +16,8 @@ use tokio::runtime::Runtime;
 use crate::config::meta::MetaConfig;
 mod server;
 mod proto;
+mod storage;
+mod errors;
 
 pub fn start(config:&MetaConfig) -> Runtime{
     let server = GrpcServer::new(config);

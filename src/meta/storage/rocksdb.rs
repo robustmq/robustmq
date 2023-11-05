@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::config::meta::MetaConfig;
-use axum::Error;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
