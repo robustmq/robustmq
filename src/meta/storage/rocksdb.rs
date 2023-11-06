@@ -87,6 +87,13 @@ impl RocksDBStorage {
         }
     }
 
+    pub fn delete(&self, cf: &ColumnFamily,key:&str)-> Result<(), String>{
+        match self.db.delete_cf(cf, key){
+            Ok(_) =>Ok(()),
+            Err(err) => Err(format!("Failed to delete from ColumnFamily: {:?}", err)),
+        }
+    }
+
     pub fn cf_meta(&self) -> &ColumnFamily {
         return self.db.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
     }
@@ -136,7 +143,7 @@ mod tests {
     fn init_family() {
         let config = MetaConfig::default();
         let rs = RocksDBStorage::new(&config);
-        let key = "name";
+        let key = "name2";
         let res1 = rs.read::<User>(rs.cf_meta(), key);
         assert!(res1.unwrap().is_none());
 
@@ -145,6 +152,12 @@ mod tests {
         assert!(res4.is_ok());
 
         let res5 = rs.read::<User>(rs.cf_meta(), key);
-        assert!(res5.unwrap().unwrap() == user);
+        let res5_rs = res5.unwrap().unwrap();
+        assert!(res5_rs.name == user.name);
+        assert!(res5_rs.age == user.age);
+
+        let res6 = rs.delete(rs.cf_meta(), key);
+        assert!(res6.is_ok())
+
     }
 }

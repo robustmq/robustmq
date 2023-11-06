@@ -19,15 +19,18 @@ prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 lazy_static = "^1.4"
 futures = "0.3"
-serde_json = "1"
 thiserror = "1" #错误定义和处理
-bytes = "1"
-grpc = "~0.8"
+bytes = { version = "1", features = ["serde"] }
 protobuf = "2.23"
 rocksdb = "0.21.0"
 clap = {version="4.4.7",features = [ "derive" ]}
 serde_json = "1.0"
-
+tonic = "0.10.2"
+prost = "0.12"
+prost-types = "0.12"
+prost-build = { version = "0.12" }
+tonic-build = "0.10.2"
+raft = { version = "0.7.0" }
 
 [[bin]]
 name = "robustmq-server"

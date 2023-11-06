@@ -59,19 +59,13 @@ fn main() {
     let admin_server = admin::AdminServer::new(&server_conf);
     let admin_runtime = admin_server.start();
 
-    let meta_runtime = start_meta(&meta_conf);
+    let meta_runtime = meta::start(&meta_conf);
 
     start_broker(&server_conf);
     SERVER_METRICS.set_server_status_running();
     log::server_info("RobustMQ Server was successfully started");
 
     shutdown_hook(admin_runtime, meta_runtime);
-}
-
-fn start_meta(conf: &MetaConfig) -> Runtime {
-    let meta_server = meta::MetaServer::new(&conf);
-    let meta_runtime = meta_server.start();
-    return meta_runtime;
 }
 
 fn start_broker(_: &RobustConfig){
