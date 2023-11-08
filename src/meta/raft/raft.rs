@@ -1,5 +1,5 @@
 use crate::config::meta::MetaConfig;
-use crate::meta::storage::storage::RaftRocksDBStorage;
+use crate::meta::raft::storage::RaftRocksDBStorage;
 use raft::Config;
 use raft::RawNode;
 use slog_async;
