@@ -1,2 +1,2 @@
 pub mod rocksdb;
-pub mod rdb_storage;
+pub mod storage;

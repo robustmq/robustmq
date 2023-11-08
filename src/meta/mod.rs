@@ -18,6 +18,7 @@ mod server;
 mod proto;
 mod storage;
 mod errors;
+mod raft;
 
 pub fn start(config:&MetaConfig) -> Runtime{
     let server = GrpcServer::new(config);
