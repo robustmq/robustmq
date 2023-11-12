@@ -7,7 +7,14 @@ service MetaService {
   rpc FindLeader (FindLeaderRequest) returns (FindLeaderReply) {}
 
   // Initiates a vote election request to other nodes in the cluster  
-  rpc vote(VoteRequest) returns (VoteReply){}
+  rpc Vote(VoteRequest) returns (VoteReply){}
+
+  // Leader node notifies itself of being elected as the Leader
+  rpc TransformLeader(TransformLeaderRequest) returns (TransformLeaderReply) {}
+
+  // Leader node sends a heartbeat message to a Follower node
+  rpc Heartbeat(HeartbeatRequest) returns(HeartbeatReply){}
+
 }
 
 
@@ -16,8 +23,8 @@ message FindLeaderRequest{
 }
 
 message FindLeaderReply{
-  int32 LeaderId = 2;
-  string LeaderIp = 3;
+  int32 LeaderId = 1;
+  string LeaderIp = 2;
 }
 
 message VoteRequest {
@@ -28,16 +35,19 @@ message VoteReply {
   int32 vote_node_id = 1;
 }
 
+message HeartbeatRequest{
+  int32 node_id = 1;
+}
+
+message HeartbeatReply{
+
+}
+
 message TransformLeaderRequest {
   int32 node_id = 1;
+  string node_ip = 2;
 }
 
 message TransformLeaderReply {
   bool vote_node_id = 1;
 }
-
-enum ReplyCode{
-  OK = 0;
-  Error = 1;
-}
-

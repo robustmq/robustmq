@@ -2,8 +2,8 @@ use super::{
     errors::MetaError,
     node::{Node, NodeRaftState},
     proto::meta::{
-        meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest, ReplyCode, VoteReply,
-        VoteRequest,
+        meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest,
+        TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest, HeartbeatRequest, HeartbeatReply,
     },
 };
 use std::sync::{Arc, RwLock};
@@ -30,13 +30,10 @@ impl MetaService for GrpcService {
 
         // If the Leader exists in the cluster, the current Leader information is displayed
         if node.raft_state == NodeRaftState::Leader {
-            reply.set_code(ReplyCode::Ok);
             reply.leader_id = node.leader_id.clone().unwrap();
             reply.leader_ip = node.leader_ip.clone().unwrap();
             return Ok(Response::new(reply));
         }
-
-        reply.set_code(ReplyCode::Error);
         Ok(Response::new(reply))
     }
 
@@ -71,6 +68,36 @@ impl MetaService for GrpcService {
         Ok(Response::new(VoteReply {
             vote_node_id: req_node_id,
         }))
+    }
+
+    async fn transform_leader(
+        &self,
+        request: Request<TransformLeaderRequest>,
+    ) -> Result<Response<TransformLeaderReply>, Status> {
+        
+        let req = request.into_inner();
+        let mut node = self.node.write().unwrap();
+
+        if node.raft_state == NodeRaftState::Leader {
+            return Err(Status::already_exists(
+                MetaError::LeaderExistsNotAllowElection.to_string(),
+            ));
+        }
+        node.voter = None;
+        node.leader_id = Some(req.node_id);
+        node.leader_ip = Some(req.node_ip);
+        node.raft_state = NodeRaftState::Follower;
+
+        let reply = TransformLeaderReply::default();
+        Ok(Response::new(reply))
+    }
+
+    async fn heartbeat(
+        &self,
+        request: Request<HeartbeatRequest>,
+    ) -> Result<Response<HeartbeatReply>, Status> {
+        
+        Ok(Response::new(HeartbeatReply::default()))
     }
 }
 

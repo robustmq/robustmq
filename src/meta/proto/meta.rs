@@ -4,11 +4,9 @@ pub struct FindLeaderRequest {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FindLeaderReply {
-    #[prost(enumeration = "ReplyCode", tag = "1")]
-    pub code: i32,
-    #[prost(int32, tag = "2")]
+    #[prost(int32, tag = "1")]
     pub leader_id: i32,
-    #[prost(string, tag = "3")]
+    #[prost(string, tag = "2")]
     pub leader_ip: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -23,31 +21,28 @@ pub struct VoteReply {
     #[prost(int32, tag = "1")]
     pub vote_node_id: i32,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum ReplyCode {
-    Ok = 0,
-    Error = 1,
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HeartbeatRequest {
+    #[prost(int32, tag = "1")]
+    pub node_id: i32,
 }
-impl ReplyCode {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            ReplyCode::Ok => "OK",
-            ReplyCode::Error => "Error",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "OK" => Some(Self::Ok),
-            "Error" => Some(Self::Error),
-            _ => None,
-        }
-    }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HeartbeatReply {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TransformLeaderRequest {
+    #[prost(int32, tag = "1")]
+    pub node_id: i32,
+    #[prost(string, tag = "2")]
+    pub node_ip: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TransformLeaderReply {
+    #[prost(bool, tag = "1")]
+    pub vote_node_id: bool,
 }
 /// Generated client implementations.
 pub mod meta_service_client {
@@ -175,9 +170,58 @@ pub mod meta_service_client {
                     )
                 })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/meta.MetaService/vote");
+            let path = http::uri::PathAndQuery::from_static("/meta.MetaService/Vote");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "vote"));
+            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "Vote"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Leader node notifies itself of being elected as the Leader
+        pub async fn transform_leader(
+            &mut self,
+            request: impl tonic::IntoRequest<super::TransformLeaderRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::TransformLeaderReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/meta.MetaService/TransformLeader",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("meta.MetaService", "TransformLeader"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Leader node sends a heartbeat message to a Follower node
+        pub async fn heartbeat(
+            &mut self,
+            request: impl tonic::IntoRequest<super::HeartbeatRequest>,
+        ) -> std::result::Result<tonic::Response<super::HeartbeatReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/meta.MetaService/Heartbeat",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("meta.MetaService", "Heartbeat"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -199,6 +243,19 @@ pub mod meta_service_server {
             &self,
             request: tonic::Request<super::VoteRequest>,
         ) -> std::result::Result<tonic::Response<super::VoteReply>, tonic::Status>;
+        /// Leader node notifies itself of being elected as the Leader
+        async fn transform_leader(
+            &self,
+            request: tonic::Request<super::TransformLeaderRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::TransformLeaderReply>,
+            tonic::Status,
+        >;
+        /// Leader node sends a heartbeat message to a Follower node
+        async fn heartbeat(
+            &self,
+            request: tonic::Request<super::HeartbeatRequest>,
+        ) -> std::result::Result<tonic::Response<super::HeartbeatReply>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct MetaServiceServer<T: MetaService> {
@@ -325,11 +382,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/meta.MetaService/vote" => {
+                "/meta.MetaService/Vote" => {
                     #[allow(non_camel_case_types)]
-                    struct voteSvc<T: MetaService>(pub Arc<T>);
+                    struct VoteSvc<T: MetaService>(pub Arc<T>);
                     impl<T: MetaService> tonic::server::UnaryService<super::VoteRequest>
-                    for voteSvc<T> {
+                    for VoteSvc<T> {
                         type Response = super::VoteReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
@@ -353,7 +410,99 @@ pub mod meta_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = voteSvc(inner);
+                        let method = VoteSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/TransformLeader" => {
+                    #[allow(non_camel_case_types)]
+                    struct TransformLeaderSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::TransformLeaderRequest>
+                    for TransformLeaderSvc<T> {
+                        type Response = super::TransformLeaderReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::TransformLeaderRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::transform_leader(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = TransformLeaderSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/Heartbeat" => {
+                    #[allow(non_camel_case_types)]
+                    struct HeartbeatSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::HeartbeatRequest>
+                    for HeartbeatSvc<T> {
+                        type Response = super::HeartbeatReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::HeartbeatRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::heartbeat(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = HeartbeatSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
