@@ -24,6 +24,7 @@ pub struct Node {
 }
 
 impl Node {
+    
     pub fn new(node_ip: String, node_id: i32) -> Node {
         Node {
             node_ip: node_ip,
@@ -43,4 +44,5 @@ impl Node {
     pub fn update_status(&mut self, state: NodeState) {
         self.state = state;
     }
+
 }

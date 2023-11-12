@@ -16,20 +16,28 @@ message FindLeaderRequest{
 }
 
 message FindLeaderReply{
-  ReplyCode code = 1;
   int32 LeaderId = 2;
   string LeaderIp = 3;
 }
 
 message VoteRequest {
-  string node_id = 1;
+  int32 node_id = 1;
 }
 
 message VoteReply {
   int32 vote_node_id = 1;
 }
 
+message TransformLeaderRequest {
+  int32 node_id = 1;
+}
+
+message TransformLeaderReply {
+  bool vote_node_id = 1;
+}
+
 enum ReplyCode{
   OK = 0;
   Error = 1;
 }
+

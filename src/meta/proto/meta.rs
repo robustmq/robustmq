@@ -14,8 +14,8 @@ pub struct FindLeaderReply {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct VoteRequest {
-    #[prost(string, tag = "1")]
-    pub node_id: ::prost::alloc::string::String,
+    #[prost(int32, tag = "1")]
+    pub node_id: i32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

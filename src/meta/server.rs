@@ -1,9 +1,10 @@
 use super::{
+    errors::MetaError,
     node::{Node, NodeRaftState},
     proto::meta::{
-        meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest, VoteReply,
-        VoteRequest,ReplyCode
-    }, errors::MetaError,
+        meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest, ReplyCode, VoteReply,
+        VoteRequest,
+    },
 };
 use std::sync::{Arc, RwLock};
 use tonic::{Request, Response, Status};
@@ -20,20 +21,18 @@ impl GrpcService {
 
 #[tonic::async_trait]
 impl MetaService for GrpcService {
-
     async fn find_leader(
         &self,
         _: Request<FindLeaderRequest>,
     ) -> Result<Response<FindLeaderReply>, Status> {
-
         let node = self.node.read().unwrap();
         let mut reply = FindLeaderReply::default();
 
         // If the Leader exists in the cluster, the current Leader information is displayed
-        if node.raft_state == NodeRaftState::Leader{
+        if node.raft_state == NodeRaftState::Leader {
             reply.set_code(ReplyCode::Ok);
-            reply.leader_id = node.leader_id.unwrap();
-            reply.leader_ip = node.leader_ip.unwrap();
+            reply.leader_id = node.leader_id.clone().unwrap();
+            reply.leader_ip = node.leader_ip.clone().unwrap();
             return Ok(Response::new(reply));
         }
 
@@ -42,15 +41,36 @@ impl MetaService for GrpcService {
     }
 
     async fn vote(&self, request: Request<VoteRequest>) -> Result<Response<VoteReply>, Status> {
-        let node = self.node.read().unwrap();
-        let reply = VoteReply::default();
-        
-        if node.raft_state == NodeRaftState::Leader{
-            return Err(Status::already_exists(MetaError::NotAllowElection.to_string()));
+        let mut node = self.node.write().unwrap();
+
+        if node.raft_state == NodeRaftState::Leader {
+            return Err(Status::already_exists(
+                MetaError::LeaderExistsNotAllowElection.to_string(),
+            ));
         }
 
-        let reply = VoteReply::default();
-        Ok(Response::new(reply))
+        if let Some(voter) = node.voter {
+            return Err(Status::already_exists(
+                MetaError::NodeBeingVotedOn { node_id: voter }.to_string(),
+            ));
+        }
+
+        let req_node_id = request.into_inner().node_id;
+
+        if req_node_id <= 0 {
+            return Err(Status::already_exists(
+                MetaError::UnavailableNodeId {
+                    node_id: req_node_id,
+                }
+                .to_string(),
+            ));
+        }
+
+        node.voter = Some(req_node_id);
+
+        Ok(Response::new(VoteReply {
+            vote_node_id: req_node_id,
+        }))
     }
 }
 
