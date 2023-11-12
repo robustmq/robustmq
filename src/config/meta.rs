@@ -1,14 +1,15 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize,Clone)]
 pub struct MetaConfig {
     pub addr: String,
     pub port: Option<u16>,
+    pub node_id: i32,
     pub data_path: String,
     pub rocksdb: Rocksdb,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize,Clone)]
 pub struct Rocksdb {
     pub max_open_files: Option<i32>,
 }
@@ -27,7 +28,7 @@ impl Default for MetaConfig {
             addr: String::from(DEFAULT_META_ADDRESS),
             data_path:String::from(DEFAULT_DATA_PATH),
             port: DEFAULT_META_PORT,
-            rocksdb: Rocksdb::default(),
+            ..Default::default()
         }
     }
 }

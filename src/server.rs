@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use config::{server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG, meta::MetaConfig};
+use clap::command;
+use clap::Parser;
+use config::{meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG};
 use lazy_static::lazy_static;
+use log4rs::config::runtime;
 use metrics::ServerMetrics;
 use std::{
     sync::mpsc::{self, Receiver, Sender},
     time::Duration,
 };
-use clap::Parser;
-use clap::command;
 use tokio::{runtime::Runtime, signal};
 
 mod admin;
@@ -29,6 +30,7 @@ mod config;
 mod log;
 mod meta;
 mod metrics;
+mod common;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="1.1", about="RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -58,19 +60,15 @@ fn main() {
 
     let admin_server = admin::AdminServer::new(&server_conf);
     let admin_runtime = admin_server.start();
-
-    let meta_runtime = meta::start(&meta_conf);
-
+    
     start_broker(&server_conf);
     SERVER_METRICS.set_server_status_running();
     log::server_info("RobustMQ Server was successfully started");
 
-    shutdown_hook(admin_runtime, meta_runtime);
+    // shutdown_hook(admin_runtime);
 }
 
-fn start_broker(_: &RobustConfig){
-    
-}
+fn start_broker(_: &RobustConfig) {}
 
 fn shutdown_hook(admin_runtime: Runtime, meta_runtime: Runtime) {
     let (sx_sender, rx_receiver): (Sender<u16>, Receiver<u16>) = mpsc::channel();
