@@ -16,7 +16,6 @@ use clap::command;
 use clap::Parser;
 use config::{meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG};
 use lazy_static::lazy_static;
-use log4rs::config::runtime;
 use metrics::ServerMetrics;
 use std::{
     sync::mpsc::{self, Receiver, Sender},
@@ -31,6 +30,7 @@ mod log;
 mod meta;
 mod metrics;
 mod common;
+mod version;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="1.1", about="RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -64,16 +64,16 @@ fn main() {
     start_broker(&server_conf);
     SERVER_METRICS.set_server_status_running();
     log::server_info("RobustMQ Server was successfully started");
-
-    // shutdown_hook(admin_runtime);
+    version::banner();
+    shutdown_hook(admin_runtime);
 }
 
 fn start_broker(_: &RobustConfig) {}
 
-fn shutdown_hook(admin_runtime: Runtime, meta_runtime: Runtime) {
+fn shutdown_hook(runtime: Runtime) {
     let (sx_sender, rx_receiver): (Sender<u16>, Receiver<u16>) = mpsc::channel();
 
-    admin_runtime.spawn(async move {
+    runtime.spawn(async move {
         let ctrl_c = async {
             signal::ctrl_c()
                 .await
@@ -108,8 +108,7 @@ fn shutdown_hook(admin_runtime: Runtime, meta_runtime: Runtime) {
             Ok(value) => {
                 println!("{}", value);
                 if value == 3 {
-                    admin_runtime.shutdown_timeout(Duration::from_secs(1000));
-                    meta_runtime.shutdown_timeout(Duration::from_secs(1000));
+                    runtime.shutdown_timeout(Duration::from_secs(1000));
                     break;
                 }
             }
