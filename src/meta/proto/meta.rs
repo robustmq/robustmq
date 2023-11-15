@@ -1,23 +1,59 @@
-/// The request message containing the user's name.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HelloRequest {
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
+pub struct FindLeaderRequest {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FindLeaderReply {
+    #[prost(enumeration = "ReplyCode", tag = "1")]
+    pub code: i32,
+    #[prost(int32, tag = "2")]
+    pub leader_id: i32,
+    #[prost(string, tag = "3")]
+    pub leader_ip: ::prost::alloc::string::String,
 }
-/// The response message containing the greetings
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HelloReply {
-    #[prost(string, tag = "1")]
-    pub message: ::prost::alloc::string::String,
+pub struct VoteRequest {
+    #[prost(int32, tag = "1")]
+    pub node_id: i32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VoteReply {
+    #[prost(int32, tag = "1")]
+    pub vote_node_id: i32,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ReplyCode {
+    Ok = 0,
+    Error = 1,
+}
+impl ReplyCode {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ReplyCode::Ok => "OK",
+            ReplyCode::Error => "Error",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OK" => Some(Self::Ok),
+            "Error" => Some(Self::Error),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 pub mod meta_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
-    /// The greeting service definition.
     #[derive(Debug, Clone)]
     pub struct MetaServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -98,11 +134,14 @@ pub mod meta_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        /// Sends a greeting
-        pub async fn say_hello(
+        /// Obtain information about the Leader node in the cluster
+        pub async fn find_leader(
             &mut self,
-            request: impl tonic::IntoRequest<super::HelloRequest>,
-        ) -> std::result::Result<tonic::Response<super::HelloReply>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::FindLeaderRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::FindLeaderReply>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -114,10 +153,31 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/SayHello",
+                "/meta.MetaService/FindLeader",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "SayHello"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("meta.MetaService", "FindLeader"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Initiates a vote election request to other nodes in the cluster
+        pub async fn vote(
+            &mut self,
+            request: impl tonic::IntoRequest<super::VoteRequest>,
+        ) -> std::result::Result<tonic::Response<super::VoteReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/meta.MetaService/vote");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "vote"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -129,13 +189,17 @@ pub mod meta_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with MetaServiceServer.
     #[async_trait]
     pub trait MetaService: Send + Sync + 'static {
-        /// Sends a greeting
-        async fn say_hello(
+        /// Obtain information about the Leader node in the cluster
+        async fn find_leader(
             &self,
-            request: tonic::Request<super::HelloRequest>,
-        ) -> std::result::Result<tonic::Response<super::HelloReply>, tonic::Status>;
+            request: tonic::Request<super::FindLeaderRequest>,
+        ) -> std::result::Result<tonic::Response<super::FindLeaderReply>, tonic::Status>;
+        /// Initiates a vote election request to other nodes in the cluster
+        async fn vote(
+            &self,
+            request: tonic::Request<super::VoteRequest>,
+        ) -> std::result::Result<tonic::Response<super::VoteReply>, tonic::Status>;
     }
-    /// The greeting service definition.
     #[derive(Debug)]
     pub struct MetaServiceServer<T: MetaService> {
         inner: _Inner<T>,
@@ -215,23 +279,25 @@ pub mod meta_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/meta.MetaService/SayHello" => {
+                "/meta.MetaService/FindLeader" => {
                     #[allow(non_camel_case_types)]
-                    struct SayHelloSvc<T: MetaService>(pub Arc<T>);
-                    impl<T: MetaService> tonic::server::UnaryService<super::HelloRequest>
-                    for SayHelloSvc<T> {
-                        type Response = super::HelloReply;
+                    struct FindLeaderSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::FindLeaderRequest>
+                    for FindLeaderSvc<T> {
+                        type Response = super::FindLeaderReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::HelloRequest>,
+                            request: tonic::Request<super::FindLeaderRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::say_hello(&inner, request).await
+                                <T as MetaService>::find_leader(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -243,7 +309,51 @@ pub mod meta_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = SayHelloSvc(inner);
+                        let method = FindLeaderSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/vote" => {
+                    #[allow(non_camel_case_types)]
+                    struct voteSvc<T: MetaService>(pub Arc<T>);
+                    impl<T: MetaService> tonic::server::UnaryService<super::VoteRequest>
+                    for voteSvc<T> {
+                        type Response = super::VoteReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::VoteRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::vote(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = voteSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

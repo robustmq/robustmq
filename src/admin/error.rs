@@ -23,16 +23,16 @@ use axum::{
 use serde_json::json;
 
 #[derive(Error, Debug, PartialEq)]
-pub enum ApiError {
+pub enum HttpError {
     #[error("Not found for {0}")]
     NotFound(String)
 }
 
-impl IntoResponse for ApiError {
+impl IntoResponse for HttpError {
    
     fn into_response(self) -> Response{
         let (status, error_message) = match self {
-            ApiError::NotFound(msg) => {
+            HttpError::NotFound(msg) => {
                 (StatusCode::NOT_FOUND,msg)
             }
         };

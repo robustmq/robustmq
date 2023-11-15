@@ -17,9 +17,9 @@ use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
 
-const DB_COLUMN_FAMILY_META: &str = "meta";
-const DB_COLUMN_FAMILY_ROBUSTMQ: &str = "robustmq";
-const DB_COLUMN_FAMILY_MQTT: &str = "MQTT";
+use super::DB_COLUMN_FAMILY_META;
+use super::DB_COLUMN_FAMILY_ROBUSTMQ;
+use super::DB_COLUMN_FAMILY_MQTT;
 
 pub struct RocksDBStorage {
     db: DB,

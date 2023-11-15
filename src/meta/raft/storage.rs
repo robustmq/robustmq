@@ -19,7 +19,7 @@ use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
 #[derive(Clone)]
-struct RaftRocksDBStorage {
+pub struct RaftRocksDBStorage {
     core: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
@@ -97,9 +97,9 @@ impl RaftStorage for RaftRocksDBStorage {
     ) -> RaftResult<Vec<Entry>> {
         let max_size = max_size.into();
         let mut core = self.read_lock();
-        // if low < core.first_index(){
-        //     return Err(());
-        // }
+        if low < core.first_index(){
+            return Err(Error::Store(StorageError::Compacted));
+        }
 
         if high > core.last_index() + 1 {
             panic!(
@@ -175,7 +175,7 @@ impl RaftStorage for RaftRocksDBStorage {
     }
 }
 
-struct RaftRocksDBStorageCore {
+pub struct RaftRocksDBStorageCore {
     rds: RocksDBStorage,
     snapshot_metadata: SnapshotMetadata,
     trigger_snap_unavailable: bool,
@@ -184,7 +184,6 @@ struct RaftRocksDBStorageCore {
 impl RaftRocksDBStorageCore{
     fn new(config: &MetaConfig) -> Self {
         let rds = RocksDBStorage::new(config);
-        let cf = rds.cf_meta();
         return RaftRocksDBStorageCore {
             rds: rds,
             snapshot_metadata: SnapshotMetadata::default(),
@@ -315,6 +314,17 @@ impl RaftRocksDBStorageCore{
         return sns;
     }
 
+    // pub fn apply_snapshot(&self, mut snapshot:Snapshot) -> Result<()>{
+    //     let mut meta = snapshot.take_metadata();
+    //     let index = meta.index;
+
+    //     if self.first_index() > index{
+    //         return Err(Error::Store(StorageError::SnapshotOutOfDate))
+    //     }
+
+    //     return Ok(())
+    // }
+
     fn key_name_by_entry(&self, idx: u64) -> String {
         return format!("metasrv_entry_{}", idx);
     }
@@ -337,14 +347,14 @@ impl RaftRocksDBStorageCore{
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-struct SaveRDSHardState {
+pub struct SaveRDSHardState {
     term: u64,
     vote: u64,
     commit: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-struct SaveRDSConfState {
+pub struct SaveRDSConfState {
     voters: Vec<u64>,
     learners: Vec<u64>,
     voters_outgoing: Vec<u64>,
@@ -353,7 +363,7 @@ struct SaveRDSConfState {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
-struct SaveRDSEntry {
+pub struct SaveRDSEntry {
     entry_type: u64,
     term: u64,
     index: u64,
@@ -364,5 +374,14 @@ struct SaveRDSEntry {
 
 #[cfg(test)]
 mod tests {
-    fn raft_roksdb_storage_core_first_index() {}
+
+    // use protobuf::Message;
+    // use raft::prelude::ConfState;
+    #[test]
+    fn encode_pb() {
+        // let mut tt = ConfState::default();
+        // Message::write_to_bytes(&tt);
+        // let mut buf = vec![];
+        // tt.encode(&mut buf).unwrap();
+    }
 }

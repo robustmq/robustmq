@@ -1,19 +1,43 @@
 syntax = "proto3";
 package meta;
 
-// The greeting service definition.
 service MetaService {
-  // Sends a greeting
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  
+  // Obtain information about the Leader node in the cluster
+  rpc FindLeader (FindLeaderRequest) returns (FindLeaderReply) {}
+
+  // Initiates a vote election request to other nodes in the cluster  
+  rpc vote(VoteRequest) returns (VoteReply){}
 }
 
-// The request message containing the user's name.
-message HelloRequest {
-  string name = 1;
+
+message FindLeaderRequest{
+
 }
 
-// The response message containing the greetings
-message HelloReply {
-  string message = 1;
+message FindLeaderReply{
+  int32 LeaderId = 2;
+  string LeaderIp = 3;
+}
+
+message VoteRequest {
+  int32 node_id = 1;
+}
+
+message VoteReply {
+  int32 vote_node_id = 1;
+}
+
+message TransformLeaderRequest {
+  int32 node_id = 1;
+}
+
+message TransformLeaderReply {
+  bool vote_node_id = 1;
+}
+
+enum ReplyCode{
+  OK = 0;
+  Error = 1;
 }
 

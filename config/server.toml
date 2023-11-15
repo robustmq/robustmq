@@ -1,8 +1,15 @@
 addr = "127.0.0.1"
+enable_matt_tcp = true
+enable_mqtt_web_socket =true
+
+[mqtt]
+tcp_port=1111
+web_socket=2222
 
 [broker]
 port = 1226
 work_thread = 3
+
 
 [admin]
 port = 1227

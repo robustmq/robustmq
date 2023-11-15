@@ -1,68 +1,76 @@
-use super::proto::meta::{
-    meta_service_server::{MetaService, MetaServiceServer},
-    HelloReply, HelloRequest,
+use super::{
+    errors::MetaError,
+    node::{Node, NodeRaftState},
+    proto::meta::{
+        meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest, ReplyCode, VoteReply,
+        VoteRequest,
+    },
 };
-use crate::{config::meta::MetaConfig, log};
-use tokio::runtime::Runtime;
-use tonic::{transport::Server, Request, Response, Status};
+use std::sync::{Arc, RwLock};
+use tonic::{Request, Response, Status};
 
-#[derive(Default)]
-pub struct MetaServiceHandler {}
+pub struct GrpcService {
+    node: Arc<RwLock<Node>>,
+}
+
+impl GrpcService {
+    pub fn new(node: Arc<RwLock<Node>>) -> Self {
+        GrpcService { node: node }
+    }
+}
 
 #[tonic::async_trait]
-impl MetaService for MetaServiceHandler {
-    async fn say_hello(
+impl MetaService for GrpcService {
+    async fn find_leader(
         &self,
-        request: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, Status> {
-        println!("Got a request from {:?}", request.remote_addr());
+        _: Request<FindLeaderRequest>,
+    ) -> Result<Response<FindLeaderReply>, Status> {
+        let node = self.node.read().unwrap();
+        let mut reply = FindLeaderReply::default();
 
-        let reply = HelloReply {
-            message: format!("Hello {}!", request.into_inner().name),
-        };
+        // If the Leader exists in the cluster, the current Leader information is displayed
+        if node.raft_state == NodeRaftState::Leader {
+            reply.set_code(ReplyCode::Ok);
+            reply.leader_id = node.leader_id.clone().unwrap();
+            reply.leader_ip = node.leader_ip.clone().unwrap();
+            return Ok(Response::new(reply));
+        }
+
+        reply.set_code(ReplyCode::Error);
         Ok(Response::new(reply))
     }
-}
 
-pub struct GrpcServer<'a> {
-    meta_config: &'a MetaConfig,
-}
+    async fn vote(&self, request: Request<VoteRequest>) -> Result<Response<VoteReply>, Status> {
+        let mut node = self.node.write().unwrap();
 
-impl<'a> GrpcServer<'a> {
-    pub fn new(meta_config: &'a MetaConfig) -> Self {
-        return GrpcServer {
-            meta_config: meta_config,
-        };
-    }
+        if node.raft_state == NodeRaftState::Leader {
+            return Err(Status::already_exists(
+                MetaError::LeaderExistsNotAllowElection.to_string(),
+            ));
+        }
 
-    pub fn start(&self) -> Runtime {
-        let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
-            // .worker_threads(self.config.work_thread.unwrap() as usize)
-            .max_blocking_threads(2048)
-            .thread_name("meta-http")
-            .enable_io()
-            .build()
-            .unwrap();
+        if let Some(voter) = node.voter {
+            return Err(Status::already_exists(
+                MetaError::NodeBeingVotedOn { node_id: voter }.to_string(),
+            ));
+        }
 
-        let _gurad = runtime.enter();
-        let ip = format!(
-            "{}:{}",
-            self.meta_config.addr,
-            self.meta_config.port.unwrap()
-        )
-        .parse()
-        .unwrap();
+        let req_node_id = request.into_inner().node_id;
 
-        log::info(&format!("MetaSerice listening on {}", &ip));
-        runtime.spawn(async move {
-            let meta_service_handle = MetaServiceHandler::default();
-            Server::builder()
-                .add_service(MetaServiceServer::new(meta_service_handle))
-                .serve(ip)
-                .await
-                .unwrap();
-        });
-        return runtime;
+        if req_node_id <= 0 {
+            return Err(Status::already_exists(
+                MetaError::UnavailableNodeId {
+                    node_id: req_node_id,
+                }
+                .to_string(),
+            ));
+        }
+
+        node.voter = Some(req_node_id);
+
+        Ok(Response::new(VoteReply {
+            vote_node_id: req_node_id,
+        }))
     }
 }
 
@@ -73,7 +81,7 @@ mod tests {
     use tokio::runtime::Runtime;
     use tonic_build;
 
-    use crate::meta::proto::meta::{meta_service_client::MetaServiceClient, HelloRequest};
+    use crate::meta::proto::meta::{meta_service_client::MetaServiceClient, FindLeaderRequest};
     #[test]
     fn create_rust_pb() {
         tonic_build::configure()
@@ -85,7 +93,6 @@ mod tests {
             )
             .unwrap();
     }
-    
 
     #[test]
     fn grpc_client() {
@@ -104,11 +111,8 @@ mod tests {
                 .await
                 .unwrap();
 
-            let request = tonic::Request::new(HelloRequest {
-                name: "lobo11".into(),
-            });
-
-            let response = client.say_hello(request).await.unwrap();
+            let request = tonic::Request::new(FindLeaderRequest {});
+            let response = client.find_leader(request).await.unwrap();
 
             println!("response={:?}", response);
         });
