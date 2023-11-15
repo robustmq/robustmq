@@ -31,6 +31,9 @@ prost-types = "0.12"
 prost-build = { version = "0.12" }
 tonic-build = "0.10.2"
 raft = { version = "0.7.0" }
+ntex = {version = "0.7.4", features = ["tokio"] }
+ntex-util = "0.3.2"
+ntex-mqtt = "0.12.7"
 
 [[bin]]
 name = "robustmq-server"
@@ -38,3 +41,7 @@ path = "src/server.rs"
 
 [profile.release]
 panic = 'abort'
+
+[[example]]
+name = "mqtt_server"
+path = "src/broker/mqttserver.rs"
