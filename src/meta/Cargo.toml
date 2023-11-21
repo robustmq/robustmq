@@ -5,3 +5,16 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+tokio.workspace = true
+tonic.workspace = true
+prost.workspace = true
+protobuf.workspace = true
+common-config.workspace = true
+common-log.workspace = true
+tonic-build.workspace = true
+thiserror.workspace = true
+raft.workspace = true
+serde.workspace = true
+bytes.workspace = true
+rocksdb.workspace = true
+serde_json.workspace = true

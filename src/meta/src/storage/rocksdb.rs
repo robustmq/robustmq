@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::meta::MetaConfig;
+use common_config::meta::MetaConfig;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
@@ -128,7 +128,7 @@ impl RocksDBStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::meta::MetaConfig;
+    use common_config::meta::MetaConfig;
 
     use super::RocksDBStorage;
     use serde::{Deserialize, Serialize};

@@ -19,7 +19,8 @@ pub enum MetaError {
 
 #[cfg(test)]
 mod tests{
-    use crate::meta::errors::MetaError;
+    use crate::errors::MetaError;
+
 
     #[test]
     fn thiserror_to_string(){
