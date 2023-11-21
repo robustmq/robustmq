@@ -38,9 +38,6 @@ prost-types = "0.12"
 prost-build = { version = "0.12" }
 tonic-build = "0.10.2"
 raft = { version = "0.7.0" }
-ntex = {version = "0.7.4", features = ["tokio"] }
-ntex-util = "0.3.2"
-ntex-mqtt = "0.12.7"
 slog = "2.2"
 slog-async = "2.3.0"
 slog-envlogger = { version = "2.1.0"}
