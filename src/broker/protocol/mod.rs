@@ -26,6 +26,20 @@ use std::{io, str::Utf8Error, string::FromUtf8Error};
 /// map to what MQTT specifies in its protocol
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
+// TODO: Handle the cases when there are no properties using Inner struct, so 
+// handling of properties can be made simplier internally
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Packet {
+    Connect(
+        Connect,
+        Option<ConnectProperties>,
+        Option<LastWill>,
+        Option<LastWillProperties>,
+        Option<Login>,
+    ),
+}
+
 /// Connection packet initialized by the client
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Connect {
@@ -37,6 +51,28 @@ pub struct Connect {
     pub clean_session: bool,
 }
 
+/// ConnectProperties can be used in MQTT Version 5
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConnectProperties {
+    /// Expiry interval property after loosing connection
+    pub session_expiry_interval: Option<u32>,
+    /// Maximum simultaneous packets
+    pub receive_maximum: Option<u16>,
+    /// Maximum packet size
+    pub max_packet_size: Option<u32>,
+    /// Maximum mapping integer for a topic
+    pub topic_alias_max: Option<u16>,
+    pub request_response_info: Option<u8>,
+    pub request_problem_info: Option<u8>,
+    /// List of user properties
+    pub user_properties: Vec<(String, String)>,
+    /// Method of authentication 
+    pub authentication_method: Option<String>,
+    /// Authentication data
+    pub authentication_data: Option<Bytes>,
+
+}
+
 /// LastWill that broker forwards on behalf of the client
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LastWill {
@@ -44,6 +80,18 @@ pub struct LastWill {
     pub message: Bytes, 
     pub qos: QoS, 
     pub retain: bool,
+}
+
+/// LastWillProperties can be used in MQTT Version 5
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LastWillProperties {
+    pub delay_interval: Option<u32>,
+    pub payload_format_indicator: Option<u8>,
+    pub message_expiry_interval: Option<u32>,
+    pub content_type: Option<String>,
+    pub response_topic: Option<String>,
+    pub correlation_data: Option<Bytes>,
+    pub user_properties: Vec<(String, String)>,
 }
 
 /// Quality of service

@@ -41,7 +41,3 @@ path = "src/server.rs"
 
 [profile.release]
 panic = 'abort'
-
-[[example]]
-name = "mqtt_server"
-path = "src/broker/mqttserver.rs"
