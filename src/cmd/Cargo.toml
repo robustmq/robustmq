@@ -1,6 +1,12 @@
 [package]
-name = "robust-cmd"
-version = "0.0.1"
-edition = "2021"
+name = "cmd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "robustmq"
+
+[[bin]]
+name = "robustmq"
+path = "src/robust.rs"
 
 [dependencies]
