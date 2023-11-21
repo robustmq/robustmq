@@ -1,0 +1,20 @@
+[package]
+name = "cmd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "robustmq"
+
+[[bin]]
+name = "robustmq"
+path = "src/robust.rs"
+
+[dependencies]
+clap = {version="4.4.7",features = [ "derive" ]}
+common-config.workspace = true
+common-metrics.workspace = true
+common-log.workspace = true
+common-version.workspace = true
+admin.workspace =true
+lazy_static.workspace = true
+tokio.workspace = true
