@@ -1,5 +1,5 @@
 [package]
-name = "common"
+name = "robust-cmd"
 version = "0.0.1"
 edition = "2021"
 
