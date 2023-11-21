@@ -1,22 +1,11 @@
-[workspace]
-members = [
-    "src/admin",
-    "src/broker",
-    "src/cmd",
-    "src/common/config",
-    "src/common/log",
-    "src/common/metrics",
-    "src/common/version",
-    "src/meta",
-    "src/peotocol"
-]
-
-[workspace.package]
+[package]
+name = "robustmq"
 version = "0.0.1"
 edition = "2021"
-license = "Apache-2.0"
 
-[workspace.dependencies]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
 log = "0.4.0"
 env_logger = "0.10.0"
 log4rs = "1.2.0"
@@ -51,17 +40,10 @@ slog-envlogger = { version = "2.1.0", optional = true }
 slog-stdlog = { version = "4", optional = true }
 slog-term = { version = "2.4.0"}
 
-## workspaces members
-admin={path="src/admin"}
-broker={path="src/broker"}
-cmd={path="src/cmd"}
-common-config={path="src/common/config"}
-common-log={path="src/common/log"}
-common-metrics={path="src/common/metrics"}
-common-version={path="src/common/version"}
-meta={path="src/meta"}
-protocol={path="src/protocol"}
+
+[[bin]]
+name = "robustmq-server"
+path = "src/server.rs"
 
 [profile.release]
 panic = 'abort'
-debut = true
