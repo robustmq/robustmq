@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-use super::{
-    qos, read_mqtt_bytes, read_u16, read_u8, write_mqtt_string, write_remaining_length, Connect,
-    Error, FixedHeader, LastWill, Login,
-};
+use super::*;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
@@ -91,7 +88,7 @@ pub fn write(
     will: &Option<LastWill>,
     buffer: &mut BytesMut,
 ) -> Result<usize, Error> {
-    let len = len(connect, login, will);
+    let len = self::len(connect, login, will);
     buffer.put_u8(0b0001_0000); // fixheader byte1 0x10
     let count = write_remaining_length(buffer, len)?;
     write_mqtt_string(buffer, "MQTT");
@@ -122,7 +119,6 @@ pub fn write(
 }
 
 mod will {
-    use crate::{mqttv4::write_mqtt_bytes};
 
     use super::*;
 
@@ -252,14 +248,14 @@ mod tests {
         let lastwill = None;
 
         let connect: Connect = Connect {
-            keep_alive: 60u16, // 60 seconds
+            keep_alive: 30u16, // 30 seconds
             client_id: client_id,
             clean_session: true,
         };
         // test function write
         write(&connect, &login, &lastwill, &mut buff_write);
 
-        //construct the test case - connect packet: b"\x10\x1a\0\x04MQTT\x04\x02\0\x3c\0\x0etest_client_id”
+        //construct the test case - connect packet: b"\x10\x1a\0\x04MQTT\x04\x02\0\x1e\0\x0etest_client_id”
         //The total length is 28 bytes. break it down into 3 parts - fixed header, variable header and payload
 
         //1.Fixed header —————————————————————— 2 bytes
@@ -270,7 +266,7 @@ mod tests {
         // MQTT ———————————————————————— 4 bytes (MQTT协议)
         // \x04\————————————————————————— 1 byte (MQTT version, x04 means v3.1.1, x05 means v5)
         // x02 ————————————————————————— 1 byte( connect flag , x02 means clean session as true )
-        // \0\x3c ————————————————————————— 2 bytes ( keep_alive, 60 seconds in the test case)
+        // \0\x1e ————————————————————————— 2 bytes ( keep_alive, 30 seconds in the test case)
 
         //3.Payload ———————————————————————— 16 bytes
         // \0\x0e ————————————————————————— 2 bytes( length of client id )
@@ -287,7 +283,7 @@ mod tests {
                                                 // (4..8 means starting with item index 4 and following 4 bytes(=8-4))
         assert_eq!(buff_write[8], 4); // check the protocol version which should be 4
         assert_eq!(buff_write[9], 0b00000010); // check the connect flags which only set clean session = true
-        assert_eq!(u16::from_be_bytes([buff_write[10], buff_write[11]]), 60u16); // check the keep_alive value (set 60s in the test case)
+        assert_eq!(u16::from_be_bytes([buff_write[10], buff_write[11]]), 30u16); // check the keep_alive value (set 60s in the test case)
 
         assert_eq!(
             u16::from_be_bytes([buff_write[12], buff_write[13]]),
