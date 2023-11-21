@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-
-
-use std::{io, str::Utf8Error, string::FromUtf8Error};
+ use std::{io, str::Utf8Error, string::FromUtf8Error};
 
 /// This module is the place where all the protocal specifics gets abstracted
 /// out and creates structures which are common across protocols. Since, MQTT
