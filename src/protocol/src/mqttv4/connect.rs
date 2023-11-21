@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use axum::extract::connect_info;
-use bytes::{Buf, Bytes, BytesMut};
 
-use super::mqtt::{Connect, Login, LastWill, Error};
+use super::{
+    qos, read_mqtt_bytes, read_u16, read_u8, write_mqtt_string, write_remaining_length, Connect,
+    Error, FixedHeader, LastWill, Login,
+};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
     /*
@@ -120,6 +122,8 @@ pub fn write(
 }
 
 mod will {
+    use crate::{mqttv4::write_mqtt_bytes};
+
     use super::*;
 
     pub fn len(will: &LastWill) -> usize {
@@ -254,7 +258,7 @@ mod tests {
         };
         // test function write
         write(&connect, &login, &lastwill, &mut buff_write);
-       
+
         //construct the test case - connect packet: b"\x10\x1a\0\x04MQTT\x04\x02\0\x3c\0\x0etest_client_id”
         //The total length is 28 bytes. break it down into 3 parts - fixed header, variable header and payload
 
@@ -274,24 +278,24 @@ mod tests {
 
         println!("buff size is {}", buff_write.len());
         println!("connect packet: {:?}", buff_write);
-        assert_eq!(buff_write.len(), 28);           // check the total length of the packet 
-        assert_eq!(buff_write[0], 0b0001_0000);     // check the packet type is 0x10 which is connect type
-        assert_eq!(buff_write[1], 26);              // check the remaining length (length of variable header + payload) right or not
-        assert_eq!(buff_write[2], 0);               // check the MSB which is 0
-        assert_eq!(buff_write[3], 4);               // check the LSB which is 4 (length of "MQTT")
-        assert_eq!(&buff_write[4..8], b"MQTT");     // check the protocol which should be MQTT
-                                                    // (4..8 means starting with item index 4 and following 4 bytes(=8-4))
-        assert_eq!(buff_write[8], 4);               // check the protocol version which should be 4
-        assert_eq!(buff_write[9], 0b00000010);      // check the connect flags which only set clean session = true 
-        assert_eq!(u16::from_be_bytes([buff_write[10],
-            buff_write[11]]), 60u16);               // check the keep_alive value (set 60s in the test case)
+        assert_eq!(buff_write.len(), 28); // check the total length of the packet
+        assert_eq!(buff_write[0], 0b0001_0000); // check the packet type is 0x10 which is connect type
+        assert_eq!(buff_write[1], 26); // check the remaining length (length of variable header + payload) right or not
+        assert_eq!(buff_write[2], 0); // check the MSB which is 0
+        assert_eq!(buff_write[3], 4); // check the LSB which is 4 (length of "MQTT")
+        assert_eq!(&buff_write[4..8], b"MQTT"); // check the protocol which should be MQTT
+                                                // (4..8 means starting with item index 4 and following 4 bytes(=8-4))
+        assert_eq!(buff_write[8], 4); // check the protocol version which should be 4
+        assert_eq!(buff_write[9], 0b00000010); // check the connect flags which only set clean session = true
+        assert_eq!(u16::from_be_bytes([buff_write[10], buff_write[11]]), 60u16); // check the keep_alive value (set 60s in the test case)
 
-        assert_eq!(u16::from_be_bytes([buff_write[12],buff_write[13]]), 
-            client_id_length as u16);               // check the client id length in payload
-        
-        assert_eq!(&buff_write[14..], b"test_client_id");   // check the client id 
+        assert_eq!(
+            u16::from_be_bytes([buff_write[12], buff_write[13]]),
+            client_id_length as u16
+        ); // check the client id length in payload
 
- 
+        assert_eq!(&buff_write[14..], b"test_client_id"); // check the client id
+
         //test function read
         let mut buff_read = BytesMut::new();
         //let fixheader: FixedHeader = FixedHeader { byte1: buff_write[0], fixed_header_len: , remaining_len: () };

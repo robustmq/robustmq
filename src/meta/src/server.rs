@@ -108,7 +108,8 @@ mod tests {
     use tokio::runtime::Runtime;
     use tonic_build;
 
-    use crate::meta::proto::meta::{meta_service_client::MetaServiceClient, FindLeaderRequest};
+    use crate::proto::meta::{meta_service_client::MetaServiceClient, FindLeaderRequest};
+
     #[test]
     fn create_rust_pb() {
         tonic_build::configure()
