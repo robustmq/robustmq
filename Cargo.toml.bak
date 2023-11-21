@@ -1,25 +1,16 @@
-[workspace]
-members = [
-    "src/admin",
-    "src/broker",
-    "src/cmd",
-    "src/common/config",
-    "src/common/log",
-    "src/common/metrics",
-    "src/common/version",
-    "src/meta",
-    "src/protocol"
-]
-resolver = "2"
-
-[workspace.package]
+[package]
+name = "robustmq"
 version = "0.0.1"
 edition = "2021"
-license = "Apache-2.0"
 
-[workspace.dependencies]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4.0"
+env_logger = "0.10.0"
+log4rs = "1.2.0"
 serde = {version="1.0",features = [ "derive" ]}
-serde_json = "1.0"
+toml = "0.8.2"
 signal-hook = "0.3.17"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7.9", features = ["codec"] }
@@ -32,6 +23,8 @@ thiserror = "1" #错误定义和处理
 bytes = { version = "1", features = ["serde"] }
 protobuf = "2.23"
 rocksdb = "0.21.0"
+clap = {version="4.4.7",features = [ "derive" ]}
+serde_json = "1.0"
 tonic = "0.10.2"
 prost = "0.12"
 prost-types = "0.12"
@@ -43,21 +36,14 @@ ntex-util = "0.3.2"
 ntex-mqtt = "0.12.7"
 slog = "2.2"
 slog-async = "2.3.0"
-slog-envlogger = { version = "2.1.0"}
-slog-stdlog = { version = "4"}
+slog-envlogger = { version = "2.1.0", optional = true }
+slog-stdlog = { version = "4", optional = true }
 slog-term = { version = "2.4.0"}
 
-## workspaces members
-admin={path="src/admin"}
-broker={path="src/broker"}
-cmd={path="src/cmd"}
-common-config={path="src/common/config"}
-common-log={path="src/common/log"}
-common-metrics={path="src/common/metrics"}
-common-version={path="src/common/version"}
-meta={path="src/meta"}
-protocol={path="src/protocol"}
+
+[[bin]]
+name = "robustmq-server"
+path = "src/server.rs"
 
 [profile.release]
 panic = 'abort'
-debug = true

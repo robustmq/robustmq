@@ -1,0 +1,16 @@
+[package]
+name = "admin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+common-config.workspace = true
+common-log.workspace = true
+tokio.workspace = true
+
