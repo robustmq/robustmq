@@ -13,20 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 use axum::{
     extract::Path,
     response::Json
 };
-
 use serde_json::{json, Value};
-
-use crate::admin::error::HttpError;
+use crate::error::HttpError;
 
 ///api_get_handler is used to handle the API request which doesn't contain any query parameters or 
 /// specical objects
-
 pub async fn api_get_handler(Path(path) : Path<String>) -> Result<Json<Value>, HttpError> {
     println!("path is : {:#?}", path);
     let api_path = path.to_owned(); 

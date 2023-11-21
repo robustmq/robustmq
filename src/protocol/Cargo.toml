@@ -6,3 +6,5 @@ license.workspace = true
 
 
 [dependencies]
+bytes.workspace = true
+axum.workspace = true

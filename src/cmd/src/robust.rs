@@ -14,23 +14,17 @@
 
 use clap::command;
 use clap::Parser;
-use config::{meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG};
+use common_config::{meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG};
 use lazy_static::lazy_static;
-use metrics::ServerMetrics;
+use common_log::log;
+use common_version::version;
+use admin;
+use common_metrics::server::ServerMetrics;
 use std::{
     sync::mpsc::{self, Receiver, Sender},
     time::Duration,
 };
 use tokio::{runtime::Runtime, signal};
-
-mod admin;
-mod broker;
-mod config;
-mod log;
-mod meta;
-mod metrics;
-mod common;
-mod version;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="1.1", about="RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -53,8 +47,8 @@ fn main() {
     let args = ArgsParams::parse();
     log::new();
 
-    let server_conf: RobustConfig = config::parse_server(&args.server_conf);
-    let meta_conf: MetaConfig = config::parse_meta(&args.meta_conf);
+    let server_conf: RobustConfig = common_config::parse_server(&args.server_conf);
+    let meta_conf: MetaConfig = common_config::parse_meta(&args.meta_conf);
 
     SERVER_METRICS.init();
 

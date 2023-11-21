@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn log_print() {
-        log4rs::init_file(format!("../../{}", DEFAULT_LOG_CONFIG), Default::default()).unwrap();
+        log4rs::init_file(format!("../../../{}", DEFAULT_LOG_CONFIG), Default::default()).unwrap();
         info("lobo");
         server_info("server lobo");
     }

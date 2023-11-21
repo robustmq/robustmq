@@ -15,8 +15,6 @@
  */
 
 
-#![allow(dead_code, unused)]
-pub mod mqttv4;
 
 use std::{io, str::Utf8Error, string::FromUtf8Error};
 

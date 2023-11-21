@@ -17,8 +17,8 @@
 
 use axum::Router;
 use axum::routing::get;
-use crate::admin::management_api;
-use crate::admin::common;
+use crate::management_api;
+use crate::common;
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_METRICS: &str = "/metrics";

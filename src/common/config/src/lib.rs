@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::log;
 use server::RobustConfig;
 use std::fs;
 use std::path;
 use toml;
 use self::meta::MetaConfig;
+use common_log::log;
 
 pub mod meta;
 pub mod server;

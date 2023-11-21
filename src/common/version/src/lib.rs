@@ -1,1 +1,1 @@
-mod version;
+pub mod version;
