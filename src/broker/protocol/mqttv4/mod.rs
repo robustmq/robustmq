@@ -89,7 +89,7 @@ pub struct FixedHeader {
     /// First byte of the stream. Used to indenify packet types and several flags
     pub byte1: u8,
     /// Length of fixed header. Byte 1 + (1..4) bytes. So fixed header length can vary from 2 bytes to 5 bytes
-    /// 1..4 bytes are variable lenght encoded to represent remaining length
+    /// 1..4 bytes are variable length encoded to represent remaining length
     pub fixed_header_len: usize,
     /// Remaining length of the packet. Doesn't include fixed header bytes
     /// Represents variable header + payload size
