@@ -58,3 +58,10 @@ protocol={path="src/protocol"}
 [profile.release]
 panic = 'abort'
 debug = true
+
+[profile.nightly]
+inherits = "release"
+strip = true
+lto = "thin"
+debug = false
+incremental = false

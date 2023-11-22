@@ -13,4 +13,9 @@
 // limitations under the License.
 
 pub mod server;
+use prometheus::IntGaugeVec;
 
+lazy_static::lazy_static! {
+    static ref APP_VERSION: IntGaugeVec =
+        prometheus::register_int_gauge_vec!("app_version", "app version", &["short_version", "version"]).unwrap();
+}
