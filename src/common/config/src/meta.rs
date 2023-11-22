@@ -33,7 +33,7 @@ pub struct Rocksdb {
 // Default basic configuration of meta cluster
 const DEFAULT_META_ADDRESS: &str = "127.0.0.1";
 const DEFAULT_META_PORT: Option<u16> = Some(1227);
-const DEFAULT_DATA_PATH: &str = "/Users/wenqiangxu/data/robustmq";
+const DEFAULT_DATA_PATH: &str = "./data";
 
 // Default Settings for storage tier rocksdb
 const DEFAULT_ROCKSDB_MAX_OPEN_FILES: Option<i32> = Some(10000);

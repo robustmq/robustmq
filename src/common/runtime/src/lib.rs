@@ -13,14 +13,3 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-pub fn banner() {
-    const B: &str = r"                                              
-         ____   ___    _____  ___ _____ _____ ___  
-        |____\/     \ | ___ | |/ _ \_   _|_   _|   \ 
-        |    /\     / | |___  || |   | | | |) |
-        |_|__\ \___/  |_ ___|  |_|\__\_\|_|   |_| |___/ 
-    ";
-
-    println!("{B}\n");
-}
