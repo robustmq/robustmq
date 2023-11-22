@@ -7,7 +7,7 @@
 		"blankLinesAfter": 1,
 		"spacesBetweenYears": false,
 		"license": "CustomUri",  //表示引用定制的license文件内容
-		"author": "robustmq team",
+		"author": "RobustMQ Team",
 		"authorEmail": "robustmq@outlook.com",
 	},
 

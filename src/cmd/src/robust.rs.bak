@@ -27,9 +27,8 @@ use std::{
 use tokio::{runtime::Runtime, signal};
 
 #[derive(Parser, Debug)]
-#[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
+#[command(author="robustmq", version="1.1", about="RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
 #[command(next_line_help = true)]
-
 struct ArgsParams {
     /// broker server configuration file path
     #[arg(short, long, default_value_t=String::from(DEFAULT_SERVER_CONFIG))]
