@@ -7,6 +7,7 @@ members = [
     "src/common/log",
     "src/common/metrics",
     "src/common/version",
+    "src/common/base",
     "src/meta",
     "src/protocol"
 ]
@@ -48,6 +49,7 @@ slog-term = { version = "2.4.0"}
 admin={path="src/admin"}
 broker={path="src/broker"}
 cmd={path="src/cmd"}
+common-base={path="src/common/base"}
 common-config={path="src/common/config"}
 common-log={path="src/common/log"}
 common-metrics={path="src/common/metrics"}

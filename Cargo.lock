@@ -414,6 +414,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
+name = "common-base"
+version = "0.0.1"
+dependencies = [
+ "lazy_static",
+ "prometheus",
+ "tokio",
+]
+
+[[package]]
 name = "common-config"
 version = "0.0.1"
 dependencies = [
