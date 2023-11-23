@@ -14,8 +14,8 @@ pub enum Error {
 pub struct Broker {}
 
 impl Broker {
-    async fn start() -> Result<(),Error>{
+    async fn start(){
         let ip: SocketAddr = "".parse().unwrap();
-        let listener = TcpListener::bind(&ip).await?;
+        let listener = TcpListener::bind(&ip).await;
     }
 }
