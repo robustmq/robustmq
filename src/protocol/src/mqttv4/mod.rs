@@ -14,10 +14,134 @@
  * limitations under the License.
  */
 use super::*;
-use std::str::Utf8Error;
+use std::{str::Utf8Error, slice::Iter};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod connect;
+
+///MQTT packet type
+#[repr(u8)] 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PacketType {
+    Connect = 1, 
+    ConnAck, 
+    Publish, 
+    PubAck, 
+    PubRec, 
+    PubRel, 
+    PubComp, 
+    Subscribe,
+    SubAck, 
+    Unsubscribe,
+    UnsubAck,
+    PingReq, 
+    PingResp, 
+    Disconnect,
+}
+
+/// Packet type from a byte
+///
+/// ```ignore
+///          7                          3                          0
+///          +--------------------------+--------------------------+
+/// byte 1   | MQTT Control Packet Type | Flags for each type      |
+///          +--------------------------+--------------------------+
+///          |         Remaining Bytes Len  (1/2/3/4 bytes)        |
+///          +-----------------------------------------------------+
+///
+/// <https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc385349207>
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
+pub struct FixedHeader {
+    /// First byte of the stream. Used to indenify packet types and several flags
+    pub byte1: u8,
+    /// Length of fixed header. Byte 1 + (1..4) bytes. So fixed header length can vary from 2 bytes to 5 bytes
+    /// 1..4 bytes are variable length encoded to represent remaining length
+    pub fixed_header_len: usize,
+    /// Remaining length of the packet. Doesn't include fixed header bytes
+    /// Represents variable header + payload size
+    pub remaining_len: usize,
+}
+
+impl FixedHeader {
+    pub fn new(byte1: u8, remaining_len_len: usize, remaining_len: usize) -> FixedHeader {
+        FixedHeader {
+            byte1,
+            fixed_header_len: remaining_len_len + 1,
+            remaining_len,
+        }
+    }
+
+    pub fn packet_type(&self) -> Result<PacketType, Error> {
+        let num = self.byte1 >> 4;
+        match num {
+            1 => Ok(PacketType::Connect),
+            2 => Ok(PacketType::ConnAck),
+            3 => Ok(PacketType::Publish),
+            4 => Ok(PacketType::PubAck),
+            5 => Ok(PacketType::PubRec),
+            6 => Ok(PacketType::PubRel),
+            7 => Ok(PacketType::PubComp),
+            8 => Ok(PacketType::Subscribe),
+            9 => Ok(PacketType::SubAck),
+            10 => Ok(PacketType::Unsubscribe),
+            11 => Ok(PacketType::UnsubAck), 
+            12 => Ok(PacketType::PingReq),
+            13 => Ok(PacketType::PingResp),
+            14 => Ok(PacketType::Disconnect),
+            _ => Err(Error::InvalidPacketType(num))
+        }
+    }
+}
+
+///Parses fixed header
+fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
+    // At least 2 bytes are necesssary to frame a packet
+    let stream_len = stream.len();
+    if stream_len < 2 {
+        return Err(Error::InsufficientBytes(2 - stream_len));
+    }
+    let byte1 = stream.next().unwrap();
+    let (len_len, len) = length(stream)?;
+    Ok(FixedHeader::new(*byte1, len_len, len))
+}
+/// Parses variable byte integer in the stream and returns the length 
+/// and number of bytes that make it. Used for remaining length calculation
+/// as well as for calculating property lengths
+pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error>{
+    let mut len: usize = 0;
+    let mut len_len = 0;
+    let mut done = false;
+    let mut shift = 0;
+    // use continuation bit at position 7 to continue reading next byte to frame 'length'.
+    // stream 0b1xxx_xxxx 0b1yyy_yyyy 0b1zzz_zzzz 0b0www_wwww will be framed as number
+    // 0bwww_wwww_zzz_zzzz_yyy_yyyy_xxx_xxxxx
+    for byte in stream {
+        len_len += 1;
+        let byte = *byte as usize;
+        len += (byte & 0x7F) << shift;
+        
+        // stop when continue bit is 0
+        done = (byte & 0x80) == 0;
+        if done {
+            break;
+        }
+
+        shift += 7;
+
+        // Only a max of 4 bytes allowed for remaining length
+        // more than 4 shifts (0, 7, 14, 21) implies bad length
+        if shift > 21 {
+            return Err(Error::MalformedRemainingLength);
+        }
+    }
+     // Not enough bytes to frame remaining length. wait for one more byte
+     if !done {
+        return Err(Error::InsufficientBytes(1));
+    }
+    
+    Ok((len_len, len))
+}
 
 /// Read a series of bytes with a length from a byte stream
 fn read_mqtt_bytes(stream: &mut Bytes) -> Result<Bytes, Error> {
@@ -85,24 +209,4 @@ pub fn write_remaining_length(stream: &mut BytesMut, len: usize) -> Result<usize
     Ok(count)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
-pub struct FixedHeader {
-    /// First byte of the stream. Used to indenify packet types and several flags
-    pub byte1: u8,
-    /// Length of fixed header. Byte 1 + (1..4) bytes. So fixed header length can vary from 2 bytes to 5 bytes
-    /// 1..4 bytes are variable length encoded to represent remaining length
-    pub fixed_header_len: usize,
-    /// Remaining length of the packet. Doesn't include fixed header bytes
-    /// Represents variable header + payload size
-    pub remaining_len: usize,
-}
 
-impl FixedHeader {
-    pub fn new(byte1: u8, remaining_len_len: usize, remaining_len: usize) -> FixedHeader {
-        FixedHeader {
-            byte1,
-            fixed_header_len: remaining_len_len + 1,
-            remaining_len,
-        }
-    }
-}

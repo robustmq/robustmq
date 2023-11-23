@@ -146,4 +146,9 @@ pub enum Error {
     BoundaryCrossed(usize),
     #[error("Packet is malformed")]
     MalformedPacket,
+    #[error("Remaining length is malformed")]
+    MalformedRemainingLength,
+    #[error("Insufficient number of bytes to frame packet, {0} more bytes required")]
+    InsufficientBytes(usize),
+
 }
