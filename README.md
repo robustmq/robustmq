@@ -51,6 +51,10 @@ Options:
 ```
 cargo run
 ```
+- Cargo test runs the test cases in libraries
+```
+cargo test -p lib_name(e.g. protocol) --lib
+```
 
 ## Architecture
 ![Architecture Image](docs/robustmq-architecture.png)
