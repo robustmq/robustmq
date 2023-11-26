@@ -7,3 +7,5 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 thiserror.workspace = true
+bytes.workspace = true
+protocol.workspace = true

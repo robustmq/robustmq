@@ -147,3 +147,8 @@ pub enum Error {
     #[error("Packet is malformed")]
     MalformedPacket,
 }
+
+pub trait  Protocol {
+    fn read(&mut self, stream:&mut BytesMut, max_size:usize) -> Result<Packet, Error>;
+    fn write(&self, packet: Packet,write: &mut BytesMut) -> Result<usize,Error>;
+}
