@@ -272,6 +272,7 @@ name = "broker"
 version = "0.0.1"
 dependencies = [
  "bytes",
+ "common-base",
  "protocol",
  "thiserror",
  "tokio",

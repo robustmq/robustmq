@@ -1,16 +1,24 @@
 use rector::Rector;
 
-use self::rector::ConnectionManager;
+use self::connection::ConnectionManager;
+mod connection;
 mod network;
 mod rector;
 
-pub struct NetworkServer{
-
-}
+pub struct NetworkServer {}
 
 impl NetworkServer {
-    pub fn start(){
+    pub fn start() {
         // let rector = Rector::new();
         let connection_manager = ConnectionManager::new(1000);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+
+    fn network_server_test() {
+        
     }
 }

@@ -142,6 +142,7 @@ mod tests {
     #[test]
     fn test_metric() {
         let rt = create_runtime("test", 10);
+        let _ = rt.enter();
         sleep(Duration::from_millis(500));
 
         let _hd = rt.spawn(async {

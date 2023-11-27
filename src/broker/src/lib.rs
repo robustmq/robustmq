@@ -12,13 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 mod broker;
-mod connection;
 mod network;
-
-#[cfg(test)]
-mod tests{
-    #[test]
-    fn start_broker(){
-
-    }
-}

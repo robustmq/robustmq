@@ -11,11 +11,29 @@ pub enum Error {
     Timeout(#[from] Elapsed),
 }
 
-pub struct Broker {}
+pub struct Broker;
 
 impl Broker {
-    async fn start(){
-        let ip: SocketAddr = "".parse().unwrap();
+    pub fn new() -> Broker{
+        return Broker {  }
+    }
+    pub async fn start(){
+        let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
         let listener = TcpListener::bind(&ip).await;
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    use common_base::runtime::create_runtime;
+
+    use super::Broker;
+
+    #[test]
+    fn start_broker(){
+        let rt = create_runtime("text", 10);
+        let guard = rt.enter();
+        let b = Broker::new();
+        drop(guard);
     }
 }
