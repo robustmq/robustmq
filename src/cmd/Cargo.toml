@@ -18,3 +18,4 @@ common-version.workspace = true
 admin.workspace =true
 lazy_static.workspace = true
 tokio.workspace = true
+broker.workspace = true

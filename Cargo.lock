@@ -405,6 +405,7 @@ name = "cmd"
 version = "0.0.1"
 dependencies = [
  "admin",
+ "broker",
  "clap",
  "common-config",
  "common-log",

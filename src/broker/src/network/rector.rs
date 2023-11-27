@@ -26,6 +26,7 @@ impl Rector {
         let at = Acceptor::new(listener, self.nums, self.connection_manager.clone());
         at.start().await;
     }
+    
 }
 
 pub struct Acceptor {

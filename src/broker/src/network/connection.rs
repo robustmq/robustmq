@@ -14,7 +14,7 @@ pub struct ConnectionManager {
 }
 
 impl ConnectionManager {
-    pub fn new(max_connection_num: usize) -> ConnectionManager {
+pub fn new(max_connection_num: usize) -> ConnectionManager {
         ConnectionManager {
             connections: HashMap::new(),
             max_connection_num,
