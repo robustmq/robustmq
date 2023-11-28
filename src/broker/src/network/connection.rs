@@ -54,7 +54,9 @@ impl Connection {
         }
     }
 
-    pub async fn run(){
-        
+    pub async fn spawn(&self){
+        tokio::spawn(async move {
+            
+        })
     }
 }

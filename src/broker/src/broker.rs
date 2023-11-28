@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, fmt::Result, time::Duration};
 use tokio::{io,time::{error::Elapsed, sleep}};
 use crate::network::NetworkServer;
-use flume;
+use flume::{self, Sender, Receiver};
 
 #[derive(Debug, thiserror::Error)]
 #[error("Acceptor error")]
@@ -19,7 +19,7 @@ pub struct Broker {
 
 impl Broker {
     pub fn new(accept_thread_num: usize, max_connection_num: usize) -> Broker {
-        let (signaltx, rx) = flume::unbounded();
+        let (tx, rx) = flume::bounded(1);
         return Broker {
             accept_thread_num,
             max_connection_num,

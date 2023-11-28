@@ -51,10 +51,12 @@ impl Acceptor {
     pub async fn start(&self) -> Result<(), Error> {
         for _ in 0..=self.nums {
             let (stream, addr) = self.listener.accept().await.unwrap();
+            
             let conn = Connection::new(stream, addr);
+            conn.spawn();
+
             let mut cm = self.connection_manager.write().await;
             cm.add(conn);
-            // tokio::spawn();
         }
         return Ok(());
     }
