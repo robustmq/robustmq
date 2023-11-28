@@ -34,11 +34,10 @@ impl Broker {
         // network server start
         let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
         let net_s = TcpServer::new(ip, self.accept_thread_num, self.max_connection_num);
-        net_s.start();
+        net_s.start().await;
         loop {
             sleep(Duration::from_secs(10)).await
         }
-
     }
 
     pub async fn stop(&self) -> Result {
@@ -63,7 +62,5 @@ mod tests {
     }
 
     #[test]
-    fn client(){
-
-    }
+    fn client() {}
 }
