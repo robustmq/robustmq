@@ -44,6 +44,7 @@ slog-async = "2.3.0"
 slog-envlogger = { version = "2.1.0"}
 slog-stdlog = { version = "4"}
 slog-term = { version = "2.4.0"}
+flume = "0.11.0"
 
 ## workspaces members
 admin={path="src/admin"}

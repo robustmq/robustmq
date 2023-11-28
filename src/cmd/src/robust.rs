@@ -17,12 +17,14 @@ use std::error;
 use broker::broker::Broker;
 use clap::command;
 use clap::Parser;
-use common_config::{meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG};
+use common_config::{
+    meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG,
+};
+use common_log::log;
 use common_log::log::error;
 use common_log::log::info;
-use lazy_static::lazy_static;
-use common_log::log;
 use common_metrics::server::ServerMetrics;
+use lazy_static::lazy_static;
 use tokio::signal;
 
 #[derive(Parser, Debug)]
@@ -50,19 +52,19 @@ async fn main() {
 
     let server_conf: RobustConfig = common_config::parse_server(&args.server_conf);
     let meta_conf: MetaConfig = common_config::parse_meta(&args.meta_conf);
-    let app = Broker::new(10, 10);
+
+    let app: Broker = Broker::new(10, 10);
     tokio::select! {
         result = app.start() => {
             if let Err(err) = result {
-                error("Fatal error occurs!");
+                error(&format!("Fatal error occurs!,err:{:?}",err));
             }
         }
         _ = signal::ctrl_c() => {
             if let Err(err) = app.stop().await {
-                error("Fatal error occurs!");
+                error(&format!("Fatal error occurs!,err:{:?}",err));
             }
             info("Goodbye!");
         }
     }
-   
 }
