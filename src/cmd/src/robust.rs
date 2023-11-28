@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::error;
-
 use broker::broker::Broker;
 use clap::command;
 use clap::Parser;
 use common_config::{
     meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG,
 };
-use common_log::log;
 use common_log::log::error;
 use common_log::log::info;
+use common_log::log;
 use common_metrics::server::ServerMetrics;
 use lazy_static::lazy_static;
 use tokio::signal;

@@ -1,7 +1,5 @@
 use std::{collections::HashMap, sync::atomic::AtomicU64, net::SocketAddr};
 
-use tokio::net::TcpStream;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Description The number of TCP connections on a node exceeded the upper limit. The maximum number of TCP connections was {total:?}")]
@@ -40,23 +38,15 @@ pub fn new(max_connection_num: usize) -> ConnectionManager {
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 pub struct Connection {
     connection_id: u64,
-    socket: TcpStream,
     addr: SocketAddr,
 }
 
 impl Connection {
-    pub fn new(socket: TcpStream, addr: SocketAddr) -> Connection {
+    pub fn new(addr: SocketAddr) -> Connection {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Connection {
             connection_id,
-            socket,
             addr,
         }
-    }
-
-    pub async fn spawn(&self){
-        tokio::spawn(async move {
-            
-        })
     }
 }
