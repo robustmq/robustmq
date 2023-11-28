@@ -13,3 +13,5 @@ common-base.workspace = true
 flume.workspace = true
 tokio-util.workspace = true
 futures.workspace =true
+common-version.workspace =true
+common-log.workspace = true

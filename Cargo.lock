@@ -273,6 +273,8 @@ version = "0.0.1"
 dependencies = [
  "bytes",
  "common-base",
+ "common-log",
+ "common-version",
  "flume",
  "futures",
  "protocol",

@@ -1,4 +1,6 @@
 use std::{fmt::Result, net::SocketAddr, time::Duration};
+use common_log::log::info;
+use common_version::banner;
 use tokio::{
     io,
     time::{error::Elapsed, sleep},
@@ -35,6 +37,9 @@ impl Broker {
         let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
         let net_s = TcpServer::new(ip, self.accept_thread_num, self.max_connection_num);
         net_s.start().await;
+        info(&format!("RobustMQ Broker Server bind addr:{:?}",ip));
+        info("RobustMQ Broker Server start success!");
+        banner();
         loop {
             sleep(Duration::from_secs(10)).await
         }
@@ -62,5 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn client() {}
+    fn client() {
+
+    }
 }
