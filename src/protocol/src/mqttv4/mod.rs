@@ -18,6 +18,7 @@ use std::{str::Utf8Error, slice::Iter};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod connect;
+mod connack;
 
 ///MQTT packet type
 #[repr(u8)] 
@@ -139,7 +140,7 @@ pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error>{
      if !done {
         return Err(Error::InsufficientBytes(1));
     }
-    
+
     Ok((len_len, len))
 }
 

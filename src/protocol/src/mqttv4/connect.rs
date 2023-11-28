@@ -292,8 +292,6 @@ mod tests {
 
         assert_eq!(&buff_write[14..], b"test_client_id"); // check the client id
 
-        //test function read
-        let mut buff_read = BytesMut::new();
         // read the fixed header
         let fixheader: FixedHeader = parse_fixed_header(buff_write.iter()).unwrap();
         // read first byte and check its packet type which should be connect

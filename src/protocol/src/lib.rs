@@ -35,6 +35,7 @@ pub enum Packet {
         Option<LastWillProperties>,
         Option<Login>,
     ),
+    ConnAck(ConnAck, Option<ConnAckProperties>),
 }
 
 /// Connection packet initialized by the client
@@ -117,6 +118,65 @@ pub struct Login {
     pub password: String,
 }
 
+//-----------------------------ConnectAck packet----------------
+/// Return code in connack
+/// This contains return codes for both MQTT v4(3.11) and v5
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectReturnCode {
+    Success, 
+    RefusedProtocolVersion, 
+    BadClientId,
+    ServiceUnavailable,
+    UnspecifiedError,
+    MalformedPacket, 
+    ProtocolError,
+    ImplementationSpecificError,
+    UnsupportedProtocolVersion,
+    ClientIdentifierNotValid,
+    BadUserNamePassword,
+    NotAuthorized,
+    ServerUnavailable,
+    ServerBusy,
+    Banned,
+    BadAuthenticationMethod,
+    TopicNameInvalid,
+    PacketTooLarge,
+    QuotaExceeded,
+    PayloadFormatInvalid,
+    RetainNotSupported,
+    QoSNotSupported,
+    UseAnotherServer,
+    ServerMoved,
+    ConnectionRateExceeded,
+}
+
+/// Acknowledgement to connect packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConnAck {
+    pub session_present: bool,
+    pub code: ConnectReturnCode,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ConnAckProperties {
+    pub session_expiry_interval: Option<u32>,
+    pub receive_max: Option<u16>,
+    pub max_qos: Option<u8>,
+    pub retain_available: Option<u8>,
+    pub max_packet_size: Option<u32>,
+    pub assigned_client_identifier: Option<String>,
+    pub topic_alias_max: Option<u16>,
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+    pub wildcard_subscription_available: Option<u8>,
+    pub subscription_identifiers_available: Option<u8>,
+    pub shared_subscription_available: Option<u8>,
+    pub server_keep_alive: Option<u16>,
+    pub response_information: Option<String>,
+    pub server_reference: Option<String>,
+    pub authentication_method: Option<String>,
+    pub authentication_data: Option<Bytes>,
+}
 /// Error during serialization and deserialization
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
