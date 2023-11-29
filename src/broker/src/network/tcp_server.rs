@@ -8,7 +8,7 @@ use tokio_util::codec::{Framed, LengthDelimitedCodec};
 pub struct TcpServer {
     ip: SocketAddr,
     accept_thread_num: usize,
-    max_connection_num: usize,
+    max_connection_num: usize
 }
 
 impl TcpServer {
