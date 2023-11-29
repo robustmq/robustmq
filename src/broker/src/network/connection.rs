@@ -30,6 +30,10 @@ impl ConnectionManager {
         Ok(())
     }
 
+    pub fn get(&self, connection_id: u64)->Option<&Connection> {
+        return self.connections.get(&connection_id);
+    }
+
     pub fn remove(&mut self, connection_id: u64) {
         self.connections.remove(&connection_id);
     }
