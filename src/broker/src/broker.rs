@@ -43,13 +43,16 @@ impl Broker {
     pub async fn start(&self) -> Result {
         // metrics init
 
-        // network server start
+        // tcp server start
         let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
         let net_s = TcpServer::new(ip, self.accept_thread_num, self.max_connection_num,1,1,1,1);
         net_s.start().await;
 
-        info(&format!("RobustMQ Broker Server bind addr:{:?}", ip));
-        info("RobustMQ Broker Server start success!");
+        // grpc server start
+
+        // http server start
+
+        // process start hook
         banner();
 
         loop {

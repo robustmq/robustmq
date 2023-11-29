@@ -5,7 +5,7 @@ use super::{
     package::ResponsePackage,
 };
 use bytes::Bytes;
-use common_log::log::error;
+use common_log::log::{error, info};
 use flume::{Receiver, Sender};
 use futures::{SinkExt, StreamExt};
 use std::{fmt::Error, net::SocketAddr, sync::Arc};
@@ -70,6 +70,9 @@ impl TcpServer {
         for _ in 0..=self.response_process_num {
             _ = self.response_process().await;
         }
+
+        info(&format!("RobustMQ Broker Server bind addr:{:?}", self.ip));
+        info("RobustMQ Broker Server start success!");
     }
 
     async fn acceptor(
