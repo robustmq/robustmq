@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use broker::broker::Broker;
 use clap::command;
 use clap::Parser;
-use common_config::{meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG};
-use lazy_static::lazy_static;
-use common_log::log;
-use common_version;
-use admin;
-use common_metrics::server::ServerMetrics;
-use std::{
-    sync::mpsc::{self, Receiver, Sender},
-    time::Duration,
+use common_config::{
+    meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG,
 };
-use tokio::{runtime::Runtime, signal};
+use common_log::log::error;
+use common_log::log::info;
+use common_log::log;
+use common_metrics::server::ServerMetrics;
+use lazy_static::lazy_static;
+use tokio::signal;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -44,70 +43,27 @@ lazy_static! {
     static ref SERVER_METRICS: ServerMetrics = ServerMetrics::new();
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = ArgsParams::parse();
     log::new();
 
     let server_conf: RobustConfig = common_config::parse_server(&args.server_conf);
     let meta_conf: MetaConfig = common_config::parse_meta(&args.meta_conf);
 
-    SERVER_METRICS.init();
-
-    let admin_server = admin::AdminServer::new(&server_conf);
-    let admin_runtime = admin_server.start();
-    
-    start_broker(&server_conf);
-    SERVER_METRICS.set_server_status_running();
-    log::server_info("RobustMQ Server was successfully started");
-    common_version::banner();
-    shutdown_hook(admin_runtime);
-}
-
-fn start_broker(_: &RobustConfig) {}
-
-fn shutdown_hook(runtime: Runtime) {
-    let (sx_sender, rx_receiver): (Sender<u16>, Receiver<u16>) = mpsc::channel();
-
-    runtime.spawn(async move {
-        let ctrl_c = async {
-            signal::ctrl_c()
-                .await
-                .expect("failed to install Ctrl+C handler");
-        };
-
-        #[cfg(unix)]
-        let terminate = async {
-            signal::unix::signal(signal::unix::SignalKind::terminate())
-                .expect("failed to install signal handler")
-                .recv()
-                .await;
-        };
-
-        #[cfg(not(unix))]
-        let terminate = std::future::pending::<()>();
-
-        tokio::select! {
-            _ = ctrl_c => {
-                log::info("Process receives the signal ctrl + c");
-                sx_sender.send(1).unwrap();
-            },
-            c2 = terminate => {
-                sx_sender.send(1).unwrap();
-                println!("3333{:?}",c2)
-        },
-        }
-    });
-
-    loop {
-        match rx_receiver.recv() {
-            Ok(value) => {
-                println!("{}", value);
-                if value == 3 {
-                    runtime.shutdown_timeout(Duration::from_secs(1000));
-                    break;
-                }
+    let app: Broker = Broker::new(10, 10,10,10);
+    tokio::select! {
+        result = app.start() => {
+            if let Err(err) = result {
+                error(&format!("Fatal error occurs!,err:{:?}",err));
             }
-            Err(_) => {}
+        }
+        _ = signal::ctrl_c() => {
+            info("Listen for stop signal Ctrl+C...");
+            if let Err(err) = app.stop().await {
+                error(&format!("Fatal error occurs!,err:{:?}",err));
+            }
+            info("Goodbye!");
         }
     }
 }
