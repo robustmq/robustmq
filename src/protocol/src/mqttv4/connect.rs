@@ -292,9 +292,18 @@ mod tests {
 
         assert_eq!(&buff_write[14..], b"test_client_id"); // check the client id
 
-        //test function read
-        let mut buff_read = BytesMut::new();
-        //let fixheader: FixedHeader = FixedHeader { byte1: buff_write[0], fixed_header_len: , remaining_len: () };
-        // read(buff_write[0], &mut buff_read);
+        // read the fixed header
+        let fixheader: FixedHeader = parse_fixed_header(buff_write.iter()).unwrap();
+        // read first byte and check its packet type which should be connect
+        assert_eq!(fixheader.byte1, 0b0001_0000); 
+        assert_eq!(fixheader.fixed_header_len, 2);
+        assert!(fixheader.remaining_len == 26);
+        // test read function, x gets connect, y gets login and z gets will
+        let (x, y, z) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
+        // only check connect value in this case as login and will being none
+        assert_eq!(x.client_id, "test_client_id");
+        assert_eq!(x.keep_alive, 30);
+        assert_eq!(x.clean_session, true);
+        
     }
 }
