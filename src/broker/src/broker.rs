@@ -3,10 +3,7 @@ use common_log::log::info;
 use common_version::banner;
 use flume::{Receiver, Sender};
 use std::{fmt::Result, net::SocketAddr, time::Duration};
-use tokio::{
-    io,
-    time::{error::Elapsed, sleep},
-};
+use tokio::{io, time::error::Elapsed};
 
 #[derive(Debug, thiserror::Error)]
 #[error("Acceptor error")]
@@ -50,7 +47,7 @@ impl Broker {
         let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
         let (request_queue_sx, request_queue_rx) =
             flume::bounded::<String>(self.request_queue_size);
-        
+
         let net_s = TcpServer::new(ip, self.accept_thread_num, self.max_connection_num);
         net_s.start().await;
 
@@ -65,7 +62,7 @@ impl Broker {
                     break;
                 }
             }
-            sleep(Duration::from_secs(1)).await
+            tokio::time::sleep(Duration::from_secs(1)).await
         }
 
         return Ok(());
@@ -82,6 +79,9 @@ impl Broker {
 
 #[cfg(test)]
 mod tests {
+    use std::thread::sleep;
+    use std::time::Duration;
+
     use super::Broker;
     use bytes::Bytes;
     use common_base::runtime::create_runtime;
@@ -94,7 +94,7 @@ mod tests {
     fn start_broker() {
         let rt = create_runtime("text", 10);
         let guard = rt.enter();
-        let b = Broker::new(10, 10,0,0);
+        let b = Broker::new(10, 10, 0, 0);
         _ = block_on(b.start());
         drop(guard);
     }
@@ -114,5 +114,6 @@ mod tests {
             }
         });
         drop(guard);
+        sleep(Duration::from_secs(10));
     }
 }
