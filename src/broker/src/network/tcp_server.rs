@@ -56,8 +56,11 @@ impl TcpServer {
         let connection_manager =
             Arc::new(RwLock::new(ConnectionManager::new(self.max_connection_num)));
 
+        let listener = TcpListener::bind(self.ip).await.unwrap();
+        let arc_listener = Arc::new(listener);
+        
         for _ in 0..=self.accept_thread_num {
-            _ = self.acceptor(connection_manager.clone()).await;
+            _ = self.acceptor(connection_manager.clone(),arc_listener.clone()).await;
         }
 
         for _ in 0..=self.handler_process_num {
@@ -72,9 +75,8 @@ impl TcpServer {
     async fn acceptor(
         &self,
         connection_manager: Arc<RwLock<ConnectionManager>>,
+        listener: Arc<TcpListener>,
     ) -> Result<(), Error> {
-        let listener = TcpListener::bind(self.ip).await.unwrap();
-
         let request_queue_sx = self.request_queue_sx.clone();
         tokio::spawn(async move {
             let (stream, addr) = listener.accept().await.unwrap();
