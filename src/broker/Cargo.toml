@@ -5,3 +5,13 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+tokio.workspace = true
+thiserror.workspace = true
+bytes.workspace = true
+protocol.workspace = true
+common-base.workspace = true
+flume.workspace = true
+tokio-util.workspace = true
+futures.workspace =true
+common-version.workspace =true
+common-log.workspace = true

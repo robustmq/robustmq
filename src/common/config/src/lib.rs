@@ -30,7 +30,7 @@ pub fn parse_server(config_path: &String) -> RobustConfig {
     let content = read_file(config_path);
 
     log::info(&format!(
-        "server config content:\n============================\n{}\n============================\n",
+        "server config content:\n{}\n",
         content
     ));
 
@@ -43,7 +43,7 @@ pub fn parse_meta(config_path: &String) -> MetaConfig {
     let content = read_file(config_path);
 
     log::info(&format!(
-        "server config content:\n============================\n{}\n============================\n",
+        "server config content:\n{}\n",
         content
     ));
 
