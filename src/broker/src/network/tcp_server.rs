@@ -64,7 +64,7 @@ impl TcpServer {
             _ = self.handler_process().await;
         }
 
-        for _ in 0..=self.response_process_num{
+        for _ in 0..=self.response_process_num {
             _ = self.response_process().await;
         }
     }
@@ -78,16 +78,21 @@ impl TcpServer {
         let request_queue_sx = self.request_queue_sx.clone();
         tokio::spawn(async move {
             let (stream, addr) = listener.accept().await.unwrap();
+
+            let conn = Connection::new(addr);
+            let mut cm = connection_manager.write().await;
+            _ = cm.add(conn.clone());
+
             tokio::spawn(async move {
                 // todo Frames Codes need to be adjusted
                 let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
                 // let socket = Arc::new(RwLock::new(stream));
                 // let r = socket.clone();
-                
+
                 // todo
                 while let Some(Ok(data)) = stream.next().await {
                     let content = String::from_utf8_lossy(&data).to_string();
-                    let package = RequestPackage::new(content);
+                    let package = RequestPackage::new(content, conn);
                     match request_queue_sx.send(package) {
                         Ok(_) => {}
                         Err(err) => error(&format!(
@@ -97,9 +102,6 @@ impl TcpServer {
                     }
                 }
             });
-            let conn = Connection::new(addr);
-            let mut cm = connection_manager.write().await;
-            _ = cm.add(conn);
         });
 
         return Ok(());
@@ -127,8 +129,8 @@ impl TcpServer {
     async fn response_process(&self) -> Result<(), Error> {
         let response_queue_rx = self.response_queue_rx.clone();
         tokio::spawn(async move {
-            while let Ok(response_package) = response_queue_rx.recv(){
-
+            while let Ok(response_package) = response_queue_rx.recv() {
+                println!("{:?}", response_package);
             }
         });
         return Ok(());

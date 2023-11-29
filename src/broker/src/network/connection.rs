@@ -30,7 +30,7 @@ impl ConnectionManager {
         Ok(())
     }
 
-    pub fn get(&self, connection_id: u64)->Option<&Connection> {
+    pub fn get(&self, connection_id: u64) -> Option<&Connection> {
         return self.connections.get(&connection_id);
     }
 
@@ -40,6 +40,8 @@ impl ConnectionManager {
 }
 
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Debug,Clone,Copy)]
 pub struct Connection {
     connection_id: u64,
     addr: SocketAddr,
@@ -52,5 +54,9 @@ impl Connection {
             connection_id,
             addr,
         }
+    }
+
+    pub fn connection_id(&self) -> u64 {
+        return self.connection_id;
     }
 }
