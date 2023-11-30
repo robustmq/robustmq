@@ -177,6 +177,46 @@ pub struct ConnAckProperties {
     pub authentication_method: Option<String>,
     pub authentication_data: Option<Bytes>,
 }
+
+//----------------------Publish Packet --------------------------------
+
+/// Publish packet
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Publish{
+    pub(crate) dup: bool,
+    pub(crate) qos: QoS,
+    pub(crate) pkid: u16,
+    pub retain: bool,
+    pub topic: Bytes,
+    pub payload: Bytes,
+}
+
+impl Publish {
+    //Constructor of Publish
+    pub fn new<T: Into<Bytes>>(topic: T, payload: T, retain: bool) -> Publish{
+        Publish { 
+            dup: false, 
+            qos: QoS::AtMostOnce,
+            pkid: 0, 
+            retain, 
+            topic: topic.into(),
+            payload: payload.into(),
+         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn len(&self) -> usize {
+        let len = 2 + self.topic.len() + self.payload.len();
+        match self.qos == QoS::AtMostOnce{
+            true => len,
+            false => len + 2,
+        }
+    }
+}
+
 /// Error during serialization and deserialization
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
@@ -206,10 +246,13 @@ pub enum Error {
     BoundaryCrossed(usize),
     #[error("Packet is malformed")]
     MalformedPacket,
-  #[error("Remaining length is malformed")]
+    #[error("Remaining length is malformed")]
     MalformedRemainingLength,
     #[error("Insufficient number of bytes to frame packet, {0} more bytes required")]
     InsufficientBytes(usize),
+    #[error("Packet recieved has id Zero")]
+    PacketIdZero
+
 }
 
 pub trait  Protocol {
