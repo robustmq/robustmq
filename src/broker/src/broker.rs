@@ -45,7 +45,15 @@ impl Broker {
 
         // tcp server start
         let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
-        let net_s = TcpServer::new(ip, self.accept_thread_num, self.max_connection_num,1,1,1,1);
+        let net_s = TcpServer::new(
+            ip,
+            self.accept_thread_num,
+            self.max_connection_num,
+            1,
+            1,
+            1,
+            1,
+        );
         net_s.start().await;
 
         // grpc server start
@@ -83,12 +91,13 @@ mod tests {
     use std::time::Duration;
 
     use super::Broker;
-    use bytes::Bytes;
+    use bytes::{BufMut, Bytes, BytesMut};
     use common_base::runtime::create_runtime;
     use futures::executor::block_on;
-    use futures::{SinkExt, StreamExt};
-    use tokio::net::TcpStream;
-    use tokio_util::codec::{Framed, LengthDelimitedCodec};
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpStream,
+    };
 
     #[test]
     fn start_broker() {
@@ -104,13 +113,21 @@ mod tests {
         let rt = create_runtime("text", 10);
         let guard = rt.enter();
         tokio::spawn(async move {
-            let stream = TcpStream::connect("127.0.0.1:8768").await.unwrap();
-            let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
-            stream.send(Bytes::from("hello world")).await;
+            let mut stream = TcpStream::connect("127.0.0.1:8768").await.unwrap();
+            // let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
+            let mut write_buf = BytesMut::with_capacity(20);
+            write_buf.put(&b"hello world lobo"[..]);
+            let _ = stream.write_all(&write_buf).await;
 
-            //接受从服务器返回的数据
-            if let Some(Ok(data)) = stream.next().await {
-                println!("Got: {:?}", String::from_utf8_lossy(&data));
+            let mut read_buf = BytesMut::with_capacity(20);
+            match stream.read_buf(&mut read_buf).await {
+                Ok(_) => {
+                    let content = String::from_utf8_lossy(&read_buf).to_string();
+                    println!("receive:{}", content)
+                }
+                Err(err) => {
+                    println!("err:{:?}", err)
+                }
             }
         });
         drop(guard);

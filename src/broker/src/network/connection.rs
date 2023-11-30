@@ -1,4 +1,6 @@
-use std::{collections::HashMap, net::SocketAddr, sync::atomic::AtomicU64};
+use std::{collections::HashMap, net::SocketAddr, sync::{atomic::AtomicU64, Arc}};
+
+use tokio::sync::RwLock;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -41,18 +43,19 @@ impl ConnectionManager {
 
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Debug,Clone,Copy)]
 pub struct Connection {
-    connection_id: u64,
-    addr: SocketAddr,
+    pub connection_id: u64,
+    pub addr: SocketAddr,
+    pub socket: Arc<RwLock<Box<tokio::net::TcpStream>>>,
 }
 
 impl Connection {
-    pub fn new(addr: SocketAddr) -> Connection {
+    pub fn new(addr: SocketAddr, socket: Arc<RwLock<Box<tokio::net::TcpStream>>>) -> Connection {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Connection {
             connection_id,
             addr,
+            socket,
         }
     }
 
