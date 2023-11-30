@@ -17,7 +17,7 @@ use super::*;
 use std::{str::Utf8Error, slice::Iter};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-mod connect;
+pub mod connect;
 mod connack;
 
 ///MQTT packet type

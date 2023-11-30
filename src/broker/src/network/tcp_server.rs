@@ -53,7 +53,7 @@ impl TcpServer {
     }
 
     pub async fn start(&self) {
-        let connection_manager =
+        let connection_manager: Arc<RwLock<ConnectionManager>> =
             Arc::new(RwLock::new(ConnectionManager::new(self.max_connection_num)));
 
         let listener = TcpListener::bind(self.ip).await.unwrap();
@@ -84,18 +84,17 @@ impl TcpServer {
         tokio::spawn(async move {
             let (stream, addr) = listener.accept().await.unwrap();
 
-            let conn = Connection::new(addr);
-            let mut cm = connection_manager.write().await;
-            _ = cm.add(conn.clone());
-
             tokio::spawn(async move {
                 // todo Frames Codes need to be adjusted
                 let mut stream = Framed::new(stream, LengthDelimitedCodec::new());
                 // let socket = Arc::new(RwLock::new(stream));
                 // let r = socket.clone();
-
+                let mut socket: Box<Framed<tokio::net::TcpStream, LengthDelimitedCodec>> = Box::new(stream);
+                let conn = Connection::new(addr,socket);
+                let mut cm = connection_manager.write().await;
+                _ = cm.add(conn.clone());
                 // todo
-                while let Some(Ok(data)) = stream.next().await {
+                while let Some(Ok(data)) = socket.next().await {
                     let content = String::from_utf8_lossy(&data).to_string();
                     let package = RequestPackage::new(content, conn);
                     match request_queue_sx.send(package) {
@@ -106,6 +105,7 @@ impl TcpServer {
                         )),
                     }
                 }
+
             });
         });
 

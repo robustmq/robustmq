@@ -45,6 +45,7 @@ static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 pub struct Connection {
     connection_id: u64,
     addr: SocketAddr,
+    socket: Box<dyn N>,
 }
 
 impl Connection {
