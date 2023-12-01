@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 use super::*;
+use crate::protocol::*;
 use std::{str::Utf8Error, slice::Iter};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 pub mod connect;
-mod connack;
-mod publish;
+pub mod connack;
+pub mod publish;
 
 ///MQTT packet type
 #[repr(u8)] 
@@ -94,6 +95,12 @@ impl FixedHeader {
             _ => Err(Error::InvalidPacketType(num))
         }
     }
+
+    /// Returns the size of full packet (fixed header + variable header + payload)
+    /// Fixed header is enough to get the size of a frame in the stream
+    pub fn frame_length(&self) -> usize {
+        self.fixed_header_len + self.remaining_len
+    }
 }
 
 ///Parses fixed header
@@ -107,6 +114,34 @@ fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
     let (len_len, len) = length(stream)?;
     Ok(FixedHeader::new(*byte1, len_len, len))
 }
+
+/// Checks if the stream has enough bytes to frame a packet and returns fixed header
+/// only if a packet can be framed with existing bytes in the `stream`.
+/// The passed stream doesn't modify parent stream's cursor. If this function
+/// returned an error, next `check` on the same parent stream is forced start
+/// with cursor at 0 again (Iter is owned. Only Iter's cursor is changed internally)
+pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, Error> {
+    // Create fixed header if there are enough bytes in the stream to frame full packet
+    let stream_len = stream.len();
+    let fixed_header = parse_fixed_header(stream)?;
+
+    // Don't let rogue connections attack with huge payloads.
+    // Disconnect them before reading all that data
+    if fixed_header.remaining_len > max_packet_size {
+        return Err(Error::PayloadSizeLimitExceeded(fixed_header.remaining_len));
+    }
+    
+    // If the current call fails due to insufficient bytes in the stream
+    // after calculating remaining length, we extend the stream
+    let frame_length = fixed_header.frame_length();
+    if stream_len < frame_length {
+        return Err(Error::InsufficientBytes(frame_length - stream_len));
+    }
+
+    Ok(fixed_header)
+    
+}
+
 /// Parses variable byte integer in the stream and returns the length 
 /// and number of bytes that make it. Used for remaining length calculation
 /// as well as for calculating property lengths
@@ -211,4 +246,49 @@ pub fn write_remaining_length(stream: &mut BytesMut, len: usize) -> Result<usize
     Ok(count)
 }
 
+#[derive(Debug, Clone)]
+pub struct MqttV4;
+
+impl Protocol for MqttV4 {
+     // Reads a stream of bytes and extracts next MQTT packet out of it
+     fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<Packet, Error> {
+        let fixed_header = check(stream.iter(), max_size)?;
+        // Test with a stream with exactly the size to check border panics
+        let packet = stream.split_to(fixed_header.frame_length());
+        let packet_type = fixed_header.packet_type()?;
+
+        // if fixed_header.remaining_len == 0 {
+        //     // no payload packets
+        //     return match packet_type {
+
+        //     }
+        // }
+        let packet = packet.freeze();
+        let packet = match packet_type {
+            PacketType::Connect => {
+                let (connect, login, lastwill) = connect::read(fixed_header, packet)?;
+                Packet::Connect(connect, None, lastwill, None, login)
+            }
+            PacketType::ConnAck => Packet::ConnAck(connack::read(fixed_header, packet)?, None),
+            PacketType::Publish => Packet::Publish(publish::read(fixed_header, packet)?, None),
+            _ => unreachable!(),
+
+        };
+        Ok(packet)
+     }
+
+     fn write(&self, packet: Packet, buffer: &mut BytesMut) -> Result<usize, Error> {
+        let size = match packet {
+            Packet::Connect(connect, None, last_will, None, login) => {
+                connect::write(&connect, &login, &last_will, buffer)?
+            }
+            Packet::ConnAck(connack, _) => connack::write(&connack, buffer)?,
+            Packet::Publish(publish, None) => publish::write(&publish, buffer)?,
+            _=> unreachable!(
+                "This branch only matches for packets with Properties, which is not possible in MQTT V4",
+            ),
+        };
+        Ok(size)
+     }
+}
 
