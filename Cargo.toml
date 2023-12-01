@@ -57,6 +57,7 @@ common-metrics={path="src/common/metrics"}
 common-version={path="src/common/version"}
 meta={path="src/meta"}
 protocol={path="src/protocol"}
+robustmq-test={path="tests"}
 
 [profile.release]
 panic = 'abort'

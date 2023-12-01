@@ -1,13 +1,18 @@
 use super::{
     connection::{Connection, ConnectionManager},
+    network::Network,
     package::ResponsePackage,
 };
 use crate::network::package::RequestPackage;
-use bytes::{BytesMut, BufMut};
+use bytes::{BufMut, BytesMut};
 use common_log::log::{error, info};
 use flume::{Receiver, Sender};
 use std::{fmt::Error, net::SocketAddr, sync::Arc};
-use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpListener, sync::RwLock};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+    sync::RwLock,
+};
 
 pub struct TcpServer {
     ip: SocketAddr,
@@ -52,14 +57,11 @@ impl TcpServer {
     }
 
     pub async fn start(&self) {
-
         let listener = TcpListener::bind(self.ip).await.unwrap();
         let arc_listener = Arc::new(listener);
 
         for _ in 0..=self.accept_thread_num {
-            _ = self
-                .acceptor(arc_listener.clone())
-                .await;
+            _ = self.acceptor(arc_listener.clone()).await;
         }
 
         for _ in 0..=self.handler_process_num {
@@ -74,16 +76,23 @@ impl TcpServer {
         info("RobustMQ Broker Server start success!");
     }
 
-    async fn acceptor(
-        &self,
-        listener: Arc<TcpListener>,
-    ) -> Result<(), Error> {
+    async fn acceptor(&self, listener: Arc<TcpListener>) -> Result<(), Error> {
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
 
         tokio::spawn(async move {
             let (stream, addr) = listener.accept().await.unwrap();
             let socket = Arc::new(RwLock::new(Box::new(stream)));
+            let network = Network::new(
+                socket, 
+                2000, 
+                2000, 
+                2000, 
+                3000, 
+                protocol
+            );
+            // read connect package
+
             // tls check
 
             // user login check
@@ -150,37 +159,25 @@ impl TcpServer {
         tokio::spawn(async move {
             while let Ok(response_package) = response_queue_rx.recv() {
                 // Logical processing of data response
-                
+
                 // Write the data back to the client
                 let cm = connect_manager.write().await;
                 let connection = cm.get(response_package.connection_id).unwrap();
-                let mut stream =connection.socket.write().await;
+                let mut stream = connection.socket.write().await;
 
                 let mut write_buf = BytesMut::with_capacity(20);
                 write_buf.put(&b"loboxu nb"[..]);
-                match stream.write_all(&write_buf).await{
-                    Ok(_) => {},
+                match stream.write_all(&write_buf).await {
+                    Ok(_) => {}
                     Err(err) => error(&format!(
                         "Failed to write data to the response queue, error message ff: {:?}",
                         err
                     )),
                 }
-                
+
                 println!("{:?}", response_package);
             }
         });
         return Ok(());
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::TcpServer;
-    use std::net::SocketAddr;
-
-    #[test]
-    fn network_server_test() {
-        let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
-        // let net_s = TcpServer::new(ip, 10, 10, 1, 1, 1, 1);
     }
 }
