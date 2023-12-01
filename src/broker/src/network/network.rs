@@ -1,9 +1,9 @@
-use std::{collections::VecDeque, io, time::Duration};
-
 use bytes::BytesMut;
-use protocol::{Packet, Protocol};
+use protocol::{Packet, protocol::Protocol};
+use std::{collections::VecDeque, io, sync::Arc, time::Duration};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    sync::RwLock,
     time::error::Elapsed,
 };
 
@@ -18,7 +18,7 @@ pub enum Error {
 }
 
 pub struct Network<P> {
-    socket: Box<dyn N>,
+    socket: Arc<RwLock<Box<tokio::net::TcpStream>>>,
     read: BytesMut,
     write: BytesMut,
     max_incoming_size: usize,
@@ -28,8 +28,9 @@ pub struct Network<P> {
 }
 
 impl<P: Protocol> Network<P> {
+
     pub fn new(
-        socket: Box<dyn N>,
+        socket: Arc<RwLock<Box<tokio::net::TcpStream>>>,
         read_capacity: usize,
         write_capacity: usize,
         max_incoming_size: usize,
@@ -51,10 +52,12 @@ impl<P: Protocol> Network<P> {
         self.keepalive = self.keepalive + Duration::from_secs(keepalive as u64).mul_f32(0.5)
     }
 
+    // Reads data of a certain length from the connection
     async fn read_bytes(&mut self, required: usize) -> io::Result<usize> {
+        let mut stream = self.socket.write().await;
         let mut total_read = 0;
         loop {
-            let read = self.socket.read_buf(&mut self.read).await?;
+            let read = stream.read_buf(&mut self.read).await?;
             if 0 == read {
                 let error: io::Error = if self.read.is_empty() {
                     io::Error::new(
@@ -74,29 +77,35 @@ impl<P: Protocol> Network<P> {
         }
     }
 
+    // Reads protocol packet data from a TCP connection
     pub async fn read(&mut self) -> Result<Packet, Error> {
         loop {
             let required =
                 match Protocol::read(&mut self.protocol, &mut self.read, self.max_incoming_size) {
                     Ok(packet) => return Ok(packet),
+                    Err(protocol::Error::InsufficientBytes(required)) => required,
                     Err(e) => return Err(e.into()),
                 };
             self.read_bytes(required).await?;
         }
     }
 
+    /// Write the return packet back to the Socket connection
     pub async fn write(&mut self, packet: Packet) -> Result<(), Error> {
+        let mut stream = self.socket.write().await;
         Protocol::write(&self.protocol, packet, &mut self.write)?;
-        self.socket.write_all(&self.write).await?;
+        stream.write_all(&self.write).await?;
         self.write.clear();
         Ok(())
     }
 
+    /// Write the returned packets back to the Socket connection in batches
     pub async fn write_bulk(&mut self, packets: VecDeque<Packet>) -> Result<(), Error> {
+        let mut stream = self.socket.write().await;
         for packet in packets {
             Protocol::write(&self.protocol, packet, &mut self.write)?;
         }
-        self.socket.write_all(&self.write).await?;
+        stream.write_all(&self.write).await?;
         self.write.clear();
         Ok(())
     }

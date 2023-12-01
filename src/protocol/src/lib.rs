@@ -15,6 +15,7 @@
  */
 #![allow(dead_code, unused)]
 pub mod mqttv4;
+pub mod protocol;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::{io, str::Utf8Error, string::FromUtf8Error};
 
@@ -123,12 +124,12 @@ pub struct Login {
 /// This contains return codes for both MQTT v4(3.11) and v5
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectReturnCode {
-    Success, 
-    RefusedProtocolVersion, 
+    Success,
+    RefusedProtocolVersion,
     BadClientId,
     ServiceUnavailable,
     UnspecifiedError,
-    MalformedPacket, 
+    MalformedPacket,
     ProtocolError,
     ImplementationSpecificError,
     UnsupportedProtocolVersion,
@@ -255,7 +256,3 @@ pub enum Error {
 
 }
 
-pub trait  Protocol {
-    fn read(&mut self, stream:&mut BytesMut, max_size:usize) -> Result<Packet, Error>;
-    fn write(&self, packet: Packet,write: &mut BytesMut) -> Result<usize,Error>;
-}
