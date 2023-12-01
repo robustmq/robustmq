@@ -58,6 +58,7 @@ common-version={path="src/common/version"}
 storage={path="src/storage"}
 meta={path="src/meta"}
 protocol={path="src/protocol"}
+robustmq-test={path="tests"}
 
 [profile.release]
 panic = 'abort'
