@@ -1,5 +1,5 @@
 use bytes::BytesMut;
-use protocol::{Packet, protocol::Protocol};
+use protocol::{protocol::Packet, protocol::Protocol};
 use std::{collections::VecDeque, io, sync::Arc, time::Duration};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -12,7 +12,7 @@ pub enum Error {
     #[error("I/O = {0}")]
     Io(#[from] io::Error),
     #[error("Invalid data = {0}")]
-    Protocol(#[from] protocol::Error),
+    Protocol(#[from] protocol::protocol::Error),
     #[error["Keep alive timeout"]]
     KeepAlive(#[from] Elapsed),
 }
@@ -81,9 +81,9 @@ impl<P: Protocol> Network<P> {
     pub async fn read(&mut self) -> Result<Packet, Error> {
         loop {
             let required =
-                match Protocol::read(&mut self.protocol, &mut self.read, self.max_incoming_size) {
+                match Protocol::read_mut(&mut self.protocol, &mut self.read, self.max_incoming_size) {
                     Ok(packet) => return Ok(packet),
-                    Err(protocol::Error::InsufficientBytes(required)) => required,
+                    Err(protocol::protocol::Error::InsufficientBytes(required)) => required,
                     Err(e) => return Err(e.into()),
                 };
             self.read_bytes(required).await?;

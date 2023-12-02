@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 use super::*;
+use crate::protocol::*;
 fn len() -> usize {
     // variable header length of connack is 2 bytes(session present + return code)
     1 + 1
