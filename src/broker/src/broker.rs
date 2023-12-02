@@ -2,7 +2,7 @@ use crate::{network::tcp_server::TcpServer, http::{server::HttpServer, self}};
 use common_log::log::info;
 use common_version::banner;
 use flume::{Receiver, Sender};
-use std::{fmt::Result, net::SocketAddr, time::Duration};
+use std::{fmt::Result, net::SocketAddr, time::Duration, thread::sleep};
 use tokio::{io, time::error::Elapsed};
 
 #[derive(Debug, thiserror::Error)]
@@ -60,9 +60,10 @@ impl Broker {
 
         // http server start
         let http_s = HttpServer::new();
-        http_s.start();
-        
+        http_s.start().await;
+
         // process start hook
+        sleep(Duration::from_secs(2));
         banner();
 
         loop {
