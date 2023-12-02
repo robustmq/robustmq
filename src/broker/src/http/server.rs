@@ -14,7 +14,7 @@ impl HttpServer {
         tokio::spawn(async move {
             let ip_addr = SocketAddr::from_str(&ip).unwrap();
             let app = route::routes();
-            info(&format!("http server start success. bind:{}", ip));
+            info(&format!("RobustMQ Broker HTTP Server start success. bind addr:{}", ip));
             axum::Server::bind(&ip_addr)
                 .serve(app.into_make_service())
                 .await
