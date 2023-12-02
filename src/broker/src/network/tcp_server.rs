@@ -84,11 +84,11 @@ impl TcpServer {
             let (stream, addr) = listener.accept().await.unwrap();
             let socket = Arc::new(RwLock::new(Box::new(stream)));
             // let network = Network::new(
-            //     socket, 
-            //     2000, 
-            //     2000, 
-            //     2000, 
-            //     3000, 
+            //     socket,
+            //     2000,
+            //     2000,
+            //     2000,
+            //     3000,
             //     protocol
             // );
             // read connect package

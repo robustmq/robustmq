@@ -13,32 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use thiserror::Error;
 use axum::{
-    http::StatusCode,
-    response::{Json,IntoResponse,Response}
+    extract::Path,
+    response::Json
 };
-use serde_json::json;
+use serde_json::{json, Value};
 
-#[derive(Error, Debug, PartialEq)]
-pub enum HttpError {
-    #[error("Not found for {0}")]
-    NotFound(String)
-}
+use crate::http::error::HttpError;
 
-impl IntoResponse for HttpError {
-   
-    fn into_response(self) -> Response{
-        let (status, error_message) = match self {
-            HttpError::NotFound(msg) => {
-                (StatusCode::NOT_FOUND,msg)
-            }
-        };
-        let body = Json(json!({
-            "error": format!("invalid path {}", error_message),
-        }));
-    
-        (status, body).into_response()
+pub async fn cluster_info(Path(path) : Path<String>) -> Result<Json<Value>, HttpError> {
+    println!("path is : {:#?}", path);
+    let api_path = path.to_owned(); 
+    match &api_path as &str {
+        "overview" => Ok(Json(json!({"API": " return API overview"}))),
+        "cluster_name" =>Ok(Json(json!({"API": " return cluster name"}))),
+        _ => Err(HttpError::NotFound(api_path)),
     }
-   
 }
