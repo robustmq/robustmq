@@ -324,6 +324,8 @@ mod tests {
 
         // read the fixed header
         let fixheader: FixedHeader = parse_fixed_header(buff_write.iter()).unwrap();
+        // test the display of fixheader
+        println!("fixheader: {}", fixheader);
         // read first byte and check its packet type which should be connect
         assert_eq!(fixheader.byte1, 0b0001_0000); 
         assert_eq!(fixheader.fixed_header_len, 2);
