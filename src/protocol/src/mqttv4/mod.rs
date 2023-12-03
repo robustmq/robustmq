@@ -15,8 +15,9 @@
  */
 use super::*;
 use crate::protocol::*;
-use std::{str::Utf8Error, slice::Iter};
+use std::{str::Utf8Error, slice::Iter,fmt};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 
 pub mod connect;
 pub mod connack;
@@ -103,6 +104,14 @@ impl FixedHeader {
     }
 }
 
+impl fmt::Display for FixedHeader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Fixed_header_1st_byte:{:#010b}, Fixed_header_length:{}, Varible_header_length + Payload_length:{} ",
+        self.byte1,
+        self.fixed_header_len,
+        self.remaining_len)
+    }
+}
 ///Parses fixed header
 fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
     // At least 2 bytes are necesssary to frame a packet
