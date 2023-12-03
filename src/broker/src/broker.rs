@@ -1,8 +1,8 @@
-use crate::network::tcp_server::TcpServer;
+use crate::{network::tcp_server::TcpServer, http::{server::HttpServer, self}};
 use common_log::log::info;
 use common_version::banner;
 use flume::{Receiver, Sender};
-use std::{fmt::Result, net::SocketAddr, time::Duration};
+use std::{fmt::Result, net::SocketAddr, time::Duration, thread::sleep};
 use tokio::{io, time::error::Elapsed};
 
 #[derive(Debug, thiserror::Error)]
@@ -45,7 +45,7 @@ impl Broker {
 
         // tcp server start
         let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
-        let net_s = TcpServer::new(
+        let tcp_s = TcpServer::new(
             ip,
             self.accept_thread_num,
             self.max_connection_num,
@@ -54,13 +54,16 @@ impl Broker {
             1,
             1,
         );
-        net_s.start().await;
+        tcp_s.start().await;
 
         // grpc server start
 
         // http server start
+        let http_s = HttpServer::new();
+        http_s.start().await;
 
         // process start hook
+        sleep(Duration::from_secs(2));
         banner();
 
         loop {

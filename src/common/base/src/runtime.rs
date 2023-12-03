@@ -23,13 +23,13 @@ static GLOBAL_RUNTIME_ID: AtomicU32 = AtomicU32::new(0);
 pub const THREAD_NAME_LABEL: &str = "thread_name";
 
 lazy_static! {
-    pub static ref METRIC_RUNTIME_THREADS_ALIVE: IntGaugeVec = register_int_gauge_vec!(
+    static ref METRIC_RUNTIME_THREADS_ALIVE: IntGaugeVec = register_int_gauge_vec!(
         "runtime_threads_alive",
         "runtime threads alive",
         &[THREAD_NAME_LABEL]
     )
     .unwrap();
-    pub static ref METRIC_RUNTIME_THREADS_IDLE: IntGaugeVec = register_int_gauge_vec!(
+    static ref METRIC_RUNTIME_THREADS_IDLE: IntGaugeVec = register_int_gauge_vec!(
         "runtime_threads_idle",
         "runtime threads idle",
         &[THREAD_NAME_LABEL]
@@ -37,7 +37,7 @@ lazy_static! {
     .unwrap();
 }
 
-pub struct RuntimeBuilder {
+struct RuntimeBuilder {
     runtime_name: String,
     thread_name: String,
     builder: Builder,

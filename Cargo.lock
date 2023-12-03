@@ -271,6 +271,7 @@ checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 name = "broker"
 version = "0.0.1"
 dependencies = [
+ "axum",
  "bytes",
  "common-base",
  "common-log",
@@ -278,6 +279,7 @@ dependencies = [
  "flume",
  "futures",
  "protocol",
+ "serde_json",
  "thiserror",
  "tokio",
  "tokio-util",

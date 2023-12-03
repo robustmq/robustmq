@@ -2,7 +2,7 @@
 mod tests {
     use bytes::{Bytes, BytesMut};
     use common_base::runtime::create_runtime;
-    use protocol::{mqttv4, Connect, LastWill, Login};
+    use protocol::{mqttv4, protocol::{Login, LastWill, Connect}};
     use std::thread::sleep;
     use std::time::Duration;
     use tokio::{
@@ -53,7 +53,7 @@ mod tests {
         let lastwill = Some(LastWill {
             topic: Bytes::from("topic1"),
             message: Bytes::from("connection content"),
-            qos: protocol::QoS::AtLeastOnce,
+            qos: protocol::protocol::QoS::AtLeastOnce,
             retain: true,
         });
 

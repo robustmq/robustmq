@@ -55,6 +55,7 @@ common-config={path="src/common/config"}
 common-log={path="src/common/log"}
 common-metrics={path="src/common/metrics"}
 common-version={path="src/common/version"}
+storage={path="src/storage"}
 meta={path="src/meta"}
 protocol={path="src/protocol"}
 robustmq-test={path="tests"}
