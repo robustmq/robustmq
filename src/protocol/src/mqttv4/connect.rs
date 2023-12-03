@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+use std::fmt;
+
 use super::*;
 use crate::protocol::*;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -234,6 +236,33 @@ mod login {
     }
 }
 
+impl fmt::Display for Connect {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
+        write!(f, "client_id:{:?}, clean_session:{}, keep_alive:{}s ", 
+        self.client_id, 
+        self.clean_session, 
+        self.keep_alive)
+    }
+}
+
+impl fmt::Display for LastWill {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "will_topic:{:?}, qos:{:?}, will_message:{:?}, retain:{} ", 
+        self.topic, 
+        self.qos,
+        self.message,
+        self.retain)
+    }
+}
+
+impl fmt::Display for Login {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "username:{:?}, password:{:?} ",
+        self.username,
+        self.password)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -306,5 +335,41 @@ mod tests {
         assert_eq!(x.keep_alive, 30);
         assert_eq!(x.clean_session, true);
         
+    }
+
+    #[test]
+    fn test_display(){
+
+        use super::*;
+
+        let client_id = String::from("test_client_id");
+        let client_id_length = client_id.len();
+        let mut buff_write = BytesMut::new();
+    
+        let login: Login = Login {
+            username: String::from("test_user"),
+            password: String::from("test_password"),
+        };
+        
+        let will_topic = Bytes::from("will_topic");
+        let will_message = Bytes::from("will_message");
+        let lastwill: LastWill = LastWill { 
+            topic: will_topic, 
+            message: will_message, 
+            qos: QoS::AtLeastOnce, 
+            retain: true, 
+        };
+
+        let connect: Connect = Connect {
+            keep_alive: 30u16, // 30 seconds
+            client_id: client_id,
+            clean_session: true,
+        };
+        println!("test starts for display of structs in connect packet...........................");
+        print!("{}", login);
+        print!("{}", connect);
+        println!("{}", lastwill);
+        println!("test ends for display of structs in connect packet.............................");
+
     }
 }

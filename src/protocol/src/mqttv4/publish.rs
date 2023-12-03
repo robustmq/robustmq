@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 use super::*;
-
+use std::fmt;
 use bytes::{Buf, Bytes, BytesMut};
 
 fn len(publish: &Publish) -> usize {
@@ -86,6 +86,18 @@ pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
 
 }
 
+impl fmt::Display for Publish {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "topic:{:?}, payload:{:?}, dup:{}, qos:{:?}, message_identifier:{}, retain:{} ",
+        self.topic,
+        self.payload,
+        self.dup,
+        self.qos,
+        self.pkid,
+        self.retain)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -108,5 +120,10 @@ mod tests {
         let publish_msg: Publish = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert_eq!(publish_msg.topic, "test_topic");
         assert_eq!(publish_msg.payload, "test_payload");
+
+        // test the display of publish packet
+        println!("test starts for display of publish packet...........");
+        println!("{}", publish);
+        println!("test ends for display of publish packet...........");
     }
 }
