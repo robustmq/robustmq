@@ -22,6 +22,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 pub mod connect;
 pub mod connack;
 pub mod publish;
+pub mod puback;
 
 ///MQTT packet type
 #[repr(u8)] 
