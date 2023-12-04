@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-use std::fmt;
-
 use super::*;
 use crate::protocol::*;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
     /*

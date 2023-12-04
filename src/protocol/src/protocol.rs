@@ -230,6 +230,27 @@ pub struct PublishProperties {
     pub content_type: Option<String>,
 }
 
+/// Acknowledgement to QoS 1 publish packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubAck {
+    pub pkid : u16, 
+    pub reason: PubAckReason,
+}
+
+/// Return code in puback
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PubAckReason {
+    Success, 
+    NoMatchingSubscribers,
+    UnspecifiedError,
+    ImplementationSpecificError,
+    NotAuthorized,
+    TopicNameInvalid,
+    PacketIdentifierInUse,
+    QuotaExceeded,
+    PayloadFormatInvalid,
+}
+
 /// Error during serialization and deserialization
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
