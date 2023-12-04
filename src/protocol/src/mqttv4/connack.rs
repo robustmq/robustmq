@@ -15,6 +15,7 @@
  */
 use super::*;
 use crate::protocol::*;
+use std::fmt;
 fn len() -> usize {
     // variable header length of connack is 2 bytes(session present + return code)
     1 + 1
@@ -70,6 +71,14 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
     }
 }
 
+impl fmt::Display for ConnAck {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "session_present:{}, return_code:{:?} ",
+        self.session_present,
+        self.code)
+    }
+}
+
 #[cfg(test)]
 mod tests {
    
@@ -98,6 +107,10 @@ mod tests {
         let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert_eq!(connack_return.session_present, false);
         assert_eq!(connack_return.code, ConnectReturnCode::Success);
+        // test the display function
+        println!("test starts for display of connack packet...........");
+        println!("{}", connack);
+        println!("test ends for display of connack packet...........");
 
     }
 }
