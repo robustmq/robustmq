@@ -15,8 +15,9 @@
  */
 use super::*;
 use crate::protocol::*;
-use std::{str::Utf8Error, slice::Iter};
+use std::{str::Utf8Error, slice::Iter,fmt};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 
 pub mod connect;
 pub mod connack;
@@ -103,6 +104,14 @@ impl FixedHeader {
     }
 }
 
+impl fmt::Display for FixedHeader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Fixed_header_1st_byte:{:#010b}, Fixed_header_length:{}, Varible_header_length + Payload_length:{} ",
+        self.byte1,
+        self.fixed_header_len,
+        self.remaining_len)
+    }
+}
 ///Parses fixed header
 fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
     // At least 2 bytes are necesssary to frame a packet
@@ -249,7 +258,14 @@ pub fn write_remaining_length(stream: &mut BytesMut, len: usize) -> Result<usize
 #[derive(Debug, Clone)]
 pub struct MqttV4;
 
+impl MqttV4 {
+    pub fn new() -> Self{
+        return Self{};
+    }
+}
+
 impl Protocol for MqttV4 {
+    
      // Reads a stream of bytes and extracts next MQTT packet out of it
      fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<Packet, Error> {
         let fixed_header = check(stream.iter(), max_size)?;

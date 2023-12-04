@@ -1,13 +1,17 @@
 #[cfg(test)]
 mod tests {
+    use broker::network::network::Network;
     use bytes::{Bytes, BytesMut};
     use common_base::runtime::create_runtime;
-    use protocol::{mqttv4, protocol::{Login, LastWill, Connect}};
-    use std::thread::sleep;
+    use protocol::{
+        mqttv4::{self, MqttV4},
+        protocol::{Connect, LastWill, Login},
+    };
+    use std::{thread::sleep, sync::Arc};
     use std::time::Duration;
     use tokio::{
-        io::{AsyncReadExt, AsyncWriteExt},
-        net::TcpStream,
+        io::AsyncWriteExt,
+        net::TcpStream, sync::RwLock,
     };
 
     #[test]
@@ -18,26 +22,29 @@ mod tests {
         let rt = create_runtime("text", 10);
         let guard = rt.enter();
         tokio::spawn(async move {
-            let mut stream = TcpStream::connect("127.0.0.1:8768").await.unwrap();
-            
+            let stream = TcpStream::connect("127.0.0.1:8768").await.unwrap();
+            let socket = Arc::new(RwLock::new(Box::new(stream)));
+
             // send connect package
             let write_buf = build_pg_connect();
-            let _ = stream.write_all(&write_buf).await;
+            let _ = socket.write().await.write_all(&write_buf).await;
 
-            // read recv
-            let mut read_buf = BytesMut::with_capacity(20);
-            match stream.read_buf(&mut read_buf).await {
-                Ok(_) => {
-                    let content = String::from_utf8_lossy(&read_buf).to_string();
-                    println!("receive:{}", content)
-                }
-                Err(err) => {
-                    println!("err:{:?}", err)
+
+            // read connack recv
+            let prot = MqttV4::new();
+            let mut network = Network::new(socket, 2000, 2000, 2000, 3000, prot);            println!("{}",2);
+            loop{
+                match network.read().await {
+                    Ok(pkg) => {
+                        println!("receive pkg: {:?}", pkg);
+                    }
+                    Err(e) => {
+                        println!("receive pkg err: {:?}", e);
+                    }
                 }
             }
-
         });
-        
+
         drop(guard);
         sleep(Duration::from_secs(10));
     }
