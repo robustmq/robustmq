@@ -3,11 +3,12 @@ use super::{
     network::Network,
     package::ResponsePackage,
 };
-use crate::network::package::RequestPackage;
+use crate::{network::package::RequestPackage, package::mqtt4::package_ack_write};
 use bytes::{BufMut, BytesMut};
 use common_log::log::{error, info};
 use flume::{Receiver, Sender};
-use std::{fmt::Error, net::SocketAddr, sync::Arc};
+use protocol::mqttv4::MqttV4;
+use std::{fmt::{Error, format}, net::SocketAddr, sync::Arc};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
@@ -81,51 +82,49 @@ impl TcpServer {
         let connection_manager = self.connection_manager.clone();
 
         tokio::spawn(async move {
-            let (stream, addr) = listener.accept().await.unwrap();
-            let socket = Arc::new(RwLock::new(Box::new(stream)));
-            // let network = Network::new(
-            //     socket,
-            //     2000,
-            //     2000,
-            //     2000,
-            //     3000,
-            //     protocol
-            // );
-            // read connect package
+            loop {
+                let request_queue_sx = request_queue_sx.clone();
+                let connection_manager = connection_manager.clone();
+                let (stream, addr) = listener.accept().await.unwrap();
+                let socket = Arc::new(RwLock::new(Box::new(stream)));
+                let prot = MqttV4::new();
+   
+                // read connect package
 
-            // tls check
+                // tls check
 
-            // user login check
+                // user login check
 
-            // manager connection info
-            let conn = Connection::new(addr, socket.clone());
-            let connection_id = conn.connection_id();
-            let mut cm = connection_manager.write().await;
-            _ = cm.add(conn);
+                // manager connection info
+                let conn = Connection::new(addr, socket.clone());
+                let connection_id = conn.connection_id();
+                let mut cm = connection_manager.write().await;
+                _ = cm.add(conn);
 
-            // request is processed by a separate thread, placing the request packet in the request queue.\
-            tokio::spawn(async move {
-                let mut read_buf = BytesMut::with_capacity(20);
-                let mut r1 = socket.write().await;
-
-                match r1.read_buf(&mut read_buf).await {
-                    Ok(size) => {
-                        let content = String::from_utf8_lossy(&read_buf).to_string();
-                        let package = RequestPackage::new(size, content, connection_id);
-                        match request_queue_sx.send(package) {
-                            Ok(_) => {}
-                            Err(err) => error(&format!(
+                // request is processed by a separate thread, placing the request packet in the request queue.\
+                tokio::spawn(async move {
+                    let mut network = Network::new(socket.clone(), 2000, 2000, 2000, 3000, prot);
+                    
+                    match network.read().await {
+                        Ok(pkg) => {
+                            let content = format!("{:?}",pkg);
+                            println!("receive package:{}",content);
+                            let package = RequestPackage::new(100, content, connection_id);
+                            match request_queue_sx.send(package) {
+                                Ok(_) => {}
+                                Err(err) => error(&format!(
                                 "Failed to write data to the request queue, error message: {:?}",
                                 err
                             )),
+                            }
                         }
+                        Err(err) => error(&format!(
+                            "Failed to read data from TCP connection, error message: {:?}",
+                            err
+                        )),
                     }
-                    Err(err) => error(&format!(
-                        "Failed to read data from TCP connection, error message: {:?}",
-                        err
-                    )),
-                }
-            });
+                });
+            }
         });
 
         return Ok(());
@@ -164,9 +163,9 @@ impl TcpServer {
                 let cm = connect_manager.write().await;
                 let connection = cm.get(response_package.connection_id).unwrap();
                 let mut stream = connection.socket.write().await;
-
-                let mut write_buf = BytesMut::with_capacity(20);
-                write_buf.put(&b"loboxu nb"[..]);
+                
+                // send response
+                let write_buf = package_ack_write();
                 match stream.write_all(&write_buf).await {
                     Ok(_) => {}
                     Err(err) => error(&format!(
@@ -175,7 +174,7 @@ impl TcpServer {
                     )),
                 }
 
-                println!("{:?}", response_package);
+                println!("response data:{:?}", write_buf);
             }
         });
         return Ok(());

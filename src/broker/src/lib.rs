@@ -15,6 +15,7 @@
 pub mod broker;
 
 mod http;
-mod network;
+pub mod network;
 mod bridge;
 mod grpc;
+mod package;
