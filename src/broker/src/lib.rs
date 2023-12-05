@@ -11,6 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 pub mod broker;
 
-mod network;
+mod http;
+pub mod network;
+mod bridge;
+mod grpc;
+mod package;

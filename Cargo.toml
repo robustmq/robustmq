@@ -1,16 +1,14 @@
 [workspace]
 members = [
-    "src/admin",
+    "src/bridge",
     "src/broker",
     "src/cmd",
-    "src/common/config",
-    "src/common/log",
-    "src/common/metrics",
-    "src/common/version",
-    "src/common/base",
+    "src/common",
     "src/meta",
-    "src/protocol"
+    "src/protocol",
+    "src/storage"
 ]
+
 resolver = "2"
 
 [workspace.package]
@@ -24,14 +22,14 @@ serde_json = "1.0"
 signal-hook = "0.3.17"
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7.9", features = ["codec"] }
-axum = "0.6.16"
+axum = "0.7.2"
 prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 lazy_static = "^1.4"
 futures = "0.3"
 thiserror = "1" #错误定义和处理
 bytes = { version = "1", features = ["serde"] }
-protobuf = "2.23"
+protobuf = "3.3.0"
 rocksdb = "0.21.0"
 tonic = "0.10.2"
 prost = "0.12"
@@ -39,22 +37,15 @@ prost-types = "0.12"
 prost-build = { version = "0.12" }
 tonic-build = "0.10.2"
 raft = { version = "0.7.0" }
-slog = "2.2"
-slog-async = "2.3.0"
-slog-envlogger = { version = "2.1.0"}
-slog-stdlog = { version = "4"}
-slog-term = { version = "2.4.0"}
 flume = "0.11.0"
 
+
 ## workspaces members
-admin={path="src/admin"}
+bridge={path="src/bridge"}
 broker={path="src/broker"}
 cmd={path="src/cmd"}
-common-base={path="src/common/base"}
-common-config={path="src/common/config"}
-common-log={path="src/common/log"}
-common-metrics={path="src/common/metrics"}
-common-version={path="src/common/version"}
+common={path="src/common"}
+storage={path="src/storage"}
 meta={path="src/meta"}
 protocol={path="src/protocol"}
 robustmq-test={path="tests"}
