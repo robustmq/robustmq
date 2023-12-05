@@ -7,7 +7,7 @@ use crate::{network::package::RequestPackage, package::mqtt4::package_ack_write}
 use bytes::{BufMut, BytesMut};
 use common_log::log::{error, info};
 use flume::{Receiver, Sender};
-use protocol::mqttv4::MqttV4;
+use protocol::{mqttv4::MqttV4, protocol::ConnectReturnCode};
 use std::{fmt::{Error, format}, net::SocketAddr, sync::Arc};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -164,7 +164,7 @@ impl TcpServer {
                 let mut stream = connection.socket.write().await;
                 
                 // send response
-                let write_buf = package_ack_write();
+                let write_buf = package_ack_write(false,ConnectReturnCode::Success);
                 match stream.write_all(&write_buf).await {
                     Ok(_) => {}
                     Err(err) => error(&format!(

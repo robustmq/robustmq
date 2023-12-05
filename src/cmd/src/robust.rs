@@ -43,27 +43,27 @@ lazy_static! {
     static ref SERVER_METRICS: ServerMetrics = ServerMetrics::new();
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let args = ArgsParams::parse();
     log::new();
 
     let server_conf: RobustConfig = common_config::parse_server(&args.server_conf);
     let meta_conf: MetaConfig = common_config::parse_meta(&args.meta_conf);
-
+    
     let app: Broker = Broker::new(10, 10,10,10);
-    tokio::select! {
-        result = app.start() => {
-            if let Err(err) = result {
-                error(&format!("Fatal error occurs!,err:{:?}",err));
-            }
-        }
-        _ = signal::ctrl_c() => {
-            info("Listen for stop signal Ctrl+C...");
-            if let Err(err) = app.stop().await {
-                error(&format!("Fatal error occurs!,err:{:?}",err));
-            }
-            info("Goodbye!");
-        }
-    }
+    app.start().await;
+    // tokio::select! {
+    //     result = app.start() => {
+    //         if let Err(err) = result {
+    //             error(&format!("Fatal error occurs!,err:{:?}",err));
+    //         }
+    //     }
+    //     _ = signal::ctrl_c() => {
+    //         info("Listen for stop signal Ctrl+C...");
+    //         if let Err(err) = app.stop().await {
+    //             error(&format!("Fatal error occurs!,err:{:?}",err));
+    //         }
+    //         info("Goodbye!");
+    //     }
+    // }
 }
