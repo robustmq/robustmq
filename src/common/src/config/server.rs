@@ -19,8 +19,12 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, Clone)]
 pub struct RobustConfig {
     pub addr: String,
+    pub grpc_port: usize,
+    pub admin_port: usize,
     pub broker: Broker,
     pub network: Network,
+    pub runtime: Runtime,
+    pub mqtt: MQTT,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -37,4 +41,17 @@ pub struct Network {
     pub max_connection_num: usize,
     pub request_queue_size: usize,
     pub response_queue_size: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Runtime {
+    pub data_worker_threads: usize,
+    pub inner_worker_threads: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct MQTT {
+    pub mqtt4_port: usize,
+    pub mqtt5_port: usize,
+    pub websocket_port: usize,
 }

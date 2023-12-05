@@ -1,6 +1,5 @@
 use axum::Router;
 use axum::routing::get;
-
 use super::cluster::cluster_info;
 use super::metrics::{metrics_handler, welcome_handler};
 

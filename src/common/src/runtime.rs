@@ -125,11 +125,11 @@ fn on_thread_unpark(thread_name: String) -> impl Fn() + 'static {
     }
 }
 
-pub fn create_runtime(runtime_name: &str, worker_threadds: usize) -> Runtime {
+pub fn create_runtime(runtime_name: &str, worker_threads: usize) -> Runtime {
     RuntimeBuilder::default()
         .runtime_name(runtime_name)
         .thread_name(runtime_name)
-        .worker_threads(worker_threadds)
+        .worker_threads(worker_threads)
         .build()
 }
 
