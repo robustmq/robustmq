@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_config::meta::MetaConfig;
+use common::config::meta::MetaConfig;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
@@ -128,9 +128,9 @@ impl RocksDBStorage {
 
 #[cfg(test)]
 mod tests {
-    use common_config::meta::MetaConfig;
 
     use super::RocksDBStorage;
+    use common::config::meta::MetaConfig;
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]

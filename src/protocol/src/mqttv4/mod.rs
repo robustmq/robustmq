@@ -260,7 +260,14 @@ pub fn write_remaining_length(stream: &mut BytesMut, len: usize) -> Result<usize
 #[derive(Debug, Clone)]
 pub struct MqttV4;
 
+impl MqttV4 {
+    pub fn new() -> Self{
+        return Self{};
+    }
+}
+
 impl Protocol for MqttV4 {
+    
      // Reads a stream of bytes and extracts next MQTT packet out of it
      fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<Packet, Error> {
         let fixed_header = check(stream.iter(), max_size)?;

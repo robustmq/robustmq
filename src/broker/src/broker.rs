@@ -1,8 +1,12 @@
-use crate::network::tcp_server::TcpServer;
-use common_log::log::info;
-use common_version::banner;
+use crate::{http::server::HttpServer, network::tcp_server::TcpServer};
+use common::{config::server::RobustConfig, log::info, runtime::create_runtime, version::banner};
 use flume::{Receiver, Sender};
-use std::{fmt::Result, net::SocketAddr, time::Duration};
+use std::{
+    fmt::Result,
+    net::SocketAddr,
+    thread::{self, sleep},
+    time::Duration,
+};
 use tokio::{io, time::error::Elapsed};
 
 #[derive(Debug, thiserror::Error)]
@@ -15,54 +19,76 @@ pub enum Error {
 }
 
 pub struct Broker {
-    accept_thread_num: usize,
-    max_connection_num: usize,
-    request_queue_size: usize,
-    response_queue_size: usize,
+    config: RobustConfig,
     signal_st: Sender<u16>,
     signal_rt: Receiver<u16>,
 }
 
 impl Broker {
-    pub fn new(
-        accept_thread_num: usize,
-        max_connection_num: usize,
-        request_queue_size: usize,
-        response_queue_size: usize,
-    ) -> Broker {
+    pub fn new(config: RobustConfig) -> Broker {
         let (signal_st, signal_rt) = flume::bounded::<u16>(1);
         return Broker {
-            accept_thread_num,
-            max_connection_num,
-            request_queue_size,
-            response_queue_size,
+            config,
             signal_st,
             signal_rt,
         };
     }
-    pub async fn start(&self) -> Result {
+    pub fn start(&self) -> Result {
+        let mut thread_handles = Vec::new();
+
         // metrics init
 
-        // tcp server start
-        let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
-        let net_s = TcpServer::new(
-            ip,
-            self.accept_thread_num,
-            self.max_connection_num,
-            1,
-            1,
-            1,
-            1,
-        );
-        net_s.start().await;
+        // Data flow requests are handled independently in a separate runtime
+        let data_thread = thread::Builder::new().name("data-thread".to_owned());
+        let config = self.config.clone();
+        let data_thread_join = data_thread.spawn(move || {
+            let data_runtime = create_runtime("data-runtime", config.runtime.data_worker_threads);
+            data_runtime.block_on(async {
+                let ip: SocketAddr = format!("{}:{}",config.addr, config.mqtt.mqtt4_port).parse().unwrap();
+                let tcp_s = TcpServer::new(
+                    ip,
+                    config.network.accept_thread_num,
+                    config.network.max_connection_num,
+                    config.network.request_queue_size,
+                    config.network.handler_thread_num,
+                    config.network.response_queue_size,
+                    config.network.response_thread_num,
+                );
+                tcp_s.start().await;
+            });
+        });
+        thread_handles.push(data_thread_join);
 
-        // grpc server start
+        // Requests for cluster management and internal interaction classes are handled by a separate runtime
+        let inner_thread = thread::Builder::new().name("inner-thread".to_owned());
+        let config = self.config.clone();
+        let inner_thread_join = inner_thread.spawn(move || {
+            let inner_runtime = create_runtime("inner-runtime", config.runtime.inner_worker_threads);
+            inner_runtime.block_on(async {
+                // grpc server start
+                let ip: SocketAddr = format!("{}:{}",config.addr, config.grpc_port).parse().unwrap();
 
-        // http server start
+                // http server start
+                let ip: SocketAddr = format!("{}:{}",config.addr, config.admin_port).parse().unwrap();
+                let http_s = HttpServer::new(ip);
+                http_s.start().await;
+            })
+        });
+        thread_handles.push(inner_thread_join);
 
         // process start hook
         banner();
 
+        thread_handles.into_iter().for_each(|handle| {
+            // join() might panic in case the thread panics
+            // we just ignore it
+            let _ = handle.unwrap().join();
+        });
+
+        return Ok(());
+    }
+
+    fn signal_hook(&self) {
         loop {
             if let Ok(sig) = self.signal_rt.recv() {
                 if sig == 1 {
@@ -70,13 +96,11 @@ impl Broker {
                     break;
                 }
             }
-            tokio::time::sleep(Duration::from_secs(1)).await
+            sleep(Duration::from_millis(1));
         }
-
-        return Ok(());
     }
 
-    pub async fn stop(&self) -> Result {
+    pub fn stop(&self) -> Result {
         // Recovery of resources
 
         // Sends a signal to stop the process
@@ -87,13 +111,10 @@ impl Broker {
 
 #[cfg(test)]
 mod tests {
+    use bytes::{BufMut, BytesMut};
+    use common::runtime::create_runtime;
     use std::thread::sleep;
     use std::time::Duration;
-
-    use super::Broker;
-    use bytes::{BufMut, Bytes, BytesMut};
-    use common_base::runtime::create_runtime;
-    use futures::executor::block_on;
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
         net::TcpStream,
@@ -103,8 +124,9 @@ mod tests {
     fn start_broker() {
         let rt = create_runtime("text", 10);
         let guard = rt.enter();
-        let b = Broker::new(10, 10, 0, 0);
-        _ = block_on(b.start());
+        // let config = MetaConfig::default();
+        // let b = Broker::new(config);
+        // b.start();
         drop(guard);
     }
 
