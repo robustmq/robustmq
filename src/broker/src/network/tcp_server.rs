@@ -4,13 +4,12 @@ use super::{
     package::ResponsePackage,
 };
 use crate::{network::package::RequestPackage, package::mqtt4::package_ack_write};
-use bytes::{BufMut, BytesMut};
-use common_log::log::{error, info};
+use common::log::{info, error};
 use flume::{Receiver, Sender};
-use protocol::mqttv4::MqttV4;
-use std::{fmt::{Error, format}, net::SocketAddr, sync::Arc};
+use protocol::{mqttv4::MqttV4, protocol::ConnectReturnCode};
+use std::{fmt::Error, net::SocketAddr, sync::Arc};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncWriteExt,
     net::TcpListener,
     sync::RwLock,
 };
@@ -73,8 +72,7 @@ impl TcpServer {
             _ = self.response_process().await;
         }
 
-        info(&format!("RobustMQ Broker Server bind addr:{:?}", self.ip));
-        info("RobustMQ Broker Server start success!");
+        info(&format!("RobustMQ Broker TCP Server start success. bind addr:{:?}", self.ip));
     }
 
     async fn acceptor(&self, listener: Arc<TcpListener>) -> Result<(), Error> {
@@ -165,7 +163,7 @@ impl TcpServer {
                 let mut stream = connection.socket.write().await;
                 
                 // send response
-                let write_buf = package_ack_write();
+                let write_buf = package_ack_write(false,ConnectReturnCode::Success);
                 match stream.write_all(&write_buf).await {
                     Ok(_) => {}
                     Err(err) => error(&format!(

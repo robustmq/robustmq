@@ -1,6 +1,6 @@
-use common_config::meta::MetaConfig;
 use crate::errors::MetaError;
 use crate::storage::rocksdb::RocksDBStorage;
+use common::config::meta::MetaConfig;
 use raft::Error;
 use raft::StorageError;
 use raft::prelude::ConfState;

@@ -1,5 +1,7 @@
+use common::log::info;
+
 use super::route;
-use common_log::log::info;
+
 use std::{net::SocketAddr, str::FromStr};
 
 pub struct HttpServer {}
@@ -14,11 +16,11 @@ impl HttpServer {
         tokio::spawn(async move {
             let ip_addr = SocketAddr::from_str(&ip).unwrap();
             let app = route::routes();
-            info(&format!("http server start success. bind:{}", ip));
-            axum::Server::bind(&ip_addr)
-                .serve(app.into_make_service())
-                .await
-                .unwrap();
+            info(&format!("RobustMQ Broker HTTP Server start success. bind addr:{}", ip));
+            // axum::Server::bind(&ip_addr)
+            //     .serve(app.into_make_service())
+            //     .await
+            //     .unwrap();
         });
     }
 }

@@ -13,3 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RobustConfig {
+    pub addr: String,
+    pub broker: Broker,
+    pub network: Network,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Broker {
+    pub port: Option<u16>,
+    pub work_thread: Option<u16>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Network {
+    pub accept_thread_num: usize,
+    pub handler_thread_num: usize,
+    pub response_thread_num: usize,
+    pub max_connection_num: usize,
+    pub request_queue_size: usize,
+    pub response_queue_size: usize,
+}
