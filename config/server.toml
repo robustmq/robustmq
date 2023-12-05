@@ -1,14 +1,19 @@
 addr = "127.0.0.1"
-enable_matt_tcp = true
-enable_mqtt_web_socket =true
+grpc_port = 9987
+admin_port = 9988
 
 [mqtt]
-tcp_port=1111
-web_socket=2222
+mqtt4_port = 9989
+mqtt5_port = 9990
+websocket_port = 9991 
 
 [broker]
 port = 1226
 work_thread = 3
+
+[runtime]
+data_worker_threads = 3
+inner_worker_threads = 3
 
 [network]
 accept_thread_num = 1

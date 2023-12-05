@@ -42,9 +42,9 @@ impl Broker {
         let data_thread = thread::Builder::new().name("data-thread".to_owned());
         let config = self.config.clone();
         let data_thread_join = data_thread.spawn(move || {
-            let data_runtime = create_runtime("data-runtime", 3);
+            let data_runtime = create_runtime("data-runtime", config.runtime.data_worker_threads);
             data_runtime.block_on(async {
-                let ip: SocketAddr = "127.0.0.1:8768".parse().unwrap();
+                let ip: SocketAddr = format!("{}:{}",config.addr, config.mqtt.mqtt4_port).parse().unwrap();
                 let tcp_s = TcpServer::new(
                     ip,
                     config.network.accept_thread_num,
@@ -61,15 +61,17 @@ impl Broker {
 
         // Requests for cluster management and internal interaction classes are handled by a separate runtime
         let inner_thread = thread::Builder::new().name("inner-thread".to_owned());
+        let config = self.config.clone();
         let inner_thread_join = inner_thread.spawn(move || {
-            let inner_runtime = create_runtime("inner-runtime", 3);
+            let inner_runtime = create_runtime("inner-runtime", config.runtime.inner_worker_threads);
             inner_runtime.block_on(async {
                 // grpc server start
+                let ip: SocketAddr = format!("{}:{}",config.addr, config.grpc_port).parse().unwrap();
 
                 // http server start
-                let http_s = HttpServer::new();
+                let ip: SocketAddr = format!("{}:{}",config.addr, config.admin_port).parse().unwrap();
+                let http_s = HttpServer::new(ip);
                 http_s.start().await;
-                
             })
         });
         thread_handles.push(inner_thread_join);

@@ -18,7 +18,6 @@ use axum::{
     response::Json
 };
 use serde_json::{json, Value};
-
 use crate::http::error::HttpError;
 
 pub async fn cluster_info(Path(path) : Path<String>) -> Result<Json<Value>, HttpError> {

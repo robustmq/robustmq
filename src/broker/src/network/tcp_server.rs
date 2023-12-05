@@ -72,7 +72,7 @@ impl TcpServer {
             _ = self.response_process().await;
         }
 
-        info(&format!("RobustMQ Broker TCP Server start success. bind addr:{:?}", self.ip));
+        info(&format!("RobustMQ Broker MQTT4 Server start success. bind addr:{:?}", self.ip));
     }
 
     async fn acceptor(&self, listener: Arc<TcpListener>) -> Result<(), Error> {
