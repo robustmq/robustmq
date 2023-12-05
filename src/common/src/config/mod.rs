@@ -16,8 +16,9 @@ use server::RobustConfig;
 use std::fs;
 use std::path;
 use toml;
+use crate::log::info;
+
 use self::meta::MetaConfig;
-use common_log::log;
 
 pub mod meta;
 pub mod server;
@@ -29,7 +30,7 @@ pub const DEFAULT_META_CONFIG: &str = "config/meta.toml";
 pub fn parse_server(config_path: &String) -> RobustConfig {
     let content = read_file(config_path);
 
-    log::info(&format!(
+    info(&format!(
         "server config content:\n{}\n",
         content
     ));
@@ -42,7 +43,7 @@ pub fn parse_server(config_path: &String) -> RobustConfig {
 pub fn parse_meta(config_path: &String) -> MetaConfig {
     let content = read_file(config_path);
 
-    log::info(&format!(
+    info(&format!(
         "server config content:\n{}\n",
         content
     ));
@@ -52,7 +53,7 @@ pub fn parse_meta(config_path: &String) -> MetaConfig {
 }
 
 fn read_file(config_path: &String) -> String {
-    log::info(&format!("Configuration file path:{}.", config_path));
+    info(&format!("Configuration file path:{}.", config_path));
 
     if !path::Path::new(config_path).exists() {
         panic!("The configuration file does not exist.");

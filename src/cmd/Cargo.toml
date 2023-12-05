@@ -11,11 +11,7 @@ path = "src/robust.rs"
 
 [dependencies]
 clap = {version="4.4.7",features = [ "derive" ]}
-common-config.workspace = true
-common-metrics.workspace = true
-common-log.workspace = true
-common-version.workspace = true
-admin.workspace =true
+common.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
 broker.workspace = true

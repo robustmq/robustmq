@@ -15,13 +15,14 @@
 use broker::broker::Broker;
 use clap::command;
 use clap::Parser;
-use common_config::{
-    meta::MetaConfig, server::RobustConfig, DEFAULT_META_CONFIG, DEFAULT_SERVER_CONFIG,
-};
-use common_log::log::error;
-use common_log::log::info;
-use common_log::log;
-use common_metrics::server::ServerMetrics;
+use common::config::meta::MetaConfig;
+use common::config::parse_meta;
+use common::config::parse_server;
+use common::config::DEFAULT_SERVER_CONFIG;
+use common::config::DEFAULT_META_CONFIG;
+use common::config::server::RobustConfig;
+use common::log;
+use common::metrics::server::ServerMetrics;
 use lazy_static::lazy_static;
 use tokio::signal;
 
@@ -47,11 +48,11 @@ fn main() {
     let args = ArgsParams::parse();
     log::new();
 
-    let server_conf: RobustConfig = common_config::parse_server(&args.server_conf);
-    let meta_conf: MetaConfig = common_config::parse_meta(&args.meta_conf);
+    let server_conf: RobustConfig = parse_server(&args.server_conf);
+    let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
     
-    let app: Broker = Broker::new(10, 10,10,10);
-    app.start().await;
+    let app: Broker = Broker::new(server_conf);
+    app.start().unwrap();
     // tokio::select! {
     //     result = app.start() => {
     //         if let Err(err) = result {

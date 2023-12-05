@@ -10,10 +10,13 @@ web_socket=2222
 port = 1226
 work_thread = 3
 
-
-[admin]
-port = 1227
-work_thread = 3
+[network]
+accept_thread_num = 1
+handler_thread_num = 20
+response_thread_num = 2
+max_connection_num = 1000
+request_queue_size = 2000
+response_queue_size = 2000
 
 [meta]
 port = 1228
