@@ -237,6 +237,7 @@ pub struct PubAck {
     pub reason: PubAckReason,
 }
 
+
 /// Return code in puback
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PubAckReason {
@@ -250,6 +251,28 @@ pub enum PubAckReason {
     QuotaExceeded,
     PayloadFormatInvalid,
 }
+//-----------------------------PubRec packet---------------------------------
+/// Acknowledgement as part 1 to QoS 2 publish packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRec {
+    pub pkid : u16,
+    pub reason: PubRecReason,
+}
+
+/// Return code in pubrec packet
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PubRecReason {
+    Success, 
+    NoMatchingSubscribers,
+    UnspecifiedError,
+    ImplementationSpecificError,
+    NotAuthorized,
+    TopicNameInvalid,
+    PacketIdentifierInUse,
+    QuotaExceeded,
+    PayloadFormatInvalid,
+}
+
 
 /// Error during serialization and deserialization
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
