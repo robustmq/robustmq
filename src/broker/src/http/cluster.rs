@@ -20,7 +20,8 @@ use axum::{
 use serde_json::{json, Value};
 use crate::http::error::HttpError;
 
-pub async fn cluster_info(Path(path) : Path<String>) -> Result<Json<Value>, HttpError> {
+pub async fn cluster_info() -> Result<Json<Value>, HttpError> {
+    let path = "";
     println!("path is : {:#?}", path);
     let api_path = path.to_owned(); 
     match &api_path as &str {

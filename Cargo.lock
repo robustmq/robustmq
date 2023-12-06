@@ -326,6 +326,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
+ "tonic",
 ]
 
 [[package]]
@@ -1237,6 +1238,7 @@ dependencies = [
  "common",
  "prost",
  "protobuf 3.3.0",
+ "protocol",
  "raft",
  "rocksdb",
  "serde",
@@ -1619,7 +1621,10 @@ version = "0.0.1"
 dependencies = [
  "axum 0.7.2",
  "bytes",
+ "prost",
  "thiserror",
+ "tonic",
+ "tonic-build",
 ]
 
 [[package]]
