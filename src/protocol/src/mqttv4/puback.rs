@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,17 +14,19 @@
  * limitations under the License.
  */
 
- /// puback packet is an acknowledgement to QoS 1 publish packet
+/// puback packet is an acknowledgement to QoS 1 publish packet
 use super::*;
 
 impl PubAck {
     fn mqttv4(pkid: u16) -> PubAck {
-        
-       return PubAck{pkid: pkid, reason: PubAckReason::Success}
+        return PubAck {
+            pkid: pkid,
+            reason: PubAckReason::Success,
+        };
     }
 }
 fn len() -> usize {
-    2  // pkid - publish identifier
+    2 // pkid - publish identifier
 }
 
 pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubAck, Error> {
@@ -37,14 +39,14 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubAck, Error
 
     let pkid = read_u16(&mut bytes)?;
     let puback = PubAck {
-        pkid, 
+        pkid,
         reason: PubAckReason::Success,
     };
 
     Ok(puback)
 }
 
-pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error>{
+pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
     let len = len();
     buffer.put_u8(0x40);
     let count = write_remaining_length(buffer, len)?;
@@ -53,10 +55,12 @@ pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error>{
 }
 
 impl fmt::Display for PubAck {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        write!(f, "publish_identifier:{}, return_code:{:?}", 
-        self.pkid, 
-        self.reason)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "publish_identifier:{}, return_code:{:?}",
+            self.pkid, self.reason
+        )
     }
 }
 
@@ -64,18 +68,17 @@ impl fmt::Display for PubAck {
 mod tests {
     use crate::protocol::PubAckReason;
 
-
     #[test]
     fn test_puback() {
         use super::*;
 
         let mut buffer: BytesMut = BytesMut::new();
-        let puback: PubAck = PubAck::mqttv4(5u16) ;
+        let puback: PubAck = PubAck::mqttv4(5u16);
 
-        // test the write function 
+        // test the write function
         write(&puback, &mut buffer);
 
-        // test the read function and check the result from write function
+        // test the read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         assert_eq!(fixed_header.byte1, 0b01000000);
         let puback_read = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
@@ -83,9 +86,8 @@ mod tests {
         assert_eq!(puback_read.reason, puback.reason);
 
         // test the display function of puback
-        println!("test starts for display of puback packet...........");
+        println!("puback display starts...........");
         println!("{}", puback_read);
-        println!("test ends for display of puback packet...........");
-
+        println!("puback display ends.............");
     }
 }

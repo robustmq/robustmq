@@ -37,6 +37,8 @@ pub enum Packet {
     ),
     ConnAck(ConnAck, Option<ConnAckProperties>),
     Publish(Publish, Option<PublishProperties>),
+    PubAck(PubAck, Option<PubAckProperties>),
+    PubRec(PubRec, Option<PubRecProperties>),
 }
 
 /// Connection packet initialized by the client
@@ -273,6 +275,18 @@ pub enum PubRecReason {
     PayloadFormatInvalid,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRecProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+
+}
 
 /// Error during serialization and deserialization
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

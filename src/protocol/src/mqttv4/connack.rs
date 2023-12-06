@@ -108,9 +108,9 @@ mod tests {
         assert_eq!(connack_return.session_present, false);
         assert_eq!(connack_return.code, ConnectReturnCode::Success);
         // test the display function
-        println!("test starts for display of connack packet...........");
+        println!("connack display starts...........");
         println!("{}", connack);
-        println!("test ends for display of connack packet...........");
+        println!("connack display ends.............");
 
     }
 }
