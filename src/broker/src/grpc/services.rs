@@ -17,10 +17,10 @@ impl BrokerService for GrpcBrokerServices {
     /// stop broker
     async fn stop_broker(
         &self,
-        _: Request<StopBrokerRequest>,
+        req: Request<StopBrokerRequest>,
     ) -> Result<Response<StopBrokerReply>, Status> {
-        let mut reply = StopBrokerReply::default();
-
+        let mut reply: StopBrokerReply = StopBrokerReply::default();
+        println!("request={:?}", req);
         return Ok(Response::new(reply));
     }
 }
