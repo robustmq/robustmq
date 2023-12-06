@@ -17,10 +17,10 @@
 use super::{
     errors::MetaError,
     node::{Node, NodeRaftState},
-    proto::meta::{
-        meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest,
-        TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest, HeartbeatRequest, HeartbeatReply,
-    },
+};
+use protocol::robust::meta::{
+    meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest,
+    TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest, HeartbeatRequest, HeartbeatReply,
 };
 use std::sync::{Arc, RwLock};
 use tonic::{Request, Response, Status};
@@ -120,11 +120,10 @@ impl MetaService for GrpcService {
 #[cfg(test)]
 mod tests {
     use std::{thread, time::Duration};
-
+    
+    use protocol::robust::meta::{meta_service_client::MetaServiceClient, FindLeaderRequest};
     use tokio::runtime::Runtime;
     use tonic_build;
-
-    use crate::proto::meta::{meta_service_client::MetaServiceClient, FindLeaderRequest};
 
     #[test]
     fn create_rust_pb() {

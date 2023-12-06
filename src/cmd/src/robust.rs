@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use broker::broker::Broker;
 use clap::command;
 use clap::Parser;
@@ -50,8 +52,7 @@ fn main() {
 
     let server_conf: RobustConfig = parse_server(&args.server_conf);
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
-    
-    let app: Broker = Broker::new(server_conf);
+    let app: Broker = Broker::new(Arc::new(server_conf));
     app.start().unwrap();
     // tokio::select! {
     //     result = app.start() => {

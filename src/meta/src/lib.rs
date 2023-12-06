@@ -14,15 +14,14 @@ use std::sync::{Arc, RwLock};
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use self::node::Node;
-use self::proto::meta::meta_service_server::MetaServiceServer;
 use self::server::GrpcService;
 use common::config::meta::MetaConfig;
 use common::log;
+use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use tokio::runtime::Runtime;
 use tonic::transport::Server;
 mod errors;
 mod node;
-mod proto;
 mod raft;
 mod server;
 mod storage;

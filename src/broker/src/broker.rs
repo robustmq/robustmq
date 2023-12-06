@@ -1,9 +1,10 @@
-use crate::{http::server::HttpServer, network::tcp_server::TcpServer};
+use crate::{grpc::server::GrpcServer, http::server::HttpServer, network::tcp_server::TcpServer};
 use common::{config::server::RobustConfig, log::info, runtime::create_runtime, version::banner};
 use flume::{Receiver, Sender};
 use std::{
     fmt::Result,
     net::SocketAddr,
+    sync::Arc,
     thread::{self, sleep},
     time::Duration,
 };
@@ -19,13 +20,13 @@ pub enum Error {
 }
 
 pub struct Broker {
-    config: RobustConfig,
+    config: Arc<RobustConfig>,
     signal_st: Sender<u16>,
     signal_rt: Receiver<u16>,
 }
 
 impl Broker {
-    pub fn new(config: RobustConfig) -> Broker {
+    pub fn new(config: Arc<RobustConfig>) -> Broker {
         let (signal_st, signal_rt) = flume::bounded::<u16>(1);
         return Broker {
             config,
@@ -44,7 +45,9 @@ impl Broker {
         let data_thread_join = data_thread.spawn(move || {
             let data_runtime = create_runtime("data-runtime", config.runtime.data_worker_threads);
             data_runtime.block_on(async {
-                let ip: SocketAddr = format!("{}:{}",config.addr, config.mqtt.mqtt4_port).parse().unwrap();
+                let ip: SocketAddr = format!("{}:{}", config.addr, config.mqtt.mqtt4_port)
+                    .parse()
+                    .unwrap();
                 let tcp_s = TcpServer::new(
                     ip,
                     config.network.accept_thread_num,
@@ -60,16 +63,25 @@ impl Broker {
         thread_handles.push(data_thread_join);
 
         // Requests for cluster management and internal interaction classes are handled by a separate runtime
-        let inner_thread = thread::Builder::new().name("inner-thread".to_owned());
+        let inner_thread = thread::Builder::new().name("http-thread".to_owned());
         let config = self.config.clone();
         let inner_thread_join = inner_thread.spawn(move || {
-            let inner_runtime = create_runtime("inner-runtime", config.runtime.inner_worker_threads);
-            inner_runtime.block_on(async {
-                // grpc server start
-                let ip: SocketAddr = format!("{}:{}",config.addr, config.grpc_port).parse().unwrap();
+            let inner_runtime =
+                create_runtime("inner-runtime", config.runtime.inner_worker_threads);
 
-                // http server start
-                let ip: SocketAddr = format!("{}:{}",config.addr, config.admin_port).parse().unwrap();
+            // start Grpc Server
+            let c = config.clone();
+            inner_runtime.spawn(async move {
+                let ip: SocketAddr = format!("{}:{}", c.addr, c.grpc_port).parse().unwrap();
+                let g_s = GrpcServer::new(ip);
+                g_s.start().await;
+            });
+            
+            // start HTTP Server
+            inner_runtime.block_on(async {
+                let ip: SocketAddr = format!("{}:{}", config.addr, config.admin_port)
+                    .parse()
+                    .unwrap();
                 let http_s = HttpServer::new(ip);
                 http_s.start().await;
             })

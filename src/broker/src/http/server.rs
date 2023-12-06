@@ -7,6 +7,7 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
+    
     pub fn new(ip: SocketAddr) -> Self {
         return Self { ip };
     }

@@ -14,4 +14,18 @@
  * limitations under the License.
  */
 
-pub mod meta;
+syntax = "proto3";
+package broker;
+service BrokerService {
+  
+  // Obtain information about the Leader node in the cluster
+  rpc StopBroker (StopBrokerRequest) returns (StopBrokerReply) {}
+}
+
+
+message StopBrokerRequest{
+
+}
+
+message StopBrokerReply{
+}
