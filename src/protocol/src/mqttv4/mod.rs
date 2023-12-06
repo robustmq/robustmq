@@ -23,6 +23,9 @@ pub mod connect;
 pub mod connack;
 pub mod publish;
 pub mod puback;
+pub mod pubrec;
+pub mod pubrel;
+pub mod pubcomp;
 
 ///MQTT packet type
 #[repr(u8)] 
@@ -288,6 +291,10 @@ impl Protocol for MqttV4 {
             }
             PacketType::ConnAck => Packet::ConnAck(connack::read(fixed_header, packet)?, None),
             PacketType::Publish => Packet::Publish(publish::read(fixed_header, packet)?, None),
+            PacketType::PubAck => Packet::PubAck(puback::read(fixed_header, packet)?, None),
+            PacketType::PubRec => Packet::PubRec(pubrec::read(fixed_header, packet)?, None),
+            PacketType::PubRel => Packet::PubRel(pubrel::read(fixed_header, packet)?, None),
+            PacketType::PubComp => Packet::PubComp(pubcomp::read(fixed_header, packet)?, None),
             _ => unreachable!(),
 
         };
@@ -301,6 +308,12 @@ impl Protocol for MqttV4 {
             }
             Packet::ConnAck(connack, _) => connack::write(&connack, buffer)?,
             Packet::Publish(publish, None) => publish::write(&publish, buffer)?,
+            Packet::PubAck(puback, None) => puback::write(&puback, buffer)?,
+            Packet::PubRec(pubrec, None) => pubrec::write(&pubrec, buffer)?,
+            Packet::PubRel(pubrel, None) => pubrel::write(&pubrel, buffer)?,
+            Packet::PubComp(pubcomp, None) => pubcomp::write(&pubcomp, buffer)?,
+
+            //Packet::
             _=> unreachable!(
                 "This branch only matches for packets with Properties, which is not possible in MQTT V4",
             ),
