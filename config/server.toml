@@ -12,8 +12,8 @@ port = 1226
 work_thread = 3
 
 [runtime]
-data_worker_threads = 3
-inner_worker_threads = 3
+data_worker_threads = 8
+inner_worker_threads = 8
 
 [network]
 accept_thread_num = 1
