@@ -39,6 +39,8 @@ pub enum Packet {
     Publish(Publish, Option<PublishProperties>),
     PubAck(PubAck, Option<PubAckProperties>),
     PubRec(PubRec, Option<PubRecProperties>),
+    PubRel(PubRel, Option<PubRelProperties>),
+    PubComp(PubComp, Option<PubCompProperties>),
 }
 
 /// Connection packet initialized by the client
@@ -286,6 +288,51 @@ pub struct PubAckProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
 
+}
+
+//--------------------------- PubRel packet -------------------------------
+
+/// Publish release in response to PubRec packet as QoS 2
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRel{
+    pub pkid: u16,
+    pub reason: PubRelReason,
+}
+/// Return code in pubrel
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PubRelReason{
+    Success,
+    PacketIdentifierNotFound,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRelProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+
+}
+
+//--------------------------- PubComp packet -------------------------------
+
+/// Asssured publish complete as QoS 2 in response to PubRel packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubComp {
+    pub pkid: u16,
+    pub reason: PubCompReason,
+}
+/// Return code in pubcomp pcaket
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PubCompReason {
+    Success, 
+    PacketIdentifierNotFound,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubCompProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
 }
 
 /// Error during serialization and deserialization

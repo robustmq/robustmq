@@ -120,8 +120,6 @@ mod tests {
         assert_eq!(publish_msg.payload, "test_payload");
 
         // test the display of publish packet
-        println!("publish display starts...........");
-        println!("{}", publish);
-        println!("publish display ends.............");
+        println!("publish display: {}", publish);
     }
 }

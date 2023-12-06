@@ -86,8 +86,6 @@ mod tests {
         assert_eq!(puback_read.reason, puback.reason);
 
         // test the display function of puback
-        println!("puback display starts...........");
-        println!("{}", puback_read);
-        println!("puback display ends.............");
+        println!("puback display: {}", puback_read);
     }
 }
