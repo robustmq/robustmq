@@ -23,6 +23,7 @@ pub struct MetaConfig {
     pub port: Option<u16>,
     pub runtime_work_threads: usize,
     pub data_path: String,
+    pub meta_nodes: Vec<String>,
     pub rocksdb: Rocksdb,
 }
 

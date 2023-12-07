@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-pub mod raft;
-pub mod storage;
+pub mod node;
 pub mod election;
+pub mod client;

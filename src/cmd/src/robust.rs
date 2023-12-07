@@ -50,7 +50,6 @@ fn main() {
     // Start Meta
     let mt_s = Meta::new(meta_conf);
     mt_s.start();
-    mt_s.wait_meta_ready();
 
     // Start Broker
     let app: Broker = Broker::new(Arc::new(server_conf));
