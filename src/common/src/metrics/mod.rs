@@ -12,10 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod server;
+pub mod broker;
 use prometheus::IntGaugeVec;
+use prometheus::{Encoder, TextEncoder};
 
 lazy_static::lazy_static! {
     static ref APP_VERSION: IntGaugeVec =
         prometheus::register_int_gauge_vec!("app_version", "app version", &["short_version", "version"]).unwrap();
+}
+
+const SERVER_LABLE_MQTT: &str = "mqtt4";
+const SERVER_LABLE_GRPC: &str = "grpc";
+const SERVER_LABLE_HTTP: &str = "http";
+
+
+pub fn dump_metrics() -> String {
+    let mut buffer = Vec::new();
+    let encoder = TextEncoder::new();
+    let mf = prometheus::gather();
+    encoder
+        .encode(&mf, &mut buffer).unwrap();
+    let res = String::from_utf8(buffer).unwrap();
+    return res;
 }

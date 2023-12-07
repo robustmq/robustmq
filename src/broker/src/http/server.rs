@@ -1,5 +1,5 @@
 use super::route;
-use common::log::info;
+use common::{log::info, metrics::broker::metrics_http_broker_running};
 use std::net::SocketAddr;
 
 pub struct HttpServer {
@@ -20,6 +20,7 @@ impl HttpServer {
             "RobustMQ Broker HTTP Server start success. bind addr:{}",
             ip
         ));
+        metrics_http_broker_running();
         axum::serve(listener, app).await.unwrap();
     }
 }

@@ -4,7 +4,7 @@ use super::{
     package::ResponsePackage,
 };
 use crate::{network::package::RequestPackage, package::mqtt4::package_ack_write};
-use common::log::{info, error};
+use common::{log::{info, error}, metrics::broker::metrics_mqtt4_broker_running};
 use flume::{Receiver, Sender};
 use protocol::{mqttv4::MqttV4, protocol::ConnectReturnCode};
 use std::{fmt::Error, net::SocketAddr, sync::Arc};
@@ -71,7 +71,7 @@ impl TcpServer {
         for _ in 0..=self.response_process_num {
             _ = self.response_process().await;
         }
-
+        metrics_mqtt4_broker_running();
         info(&format!("RobustMQ Broker MQTT4 Server start success. bind addr:{:?}", self.ip));
     }
 
@@ -88,7 +88,7 @@ impl TcpServer {
                 let prot = MqttV4::new();
    
                 // read connect package
-
+                
                 // tls check
 
                 // user login check
