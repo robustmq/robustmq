@@ -26,6 +26,7 @@ pub mod puback;
 pub mod pubrec;
 pub mod pubrel;
 pub mod pubcomp;
+pub mod disconnect;
 
 ///MQTT packet type
 #[repr(u8)] 
@@ -295,6 +296,9 @@ impl Protocol for MqttV4 {
             PacketType::PubRec => Packet::PubRec(pubrec::read(fixed_header, packet)?, None),
             PacketType::PubRel => Packet::PubRel(pubrel::read(fixed_header, packet)?, None),
             PacketType::PubComp => Packet::PubComp(pubcomp::read(fixed_header, packet)?, None),
+            // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
+            // hit when Disconnect packet has properties which are only valid for MQTT V5
+            PacketType::Disconnect => return Err(Error::InvalidProtocol),
             _ => unreachable!(),
 
         };
@@ -312,6 +316,7 @@ impl Protocol for MqttV4 {
             Packet::PubRec(pubrec, None) => pubrec::write(&pubrec, buffer)?,
             Packet::PubRel(pubrel, None) => pubrel::write(&pubrel, buffer)?,
             Packet::PubComp(pubcomp, None) => pubcomp::write(&pubcomp, buffer)?,
+            Packet::Disconnect(disconnect, None) => disconnect::write(&disconnect, buffer)?,
 
             //Packet::
             _=> unreachable!(
