@@ -459,6 +459,7 @@ dependencies = [
  "clap",
  "common",
  "lazy_static",
+ "meta",
  "tokio",
 ]
 
@@ -1236,6 +1237,7 @@ version = "0.0.1"
 dependencies = [
  "bytes",
  "common",
+ "futures",
  "prost",
  "protobuf 3.3.0",
  "protocol",

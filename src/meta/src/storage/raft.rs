@@ -1,17 +1,17 @@
 use crate::errors::MetaError;
 use crate::storage::rocksdb::RocksDBStorage;
 use common::config::meta::MetaConfig;
-use raft::Error;
-use raft::StorageError;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
 use raft::prelude::EntryType;
 use raft::prelude::HardState;
-use raft::prelude::SnapshotMetadata;
 use raft::prelude::Snapshot;
+use raft::prelude::SnapshotMetadata;
+use raft::Error;
 use raft::RaftState;
 use raft::Result as RaftResult;
 use raft::Storage as RaftStorage;
+use raft::StorageError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -45,7 +45,8 @@ impl RaftRocksDBStorage {
         ConfState: From<T>,
     {
         assert!(!self.initial_state().unwrap().initialized());
-        self.write_lock().save_conf_state(ConfState::from(conf_state));
+        self.write_lock()
+            .save_conf_state(ConfState::from(conf_state));
     }
 
     pub fn read_lock(&self) -> RwLockReadGuard<'_, RaftRocksDBStorageCore> {
@@ -58,7 +59,6 @@ impl RaftRocksDBStorage {
 }
 
 impl RaftStorage for RaftRocksDBStorage {
-
     /// `initial_state` is called when Raft is initialized. This interface will return a `RaftState`
     /// which contains `HardState` and `ConfState`.
     ///
@@ -97,7 +97,7 @@ impl RaftStorage for RaftRocksDBStorage {
     ) -> RaftResult<Vec<Entry>> {
         let max_size = max_size.into();
         let mut core = self.read_lock();
-        if low < core.first_index(){
+        if low < core.first_index() {
             return Err(Error::Store(StorageError::Compacted));
         }
 
@@ -148,7 +148,7 @@ impl RaftStorage for RaftRocksDBStorage {
         Ok(self.read_lock().first_index())
     }
 
-     /// The index of the last entry replicated in the `Storage`.
+    /// The index of the last entry replicated in the `Storage`.
     fn last_index(&self) -> RaftResult<u64> {
         Ok(self.read_lock().last_index())
     }
@@ -164,10 +164,10 @@ impl RaftStorage for RaftRocksDBStorage {
         let mut core = self.write_lock();
         if core.trigger_snap_unavailable {
             core.trigger_snap_unavailable = false;
-            return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable))
+            return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable));
         } else {
             let mut snap = core.snapshot();
-            if snap.get_metadata().index < request_index{
+            if snap.get_metadata().index < request_index {
                 snap.mut_metadata().index = request_index;
             }
             Ok(snap)
@@ -181,7 +181,7 @@ pub struct RaftRocksDBStorageCore {
     trigger_snap_unavailable: bool,
 }
 
-impl RaftRocksDBStorageCore{
+impl RaftRocksDBStorageCore {
     fn new(config: &MetaConfig) -> Self {
         let rds = RocksDBStorage::new(config);
         return RaftRocksDBStorageCore {
@@ -254,7 +254,7 @@ impl RaftRocksDBStorageCore{
     }
 
     /// Converts data of type SaveRDSConfState to raft::prelude::ConfState
-    pub fn convert_conf_state_from_rds_cs(&self, scs: SaveRDSConfState) -> ConfState{
+    pub fn convert_conf_state_from_rds_cs(&self, scs: SaveRDSConfState) -> ConfState {
         let mut cs = ConfState::default();
         cs.voters = scs.voters;
         cs.learners = scs.learners;
@@ -265,7 +265,7 @@ impl RaftRocksDBStorageCore{
     }
 
     /// Converts data of type SaveRDSHardState to raft::prelude::HardState
-    pub fn convert_hard_state_from_rds_hs(&self, shs:SaveRDSHardState) -> HardState{
+    pub fn convert_hard_state_from_rds_hs(&self, shs: SaveRDSHardState) -> HardState {
         let mut hs = HardState::default();
         hs.term = shs.term;
         hs.vote = shs.vote;
@@ -295,20 +295,20 @@ impl RaftRocksDBStorageCore{
     }
 
     // Obtain the Entry based on the index ID
-    fn snapshot(&self) -> Snapshot{
+    fn snapshot(&self) -> Snapshot {
         let mut sns = Snapshot::default();
         let hard_state = self.hard_state();
         let meta = sns.mut_metadata();
         meta.index = hard_state.commit;
-        meta.term = match meta.index.cmp(&self.snapshot_metadata.index){
+        meta.term = match meta.index.cmp(&self.snapshot_metadata.index) {
             std::cmp::Ordering::Equal => self.snapshot_metadata.term,
             std::cmp::Ordering::Greater => self.get_entry_by_idx(meta.index).term,
-            std::cmp::Ordering::Less =>{
+            std::cmp::Ordering::Less => {
                 panic!(
                     "commit {} < snapshot_metadata.index {}",
                     meta.index, self.snapshot_metadata.index
                 );
-            },
+            }
         };
         meta.set_conf_state(self.convert_conf_state_from_rds_cs(self.conf_state()));
         return sns;
@@ -385,18 +385,3 @@ mod tests {
         // tt.encode(&mut buf).unwrap();
     }
 }
-/*
- * Copyright (c) 2023 RobustMQ Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */

@@ -52,7 +52,7 @@ robustmq-test={path="tests"}
 
 [profile.release]
 panic = 'abort'
-debug = true
+debug = false
 
 [profile.nightly]
 inherits = "release"

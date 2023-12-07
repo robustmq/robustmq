@@ -18,10 +18,12 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct MetaConfig {
+    pub node_id: i32,
     pub addr: String,
     pub port: Option<u16>,
-    pub node_id: i32,
+    pub runtime_work_threads: usize,
     pub data_path: String,
+    pub meta_nodes: Vec<String>,
     pub rocksdb: Rocksdb,
 }
 

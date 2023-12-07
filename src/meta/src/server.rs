@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-use super::{
-    errors::MetaError,
-    node::{Node, NodeRaftState},
-};
+use crate::raft::node::{Node, NodeRaftState};
+
+use super::errors::MetaError;
 use protocol::robust::meta::{
-    meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest,
-    TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest, HeartbeatRequest, HeartbeatReply,
+    meta_service_server::MetaService, FindLeaderReply, FindLeaderRequest, HeartbeatReply,
+    HeartbeatRequest, TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest,
 };
 use std::sync::{Arc, RwLock};
 use tonic::{Request, Response, Status};
@@ -90,7 +89,6 @@ impl MetaService for GrpcService {
         &self,
         request: Request<TransformLeaderRequest>,
     ) -> Result<Response<TransformLeaderReply>, Status> {
-        
         let req = request.into_inner();
         let mut node = self.node.write().unwrap();
 
@@ -112,7 +110,6 @@ impl MetaService for GrpcService {
         &self,
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<HeartbeatReply>, Status> {
-        
         Ok(Response::new(HeartbeatReply::default()))
     }
 }
@@ -120,7 +117,7 @@ impl MetaService for GrpcService {
 #[cfg(test)]
 mod tests {
     use std::{thread, time::Duration};
-    
+
     use protocol::robust::meta::{meta_service_client::MetaServiceClient, FindLeaderRequest};
     use tokio::runtime::Runtime;
     use tonic_build;
