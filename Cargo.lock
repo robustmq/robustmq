@@ -459,6 +459,7 @@ dependencies = [
  "clap",
  "common",
  "lazy_static",
+ "meta",
  "tokio",
 ]
 

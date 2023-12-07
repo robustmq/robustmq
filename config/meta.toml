@@ -1,12 +1,8 @@
-addr = "127.0.0.1"
 node_id =1
-data_path = "/data/robustmq/meta"
-
-[grpc]
+addr = "127.0.0.1"
 port = 1228
-
-[http]
-port = 1229
+runtime_work_threads = 3
+data_path = "/data/robustmq/meta"
 
 [rocksdb]
 max_open_files = 10000

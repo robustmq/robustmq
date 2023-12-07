@@ -20,10 +20,11 @@ use clap::Parser;
 use common::config::meta::MetaConfig;
 use common::config::parse_meta;
 use common::config::parse_server;
-use common::config::DEFAULT_SERVER_CONFIG;
-use common::config::DEFAULT_META_CONFIG;
 use common::config::server::RobustConfig;
+use common::config::DEFAULT_META_CONFIG;
+use common::config::DEFAULT_SERVER_CONFIG;
 use common::log;
+use meta::Meta;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -45,8 +46,16 @@ fn main() {
 
     let server_conf: RobustConfig = parse_server(&args.server_conf);
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
+
+    // Start Meta
+    let mt_s = Meta::new(meta_conf);
+    mt_s.start();
+    mt_s.wait_meta_ready();
+
+    // Start Broker
     let app: Broker = Broker::new(Arc::new(server_conf));
     app.start().unwrap();
+
     // tokio::select! {
     //     result = app.start() => {
     //         if let Err(err) = result {
