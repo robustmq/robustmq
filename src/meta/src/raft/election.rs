@@ -13,22 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+use crate::errors::MetaError;
+use super::{client::find_leader, node::Node};
 
-enum ElectionState {
-
-}
-
-struct Election {
+pub struct Election {
     voters: Vec<String>,
 }
 
 impl Election {
-    fn new(votes: Vec<String>) -> Self {
+    pub fn new(votes: Vec<String>) -> Self {
         return Election { voters: votes };
     }
 
-    fn leader_election(&self) {
-        
+    pub async fn leader_election(&self) -> Result<Node, MetaError> {
+        let mut leader_node: Node = Node::new("".to_string(), 0);
+
+        for addr in &self.voters {
+            let res = find_leader(addr).await;
+            if leader_node.node_id != 0 && leader_node.leader_id.unwrap() != res.leader_id {
+                return Err(MetaError::MultipleLeaders(
+                    leader_node.node_ip,
+                    res.leader_ip,
+                ));
+            }
+            leader_node = Node::new(res.leader_ip, res.leader_id);
+        }
+        return Ok(leader_node);
     }
 
     fn find_leader_info() {}

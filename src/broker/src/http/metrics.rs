@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
+use common::metrics::dump_metrics;
+
 
  pub async fn metrics_handler() -> String {
-    // return crate::SERVER_METRICS.gather();
-    return String::from("")
+    return dump_metrics();
 }
 
 pub async fn welcome_handler() -> &'static str {
-    // crate::SERVER_METRICS.set_server_status_stop();
     "Welcome to RobustMQ"
 }
+

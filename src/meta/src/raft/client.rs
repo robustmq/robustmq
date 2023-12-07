@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
-struct Raft{
-    
+use protocol::robust::meta::{
+    meta_service_client::MetaServiceClient, FindLeaderReply, FindLeaderRequest,
+};
+
+pub async fn find_leader(addr: &String) -> FindLeaderReply {
+    let mut client = MetaServiceClient::connect(format!("http://{}", addr))
+        .await
+        .unwrap();
+    let request = tonic::Request::new(FindLeaderRequest {});
+    let response = client.find_leader(request).await.unwrap();
+    return response.into_inner();
 }
 
-impl Raft{
+pub fn vote() {}
 
-    pub fn new() -> Self{
-        return Raft {};
-    }
+pub fn transform_leader() {}
 
-    pub fn find_leader(&self){
-        
-    }
-}
+pub fn heartbeat() {}

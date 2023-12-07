@@ -20,7 +20,22 @@ appenders:
         pattern: 'log/server.{}.log'
         base: 0
         count: 50
-
+  meta:
+    kind: rolling_file
+    path: "log/meta.log"
+    append: true
+    encoder:
+      pattern: "{d} [{t}] {h({l})} {M}: {m}{n}"
+    policy:
+      kind: compound
+      trigger:
+        kind: size
+        limit: 1024mb
+      roller:
+        kind: fixed_window
+        pattern: 'log/meta.{}.log'
+        base: 0
+        count: 50
 root:
   level: debug
   appenders:
@@ -31,4 +46,10 @@ loggers:
     appenders:
       - stdout
       - server
+    additive: false
+  app::meta:
+    level: info
+    appenders:
+      - stdout
+      - meta
     additive: false

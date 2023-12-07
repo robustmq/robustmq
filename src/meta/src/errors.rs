@@ -30,6 +30,9 @@ pub enum MetaError {
     UnavailableNodeId{
         node_id: i32
     },
+
+    #[error("Multiple leaders exist in a cluster, Node:{0} diff {1}")]
+    MultipleLeaders(String,String),
 }
 
 
