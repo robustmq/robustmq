@@ -1,5 +1,5 @@
 use super::services::GrpcBrokerServices;
-use common::log::info;
+use common::{log::info, metrics::broker::metrics_grpc_broker_running};
 use protocol::robust::broker::broker_service_server::BrokerServiceServer;
 use std::net::SocketAddr;
 use tonic::transport::Server;
@@ -17,6 +17,7 @@ impl GrpcServer {
             "RobustMQ Broker Grpc Server start success. bind addr:{}",
             self.addr
         ));
+        metrics_grpc_broker_running();
         let service_handler = GrpcBrokerServices::new();
         Server::builder()
             .add_service(BrokerServiceServer::new(service_handler))

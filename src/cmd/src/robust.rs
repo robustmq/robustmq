@@ -24,9 +24,6 @@ use common::config::DEFAULT_SERVER_CONFIG;
 use common::config::DEFAULT_META_CONFIG;
 use common::config::server::RobustConfig;
 use common::log;
-use common::metrics::server::ServerMetrics;
-use lazy_static::lazy_static;
-use tokio::signal;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -40,10 +37,6 @@ struct ArgsParams {
     /// MetaService Indicates the path of the configuration file
     #[arg(short, long, default_value_t=String::from(DEFAULT_META_CONFIG))]
     meta_conf: String,
-}
-
-lazy_static! {
-    static ref SERVER_METRICS: ServerMetrics = ServerMetrics::new();
 }
 
 fn main() {

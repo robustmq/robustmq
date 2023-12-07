@@ -22,7 +22,7 @@ mod tests {
         let rt = create_runtime("text", 10);
         let guard = rt.enter();
         tokio::spawn(async move {
-            let stream = TcpStream::connect("127.0.0.1:8768").await.unwrap();
+            let stream = TcpStream::connect("127.0.0.1:9989").await.unwrap();
             let socket = Arc::new(RwLock::new(Box::new(stream)));
 
             // send connect package
