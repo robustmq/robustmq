@@ -22,8 +22,12 @@ pub fn error(msg: &str) -> () {
     log::error!(target:"app::server", "{}",msg)
 }
 
-pub fn server_info(msg: &str) -> () {
-    log::info!(target:"app::server", "{}",msg)
+pub fn info_meta(msg: &str) -> () {
+    log::info!(target:"app::meta", "{}",msg)
+}
+
+pub fn error_meta(msg: &str) -> () {
+    log::info!(target:"app::meta", "{}",msg)
 }
 
 pub fn new(){
@@ -38,6 +42,6 @@ mod tests {
     fn log_print() {
         log4rs::init_file(format!("../../../{}", DEFAULT_LOG_CONFIG), Default::default()).unwrap();
         info("lobo");
-        server_info("server lobo");
+        info_meta("server lobo");
     }
 }
