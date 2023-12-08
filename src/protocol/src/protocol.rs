@@ -40,6 +40,12 @@ pub enum Packet {
     PubRec(PubRec, Option<PubRecProperties>),
     PubRel(PubRel, Option<PubRelProperties>),
     PubComp(PubComp, Option<PubCompProperties>),
+    PingReq(PingReq),
+    PingResp(PingResp),
+    Subscribe(Subscribe, Option<SubscribeProperties>),
+    SubAck(SubAck, Option<SubAckProperties>),
+    Unsubscribe(Unsubscribe, Option<UnsubscribeProperties>),
+    UnsubAck(UnsubAck, Option<UnsubAckProperties>),
     Disconnect(Disconnect, Option<DisconnectProperties>),
 }
 
@@ -183,6 +189,11 @@ pub struct ConnAckProperties {
     pub authentication_data: Option<Bytes>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PingReq;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PingResp;
 //----------------------Publish Packet --------------------------------
 
 /// Publish packet
@@ -332,6 +343,126 @@ pub struct PubCompProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
+//--------------------------- Subscribe packet -------------------------------
+
+/// Subscription packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Subscribe {
+    pub pkid: u16,
+    pub filters: Vec<Filter>,
+}
+
+/// Subscription filter
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Filter {
+    //  in mqtt v4, there are only path and qos valid
+    pub path: String, 
+    pub qos: QoS, 
+
+    // the following options are only valid in mqtt v5
+    pub nolocal: bool,
+    pub preserve_retain: bool,
+    pub retain_foward_rule: RetainForwardRule,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RetainForwardRule {
+    OnEverySubscribe,
+    OnNewSubscribe, 
+    Never,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubscribeProperties {
+    pub id: Option<usize>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- SubscribeAck packet -------------------------------
+/// Ackknowledgement to subscribe
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubAck {
+    pub pkid: u16,
+    pub return_codes: Vec<SubscribeReasonCode>,
+}
+
+impl SubAck {
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn len(&self) -> usize {
+        2 + self.return_codes.len()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubscribeReasonCode {
+    QoS0,
+    QoS1,
+    QoS2,
+    Success(QoS),
+    Failure,
+    // the following codes only valid in mqtt v5
+    Unspecified,
+    ImplementationSpecific,
+    NotAuthorized,
+    TopicFilterInvalid,
+    PkidInUse,
+    QuotaExceeded,
+    SharedSubscriptionsNotSupported,
+    SubscriptionIdNotSupported,
+    WildcardSubscriptionsNotSupported,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- Unsubscribe packet -------------------------------
+
+/// Unsubscribe packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unsubscribe {
+    pub pkid: u16, 
+    pub filters: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsubscribeProperties {
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- UnsubscribeAck packet -------------------------------
+
+/// Acknowledgement to unsubscribe
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsubAck {
+    pub pkid: u16,
+    pub reasons: Vec<UnsubAckReason>, // only valid in MQTT V5
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum UnsubAckReason {
+    Success, 
+    NoSubscriptionExisted,
+    UnspecifiedError,
+    ImplementationSpecificError,
+    NotAuthorized,
+    TopicFilterInvalid,
+    PacketIdentifierInUse,
+}
+
+// UnsubAckProperties only valid in MQTT V5
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
 //--------------------------- Disconnect packet -------------------------------
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Disconnect {
@@ -456,6 +587,14 @@ pub enum Error {
     PacketIdZero,
     #[error("Payload size has been exceeded by {0} bytes")]
     PayloadSizeLimitExceeded(usize),
+    #[error("Empty Subscription")]
+    EmptySubscription,
+    #[error("Invalid subscribe reason code = {0}")]
+    InvalidSubscribeReasonCode(u8),
+    #[error("Topic not utf-8")]
+    TopicNotUtf8,
+    #[error("Payload size is incorrect")]
+    PayloadSizeIncorrect
 }
 
 pub trait Protocol {
