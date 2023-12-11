@@ -16,6 +16,7 @@
 
 /// puback packet is an acknowledgement to QoS 1 publish packet
 use super::*;
+use std::fmt;
 
 impl PubAck {
     fn mqttv4(pkid: u16) -> PubAck {
