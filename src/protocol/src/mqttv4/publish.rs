@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 use super::*;
-use std::fmt;
-use bytes::{Buf, Bytes, BytesMut};
 
 fn len(publish: &Publish) -> usize {
 
@@ -122,8 +120,6 @@ mod tests {
         assert_eq!(publish_msg.payload, "test_payload");
 
         // test the display of publish packet
-        println!("test starts for display of publish packet...........");
-        println!("{}", publish);
-        println!("test ends for display of publish packet...........");
+        println!("publish display: {}", publish);
     }
 }

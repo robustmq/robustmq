@@ -22,6 +22,17 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 pub mod connect;
 pub mod connack;
 pub mod publish;
+pub mod puback;
+pub mod pubrec;
+pub mod pubrel;
+pub mod pubcomp;
+pub mod subscribe;
+pub mod suback;
+pub mod unsubscribe;
+pub mod unsuback;
+pub mod ping;
+pub mod disconnect;
+
 
 ///MQTT packet type
 #[repr(u8)] 
@@ -201,6 +212,15 @@ fn read_mqtt_bytes(stream: &mut Bytes) -> Result<Bytes, Error> {
     }
     Ok(stream.split_to(len))
 }
+
+// Reads a string from bytes stream
+fn read_mqtt_string(stream: &mut Bytes) -> Result<String, Error> {
+    let s = read_mqtt_bytes(stream)?;
+    match String::from_utf8(s.to_vec()){
+        Ok(v) => Ok(v),
+        Err(_e) => Err(Error::TopicNotUtf8),
+    }
+}
 /// After collecting enough bytes to frame a packet (packet's frame()), it's possible that
 /// content itself in the stream is wrong. Like expected packet id or qos not being present.
 /// In cases where 'read_mqtt_string' or 'read_mqtt_bytes' exhausted remaining length but
@@ -287,6 +307,19 @@ impl Protocol for MqttV4 {
             }
             PacketType::ConnAck => Packet::ConnAck(connack::read(fixed_header, packet)?, None),
             PacketType::Publish => Packet::Publish(publish::read(fixed_header, packet)?, None),
+            PacketType::PubAck => Packet::PubAck(puback::read(fixed_header, packet)?, None),
+            PacketType::PubRec => Packet::PubRec(pubrec::read(fixed_header, packet)?, None),
+            PacketType::PubRel => Packet::PubRel(pubrel::read(fixed_header, packet)?, None),
+            PacketType::PubComp => Packet::PubComp(pubcomp::read(fixed_header, packet)?, None),
+            PacketType::Subscribe => Packet::Subscribe(subscribe::read(fixed_header, packet)?, None),
+            PacketType::SubAck => Packet::SubAck(suback::read(fixed_header, packet)?, None),
+            PacketType::Unsubscribe => Packet::Unsubscribe(unsubscribe::read(fixed_header, packet)?, None),
+            PacketType::UnsubAck => Packet::UnsubAck(unsuback::read(fixed_header, packet)?, None),
+            PacketType::PingReq => Packet::PingReq(PingReq),
+            PacketType::PingResp => Packet::PingResp(PingResp),
+            // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
+            // hit when Disconnect packet has properties which are only valid for MQTT V5
+            PacketType::Disconnect => return Err(Error::InvalidProtocol),
             _ => unreachable!(),
 
         };
@@ -300,6 +333,19 @@ impl Protocol for MqttV4 {
             }
             Packet::ConnAck(connack, _) => connack::write(&connack, buffer)?,
             Packet::Publish(publish, None) => publish::write(&publish, buffer)?,
+            Packet::PubAck(puback, None) => puback::write(&puback, buffer)?,
+            Packet::PubRec(pubrec, None) => pubrec::write(&pubrec, buffer)?,
+            Packet::PubRel(pubrel, None) => pubrel::write(&pubrel, buffer)?,
+            Packet::PubComp(pubcomp, None) => pubcomp::write(&pubcomp, buffer)?,
+            Packet::Subscribe(subscribe, None) => subscribe::write(&subscribe, buffer)?,
+            Packet::SubAck(suback, None) => suback::write(&suback, buffer)?,
+            Packet::Unsubscribe(unsubscribe, None) => unsubscribe::write(&unsubscribe, buffer)?,
+            Packet::UnsubAck(unsuback, None) => unsuback::write(&unsuback, buffer)?,
+            Packet::PingReq(pingreq) => ping::pingreq::write(buffer)?,
+            Packet::PingResp(pingresp) => ping::pingresp::write(buffer)?,
+            Packet::Disconnect(disconnect, None) => disconnect::write(&disconnect, buffer)?,
+
+            //Packet::
             _=> unreachable!(
                 "This branch only matches for packets with Properties, which is not possible in MQTT V4",
             ),

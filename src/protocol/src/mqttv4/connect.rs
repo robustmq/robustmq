@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-use std::fmt;
-
 use super::*;
 use crate::protocol::*;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
     /*
@@ -367,11 +364,11 @@ mod tests {
             client_id: client_id,
             clean_session: true,
         };
-        println!("test starts for display of structs in connect packet...........................");
+        println!("connect display starts...........................");
         print!("{}", login);
         print!("{}", connect);
         println!("{}", lastwill);
-        println!("test ends for display of structs in connect packet.............................");
+        println!("connect display ends.............................");
 
     }
 }

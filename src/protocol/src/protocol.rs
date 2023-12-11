@@ -1,19 +1,18 @@
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::{io, str::Utf8Error, string::FromUtf8Error};
@@ -37,6 +36,17 @@ pub enum Packet {
     ),
     ConnAck(ConnAck, Option<ConnAckProperties>),
     Publish(Publish, Option<PublishProperties>),
+    PubAck(PubAck, Option<PubAckProperties>),
+    PubRec(PubRec, Option<PubRecProperties>),
+    PubRel(PubRel, Option<PubRelProperties>),
+    PubComp(PubComp, Option<PubCompProperties>),
+    PingReq(PingReq),
+    PingResp(PingResp),
+    Subscribe(Subscribe, Option<SubscribeProperties>),
+    SubAck(SubAck, Option<SubAckProperties>),
+    Unsubscribe(Unsubscribe, Option<UnsubscribeProperties>),
+    UnsubAck(UnsubAck, Option<UnsubAckProperties>),
+    Disconnect(Disconnect, Option<DisconnectProperties>),
 }
 
 /// Connection packet initialized by the client
@@ -179,11 +189,16 @@ pub struct ConnAckProperties {
     pub authentication_data: Option<Bytes>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PingReq;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PingResp;
 //----------------------Publish Packet --------------------------------
 
 /// Publish packet
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Publish{
+pub struct Publish {
     pub(crate) dup: bool,
     pub(crate) qos: QoS,
     pub(crate) pkid: u16,
@@ -194,15 +209,15 @@ pub struct Publish{
 
 impl Publish {
     //Constructor of Publish
-    pub fn new<T: Into<Bytes>>(topic: T, payload: T, retain: bool) -> Publish{
-        Publish { 
-            dup: false, 
+    pub fn new<T: Into<Bytes>>(topic: T, payload: T, retain: bool) -> Publish {
+        Publish {
+            dup: false,
             qos: QoS::AtMostOnce,
-            pkid: 0, 
-            retain, 
+            pkid: 0,
+            retain,
             topic: topic.into(),
             payload: payload.into(),
-         }
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -211,7 +226,7 @@ impl Publish {
 
     pub fn len(&self) -> usize {
         let len = 2 + self.topic.len() + self.payload.len();
-        match self.qos == QoS::AtMostOnce{
+        match self.qos == QoS::AtMostOnce {
             true => len,
             false => len + 2,
         }
@@ -222,12 +237,317 @@ impl Publish {
 pub struct PublishProperties {
     pub payload_format_indicator: Option<u8>,
     pub message_expiry_interval: Option<u32>,
-    pub topic_alias: Option<u16>, 
+    pub topic_alias: Option<u16>,
     pub response_topic: Option<String>,
     pub correlation_data: Option<Bytes>,
     pub user_properties: Vec<(String, String)>,
     pub subscription_identifiers: Vec<usize>,
     pub content_type: Option<String>,
+}
+
+/// Acknowledgement to QoS 1 publish packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubAck {
+    pub pkid: u16,
+    pub reason: PubAckReason,
+}
+
+/// Return code in puback
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PubAckReason {
+    Success,
+    NoMatchingSubscribers,
+    UnspecifiedError,
+    ImplementationSpecificError,
+    NotAuthorized,
+    TopicNameInvalid,
+    PacketIdentifierInUse,
+    QuotaExceeded,
+    PayloadFormatInvalid,
+}
+//-----------------------------PubRec packet---------------------------------
+/// Acknowledgement as part 1 to QoS 2 publish packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRec {
+    pub pkid: u16,
+    pub reason: PubRecReason,
+}
+
+/// Return code in pubrec packet
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PubRecReason {
+    Success,
+    NoMatchingSubscribers,
+    UnspecifiedError,
+    ImplementationSpecificError,
+    NotAuthorized,
+    TopicNameInvalid,
+    PacketIdentifierInUse,
+    QuotaExceeded,
+    PayloadFormatInvalid,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRecProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- PubRel packet -------------------------------
+
+/// Publish release in response to PubRec packet as QoS 2
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRel {
+    pub pkid: u16,
+    pub reason: PubRelReason,
+}
+/// Return code in pubrel
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PubRelReason {
+    Success,
+    PacketIdentifierNotFound,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubRelProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- PubComp packet -------------------------------
+
+/// Asssured publish complete as QoS 2 in response to PubRel packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubComp {
+    pub pkid: u16,
+    pub reason: PubCompReason,
+}
+/// Return code in pubcomp pcaket
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum PubCompReason {
+    Success,
+    PacketIdentifierNotFound,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubCompProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- Subscribe packet -------------------------------
+
+/// Subscription packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Subscribe {
+    pub pkid: u16,
+    pub filters: Vec<Filter>,
+}
+
+/// Subscription filter
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Filter {
+    //  in mqtt v4, there are only path and qos valid
+    pub path: String, 
+    pub qos: QoS, 
+
+    // the following options are only valid in mqtt v5
+    pub nolocal: bool,
+    pub preserve_retain: bool,
+    pub retain_foward_rule: RetainForwardRule,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RetainForwardRule {
+    OnEverySubscribe,
+    OnNewSubscribe, 
+    Never,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubscribeProperties {
+    pub id: Option<usize>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- SubscribeAck packet -------------------------------
+/// Ackknowledgement to subscribe
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubAck {
+    pub pkid: u16,
+    pub return_codes: Vec<SubscribeReasonCode>,
+}
+
+impl SubAck {
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
+    pub fn len(&self) -> usize {
+        2 + self.return_codes.len()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubscribeReasonCode {
+    QoS0,
+    QoS1,
+    QoS2,
+    Success(QoS),
+    Failure,
+    // the following codes only valid in mqtt v5
+    Unspecified,
+    ImplementationSpecific,
+    NotAuthorized,
+    TopicFilterInvalid,
+    PkidInUse,
+    QuotaExceeded,
+    SharedSubscriptionsNotSupported,
+    SubscriptionIdNotSupported,
+    WildcardSubscriptionsNotSupported,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- Unsubscribe packet -------------------------------
+
+/// Unsubscribe packet
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unsubscribe {
+    pub pkid: u16, 
+    pub filters: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsubscribeProperties {
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- UnsubscribeAck packet -------------------------------
+
+/// Acknowledgement to unsubscribe
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsubAck {
+    pub pkid: u16,
+    pub reasons: Vec<UnsubAckReason>, // only valid in MQTT V5
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum UnsubAckReason {
+    Success, 
+    NoSubscriptionExisted,
+    UnspecifiedError,
+    ImplementationSpecificError,
+    NotAuthorized,
+    TopicFilterInvalid,
+    PacketIdentifierInUse,
+}
+
+// UnsubAckProperties only valid in MQTT V5
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+//--------------------------- Disconnect packet -------------------------------
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Disconnect {
+    /// Disconnect reason code which will be only used in MQTT V5
+    pub reason_code: DisconnectReasonCode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum DisconnectReasonCode {
+    /// Close the connection normally, don't send the will message.
+    NormalDisconnection,
+    /// The client wishes to disconnect but requires that the server also publishes its
+    /// Will message.
+    DisconnectWithwillMessage,
+    /// The Connection is closed but the sender either does not wish to reveal the reason,
+    /// or none of the other reason codes apply.
+    UnspecifiedError,
+    /// The received packet does not conform to this specification.
+    MalformedPacket,
+    /// An unexpected or out of order packet was received.
+    ProtocolError,
+    /// The packet received is valid but cannot be processed by this implementation.
+    ImplementationSpecificError,
+    /// The request is not authorized.
+    NotAuthorized,
+    /// The Server is busy and cannot continue processing requests from this Client.
+    ServerBusy,
+    /// The Server is shutting down.
+    ServerShuttingDown,
+    /// The Connection is closed because no packet has been received for 1.5 times the Keepalive time.
+    KeepAliveTimeout,
+    /// Another Connection using the same ClientID has connected causing this Connection to be closed.
+    SessionTakenOver,
+    /// The Topic Filter is correctly formed, but is not accepted by this Sever.
+    TopicFilterInvalid,
+    /// The Topic Name is correctly formed, but is not accepted by this Client or Server.
+    TopicNameInvalid,
+    /// The Client or Server has received more than Receive Maximum publication for which it has not sent PUBACK or PUBCOMP.
+    ReceiveMaximumExceeded,
+    /// The Client or Server has received a PUBLISH packet containing a Topic Alias which is greater than the Maximum Topic Alias it sent in the CONNECT or CONNACK packet.
+    TopicAliasInvalid,
+    /// The packet size is greater than Maximum Packet Size for this Client or Server.
+    PacketTooLarge,
+    /// The received data rate is too high.
+    MessageRateTooHigh,
+    /// An implementation or administrative imposed limit has been exceeded.
+    QuotaExceeded,
+    /// The Connection is closed due to an administrative action.
+    AdministrativeAction,
+    /// The payload format does not match the one specified by the Payload Format Indicator.
+    PayloadFormatInvalid,
+    /// The Server has does not support retained messages.
+    RetainNotSupported,
+    /// The Client specified a QoS greater than the QoS specified in a Maximum QoS in the CONNACK.
+    QoSNotSupported,
+    /// The Client should temporarily change its Server.
+    UseAnotherServer,
+    /// The Server is moved and the Client should permanently change its server location.
+    ServerMoved,
+    /// The Server does not support Shared Subscriptions.
+    SharedSubscriptionNotSupported,
+    /// This connection is closed because the connection rate is too high.
+    ConnectionRateExceeded,
+    /// The maximum connection time authorized for this connection has been exceeded.
+    MaximumConnectTime,
+    /// The Server does not support Subscription Identifiers; the subscription is not accepted.
+    SubscriptionIdentifiersNotSupported,
+    /// The Server does not support Wildcard subscription; the subscription is not accepted.
+    WildcardSubscriptionsNotSupported,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DisconnectProperties {
+    /// Session Expiry Interval in seconds
+    pub session_expiry_interval: Option<u32>,
+    
+    /// Human readable reason for the disconnect
+    pub reason_string: Option<String>,
+
+    /// List of user properties
+    pub user_properties: Vec<(String, String)>,
+
+    /// String which can be used by the client to identify aonther server to use
+    pub server_reference: Option<String>,
 }
 
 /// Error during serialization and deserialization
@@ -266,12 +586,18 @@ pub enum Error {
     #[error("Packet recieved has id Zero")]
     PacketIdZero,
     #[error("Payload size has been exceeded by {0} bytes")]
-    PayloadSizeLimitExceeded(usize)
-
+    PayloadSizeLimitExceeded(usize),
+    #[error("Empty Subscription")]
+    EmptySubscription,
+    #[error("Invalid subscribe reason code = {0}")]
+    InvalidSubscribeReasonCode(u8),
+    #[error("Topic not utf-8")]
+    TopicNotUtf8,
+    #[error("Payload size is incorrect")]
+    PayloadSizeIncorrect
 }
 
 pub trait Protocol {
-
     fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<Packet, Error>;
-    fn write(&self, packet: Packet, write: &mut BytesMut) -> Result<usize, Error>; 
+    fn write(&self, packet: Packet, write: &mut BytesMut) -> Result<usize, Error>;
 }
