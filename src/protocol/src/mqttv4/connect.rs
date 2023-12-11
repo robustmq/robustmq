@@ -15,7 +15,7 @@
  */
 
 use super::*;
-use crate::protocol::*;
+
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
     /*
