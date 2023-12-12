@@ -16,17 +16,20 @@ use std::thread;
 // limitations under the License.
 use self::server::GrpcService;
 use common::config::meta::MetaConfig;
-use common::log::info_meta;
+use common::log::{error_meta, info_meta};
 use common::runtime::create_runtime;
 use futures::executor::block_on;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::election::Election;
 use raft::node::Node;
+use raft::raft::MetaRaft;
 use tonic::transport::Server;
+
 mod errors;
 mod raft;
 mod server;
 mod storage;
+mod tools;
 
 pub struct Meta {
     config: MetaConfig,
@@ -39,7 +42,7 @@ impl Meta {
         return Meta { config, node };
     }
 
-    pub fn start(&self) {
+    pub fn start(&mut self) {
         let meta_thread = thread::Builder::new().name("meta-thread".to_owned());
         let config = self.config.clone();
         let _ = meta_thread.spawn(move || {
@@ -65,13 +68,39 @@ impl Meta {
                     .unwrap();
             })
         });
+
+        block_on(self.wait_meta_ready())
     }
 
-    pub async fn wait_meta_ready(&self) {
-        let config = self.config.meta_nodes.clone();
+    pub async fn wait_meta_ready(&mut self) {
+        let leader_node = self.get_leader_node().await;
+        let meta_raft = MetaRaft::new(self.config.clone(), leader_node);
+        meta_raft.run().await;
+    }
+
+    async fn get_leader_node(&self) -> Node {
+        let mata_nodes = self.config.meta_nodes.clone();
+        if mata_nodes.len() == 1 && self.node.leader_id == None {
+            return Node::new(self.config.addr.clone(), self.config.node_id.clone());
+        }
+
         // Leader Election
-        let elec = Election::new(config);
-        let ld = elec.leader_election().await.unwrap();
-        info_meta(&format!("cluster Leader is {}", ld))
+        let elec = Election::new(mata_nodes);
+        let ld = match elec.leader_election().await {
+            Ok(nd) => nd,
+            Err(err) => {
+                error_meta(&format!(
+                    "When a node fails to obtain the Leader from another node during startup, 
+                the current node is set to the Leader node. Error message {}",
+                    err
+                ));
+
+                // todo We need to deal with the split-brain problem here. We'll deal with it later
+                return Node::new(self.config.addr.clone(), self.config.node_id.clone());
+            }
+        };
+
+        info_meta(&format!("cluster Leader is {}", ld));
+        return ld;
     }
 }

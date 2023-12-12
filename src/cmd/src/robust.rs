@@ -48,7 +48,7 @@ fn main() {
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
 
     // Start Meta
-    let mt_s = Meta::new(meta_conf);
+    let mut mt_s = Meta::new(meta_conf);
     mt_s.start();
 
     // Start Broker

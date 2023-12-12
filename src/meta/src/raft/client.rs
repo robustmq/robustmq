@@ -15,19 +15,42 @@
  */
 
 use protocol::robust::meta::{
-    meta_service_client::MetaServiceClient, FindLeaderReply, FindLeaderRequest,
+    meta_service_client::MetaServiceClient, FindLeaderReply, FindLeaderRequest, VoteReply,
+    VoteRequest,
 };
 
-pub async fn find_leader(addr: &String) -> FindLeaderReply {
-    let mut client = MetaServiceClient::connect(format!("http://{}", addr))
-        .await
-        .unwrap();
+use crate::errors::MetaError;
+
+///
+pub async fn find_leader(addr: &String) -> Result<FindLeaderReply, MetaError> {
+    let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
+        Ok(client) => client,
+        Err(err) => return Err(MetaError::TonicTransport(err)),
+    };
+
     let request = tonic::Request::new(FindLeaderRequest {});
-    let response = client.find_leader(request).await.unwrap();
-    return response.into_inner();
+
+    let resp = match client.find_leader(request).await {
+        Ok(reply) => reply.into_inner(),
+        Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
+    };
+    return Ok(resp);
 }
 
-pub fn vote() {}
+/// Initiate a vote request, asking other nodes to vote for you
+pub async fn vote(addr: &String, node_id: i32) -> Result<VoteReply, MetaError> {
+    let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
+        Ok(client) => client,
+        Err(err) => return Err(MetaError::TonicTransport(err)),
+    };
+    let request = tonic::Request::new(VoteRequest { node_id });
+
+    let resp = match client.vote(request).await {
+        Ok(reply) => reply.into_inner(),
+        Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
+    };
+    return Ok(resp);
+}
 
 pub fn transform_leader() {}
 
