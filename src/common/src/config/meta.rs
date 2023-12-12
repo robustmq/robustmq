@@ -18,7 +18,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct MetaConfig {
-    pub node_id: i32,
+    pub node_id: u64,
     pub addr: String,
     pub port: Option<u16>,
     pub runtime_work_threads: usize,
