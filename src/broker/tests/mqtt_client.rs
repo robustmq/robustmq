@@ -5,7 +5,7 @@ mod tests {
     use common::runtime::create_runtime;
     use protocol::{
         mqttv4::{self, MqttV4},
-        protocol::{Connect, LastWill, Login},
+        mqtt::{Connect, LastWill, Login},
     };
     use std::{thread::sleep, sync::Arc};
     use std::time::Duration;
@@ -60,7 +60,7 @@ mod tests {
         let lastwill = Some(LastWill {
             topic: Bytes::from("topic1"),
             message: Bytes::from("connection content"),
-            qos: protocol::protocol::QoS::AtLeastOnce,
+            qos: protocol::mqtt::QoS::AtLeastOnce,
             retain: true,
         });
 

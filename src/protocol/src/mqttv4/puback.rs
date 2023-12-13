@@ -67,7 +67,7 @@ impl fmt::Display for PubAck {
 
 #[cfg(test)]
 mod tests {
-    use crate::protocol::PubAckReason;
+    use crate::mqtt::PubAckReason;
 
     #[test]
     fn test_puback() {
