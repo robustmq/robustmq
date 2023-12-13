@@ -38,7 +38,7 @@ pub async fn find_leader(addr: &String) -> Result<FindLeaderReply, MetaError> {
 }
 
 /// Initiate a vote request, asking other nodes to vote for you
-pub async fn vote(addr: &String, node_id: i32) -> Result<VoteReply, MetaError> {
+pub async fn vote(addr: &String, node_id: u64) -> Result<VoteReply, MetaError> {
     let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
         Ok(client) => client,
         Err(err) => return Err(MetaError::TonicTransport(err)),

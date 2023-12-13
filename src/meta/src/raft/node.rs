@@ -23,7 +23,7 @@ pub struct Node {
     pub leader_ip: Option<String>,
     pub raft_state: NodeRaftState,
     pub state: NodeState,
-    pub voter: Option<i32>,
+    pub voter: Option<u64>,
 }
 
 impl Node {

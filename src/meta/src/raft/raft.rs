@@ -35,7 +35,7 @@ impl MetaRaft {
         s.mut_metadata().term = 1;
         s.mut_metadata().mut_conf_state().voters = vec![self.config.node_id];
 
-        let mut storage = RaftRocksDBStorage::new();
+        let mut storage = RaftRocksDBStorage::new(&self.config);
         
     }
 
