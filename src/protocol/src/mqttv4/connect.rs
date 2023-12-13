@@ -233,32 +233,7 @@ mod login {
     }
 }
 
-impl fmt::Display for Connect {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        write!(f, "client_id:{:?}, clean_session:{}, keep_alive:{}s ", 
-        self.client_id, 
-        self.clean_session, 
-        self.keep_alive)
-    }
-}
 
-impl fmt::Display for LastWill {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "will_topic:{:?}, qos:{:?}, will_message:{:?}, retain:{} ", 
-        self.topic, 
-        self.qos,
-        self.message,
-        self.retain)
-    }
-}
-
-impl fmt::Display for Login {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "username:{:?}, password:{:?} ",
-        self.username,
-        self.password)
-    }
-}
 
 #[cfg(test)]
 mod tests {
