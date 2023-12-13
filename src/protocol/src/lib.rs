@@ -16,5 +16,5 @@
 #![allow(dead_code, unused)]
 pub mod mqttv4;
 pub mod mqttv5;
-pub mod protocol;
+pub mod mqtt;
 pub mod robust;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 use super::*;
-use crate::protocol::*;
+use crate::mqtt::*;
 use std::{str::Utf8Error, slice::Iter, fmt};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 

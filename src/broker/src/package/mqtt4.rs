@@ -1,5 +1,5 @@
 use bytes::BytesMut;
-use protocol::{protocol::{ConnAck, ConnectReturnCode}, mqttv4::{ MqttV4, connack}};
+use protocol::{mqtt::{ConnAck, ConnectReturnCode}, mqttv4::{ MqttV4, connack}};
 
 // build connack package
 pub fn package_ack_write(sp:bool, code: ConnectReturnCode)  -> BytesMut {
