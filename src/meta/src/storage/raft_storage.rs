@@ -44,7 +44,8 @@ impl RaftRocksDBStorage {
         ConfState: From<T>,
     {
         assert!(!self.initial_state().unwrap().initialized());
-        self.write_lock()
+        let _ = self
+            .write_lock()
             .save_conf_state(ConfState::from(conf_state));
     }
 
