@@ -1,10 +1,10 @@
 use super::message::Message;
 use super::node::Node;
-use crate::storage::raft::RaftRocksDBStorage;
+use crate::storage::raft_storage::RaftRocksDBStorage;
 use common::config::meta::MetaConfig;
 use raft::prelude::Message as raftPreludeMessage;
 use raft::{Config, RawNode};
-use raft_proto::eraftpb::Snapshot;
+use raft_proto::eraftpb::{Snapshot, ConfChange};
 use raft_proto::eraftpb::{Entry, EntryType};
 use slog::o;
 use slog::Drain;
@@ -73,6 +73,14 @@ impl MetaRaft {
 
         //
         self.handle_committed_entries(ready.take_committed_entries());
+
+        if !ready.entries().is_empty(){
+            let entries = ready.entries();
+            raft_node.mut_store().append(entries).unwrap();
+        }
+
+
+
     }
 
     fn handle_committed_entries(&self, entrys: Vec<Entry>) {
@@ -81,6 +89,8 @@ impl MetaRaft {
                 continue;
             }
             if let EntryType::EntryConfChange = entry.get_entry_type() {
+                let mut cc = ConfChange::default();
+            
                 self.handle_config_change();
             } else {
                 self.handle_normal();
@@ -89,7 +99,6 @@ impl MetaRaft {
     }
 
     fn handle_config_change(&self) {
-        
     }
 
     fn handle_normal(&self) {}
