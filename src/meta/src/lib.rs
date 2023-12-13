@@ -21,8 +21,10 @@ use common::runtime::create_runtime;
 use futures::executor::block_on;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::election::Election;
+use raft::message::Message;
 use raft::node::Node;
 use raft::raft::MetaRaft;
+use tokio::sync::mpsc::{self, Receiver};
 use tonic::transport::Server;
 
 mod errors;
@@ -43,6 +45,8 @@ impl Meta {
     }
 
     pub fn start(&mut self) {
+        let (raft_message_send, raft_message_recv) = mpsc::channel::<Message>(10000);
+
         let meta_thread = thread::Builder::new().name("meta-thread".to_owned());
         let config = self.config.clone();
         let _ = meta_thread.spawn(move || {
@@ -69,12 +73,12 @@ impl Meta {
             })
         });
 
-        block_on(self.wait_meta_ready())
+        block_on(self.wait_meta_ready(raft_message_recv))
     }
 
-    pub async fn wait_meta_ready(&mut self) {
+    pub async fn wait_meta_ready(&mut self, raft_message_recv: Receiver<Message>) {
         let leader_node = self.get_leader_node().await;
-        let meta_raft = MetaRaft::new(self.config.clone(), leader_node);
+        let mut meta_raft = MetaRaft::new(self.config.clone(), leader_node, raft_message_recv);
         meta_raft.run().await;
     }
 

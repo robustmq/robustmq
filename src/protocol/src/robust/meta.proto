@@ -39,20 +39,20 @@ message FindLeaderRequest{
 }
 
 message FindLeaderReply{
-  int32 LeaderId = 1;
+  uint64 LeaderId = 1;
   string LeaderIp = 2;
 }
 
 message VoteRequest {
-  int32 node_id = 1;
+  uint64 node_id = 1;
 }
 
 message VoteReply {
-  int32 vote_node_id = 1;
+  uint64 vote_node_id = 1;
 }
 
 message HeartbeatRequest{
-  int32 node_id = 1;
+  uint64 node_id = 1;
 }
 
 message HeartbeatReply{
@@ -60,7 +60,7 @@ message HeartbeatReply{
 }
 
 message TransformLeaderRequest {
-  int32 node_id = 1;
+  uint64 node_id = 1;
   string node_ip = 2;
 }
 

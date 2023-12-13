@@ -1,47 +1,31 @@
-/*
- * Copyright (c) 2023 RobustMQ Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FindLeaderRequest {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FindLeaderReply {
-    #[prost(int32, tag = "1")]
-    pub leader_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub leader_id: u64,
     #[prost(string, tag = "2")]
     pub leader_ip: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct VoteRequest {
-    #[prost(int32, tag = "1")]
-    pub node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct VoteReply {
-    #[prost(int32, tag = "1")]
-    pub vote_node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub vote_node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HeartbeatRequest {
-    #[prost(int32, tag = "1")]
-    pub node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -49,8 +33,8 @@ pub struct HeartbeatReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TransformLeaderRequest {
-    #[prost(int32, tag = "1")]
-    pub node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
     #[prost(string, tag = "2")]
     pub node_ip: ::prost::alloc::string::String,
 }

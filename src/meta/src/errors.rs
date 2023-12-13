@@ -24,12 +24,12 @@ pub enum MetaError {
     
     #[error("Node is currently in the voting state. The target node ID is : {node_id:?}")]
     NodeBeingVotedOn{
-        node_id: i32
+        node_id: u64
     },
 
     #[error("Node ID is unavailable. The data format may be incorrect. The node id is : {node_id:?}")]
     UnavailableNodeId{
-        node_id: i32
+        node_id: u64
     },
 
     #[error("Multiple leaders exist in a cluster, Node:{0} diff {1}")]
