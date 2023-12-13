@@ -80,6 +80,7 @@ pub enum Packet {
 ///          +-----------------------------------------------------+
 ///
 /// <https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc385349207>
+/// <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901134>
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub struct FixedHeader {
@@ -392,6 +393,66 @@ pub fn qos(num: u8) -> Option<QoS> {
 pub struct Login {
     pub username: String,
     pub password: String,
+}
+
+impl fmt::Display for Connect {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
+        write!(f, "client_id:{:?}, clean_session:{}, keep_alive:{}s ", 
+        self.client_id, 
+        self.clean_session, 
+        self.keep_alive)
+    }
+}
+
+impl fmt::Display for LastWill {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "will_topic:{:?}, qos:{:?}, will_message:{:?}, retain:{} ", 
+        self.topic, 
+        self.qos,
+        self.message,
+        self.retain)
+    }
+}
+
+impl fmt::Display for Login {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "username:{:?}, password:{:?} ",
+        self.username,
+        self.password)
+    }
+}
+
+// ConnectionProperties only valid in MQTT V5
+impl fmt::Display for ConnectProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "session_expiry_interval:{:?}, receive_maximum:{:?}, max_packet_size:{:?}, topic_alias_max:{:?},
+        request_response_info:{:?}, request_problem_info:{:?}, user_properties:{:?}, authentication_method:{:?},
+        authentication_data:{:?}",
+        self.session_expiry_interval,
+        self.receive_maximum,
+        self.max_packet_size,
+        self.topic_alias_max,
+        self.request_response_info,
+        self.request_problem_info,
+        self.user_properties,
+        self.authentication_method,
+        self.authentication_data)
+    }
+}
+
+// LastWillProperties only valid in MQTT V5
+impl fmt::Display for LastWillProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "delay_interval:{:?}, payload_format_indicator:{:?}, message_expiry_interval:{:?}, content_type:{:?},
+        response_topic:{:?}, correlation_data:{:?}, user_properties:{:?}",
+        self.delay_interval,
+        self.payload_format_indicator,
+        self.message_expiry_interval,
+        self.content_type,
+        self.response_topic,
+        self.correlation_data,
+        self.user_properties)
+    }
 }
 
 //-----------------------------ConnectAck packet----------------
