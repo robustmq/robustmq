@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-
 use super::*;
 
 pub fn write(
-    connect: &Connect, 
+    connect: &Connect,
     properties: &Option<ConnectProperties>,
     will: &Option<LastWill>,
     will_properties: &Option<LastWillProperties>,
@@ -29,14 +28,13 @@ pub fn write(
         let mut len = 2 + "MQTT".len()  // protocol name
                         + 1             // protocol version(v5)
                         + 1             // connect flags
-                        + 2;            // keep alive
-        
+                        + 2; // keep alive
+
         if let Some(p) = properties {
             let properties_len = properties::len(p);
             let properties_len_len = len_len(properties_len);
             len += properties_len_len + properties_len;
-        }
-        else {
+        } else {
             // just 1 byte representing 0 len
             len += 1;
         }
@@ -60,7 +58,7 @@ pub fn write(
     let count = write_remaining_length(buffer, len)?;
     write_mqtt_string(buffer, "MQTT");
 
-    buffer.put_u8(0x05);  // protocol version v5
+    buffer.put_u8(0x05); // protocol version v5
     let flags_index = 1 + count + 2 + 4 + 1;
 
     let mut connect_flags = 0;
@@ -81,7 +79,7 @@ pub fn write(
     write_mqtt_string(buffer, &connect.client_id);
 
     if let Some(w) = will {
-        connect_flags |= will::write(w, will_properties,buffer)?;
+        connect_flags |= will::write(w, will_properties, buffer)?;
     }
 
     if let Some(l) = l {
@@ -91,7 +89,6 @@ pub fn write(
     // update connect flags
     buffer[flags_index] = connect_flags;
     Ok(len)
-
 }
 
 pub fn read(
@@ -99,7 +96,7 @@ pub fn read(
     mut bytes: Bytes,
 ) -> Result<
     (
-        Connect, 
+        Connect,
         Option<ConnectProperties>,
         Option<LastWill>,
         Option<LastWillProperties>,
@@ -113,7 +110,7 @@ pub fn read(
     // variable header
     let protocol_name = read_mqtt_string(&mut bytes)?;
     let protocol_level = read_u8(&mut bytes)?;
-    if protocol_name != "MQTT"{
+    if protocol_name != "MQTT" {
         return Err(Error::InvalidProtocol);
     }
     if protocol_level != 5 {
@@ -137,7 +134,6 @@ pub fn read(
 
     Ok((connect, properties, will, willproperties, login))
 }
-
 
 mod properties {
     use super::*;
@@ -189,6 +185,12 @@ mod properties {
                     request_problem_info = Some(read_u8(bytes)?);
                     cursor += 1;
                 }
+                PropertyType::UserProperty => {
+                    let key = read_mqtt_string(bytes)?;
+                    let value = read_mqtt_string(bytes)?;
+                    cursor += 2 + key.len() + 2 + value.len();
+                    user_properties.push((key, value));
+                }
                 PropertyType::AuthenticationMethod => {
                     let method = read_mqtt_string(bytes)?;
                     cursor += 2 + method.len();
@@ -199,12 +201,11 @@ mod properties {
                     cursor += 2 + data.len();
                     authentication_data = Some(data);
                 }
-                _=> return Err(Error::InvalidPropertyType(prop)),
-
+                _ => return Err(Error::InvalidPropertyType(prop)),
             }
         }
 
-        Ok(Some(ConnectProperties{
+        Ok(Some(ConnectProperties {
             session_expiry_interval,
             receive_maximum,
             max_packet_size,
@@ -592,5 +593,136 @@ mod login {
         }
 
         connect_flags
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_connect_v5() {
+        use super::*;
+
+        let client_id = String::from("test_client_id");
+        let mut buffer = BytesMut::new();
+        let connect: Connect = Connect {
+            keep_alive: 30u16, // 30 seconds
+            client_id: client_id,
+            clean_session: true,
+        };
+
+        let login: Login = Login {
+            username: String::from("test_user"),
+            password: String::from("test_password"),
+        };
+
+        let will_topic = Bytes::from("will_topic");
+        let will_message = Bytes::from("will_message");
+        let lastwill: LastWill = LastWill {
+            topic: will_topic,
+            message: will_message,
+            qos: QoS::AtLeastOnce,
+            retain: true,
+        };
+
+        let user_perperties: Vec<(String, String)> = vec![
+            ("username".into(), "justin".into()),
+            ("tag".to_string(), "middleware".to_string()),
+        ];
+        let authentication_method: String = "SCRAM-SHA-256".to_string();
+        let authentication_data: Bytes = Bytes::from("client-first-data");
+        let properties: ConnectProperties = ConnectProperties {
+            session_expiry_interval: Some(30u32), // 30 seconds as expiry interval
+            receive_maximum: Some(1024u16),
+            max_packet_size: Some(2048u32),
+            topic_alias_max: Some(100u16),
+            request_response_info: Some(1u8), // require response message or not (1 or 0) from connack
+            request_problem_info: Some(1u8),  // require response message or not (1 or 0)
+            user_properties: user_perperties,
+            authentication_method: Some(authentication_method),
+            authentication_data: Some(authentication_data),
+        };
+
+        let will_user_perperties: Vec<(String, String)> = vec![
+            ("will_user".into(), "peter".into()),
+            ("tag".to_string(), "middleware".to_string()),
+        ];
+        let will_properties: LastWillProperties = LastWillProperties {
+            delay_interval: Some(60u32),
+            payload_format_indicator: Some(1u8), // 1 or 0 to demonstrate the payload format is UTF-8 or not
+            message_expiry_interval: Some(60u32),
+            content_type: Some("content-type".to_string()),
+            response_topic: Some("response-topic".to_string()),
+            correlation_data: Some(Bytes::from("correlation-data")),
+            user_properties: will_user_perperties,
+        };
+
+        // test the write method of connect packet in v5
+        write(
+            &connect,
+            &Some(properties),
+            &Some(lastwill),
+            &Some(will_properties),
+            &Some(login),
+            &mut buffer,
+        );
+
+        // read the fixed header
+        let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        // test the display of fixheader
+        println!("fixheader: {}", fixedheader);
+        // read first byte and check its packet type which should be connect
+        assert_eq!(fixedheader.byte1, 0b0001_0000);
+        assert_eq!(fixedheader.fixed_header_len, 3);
+        assert!(fixedheader.remaining_len == 273);
+        // test the read method of connect packet in v5 and verify the result of the write method
+        let (connect, connectproperties, lastwill, lastwillproperties, login) =
+            read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        
+        assert_eq!(connect.client_id, "test_client_id");
+        assert_eq!(connect.keep_alive, 30u16);
+        assert_eq!(connect.clean_session, true);
+
+        let connect_properties = connectproperties.unwrap();
+        assert_eq!(connect_properties.session_expiry_interval, Some(30u32));
+        assert_eq!(connect_properties.receive_maximum, Some(1024u16));
+        assert_eq!(connect_properties.max_packet_size, Some(2048u32));
+        assert_eq!(connect_properties.topic_alias_max, Some(100u16));
+        assert_eq!(connect_properties.request_response_info, Some(1u8));
+        assert_eq!(connect_properties.request_problem_info, Some(1u8));
+        assert_eq!(connect_properties.user_properties.get(0).unwrap(), &("username".to_string(), "justin".to_string()));
+        assert_eq!(connect_properties.authentication_method, Some("SCRAM-SHA-256".to_string()));
+        assert_eq!(connect_properties.authentication_data, Some(Bytes::from("client-first-data")));
+
+        let login_read = login.unwrap();
+        assert_eq!(login_read.username, "test_user" );
+        assert_eq!(login_read.password, "test_password" );
+
+        let lastwill_read = lastwill.unwrap();
+        assert_eq!(lastwill_read.topic, "will_topic" );
+        assert_eq!(lastwill_read.message, "will_message" );
+        assert_eq!(lastwill_read.qos, QoS::AtLeastOnce);
+        assert_eq!(lastwill_read.retain, true);
+
+        let lastwillproperties_read = lastwillproperties.unwrap();
+        assert_eq!(lastwillproperties_read.delay_interval, Some(60u32));
+        assert_eq!(lastwillproperties_read.payload_format_indicator, Some(1u8) );
+        assert_eq!(lastwillproperties_read.message_expiry_interval, Some(60u32));
+        assert_eq!(lastwillproperties_read.content_type, Some("content-type".to_string()));
+        assert_eq!(lastwillproperties_read.response_topic, Some("response-topic".to_string()));
+        assert_eq!(lastwillproperties_read.correlation_data, Some(Bytes::from("correlation-data")));
+        assert_eq!(lastwillproperties_read.user_properties.get(0).unwrap(), &("will_user".to_string(), "peter".to_string()));
+        
+
+        println!("connect in v5 display starts...........................");
+        print!("{}", connect_properties);
+        print!("{}", login_read);
+        print!("{}", connect);
+        print!("{}", lastwill_read);
+        println!("{}", lastwillproperties_read); 
+        println!("connect in v5 display ends.............................");
+        
+
+
     }
 }
