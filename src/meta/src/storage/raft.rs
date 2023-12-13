@@ -13,6 +13,7 @@ use raft::Result as RaftResult;
 use raft::Storage as RaftStorage;
 use raft::StorageError;
 use serde::{Deserialize, Serialize};
+use std::cmp;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
@@ -58,6 +59,13 @@ impl RaftRocksDBStorage {
     }
 }
 
+impl RaftRocksDBStorage {
+    pub fn apply_snapshot(&mut self, snapshot: Snapshot) -> RaftResult<()> {
+        let mut store = self.core.write().unwrap();
+        let _ = store.apply_snapshot(snapshot);
+        Ok(())
+    }
+}
 impl RaftStorage for RaftRocksDBStorage {
     /// `initial_state` is called when Raft is initialized. This interface will return a `RaftState`
     /// which contains `HardState` and `ConfState`.
@@ -176,6 +184,7 @@ impl RaftStorage for RaftRocksDBStorage {
 }
 
 pub struct RaftRocksDBStorageCore {
+    raft_state: RaftState,
     rds: RocksDBStorage,
     snapshot_metadata: SnapshotMetadata,
     trigger_snap_unavailable: bool,
@@ -185,6 +194,9 @@ impl RaftRocksDBStorageCore {
     fn new(config: &MetaConfig) -> Self {
         let rds = RocksDBStorage::new(config);
         return RaftRocksDBStorageCore {
+            raft_state: RaftState {
+                ..Default::default()
+            },
             rds: rds,
             snapshot_metadata: SnapshotMetadata::default(),
             trigger_snap_unavailable: false,
@@ -314,16 +326,35 @@ impl RaftRocksDBStorageCore {
         return sns;
     }
 
-    // pub fn apply_snapshot(&self, mut snapshot:Snapshot) -> Result<()>{
-    //     let mut meta = snapshot.take_metadata();
-    //     let index = meta.index;
+    /// Overwrites the contents of this Storage object with those of the given snapshot.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the snapshot index is less than the storage's first index.
 
-    //     if self.first_index() > index{
-    //         return Err(Error::Store(StorageError::SnapshotOutOfDate))
-    //     }
+    pub fn apply_snapshot(&mut self, mut snapshot: Snapshot) -> RaftResult<()> {
+        let mut meta = snapshot.take_metadata();
+        let index = meta.index;
 
-    //     return Ok(())
-    // }
+        if self.first_index() > index {
+            return Err(Error::Store(StorageError::SnapshotOutOfDate));
+        }
+
+        self.snapshot_metadata = meta.clone();
+
+        // update hardstate
+        let cur_hs = self.hard_state();
+        let mut hs = HardState::new();
+        hs.set_term(cmp::max(cur_hs.term, meta.term));
+        hs.set_commit(index);
+        let _ = self.save_hard_state(hs);
+
+        // todo clear entries
+
+        // update conf state
+        let _ = self.save_conf_state(meta.take_conf_state());
+        return Ok(());
+    }
 
     fn key_name_by_entry(&self, idx: u64) -> String {
         return format!("metasrv_entry_{}", idx);

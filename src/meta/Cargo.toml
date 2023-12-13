@@ -20,3 +20,6 @@ serde_json.workspace = true
 protocol.workspace =true
 futures.workspace =true
 raft-proto.workspace = true
+slog = "2"
+slog-term = "2.9.0"
+slog-async = "2.8.0"
