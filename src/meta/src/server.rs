@@ -147,7 +147,7 @@ impl MetaService for GrpcService {
         let _ = self
             .raft_sender
             .send(RaftMessage::Propose {
-                data: vec![1u8],
+                data: "sdafasdfas".to_string().into_bytes(),
                 chan: sx,
             })
             .await;
