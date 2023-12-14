@@ -1,8 +1,8 @@
 use raft_proto::eraftpb::Message as RaftCoreMessage;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::oneshot::Sender;
 
 pub enum RaftResponseMesage {}
-pub enum Message {
+pub enum RaftMessage {
     // Received a message from another node
     Raft(RaftCoreMessage),
 

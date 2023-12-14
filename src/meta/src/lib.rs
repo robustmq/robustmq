@@ -21,7 +21,7 @@ use common::runtime::create_runtime;
 use futures::executor::block_on;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::election::Election;
-use raft::message::Message;
+use raft::message::RaftMessage;
 use raft::node::Node;
 use raft::raft::MetaRaft;
 use tokio::sync::mpsc::{self, Receiver};
@@ -45,7 +45,7 @@ impl Meta {
     }
 
     pub fn start(&mut self) {
-        let (raft_message_send, raft_message_recv) = mpsc::channel::<Message>(10000);
+        let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(10000);
 
         let meta_thread = thread::Builder::new().name("meta-thread".to_owned());
         let config = self.config.clone();
@@ -64,7 +64,7 @@ impl Meta {
                     ip
                 ));
 
-                let service_handler = GrpcService::new(node_state);
+                let service_handler = GrpcService::new(node_state, raft_message_send);
                 Server::builder()
                     .add_service(MetaServiceServer::new(service_handler))
                     .serve(ip)
@@ -76,7 +76,7 @@ impl Meta {
         block_on(self.wait_meta_ready(raft_message_recv))
     }
 
-    pub async fn wait_meta_ready(&mut self, raft_message_recv: Receiver<Message>) {
+    pub async fn wait_meta_ready(&mut self, raft_message_recv: Receiver<RaftMessage>) {
         let leader_node = self.get_leader_node().await;
         let mut meta_raft = MetaRaft::new(self.config.clone(), leader_node, raft_message_recv);
         meta_raft.run().await;

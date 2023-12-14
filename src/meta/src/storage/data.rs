@@ -1,5 +1,6 @@
 use raft_proto::eraftpb::{Entry, EntryType, ConfState, HardState};
 use serde::{Deserialize, Serialize};
+
 use crate::errors::MetaError;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]

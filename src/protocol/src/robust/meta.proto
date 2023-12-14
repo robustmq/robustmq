@@ -31,6 +31,10 @@ service MetaService {
   // Leader node sends a heartbeat message to a Follower node
   rpc Heartbeat(HeartbeatRequest) returns(HeartbeatReply){}
 
+  rpc BrokerRegister(BrokerRegisterRequest) returns(BrokerRegisterReply){}
+
+  // 
+  rpc BrokerUnRegister(BrokerUnRegisterRequest) returns(BrokerUnRegisterReply){}
 }
 
 
@@ -66,4 +70,20 @@ message TransformLeaderRequest {
 
 message TransformLeaderReply {
   bool vote_node_id = 1;
+}
+
+message BrokerRegisterRequest{
+  uint64 node_id = 1;
+}
+
+message BrokerRegisterReply{
+
+}
+
+message BrokerUnRegisterRequest{
+  uint64 node_id = 1;
+}
+
+message BrokerUnRegisterReply{
+
 }

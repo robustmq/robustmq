@@ -1,4 +1,4 @@
-use super::message::Message;
+use super::message::RaftMessage;
 use super::node::Node;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use common::config::meta::MetaConfig;
@@ -16,11 +16,11 @@ use tokio::time::timeout;
 pub struct MetaRaft {
     config: MetaConfig,
     leader: Node,
-    receiver: Receiver<Message>,
+    receiver: Receiver<RaftMessage>,
 }
 
 impl MetaRaft {
-    pub fn new(config: MetaConfig, leader: Node, receiver: Receiver<Message>) -> Self {
+    pub fn new(config: MetaConfig, leader: Node, receiver: Receiver<RaftMessage>) -> Self {
         return Self {
             config: config,
             leader: leader,
@@ -39,8 +39,14 @@ impl MetaRaft {
         let mut now = Instant::now();
         loop {
             match timeout(heartbeat, self.receiver.recv()).await {
-                Ok(Some(Message::Raft(msg))) => {}
-                Ok(Some(Message::Propose { data, chan })) => {}
+                Ok(Some(RaftMessage::Raft(msg))) => {
+                    // Step advances the state machine using the given message.
+                    let _ = raft_node.step(msg);
+                }
+                Ok(Some(RaftMessage::Propose { data, chan })) => {
+                    // Propose proposes data be appended to the raft log.
+                    let _ = raft_node.propose(vec![], data);
+                }
                 Ok(None) => continue,
                 Err(_) => break,
             }
@@ -63,32 +69,48 @@ impl MetaRaft {
 
         let mut ready = raft_node.ready();
 
+        // After receiving the data sent by the client,
+        // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
             self.send_message(ready.take_messages());
         }
 
-        // Apply the snapshot. It's necessary because in `RawNode::advance` we stabilize the snapshot.
+        // If the snapshot is not empty, save the snapshot to Storage, and apply
+        // the data in the snapshot to the State Machine asynchronously.
+        // (Although synchronous apply can also be applied here,
+        // but the snapshot is usually large. Synchronization blocks threads).
         if *ready.snapshot() != Snapshot::default() {
             let s = ready.snapshot().clone();
             raft_node.mut_store().apply_snapshot(s).unwrap();
         }
 
-        //
+        // The committed raft log can be applied to the State Machine.
         self.handle_committed_entries(ready.take_committed_entries());
 
+        // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
             let entries = ready.entries();
             raft_node.mut_store().append(entries).unwrap();
         }
 
+        // If there is a change in HardState, such as a revote, 
+        // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
             raft_node.mut_store().set_hard_state(hs).unwrap();
         }
 
+        // If SoftState changes, such as adding or removing nodes, ss will not be empty.
+        // persist non-empty ss.
+        if let Some(ss) = ready.ss(){
+
+        }
+
+        // 
         if !ready.persisted_messages().is_empty() {
             self.send_message(ready.take_persisted_messages());
         }
 
+        // A call to advance tells Raft that it is ready for processing.
         let mut light_rd = raft_node.advance(ready);
         if let Some(commit) = light_rd.commit_index() {
             raft_node.mut_store().set_hard_state_comit(commit).unwrap();
