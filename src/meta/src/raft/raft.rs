@@ -4,7 +4,7 @@ use crate::storage::raft_storage::RaftRocksDBStorage;
 use common::config::meta::MetaConfig;
 use raft::prelude::Message as raftPreludeMessage;
 use raft::{Config, RawNode};
-use raft_proto::eraftpb::{Snapshot, ConfChange};
+use raft_proto::eraftpb::{ConfChange, Snapshot};
 use raft_proto::eraftpb::{Entry, EntryType};
 use slog::o;
 use slog::Drain;
@@ -39,8 +39,10 @@ impl MetaRaft {
         let mut now = Instant::now();
         loop {
             match timeout(heartbeat, self.receiver.recv()).await {
-                Ok(_) => {}
-                Err(_) => {}
+                Ok(Some(Message::Raft(msg))) => {}
+                Ok(Some(Message::Propose { data, chan })) => {}
+                Ok(None) => continue,
+                Err(_) => break,
             }
 
             let elapsed = now.elapsed();
@@ -74,13 +76,29 @@ impl MetaRaft {
         //
         self.handle_committed_entries(ready.take_committed_entries());
 
-        if !ready.entries().is_empty(){
+        if !ready.entries().is_empty() {
             let entries = ready.entries();
             raft_node.mut_store().append(entries).unwrap();
         }
 
+        if let Some(hs) = ready.hs() {
+            raft_node.mut_store().set_hard_state(hs).unwrap();
+        }
 
+        if !ready.persisted_messages().is_empty() {
+            self.send_message(ready.take_persisted_messages());
+        }
 
+        let mut light_rd = raft_node.advance(ready);
+        if let Some(commit) = light_rd.commit_index() {
+            raft_node.mut_store().set_hard_state_comit(commit).unwrap();
+        }
+
+        self.send_message(light_rd.take_messages());
+
+        self.handle_committed_entries(light_rd.take_committed_entries());
+
+        raft_node.advance_apply();
     }
 
     fn handle_committed_entries(&self, entrys: Vec<Entry>) {
@@ -90,7 +108,7 @@ impl MetaRaft {
             }
             if let EntryType::EntryConfChange = entry.get_entry_type() {
                 let mut cc = ConfChange::default();
-            
+
                 self.handle_config_change();
             } else {
                 self.handle_normal();
@@ -98,8 +116,7 @@ impl MetaRaft {
         }
     }
 
-    fn handle_config_change(&self) {
-    }
+    fn handle_config_change(&self) {}
 
     fn handle_normal(&self) {}
 
