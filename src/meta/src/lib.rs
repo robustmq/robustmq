@@ -16,7 +16,7 @@ use std::thread;
 // limitations under the License.
 use self::server::GrpcService;
 use common::config::meta::MetaConfig;
-use common::log::{error_meta, info_meta};
+use common::log::{error_meta, info, info_meta};
 use common::runtime::create_runtime;
 use futures::executor::block_on;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
@@ -45,6 +45,10 @@ impl Meta {
     }
 
     pub fn start(&mut self) {
+        info(&format!(
+            "When the node is being started, the current node IP address is {}, and the node IP address is {}",
+            self.config.addr, self.config.node_id
+        ));
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(10000);
 
         let meta_thread = thread::Builder::new().name("meta-thread".to_owned());
@@ -78,6 +82,10 @@ impl Meta {
 
     pub async fn wait_meta_ready(&mut self, raft_message_recv: Receiver<RaftMessage>) {
         let leader_node = self.get_leader_node().await;
+        info(&format!(
+            "The leader address of the cluster is {} and the node ID is {}",
+            leader_node.node_ip, leader_node.node_id
+        ));
         let mut meta_raft = MetaRaft::new(self.config.clone(), leader_node, raft_message_recv);
         meta_raft.run().await;
     }

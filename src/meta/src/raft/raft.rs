@@ -29,7 +29,7 @@ impl MetaRaft {
     }
 
     pub async fn run(&mut self) {
-        let mut raft_node = if self.config.node_id == self.leader.leader_id.unwrap() {
+        let mut raft_node = if self.config.node_id == self.leader.node_id {
             self.new_leader()
         } else {
             self.new_follower()

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![feature(fs_try_exists)]
+use std::fs;
+
 use common::config::meta::MetaConfig;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
@@ -30,9 +33,9 @@ impl RocksDBStorage {
     pub fn new(config: &MetaConfig) -> Self {
         let opts: Options = Self::open_db_opts(config);
         let db_path = format!("{}/{}", config.data_path, "_storage_rocksdb");
+        
         let cf_list = rocksdb::DB::list_cf(&opts, &db_path).unwrap();
         let mut instance = DB::open_cf(&opts, db_path.clone(), cf_list.clone()).unwrap();
-
         // init column family
         for family in vec![
             DB_COLUMN_FAMILY_META,
@@ -109,6 +112,7 @@ impl RocksDBStorage {
     fn open_db_opts(config: &MetaConfig) -> Options {
         let mut opts = Options::default();
         opts.create_if_missing(true);
+        opts.create_missing_column_families(true);
         opts.set_max_open_files(config.rocksdb.max_open_files.unwrap());
         opts.set_use_fsync(false);
         opts.set_bytes_per_sync(8388608);
@@ -123,6 +127,9 @@ impl RocksDBStorage {
         opts.set_compaction_style(DBCompactionStyle::Universal);
         opts.set_disable_auto_compactions(true);
         return opts;
+    }
+
+    fn init_db(&self, fold: String){
     }
 }
 
