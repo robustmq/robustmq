@@ -38,14 +38,6 @@ impl Node {
             voter: None,
         }
     }
-
-    pub fn update_raft_state(&mut self, raft_state: NodeRaftState) {
-        self.raft_state = raft_state
-    }
-
-    pub fn update_status(&mut self, state: NodeState) {
-        self.state = state;
-    }
 }
 
 impl Display for Node {

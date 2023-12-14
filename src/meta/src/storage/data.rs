@@ -1,15 +1,16 @@
-use raft_proto::eraftpb::{Entry, EntryType, ConfState, HardState};
+use raft_proto::eraftpb::{ConfState, Entry, EntryType, HardState};
 use serde::{Deserialize, Serialize};
+
 use crate::errors::MetaError;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq,Default)]
 pub struct SaveRDSHardState {
     pub term: u64,
     pub vote: u64,
     pub commit: u64,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Default)]
 pub struct SaveRDSConfState {
     pub voters: Vec<u64>,
     pub learners: Vec<u64>,
@@ -18,7 +19,7 @@ pub struct SaveRDSConfState {
     pub auto_leave: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Default)]
 pub struct SaveRDSEntry {
     pub entry_type: u64,
     pub term: u64,

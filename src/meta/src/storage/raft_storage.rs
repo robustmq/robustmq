@@ -7,6 +7,7 @@ use raft::RaftState;
 use raft::Result as RaftResult;
 use raft::Storage as RaftStorage;
 use raft::StorageError;
+use raft_proto::eraftpb::HardState;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
@@ -44,7 +45,8 @@ impl RaftRocksDBStorage {
         ConfState: From<T>,
     {
         assert!(!self.initial_state().unwrap().initialized());
-        self.write_lock()
+        let _ = self
+            .write_lock()
             .save_conf_state(ConfState::from(conf_state));
     }
 
@@ -67,6 +69,18 @@ impl RaftRocksDBStorage {
     pub fn append(&mut self, entrys: &Vec<Entry>) -> RaftResult<()> {
         let mut store = self.core.write().unwrap();
         let _ = store.append(entrys);
+        return Ok(());
+    }
+
+    pub fn set_hard_state(&mut self, hs: &HardState) -> RaftResult<()> {
+        let store = self.core.write().unwrap();
+        let _ = store.save_hard_state(hs);
+        return Ok(());
+    }
+
+    pub fn set_hard_state_comit(&mut self, hs: u64) -> RaftResult<()> {
+        let store = self.core.write().unwrap();
+        let _ = store.set_hard_state_commit(hs);
         return Ok(());
     }
 }

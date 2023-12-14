@@ -1,5 +1,11 @@
 use crate::storage::rocksdb::RocksDBStorage;
 use common::config::meta::MetaConfig;
+
+use super::data::convert_conf_state_from_rds_cs;
+use super::data::convert_hard_state_from_rds_hs;
+use super::data::SaveRDSConfState;
+use super::data::SaveRDSEntry;
+use super::data::SaveRDSHardState;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
 use raft::prelude::Snapshot;
@@ -10,10 +16,6 @@ use raft::Result as RaftResult;
 use raft::StorageError;
 use raft_proto::eraftpb::HardState;
 use std::cmp;
-use super::data::SaveRDSConfState;
-use super::data::SaveRDSEntry;
-use super::data::SaveRDSHardState;
-use super::data::convert_conf_state_from_rds_cs;
 
 pub struct RaftRocksDBStorageCore {
     raft_state: RaftState,
@@ -36,7 +38,7 @@ impl RaftRocksDBStorageCore {
     }
 
     /// Save HardState information to RocksDB
-    pub fn save_hard_state(&self, hs: HardState) -> Result<(), String> {
+    pub fn save_hard_state(&self, hs: &HardState) -> Result<(), String> {
         let key = self.key_name_by_hard_state();
         let sds_hard_state = SaveRDSHardState {
             term: hs.term,
@@ -44,6 +46,15 @@ impl RaftRocksDBStorageCore {
             commit: hs.commit,
         };
         self.rds.write(self.rds.cf_meta(), &key, &sds_hard_state)
+    }
+
+    ///
+    pub fn set_hard_state_commit(&self, commit: u64) -> Result<(), String> {
+        let mut hs = self.hard_state();
+        hs.commit = commit;
+
+        let new_hs = convert_hard_state_from_rds_hs(hs);
+        self.save_hard_state(&new_hs)
     }
 
     /// Save HardState information to RocksDB
@@ -62,36 +73,62 @@ impl RaftRocksDBStorageCore {
     // Save HardState information to RocksDB
     pub fn hard_state(&self) -> SaveRDSHardState {
         let key = self.key_name_by_hard_state();
-        let value = self.rds.read::<SaveRDSHardState>(self.rds.cf_meta(), &key);
-        return value.unwrap().unwrap();
+        let value = self.rds.read::<SaveRDSHardState>(self.rds.cf_meta(), &key).unwrap();
+        if value == None {
+            SaveRDSHardState::default()
+        } else {
+            value.unwrap()
+        }
     }
 
     /// Save HardState information to RocksDB
     pub fn conf_state(&self) -> SaveRDSConfState {
         let key = self.key_name_by_conf_state();
-        let value = self.rds.read::<SaveRDSConfState>(self.rds.cf_meta(), &key);
-        return value.unwrap().unwrap();
+        let value = self
+            .rds
+            .read::<SaveRDSConfState>(self.rds.cf_meta(), &key)
+            .unwrap();
+        if value == None {
+            SaveRDSConfState::default()
+        } else {
+            value.unwrap()
+        }
     }
 
     /// Get the index of the first Entry from RocksDB
     pub fn first_index(&self) -> u64 {
         let key = self.key_name_by_first_index();
-        let value = self.rds.read::<u64>(self.rds.cf_meta(), &key);
-        return value.unwrap().unwrap();
+        let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
+        if value == None {
+            0
+        } else {
+            value.unwrap()
+        }
     }
 
     /// Gets the index of the last Entry from RocksDB
     pub fn last_index(&self) -> u64 {
         let key = self.key_name_by_last_index();
-        let value = self.rds.read::<u64>(self.rds.cf_meta(), &key);
-        return value.unwrap().unwrap();
+        let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
+        if value == None {
+            0
+        } else {
+            value.unwrap()
+        }
     }
 
     /// Obtain the Entry based on the index ID
     pub fn get_entry_by_idx(&self, idx: u64) -> SaveRDSEntry {
         let key = self.key_name_by_entry(idx);
-        let value = self.rds.read::<SaveRDSEntry>(self.rds.cf_meta(), &key);
-        value.unwrap().unwrap()
+        let value = self
+            .rds
+            .read::<SaveRDSEntry>(self.rds.cf_meta(), &key)
+            .unwrap();
+        if value == None {
+            SaveRDSEntry::default()
+        } else {
+            value.unwrap()
+        }
     }
 
     // Obtain the Entry based on the index ID
@@ -137,7 +174,15 @@ impl RaftRocksDBStorageCore {
 
         for entry in entrys {
             let key = self.key_name_by_entry(entry.index);
-            // self.rds.write(self.rds.cf_meta(), &key, entry);
+            let sre = SaveRDSEntry {
+                entry_type: entry.entry_type as u64,
+                term: entry.term,
+                index: entry.index,
+                data: entry.data.clone(),
+                context: entry.context.clone(),
+                sync_log: entry.sync_log,
+            };
+            self.rds.write(self.rds.cf_meta(), &key, &sre).unwrap();
         }
 
         return Ok(());
@@ -164,7 +209,7 @@ impl RaftRocksDBStorageCore {
         let mut hs = HardState::new();
         hs.set_term(cmp::max(cur_hs.term, meta.term));
         hs.set_commit(index);
-        let _ = self.save_hard_state(hs);
+        let _ = self.save_hard_state(&hs);
 
         // todo clear entries
 
