@@ -20,6 +20,7 @@ use crate::mqtt::*;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod connect;
+mod connack;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

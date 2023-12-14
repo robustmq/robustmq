@@ -515,6 +515,43 @@ pub struct ConnAckProperties {
     pub authentication_data: Option<Bytes>,
 }
 
+impl fmt::Display for ConnAck {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "session_present:{}, return_code:{:?} ",
+        self.session_present,
+        self.code)
+    }
+}
+
+impl fmt::Display for ConnAckProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "session_expiry_interval:{:?}, receive_max:{:?}, max_qos:{:?}, retain_available:{:?}, max_packet_size:{:?}
+        assigned_client_identifier:{:?}, topic_alias_max:{:?}, reason_string:{:?}, user_properties:{:?},
+        wildcard_subscription_available:{:?}, subscription_identifiers_available:{:?}, 
+        shared_subscription_available:{:?}, server_keep_alive:{:?}, response_information:{:?}
+        server_reference:{:?}, authentication_method:{:?}, authentication_data:{:?}",
+
+        self.session_expiry_interval,
+        self.receive_max,
+        self.max_qos,
+        self.retain_available,
+        self.max_packet_size,
+        self.assigned_client_identifier,
+        self.topic_alias_max,
+        self.reason_string,
+        self.user_properties,
+        self.wildcard_subscription_available,
+        self.subscription_identifiers_available,
+        self.shared_subscription_available,
+        self.server_keep_alive,
+        self.response_information,
+        self.server_reference,
+        self.authentication_method,
+        self.authentication_data)
+        
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PingReq;
 
