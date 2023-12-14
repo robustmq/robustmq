@@ -70,13 +70,6 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
     }
 }
 
-impl fmt::Display for ConnAck {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "session_present:{}, return_code:{:?} ",
-        self.session_present,
-        self.code)
-    }
-}
 
 #[cfg(test)]
 mod tests {
