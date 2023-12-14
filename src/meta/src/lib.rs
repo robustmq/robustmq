@@ -28,7 +28,7 @@ use tokio::sync::mpsc::{self, Receiver};
 use tonic::transport::Server;
 
 mod errors;
-mod raft;
+pub mod raft;
 mod server;
 mod storage;
 mod tools;
@@ -91,6 +91,7 @@ impl Meta {
     }
 
     async fn get_leader_node(&self) -> Node {
+        
         let mata_nodes = self.config.meta_nodes.clone();
         if mata_nodes.len() == 1 && self.node.leader_id == None {
             return Node::new(self.config.addr.clone(), self.config.node_id.clone());
