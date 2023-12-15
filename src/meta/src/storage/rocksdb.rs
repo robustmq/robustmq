@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(fs_try_exists)]
-use std::fs;
-
 use common::config::meta::MetaConfig;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
+use std::path::Path;
 
 use super::DB_COLUMN_FAMILY_META;
-use super::DB_COLUMN_FAMILY_ROBUSTMQ;
 use super::DB_COLUMN_FAMILY_MQTT;
+use super::DB_COLUMN_FAMILY_ROBUSTMQ;
 
 pub struct RocksDBStorage {
     db: DB,
@@ -33,10 +31,16 @@ impl RocksDBStorage {
     pub fn new(config: &MetaConfig) -> Self {
         let opts: Options = Self::open_db_opts(config);
         let db_path = format!("{}/{}", config.data_path, "_storage_rocksdb");
-        
-        let cf_list = rocksdb::DB::list_cf(&opts, &db_path).unwrap();
-        let mut instance = DB::open_cf(&opts, db_path.clone(), cf_list.clone()).unwrap();
+
+        // init RocksDB
+        if !Path::new(&db_path).exists() {
+            DB::open(&opts, db_path.clone()).unwrap();
+        }
+
         // init column family
+        let cf_list = rocksdb::DB::list_cf(&opts, &db_path).unwrap();
+        let mut instance = DB::open_cf(&opts, db_path.clone(), &cf_list).unwrap();
+
         for family in vec![
             DB_COLUMN_FAMILY_META,
             DB_COLUMN_FAMILY_MQTT,
@@ -90,9 +94,9 @@ impl RocksDBStorage {
         }
     }
 
-    pub fn delete(&self, cf: &ColumnFamily,key:&str)-> Result<(), String>{
-        match self.db.delete_cf(cf, key){
-            Ok(_) =>Ok(()),
+    pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), String> {
+        match self.db.delete_cf(cf, key) {
+            Ok(_) => Ok(()),
             Err(err) => Err(format!("Failed to delete from ColumnFamily: {:?}", err)),
         }
     }
@@ -129,8 +133,7 @@ impl RocksDBStorage {
         return opts;
     }
 
-    fn init_db(&self, fold: String){
-    }
+    fn init_db(&self, fold: String) {}
 }
 
 #[cfg(test)]
@@ -139,6 +142,7 @@ mod tests {
     use super::RocksDBStorage;
     use common::config::meta::MetaConfig;
     use serde::{Deserialize, Serialize};
+    use tokio::fs::remove_dir;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
     struct User {
@@ -154,7 +158,10 @@ mod tests {
         let res1 = rs.read::<User>(rs.cf_meta(), key);
         assert!(res1.unwrap().is_none());
 
-        let user= User{name:"lobo".to_string(), age:18};
+        let user = User {
+            name: "lobo".to_string(),
+            age: 18,
+        };
         let res4 = rs.write(rs.cf_meta(), key, &user);
         assert!(res4.is_ok());
 
@@ -164,7 +171,13 @@ mod tests {
         assert!(res5_rs.age == user.age);
 
         let res6 = rs.delete(rs.cf_meta(), key);
-        assert!(res6.is_ok())
+        assert!(res6.is_ok());
 
+        match remove_dir(config.data_path).await {
+            Ok(_) => {}
+            Err(err) => {
+                println!("{:?}", err)
+            }
+        }
     }
 }

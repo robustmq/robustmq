@@ -100,7 +100,7 @@ impl RaftRocksDBStorageCore {
         let key = self.key_name_by_first_index();
         let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
         if value == None {
-            0
+            1
         } else {
             value.unwrap()
         }
@@ -111,7 +111,7 @@ impl RaftRocksDBStorageCore {
         let key = self.key_name_by_last_index();
         let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
         if value == None {
-            0
+            1
         } else {
             value.unwrap()
         }
@@ -197,7 +197,6 @@ impl RaftRocksDBStorageCore {
     pub fn apply_snapshot(&mut self, mut snapshot: Snapshot) -> RaftResult<()> {
         let mut meta = snapshot.take_metadata();
         let index = meta.index;
-
         if self.first_index() > index {
             return Err(Error::Store(StorageError::SnapshotOutOfDate));
         }
