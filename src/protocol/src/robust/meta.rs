@@ -1,47 +1,31 @@
-/*
- * Copyright (c) 2023 RobustMQ Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FindLeaderRequest {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FindLeaderReply {
-    #[prost(int32, tag = "1")]
-    pub leader_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub leader_id: u64,
     #[prost(string, tag = "2")]
     pub leader_ip: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct VoteRequest {
-    #[prost(int32, tag = "1")]
-    pub node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct VoteReply {
-    #[prost(int32, tag = "1")]
-    pub vote_node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub vote_node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HeartbeatRequest {
-    #[prost(int32, tag = "1")]
-    pub node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -49,8 +33,8 @@ pub struct HeartbeatReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TransformLeaderRequest {
-    #[prost(int32, tag = "1")]
-    pub node_id: i32,
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
     #[prost(string, tag = "2")]
     pub node_ip: ::prost::alloc::string::String,
 }
@@ -60,6 +44,24 @@ pub struct TransformLeaderReply {
     #[prost(bool, tag = "1")]
     pub vote_node_id: bool,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BrokerRegisterRequest {
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BrokerRegisterReply {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BrokerUnRegisterRequest {
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BrokerUnRegisterReply {}
 /// Generated client implementations.
 pub mod meta_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -240,6 +242,57 @@ pub mod meta_service_client {
                 .insert(GrpcMethod::new("meta.MetaService", "Heartbeat"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn broker_register(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BrokerRegisterRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::BrokerRegisterReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/meta.MetaService/BrokerRegister",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("meta.MetaService", "BrokerRegister"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn broker_un_register(
+            &mut self,
+            request: impl tonic::IntoRequest<super::BrokerUnRegisterRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::BrokerUnRegisterReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/meta.MetaService/BrokerUnRegister",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("meta.MetaService", "BrokerUnRegister"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -272,6 +325,21 @@ pub mod meta_service_server {
             &self,
             request: tonic::Request<super::HeartbeatRequest>,
         ) -> std::result::Result<tonic::Response<super::HeartbeatReply>, tonic::Status>;
+        async fn broker_register(
+            &self,
+            request: tonic::Request<super::BrokerRegisterRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::BrokerRegisterReply>,
+            tonic::Status,
+        >;
+        ///
+        async fn broker_un_register(
+            &self,
+            request: tonic::Request<super::BrokerUnRegisterRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::BrokerUnRegisterReply>,
+            tonic::Status,
+        >;
     }
     #[derive(Debug)]
     pub struct MetaServiceServer<T: MetaService> {
@@ -519,6 +587,99 @@ pub mod meta_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = HeartbeatSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/BrokerRegister" => {
+                    #[allow(non_camel_case_types)]
+                    struct BrokerRegisterSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::BrokerRegisterRequest>
+                    for BrokerRegisterSvc<T> {
+                        type Response = super::BrokerRegisterReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::BrokerRegisterRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::broker_register(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BrokerRegisterSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/BrokerUnRegister" => {
+                    #[allow(non_camel_case_types)]
+                    struct BrokerUnRegisterSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::BrokerUnRegisterRequest>
+                    for BrokerUnRegisterSvc<T> {
+                        type Response = super::BrokerUnRegisterReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::BrokerUnRegisterRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::broker_un_register(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BrokerUnRegisterSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

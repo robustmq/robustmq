@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::errors::MetaError;
-use super::{client::find_leader, node::Node};
 
+use common::log::error_meta;
+
+use super::{client::find_leader, node::Node};
+use crate::errors::MetaError;
+
+#[derive(Clone)]
 pub struct Election {
     voters: Vec<String>,
 }
@@ -26,22 +30,43 @@ impl Election {
     }
 
     pub async fn leader_election(&self) -> Result<Node, MetaError> {
-        let mut leader_node: Node = Node::new("".to_string(), 0);
-
-        for addr in &self.voters {
-            let res = find_leader(addr).await;
-            if leader_node.node_id != 0 && leader_node.leader_id.unwrap() != res.leader_id {
-                return Err(MetaError::MultipleLeaders(
-                    leader_node.node_ip,
-                    res.leader_ip,
+        let node = match self.find_leader_info().await {
+            Ok(nd) => nd,
+            Err(err) => {
+                error_meta(&format!(
+                    "Failed to obtain the Leader from another node. 
+                    The voting process starts. Error message: {}",
+                    err
                 ));
+
+                return self.invite_vote().await;
             }
-            leader_node = Node::new(res.leader_ip, res.leader_id);
-        }
-        return Ok(leader_node);
+        };
+
+        return Ok(node);
     }
 
-    fn find_leader_info() {}
+    async fn find_leader_info(&self) -> Result<Node, MetaError> {
+        for addr in &self.voters {
+            match find_leader(&addr).await {
+                Ok(reply) => return Ok(Node::new(reply.leader_ip, reply.leader_id)),
+                Err(err) => {
+                    error_meta(&format!("Failed to obtain Leader information from another node during the election. 
+                    The IP address of the target node is {}, and the error message is {}",addr,err));
+                    continue;
+                }
+            };
+        }
+        return Err(MetaError::MetaClusterNotLeaderNode);
+    }
+    
+    async fn invite_vote(&self) -> Result<Node, MetaError> {
+        return Ok(Node::new("".to_string(), 1));
+    }
+}
 
-    fn election() {}
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn leader_election() {}
 }

@@ -15,6 +15,7 @@
  */
 
 use thiserror::Error;
+use tonic::Status;
 
 #[derive(Error,Debug)]
 pub enum MetaError {
@@ -23,16 +24,26 @@ pub enum MetaError {
     
     #[error("Node is currently in the voting state. The target node ID is : {node_id:?}")]
     NodeBeingVotedOn{
-        node_id: i32
+        node_id: u64
     },
 
     #[error("Node ID is unavailable. The data format may be incorrect. The node id is : {node_id:?}")]
     UnavailableNodeId{
-        node_id: i32
+        node_id: u64
     },
 
     #[error("Multiple leaders exist in a cluster, Node:{0} diff {1}")]
     MultipleLeaders(String,String),
+
+    #[error("data store disconnected")]
+    TonicTransport(#[from] tonic::transport::Error),
+
+    #[error("Grpc call of the Meta node failed,Grpc status was {0}")]
+    MetaGrpcStatus(Status),
+    
+    #[error("Leader node does not exist in the Meta cluster, which may be due to the election process or the election failure.")]
+    MetaClusterNotLeaderNode,
+    
 }
 
 

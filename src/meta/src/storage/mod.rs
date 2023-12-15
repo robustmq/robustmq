@@ -19,4 +19,6 @@ const DB_COLUMN_FAMILY_ROBUSTMQ: &str = "robustmq";
 const DB_COLUMN_FAMILY_MQTT: &str = "MQTT";
 
 pub mod rocksdb;
-pub mod raft;
+pub mod raft_storage;
+pub mod data;
+pub mod raft_core;

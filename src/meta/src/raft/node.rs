@@ -18,16 +18,16 @@ pub enum NodeState {
 #[derive(Clone)]
 pub struct Node {
     pub node_ip: String,
-    pub node_id: i32,
-    pub leader_id: Option<i32>,
+    pub node_id: u64,
+    pub leader_id: Option<u64>,
     pub leader_ip: Option<String>,
     pub raft_state: NodeRaftState,
     pub state: NodeState,
-    pub voter: Option<i32>,
+    pub voter: Option<u64>,
 }
 
 impl Node {
-    pub fn new(node_ip: String, node_id: i32) -> Node {
+    pub fn new(node_ip: String, node_id: u64) -> Node {
         Node {
             node_ip,
             node_id,
@@ -37,14 +37,6 @@ impl Node {
             state: NodeState::Starting,
             voter: None,
         }
-    }
-
-    pub fn update_raft_state(&mut self, raft_state: NodeRaftState) {
-        self.raft_state = raft_state
-    }
-
-    pub fn update_status(&mut self, state: NodeState) {
-        self.state = state;
     }
 }
 
@@ -57,3 +49,4 @@ impl Display for Node {
         )
     }
 }
+

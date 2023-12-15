@@ -38,6 +38,7 @@ prost-build = { version = "0.12" }
 tonic-build = "0.10.2"
 raft = { version = "0.7.0" }
 flume = "0.11.0"
+raft-proto = "0.7.0"
 
 
 ## workspaces members

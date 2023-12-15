@@ -18,6 +18,10 @@ pub fn info(msg: &str) -> () {
     log::info!(target:"app::server", "{}",msg)
 }
 
+pub fn debug(msg: &str) -> () {
+    log::debug!(target:"app::server", "{}",msg)
+}
+
 pub fn error(msg: &str) -> () {
     log::error!(target:"app::server", "{}",msg)
 }
