@@ -30,7 +30,7 @@ use tonic::transport::Server;
 mod errors;
 pub mod raft;
 mod server;
-mod storage;
+pub mod storage;
 mod tools;
 
 pub struct Meta {
@@ -45,39 +45,38 @@ impl Meta {
     }
 
     pub fn start(&mut self) {
+        
         info(&format!(
             "When the node is being started, the current node IP address is {}, and the node IP address is {}",
             self.config.addr, self.config.node_id
         ));
+
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(10000);
-
-        let meta_thread = thread::Builder::new().name("meta-thread".to_owned());
         let config = self.config.clone();
-        let _ = meta_thread.spawn(move || {
-            let meta_runtime = create_runtime("meta-runtime", config.runtime_work_threads);
+        let meta_runtime = create_runtime("meta-runtime", config.runtime_work_threads);
+        let guard = meta_runtime.enter();
+        meta_runtime.spawn(async move {
+            let ip = format!("{}:{}", config.addr, config.port.unwrap())
+                .parse()
+                .unwrap();
 
-            meta_runtime.block_on(async move {
-                let ip = format!("{}:{}", config.addr, config.port.unwrap())
-                    .parse()
-                    .unwrap();
+            let node_state = Arc::new(RwLock::new(Node::new(config.addr, config.node_id)));
 
-                let node_state = Arc::new(RwLock::new(Node::new(config.addr, config.node_id)));
+            info_meta(&format!(
+                "RobustMQ Meta Server start success. bind addr:{}",
+                ip
+            ));
 
-                info_meta(&format!(
-                    "RobustMQ Meta Server start success. bind addr:{}",
-                    ip
-                ));
-
-                let service_handler = GrpcService::new(node_state, raft_message_send);
-                Server::builder()
-                    .add_service(MetaServiceServer::new(service_handler))
-                    .serve(ip)
-                    .await
-                    .unwrap();
-            })
+            let service_handler = GrpcService::new(node_state, raft_message_send);
+            Server::builder()
+                .add_service(MetaServiceServer::new(service_handler))
+                .serve(ip)
+                .await
+                .unwrap();
         });
 
-        block_on(self.wait_meta_ready(raft_message_recv))
+        meta_runtime.block_on(self.wait_meta_ready(raft_message_recv));
+        drop(guard);
     }
 
     pub async fn wait_meta_ready(&mut self, raft_message_recv: Receiver<RaftMessage>) {
@@ -91,7 +90,6 @@ impl Meta {
     }
 
     async fn get_leader_node(&self) -> Node {
-        
         let mata_nodes = self.config.meta_nodes.clone();
         if mata_nodes.len() == 1 && self.node.leader_id == None {
             return Node::new(self.config.addr.clone(), self.config.node_id.clone());

@@ -201,3 +201,13 @@ impl RaftStorage for RaftRocksDBStorage {
         }
     }
 }
+mod tests {
+    use common::config::meta::MetaConfig;
+    use super::RaftRocksDBStorage;
+    #[test]
+    fn running() {
+        let mut config = MetaConfig::default();
+        config.data_path ="/tmp/data_1".to_string();
+        let mut s = RaftRocksDBStorage::new(&config);
+    }
+}
