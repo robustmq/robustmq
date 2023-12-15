@@ -2,18 +2,13 @@
 mod tests {
     use std::{thread, time::Duration};
 
+    use common::runtime::create_runtime;
     use protocol::robust::meta::{meta_service_client::MetaServiceClient, FindLeaderRequest};
     use tokio::runtime::Runtime;
 
     #[test]
     fn grpc_client() {
-        let runtime: Runtime = tokio::runtime::Builder::new_multi_thread()
-            // .worker_threads(self.config.work_thread.unwrap() as usize)
-            .max_blocking_threads(2048)
-            .thread_name("meta-http")
-            .enable_io()
-            .build()
-            .unwrap();
+        let runtime: Runtime = create_runtime("meta-test", 3);
 
         let _gurad = runtime.enter();
 
