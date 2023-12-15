@@ -8,6 +8,7 @@ use raft_proto::eraftpb::{ConfChange, Snapshot};
 use raft_proto::eraftpb::{Entry, EntryType};
 use slog::o;
 use slog::Drain;
+use std::fs::OpenOptions;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
@@ -93,7 +94,7 @@ impl MetaRaft {
             raft_node.mut_store().append(entries).unwrap();
         }
 
-        // If there is a change in HardState, such as a revote, 
+        // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
             raft_node.mut_store().set_hard_state(hs).unwrap();
@@ -101,11 +102,9 @@ impl MetaRaft {
 
         // If SoftState changes, such as adding or removing nodes, ss will not be empty.
         // persist non-empty ss.
-        if let Some(ss) = ready.ss(){
+        if let Some(ss) = ready.ss() {}
 
-        }
-
-        // 
+        //
         if !ready.persisted_messages().is_empty() {
             self.send_message(ready.take_persisted_messages());
         }
@@ -192,7 +191,14 @@ impl MetaRaft {
     }
 
     fn build_slog(&self) -> slog::Logger {
-        let decorator = slog_term::TermDecorator::new().build();
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(false)
+            .open(format!("./log/raft.log"))
+            .unwrap();
+
+        let decorator = slog_term::PlainDecorator::new(file);
         let drain = slog_term::FullFormat::new(decorator).build().fuse();
         let drain = slog_async::Async::new(drain)
             .chan_size(4096)
