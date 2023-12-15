@@ -141,7 +141,11 @@ impl MetaRaft {
 
     fn handle_normal(&self) {}
 
-    fn send_message(&self, messages: Vec<raftPreludeMessage>) {}
+    fn send_message(&self, messages: Vec<raftPreludeMessage>) {
+        for msg in messages  {
+
+        }
+    }
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
         let conf = self.build_config();

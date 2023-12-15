@@ -14,11 +14,10 @@ use std::thread;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use self::server::GrpcService;
+use self::services::GrpcService;
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
 use common::runtime::create_runtime;
-use futures::executor::block_on;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::election::Election;
 use raft::message::RaftMessage;
@@ -29,7 +28,7 @@ use tonic::transport::Server;
 
 mod errors;
 pub mod raft;
-mod server;
+mod services;
 pub mod storage;
 mod tools;
 

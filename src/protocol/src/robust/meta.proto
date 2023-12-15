@@ -35,6 +35,9 @@ service MetaService {
 
   // 
   rpc BrokerUnRegister(BrokerUnRegisterRequest) returns(BrokerUnRegisterReply){}
+
+  // Raft messages are sent between nodes
+  rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
 }
 
 
@@ -85,5 +88,13 @@ message BrokerUnRegisterRequest{
 }
 
 message BrokerUnRegisterReply{
+
+}
+
+message SendRaftMessageRequest{
+   
+}
+
+message SendRaftMessageReply{
 
 }
