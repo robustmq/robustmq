@@ -84,6 +84,7 @@ impl RaftRocksDBStorage {
         return Ok(());
     }
 }
+
 impl RaftStorage for RaftRocksDBStorage {
     /// `initial_state` is called when Raft is initialized. This interface will return a `RaftState`
     /// which contains `HardState` and `ConfState`.
@@ -153,13 +154,13 @@ impl RaftStorage for RaftRocksDBStorage {
             return Ok(core.snapshot_metadata.index);
         }
 
-        // if idx < core.first_index(){
-        //     return Err(MetaError::MetaIndexOutRange);
-        // }
+        if idx < core.first_index(){
+            return Err(Error::Store(StorageError::Compacted));
+        }
 
-        // if idx > core.last_index(){
-        //     return Err(Error::new(kind, error));
-        // }
+        if idx > core.last_index(){
+            return Err(Error::Store(StorageError::Unavailable));
+        }
 
         let value = core.get_entry_by_idx(idx);
         return Ok(value.term);

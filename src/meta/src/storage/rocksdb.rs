@@ -146,8 +146,8 @@ mod tests {
         pub age: u32,
     }
 
-    #[test]
-    fn init_family() {
+    #[tokio::test]
+    async fn init_family() {
         let config = MetaConfig::default();
         let rs = RocksDBStorage::new(&config);
         let key = "name2";
