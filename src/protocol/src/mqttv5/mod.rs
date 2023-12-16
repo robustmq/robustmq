@@ -22,6 +22,7 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 mod connect;
 mod connack;
 mod publish;
+mod puback;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
