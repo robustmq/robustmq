@@ -31,7 +31,7 @@ pub fn info_meta(msg: &str) -> () {
 }
 
 pub fn error_meta(msg: &str) -> () {
-    log::info!(target:"app::meta", "{}",msg)
+    log::error!(target:"app::meta", "{}",msg)
 }
 
 pub fn new(){
