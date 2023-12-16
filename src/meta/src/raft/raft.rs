@@ -1,7 +1,9 @@
+use super::election::Election;
 use super::message::RaftMessage;
 use super::node::Node;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use common::config::meta::MetaConfig;
+use common::log::{error_meta, info, info_meta};
 use raft::prelude::Message as raftPreludeMessage;
 use raft::{Config, RawNode};
 use raft_proto::eraftpb::{ConfChange, Snapshot};
@@ -16,21 +18,54 @@ use tokio::time::timeout;
 
 pub struct MetaRaft {
     config: MetaConfig,
-    leader: Node,
     receiver: Receiver<RaftMessage>,
 }
 
 impl MetaRaft {
-    pub fn new(config: MetaConfig, leader: Node, receiver: Receiver<RaftMessage>) -> Self {
+    pub fn new(config: MetaConfig, receiver: Receiver<RaftMessage>) -> Self {
         return Self {
             config: config,
-            leader: leader,
             receiver: receiver,
         };
     }
 
-    pub async fn run(&mut self) {
-        let mut raft_node = if self.config.node_id == self.leader.node_id {
+    pub async fn ready(&mut self) {
+        let leader_node = self.get_leader_node().await;
+        info(&format!(
+            "The leader address of the cluster is {} and the node ID is {}",
+            leader_node.node_ip, leader_node.node_id
+        ));
+        self.run(leader_node).await;
+    }
+
+    async fn get_leader_node(&self) -> Node {
+        let mata_nodes = self.config.meta_nodes.clone();
+        if mata_nodes.len() == 1 {
+            return Node::new(self.config.addr.clone(), self.config.node_id.clone());
+        }
+
+        // Leader Election
+        let elec = Election::new(mata_nodes);
+        let ld = match elec.leader_election().await {
+            Ok(nd) => nd,
+            Err(err) => {
+                error_meta(&format!(
+                    "When a node fails to obtain the Leader from another node during startup, 
+                the current node is set to the Leader node. Error message {}",
+                    err
+                ));
+
+                // todo We need to deal with the split-brain problem here. We'll deal with it later
+                return Node::new(self.config.addr.clone(), self.config.node_id.clone());
+            }
+        };
+
+        info_meta(&format!("cluster Leader is {}", ld));
+        return ld;
+    }
+
+    pub async fn run(&mut self, leader_node: Node) {
+        let mut raft_node = if self.config.node_id == leader_node.node_id {
             self.new_leader()
         } else {
             self.new_follower()
@@ -46,12 +81,13 @@ impl MetaRaft {
                 }
                 Ok(Some(RaftMessage::Propose { data, chan })) => {
                     // Propose proposes data be appended to the raft log.
+                    print!("{}", "xrxrxr");
                     let _ = raft_node.propose(vec![], data);
                 }
                 Ok(None) => continue,
-                Err(_) => break,
+                Err(_) => {},
             }
-
+            println!("2222");
             let elapsed = now.elapsed();
 
             if elapsed >= heartbeat {
@@ -142,8 +178,8 @@ impl MetaRaft {
     fn handle_normal(&self) {}
 
     fn send_message(&self, messages: Vec<raftPreludeMessage>) {
-        for msg in messages  {
-
+        for msg in messages {
+            println!("{:?}", msg);
         }
     }
 
@@ -203,6 +239,7 @@ impl MetaRaft {
             .unwrap();
 
         let decorator = slog_term::PlainDecorator::new(file);
+        // let decorator = slog_term::TermDecorator::new().build();
         let drain = slog_term::FullFormat::new(decorator).build().fuse();
         let drain = slog_async::Async::new(drain)
             .chan_size(4096)

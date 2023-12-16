@@ -143,7 +143,7 @@ impl MetaService for GrpcService {
     ) -> Result<Response<BrokerUnRegisterReply>, Status> {
         let node_id = request.into_inner().node_id;
         info(&format!("Broker node is stopped, node ID {}", node_id));
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        let (sx, mut rx) = oneshot::channel::<RaftResponseMesage>();
         let _ = self
             .raft_sender
             .send(RaftMessage::Propose {
@@ -151,12 +151,14 @@ impl MetaService for GrpcService {
                 chan: sx,
             })
             .await;
-        match rx.blocking_recv() {
-            Ok(resp) => {}
-            Err(err) => {
-                return Err(Status::already_exists(err.to_string()));
-            }
-        }
+        // loop {
+        //     match rx.try_recv() {
+        //         Ok(_) =>break,
+        //         Err(err) => {
+        //             return Err(Status::already_exists(err.to_string()));
+        //         }
+        //     }
+        // }
         Ok(Response::new(BrokerUnRegisterReply::default()))
     }
 }

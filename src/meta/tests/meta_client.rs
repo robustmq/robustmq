@@ -24,10 +24,6 @@ mod tests {
 
             println!("response={:?}", response);
         });
-
-        loop {
-            thread::sleep(Duration::from_secs(300));
-        }
     }
 
     #[test]
@@ -36,7 +32,7 @@ mod tests {
 
         let _gurad = runtime.enter();
 
-        runtime.spawn(async move {
+        runtime.block_on(async move {
             let mut client = MetaServiceClient::connect("http://127.0.0.1:1228")
                 .await
                 .unwrap();
@@ -46,9 +42,5 @@ mod tests {
 
             println!("response={:?}", response);
         });
-
-        loop {
-            thread::sleep(Duration::from_secs(300));
-        }
     }
 }
