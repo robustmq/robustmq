@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,13 +16,11 @@
 
 use super::*;
 
-
 pub fn write(
     publish: &Publish,
     properties: &Option<PublishProperties>,
     buffer: &mut BytesMut,
 ) -> Result<usize, Error> {
-    
     let len = len(publish, properties);
     let dup = publish.dup as u8;
     let qos = publish.qos as u8;
@@ -42,15 +40,13 @@ pub fn write(
 
     if let Some(p) = properties {
         properties::write(p, buffer)?;
-    }
-    else {
+    } else {
         write_remaining_length(buffer, 0);
     }
 
     buffer.extend_from_slice(&publish.payload);
 
-    Ok( 1 + count + len)
-
+    Ok(1 + count + len)
 }
 
 pub fn read(
@@ -77,7 +73,7 @@ pub fn read(
 
     let properties = properties::read(&mut bytes)?;
     let publish = Publish {
-        dup, 
+        dup,
         retain,
         qos,
         pkid,
@@ -93,15 +89,14 @@ pub fn len(publish: &Publish, properties: &Option<PublishProperties>) -> usize {
 
     // Publish identifier length if exists (QoS 1 or 2)
     if publish.qos != QoS::AtMostOnce && publish.pkid != 0 {
-        len += 2; 
+        len += 2;
     }
 
     if let Some(p) = properties {
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    }
-    else {
+    } else {
         // just 1 byte representing 0 len
         len += 1;
     }
@@ -118,15 +113,15 @@ mod properties {
     pub fn len(properties: &PublishProperties) -> usize {
         let mut len = 0;
 
-        if properties.payload_format_indicator.is_some(){
+        if properties.payload_format_indicator.is_some() {
             len += 1 + 1;
         }
 
-        if properties.message_expiry_interval.is_some(){
+        if properties.message_expiry_interval.is_some() {
             len += 1 + 4;
         }
 
-        if properties.topic_alias.is_some(){
+        if properties.topic_alias.is_some() {
             len += 1 + 1;
         }
 
@@ -142,11 +137,11 @@ mod properties {
             len += 1 + 2 + key.len() + 2 + value.len();
         }
 
-        for id in properties.subscription_identifiers.iter(){
+        for id in properties.subscription_identifiers.iter() {
             len += 1 + len_len(*id);
         }
 
-        if let Some(content_type) = &properties.content_type{
+        if let Some(content_type) = &properties.content_type {
             len += 1 + 2 + content_type.len();
         }
 
@@ -156,7 +151,7 @@ mod properties {
     pub fn write(properties: &PublishProperties, buffer: &mut BytesMut) -> Result<(), Error> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
-        
+
         if let Some(payload_format_indicator) = properties.payload_format_indicator {
             buffer.put_u8(PropertyType::PayloadFormatIndicator as u8);
             buffer.put_u8(payload_format_indicator);
@@ -182,13 +177,13 @@ mod properties {
             write_mqtt_bytes(buffer, data);
         }
 
-        for (key, value) in properties.user_properties.iter(){
+        for (key, value) in properties.user_properties.iter() {
             buffer.put_u8(PropertyType::UserProperty as u8);
             write_mqtt_string(buffer, key);
             write_mqtt_string(buffer, value);
         }
 
-        for id in properties.subscription_identifiers.iter(){
+        for id in properties.subscription_identifiers.iter() {
             buffer.put_u8(PropertyType::SubscriptionIdentifier as u8);
             write_remaining_length(buffer, *id)?;
         }
@@ -223,7 +218,7 @@ mod properties {
             let prop = read_u8(bytes)?;
             cursor += 1;
 
-            match property(prop) ? {
+            match property(prop)? {
                 PropertyType::PayloadFormatIndicator => {
                     payload_format_indicator = Some(read_u8(bytes)?);
                     cursor += 1;
@@ -275,7 +270,7 @@ mod properties {
         }
 
         Ok(Some(PublishProperties {
-            payload_format_indicator, 
+            payload_format_indicator,
             message_expiry_interval,
             topic_alias,
             response_topic,
@@ -291,7 +286,7 @@ mod properties {
 mod tests {
 
     #[test]
-    fn test_publish_v5(){
+    fn test_publish_v5() {
         use super::*;
         let mut buffer: BytesMut = BytesMut::new();
         let topic_name: Bytes = Bytes::from("test_topic");
@@ -315,13 +310,13 @@ mod tests {
             correlation_data: None,
             user_properties: Vec::new(),
             subscription_identifiers: Vec::new(),
-            content_type: Some("String".to_string())
+            content_type: Some("String".to_string()),
         };
 
         // test write function of publish in MQTT v5
         write(&publish, &Some(pub_properties), &mut buffer);
 
-        // test the read function of publish packet and check the result of write function
+        // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         assert_eq!(fixed_header.byte1, 0b00111010);
         assert_eq!(fixed_header.fixed_header_len, 2);
@@ -340,8 +335,14 @@ mod tests {
         assert_eq!(pub_properties_read.payload_format_indicator, Some(1u8));
         assert_eq!(pub_properties_read.message_expiry_interval, Some(30u32));
         assert_eq!(pub_properties_read.topic_alias, Some(20u16));
-        assert_eq!(pub_properties_read.response_topic, Some("response_topic".to_string()));
+        assert_eq!(
+            pub_properties_read.response_topic,
+            Some("response_topic".to_string())
+        );
         assert_eq!(pub_properties_read.content_type, Some("String".to_string()));
 
+        // test the display of publish packet
+        println!("publish display in v5: {}", publish);
+        println!("publish properties in v5: {}", pub_properties_read);
     }
 }

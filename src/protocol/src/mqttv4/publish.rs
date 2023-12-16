@@ -84,17 +84,7 @@ pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
 
 }
 
-impl fmt::Display for Publish {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "topic:{:?}, payload:{:?}, dup:{}, qos:{:?}, message_identifier:{}, retain:{} ",
-        self.topic,
-        self.payload,
-        self.dup,
-        self.qos,
-        self.pkid,
-        self.retain)
-    }
-}
+
 
 #[cfg(test)]
 mod tests {

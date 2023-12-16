@@ -608,6 +608,34 @@ pub struct PublishProperties {
     pub content_type: Option<String>,
 }
 
+impl fmt::Display for Publish {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "topic:{:?}, payload:{:?}, dup:{}, qos:{:?}, message_identifier:{}, retain:{} ",
+        self.topic,
+        self.payload,
+        self.dup,
+        self.qos,
+        self.pkid,
+        self.retain)
+    }
+}
+
+impl fmt::Display for PublishProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "payload_format_indicator:{:?}, message_expiry_interval:{:?}, topic_alias:{:?}, 
+        response_topic:{:?}, correlation_data:{:?}, user_properties:{:?}, subscription_identifiers:{:?},
+        content_type:{:?},",
+        self.payload_format_indicator,
+        self.message_expiry_interval,
+        self.topic_alias,
+        self.response_topic,
+        self.correlation_data,
+        self.user_properties,
+        self.subscription_identifiers,
+        self.content_type)
+    }
+}
+
 /// Acknowledgement to QoS 1 publish packet
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PubAck {
@@ -627,6 +655,28 @@ pub enum PubAckReason {
     PacketIdentifierInUse,
     QuotaExceeded,
     PayloadFormatInvalid,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+impl fmt::Display for PubAck {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "pkid:{:?}, reason:{:?}",
+        self.pkid,
+        self.reason)
+    }
+}
+
+impl fmt::Display for PubAckProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
 }
 //-----------------------------PubRec packet---------------------------------
 /// Acknowledgement as part 1 to QoS 2 publish packet
@@ -652,12 +702,6 @@ pub enum PubRecReason {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PubRecProperties {
-    pub reason_string: Option<String>,
-    pub user_properties: Vec<(String, String)>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PubAckProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
 }
