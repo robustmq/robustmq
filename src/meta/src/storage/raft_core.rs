@@ -1,6 +1,6 @@
 use crate::storage::rocksdb::RocksDBStorage;
 use common::config::meta::MetaConfig;
-use common::log::info_meta;
+
 
 use super::data::convert_conf_state_from_rds_cs;
 use super::data::convert_hard_state_from_rds_hs;
@@ -19,7 +19,6 @@ use raft_proto::eraftpb::HardState;
 use std::cmp;
 
 pub struct RaftRocksDBStorageCore {
-    raft_state: RaftState,
     rds: RocksDBStorage,
     pub snapshot_metadata: SnapshotMetadata,
     pub trigger_snap_unavailable: bool,
@@ -29,9 +28,6 @@ impl RaftRocksDBStorageCore {
     pub fn new(config: &MetaConfig) -> Self {
         let rds = RocksDBStorage::new(config);
         let rc = RaftRocksDBStorageCore {
-            raft_state: RaftState {
-                ..Default::default()
-            },
             rds,
             snapshot_metadata: SnapshotMetadata::default(),
             trigger_snap_unavailable: false,
@@ -53,45 +49,52 @@ impl RaftRocksDBStorageCore {
         self.rds.write(self.rds.cf_meta(), &key, &sds_conf_state)
     }
 
+    // Return RaftState
     pub fn raft_state(&self) -> RaftState {
-        return self.raft_state.clone();
+        let shs = self.hard_state();
+        let scs = self.conf_state();
+        RaftState {
+            hard_state: convert_hard_state_from_rds_hs(shs),
+            conf_state: convert_conf_state_from_rds_cs(scs),
+        }
     }
 
     // Save HardState information to RocksDB
-    pub fn hard_state(&self) -> Option<SaveRDSHardState> {
+    pub fn hard_state(&self) -> SaveRDSHardState {
         let key = self.key_name_by_hard_state();
         let value = self
             .rds
             .read::<SaveRDSHardState>(self.rds.cf_meta(), &key)
             .unwrap();
         if value == None {
-            Some(SaveRDSHardState::default())
+            SaveRDSHardState::default()
         } else {
-            value
+            value.unwrap()
         }
     }
 
     /// Save HardState information to RocksDB
-    pub fn conf_state(&self) -> Option<SaveRDSConfState> {
+    pub fn conf_state(&self) -> SaveRDSConfState {
         let key = self.key_name_by_conf_state();
         let value = self
             .rds
             .read::<SaveRDSConfState>(self.rds.cf_meta(), &key)
             .unwrap();
         if value == None {
-            Some(SaveRDSConfState::default())
+            SaveRDSConfState::default()
         } else {
-            value
+            value.unwrap()
         }
     }
 
     // Obtain the Entry based on the index ID
     pub fn snapshot(&self) -> Snapshot {
         let mut sns = Snapshot::default();
-        let hard_state = self.hard_state().unwrap();
+        
+        let hard_state = self.hard_state();
         let meta = sns.mut_metadata();
         let entry = self.entry_by_idx(meta.index).unwrap();
-        let conf_state = self.conf_state().unwrap();
+        let conf_state = self.conf_state();
 
         meta.index = hard_state.commit;
         meta.term = match meta.index.cmp(&self.snapshot_metadata.index) {
@@ -114,7 +117,7 @@ impl RaftRocksDBStorageCore {
             return Ok(());
         }
 
-        let first_index = self.first_index().unwrap();
+        let first_index = self.first_index();
         if first_index > entrys[0].index {
             panic!(
                 "overwrite compacted raft logs, compacted: {}, append: {}",
@@ -123,7 +126,7 @@ impl RaftRocksDBStorageCore {
             );
         }
 
-        let last_index = self.last_index().unwrap();
+        let last_index = self.last_index();
         if last_index + 1 < entrys[0].index {
             panic!(
                 "raft logs should be continuous, last index: {}, new appended: {}",
@@ -158,14 +161,14 @@ impl RaftRocksDBStorageCore {
         let mut meta = snapshot.take_metadata();
         let index = meta.index;
 
-        if self.first_index().unwrap() > index {
+        if self.first_index() > index {
             return Err(Error::Store(StorageError::SnapshotOutOfDate));
         }
 
         self.snapshot_metadata = meta.clone();
 
         // update hardstate
-        let cur_hs = self.hard_state().unwrap();
+        let cur_hs = self.hard_state();
         let mut hs = HardState::new();
         hs.set_term(cmp::max(cur_hs.term, meta.term));
         hs.set_commit(index);
@@ -181,55 +184,26 @@ impl RaftRocksDBStorageCore {
 }
 
 impl RaftRocksDBStorageCore {
-    pub fn init_storage(&self) {
-        // init first_index
-        if self.first_index() == None {
-            let fi = 0;
-            let _ = self.save_first_index(fi);
-            info_meta(&format!("init raft meta first index, value: {}", fi));
-        }
-
-        // init last_index
-        if self.last_index() == None {
-            let li = 0;
-            let _ = self.save_last_index(li);
-            info_meta(&format!("init raft meta init last index, value: {}", li));
-        }
-
-        // init hard state
-        if self.hard_state() == None {
-            let hs = HardState::default();
-            let _ = self.save_hard_state(hs.clone());
-            info_meta(&format!("init raft meta init hard state, value: {:?}", hs));
-        }
-
-        // init conf state
-        if self.conf_state() == None {
-            let cs = ConfState::default();
-            let _ = self.save_conf_state(cs.clone());
-            info_meta(&format!("init raft meta init conf state, value: {:?}", cs));
-        }
-    }
 
     /// Get the index of the first Entry from RocksDB
-    pub fn first_index(&self) -> Option<u64> {
+    pub fn first_index(&self) -> u64{
         let key = self.key_name_by_first_index();
         let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
         if value == None {
-            Some(self.snapshot_metadata.index + 1)
+            self.snapshot_metadata.index + 1
         } else {
-            value
+            value.unwrap()
         }
     }
 
     /// Gets the index of the last Entry from RocksDB
-    pub fn last_index(&self) -> Option<u64> {
+    pub fn last_index(&self) -> u64 {
         let key = self.key_name_by_last_index();
         let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
         if value == None {
-            Some(self.snapshot_metadata.index)
+            self.snapshot_metadata.index
         } else {
-            value
+            value.unwrap()
         }
     }
 
@@ -261,9 +235,8 @@ impl RaftRocksDBStorageCore {
         
         // delete first index record
         let key = self.key_name_by_first_index();
-        let current_first_index = self.first_index().unwrap();
-        let current_last_index = self.last_index().unwrap();
-
+        let current_first_index = self.first_index();
+        let current_last_index = self.last_index();
 
         let _ = self.rds.delete(self.rds.cf_meta(), &key);
 
@@ -291,7 +264,7 @@ impl RaftRocksDBStorageCore {
 
     ///
     pub fn set_hard_state_commit(&self, commit: u64) -> Result<(), String> {
-        let mut hs = self.hard_state().unwrap();
+        let mut hs = self.hard_state();
         hs.commit = commit;
 
         let new_hs = convert_hard_state_from_rds_hs(hs);
