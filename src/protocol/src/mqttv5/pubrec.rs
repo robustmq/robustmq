@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023 robustmq team
- *
+ * Copyright (c) 2023 robustmq team 
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,11 +16,13 @@
 
 use super::*;
 
-fn len(puback: &PubAck, properties: &Option<PubAckProperties>) -> usize {
-    let mut len = 2 + 1; // pkid + reason code
+fn len(pubrec: &PubRec, properties: &Option<PubRecProperties>) -> usize {
+    let mut len = 2 + 1; // pkid + reason
 
-    // If there are no properties, sending reason code is optional
-    if puback.reason == PubAckReason::Success && properties.is_none() {
+    // The Reason Code and Property Length can be omitted if the Reason Code is 0x00 (Success)
+    // and there are no Properties. In this case the PUBREC has a Remaining Length of 2.
+    // <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901134>
+    if pubrec.reason == PubRecReason::Success && properties.is_none() {
         return 2;
     }
 
@@ -28,29 +30,30 @@ fn len(puback: &PubAck, properties: &Option<PubAckProperties>) -> usize {
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    } else {
-        // just 1 byte representing 0 len properties
-        len += 1;
     }
-
+    else {
+        len += 1
+    }
     len
 }
 
 pub fn write(
-    puback: &PubAck,
-    properties: &Option<PubAckProperties>,
+    pubrec: &PubRec,
+    properties: &Option<PubRecProperties>,
     buffer: &mut BytesMut,
 ) -> Result<usize, Error> {
-    let len = len(puback, properties);
-    buffer.put_u8(0x40); // 1st byte
+    let len = len(pubrec, properties);
+    buffer.put_u8(0x50);
     let count = write_remaining_length(buffer, len)?;
-    buffer.put_u16(puback.pkid);
-    // Reason code is optional with success if there are no properties
-    if puback.reason == PubAckReason::Success && properties.is_none() {
+    buffer.put_u16(pubrec.pkid);
+
+    // If there are no properties during success, sending reason code is optional
+    if pubrec.reason == PubRecReason::Success && properties.is_none() {
         return Ok(4);
     }
 
-    buffer.put_u8(code(puback.reason));
+    buffer.put_u8(code(pubrec.reason));
+
     if let Some(p) = properties {
         properties::write(p, buffer)?;
     } else {
@@ -63,26 +66,24 @@ pub fn write(
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(PubAck, Option<PubAckProperties>), Error> {
+) -> Result<(PubRec, Option<PubRecProperties>), Error> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
-
-    // No reason code or properties if remaining length is 2
     if fixed_header.remaining_len == 2 {
         return Ok((
-            PubAck {
+            PubRec {
                 pkid,
-                reason: PubAckReason::Success,
+                reason: PubRecReason::Success,
             },
             None,
         ));
     }
-    // No properties len or properties if remaining len > 2 but < 4
+
     let ack_reason = read_u8(&mut bytes)?;
     if fixed_header.remaining_len < 4 {
         return Ok((
-            PubAck {
+            PubRec {
                 pkid,
                 reason: reason(ack_reason)?,
             },
@@ -90,30 +91,33 @@ pub fn read(
         ));
     }
 
-    let puback = PubAck {
+    let puback = PubRec {
         pkid,
         reason: reason(ack_reason)?,
     };
-
     let properties = properties::read(&mut bytes)?;
+
     Ok((puback, properties))
 }
 
 mod properties {
     use super::*;
-
-    pub fn len(properties: &PubAckProperties) -> usize {
+    
+    pub fn len(properties: &PubRecProperties) -> usize {
         let mut len = 0;
+
         if let Some(reason) = &properties.reason_string {
             len += 1 + 2 + reason.len();
         }
+
         for (key, value) in properties.user_properties.iter() {
             len += 1 + 2 + key.len() + 2 + value.len();
         }
+
         len
     }
 
-    pub fn write(properties: &PubAckProperties, buffer: &mut BytesMut) -> Result<(), Error> {
+    pub fn write(properties: &PubRecProperties, buffer: &mut BytesMut) -> Result<(), Error> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
@@ -131,7 +135,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<PubAckProperties>, Error> {
+    pub fn read(mut bytes: &mut Bytes) -> Result<Option<PubRecProperties>, Error> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 
@@ -140,13 +144,14 @@ mod properties {
         if properties_len == 0 {
             return Ok(None);
         }
+
         let mut cursor = 0;
-        // read until cursor reaches property length. properties_len = 0 will skip this loop
+        // read until cursor reaches property length. It will skip this loop if properties_len is 0 
         while cursor < properties_len {
             let prop = read_u8(bytes)?;
             cursor += 1;
 
-            match property(prop)? {
+            match property(prop)?{
                 PropertyType::ReasonString => {
                     let reason = read_mqtt_string(bytes)?;
                     cursor += 2 + reason.len();
@@ -159,44 +164,45 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPropertyType(prop)),
+                _ => return Err(Error::InvalidPacketType(prop)),
             }
         }
-        Ok(Some(PubAckProperties {
-            reason_string,
-            user_properties,
+        Ok(Some(PubRecProperties { 
+            reason_string, 
+            user_properties, 
         }))
     }
 }
 
 /// Connection return code type
-fn reason(num: u8) -> Result<PubAckReason, Error> {
+fn reason(num: u8) -> Result<PubRecReason, Error> {
     let code = match num {
-        0 => PubAckReason::Success,
-        16 => PubAckReason::NoMatchingSubscribers,
-        128 => PubAckReason::UnspecifiedError,
-        131 => PubAckReason::ImplementationSpecificError,
-        135 => PubAckReason::NotAuthorized,
-        144 => PubAckReason::TopicNameInvalid,
-        145 => PubAckReason::PacketIdentifierInUse,
-        151 => PubAckReason::QuotaExceeded,
-        153 => PubAckReason::PayloadFormatInvalid,
+        0 => PubRecReason::Success,
+        16 => PubRecReason::NoMatchingSubscribers,
+        128 => PubRecReason::UnspecifiedError,
+        131 => PubRecReason::ImplementationSpecificError,
+        135 => PubRecReason::NotAuthorized,
+        144 => PubRecReason::TopicNameInvalid,
+        145 => PubRecReason::PacketIdentifierInUse,
+        151 => PubRecReason::QuotaExceeded,
+        153 => PubRecReason::PayloadFormatInvalid,
         num => return Err(Error::InvalidConnectReturnCode(num)),
     };
+
     Ok(code)
 }
 
-fn code(reason: PubAckReason) -> u8 {
+fn code(reason: PubRecReason) -> u8 {
     match reason {
-        PubAckReason::Success => 0,
-        PubAckReason::NoMatchingSubscribers => 16,
-        PubAckReason::UnspecifiedError => 128,
-        PubAckReason::ImplementationSpecificError => 131,
-        PubAckReason::NotAuthorized => 135,
-        PubAckReason::TopicNameInvalid => 144,
-        PubAckReason::PacketIdentifierInUse => 145,
-        PubAckReason::QuotaExceeded => 151,
-        PubAckReason::PayloadFormatInvalid => 153,
+        PubRecReason::Success => 0,
+        PubRecReason::NoMatchingSubscribers => 16,
+        PubRecReason::UnspecifiedError => 128,
+        PubRecReason::ImplementationSpecificError => 131,
+        PubRecReason::NotAuthorized => 135,
+        PubRecReason::TopicNameInvalid => 144,
+        PubRecReason::PacketIdentifierInUse => 145,
+        PubRecReason::QuotaExceeded => 151,
+        PubRecReason::PayloadFormatInvalid => 153,
     }
 }
 
@@ -207,39 +213,40 @@ mod tests {
         use super::*;
 
         let mut buffer = BytesMut::new();
-        let puback = PubAck {
+        let pubrec = PubRec {
             pkid: 20u16,
-            reason: PubAckReason::NotAuthorized,
+            reason: PubRecReason::NotAuthorized,
         };
 
         let vec = vec![("username".to_string(), "Justin".to_string())];
-        let properties = PubAckProperties {
+        let properties = PubRecProperties {
             reason_string: Some(String::from("user authorization failed")),
             user_properties: vec,
         };
 
-        // test the write function of PubAck in v5
-        write(&puback, &Some(properties), &mut buffer);
+        // test the write function of PubRec in v5
+        write(&pubrec, &Some(properties), &mut buffer);
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
-        assert_eq!(fixed_header.byte1, 0b0100_0000);
+        assert_eq!(fixed_header.byte1, 0b0101_0000);
         assert_eq!(fixed_header.fixed_header_len, 2);
         assert_eq!(fixed_header.remaining_len, 51);
 
-         // test the read function of puback packet and check the result of write function in MQTT v5
+         // test the read function of pubrec packet and check the result of write function in MQTT v5
          let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
          assert_eq!(x.pkid, 20u16);
-         assert_eq!(x.reason, PubAckReason::NotAuthorized);
+         assert_eq!(x.reason, PubRecReason::NotAuthorized);
 
-         let puback_properties = y.unwrap();
-         assert_eq!(puback_properties.reason_string, Some("user authorization failed".to_string()));
-         assert_eq!(puback_properties.user_properties.get(0), Some(&("username".to_string(), "Justin".to_string())));
+         let pubrec_properties = y.unwrap();
+         assert_eq!(pubrec_properties.reason_string, Some("user authorization failed".to_string()));
+         assert_eq!(pubrec_properties.user_properties.get(0), Some(&("username".to_string(), "Justin".to_string())));
 
          // test display of puback and puback_properties in v5
-         println!("puback is {}", puback);
-         println!("puback_properties is {}", puback_properties);
+         println!("pubrec is {}", pubrec);
+         println!("pubrec_properties is {}", pubrec_properties);
 
 
     }
 }
+

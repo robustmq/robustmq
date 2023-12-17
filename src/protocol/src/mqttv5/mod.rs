@@ -23,6 +23,9 @@ mod connect;
 mod connack;
 mod publish;
 mod puback;
+mod pubrec;
+mod ping;
+
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -706,6 +706,22 @@ pub struct PubRecProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
+impl fmt::Display for PubRec {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "pkid:{:?}, reason:{:?}",
+        self.pkid,
+        self.reason)
+    }
+}
+
+impl fmt::Display for PubRecProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
+}
+
 //--------------------------- PubRel packet -------------------------------
 
 /// Publish release in response to PubRec packet as QoS 2
