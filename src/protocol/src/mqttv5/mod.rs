@@ -26,6 +26,7 @@ mod puback;
 mod pubrec;
 mod pubrel;
 mod ping;
+mod disconnect;
 
 
 #[repr(u8)]
