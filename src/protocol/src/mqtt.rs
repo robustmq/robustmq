@@ -744,6 +744,24 @@ pub struct PubRelProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
+impl fmt::Display for PubRel{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "publish_identifier:{}, return_code:{:?}",
+            self.pkid, self.reason
+        )
+    }
+}
+
+impl fmt::Display for PubRelProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
+}
+
 //--------------------------- PubComp packet -------------------------------
 
 /// Asssured publish complete as QoS 2 in response to PubRel packet
