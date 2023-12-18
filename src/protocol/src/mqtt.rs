@@ -918,7 +918,7 @@ pub enum DisconnectReasonCode {
     NormalDisconnection,
     /// The client wishes to disconnect but requires that the server also publishes its
     /// Will message.
-    DisconnectWithwillMessage,
+    DisconnectWithWillMessage,
     /// The Connection is closed but the sender either does not wish to reveal the reason,
     /// or none of the other reason codes apply.
     UnspecifiedError,
