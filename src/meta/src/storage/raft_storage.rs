@@ -15,7 +15,6 @@ use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
 use super::data::convert_entry_from_rds_save_entry;
-use super::data::convert_hard_state_from_rds_hs;
 use super::raft_core::RaftRocksDBStorageCore;
 
 #[derive(Clone)]
@@ -118,23 +117,26 @@ impl RaftStorage for RaftRocksDBStorage {
         _: raft::GetEntriesContext,
     ) -> RaftResult<Vec<Entry>> {
         let core = self.read_lock();
-        if low < core.first_index().unwrap() {
+        if low < core.first_index() {
             return Err(Error::Store(StorageError::Compacted));
         }
 
-        if high > core.last_index().unwrap() + 1 {
+        if high > core.last_index() + 1 {
             panic!(
                 "index out of bound (last: {}, high: {})",
-                core.last_index().unwrap() + 1,
+                core.last_index() + 1,
                 high
             )
         }
+
         let mut entry_list: Vec<Entry> = Vec::new();
         for idx in low..=high {
             let sret = core.entry_by_idx(idx).unwrap();
             entry_list.push(convert_entry_from_rds_save_entry(sret).unwrap());
         }
+
         // todo limit size
+        
         return Ok(entry_list);
     }
 
@@ -149,11 +151,11 @@ impl RaftStorage for RaftRocksDBStorage {
             return Ok(core.snapshot_metadata.index);
         }
 
-        if idx < core.first_index().unwrap() {
+        if idx < core.first_index() {
             return Err(Error::Store(StorageError::Compacted));
         }
 
-        if idx > core.last_index().unwrap() {
+        if idx > core.last_index() {
             return Err(Error::Store(StorageError::Unavailable));
         }
 
@@ -168,10 +170,7 @@ impl RaftStorage for RaftRocksDBStorage {
     /// will be returned in this case.
     fn first_index(&self) -> RaftResult<u64> {
         let core = self.read_lock();
-        let fi = match core.first_index() {
-            Some(i) => i,
-            None => core.snapshot_metadata.index + 1,
-        };
+        let fi = core.first_index();
         info_meta(&format!("first index:{}", fi));
         Ok(fi)
     }
@@ -179,10 +178,7 @@ impl RaftStorage for RaftRocksDBStorage {
     /// The index of the last entry replicated in the `Storage`.
     fn last_index(&self) -> RaftResult<u64> {
         let core = self.read_lock();
-        let li = match core.last_index() {
-            Some(i) => i,
-            None => core.snapshot_metadata.index + 1,
-        };
+        let li = core.last_index();
         info_meta(&format!("last index:{}", li));
         Ok(li)
     }
