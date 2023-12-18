@@ -24,6 +24,7 @@ mod connack;
 mod publish;
 mod puback;
 mod pubrec;
+mod pubrel;
 mod ping;
 
 
