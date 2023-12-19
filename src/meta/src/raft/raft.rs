@@ -5,9 +5,8 @@ use crate::storage::raft_storage::RaftRocksDBStorage;
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
 use raft::prelude::Message as raftPreludeMessage;
-use raft::storage::MemStorage;
 use raft::{Config, RawNode};
-use raft_proto::eraftpb::{ConfChange, Snapshot};
+use raft_proto::eraftpb::{ConfChange, Snapshot, HardState};
 use raft_proto::eraftpb::{Entry, EntryType};
 use slog::o;
 use slog::Drain;
@@ -82,7 +81,6 @@ impl MetaRaft {
                 }
                 Ok(Some(RaftMessage::Propose { data, chan })) => {
                     // Propose proposes data be appended to the raft log.
-                    print!("{}", "xrxrxr");
                     let _ = raft_node.propose(vec![], data);
                 }
                 Ok(None) => continue,
@@ -108,10 +106,11 @@ impl MetaRaft {
 
         let mut ready = raft_node.ready();
 
-        info_meta("on_ready 111!!!!");
+        info_meta("raft on ready");
         // After receiving the data sent by the client,
         // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
+            info_meta(&format!("save message!!!,len:{}",ready.messages().len()));
             self.send_message(ready.take_messages());
         }
 
@@ -121,7 +120,8 @@ impl MetaRaft {
         // but the snapshot is usually large. Synchronization blocks threads).
         if *ready.snapshot() != Snapshot::default() {
             let s = ready.snapshot().clone();
-            // raft_node.mut_store().apply_snapshot(s).unwrap();
+            info_meta(&format!("save snapshot,term:{},index:{}",s.get_metadata().get_term(),s.get_metadata().get_index()));
+            raft_node.mut_store().apply_snapshot(s).unwrap();
         }
 
         // The committed raft log can be applied to the State Machine.
@@ -129,29 +129,33 @@ impl MetaRaft {
 
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
+            info_meta(&format!("save entries!!!,len:{}",ready.entries().len()));
             let entries = ready.entries();
-            // raft_node.mut_store().append(entries).unwrap();
+            raft_node.mut_store().append(entries).unwrap();
         }
 
         // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
-            // raft_node.mut_store().set_hard_state(hs).unwrap();
+            info_meta(&format!("save hardState!!!,len:{:?}",hs));
+            let mut new_hs = HardState::default();
+            new_hs.set_commit(hs.get_commit());
+            new_hs.set_term(hs.get_term());
+            new_hs.set_vote(hs.get_vote());
+            raft_node.mut_store().set_hard_state(new_hs).unwrap();
         }
-
-        // If SoftState changes, such as adding or removing nodes, ss will not be empty.
-        // persist non-empty ss.
-        if let Some(ss) = ready.ss() {}
 
         //
         if !ready.persisted_messages().is_empty() {
+            info_meta(&format!("save persisted_messages!!!,len:{:?}",ready.persisted_messages().len()));
             self.send_message(ready.take_persisted_messages());
         }
 
         // A call to advance tells Raft that it is ready for processing.
         let mut light_rd = raft_node.advance(ready);
         if let Some(commit) = light_rd.commit_index() {
-            // raft_node.mut_store().set_hard_state_comit(commit).unwrap();
+            info_meta(&format!("save light rd!!!,commit:{:?}",commit));
+            raft_node.mut_store().set_hard_state_comit(commit).unwrap();
         }
 
         self.send_message(light_rd.take_messages());
@@ -162,6 +166,7 @@ impl MetaRaft {
     }
 
     fn handle_committed_entries(&self, entrys: Vec<Entry>) {
+        info_meta(&format!("handle committed entries !!!,len:{}",entrys.len()));
         for entry in entrys {
             if entry.data.is_empty() {
                 continue;
@@ -198,7 +203,6 @@ impl MetaRaft {
         s.mut_metadata().mut_conf_state().voters = vec![self.config.node_id];
 
         let mut storage = RaftRocksDBStorage::new(&self.config);
-        // let mut storage = MemStorage::new();
         let _ =storage.apply_snapshot(s);
 
         let logger = self.build_slog();
@@ -210,8 +214,7 @@ impl MetaRaft {
 
     pub fn new_follower(&self) -> RawNode<RaftRocksDBStorage> {
         let conf = self.build_config();
-        let mut storage = RaftRocksDBStorage::new(&self.config);
-        // let mut storage = MemStorage::new();
+        let storage = RaftRocksDBStorage::new(&self.config);
         let logger = self.build_slog();
         RawNode::new(&conf, storage, &logger).unwrap()
     }

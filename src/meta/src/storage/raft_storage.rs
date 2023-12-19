@@ -131,12 +131,15 @@ impl RaftStorage for RaftRocksDBStorage {
 
         let mut entry_list: Vec<Entry> = Vec::new();
         for idx in low..=high {
-            let sret = core.entry_by_idx(idx).unwrap();
-            entry_list.push(convert_entry_from_rds_save_entry(sret).unwrap());
+            let sret = core.entry_by_idx(idx);
+            if sret == None {
+                continue;
+            }
+            entry_list.push(convert_entry_from_rds_save_entry(sret.unwrap()).unwrap());
         }
 
         // todo limit size
-        
+
         return Ok(entry_list);
     }
 
@@ -171,7 +174,6 @@ impl RaftStorage for RaftRocksDBStorage {
     fn first_index(&self) -> RaftResult<u64> {
         let core = self.read_lock();
         let fi = core.first_index();
-        info_meta(&format!("first index:{}", fi));
         Ok(fi)
     }
 
@@ -179,7 +181,6 @@ impl RaftStorage for RaftRocksDBStorage {
     fn last_index(&self) -> RaftResult<u64> {
         let core = self.read_lock();
         let li = core.last_index();
-        info_meta(&format!("last index:{}", li));
         Ok(li)
     }
 
