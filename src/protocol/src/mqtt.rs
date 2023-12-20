@@ -515,6 +515,43 @@ pub struct ConnAckProperties {
     pub authentication_data: Option<Bytes>,
 }
 
+impl fmt::Display for ConnAck {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "session_present:{}, return_code:{:?} ",
+        self.session_present,
+        self.code)
+    }
+}
+
+impl fmt::Display for ConnAckProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "session_expiry_interval:{:?}, receive_max:{:?}, max_qos:{:?}, retain_available:{:?}, max_packet_size:{:?}
+        assigned_client_identifier:{:?}, topic_alias_max:{:?}, reason_string:{:?}, user_properties:{:?},
+        wildcard_subscription_available:{:?}, subscription_identifiers_available:{:?}, 
+        shared_subscription_available:{:?}, server_keep_alive:{:?}, response_information:{:?}
+        server_reference:{:?}, authentication_method:{:?}, authentication_data:{:?}",
+
+        self.session_expiry_interval,
+        self.receive_max,
+        self.max_qos,
+        self.retain_available,
+        self.max_packet_size,
+        self.assigned_client_identifier,
+        self.topic_alias_max,
+        self.reason_string,
+        self.user_properties,
+        self.wildcard_subscription_available,
+        self.subscription_identifiers_available,
+        self.shared_subscription_available,
+        self.server_keep_alive,
+        self.response_information,
+        self.server_reference,
+        self.authentication_method,
+        self.authentication_data)
+        
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PingReq;
 
@@ -571,6 +608,34 @@ pub struct PublishProperties {
     pub content_type: Option<String>,
 }
 
+impl fmt::Display for Publish {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "topic:{:?}, payload:{:?}, dup:{}, qos:{:?}, message_identifier:{}, retain:{} ",
+        self.topic,
+        self.payload,
+        self.dup,
+        self.qos,
+        self.pkid,
+        self.retain)
+    }
+}
+
+impl fmt::Display for PublishProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "payload_format_indicator:{:?}, message_expiry_interval:{:?}, topic_alias:{:?}, 
+        response_topic:{:?}, correlation_data:{:?}, user_properties:{:?}, subscription_identifiers:{:?},
+        content_type:{:?},",
+        self.payload_format_indicator,
+        self.message_expiry_interval,
+        self.topic_alias,
+        self.response_topic,
+        self.correlation_data,
+        self.user_properties,
+        self.subscription_identifiers,
+        self.content_type)
+    }
+}
+
 /// Acknowledgement to QoS 1 publish packet
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PubAck {
@@ -590,6 +655,28 @@ pub enum PubAckReason {
     PacketIdentifierInUse,
     QuotaExceeded,
     PayloadFormatInvalid,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PubAckProperties {
+    pub reason_string: Option<String>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+impl fmt::Display for PubAck {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "pkid:{:?}, reason:{:?}",
+        self.pkid,
+        self.reason)
+    }
+}
+
+impl fmt::Display for PubAckProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
 }
 //-----------------------------PubRec packet---------------------------------
 /// Acknowledgement as part 1 to QoS 2 publish packet
@@ -619,10 +706,20 @@ pub struct PubRecProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PubAckProperties {
-    pub reason_string: Option<String>,
-    pub user_properties: Vec<(String, String)>,
+impl fmt::Display for PubRec {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "pkid:{:?}, reason:{:?}",
+        self.pkid,
+        self.reason)
+    }
+}
+
+impl fmt::Display for PubRecProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
 }
 
 //--------------------------- PubRel packet -------------------------------
@@ -647,6 +744,24 @@ pub struct PubRelProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
+impl fmt::Display for PubRel{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "publish_identifier:{}, return_code:{:?}",
+            self.pkid, self.reason
+        )
+    }
+}
+
+impl fmt::Display for PubRelProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
+}
+
 //--------------------------- PubComp packet -------------------------------
 
 /// Asssured publish complete as QoS 2 in response to PubRel packet
@@ -669,6 +784,25 @@ pub struct PubCompProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
+
+impl fmt::Display for PubComp{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "publish_identifier:{}, return_code:{:?}",
+            self.pkid, self.reason
+        )
+    }
+}
+
+impl fmt::Display for PubCompProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
+}
+
 //--------------------------- Subscribe packet -------------------------------
 
 /// Subscription packet
@@ -688,7 +822,7 @@ pub struct Filter {
     // the following options are only valid in mqtt v5
     pub nolocal: bool,
     pub preserve_retain: bool,
-    pub retain_foward_rule: RetainForwardRule,
+    pub retain_forward_rule: RetainForwardRule,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -803,7 +937,7 @@ pub enum DisconnectReasonCode {
     NormalDisconnection,
     /// The client wishes to disconnect but requires that the server also publishes its
     /// Will message.
-    DisconnectWithwillMessage,
+    DisconnectWithWillMessage,
     /// The Connection is closed but the sender either does not wish to reveal the reason,
     /// or none of the other reason codes apply.
     UnspecifiedError,

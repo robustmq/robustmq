@@ -6,7 +6,7 @@ use super::{
 use crate::{network::package::RequestPackage, package::mqtt4::package_ack_write};
 use common::{log::{info, error}, metrics::broker::metrics_mqtt4_broker_running};
 use flume::{Receiver, Sender};
-use protocol::{mqttv4::MqttV4, protocol::ConnectReturnCode};
+use protocol::{mqttv4::MqttV4, mqtt::ConnectReturnCode};
 use std::{fmt::Error, net::SocketAddr, sync::Arc};
 use tokio::{
     io::AsyncWriteExt,

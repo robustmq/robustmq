@@ -52,15 +52,7 @@ pub fn write(pubrel: &PubRel, buffer: &mut BytesMut) -> Result<usize, Error> {
     Ok(1 + count + len)
 }
 
-impl fmt::Display for PubRel{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "publish_identifier:{}, return_code:{:?}",
-            self.pkid, self.reason
-        )
-    }
-}
+
 
 #[cfg(test)]
 mod tests {
