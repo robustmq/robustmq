@@ -784,6 +784,25 @@ pub struct PubCompProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
+
+impl fmt::Display for PubComp{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "publish_identifier:{}, return_code:{:?}",
+            self.pkid, self.reason
+        )
+    }
+}
+
+impl fmt::Display for PubCompProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_string:{:?}, user_properties:{:?}",
+        self.reason_string,
+        self.user_properties)
+    }
+}
+
 //--------------------------- Subscribe packet -------------------------------
 
 /// Subscription packet
@@ -803,7 +822,7 @@ pub struct Filter {
     // the following options are only valid in mqtt v5
     pub nolocal: bool,
     pub preserve_retain: bool,
-    pub retain_foward_rule: RetainForwardRule,
+    pub retain_forward_rule: RetainForwardRule,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
