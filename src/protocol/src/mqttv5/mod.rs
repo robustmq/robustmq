@@ -25,6 +25,7 @@ mod publish;
 mod puback;
 mod pubrec;
 mod pubrel;
+mod pubcomp;
 mod ping;
 mod disconnect;
 
