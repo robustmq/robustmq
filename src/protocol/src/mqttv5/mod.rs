@@ -28,6 +28,8 @@ mod pubrel;
 mod pubcomp;
 mod subscribe;
 mod suback;
+mod unsubscribe;
+mod unsuback;
 mod ping;
 mod disconnect;
 
