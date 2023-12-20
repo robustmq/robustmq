@@ -822,7 +822,7 @@ pub struct Filter {
     // the following options are only valid in mqtt v5
     pub nolocal: bool,
     pub preserve_retain: bool,
-    pub retain_foward_rule: RetainForwardRule,
+    pub retain_forward_rule: RetainForwardRule,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

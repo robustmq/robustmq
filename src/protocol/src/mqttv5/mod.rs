@@ -26,6 +26,8 @@ mod puback;
 mod pubrec;
 mod pubrel;
 mod pubcomp;
+mod subscribe;
+mod suback;
 mod ping;
 mod disconnect;
 
