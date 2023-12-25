@@ -43,6 +43,9 @@ pub enum MetaError {
     
     #[error("Leader node does not exist in the Meta cluster, which may be due to the election process or the election failure.")]
     MetaClusterNotLeaderNode,
+
+    #[error("Description The interface {0} submitted logs to the commit log")]
+    MetaLogCommitTimeout(String),
     
 }
 

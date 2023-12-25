@@ -1,5 +1,4 @@
 use common::config::meta::MetaConfig;
-use common::log::info_meta;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
 use raft::prelude::Snapshot;
@@ -71,6 +70,12 @@ impl RaftRocksDBStorage {
         return Ok(());
     }
 
+    pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
+        let mut store = self.core.write().unwrap();
+        let _ = store.commmit_index(idx);
+        return Ok(());
+    }
+
     pub fn set_hard_state(&mut self, hs: HardState) -> RaftResult<()> {
         let store = self.core.write().unwrap();
         let _ = store.save_hard_state(hs);
@@ -82,6 +87,13 @@ impl RaftRocksDBStorage {
         let _ = store.set_hard_state_commit(hs);
         return Ok(());
     }
+
+    pub fn set_conf_state(&mut self, cs: ConfState) -> RaftResult<()> {
+        let store = self.core.write().unwrap();
+        let _ = store.save_conf_state(cs);
+        return Ok(());
+    }
+    
 }
 
 impl RaftStorage for RaftRocksDBStorage {
@@ -131,12 +143,15 @@ impl RaftStorage for RaftRocksDBStorage {
 
         let mut entry_list: Vec<Entry> = Vec::new();
         for idx in low..=high {
-            let sret = core.entry_by_idx(idx).unwrap();
-            entry_list.push(convert_entry_from_rds_save_entry(sret).unwrap());
+            let sret = core.entry_by_idx(idx);
+            if sret == None {
+                continue;
+            }
+            entry_list.push(convert_entry_from_rds_save_entry(sret.unwrap()).unwrap());
         }
 
         // todo limit size
-        
+
         return Ok(entry_list);
     }
 
@@ -171,7 +186,6 @@ impl RaftStorage for RaftRocksDBStorage {
     fn first_index(&self) -> RaftResult<u64> {
         let core = self.read_lock();
         let fi = core.first_index();
-        info_meta(&format!("first index:{}", fi));
         Ok(fi)
     }
 
@@ -179,7 +193,6 @@ impl RaftStorage for RaftRocksDBStorage {
     fn last_index(&self) -> RaftResult<u64> {
         let core = self.read_lock();
         let li = core.last_index();
-        info_meta(&format!("last index:{}", li));
         Ok(li)
     }
 

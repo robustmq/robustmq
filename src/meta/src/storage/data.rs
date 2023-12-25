@@ -27,6 +27,7 @@ pub struct SaveRDSEntry {
     pub data: ::bytes::Bytes,
     pub context: ::bytes::Bytes,
     pub sync_log: bool,
+    pub status: u16,
 }
 
 /// Converts data of type SaveRDSEntry to raft::prelude::Entry
