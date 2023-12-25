@@ -40,7 +40,6 @@ raft = { version = "0.7.0" }
 flume = "0.11.0"
 raft-proto = "0.7.0"
 
-
 ## workspaces members
 bridge={path="src/bridge"}
 broker={path="src/broker"}

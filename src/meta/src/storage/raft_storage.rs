@@ -1,5 +1,4 @@
 use common::config::meta::MetaConfig;
-use common::log::info_meta;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
 use raft::prelude::Snapshot;
@@ -71,6 +70,12 @@ impl RaftRocksDBStorage {
         return Ok(());
     }
 
+    pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
+        let mut store = self.core.write().unwrap();
+        let _ = store.commmit_index(idx);
+        return Ok(());
+    }
+
     pub fn set_hard_state(&mut self, hs: HardState) -> RaftResult<()> {
         let store = self.core.write().unwrap();
         let _ = store.save_hard_state(hs);
@@ -82,6 +87,13 @@ impl RaftRocksDBStorage {
         let _ = store.set_hard_state_commit(hs);
         return Ok(());
     }
+
+    pub fn set_conf_state(&mut self, cs: ConfState) -> RaftResult<()> {
+        let store = self.core.write().unwrap();
+        let _ = store.save_conf_state(cs);
+        return Ok(());
+    }
+    
 }
 
 impl RaftStorage for RaftRocksDBStorage {

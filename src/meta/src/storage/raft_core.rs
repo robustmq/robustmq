@@ -1,5 +1,6 @@
 use crate::storage::rocksdb::RocksDBStorage;
 use common::config::meta::MetaConfig;
+use serde::de::value;
 
 
 use super::data::convert_conf_state_from_rds_cs;
@@ -111,6 +112,18 @@ impl RaftRocksDBStorageCore {
         meta.set_conf_state(convert_conf_state_from_rds_cs(conf_state));
         return sns;
     }
+    
+    pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()>{
+        
+        let entry = self.entry_by_idx(idx);
+        if entry != None{
+            let mut entry: SaveRDSEntry = entry.unwrap();
+            entry.status = 1;
+            self.save_entry(idx, entry);
+        }
+
+        return Ok(())
+    }
 
     pub fn append(&mut self, entrys: &Vec<Entry>) -> RaftResult<()> {
         if entrys.len() == 0 {
@@ -143,6 +156,7 @@ impl RaftRocksDBStorageCore {
                 data: entry.data.clone(),
                 context: entry.context.clone(),
                 sync_log: entry.sync_log,
+                status: 0,
             };
             self.rds.write(self.rds.cf_meta(), &key, &sre).unwrap();
             self.save_last_index(entry.index).unwrap();
@@ -223,6 +237,11 @@ impl RaftRocksDBStorageCore {
 
     pub fn save_last_index(&self, index: u64) -> Result<(), String> {
         let key = self.key_name_by_last_index();
+        self.rds.write(self.rds.cf_meta(), &key, &index)
+    }
+
+    pub fn save_entry(&self, index: u64, value: SaveRDSEntry) -> Result<(), String> {
+        let key = self.key_name_by_entry(index);
         self.rds.write(self.rds.cf_meta(), &key, &index)
     }
 

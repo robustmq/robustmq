@@ -1,16 +1,22 @@
+#![allow(clippy::field_reassign_with_default)]
 use super::election::Election;
 use super::message::RaftMessage;
 use super::node::Node;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
-use raft::prelude::Message as raftPreludeMessage;
+
 use raft::{Config, RawNode};
-use raft_proto::eraftpb::{ConfChange, Snapshot, HardState};
-use raft_proto::eraftpb::{Entry, EntryType};
+use raft_proto::eraftpb::{ConfChangeType, Entry, EntryType, ConfChange};
+use raft_proto::eraftpb::{ConfChangeV2, HardState, Snapshot};
+use raft_proto::prelude::Message as raftPreludeMessage;
+use protobuf::Message as PbMessage;
+
+use raft_proto::parse_conf_change;
 use slog::o;
 use slog::Drain;
 use std::fs::OpenOptions;
+use std::str::from_utf8;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
@@ -84,7 +90,7 @@ impl MetaRaft {
                     let _ = raft_node.propose(vec![], data);
                 }
                 Ok(None) => continue,
-                Err(_) => {},
+                Err(_) => {}
             }
 
             let elapsed = now.elapsed();
@@ -99,7 +105,6 @@ impl MetaRaft {
     }
 
     async fn on_ready(&self, raft_node: &mut RawNode<RaftRocksDBStorage>) {
-
         if !raft_node.has_ready() {
             return;
         }
@@ -110,7 +115,7 @@ impl MetaRaft {
         // After receiving the data sent by the client,
         // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
-            info_meta(&format!("save message!!!,len:{}",ready.messages().len()));
+            info_meta(&format!("save message!!!,len:{}", ready.messages().len()));
             self.send_message(ready.take_messages());
         }
 
@@ -120,16 +125,20 @@ impl MetaRaft {
         // but the snapshot is usually large. Synchronization blocks threads).
         if *ready.snapshot() != Snapshot::default() {
             let s = ready.snapshot().clone();
-            info_meta(&format!("save snapshot,term:{},index:{}",s.get_metadata().get_term(),s.get_metadata().get_index()));
+            info_meta(&format!(
+                "save snapshot,term:{},index:{}",
+                s.get_metadata().get_term(),
+                s.get_metadata().get_index()
+            ));
             raft_node.mut_store().apply_snapshot(s).unwrap();
         }
 
         // The committed raft log can be applied to the State Machine.
-        self.handle_committed_entries(ready.take_committed_entries());
+        self.handle_committed_entries(raft_node, ready.take_committed_entries());
 
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
-            info_meta(&format!("save entries!!!,len:{}",ready.entries().len()));
+            info_meta(&format!("save entries!!!,len:{}", ready.entries().len()));
             let entries = ready.entries();
             raft_node.mut_store().append(entries).unwrap();
         }
@@ -137,7 +146,7 @@ impl MetaRaft {
         // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
-            info_meta(&format!("save hardState!!!,len:{:?}",hs));
+            info_meta(&format!("save hardState!!!,len:{:?}", hs));
             let mut new_hs = HardState::default();
             new_hs.set_commit(hs.get_commit());
             new_hs.set_term(hs.get_term());
@@ -147,47 +156,81 @@ impl MetaRaft {
 
         //
         if !ready.persisted_messages().is_empty() {
-            info_meta(&format!("save persisted_messages!!!,len:{:?}",ready.persisted_messages().len()));
+            info_meta(&format!(
+                "save persisted_messages!!!,len:{:?}",
+                ready.persisted_messages().len()
+            ));
             self.send_message(ready.take_persisted_messages());
         }
 
         // A call to advance tells Raft that it is ready for processing.
         let mut light_rd = raft_node.advance(ready);
         if let Some(commit) = light_rd.commit_index() {
-            info_meta(&format!("save light rd!!!,commit:{:?}",commit));
+            info_meta(&format!("save light rd!!!,commit:{:?}", commit));
             raft_node.mut_store().set_hard_state_comit(commit).unwrap();
         }
 
         self.send_message(light_rd.take_messages());
 
-        self.handle_committed_entries(light_rd.take_committed_entries());
+        self.handle_committed_entries(raft_node, light_rd.take_committed_entries());
 
         raft_node.advance_apply();
     }
 
-    fn handle_committed_entries(&self, entrys: Vec<Entry>) {
-        info_meta(&format!("handle committed entries !!!,len:{}",entrys.len()));
+    fn handle_committed_entries(
+        &self,
+        raft_node: &mut RawNode<RaftRocksDBStorage>,
+        entrys: Vec<Entry>,
+    ) {
+        info_meta(&format!(
+            "handle committed entries !!!,len:{}",
+            entrys.len()
+        ));
         for entry in entrys {
             if entry.data.is_empty() {
                 continue;
             }
-            if let EntryType::EntryConfChange = entry.get_entry_type() {
-                let mut cc = ConfChange::default();
 
-                self.handle_config_change();
-            } else {
-                self.handle_normal();
+            match entry.get_entry_type() {
+                EntryType::EntryNormal => {
+                    // For normal proposals, extract the key-value pair and then
+                    // insert them into the kv engine.
+                    let idx: u64 = entry.get_index();
+                    let _ = raft_node.mut_store().commmit_index(idx);
+                }
+                EntryType::EntryConfChange => {
+                    // todo 
+
+                    // For conf change messages, make them effective.
+                    // prostMessage::decode(buf).unwrap();
+                    let str = from_utf8(entry.get_data()).unwrap();
+                    let change_list = parse_conf_change(str).unwrap();
+                    for cfs in change_list {
+                        let change_type = cfs.get_change_type();
+                        let node_id = cfs.get_node_id();
+                        match change_type {
+                            ConfChangeType::AddNode => {
+                                // save
+                            }
+                            ConfChangeType::RemoveNode => {}
+                            ConfChangeType::AddLearnerNode => {}
+                        }
+
+                        // if let Ok(cs) = raft_node.apply_conf_change(&cfs){
+
+                        // }
+                    }
+                    let mut cc = ConfChange::default();
+                    // raft_node.propose_conf_change(context, cc)
+                }
+                EntryType::EntryConfChangeV2 => {}
             }
         }
     }
 
-    fn handle_config_change(&self) {}
-
-    fn handle_normal(&self) {}
-
     fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
-            println!("{:?}", msg);
+            // println!("{:?}", print_to_string(&msg));
         }
     }
 
@@ -203,7 +246,7 @@ impl MetaRaft {
         s.mut_metadata().mut_conf_state().voters = vec![self.config.node_id];
 
         let mut storage = RaftRocksDBStorage::new(&self.config);
-        let _ =storage.apply_snapshot(s);
+        let _ = storage.apply_snapshot(s);
 
         let logger = self.build_slog();
         let mut node = RawNode::new(&conf, storage, &logger).unwrap();

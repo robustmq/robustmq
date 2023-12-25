@@ -19,15 +19,24 @@ use crate::raft::{
     message::{RaftMessage, RaftResponseMesage},
     node::{Node, NodeRaftState},
 };
-use common::log::{debug, info};
+use common::log::{debug, error_meta, info};
 use protocol::robust::meta::{
     meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
     BrokerUnRegisterReply, BrokerUnRegisterRequest, FindLeaderReply, FindLeaderRequest,
     HeartbeatReply, HeartbeatRequest, TransformLeaderReply, TransformLeaderRequest, VoteReply,
     VoteRequest,
 };
-use std::sync::{Arc, RwLock};
-use tokio::sync::{mpsc::Sender, oneshot};
+use std::{
+    sync::{Arc, RwLock},
+    time::{Duration, Instant},
+};
+use tokio::{
+    sync::{
+        mpsc::Sender,
+        oneshot::{self, Receiver},
+    },
+    time::timeout,
+};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcService {
@@ -41,6 +50,24 @@ impl GrpcService {
             node: node,
             raft_sender,
         }
+    }
+
+    pub fn wait_raft_commit(&self, mut rx: Receiver<RaftResponseMesage>) -> bool {
+        let now = Instant::now();
+        loop {
+            match rx.try_recv() {
+                Ok(_) => {
+                    println!("{}", 111);
+                    break;
+                }
+                Err(err) => {
+                    if now.elapsed().as_secs() > 30 {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 }
 
@@ -143,7 +170,7 @@ impl MetaService for GrpcService {
     ) -> Result<Response<BrokerUnRegisterReply>, Status> {
         let node_id = request.into_inner().node_id;
         info(&format!("Broker node is stopped, node ID {}", node_id));
-        let (sx, mut rx) = oneshot::channel::<RaftResponseMesage>();
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         let _ = self
             .raft_sender
             .send(RaftMessage::Propose {
@@ -151,14 +178,11 @@ impl MetaService for GrpcService {
                 chan: sx,
             })
             .await;
-        // loop {
-        //     match rx.try_recv() {
-        //         Ok(_) =>break,
-        //         Err(err) => {
-        //             return Err(Status::already_exists(err.to_string()));
-        //         }
-        //     }
-        // }
+        if !self.wait_raft_commit(rx) {
+            return Err(Status::cancelled(
+                MetaError::MetaLogCommitTimeout("broker_un_register".to_string()).to_string(),
+            ));
+        }
         Ok(Response::new(BrokerUnRegisterReply::default()))
     }
 }
