@@ -214,6 +214,11 @@ impl MetaRaft {
 
                     //     // }
                     // }
+                    
+                    let buf = entry.get_data();
+                    let decoded_message = ConfChange::parse_from_bytes(&buf).expect("Failed to parse from bytes");
+
+
                     let change = ConfChange::decode(entry.get_data())
                     .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
                     let id = change.get_node_id();
