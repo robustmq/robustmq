@@ -1,4 +1,4 @@
-use raft_proto::eraftpb::Message as RaftCoreMessage;
+use raft::eraftpb::Message as RaftCoreMessage;
 use tokio::sync::oneshot::Sender;
 
 pub enum RaftResponseMesage {}

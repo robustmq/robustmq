@@ -5,31 +5,23 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["protobuf-codec"]
-protobuf-codec = ["raft-proto/protobuf-codec", "bytes"]
-prost-codec = ["raft-proto/prost-codec"]
 
 [dependencies]
 tokio.workspace = true
 tonic.workspace = true
-tonic-build.workspace = true
-
 common.workspace = true
+protocol.workspace = true
 thiserror.workspace = true
-
 serde.workspace = true
 serde_json.workspace = true
-
 rocksdb.workspace = true
 futures.workspace = true
 
 raft-proto.workspace = true
-protocol.workspace = true
-protobuf.workspace = true
-raft.workspace = true
-prost.workspace = true
+raft.workspace=true
 
-bytes = { version = "1", optional = true, features = ["serde"] }
+bytes.workspace = true
+lazy_static.workspace = true
 
 slog = "2"
 slog-term = "2.9.0"

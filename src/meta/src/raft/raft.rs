@@ -10,7 +10,6 @@ use raft::{Config, RawNode};
 use raft_proto::eraftpb::{ConfChangeType, Entry, EntryType, ConfChange};
 use raft_proto::eraftpb::{ConfChangeV2, HardState, Snapshot};
 use raft_proto::prelude::Message as raftPreludeMessage;
-use protobuf::Message as PbMessage;
 
 use raft_proto::parse_conf_change;
 use slog::o;
@@ -220,7 +219,10 @@ impl MetaRaft {
 
                         // }
                     }
-                    let mut cc = ConfChange::default();
+                    let change = ConfChange::decode(entry.get_data())
+                    .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
+                    let id = change.get_node_id();
+                    println!("{}",id);
                     // raft_node.propose_conf_change(context, cc)
                 }
                 EntryType::EntryConfChangeV2 => {}

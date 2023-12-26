@@ -92,7 +92,7 @@ message BrokerUnRegisterReply{
 }
 
 message SendRaftMessageRequest{
-   
+    bytes message = 1;
 }
 
 message SendRaftMessageReply{
