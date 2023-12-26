@@ -7,11 +7,9 @@ use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
 
 use raft::{Config, RawNode};
-use raft_proto::eraftpb::{ConfChangeType, Entry, EntryType, ConfChange};
-use raft_proto::eraftpb::{ConfChangeV2, HardState, Snapshot};
-use raft_proto::prelude::Message as raftPreludeMessage;
-
-use raft_proto::parse_conf_change;
+use raft::eraftpb::{ConfChangeType, Entry, EntryType, ConfChange};
+use raft::eraftpb::{ConfChangeV2, HardState, Snapshot};
+use raft::prelude::Message as raftPreludeMessage;
 use slog::o;
 use slog::Drain;
 use std::fs::OpenOptions;
@@ -202,23 +200,23 @@ impl MetaRaft {
 
                     // For conf change messages, make them effective.
                     // prostMessage::decode(buf).unwrap();
-                    let str = from_utf8(entry.get_data()).unwrap();
-                    let change_list = parse_conf_change(str).unwrap();
-                    for cfs in change_list {
-                        let change_type = cfs.get_change_type();
-                        let node_id = cfs.get_node_id();
-                        match change_type {
-                            ConfChangeType::AddNode => {
-                                // save
-                            }
-                            ConfChangeType::RemoveNode => {}
-                            ConfChangeType::AddLearnerNode => {}
-                        }
+                    // let str = from_utf8(entry.get_data()).unwrap();
+                    // let change_list = parse_conf_change(str).unwrap();
+                    // for cfs in change_list {
+                    //     let change_type = cfs.get_change_type();
+                    //     let node_id = cfs.get_node_id();
+                    //     match change_type {
+                    //         ConfChangeType::AddNode => {
+                    //             // save
+                    //         }
+                    //         ConfChangeType::RemoveNode => {}
+                    //         ConfChangeType::AddLearnerNode => {}
+                    //     }
 
-                        // if let Ok(cs) = raft_node.apply_conf_change(&cfs){
+                    //     // if let Ok(cs) = raft_node.apply_conf_change(&cfs){
 
-                        // }
-                    }
+                    //     // }
+                    // }
                     let change = ConfChange::decode(entry.get_data())
                     .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
                     let id = change.get_node_id();

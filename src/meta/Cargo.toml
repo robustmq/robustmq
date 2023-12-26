@@ -16,13 +16,10 @@ serde.workspace = true
 serde_json.workspace = true
 rocksdb.workspace = true
 futures.workspace = true
-
-raft-proto.workspace = true
-raft.workspace=true
-
+futures-util.workspace =true
 bytes.workspace = true
 lazy_static.workspace = true
-
+raft.workspace =true
 slog = "2"
 slog-term = "2.9.0"
 slog-async = "2.8.0"

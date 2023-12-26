@@ -7,7 +7,7 @@ use raft::RaftState;
 use raft::Result as RaftResult;
 use raft::Storage as RaftStorage;
 use raft::StorageError;
-use raft_proto::eraftpb::HardState;
+use raft::eraftpb::HardState;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
