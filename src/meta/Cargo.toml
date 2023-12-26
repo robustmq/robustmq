@@ -20,6 +20,7 @@ futures-util.workspace = true
 bytes.workspace = true
 lazy_static.workspace = true
 raft.workspace = true
+prost.workspace = true
 slog = "2"
 slog-term = "2.9.0"
 slog-async = "2.8.0"

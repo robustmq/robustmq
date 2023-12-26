@@ -34,7 +34,10 @@ futures-util = "0.3.30"
 rocksdb = "0.21.0"
 tonic = "0.10.2"
 
-raft = { package = "raft", version = "0.7", default-features = false }
+prost = "0.12.3"
+raft = { package = "raft", version = "0.7", features = [
+    "prost-codec",
+], default-features = false }
 
 ## workspaces members
 bridge = { path = "src/bridge" }
