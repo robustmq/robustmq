@@ -21,11 +21,11 @@ pub struct SaveRDSConfState {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Default)]
 pub struct SaveRDSEntry {
-    pub entry_type: u64,
+    pub entry_type: i32,
     pub term: u64,
     pub index: u64,
-    pub data: ::bytes::Bytes,
-    pub context: ::bytes::Bytes,
+    pub data: Vec<u8>,
+    pub context: Vec<u8>,
     pub sync_log: bool,
     pub status: u16,
 }
@@ -35,14 +35,14 @@ pub fn convert_entry_from_rds_save_entry(rds_entry: SaveRDSEntry) -> Result<Entr
     let mut ent = Entry::default();
 
     //What if the Entry Enum options change, there may be a Bug
-    let et = match rds_entry.entry_type {
-        0_u64 => EntryType::EntryNormal,
-        1_u64 => EntryType::EntryConfChange,
-        2_u64 => EntryType::EntryConfChangeV2,
-        _ => EntryType::EntryNormal,
-    };
+    // let et = match  {
+    //     0_u64 => EntryType::EntryNormal,
+    //     1_u64 => EntryType::EntryConfChange,
+    //     2_u64 => EntryType::EntryConfChangeV2,
+    //     _ => EntryType::EntryNormal,
+    // };
 
-    ent.entry_type = et;
+    ent.entry_type = rds_entry.entry_type;
     ent.term = rds_entry.term;
     ent.index = rds_entry.index;
     ent.data = rds_entry.data;

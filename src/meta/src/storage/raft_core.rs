@@ -1,8 +1,5 @@
 use crate::storage::rocksdb::RocksDBStorage;
 use common::config::meta::MetaConfig;
-use serde::de::value;
-
-
 use super::data::convert_conf_state_from_rds_cs;
 use super::data::convert_hard_state_from_rds_hs;
 use super::data::SaveRDSConfState;
@@ -150,7 +147,7 @@ impl RaftRocksDBStorageCore {
         for entry in entrys {
             let key = self.key_name_by_entry(entry.index);
             let sre = SaveRDSEntry {
-                entry_type: entry.entry_type as u64,
+                entry_type: entry.entry_type,
                 term: entry.term,
                 index: entry.index,
                 data: entry.data.clone(),
@@ -183,7 +180,7 @@ impl RaftRocksDBStorageCore {
 
         // update hardstate
         let cur_hs = self.hard_state();
-        let mut hs = HardState::new();
+        let mut hs = HardState::default();
         hs.set_term(cmp::max(cur_hs.term, meta.term));
         hs.set_commit(index);
         let _ = self.save_hard_state(hs);

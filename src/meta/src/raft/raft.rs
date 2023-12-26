@@ -1,19 +1,16 @@
-#![allow(clippy::field_reassign_with_default)]
 use super::election::Election;
 use super::message::RaftMessage;
 use super::node::Node;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
-
 use raft::{Config, RawNode};
-use raft::eraftpb::{ConfChangeType, Entry, EntryType, ConfChange};
-use raft::eraftpb::{ConfChangeV2, HardState, Snapshot};
+use raft::eraftpb::{Entry, EntryType, ConfChange};
+use raft::eraftpb::{HardState, Snapshot};
 use raft::prelude::Message as raftPreludeMessage;
 use slog::o;
 use slog::Drain;
 use std::fs::OpenOptions;
-use std::str::from_utf8;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;

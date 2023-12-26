@@ -27,14 +27,16 @@ prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 lazy_static = "^1.4"
 futures = "0.3"
-thiserror = "1"                                                                  #错误定义和处理
+thiserror = "1"                                          #错误定义和处理
 bytes = { version = "1", features = ["serde"] }
 flume = "0.11.0"
 futures-util = "0.3.30"
 rocksdb = "0.21.0"
 tonic = "0.10.2"
 
-raft = { package = "raft", version = "0.7", features = [ "prost-codec"],default-features = true}
+raft = { package = "raft", version = "0.7", features = [
+    "prost-codec",
+], default-features = false }
 
 ## workspaces members
 bridge = { path = "src/bridge" }
