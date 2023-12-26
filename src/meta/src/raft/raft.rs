@@ -215,15 +215,15 @@ impl MetaRaft {
                     //     // }
                     // }
                     
-                    let buf = entry.get_data();
-                    let decoded_message = ConfChange::parse_from_bytes(&buf).expect("Failed to parse from bytes");
+                    // let buf = entry.get_data();
+                    // let decoded_message = ConfChange::parse_from_bytes(&buf).expect("Failed to parse from bytes");
 
-                    let mut cc = ConfChange::default();
-                    cc.merge_from_bytes(&entry.data).unwrap();
-                    let change = ConfChange::decode(entry.get_data())
-                    .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
-                    let id = change.get_node_id();
-                    println!("{}",id);
+                    // let mut cc = ConfChange::default();
+                    // cc.merge_from_bytes(&entry.data).unwrap();
+                    // let change = ConfChange::decode(entry.get_data())
+                    // .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
+                    // let id = change.get_node_id();
+                    // println!("{}",id);
                     // raft_node.propose_conf_change(context, cc)
                 }
                 EntryType::EntryConfChangeV2 => {}
