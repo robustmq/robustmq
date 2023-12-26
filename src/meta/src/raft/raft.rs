@@ -2,12 +2,13 @@ use super::election::Election;
 use super::message::RaftMessage;
 use super::node::Node;
 use crate::storage::raft_storage::RaftRocksDBStorage;
+use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
-use raft::{Config, RawNode};
-use raft::eraftpb::{Entry, EntryType, ConfChange};
+use raft::eraftpb::{ConfChange, Entry, EntryType};
 use raft::eraftpb::{HardState, Snapshot};
 use raft::prelude::Message as raftPreludeMessage;
+use raft::{Config, RawNode};
 use slog::o;
 use slog::Drain;
 use std::fs::OpenOptions;
@@ -193,7 +194,11 @@ impl MetaRaft {
                     let _ = raft_node.mut_store().commmit_index(idx);
                 }
                 EntryType::EntryConfChange => {
-                    // todo 
+                    let seq: u64 = deserialize(entry.get_context()).unwrap();
+                    // let change = ConfChange::decode(entry.get_data())
+                    //     .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
+                    // let id = change.get_node_id();
+                    // todo
 
                     // For conf change messages, make them effective.
                     // prostMessage::decode(buf).unwrap();
@@ -214,7 +219,7 @@ impl MetaRaft {
 
                     //     // }
                     // }
-                    
+
                     // let buf = entry.get_data();
                     // let decoded_message = ConfChange::parse_from_bytes(&buf).expect("Failed to parse from bytes");
 
