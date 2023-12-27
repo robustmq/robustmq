@@ -64,7 +64,10 @@ pub struct BrokerUnRegisterRequest {
 pub struct BrokerUnRegisterReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SendRaftMessageRequest {}
+pub struct SendRaftMessageRequest {
+    #[prost(bytes = "vec", tag = "1")]
+    pub message: ::prost::alloc::vec::Vec<u8>,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SendRaftMessageReply {}

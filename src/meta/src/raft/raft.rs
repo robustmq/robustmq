@@ -5,10 +5,13 @@ use crate::storage::raft_storage::RaftRocksDBStorage;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
-use raft::eraftpb::{ConfChange, Entry, EntryType};
-use raft::eraftpb::{HardState, Snapshot};
-use raft::prelude::Message as raftPreludeMessage;
+use prost::Message as _;
+use raft::eraftpb::{Entry, EntryType, HardState, Message as raftPreludeMessage, Snapshot};
+
+use protocol::robust::eraftpb::ConfChange;
+
 use raft::{Config, RawNode};
+
 use slog::o;
 use slog::Drain;
 use std::fs::OpenOptions;
@@ -195,40 +198,11 @@ impl MetaRaft {
                 }
                 EntryType::EntryConfChange => {
                     let seq: u64 = deserialize(entry.get_context()).unwrap();
-                    // let change = ConfChange::decode(entry.get_data())
-                    //     .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
-                    // let id = change.get_node_id();
-                    // todo
-
-                    // For conf change messages, make them effective.
-                    // prostMessage::decode(buf).unwrap();
-                    // let str = from_utf8(entry.get_data()).unwrap();
-                    // let change_list = parse_conf_change(str).unwrap();
-                    // for cfs in change_list {
-                    //     let change_type = cfs.get_change_type();
-                    //     let node_id = cfs.get_node_id();
-                    //     match change_type {
-                    //         ConfChangeType::AddNode => {
-                    //             // save
-                    //         }
-                    //         ConfChangeType::RemoveNode => {}
-                    //         ConfChangeType::AddLearnerNode => {}
-                    //     }
-
-                    //     // if let Ok(cs) = raft_node.apply_conf_change(&cfs){
-
-                    //     // }
-                    // }
-
-                    // let buf = entry.get_data();
-                    // let decoded_message = ConfChange::parse_from_bytes(&buf).expect("Failed to parse from bytes");
-
-                    // let mut cc = ConfChange::default();
-                    // cc.merge_from_bytes(&entry.data).unwrap();
-                    // let change = ConfChange::decode(entry.get_data())
-                    // .map_err(|e| tonic::Status::invalid_argument(e.to_string()))?;
-                    // let id = change.get_node_id();
-                    // println!("{}",id);
+                    let change = ConfChange::decode(entry.get_data())
+                        .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
+                        .unwrap();
+                    let id = change.node_id;
+                    println!("{}", id);
                     // raft_node.propose_conf_change(context, cc)
                 }
                 EntryType::EntryConfChangeV2 => {}
