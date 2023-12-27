@@ -6,7 +6,7 @@ members = [
     "src/common",
     "src/meta",
     "src/protocol",
-    "src/storage"
+    "src/storage",
 ]
 
 resolver = "2"
@@ -17,7 +17,7 @@ edition = "2021"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-serde = {version="1.0",features = [ "derive" ]}
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 signal-hook = "0.3.17"
 tokio = { version = "1", features = ["full"] }
@@ -27,28 +27,30 @@ prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 lazy_static = "^1.4"
 futures = "0.3"
-thiserror = "1" #错误定义和处理
+thiserror = "1"                                          #错误定义和处理
 bytes = { version = "1", features = ["serde"] }
-protobuf = "3.3.0"
+flume = "0.11.0"
+futures-util = "0.3.30"
 rocksdb = "0.21.0"
 tonic = "0.10.2"
-prost = "0.12"
-prost-types = "0.12"
-prost-build = { version = "0.12" }
-tonic-build = "0.10.2"
-raft = { version = "0.7.0" }
-flume = "0.11.0"
-raft-proto = "0.7.0"
+bincode = "1.3.3"
+raft = { package = "raft", version = "0.7", features = [
+    "prost-codec"
+], default-features = false }
 
 ## workspaces members
-bridge={path="src/bridge"}
-broker={path="src/broker"}
-cmd={path="src/cmd"}
-common={path="src/common"}
-storage={path="src/storage"}
-meta={path="src/meta"}
-protocol={path="src/protocol"}
-robustmq-test={path="tests"}
+bridge = { path = "src/bridge" }
+broker = { path = "src/broker" }
+cmd = { path = "src/cmd" }
+common = { path = "src/common" }
+storage = { path = "src/storage" }
+meta = { path = "src/meta" }
+protocol = { path = "src/protocol" }
+robustmq-test = { path = "tests" }
+
+prost = { version = "0.12.3", default-features = false, features = ["prost-derive"] }
+# Only necessary if using Protobuf well-known types:
+prost-types = { version = "0.12.3", default-features = false }
 
 [profile.release]
 panic = 'abort'

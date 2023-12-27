@@ -1,22 +1,20 @@
-#![allow(clippy::field_reassign_with_default)]
 use super::election::Election;
 use super::message::RaftMessage;
 use super::node::Node;
 use crate::storage::raft_storage::RaftRocksDBStorage;
+use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
+use prost::Message as _;
+use raft::eraftpb::{Entry, EntryType, HardState, Message as raftPreludeMessage, Snapshot};
+
+use protocol::robust::eraftpb::ConfChange;
 
 use raft::{Config, RawNode};
-use raft_proto::eraftpb::{ConfChangeType, Entry, EntryType, ConfChange};
-use raft_proto::eraftpb::{ConfChangeV2, HardState, Snapshot};
-use raft_proto::prelude::Message as raftPreludeMessage;
-use protobuf::Message as PbMessage;
 
-use raft_proto::parse_conf_change;
 use slog::o;
 use slog::Drain;
 use std::fs::OpenOptions;
-use std::str::from_utf8;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
@@ -199,28 +197,12 @@ impl MetaRaft {
                     let _ = raft_node.mut_store().commmit_index(idx);
                 }
                 EntryType::EntryConfChange => {
-                    // todo 
-
-                    // For conf change messages, make them effective.
-                    // prostMessage::decode(buf).unwrap();
-                    let str = from_utf8(entry.get_data()).unwrap();
-                    let change_list = parse_conf_change(str).unwrap();
-                    for cfs in change_list {
-                        let change_type = cfs.get_change_type();
-                        let node_id = cfs.get_node_id();
-                        match change_type {
-                            ConfChangeType::AddNode => {
-                                // save
-                            }
-                            ConfChangeType::RemoveNode => {}
-                            ConfChangeType::AddLearnerNode => {}
-                        }
-
-                        // if let Ok(cs) = raft_node.apply_conf_change(&cfs){
-
-                        // }
-                    }
-                    let mut cc = ConfChange::default();
+                    let seq: u64 = deserialize(entry.get_context()).unwrap();
+                    let change = ConfChange::decode(entry.get_data())
+                        .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
+                        .unwrap();
+                    let id = change.node_id;
+                    println!("{}", id);
                     // raft_node.propose_conf_change(context, cc)
                 }
                 EntryType::EntryConfChangeV2 => {}

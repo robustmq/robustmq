@@ -44,7 +44,6 @@ impl Meta {
     }
 
     pub fn start(&mut self) {
-
         info(&format!(
             "When the node is being started, the current node IP address is {}, and the node IP address is {}",
             self.config.addr, self.config.node_id
@@ -52,7 +51,7 @@ impl Meta {
 
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(10000);
 
-        /// Thread running meta grpc server
+        // Thread running meta grpc server
         let grpc_thread = thread::Builder::new().name("meta-grpc-thread".to_owned());
         let config = self.config.clone();
         let _ = grpc_thread.spawn(move || {
@@ -79,7 +78,7 @@ impl Meta {
             });
         });
 
-        /// Threads that run the meta Raft engine
+        // Threads that run the meta Raft engine
         let raft_thread = thread::Builder::new().name("meta-raft-thread".to_owned());
         let config = self.config.clone();
         let _ = raft_thread.spawn(move || {

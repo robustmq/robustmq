@@ -24,7 +24,7 @@ use protocol::robust::meta::{
     meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
     BrokerUnRegisterReply, BrokerUnRegisterRequest, FindLeaderReply, FindLeaderRequest,
     HeartbeatReply, HeartbeatRequest, TransformLeaderReply, TransformLeaderRequest, VoteReply,
-    VoteRequest,
+    VoteRequest, SendRaftMessageRequest, SendRaftMessageReply,
 };
 use std::{
     sync::{Arc, RwLock},
@@ -157,20 +157,8 @@ impl MetaService for GrpcService {
         request: Request<BrokerRegisterRequest>,
     ) -> Result<Response<BrokerRegisterReply>, Status> {
         let node_id = request.into_inner().node_id;
-        info(&format!(
-            "Register Broker node information, node ID {}",
-            node_id
-        ));
-        Ok(Response::new(BrokerRegisterReply::default()))
-    }
-
-    async fn broker_un_register(
-        &self,
-        request: Request<BrokerUnRegisterRequest>,
-    ) -> Result<Response<BrokerUnRegisterReply>, Status> {
-        let node_id = request.into_inner().node_id;
-        info(&format!("Broker node is stopped, node ID {}", node_id));
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+
         let _ = self
             .raft_sender
             .send(RaftMessage::Propose {
@@ -178,11 +166,61 @@ impl MetaService for GrpcService {
                 chan: sx,
             })
             .await;
+
         if !self.wait_raft_commit(rx) {
             return Err(Status::cancelled(
                 MetaError::MetaLogCommitTimeout("broker_un_register".to_string()).to_string(),
             ));
         }
+
+        Ok(Response::new(BrokerRegisterReply::default()))
+    }
+
+    async fn broker_un_register(
+        &self,
+        request: Request<BrokerUnRegisterRequest>,
+    ) -> Result<Response<BrokerUnRegisterReply>, Status> {
+        
+        let node_id = request.into_inner().node_id;
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+
+        let _ = self
+            .raft_sender
+            .send(RaftMessage::Propose {
+                data: "sdafasdfas".to_string().into_bytes(),
+                chan: sx,
+            })
+            .await;
+
+        if !self.wait_raft_commit(rx) {
+            return Err(Status::cancelled(
+                MetaError::MetaLogCommitTimeout("broker_un_register".to_string()).to_string(),
+            ));
+        }
+
         Ok(Response::new(BrokerUnRegisterReply::default()))
+    }
+
+    async fn send_raft_message(
+        &self,
+        request: Request<SendRaftMessageRequest>,
+    ) -> Result<Response<SendRaftMessageReply>, Status> {
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+
+        let _ = self
+            .raft_sender
+            .send(RaftMessage::Propose {
+                data: "sdafasdfas".to_string().into_bytes(),
+                chan: sx,
+            })
+            .await;
+
+        if !self.wait_raft_commit(rx) {
+            return Err(Status::cancelled(
+                MetaError::MetaLogCommitTimeout("broker_un_register".to_string()).to_string(),
+            ));
+        }
+
+        Ok(Response::new(SendRaftMessageReply::default()))
     }
 }
