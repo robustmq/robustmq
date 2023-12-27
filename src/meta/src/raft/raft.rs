@@ -6,9 +6,8 @@ use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
 use prost::Message as _;
-use raft::eraftpb::{Entry, EntryType, HardState, Message as raftPreludeMessage, Snapshot};
-
-use protocol::robust::eraftpb::ConfChange;
+use raft_proto::eraftpb::{Entry, ConfChange, EntryType, HardState, Message as raftPreludeMessage, Snapshot};
+// use protocol::robust::eraftpb::ConfChange;
 
 use raft::{Config, RawNode};
 
@@ -202,8 +201,7 @@ impl MetaRaft {
                         .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
                         .unwrap();
                     let id = change.node_id;
-                    println!("{}", id);
-                    // raft_node.propose_conf_change(context, cc)
+
                 }
                 EntryType::EntryConfChangeV2 => {}
             }
@@ -212,6 +210,7 @@ impl MetaRaft {
 
     fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
+
             // println!("{:?}", print_to_string(&msg));
         }
     }

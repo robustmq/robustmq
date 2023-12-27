@@ -36,9 +36,6 @@ tonic = "0.10.2"
 tonic-build = "0.10.2"
 bincode = "1.3.3"
 prost = "0.12.3"
-raft = { package = "raft", version = "0.7", features = [
-    "prost-codec"
-], default-features = false }
 
 ## workspaces members
 bridge = { path = "src/bridge" }
@@ -49,14 +46,3 @@ storage = { path = "src/storage" }
 meta = { path = "src/meta" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-
-[profile.release]
-panic = 'abort'
-debug = false
-
-[profile.nightly]
-inherits = "release"
-strip = true
-lto = "thin"
-debug = false
-incremental = false

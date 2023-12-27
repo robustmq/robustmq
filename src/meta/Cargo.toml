@@ -4,8 +4,6 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[features]
-
 [dependencies]
 tokio.workspace = true
 tonic.workspace = true
@@ -19,9 +17,14 @@ futures.workspace = true
 futures-util.workspace = true
 bytes.workspace = true
 lazy_static.workspace = true
-raft.workspace = true
 prost.workspace = true
 bincode.workspace = true
+
+raft = { version = "0.7", default-features = false }
+raft-proto = { version = "0.7.0", features = [
+    "prost-codec"
+], default-features = false }
+
 slog = "2"
 slog-term = "2.9.0"
 slog-async = "2.8.0"
