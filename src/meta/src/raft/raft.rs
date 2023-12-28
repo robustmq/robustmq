@@ -6,8 +6,7 @@ use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info, info_meta};
 use prost::Message as _;
-use raft_proto::eraftpb::{Entry, ConfChange, EntryType, HardState, Message as raftPreludeMessage, Snapshot};
-// use protocol::robust::eraftpb::ConfChange;
+use raft::eraftpb::{Entry, ConfChange, EntryType, HardState, Message as raftPreludeMessage, Snapshot};
 
 use raft::{Config, RawNode};
 
@@ -210,6 +209,7 @@ impl MetaRaft {
 
     fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
+            let data:Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
 
             // println!("{:?}", print_to_string(&msg));
         }
