@@ -94,6 +94,10 @@ impl RocksDBStorage {
         }
     }
 
+    pub fn prefix_search(&self, cf: &ColumnFamily, key: &str) {
+
+    }
+
     pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), String> {
         match self.db.delete_cf(cf, key) {
             Ok(_) => Ok(()),

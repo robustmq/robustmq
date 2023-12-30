@@ -15,8 +15,8 @@
  */
 
 use protocol::robust::meta::{
-    meta_service_client::MetaServiceClient, FindLeaderReply, FindLeaderRequest, VoteReply,
-    VoteRequest,
+    meta_service_client::MetaServiceClient, FindLeaderReply, FindLeaderRequest,
+    SendRaftMessageReply, VoteReply, VoteRequest, SendRaftMessageRequest,
 };
 
 use crate::errors::MetaError;
@@ -52,6 +52,18 @@ pub async fn vote(addr: &String, node_id: u64) -> Result<VoteReply, MetaError> {
     return Ok(resp);
 }
 
-pub fn transform_leader() {}
+pub async fn transform_leader() {}
 
-pub fn heartbeat() {}
+pub async fn send_raft_message(addr: &String,message:Vec<u8>) -> Result<SendRaftMessageReply, MetaError> {
+    let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
+        Ok(client) => client,
+        Err(err) => return Err(MetaError::TonicTransport(err)),
+    };
+    let request = tonic::Request::new(SendRaftMessageRequest { message });
+
+    let resp = match client.send_raft_message(request).await {
+        Ok(reply) => reply.into_inner(),
+        Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
+    };
+    return Ok(resp);
+}

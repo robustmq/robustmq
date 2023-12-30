@@ -1,18 +1,20 @@
 use super::election::Election;
 use super::message::RaftMessage;
-use super::node::Node;
+use crate::cluster::Cluster;
 use crate::storage::raft_storage::RaftRocksDBStorage;
-use bincode::{deserialize, serialize};
+use crate::Node;
+use bincode::deserialize;
 use common::config::meta::MetaConfig;
-use common::log::{error_meta, info, info_meta};
+use common::log::{error_meta, info_meta};
 use prost::Message as _;
-use raft::eraftpb::{Entry, ConfChange, EntryType, HardState, Message as raftPreludeMessage, Snapshot};
-
+use raft::eraftpb::{
+    ConfChange, Entry, EntryType, HardState, Message as raftPreludeMessage, Snapshot,
+};
 use raft::{Config, RawNode};
-
 use slog::o;
 use slog::Drain;
 use std::fs::OpenOptions;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
@@ -20,30 +22,34 @@ use tokio::time::timeout;
 
 pub struct MetaRaft {
     config: MetaConfig,
+    cluster: Arc<RwLock<Cluster>>,
     receiver: Receiver<RaftMessage>,
 }
 
 impl MetaRaft {
-    pub fn new(config: MetaConfig, receiver: Receiver<RaftMessage>) -> Self {
+    pub fn new(
+        config: MetaConfig,
+        cluster: Arc<RwLock<Cluster>>,
+        receiver: Receiver<RaftMessage>,
+    ) -> Self {
         return Self {
-            config: config,
-            receiver: receiver,
+            config,
+            cluster,
+            receiver,
         };
     }
 
     pub async fn ready(&mut self) {
+        info_meta("Meta raft state machine is being initialized");
         let leader_node = self.get_leader_node().await;
-        info(&format!(
-            "The leader address of the cluster is {} and the node ID is {}",
-            leader_node.node_ip, leader_node.node_id
-        ));
+        info_meta(&format!("Meta cluster Leader ID:{}", leader_node.id));
         self.run(leader_node).await;
     }
 
     async fn get_leader_node(&self) -> Node {
         let mata_nodes = self.config.meta_nodes.clone();
         if mata_nodes.len() == 1 {
-            return Node::new(self.config.addr.clone(), self.config.node_id.clone());
+            return Node::new(self.config.addr.clone(), self.config.node_id);
         }
 
         // Leader Election
@@ -67,7 +73,7 @@ impl MetaRaft {
     }
 
     pub async fn run(&mut self, leader_node: Node) {
-        let mut raft_node = if self.config.node_id == leader_node.node_id {
+        let mut raft_node = if self.config.node_id == leader_node.id {
             self.new_leader()
         } else {
             self.new_follower()
@@ -200,7 +206,6 @@ impl MetaRaft {
                         .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
                         .unwrap();
                     let id = change.node_id;
-
                 }
                 EntryType::EntryConfChangeV2 => {}
             }
@@ -209,9 +214,10 @@ impl MetaRaft {
 
     fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
-            let data:Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
-
-            // println!("{:?}", print_to_string(&msg));
+            let to = msg.get_to();
+            let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
+            let mut cluster = self.cluster.write().unwrap();
+            cluster.send_message(to, data);
         }
     }
 
