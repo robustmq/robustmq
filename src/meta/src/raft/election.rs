@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
+use crate::{errors::MetaError, Node, client::find_leader};
 use common::log::error_meta;
-
-use super::{client::find_leader, node::Node};
-use crate::errors::MetaError;
 
 #[derive(Clone)]
 pub struct Election {
@@ -59,7 +57,7 @@ impl Election {
         }
         return Err(MetaError::MetaClusterNotLeaderNode);
     }
-    
+
     async fn invite_vote(&self) -> Result<Node, MetaError> {
         return Ok(Node::new("".to_string(), 1));
     }

@@ -46,6 +46,9 @@ pub enum MetaError {
 
     #[error("Description The interface {0} submitted logs to the commit log")]
     MetaLogCommitTimeout(String),
+
+    #[error("Failed to submit Raft message to Raft state machine, error message: {0}")]
+    RaftStepCommitFail(String),
     
 }
 

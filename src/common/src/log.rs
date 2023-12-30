@@ -30,6 +30,10 @@ pub fn info_meta(msg: &str) -> () {
     log::info!(target:"app::meta", "{}",msg)
 }
 
+pub fn debug_meta(msg: &str) -> () {
+    log::debug!(target:"app::meta", "{}",msg)
+}
+
 pub fn error_meta(msg: &str) -> () {
     log::error!(target:"app::meta", "{}",msg)
 }

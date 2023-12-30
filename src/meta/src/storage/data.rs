@@ -1,4 +1,4 @@
-use raft::eraftpb::{ConfState, Entry, EntryType, HardState};
+use raft::eraftpb::{ConfState, Entry, HardState};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::MetaError;

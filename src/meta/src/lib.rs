@@ -1,6 +1,3 @@
-use std::sync::{Arc, RwLock};
-use std::thread;
-
 // Copyright 2023 RobustMQ Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,38 +11,66 @@ use std::thread;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 use self::services::GrpcService;
+use cluster::Cluster;
 use common::config::meta::MetaConfig;
-use common::log::{error_meta, info, info_meta};
+use common::log::{info, info_meta};
 use common::runtime::create_runtime;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
-use raft::election::Election;
 use raft::message::RaftMessage;
-use raft::node::Node;
 use raft::raft::MetaRaft;
-use tokio::sync::mpsc::{self, Receiver};
+use std::fmt;
+use std::fmt::Display;
+use std::sync::{Arc, RwLock};
+use std::thread;
+use tokio::sync::mpsc;
 use tonic::transport::Server;
 
+pub mod broker;
+pub mod client;
+pub mod cluster;
 mod errors;
 pub mod raft;
 mod services;
 pub mod storage;
 mod tools;
 
+#[derive(Debug, Clone)]
+pub struct Node {
+    pub ip: String,
+    pub id: u64,
+}
+
+impl Node {
+    pub fn new(ip: String, id: u64) -> Node {
+        Node { ip, id }
+    }
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ip:{},id:{}", self.ip, self.id)
+    }
+}
+
 pub struct Meta {
     config: MetaConfig,
-    node: Node,
+    cluster: Arc<RwLock<Cluster>>,
 }
 
 impl Meta {
     pub fn new(config: MetaConfig) -> Meta {
-        let node = Node::new(config.addr.clone(), config.node_id.clone());
-        return Meta { config, node };
+        let cluster = Arc::new(RwLock::new(Cluster::new(Node::new(
+            config.addr.clone(),
+            config.node_id.clone(),
+        ))));
+        return Meta { config, cluster };
     }
 
     pub fn start(&mut self) {
         info(&format!(
-            "When the node is being started, the current node IP address is {}, and the node IP address is {}",
+            "Meta node starting, node IP :{}, node ID:{}",
             self.config.addr, self.config.node_id
         ));
 
@@ -54,6 +79,7 @@ impl Meta {
         // Thread running meta grpc server
         let grpc_thread = thread::Builder::new().name("meta-grpc-thread".to_owned());
         let config = self.config.clone();
+        let cluster = self.cluster.clone();
         let _ = grpc_thread.spawn(move || {
             let meta_http_runtime =
                 create_runtime("meta-grpc-runtime", config.runtime_work_threads);
@@ -62,14 +88,12 @@ impl Meta {
                     .parse()
                     .unwrap();
 
-                let node_state = Arc::new(RwLock::new(Node::new(config.addr, config.node_id)));
-
                 info_meta(&format!(
                     "RobustMQ Meta Server start success. bind addr:{}",
                     ip
                 ));
 
-                let service_handler = GrpcService::new(node_state, raft_message_send);
+                let service_handler = GrpcService::new(cluster, raft_message_send);
                 Server::builder()
                     .add_service(MetaServiceServer::new(service_handler))
                     .serve(ip)
@@ -81,12 +105,15 @@ impl Meta {
         // Threads that run the meta Raft engine
         let raft_thread = thread::Builder::new().name("meta-raft-thread".to_owned());
         let config = self.config.clone();
+        let cluster = self.cluster.clone();
         let _ = raft_thread.spawn(move || {
             let meta_runtime = create_runtime("raft-runtime", 10);
-            meta_runtime.block_on(async {
-                let mut raft = MetaRaft::new(config, raft_message_recv);
+            let _ = meta_runtime.enter();
+            meta_runtime.spawn(async {
+                let mut raft = MetaRaft::new(config, cluster, raft_message_recv);
                 raft.ready().await;
             });
+
         });
     }
 }

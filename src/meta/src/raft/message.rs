@@ -1,10 +1,11 @@
-use raft::eraftpb::Message as RaftCoreMessage;
 use tokio::sync::oneshot::Sender;
+use raft::eraftpb::Message as raftPreludeMessage;
 
 pub enum RaftResponseMesage {}
 pub enum RaftMessage {
+    
     // Received a message from another node
-    Raft(RaftCoreMessage),
+    Raft(raftPreludeMessage),
 
     // The data sent by the client is received. Procedure
     Propose {
