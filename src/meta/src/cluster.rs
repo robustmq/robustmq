@@ -1,8 +1,5 @@
-use std::collections::HashMap;
-
-use futures_util::task::SpawnExt;
-
 use crate::{raft::peer::Peer, Node};
+use std::collections::HashMap;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeRaftState {
@@ -59,5 +56,9 @@ impl Cluster {
         if let Some(per) = self.peers.get_mut(&id) {
             per.push(msg);
         }
+    }
+
+    pub fn get_addr_by_id(&self, id: u64) -> String {
+        return "".to_string();
     }
 }

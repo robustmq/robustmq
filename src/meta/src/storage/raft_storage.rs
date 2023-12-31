@@ -1,4 +1,5 @@
 use common::config::meta::MetaConfig;
+use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
 use raft::prelude::Snapshot;
@@ -7,18 +8,14 @@ use raft::RaftState;
 use raft::Result as RaftResult;
 use raft::Storage as RaftStorage;
 use raft::StorageError;
-use raft::eraftpb::HardState;
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
-
-use super::data::convert_entry_from_rds_save_entry;
 use super::raft_core::RaftRocksDBStorageCore;
 
-#[derive(Clone)]
 pub struct RaftRocksDBStorage {
-    core: Arc<RwLock<RaftRocksDBStorageCore>>,
+    core: Arc<RwLock<RaftRocksDBStorageCore>>
 }
 
 impl RaftRocksDBStorage {
@@ -93,7 +90,7 @@ impl RaftRocksDBStorage {
         let _ = store.save_conf_state(cs);
         return Ok(());
     }
-    
+
 }
 
 impl RaftStorage for RaftRocksDBStorage {
@@ -147,7 +144,7 @@ impl RaftStorage for RaftRocksDBStorage {
             if sret == None {
                 continue;
             }
-            entry_list.push(convert_entry_from_rds_save_entry(sret.unwrap()).unwrap());
+            entry_list.push(sret.unwrap());
         }
 
         // todo limit size

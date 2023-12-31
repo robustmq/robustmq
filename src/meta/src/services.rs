@@ -148,6 +148,23 @@ impl MetaService for GrpcService {
         &self,
         request: Request<BrokerUnRegisterRequest>,
     ) -> Result<Response<BrokerUnRegisterReply>, Status> {
+        let node_id = request.into_inner().node_id;
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+
+        let _ = self
+            .raft_sender
+            .send(RaftMessage::Propose {
+                data: "sdafasdfas".to_string().into_bytes(),
+                chan: sx,
+            })
+            .await;
+
+        if !self.wait_raft_commit(rx) {
+            return Err(Status::cancelled(
+                MetaError::MetaLogCommitTimeout("broker_un_register".to_string()).to_string(),
+            ));
+        }
+
         Ok(Response::new(BrokerUnRegisterReply::default()))
     }
 
@@ -157,14 +174,27 @@ impl MetaService for GrpcService {
     ) -> Result<Response<SendRaftMessageReply>, Status> {
         let message = raftPreludeMessage::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
 
-        match self.raft_sender.send(RaftMessage::Raft(message)).await {
-            Ok(_) => Ok(Response::new(SendRaftMessageReply::default())),
+        match self
+            .raft_sender
+            .send(RaftMessage::Raft { message, chan: sx })
+            .await
+        {
+            Ok(_) => {
+                if !self.wait_raft_commit(rx) {
+                    return Err(Status::cancelled(
+                        MetaError::MetaLogCommitTimeout("send_raft_message".to_string())
+                            .to_string(),
+                    ));
+                }
+            }
             Err(e) => {
                 return Err(Status::aborted(
                     MetaError::RaftStepCommitFail(e.to_string()).to_string(),
                 ));
             }
         }
+        Ok(Response::new(SendRaftMessageReply::default()))
     }
 }
