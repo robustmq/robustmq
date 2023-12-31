@@ -1,29 +1,37 @@
 use super::election::Election;
-use super::message::RaftMessage;
+use super::message::{RaftMessage, RaftResponseMesage};
 use crate::cluster::Cluster;
+use crate::errors::MetaError;
+use crate::raft::peer::Peer;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use crate::Node;
-use bincode::deserialize;
+use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
-    ConfChange, Entry, EntryType, HardState, Message as raftPreludeMessage, Snapshot,
+    ConfChange, ConfChangeType, Entry, EntryType, HardState, Message as raftPreludeMessage,
+    Snapshot,
 };
-use raft::{Config, RawNode};
+use raft::{raw_node, Config, RawNode};
 use slog::o;
 use slog::Drain;
+use std::collections::HashMap;
 use std::fs::OpenOptions;
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
+use tokio::sync::oneshot;
 use tokio::time::timeout;
 
 pub struct MetaRaft {
     config: MetaConfig,
     cluster: Arc<RwLock<Cluster>>,
     receiver: Receiver<RaftMessage>,
+    seqnum: AtomicUsize,
+    resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
 }
 
 impl MetaRaft {
@@ -32,10 +40,14 @@ impl MetaRaft {
         cluster: Arc<RwLock<Cluster>>,
         receiver: Receiver<RaftMessage>,
     ) -> Self {
+        let seqnum = AtomicUsize::new(1);
+        let resp_channel = HashMap::new();
         return Self {
             config,
             cluster,
             receiver,
+            seqnum,
+            resp_channel,
         };
     }
 
@@ -83,13 +95,32 @@ impl MetaRaft {
         let mut now = Instant::now();
         loop {
             match timeout(heartbeat, self.receiver.recv()).await {
-                Ok(Some(RaftMessage::Raft(msg))) => {
+                Ok(Some(RaftMessage::Raft { message, chan })) => {
                     // Step advances the state machine using the given message.
-                    let _ = raft_node.step(msg);
+                    match raft_node.step(message) {
+                        Ok(_) => {
+                            let _ = chan.send(RaftResponseMesage::Success);
+                        }
+                        Err(e) => {
+                            error_meta(&MetaError::RaftStepCommitFail(e.to_string()).to_string());
+                        }
+                    }
                 }
                 Ok(Some(RaftMessage::Propose { data, chan })) => {
                     // Propose proposes data be appended to the raft log.
-                    let _ = raft_node.propose(vec![], data);
+                    let seq = self
+                        .seqnum
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    match raft_node.propose(serialize(&seq).unwrap(), data) {
+                        Ok(_) => {
+                            self.resp_channel.insert(seq, chan).unwrap();
+                        }
+                        Err(e) => {
+                            error_meta(
+                                &MetaError::RaftProposeCommitFail(e.to_string()).to_string(),
+                            );
+                        }
+                    }
                 }
                 Ok(None) => continue,
                 Err(_) => {}
@@ -106,7 +137,7 @@ impl MetaRaft {
         }
     }
 
-    async fn on_ready(&self, raft_node: &mut RawNode<RaftRocksDBStorage>) {
+    async fn on_ready(&mut self, raft_node: &mut RawNode<RaftRocksDBStorage>) {
         if !raft_node.has_ready() {
             return;
         }
@@ -135,15 +166,15 @@ impl MetaRaft {
             raft_node.mut_store().apply_snapshot(s).unwrap();
         }
 
-        // The committed raft log can be applied to the State Machine.
-        self.handle_committed_entries(raft_node, ready.take_committed_entries());
-
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
             info_meta(&format!("save entries!!!,len:{}", ready.entries().len()));
             let entries = ready.entries();
             raft_node.mut_store().append(entries).unwrap();
         }
+
+        // The committed raft log can be applied to the State Machine.
+        self.handle_committed_entries(raft_node, ready.take_committed_entries());
 
         // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
@@ -180,7 +211,7 @@ impl MetaRaft {
     }
 
     fn handle_committed_entries(
-        &self,
+        &mut self,
         raft_node: &mut RawNode<RaftRocksDBStorage>,
         entrys: Vec<Entry>,
     ) {
@@ -189,25 +220,58 @@ impl MetaRaft {
             entrys.len()
         ));
         for entry in entrys {
+            println!("{:?}", entry.get_entry_type());
+            println!("{:?}", entry.get_data());
             if entry.data.is_empty() {
                 continue;
             }
 
             match entry.get_entry_type() {
                 EntryType::EntryNormal => {
-                    // For normal proposals, extract the key-value pair and then
-                    // insert them into the kv engine.
                     let idx: u64 = entry.get_index();
                     let _ = raft_node.mut_store().commmit_index(idx);
+
+                    //todo create snapshot
                 }
                 EntryType::EntryConfChange => {
-                    let seq: u64 = deserialize(entry.get_context()).unwrap();
                     let change = ConfChange::decode(entry.get_data())
                         .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
                         .unwrap();
-                    let id = change.node_id;
+                    let id = change.get_node_id();
+                    let change_type = change.get_change_type();
+                    match change_type {
+                        ConfChangeType::AddNode => {
+                            let mut cls = self.cluster.write().unwrap();
+                            let addr = cls.get_addr_by_id(id);
+                            let peer = Peer::new(addr);
+                            cls.add_peer(id, peer)
+                        }
+                        ConfChangeType::RemoveNode => {
+                            let mut cls = self.cluster.write().unwrap();
+                            cls.remove_peer(id);
+                        }
+                        _ => unimplemented!(),
+                    }
+
+                    if let Ok(cs) = raft_node.apply_conf_change(&change) {
+                        let _ = raft_node.mut_store().set_conf_state(cs);
+                        //todo
+                    }
                 }
                 EntryType::EntryConfChangeV2 => {}
+            }
+
+            let seq: usize = deserialize(entry.get_context()).unwrap();
+            match self.resp_channel.remove(&seq) {
+                Some(chan) => {
+                    match chan.send(RaftResponseMesage::Success) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            error_meta("commit entry Fails to return data to chan. chan may have been closed");
+                        }
+                    }
+                }
+                None => {}
             }
         }
     }

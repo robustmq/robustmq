@@ -108,8 +108,7 @@ impl Meta {
         let cluster = self.cluster.clone();
         let _ = raft_thread.spawn(move || {
             let meta_runtime = create_runtime("raft-runtime", 10);
-            let _ = meta_runtime.enter();
-            meta_runtime.spawn(async {
+            meta_runtime.block_on(async {
                 let mut raft = MetaRaft::new(config, cluster, raft_message_recv);
                 raft.ready().await;
             });
