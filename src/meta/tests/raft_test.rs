@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use common::{config::meta::MetaConfig, runtime::create_runtime};
+    use meta::data_route::DataRoute;
     use std::sync::{Arc, RwLock};
     use std::thread::sleep;
     use std::time::{Duration, Instant};
@@ -19,8 +20,9 @@ mod tests {
             config.addr.clone(),
             config.node_id.clone(),
         ))));
+        let storage = Arc::new(RwLock::new(DataRoute::new()));
         config.data_path = "/tmp/data".to_string();
-        let mut meta_raft = MetaRaft::new(config, cluster, raft_message_recv);
+        let mut meta_raft = MetaRaft::new(config, cluster, storage, raft_message_recv);
         let runtime: Runtime = create_runtime("meta-test", 3);
         runtime.block_on(async {
             meta_raft.ready().await;

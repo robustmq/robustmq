@@ -17,6 +17,9 @@
 use super::cluster::{Cluster, NodeRaftState};
 use super::errors::MetaError;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
+use crate::storage::data_struct::StorageDataStructBroker;
+use crate::storage::{StorageData, StorageDataType};
+use bincode::serialize;
 use common::log::debug;
 use prost::Message as _;
 use protocol::robust::meta::{
@@ -141,6 +144,8 @@ impl MetaService for GrpcService {
         &self,
         request: Request<BrokerRegisterRequest>,
     ) -> Result<Response<BrokerRegisterReply>, Status> {
+        let id = request.into_inner().node_id;
+
         Ok(Response::new(BrokerRegisterReply::default()))
     }
 
@@ -149,12 +154,19 @@ impl MetaService for GrpcService {
         request: Request<BrokerUnRegisterRequest>,
     ) -> Result<Response<BrokerUnRegisterReply>, Status> {
         let node_id = request.into_inner().node_id;
+        let addr = "127.0.0.1".to_string();
+        let value = StorageDataStructBroker { node_id, addr };
+
+        let data = StorageData::new(
+            StorageDataType::UnRegisterBroker,
+            serialize(&value).unwrap(),
+        );
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
 
         let _ = self
             .raft_sender
             .send(RaftMessage::Propose {
-                data: "sdafasdfas".to_string().into_bytes(),
+                data: serialize(&data).unwrap(),
                 chan: sx,
             })
             .await;

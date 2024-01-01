@@ -1,5 +1,5 @@
 use crate::client::send_raft_message;
-use common::log::{debug_meta, error_meta, info, info_meta};
+use common::log::{debug_meta, error_meta, info_meta};
 use std::{thread::sleep, time::Duration};
 
 #[derive(Clone)]
