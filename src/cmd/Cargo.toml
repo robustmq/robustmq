@@ -5,6 +5,18 @@ edition.workspace = true
 license.workspace = true
 default-run = "robustmq"
 
+[[broker]]
+name = "broker"
+path = "src/broker.rs"
+
+[[cmd]]
+name = "cmd"
+path = "src/cmd.rs"
+
+[[meta]]
+name = "meta"
+path = "src/meta.rs"
+
 [[bin]]
 name = "robustmq"
 path = "src/robust.rs"

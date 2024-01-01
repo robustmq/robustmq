@@ -14,6 +14,7 @@
 
 use self::services::GrpcService;
 use cluster::Cluster;
+use data_route::DataRoute;
 use common::config::meta::MetaConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
@@ -24,6 +25,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
 use std::thread;
+pub mod data_route;
 use tokio::sync::mpsc;
 use tonic::transport::Server;
 
@@ -57,6 +59,7 @@ impl Display for Node {
 pub struct Meta {
     config: MetaConfig,
     cluster: Arc<RwLock<Cluster>>,
+    storage: Arc<RwLock<DataRoute>>,
 }
 
 impl Meta {
@@ -65,7 +68,12 @@ impl Meta {
             config.addr.clone(),
             config.node_id.clone(),
         ))));
-        return Meta { config, cluster };
+        let storage = Arc::new(RwLock::new(DataRoute::new()));
+        return Meta {
+            config,
+            cluster,
+            storage,
+        };
     }
 
     pub fn start(&mut self) {
@@ -106,13 +114,13 @@ impl Meta {
         let raft_thread = thread::Builder::new().name("meta-raft-thread".to_owned());
         let config = self.config.clone();
         let cluster = self.cluster.clone();
+        let storage = self.storage.clone();
         let _ = raft_thread.spawn(move || {
             let meta_runtime = create_runtime("raft-runtime", 10);
             meta_runtime.block_on(async {
-                let mut raft = MetaRaft::new(config, cluster, raft_message_recv);
+                let mut raft = MetaRaft::new(config, cluster, storage, raft_message_recv);
                 raft.ready().await;
             });
-
         });
     }
 }

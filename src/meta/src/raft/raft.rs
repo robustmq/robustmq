@@ -1,6 +1,7 @@
 use super::election::Election;
 use super::message::{RaftMessage, RaftResponseMesage};
 use crate::cluster::Cluster;
+use crate::data_route::DataRoute;
 use crate::errors::MetaError;
 use crate::raft::peer::Peer;
 use crate::storage::raft_storage::RaftRocksDBStorage;
@@ -13,7 +14,7 @@ use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, HardState, Message as raftPreludeMessage,
     Snapshot,
 };
-use raft::{raw_node, Config, RawNode};
+use raft::{Config, RawNode};
 use slog::o;
 use slog::Drain;
 use std::collections::HashMap;
@@ -32,12 +33,14 @@ pub struct MetaRaft {
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
+    storage: Arc<RwLock<DataRoute>>,
 }
 
 impl MetaRaft {
     pub fn new(
         config: MetaConfig,
         cluster: Arc<RwLock<Cluster>>,
+        storage: Arc<RwLock<DataRoute>>,
         receiver: Receiver<RaftMessage>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
@@ -48,6 +51,7 @@ impl MetaRaft {
             receiver,
             seqnum,
             resp_channel,
+            storage,
         };
     }
 
@@ -219,6 +223,7 @@ impl MetaRaft {
             "handle committed entries !!!,len:{}",
             entrys.len()
         ));
+        let storage = self.storage.write().unwrap();
         for entry in entrys {
             println!("{:?}", entry.get_entry_type());
             println!("{:?}", entry.get_data());
@@ -231,6 +236,13 @@ impl MetaRaft {
                     let idx: u64 = entry.get_index();
                     let _ = raft_node.mut_store().commmit_index(idx);
 
+                    // Saves the service data sent by the client
+                    match storage.route(entry.get_data().to_vec()) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            error_meta(&err.to_string());
+                        }
+                    }
                     //todo create snapshot
                 }
                 EntryType::EntryConfChange => {

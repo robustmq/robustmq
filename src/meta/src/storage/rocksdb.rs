@@ -20,7 +20,7 @@ use std::path::Path;
 
 use super::DB_COLUMN_FAMILY_META;
 use super::DB_COLUMN_FAMILY_MQTT;
-use super::DB_COLUMN_FAMILY_ROBUSTMQ;
+use super::DB_COLUMN_FAMILY_CLUSTER;
 
 pub struct RocksDBStorage {
     db: DB,
@@ -44,7 +44,7 @@ impl RocksDBStorage {
         for family in vec![
             DB_COLUMN_FAMILY_META,
             DB_COLUMN_FAMILY_MQTT,
-            DB_COLUMN_FAMILY_ROBUSTMQ,
+            DB_COLUMN_FAMILY_CLUSTER,
         ] {
             if cf_list.iter().find(|cf| cf == &family).is_none() {
                 instance.create_cf(&family, &opts).unwrap();
@@ -109,8 +109,8 @@ impl RocksDBStorage {
         return self.db.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
     }
 
-    pub fn cf_robustmq(&self) -> &ColumnFamily {
-        return self.db.cf_handle(DB_COLUMN_FAMILY_ROBUSTMQ).unwrap();
+    pub fn cf_cluster(&self) -> &ColumnFamily {
+        return self.db.cf_handle(DB_COLUMN_FAMILY_CLUSTER).unwrap();
     }
 
     pub fn cf_mqtt(&self) -> &ColumnFamily {
@@ -136,8 +136,6 @@ impl RocksDBStorage {
         opts.set_disable_auto_compactions(true);
         return opts;
     }
-
-    fn init_db(&self, fold: String) {}
 }
 
 #[cfg(test)]
