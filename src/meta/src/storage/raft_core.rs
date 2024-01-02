@@ -101,7 +101,12 @@ impl RaftRocksDBStorageCore {
         };
 
         meta.set_conf_state(conf_state);
+
         return sns;
+    }
+
+    pub fn create_snapshot_data(&self) {
+        
     }
 
     // todo 
