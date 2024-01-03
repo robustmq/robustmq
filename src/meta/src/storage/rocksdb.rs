@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bincode::deserialize;
 use common::config::meta::MetaConfig;
+use common::log::error_meta;
+use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
+use std::collections::HashMap;
 use std::path::Path;
 
 use super::DB_COLUMN_FAMILY_META;
 use super::DB_COLUMN_FAMILY_MQTT;
-use super::DB_COLUMN_FAMILY_CLUSTER;
+use super::{column_family_list, DB_COLUMN_FAMILY_CLUSTER};
 
 pub struct RocksDBStorage {
     db: DB,
@@ -41,11 +45,7 @@ impl RocksDBStorage {
         let cf_list = rocksdb::DB::list_cf(&opts, &db_path).unwrap();
         let mut instance = DB::open_cf(&opts, db_path.clone(), &cf_list).unwrap();
 
-        for family in vec![
-            DB_COLUMN_FAMILY_META,
-            DB_COLUMN_FAMILY_MQTT,
-            DB_COLUMN_FAMILY_CLUSTER,
-        ] {
+        for family in column_family_list().iter() {
             if cf_list.iter().find(|cf| cf == &family).is_none() {
                 instance.create_cf(&family, &opts).unwrap();
             }
@@ -94,8 +94,91 @@ impl RocksDBStorage {
         }
     }
 
-    pub fn prefix_search(&self, cf: &ColumnFamily, key: &str) {
+    // Search data by prefix
+    pub fn read_prefix(&self, cf: &ColumnFamily, key: &str) -> Vec<Vec<Vec<u8>>> {
+        let mut iter = self.db.raw_iterator_cf(cf);
+        iter.seek(key);
+        println!("key={}", key);
+        let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
+        while iter.valid() {
+            let key = iter.key();
+            let value = iter.value();
 
+            let mut raw: Vec<Vec<u8>> = Vec::new();
+            if key == None || value == None {
+                continue;
+            }
+            raw.push(key.unwrap().to_vec());
+            raw.push(value.unwrap().to_vec());
+
+            result.push(raw);
+
+            iter.next();
+        }
+        return result;
+    }
+
+    pub fn write_all(&self, data: &[u8]) {
+        if data.len() == 0 {
+            return;
+        }
+        match deserialize::<HashMap<String, Vec<Vec<Vec<u8>>>>>(data) {
+            Ok(data) => {
+                for (family, value) in data {
+                    let cf = self.get_column_family(family.to_string());
+                    for raw in value {
+                        let key = raw[0].clone();
+                        let value = raw[1].clone();
+                        match self.write(cf, &String::from_utf8(key).unwrap(), &value) {
+                            Ok(_) => {}
+                            Err(err) => {
+                                error_meta(&format!(
+                                    "Error occurred during apply snapshot. Error message: {}",
+                                    err
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
+            }
+        }
+    }
+
+    // Read data from all Columnfamiliy
+    pub fn read_all(&self) -> HashMap<String, Vec<Vec<Vec<u8>>>> {
+        let mut result: HashMap<String, Vec<Vec<Vec<u8>>>> = HashMap::new();
+        for family in column_family_list().iter() {
+            let cf = self.get_column_family(family.to_string());
+            result.insert(family.to_string(), self.read_all_by_cf(cf));
+        }
+        return result;
+    }
+
+    // Read all data in a ColumnFamily
+    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Vec<Vec<Vec<u8>>> {
+        let mut iter = self.db.raw_iterator_cf(cf);
+        iter.seek_to_first();
+
+        let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
+        while iter.valid() {
+            let key = iter.key();
+            let value = iter.value();
+
+            let mut raw: Vec<Vec<u8>> = Vec::new();
+            if key == None || value == None {
+                continue;
+            }
+            raw.push(key.unwrap().to_vec());
+            raw.push(value.unwrap().to_vec());
+
+            result.push(raw);
+
+            iter.next();
+        }
+        return result;
     }
 
     pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), String> {
@@ -106,15 +189,15 @@ impl RocksDBStorage {
     }
 
     pub fn cf_meta(&self) -> &ColumnFamily {
-        return self.db.cf_handle(DB_COLUMN_FAMILY_META).unwrap();
+        return self.db.cf_handle(&DB_COLUMN_FAMILY_META).unwrap();
     }
 
     pub fn cf_cluster(&self) -> &ColumnFamily {
-        return self.db.cf_handle(DB_COLUMN_FAMILY_CLUSTER).unwrap();
+        return self.db.cf_handle(&DB_COLUMN_FAMILY_CLUSTER).unwrap();
     }
 
     pub fn cf_mqtt(&self) -> &ColumnFamily {
-        return self.db.cf_handle(DB_COLUMN_FAMILY_MQTT).unwrap();
+        return self.db.cf_handle(&DB_COLUMN_FAMILY_MQTT).unwrap();
     }
 
     fn open_db_opts(config: &MetaConfig) -> Options {
@@ -134,7 +217,23 @@ impl RocksDBStorage {
         opts.set_level_zero_slowdown_writes_trigger(0);
         opts.set_compaction_style(DBCompactionStyle::Universal);
         opts.set_disable_auto_compactions(true);
+
+        let transform = SliceTransform::create_fixed_prefix(10);
+        opts.set_prefix_extractor(transform);
+        opts.set_memtable_prefix_bloom_ratio(0.2);
+
         return opts;
+    }
+
+    fn get_column_family(&self, family: String) -> &ColumnFamily {
+        let cf = if family == DB_COLUMN_FAMILY_META {
+            self.cf_meta()
+        } else if family == DB_COLUMN_FAMILY_CLUSTER {
+            self.cf_cluster()
+        } else {
+            self.cf_mqtt()
+        };
+        return cf;
     }
 }
 
@@ -181,5 +280,39 @@ mod tests {
                 println!("{:?}", err)
             }
         }
+    }
+
+    #[tokio::test]
+    async fn read_all() {
+        let config = MetaConfig::default();
+        let rs = RocksDBStorage::new(&config);
+        let result = rs.read_all_by_cf(rs.cf_meta());
+        for raw in result.clone() {
+            let key = raw.get(0).unwrap().to_vec();
+            let value = raw.get(1).unwrap().to_vec();
+            println!(
+                "key={}, value={}",
+                String::from_utf8(key).unwrap(),
+                String::from_utf8(value).unwrap()
+            );
+        }
+        println!("size:{}", result.len());
+    }
+
+    #[tokio::test]
+    async fn read_prefix() {
+        let config = MetaConfig::default();
+        let rs = RocksDBStorage::new(&config);
+        let result = rs.read_prefix(rs.cf_meta(), "metasrv_conf");
+        for raw in result.clone() {
+            let key = raw.get(0).unwrap().to_vec();
+            let value = raw.get(1).unwrap().to_vec();
+            println!(
+                "key={}, value={}",
+                String::from_utf8(key).unwrap(),
+                String::from_utf8(value).unwrap()
+            );
+        }
+        println!("size:{}", result.len());
     }
 }

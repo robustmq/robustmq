@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2023 RobustMQ Team
  *
@@ -14,18 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 use serde::{Deserialize, Serialize};
+
 const DB_COLUMN_FAMILY_META: &str = "meta";
 const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
-const DB_COLUMN_FAMILY_MQTT: &str = "MQTT";
+const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
 
-#[derive(Deserialize,Serialize)]
+fn column_family_list() -> Vec<String> {
+    let mut list = Vec::new();
+    list.push(DB_COLUMN_FAMILY_META.to_string());
+    list.push(DB_COLUMN_FAMILY_CLUSTER.to_string());
+    list.push(DB_COLUMN_FAMILY_MQTT.to_string());
+    return list;
+}
+
+#[derive(Deserialize, Serialize)]
 pub enum StorageDataType {
     RegisterBroker,
     UnRegisterBroker,
 }
 
-#[derive(Deserialize,Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct StorageData {
     pub data_type: StorageDataType,
     pub data: Vec<u8>,
@@ -37,7 +46,7 @@ impl StorageData {
     }
 }
 
+pub mod data_struct;
 pub mod raft_core;
 pub mod raft_storage;
 pub mod rocksdb;
-pub mod data_struct;
