@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use log4rs::{append::{console::ConsoleAppender, file::FileAppender}, encode::pattern::PatternEncoder};
+
 pub const DEFAULT_LOG_CONFIG: &str = "config/log4rs.yml";
 
 pub fn info(msg: &str) -> () {
@@ -38,8 +40,17 @@ pub fn error_meta(msg: &str) -> () {
     log::error!(target:"app::meta", "{}",msg)
 }
 
-pub fn new(){
-    log4rs::init_file(DEFAULT_LOG_CONFIG, Default::default()).unwrap();
+pub fn new(path:String){
+    // log4rs::init_file(DEFAULT_LOG_CONFIG, Default::default()).unwrap();
+    let stdout = ConsoleAppender::builder().build();
+
+    let requests = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}")))
+        .build("log/requests.log")
+        .unwrap();
+    
+    
+
 }
 
 #[cfg(test)]

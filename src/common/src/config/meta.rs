@@ -23,6 +23,7 @@ pub struct MetaConfig {
     pub port: Option<u16>,
     pub runtime_work_threads: usize,
     pub data_path: String,
+    pub log_path: String,
     pub meta_nodes: Vec<String>,
     pub rocksdb: Rocksdb,
 }
@@ -40,6 +41,7 @@ impl Default for MetaConfig {
             port: Some(1227),
             runtime_work_threads: 100,
             data_path: "/tmp/data".to_string(),
+            log_path: "/tmp/logs".to_string(),
             meta_nodes: vec![],
             rocksdb: Rocksdb {
                 max_open_files: Some(100),

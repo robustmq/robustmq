@@ -353,7 +353,7 @@ impl MetaRaft {
             .create(true)
             .write(true)
             .truncate(false)
-            .open(format!("./log/raft.log"))
+            .open(format!("{}/raft.log",self.config.data_path.clone()))
             .unwrap();
 
         let decorator = slog_term::PlainDecorator::new(file);
