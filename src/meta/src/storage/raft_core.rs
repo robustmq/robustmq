@@ -19,6 +19,7 @@ pub struct RaftRocksDBStorageCore {
     pub snapshot_metadata: SnapshotMetadata,
     pub trigger_snap_unavailable: bool,
     pub uncommit_index: HashMap<u64, i8>,
+    pub snapshot_data: Snapshot,
 }
 
 impl RaftRocksDBStorageCore {
@@ -30,6 +31,7 @@ impl RaftRocksDBStorageCore {
             snapshot_metadata: SnapshotMetadata::default(),
             trigger_snap_unavailable: false,
             uncommit_index,
+            snapshot_data: Snapshot::default(),
         };
         rc.uncommit_index = rc.uncommit_index();
         // rc.init_storage();
@@ -81,17 +83,22 @@ impl RaftRocksDBStorageCore {
 
     // Obtain the Entry based on the index ID
     pub fn snapshot(&self) -> Snapshot {
+        return self.snapshot_data.clone();
+    }
+
+    // Example Create a data snapshot for the current system
+    pub fn create_snapshot(&mut self) {
         let mut sns = Snapshot::default();
 
         let hard_state = self.hard_state();
-        let meta = sns.mut_metadata();
-        let entry = self.entry_by_idx(meta.index).unwrap();
         let conf_state = self.conf_state();
 
+        let meta = sns.mut_metadata();
+        meta.set_conf_state(conf_state);
         meta.index = hard_state.commit;
         meta.term = match meta.index.cmp(&self.snapshot_metadata.index) {
             std::cmp::Ordering::Equal => self.snapshot_metadata.term,
-            std::cmp::Ordering::Greater => entry.term,
+            std::cmp::Ordering::Greater => hard_state.term,
             std::cmp::Ordering::Less => {
                 panic!(
                     "commit {} < snapshot_metadata.index {}",
@@ -100,16 +107,13 @@ impl RaftRocksDBStorageCore {
             }
         };
 
-        meta.set_conf_state(conf_state);
+        let all_data = self.rds.read_all();
+        sns.data = serialize(&all_data).unwrap();
 
-        return sns;
+        self.snapshot_data = sns;
     }
 
-    pub fn create_snapshot_data(&self) {
-        
-    }
-
-    // todo 
+    // todo
     pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
         self.uncommit_index.remove(&idx).unwrap();
         self.save_uncommit_index();
@@ -141,15 +145,17 @@ impl RaftRocksDBStorageCore {
         }
 
         for entry in entrys {
-            let key = self.key_name_by_entry(entry.index);
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
+            
+            let key = self.key_name_by_entry(entry.index);
             self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
+
             self.save_last_index(entry.index).unwrap();
             self.uncommit_index.insert(entry.index, 1);
         }
 
         self.save_uncommit_index();
-        
+
         return Ok(());
     }
 
@@ -169,18 +175,20 @@ impl RaftRocksDBStorageCore {
 
         self.snapshot_metadata = meta.clone();
 
-        // update hardstate
-        let cur_hs = self.hard_state();
-        let mut hs = HardState::default();
-        hs.set_term(cmp::max(cur_hs.term, meta.term));
+        // update HardState
+        let mut hs = self.hard_state();
+        hs.set_term(cmp::max(hs.term, meta.term));
         hs.set_commit(index);
         let _ = self.save_hard_state(hs);
+
+        // update ConfState
+        let _ = self.save_conf_state(meta.take_conf_state());
 
         // todo clear entries
         self.truncate_entry();
 
-        // update conf state
-        let _ = self.save_conf_state(meta.take_conf_state());
+        // Restore snapshot data to persistent storage
+        self.rds.write_all(snapshot.data.as_ref());
         return Ok(());
     }
 }
@@ -239,22 +247,21 @@ impl RaftRocksDBStorageCore {
     }
 
     pub fn truncate_entry(&self) {
-        // delete first index record
-        let key = self.key_name_by_first_index();
+        // delete Entry
         let current_first_index = self.first_index();
         let current_last_index = self.last_index();
-
-        let _ = self.rds.delete(self.rds.cf_meta(), &key);
-
-        // delete last index record
-        let key = self.key_name_by_last_index();
-        let _ = self.rds.delete(self.rds.cf_meta(), &key);
-
-        // delete entry
         for idx in current_first_index..=current_last_index {
             let key = self.key_name_by_entry(idx);
             let _ = self.rds.delete(self.rds.cf_meta(), &key);
         }
+
+        // delete FirstIndex record
+        let key = self.key_name_by_first_index();
+        let _ = self.rds.delete(self.rds.cf_meta(), &key);
+
+        // delete LastIndex record
+        let key = self.key_name_by_last_index();
+        let _ = self.rds.delete(self.rds.cf_meta(), &key);
     }
 
     /// Save HardState information to RocksDB

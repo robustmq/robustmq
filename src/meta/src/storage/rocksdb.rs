@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use bincode::deserialize;
 use common::config::meta::MetaConfig;
+use common::log::error_meta;
 use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
@@ -20,9 +22,9 @@ use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 
-use super::{DB_COLUMN_FAMILY_CLUSTER, column_family_list};
 use super::DB_COLUMN_FAMILY_META;
 use super::DB_COLUMN_FAMILY_MQTT;
+use super::{column_family_list, DB_COLUMN_FAMILY_CLUSTER};
 
 pub struct RocksDBStorage {
     db: DB,
@@ -116,17 +118,40 @@ impl RocksDBStorage {
         return result;
     }
 
+    pub fn write_all(&self, data: &[u8]) {
+        if data.len() == 0 {
+            return;
+        }
+        match deserialize::<HashMap<String, Vec<Vec<Vec<u8>>>>>(data) {
+            Ok(data) => {
+                for (family, value) in data {
+                    let cf = self.get_column_family(family.to_string());
+                    for raw in value {
+                        let key = raw[0].clone();
+                        let value = raw[1].clone();
+                        match self.write(cf, &String::from_utf8(key).unwrap(), &value) {
+                            Ok(_) => {}
+                            Err(err) => {
+                                error_meta(&format!(
+                                    "Error occurred during apply snapshot. Error message: {}",
+                                    err
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
+            }
+        }
+    }
+
     // Read data from all Columnfamiliy
     pub fn read_all(&self) -> HashMap<String, Vec<Vec<Vec<u8>>>> {
         let mut result: HashMap<String, Vec<Vec<Vec<u8>>>> = HashMap::new();
         for family in column_family_list().iter() {
-            let cf = if *family == DB_COLUMN_FAMILY_META {
-                self.cf_meta()
-            } else if *family == DB_COLUMN_FAMILY_CLUSTER {
-                self.cf_cluster()
-            } else {
-                self.cf_mqtt()
-            };
+            let cf = self.get_column_family(family.to_string());
             result.insert(family.to_string(), self.read_all_by_cf(cf));
         }
         return result;
@@ -200,8 +225,16 @@ impl RocksDBStorage {
         return opts;
     }
 
-
-    
+    fn get_column_family(&self, family: String) -> &ColumnFamily {
+        let cf = if family == DB_COLUMN_FAMILY_META {
+            self.cf_meta()
+        } else if family == DB_COLUMN_FAMILY_CLUSTER {
+            self.cf_cluster()
+        } else {
+            self.cf_mqtt()
+        };
+        return cf;
+    }
 }
 
 #[cfg(test)]

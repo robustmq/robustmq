@@ -1,4 +1,7 @@
+use super::raft_core::RaftRocksDBStorageCore;
 use common::config::meta::MetaConfig;
+use common::log::info;
+use common::log::info_meta;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
@@ -12,10 +15,9 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
-use super::raft_core::RaftRocksDBStorageCore;
 
 pub struct RaftRocksDBStorage {
-    core: Arc<RwLock<RaftRocksDBStorageCore>>
+    core: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
 impl RaftRocksDBStorage {
@@ -91,6 +93,12 @@ impl RaftRocksDBStorage {
         return Ok(());
     }
 
+    pub fn create_snapshot(&mut self) -> RaftResult<()>{
+        let mut store = self.core.write().unwrap();
+        let _ = store.create_snapshot();
+        return Ok(());
+    }
+    
 }
 
 impl RaftStorage for RaftRocksDBStorage {
@@ -201,6 +209,7 @@ impl RaftStorage for RaftRocksDBStorage {
     /// A snapshot's index must not less than the `request_index`.
     /// `to` indicates which peer is requesting the snapshot.
     fn snapshot(&self, request_index: u64, to: u64) -> RaftResult<Snapshot> {
+        info_meta(&format!("Node {} requests snapshot data", to));
         let mut core = self.write_lock();
         if core.trigger_snap_unavailable {
             core.trigger_snap_unavailable = false;

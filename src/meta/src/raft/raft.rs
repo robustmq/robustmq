@@ -34,6 +34,7 @@ pub struct MetaRaft {
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
     storage: Arc<RwLock<DataRoute>>,
+    entry_num: AtomicUsize,
 }
 
 impl MetaRaft {
@@ -44,6 +45,7 @@ impl MetaRaft {
         receiver: Receiver<RaftMessage>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
+        let entry_num = AtomicUsize::new(1);
         let resp_channel = HashMap::new();
         return Self {
             config,
@@ -52,6 +54,7 @@ impl MetaRaft {
             seqnum,
             resp_channel,
             storage,
+            entry_num,
         };
     }
 
@@ -184,14 +187,11 @@ impl MetaRaft {
         // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
             info_meta(&format!("save hardState!!!,len:{:?}", hs));
-            let mut new_hs = HardState::default();
-            new_hs.set_commit(hs.get_commit());
-            new_hs.set_term(hs.get_term());
-            new_hs.set_vote(hs.get_vote());
-            raft_node.mut_store().set_hard_state(new_hs).unwrap();
+            raft_node.mut_store().set_hard_state(hs.clone()).unwrap();
         }
 
-        //
+        // Persisted Messages specifies outbound messages to be sent AFTER the HardState,
+        // Entries and Snapshot are persisted to stable storage.
         if !ready.persisted_messages().is_empty() {
             info_meta(&format!(
                 "save persisted_messages!!!,len:{:?}",
@@ -243,7 +243,6 @@ impl MetaRaft {
                             error_meta(&err.to_string());
                         }
                     }
-                    //todo create snapshot
                 }
                 EntryType::EntryConfChange => {
                     let change = ConfChange::decode(entry.get_data())
@@ -285,6 +284,8 @@ impl MetaRaft {
                 }
                 None => {}
             }
+
+            self.create_snapshot(raft_node);
         }
     }
 
@@ -365,5 +366,14 @@ impl MetaRaft {
             .fuse();
         let logger = slog::Logger::root(drain, o!("tag" => format!("meta-node-id={}", 1)));
         return logger;
+    }
+
+    fn create_snapshot(&self, raft_node: &mut RawNode<RaftRocksDBStorage>) {
+        let num = self
+            .entry_num
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if num % 1000 == 0 {
+            raft_node.mut_store().create_snapshot().unwrap();
+        }
     }
 }
