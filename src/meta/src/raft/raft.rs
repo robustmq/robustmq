@@ -351,11 +351,12 @@ impl MetaRaft {
     }
 
     fn build_slog(&self) -> slog::Logger {
+        let path = format!("{}/raft.log",self.config.log_path.clone());
         let file = OpenOptions::new()
             .create(true)
             .write(true)
             .truncate(false)
-            .open(format!("{}/raft.log",self.config.data_path.clone()))
+            .open(path)
             .unwrap();
 
         let decorator = slog_term::PlainDecorator::new(file);

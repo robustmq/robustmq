@@ -91,7 +91,7 @@ impl Meta {
             let meta_http_runtime =
                 create_runtime("meta-grpc-runtime", config.runtime_work_threads);
             meta_http_runtime.block_on(async move {
-                let ip = format!("{}:{}", config.addr, config.port.unwrap())
+                let ip = format!("{}:{}", config.addr, config.port)
                     .parse()
                     .unwrap();
 

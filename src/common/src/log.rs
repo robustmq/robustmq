@@ -113,7 +113,7 @@ pub fn new(path: String, segment_log_size: u64, log_fie_count: u32) {
                 .appender("meta")
                 .appender("stdout")
                 .additive(false)
-                .build("app::server", LevelFilter::Info),
+                .build("app::meta", LevelFilter::Info),
         )
         .build(Root::builder().appender("stdout").build(LevelFilter::Debug))
         .unwrap();

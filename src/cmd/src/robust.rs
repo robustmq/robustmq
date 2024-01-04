@@ -42,10 +42,15 @@ struct ArgsParams {
 
 fn main() {
     let args = ArgsParams::parse();
-    log::new();
 
     let server_conf: RobustConfig = parse_server(&args.server_conf);
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
+
+    log::new(
+        meta_conf.log_path.clone(),
+        meta_conf.log_segment_size.clone(),
+        meta_conf.log_file_num.clone(),
+    );
 
     // Start Meta
     let mut mt_s = Meta::new(meta_conf);

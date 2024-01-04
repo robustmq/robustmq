@@ -2,41 +2,28 @@
 mod tests {
     use common::config::meta::MetaConfig;
     use common::log;
-    use meta::cluster::Cluster;
-    use meta::raft::message::RaftMessage;
-    use meta::{Meta, Node};
+    use meta::Meta;
     use std::thread::sleep;
-    use std::time::{Duration, Instant};
-    use tokio::{sync::mpsc, time::timeout};
+    use std::time::Duration;
+    use std::vec;
 
     #[test]
     fn running() {
-        log::new("".to_string(), 1024, 50);
-        let conf = MetaConfig::default();
+        let mut conf = MetaConfig::default();
+        conf.node_id = 1;
+        conf.addr = "127.0.0.1".to_string();
+        conf.port = 1220;
+        conf.log_path = "/tmp/test_fold1/data".to_string();
+        conf.data_path = "/tmp/test_fold1/logs".to_string();
+        conf.meta_nodes = vec!["127.0.0.1:1220".to_string()];
+
+        log::new(conf.log_path.clone(), 1024, 50);
+
         let mut mt = Meta::new(conf);
         mt.start();
 
         loop {
             sleep(Duration::from_secs(1000));
-        }
-    }
-
-    fn get_leader() -> Cluster {
-        Cluster::new(Node::new("127.0.0.1".to_string(), 1))
-    }
-
-    #[tokio::test]
-    async fn timeout_test() {
-        let (raft_message_send, mut raft_message_recv) = mpsc::channel::<RaftMessage>(10000);
-        let mut n = Instant::now();
-        loop {
-            match timeout(Duration::from_millis(100), raft_message_recv.recv()).await {
-                Ok(_) => {}
-                Err(err) => {}
-            }
-            if n.elapsed().as_millis() > 1000 {
-                break;
-            }
         }
     }
 }
