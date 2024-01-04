@@ -38,6 +38,9 @@ service MetaService {
 
   // Raft messages are sent between nodes
   rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
+
+  // Send ConfChange messages to Raft with other nodes
+  rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
 }
 
 
@@ -48,6 +51,7 @@ message FindLeaderRequest{
 message FindLeaderReply{
   uint64 LeaderId = 1;
   string LeaderIp = 2;
+  int32 LeaderPort = 3;
 }
 
 message VoteRequest {
@@ -97,4 +101,11 @@ message SendRaftMessageRequest{
 
 message SendRaftMessageReply{
 
+}
+
+message SendRaftConfChangeRequest{
+    bytes message = 1;
+}
+
+message SendRaftConfChangeReply{
 }

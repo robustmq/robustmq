@@ -20,11 +20,11 @@ use common::runtime::create_runtime;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
 use raft::raft::MetaRaft;
-use storage::route::DataRoute;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
 use std::thread;
+use storage::route::DataRoute;
 use tokio::sync::mpsc;
 use tonic::transport::Server;
 
@@ -41,11 +41,20 @@ mod tools;
 pub struct Node {
     pub ip: String,
     pub id: u64,
+    pub inner_port: u16,
 }
 
 impl Node {
-    pub fn new(ip: String, id: u64) -> Node {
-        Node { ip, id }
+    pub fn new(ip: String, id: u64, port: u16) -> Node {
+        Node {
+            ip,
+            id,
+            inner_port: port,
+        }
+    }
+
+    pub fn addr(&self) -> String {
+        format!("{}:{}", self.ip, self.inner_port)
     }
 }
 
@@ -66,6 +75,7 @@ impl Meta {
         let cluster = Arc::new(RwLock::new(Cluster::new(Node::new(
             config.addr.clone(),
             config.node_id.clone(),
+            config.port.clone(),
         ))));
         let storage = Arc::new(RwLock::new(DataRoute::new()));
         return Meta {
@@ -91,9 +101,7 @@ impl Meta {
             let meta_http_runtime =
                 create_runtime("meta-grpc-runtime", config.runtime_work_threads);
             meta_http_runtime.block_on(async move {
-                let ip = format!("{}:{}", config.addr, config.port)
-                    .parse()
-                    .unwrap();
+                let ip = format!("{}:{}", config.addr, config.port).parse().unwrap();
 
                 info_meta(&format!(
                     "RobustMQ Meta Server start success. bind addr:{}",

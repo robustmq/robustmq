@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use crate::{errors::MetaError, Node, client::find_leader};
+use crate::{client::find_leader, errors::MetaError, Node};
 use common::log::error_meta;
 
 #[derive(Clone)]
@@ -28,7 +28,7 @@ impl Election {
     }
 
     pub async fn leader_election(&self) -> Result<Node, MetaError> {
-        // 
+        //
         let node = match self.find_leader_info().await {
             Ok(nd) => nd,
             Err(err) => {
@@ -48,7 +48,13 @@ impl Election {
     async fn find_leader_info(&self) -> Result<Node, MetaError> {
         for addr in &self.voters {
             match find_leader(&addr).await {
-                Ok(reply) => return Ok(Node::new(reply.leader_ip, reply.leader_id)),
+                Ok(reply) => {
+                    return Ok(Node::new(
+                        reply.leader_ip,
+                        reply.leader_id,
+                        reply.leader_port as u16,
+                    ))
+                }
                 Err(err) => {
                     error_meta(&format!("Failed to obtain Leader information from another node during the election. 
                     The IP address of the target node is {}, and the error message is {}",addr,err));
@@ -60,7 +66,7 @@ impl Election {
     }
 
     async fn invite_vote(&self) -> Result<Node, MetaError> {
-        return Ok(Node::new("".to_string(), 1));
+        return Ok(Node::new("".to_string(), 1, 3306));
     }
 }
 

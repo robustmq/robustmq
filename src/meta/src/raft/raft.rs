@@ -1,18 +1,18 @@
 use super::election::Election;
 use super::message::{RaftMessage, RaftResponseMesage};
+use crate::client::send_raft_conf_change;
 use crate::cluster::Cluster;
 use crate::errors::MetaError;
 use crate::raft::peer::Peer;
 use crate::storage::raft_storage::RaftRocksDBStorage;
-use crate::Node;
 use crate::storage::route::DataRoute;
+use crate::Node;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage,
-    Snapshot,
+    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
 };
 use raft::{Config, RawNode};
 use slog::o;
@@ -68,7 +68,11 @@ impl MetaRaft {
     async fn get_leader_node(&self) -> Node {
         let mata_nodes = self.config.meta_nodes.clone();
         if mata_nodes.len() == 1 {
-            return Node::new(self.config.addr.clone(), self.config.node_id);
+            return Node::new(
+                self.config.addr.clone(),
+                self.config.node_id.clone(),
+                self.config.port.clone(),
+            );
         }
 
         // Leader Election
@@ -83,7 +87,11 @@ impl MetaRaft {
                 ));
 
                 // todo We need to deal with the split-brain problem here. We'll deal with it later
-                return Node::new(self.config.addr.clone(), self.config.node_id.clone());
+                return Node::new(
+                    self.config.addr.clone(),
+                    self.config.node_id.clone(),
+                    self.config.port.clone(),
+                );
             }
         };
 
@@ -95,24 +103,46 @@ impl MetaRaft {
         let mut raft_node = if self.config.node_id == leader_node.id {
             self.new_leader()
         } else {
-            self.new_follower()
+            self.new_follower(leader_node).await
         };
 
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
             match timeout(heartbeat, self.receiver.recv()).await {
+                Ok(Some(RaftMessage::ConfChange { change, chan })) => {
+                    let seq = self
+                        .seqnum
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+                    match raft_node.propose_conf_change(serialize(&seq).unwrap(), change) {
+                        Ok(_) => {
+                            self.resp_channel.insert(seq, chan).unwrap();
+                        }
+                        Err(e) => {
+                            error_meta(
+                                &MetaError::RaftConfChangeCommitFail(e.to_string()).to_string(),
+                            );
+                        }
+                    }
+                }
+
                 Ok(Some(RaftMessage::Raft { message, chan })) => {
                     // Step advances the state machine using the given message.
+                    let seq = self
+                        .seqnum
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
                     match raft_node.step(message) {
                         Ok(_) => {
-                            let _ = chan.send(RaftResponseMesage::Success);
+                            self.resp_channel.insert(seq, chan).unwrap();
                         }
                         Err(e) => {
                             error_meta(&MetaError::RaftStepCommitFail(e.to_string()).to_string());
                         }
                     }
                 }
+
                 Ok(Some(RaftMessage::Propose { data, chan })) => {
                     // Propose proposes data be appended to the raft log.
                     let seq = self
@@ -223,7 +253,7 @@ impl MetaRaft {
             "handle committed entries !!!,len:{}",
             entrys.len()
         ));
-        
+
         let storage = self.storage.write().unwrap();
         for entry in entrys {
             println!("{:?}", entry.get_entry_type());
@@ -250,7 +280,7 @@ impl MetaRaft {
                         .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
                         .unwrap();
                     let id = change.get_node_id();
-                    let addr:String = deserialize(change.get_context()).unwrap();
+                    let addr: String = deserialize(change.get_context()).unwrap();
                     let change_type = change.get_change_type();
 
                     match change_type {
@@ -302,30 +332,64 @@ impl MetaRaft {
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
         let conf = self.build_config();
-        let mut s = Snapshot::default();
-
-        // Because we don't use the same configuration to initialize every node, so we use
-        // a non-zero index to force new followers catch up logs by snapshot first, which will
-        // bring all nodes to the same initial state.
-        s.mut_metadata().index = 1;
-        s.mut_metadata().term = 1;
-        s.mut_metadata().mut_conf_state().voters = vec![self.config.node_id];
-
-        let mut storage = RaftRocksDBStorage::new(&self.config);
-        let _ = storage.apply_snapshot(s);
-
+        let storage = RaftRocksDBStorage::new(&self.config);
         let logger = self.build_slog();
         let mut node = RawNode::new(&conf, storage, &logger).unwrap();
+
+        // Change the role of the current node to Leader
         node.raft.become_candidate();
         node.raft.become_leader();
         return node;
     }
 
-    pub fn new_follower(&self) -> RawNode<RaftRocksDBStorage> {
+    pub async fn new_follower(&self, leader_node: Node) -> RawNode<RaftRocksDBStorage> {
         let conf = self.build_config();
         let storage = RaftRocksDBStorage::new(&self.config);
         let logger = self.build_slog();
-        RawNode::new(&conf, storage, &logger).unwrap()
+        let node = RawNode::new(&conf, storage, &logger).unwrap();
+
+        // Add the leader node to the peer list
+        let mut cluster = self.cluster.write().unwrap();
+        cluster.add_peer(leader_node.id, Peer::new(leader_node.addr()));
+
+        // try remove from the cluster
+        let mut change = ConfChange::default();
+        change.set_node_id(self.config.node_id);
+        change.set_change_type(ConfChangeType::RemoveNode);
+        match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
+            Ok(_) => {}
+            Err(err) => {
+                info_meta(&format!(
+                    "Attempts to remove the current node from the 
+                cluster after initializing a Follower node fail with the error message {}",
+                    err.to_string()
+                ));
+            }
+        }
+
+        // Join the cluster
+        let mut change = ConfChange::default();
+        change.set_node_id(self.config.node_id);
+        change.set_change_type(ConfChangeType::AddNode);
+        change.set_context(
+            serialize(&format!(
+                "{}:{}",
+                self.config.addr.clone(),
+                self.config.port.clone()
+            ))
+            .unwrap(),
+        );
+        match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
+            Ok(_) => {}
+            Err(err) => {
+                info_meta(&format!(
+                    "Error occurs when initializing a Follower node and adding the 
+                node to the cluster with the error message {}",
+                    err.to_string()
+                ));
+            }
+        }
+        return node;
     }
 
     fn build_config(&self) -> Config {
@@ -351,7 +415,7 @@ impl MetaRaft {
     }
 
     fn build_slog(&self) -> slog::Logger {
-        let path = format!("{}/raft.log",self.config.log_path.clone());
+        let path = format!("{}/raft.log", self.config.log_path.clone());
         let file = OpenOptions::new()
             .create(true)
             .write(true)
