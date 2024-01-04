@@ -14,18 +14,17 @@
 
 use self::services::GrpcService;
 use cluster::Cluster;
-use data_route::DataRoute;
 use common::config::meta::MetaConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
 use raft::raft::MetaRaft;
+use storage::route::DataRoute;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
 use std::thread;
-pub mod data_route;
 use tokio::sync::mpsc;
 use tonic::transport::Server;
 

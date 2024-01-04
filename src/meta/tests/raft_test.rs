@@ -2,16 +2,16 @@
 mod tests {
     use common::config::meta::MetaConfig;
     use common::log;
-    use std::thread::sleep;
-    use std::time::{Duration, Instant};
     use meta::cluster::Cluster;
     use meta::raft::message::RaftMessage;
     use meta::{Meta, Node};
+    use std::thread::sleep;
+    use std::time::{Duration, Instant};
     use tokio::{sync::mpsc, time::timeout};
 
     #[test]
     fn running() {
-        // log::new();
+        log::new("".to_string(), 1024, 50);
         let conf = MetaConfig::default();
         let mut mt = Meta::new(conf);
         mt.start();
