@@ -1,9 +1,8 @@
 use bincode::{deserialize, serialize};
 
-use crate::{
-    errors::MetaError,
-    storage::{StorageData, StorageDataType},
-};
+use crate::errors::MetaError;
+
+use super::schema::{StorageData, StorageDataType};
 
 #[derive(Clone)]
 pub struct DataRoute {}

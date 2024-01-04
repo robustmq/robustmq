@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-use super::cluster::{Cluster, NodeRaftState};
+use super::cluster::Cluster;
 use super::errors::MetaError;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
-use crate::storage::data_struct::StorageDataStructBroker;
-use crate::storage::{StorageData, StorageDataType};
+use crate::storage::schema::{StorageDataStructBroker, StorageData, StorageDataType};
 use bincode::serialize;
 use common::log::debug;
 use prost::Message as _;
@@ -74,12 +73,12 @@ impl MetaService for GrpcService {
         &self,
         _: Request<FindLeaderRequest>,
     ) -> Result<Response<FindLeaderReply>, Status> {
-        let node = self.cluster.read().unwrap();
+        let cluster = self.cluster.read().unwrap();
         let mut reply = FindLeaderReply::default();
 
         // If the Leader exists in the cluster, the current Leader information is displayed
-        if node.raft_state == NodeRaftState::Leader {
-            if let Some(n) = node.leader.clone() {
+        if cluster.is_leader() {
+            if let Some(n) = cluster.leader.clone() {
                 reply.leader_id = n.id;
                 reply.leader_ip = n.ip;
                 return Ok(Response::new(reply));
@@ -89,9 +88,9 @@ impl MetaService for GrpcService {
     }
 
     async fn vote(&self, request: Request<VoteRequest>) -> Result<Response<VoteReply>, Status> {
-        let node = self.cluster.read().unwrap();
+        let cluster = self.cluster.read().unwrap();
 
-        if node.raft_state == NodeRaftState::Leader {
+        if cluster.is_leader() {
             return Err(Status::aborted(
                 MetaError::LeaderExistsNotAllowElection.to_string(),
             ));
@@ -145,7 +144,7 @@ impl MetaService for GrpcService {
         request: Request<BrokerRegisterRequest>,
     ) -> Result<Response<BrokerRegisterReply>, Status> {
         let id = request.into_inner().node_id;
-
+        
         Ok(Response::new(BrokerRegisterReply::default()))
     }
 

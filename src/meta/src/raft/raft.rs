@@ -1,17 +1,17 @@
 use super::election::Election;
 use super::message::{RaftMessage, RaftResponseMesage};
 use crate::cluster::Cluster;
-use crate::data_route::DataRoute;
 use crate::errors::MetaError;
 use crate::raft::peer::Peer;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use crate::Node;
+use crate::storage::route::DataRoute;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, Entry, EntryType, HardState, Message as raftPreludeMessage,
+    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage,
     Snapshot,
 };
 use raft::{Config, RawNode};
@@ -223,6 +223,7 @@ impl MetaRaft {
             "handle committed entries !!!,len:{}",
             entrys.len()
         ));
+        
         let storage = self.storage.write().unwrap();
         for entry in entrys {
             println!("{:?}", entry.get_entry_type());
@@ -249,11 +250,13 @@ impl MetaRaft {
                         .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
                         .unwrap();
                     let id = change.get_node_id();
+                    let addr:String = deserialize(change.get_context()).unwrap();
                     let change_type = change.get_change_type();
+
                     match change_type {
                         ConfChangeType::AddNode => {
                             let mut cls = self.cluster.write().unwrap();
-                            let addr = cls.get_addr_by_id(id);
+                            // let addr = cls.get_addr_by_id(id);
                             let peer = Peer::new(addr);
                             cls.add_peer(id, peer)
                         }
@@ -266,7 +269,6 @@ impl MetaRaft {
 
                     if let Ok(cs) = raft_node.apply_conf_change(&change) {
                         let _ = raft_node.mut_store().set_conf_state(cs);
-                        //todo
                     }
                 }
                 EntryType::EntryConfChangeV2 => {}

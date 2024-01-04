@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use common::{config::meta::MetaConfig, runtime::create_runtime};
-    use meta::data_route::DataRoute;
+    use meta::storage::route::DataRoute;
     use std::sync::{Arc, RwLock};
     use std::thread::sleep;
     use std::time::{Duration, Instant};
