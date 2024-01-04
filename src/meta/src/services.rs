@@ -21,13 +21,14 @@ use crate::storage::schema::{StorageDataStructBroker, StorageData, StorageDataTy
 use bincode::serialize;
 use common::log::debug;
 use prost::Message as _;
+use protocol::robust::meta::{SendRaftConfChangeRequest, SendRaftConfChangeReply};
 use protocol::robust::meta::{
     meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
     BrokerUnRegisterReply, BrokerUnRegisterRequest, FindLeaderReply, FindLeaderRequest,
     HeartbeatReply, HeartbeatRequest, SendRaftMessageReply, SendRaftMessageRequest,
     TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest,
 };
-use raft::eraftpb::Message as raftPreludeMessage;
+use raft::eraftpb::{Message as raftPreludeMessage,ConfChange};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
 
@@ -207,5 +208,35 @@ impl MetaService for GrpcService {
             }
         }
         Ok(Response::new(SendRaftMessageReply::default()))
+    }
+
+    async fn send_raft_conf_change(
+        &self,
+        request: Request<SendRaftConfChangeRequest>,
+    ) -> Result<Response<SendRaftConfChangeReply>, Status> {
+        let change = ConfChange::decode(request.into_inner().message.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))?;
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+
+        match self
+            .raft_sender
+            .send(RaftMessage::ConfChange { change, chan: sx })
+            .await
+        {
+            Ok(_) => {
+                if !self.wait_raft_commit(rx) {
+                    return Err(Status::cancelled(
+                        MetaError::MetaLogCommitTimeout("send_raft_conf_change".to_string())
+                            .to_string(),
+                    ));
+                }
+            }
+            Err(e) => {
+                return Err(Status::aborted(
+                    MetaError::RaftStepCommitFail(e.to_string()).to_string(),
+                ));
+            }
+        }
+        Ok(Response::new(SendRaftConfChangeReply::default()))
     }
 }

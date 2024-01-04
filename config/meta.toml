@@ -1,11 +1,12 @@
 node_id = 1
 addr = "127.0.0.1"
 port = 1228
+meta_nodes = ["127.0.0.1:1228"]
 runtime_work_threads = 3
 data_path = "/tmp/data"
-# meta_nodes = ["127.0.0.1:1228","127.0.0.1:1229","127.0.0.1:1230"]
 log_path = "/tmp/logs"
-meta_nodes = ["127.0.0.1:1228"]
+log_segment_size = 1073741824
+log_file_num=50
 
 [rocksdb]
 max_open_files = 10000

@@ -8,6 +8,8 @@ pub struct FindLeaderReply {
     pub leader_id: u64,
     #[prost(string, tag = "2")]
     pub leader_ip: ::prost::alloc::string::String,
+    #[prost(int32, tag = "3")]
+    pub leader_port: i32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -71,6 +73,15 @@ pub struct SendRaftMessageRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SendRaftMessageReply {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SendRaftConfChangeRequest {
+    #[prost(bytes = "vec", tag = "1")]
+    pub message: ::prost::alloc::vec::Vec<u8>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SendRaftConfChangeReply {}
 /// Generated client implementations.
 pub mod meta_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -328,6 +339,32 @@ pub mod meta_service_client {
                 .insert(GrpcMethod::new("meta.MetaService", "SendRaftMessage"));
             self.inner.unary(req, path, codec).await
         }
+        /// Send ConfChange messages to Raft with other nodes
+        pub async fn send_raft_conf_change(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SendRaftConfChangeRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SendRaftConfChangeReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/meta.MetaService/SendRaftConfChange",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("meta.MetaService", "SendRaftConfChange"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -381,6 +418,14 @@ pub mod meta_service_server {
             request: tonic::Request<super::SendRaftMessageRequest>,
         ) -> std::result::Result<
             tonic::Response<super::SendRaftMessageReply>,
+            tonic::Status,
+        >;
+        /// Send ConfChange messages to Raft with other nodes
+        async fn send_raft_conf_change(
+            &self,
+            request: tonic::Request<super::SendRaftConfChangeRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::SendRaftConfChangeReply>,
             tonic::Status,
         >;
     }
@@ -769,6 +814,53 @@ pub mod meta_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = SendRaftMessageSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/SendRaftConfChange" => {
+                    #[allow(non_camel_case_types)]
+                    struct SendRaftConfChangeSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::SendRaftConfChangeRequest>
+                    for SendRaftConfChangeSvc<T> {
+                        type Response = super::SendRaftConfChangeReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SendRaftConfChangeRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::send_raft_conf_change(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = SendRaftConfChangeSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

@@ -52,6 +52,9 @@ pub enum MetaError {
 
     #[error("Failed to propose Raft message to Raft state machine, error message: {0}")]
     RaftProposeCommitFail(String),
+
+    #[error("Failed to ConfChange Raft message to Raft state machine, error message: {0}")]
+    RaftConfChangeCommitFail(String),
 }
 
 
