@@ -28,6 +28,7 @@ impl Election {
     }
 
     pub async fn leader_election(&self) -> Result<Node, MetaError> {
+        // 
         let node = match self.find_leader_info().await {
             Ok(nd) => nd,
             Err(err) => {

@@ -22,9 +22,17 @@ use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 
-use super::DB_COLUMN_FAMILY_META;
-use super::DB_COLUMN_FAMILY_MQTT;
-use super::{column_family_list, DB_COLUMN_FAMILY_CLUSTER};
+const DB_COLUMN_FAMILY_META: &str = "meta";
+const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
+const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
+
+fn column_family_list() -> Vec<String> {
+    let mut list = Vec::new();
+    list.push(DB_COLUMN_FAMILY_META.to_string());
+    list.push(DB_COLUMN_FAMILY_CLUSTER.to_string());
+    list.push(DB_COLUMN_FAMILY_MQTT.to_string());
+    return list;
+}
 
 pub struct RocksDBStorage {
     db: DB,

@@ -20,9 +20,12 @@ use serde::Deserialize;
 pub struct MetaConfig {
     pub node_id: u64,
     pub addr: String,
-    pub port: Option<u16>,
+    pub port: u16,
     pub runtime_work_threads: usize,
     pub data_path: String,
+    pub log_path: String,
+    pub log_segment_size: u64,
+    pub log_file_num: u32,
     pub meta_nodes: Vec<String>,
     pub rocksdb: Rocksdb,
 }
@@ -37,9 +40,12 @@ impl Default for MetaConfig {
         MetaConfig {
             node_id: 1,
             addr: "127.0.0.1".to_string(),
-            port: Some(1227),
-            runtime_work_threads: 100,
+            port: 1227,
+            runtime_work_threads: 10,
+            log_segment_size: 1024 * 1024 * 1024,
+            log_file_num: 50,
             data_path: "/tmp/data".to_string(),
+            log_path: "/tmp/logs".to_string(),
             meta_nodes: vec![],
             rocksdb: Rocksdb {
                 max_open_files: Some(100),

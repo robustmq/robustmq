@@ -2,7 +2,7 @@ use crate::{raft::peer::Peer, Node};
 use std::collections::HashMap;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum NodeRaftState {
+pub enum NodeRole {
     Leader,
     Follower,
     Candidate,
@@ -20,7 +20,7 @@ pub enum NodeState {
 pub struct Cluster {
     pub local: Node,
     pub leader: Option<Node>,
-    pub raft_state: NodeRaftState,
+    pub role: NodeRole,
     pub state: NodeState,
     pub peers: HashMap<u64, Peer>,
 }
@@ -30,7 +30,7 @@ impl Cluster {
         Cluster {
             local,
             leader: None,
-            raft_state: NodeRaftState::Candidate,
+            role: NodeRole::Candidate,
             state: NodeState::Starting,
             peers: HashMap::new(),
         }
@@ -61,4 +61,13 @@ impl Cluster {
     pub fn get_addr_by_id(&self, id: u64) -> String {
         return "".to_string();
     }
+
+    pub fn is_leader(&self) -> bool {
+        self.role == NodeRole::Leader
+    }
+
+    pub fn set_role(&mut self, role: NodeRole) {
+        self.role = role;
+    }
+    
 }

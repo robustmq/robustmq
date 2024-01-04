@@ -12,7 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub const DEFAULT_LOG_CONFIG: &str = "config/log4rs.yml";
+use log::LevelFilter;
+use log4rs::{
+    append::{
+        console::ConsoleAppender,
+        rolling_file::{
+            policy::compound::{
+                roll::fixed_window::FixedWindowRoller, trigger::size::SizeTrigger, CompoundPolicy,
+            },
+            RollingFileAppender,
+        },
+    },
+    config::{Appender, Logger, Root},
+    encode::pattern::PatternEncoder,
+    Config,
+};
 
 pub fn info(msg: &str) -> () {
     log::info!(target:"app::server", "{}",msg)
@@ -38,8 +52,73 @@ pub fn error_meta(msg: &str) -> () {
     log::error!(target:"app::meta", "{}",msg)
 }
 
-pub fn new(){
-    log4rs::init_file(DEFAULT_LOG_CONFIG, Default::default()).unwrap();
+pub fn new(path: String, segment_log_size: u64, log_fie_count: u32) {
+    let stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}",
+        )))
+        .build();
+
+    let server_log = RollingFileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}",
+        )))
+        .append(true)
+        .build(
+            format!("{}/server.log", path),
+            Box::new(CompoundPolicy::new(
+                Box::new(SizeTrigger::new(segment_log_size)),
+                Box::new(
+                    FixedWindowRoller::builder()
+                        .base(0)
+                        .build(&format!("{}/server.{}.log", path, "{}"), log_fie_count)
+                        .unwrap(),
+                ),
+            )),
+        )
+        .unwrap();
+
+    let meta_log = RollingFileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}",
+        )))
+        .append(true)
+        .build(
+            format!("{}/meta.log", path),
+            Box::new(CompoundPolicy::new(
+                Box::new(SizeTrigger::new(segment_log_size)),
+                Box::new(
+                    FixedWindowRoller::builder()
+                        .base(0)
+                        .build(&format!("{}/meta.{}.log", path, "{}"), log_fie_count)
+                        .unwrap(),
+                ),
+            )),
+        )
+        .unwrap();
+
+    let config = Config::builder()
+        .appender(Appender::builder().build("stdout", Box::new(stdout)))
+        .appender(Appender::builder().build("server", Box::new(server_log)))
+        .appender(Appender::builder().build("meta", Box::new(meta_log)))
+        .logger(
+            Logger::builder()
+                .appender("server")
+                .appender("stdout")
+                .additive(false)
+                .build("app::server", LevelFilter::Info),
+        )
+        .logger(
+            Logger::builder()
+                .appender("meta")
+                .appender("stdout")
+                .additive(false)
+                .build("app::meta", LevelFilter::Info),
+        )
+        .build(Root::builder().appender("stdout").build(LevelFilter::Debug))
+        .unwrap();
+
+    let _ = log4rs::init_config(config).unwrap();
 }
 
 #[cfg(test)]
@@ -48,7 +127,7 @@ mod tests {
 
     #[test]
     fn log_print() {
-        log4rs::init_file(format!("../../../{}", DEFAULT_LOG_CONFIG), Default::default()).unwrap();
+        new("".to_string(), 1024 * 1024 * 1024, 50);
         info("lobo");
         info_meta("server lobo");
     }
