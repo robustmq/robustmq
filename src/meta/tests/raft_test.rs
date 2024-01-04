@@ -11,7 +11,7 @@ mod tests {
 
     #[test]
     fn running() {
-        log::new();
+        // log::new();
         let conf = MetaConfig::default();
         let mut mt = Meta::new(conf);
         mt.start();
