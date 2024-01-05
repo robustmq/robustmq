@@ -15,28 +15,29 @@
  */
 
 use crate::{client::find_leader, errors::MetaError, Node};
-use common::log::error_meta;
+use common::log::{error_meta, info_meta};
+use futures_util::{future::select_ok, FutureExt};
 
 #[derive(Clone)]
 pub struct Election {
+    local: Node,
     voters: Vec<String>,
 }
 
 impl Election {
-    pub fn new(votes: Vec<String>) -> Self {
-        return Election { voters: votes };
+    pub fn new(local: Node, votes: Vec<String>) -> Self {
+        return Election {
+            local,
+            voters: votes,
+        };
     }
 
     pub async fn leader_election(&self) -> Result<Node, MetaError> {
         //
         let node = match self.find_leader_info().await {
             Ok(nd) => nd,
-            Err(err) => {
-                error_meta(&format!(
-                    "Failed to obtain the Leader from another node. 
-                    The voting process starts. Error message: {}",
-                    err
-                ));
+            Err(_) => {
+                info_meta(&format!("Failed to obtain the Leader information from the cluster. An attempt was made to initiate the election process."));
 
                 return self.invite_vote().await;
             }
@@ -45,33 +46,39 @@ impl Election {
         return Ok(node);
     }
 
+    // Obtain the cluster Leader information from multiple nodes in parallel
     async fn find_leader_info(&self) -> Result<Node, MetaError> {
+        let mut futs = Vec::new();
         for addr in &self.voters {
-            match find_leader(&addr).await {
-                Ok(reply) => {
-                    return Ok(Node::new(
-                        reply.leader_ip,
-                        reply.leader_id,
-                        reply.leader_port as u16,
-                    ))
-                }
-                Err(err) => {
-                    error_meta(&format!("Failed to obtain Leader information from another node during the election. 
-                    The IP address of the target node is {}, and the error message is {}",addr,err));
-                    continue;
-                }
-            };
+            if addr.to_string() == self.local.addr() {
+                continue;
+            }
+            let fut = async move { find_leader(&addr).await };
+            futs.push(fut.boxed());
+        }
+
+        match select_ok(futs).await {
+            Ok(reply) => {
+                return Ok(Node::new(
+                    reply.0.leader_ip,
+                    reply.0.leader_id,
+                    reply.0.leader_port as u16,
+                ))
+            }
+            Err(err) => {
+                error_meta(&format!("Failed to obtain Leader information from another node during the election. error message: {}",err));
+            }
         }
         return Err(MetaError::MetaClusterNotLeaderNode);
     }
 
     async fn invite_vote(&self) -> Result<Node, MetaError> {
-        return Ok(Node::new("".to_string(), 1, 3306));
+        return Ok(self.local.clone());
     }
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn leader_election() {}
+    fn find_leader_info() {}
 }

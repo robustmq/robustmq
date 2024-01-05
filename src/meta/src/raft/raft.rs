@@ -6,6 +6,7 @@ use crate::errors::MetaError;
 use crate::raft::peer::Peer;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use crate::storage::route::DataRoute;
+use crate::storage::schema::StorageData;
 use crate::Node;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
@@ -66,23 +67,19 @@ impl MetaRaft {
     }
 
     async fn get_leader_node(&self) -> Node {
+        let cluster = self.cluster.read().unwrap();
         let mata_nodes = self.config.meta_nodes.clone();
         if mata_nodes.len() == 1 {
-            return Node::new(
-                self.config.addr.clone(),
-                self.config.node_id.clone(),
-                self.config.port.clone(),
-            );
+            return cluster.local.clone();
         }
 
         // Leader Election
-        let elec = Election::new(mata_nodes);
+        let elec = Election::new(cluster.local.clone(), mata_nodes);
         let ld = match elec.leader_election().await {
             Ok(nd) => nd,
             Err(err) => {
                 error_meta(&format!(
-                    "When a node fails to obtain the Leader from another node during startup, 
-                the current node is set to the Leader node. Error message {}",
+                    "When a node fails to obtain the Leader from another node during startup, the current node is set to the Leader node. Error message {}",
                     err
                 ));
 
@@ -117,7 +114,7 @@ impl MetaRaft {
 
                     match raft_node.propose_conf_change(serialize(&seq).unwrap(), change) {
                         Ok(_) => {
-                            self.resp_channel.insert(seq, chan).unwrap();
+                            self.resp_channel.insert(seq, chan);
                         }
                         Err(e) => {
                             error_meta(
@@ -135,7 +132,7 @@ impl MetaRaft {
 
                     match raft_node.step(message) {
                         Ok(_) => {
-                            self.resp_channel.insert(seq, chan).unwrap();
+                            self.resp_channel.insert(seq, chan);
                         }
                         Err(e) => {
                             error_meta(&MetaError::RaftStepCommitFail(e.to_string()).to_string());
@@ -150,7 +147,7 @@ impl MetaRaft {
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     match raft_node.propose(serialize(&seq).unwrap(), data) {
                         Ok(_) => {
-                            self.resp_channel.insert(seq, chan).unwrap();
+                            self.resp_channel.insert(seq, chan);
                         }
                         Err(e) => {
                             error_meta(
@@ -256,12 +253,14 @@ impl MetaRaft {
 
         let storage = self.storage.write().unwrap();
         for entry in entrys {
+            
             println!("{:?}", entry.get_entry_type());
-            println!("{:?}", entry.get_data());
             if entry.data.is_empty() {
                 continue;
             }
 
+            let tmp: StorageData = deserialize(entry.get_data()).unwrap();
+            println!("{:?}", tmp);
             match entry.get_entry_type() {
                 EntryType::EntryNormal => {
                     let idx: u64 = entry.get_index();
@@ -360,8 +359,7 @@ impl MetaRaft {
             Ok(_) => {}
             Err(err) => {
                 info_meta(&format!(
-                    "Attempts to remove the current node from the 
-                cluster after initializing a Follower node fail with the error message {}",
+                    "Attempts to remove the current node from the cluster after initializing a Follower node fail with the error message {}",
                     err.to_string()
                 ));
             }
@@ -383,8 +381,7 @@ impl MetaRaft {
             Ok(_) => {}
             Err(err) => {
                 info_meta(&format!(
-                    "Error occurs when initializing a Follower node and adding the 
-                node to the cluster with the error message {}",
+                    "Error occurs when initializing a Follower node and adding the node to the cluster with the error message {}",
                     err.to_string()
                 ));
             }

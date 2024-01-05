@@ -17,18 +17,18 @@
 use super::cluster::Cluster;
 use super::errors::MetaError;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
-use crate::storage::schema::{StorageDataStructBroker, StorageData, StorageDataType};
+use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
 use bincode::serialize;
 use common::log::debug;
 use prost::Message as _;
-use protocol::robust::meta::{SendRaftConfChangeRequest, SendRaftConfChangeReply};
 use protocol::robust::meta::{
     meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
     BrokerUnRegisterReply, BrokerUnRegisterRequest, FindLeaderReply, FindLeaderRequest,
     HeartbeatReply, HeartbeatRequest, SendRaftMessageReply, SendRaftMessageRequest,
     TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest,
 };
-use raft::eraftpb::{Message as raftPreludeMessage,ConfChange};
+use protocol::robust::meta::{SendRaftConfChangeReply, SendRaftConfChangeRequest};
+use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
 
@@ -145,7 +145,7 @@ impl MetaService for GrpcService {
         request: Request<BrokerRegisterRequest>,
     ) -> Result<Response<BrokerRegisterReply>, Status> {
         let id = request.into_inner().node_id;
-        
+
         Ok(Response::new(BrokerRegisterReply::default()))
     }
 
@@ -155,12 +155,13 @@ impl MetaService for GrpcService {
     ) -> Result<Response<BrokerUnRegisterReply>, Status> {
         let node_id = request.into_inner().node_id;
         let addr = "127.0.0.1".to_string();
+        
         let value = StorageDataStructBroker { node_id, addr };
-
         let data = StorageData::new(
             StorageDataType::UnRegisterBroker,
-            serialize(&value).unwrap(),
+            serde_json::to_string(&value).unwrap(),
         );
+
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
 
         let _ = self
