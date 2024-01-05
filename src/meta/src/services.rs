@@ -19,7 +19,7 @@ use super::errors::MetaError;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
 use bincode::serialize;
-use common::log::debug;
+use common::log::{debug, info, info_meta};
 use prost::Message as _;
 use protocol::robust::meta::{
     meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
@@ -82,6 +82,7 @@ impl MetaService for GrpcService {
             if let Some(n) = cluster.leader.clone() {
                 reply.leader_id = n.id;
                 reply.leader_ip = n.ip;
+                reply.leader_port = n.inner_port as i32;
                 return Ok(Response::new(reply));
             }
         }
@@ -155,7 +156,7 @@ impl MetaService for GrpcService {
     ) -> Result<Response<BrokerUnRegisterReply>, Status> {
         let node_id = request.into_inner().node_id;
         let addr = "127.0.0.1".to_string();
-        
+
         let value = StorageDataStructBroker { node_id, addr };
         let data = StorageData::new(
             StorageDataType::UnRegisterBroker,
@@ -218,7 +219,7 @@ impl MetaService for GrpcService {
         let change = ConfChange::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-
+        info_meta(&format!("send_raft_conf_change change data:{:?}", change));
         match self
             .raft_sender
             .send(RaftMessage::ConfChange { change, chan: sx })

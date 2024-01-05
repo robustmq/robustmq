@@ -115,7 +115,7 @@ pub fn new(path: String, segment_log_size: u64, log_fie_count: u32) {
                 .additive(false)
                 .build("app::meta", LevelFilter::Info),
         )
-        .build(Root::builder().appender("stdout").build(LevelFilter::Info))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Debug))
         .unwrap();
 
     let _ = log4rs::init_config(config).unwrap();

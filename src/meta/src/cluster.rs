@@ -69,5 +69,8 @@ impl Cluster {
     pub fn set_role(&mut self, role: NodeRole) {
         self.role = role;
     }
-    
+
+    pub fn set_leader(&mut self, leader: Node) {
+        self.leader = Some(leader);
+    }
 }

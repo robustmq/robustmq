@@ -33,7 +33,7 @@ mod tests {
         let _gurad = runtime.enter();
 
         runtime.block_on(async move {
-            let mut client = MetaServiceClient::connect("http://127.0.0.1:1228")
+            let mut client = MetaServiceClient::connect("http://127.0.0.1:1221")
                 .await
                 .unwrap();
 
