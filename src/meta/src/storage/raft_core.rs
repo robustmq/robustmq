@@ -115,7 +115,7 @@ impl RaftRocksDBStorageCore {
 
     // todo
     pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
-        self.uncommit_index.remove(&idx).unwrap();
+        self.uncommit_index.remove(&idx);
         self.save_uncommit_index();
         return Ok(());
     }

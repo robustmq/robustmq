@@ -16,20 +16,20 @@ impl DataRoute {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
             StorageDataType::RegisterBroker => {
-                return self.register_broker();
+                return self.register_broker(storage_data.data);
             }
             StorageDataType::UnRegisterBroker => {
-                return self.unregister_broker();
+                return self.unregister_broker(storage_data.data);
             }
         }
         return Ok(());
     }
 
-    pub fn register_broker(&self) -> Result<(), MetaError> {
+    pub fn register_broker(&self, data: String) -> Result<(), MetaError> {
         return Ok(());
     }
 
-    pub fn unregister_broker(&self) -> Result<(), MetaError> {
+    pub fn unregister_broker(&self, data: String) -> Result<(), MetaError> {
         return Ok(());
     }
 }
