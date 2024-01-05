@@ -25,6 +25,7 @@ pub struct RobustConfig {
     pub network: Network,
     pub runtime: Runtime,
     pub mqtt: MQTT,
+    pub log: Log,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -54,4 +55,11 @@ pub struct MQTT {
     pub mqtt4_port: usize,
     pub mqtt5_port: usize,
     pub websocket_port: usize,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Log{
+    pub log_path: String,
+    pub log_segment_size: u64,
+    pub log_file_num: u32,
 }

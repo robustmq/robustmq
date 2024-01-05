@@ -92,12 +92,13 @@ impl Meta {
         ));
 
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(10000);
+        let mut thread_handles = Vec::new();
 
         // Thread running meta grpc server
         let grpc_thread = thread::Builder::new().name("meta-grpc-thread".to_owned());
         let config = self.config.clone();
         let cluster = self.cluster.clone();
-        let _ = grpc_thread.spawn(move || {
+        let grpc_thread_join = grpc_thread.spawn(move || {
             let meta_http_runtime =
                 create_runtime("meta-grpc-runtime", config.runtime_work_threads);
             meta_http_runtime.block_on(async move {
@@ -116,18 +117,26 @@ impl Meta {
                     .unwrap();
             });
         });
+        thread_handles.push(grpc_thread_join);
 
         // Threads that run the meta Raft engine
         let raft_thread = thread::Builder::new().name("meta-raft-thread".to_owned());
         let config = self.config.clone();
         let cluster = self.cluster.clone();
         let storage = self.storage.clone();
-        let _ = raft_thread.spawn(move || {
+        let raft_thread_join = raft_thread.spawn(move || {
             let meta_runtime = create_runtime("raft-runtime", 10);
             meta_runtime.block_on(async {
                 let mut raft = MetaRaft::new(config, cluster, storage, raft_message_recv);
                 raft.ready().await;
             });
+        });
+        thread_handles.push(raft_thread_join);
+
+        thread_handles.into_iter().for_each(|handle| {
+            // join() might panic in case the thread panics
+            // we just ignore it
+            let _ = handle.unwrap().join();
         });
     }
 }
