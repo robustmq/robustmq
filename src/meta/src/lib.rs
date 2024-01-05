@@ -60,7 +60,7 @@ impl Node {
 
 impl Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ip:{},id:{}", self.ip, self.id)
+        write!(f, "ip:{},id:{},port:{}", self.ip, self.id, self.inner_port)
     }
 }
 

@@ -61,13 +61,15 @@ impl MetaRaft {
 
     pub async fn ready(&mut self) {
         info_meta("Meta raft state machine is being initialized");
+
+        // After voting and election, the Leader of the current cluster is obtained
         let leader_node = self.get_leader_node().await;
-        info_meta(&format!("Meta cluster Leader ID:{}", leader_node.id));
+
         self.run(leader_node).await;
     }
 
     async fn get_leader_node(&self) -> Node {
-        let cluster = self.cluster.read().unwrap();
+        let mut cluster = self.cluster.write().unwrap();
         let mata_nodes = self.config.meta_nodes.clone();
         if mata_nodes.len() == 1 {
             return cluster.local.clone();
@@ -93,6 +95,16 @@ impl MetaRaft {
         };
 
         info_meta(&format!("cluster Leader is {}", ld));
+
+        // Stores the leader and role information of the current cluster
+        cluster.set_leader(ld.clone());
+
+        if self.config.node_id == ld.id {
+            cluster.set_role(crate::cluster::NodeRole::Leader);
+        } else {
+            cluster.set_role(crate::cluster::NodeRole::Follower);
+        };
+
         return ld;
     }
 
@@ -258,8 +270,7 @@ impl MetaRaft {
                 continue;
             }
 
-            let tmp: StorageData = deserialize(entry.get_data()).unwrap();
-            println!("{:?}", tmp.to_string());
+            println!("{:?}", entry.get_data());
             match entry.get_entry_type() {
                 EntryType::EntryNormal => {
                     let idx: u64 = entry.get_index();
