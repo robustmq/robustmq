@@ -260,7 +260,7 @@ impl MetaRaft {
             }
 
             let tmp: StorageData = deserialize(entry.get_data()).unwrap();
-            println!("{:?}", tmp);
+            println!("{:?}", tmp.to_string());
             match entry.get_entry_type() {
                 EntryType::EntryNormal => {
                     let idx: u64 = entry.get_index();
@@ -333,6 +333,9 @@ impl MetaRaft {
         let conf = self.build_config();
         let storage = RaftRocksDBStorage::new(&self.config);
         let logger = self.build_slog();
+        
+        // storage init 
+
         let mut node = RawNode::new(&conf, storage, &logger).unwrap();
 
         // Change the role of the current node to Leader
