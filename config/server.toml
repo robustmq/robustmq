@@ -26,3 +26,8 @@ response_queue_size = 2000
 [meta]
 port = 1228
 dataFold = "/data/robustmq/meta"
+
+[log]
+log_path = "/tmp/logs"
+log_segment_size = 1073741824
+log_file_num=50

@@ -92,10 +92,15 @@ impl RaftRocksDBStorage {
         return Ok(());
     }
 
-    pub fn create_snapshot(&mut self) -> RaftResult<()>{
+    pub fn create_snapshot(&mut self) -> RaftResult<()> {
         let mut store = self.core.write().unwrap();
         let _ = store.create_snapshot();
         return Ok(());
+    }
+
+    pub fn is_init_snapshot(&self) -> bool {
+        let store = self.core.write().unwrap();
+        return store.is_need_init_snapshot();
     }
     
 }

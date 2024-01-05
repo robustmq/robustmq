@@ -5,21 +5,21 @@ edition.workspace = true
 license.workspace = true
 default-run = "robustmq"
 
-[[broker]]
+[[bin]]
 name = "broker"
-path = "src/broker.rs"
+path = "src/broker/broker.rs"
 
-[[cmd]]
+[[bin]]
 name = "cmd"
-path = "src/cmd.rs"
+path = "src/cmd/cmd.rs"
 
-[[meta]]
+[[bin]]
 name = "meta"
-path = "src/meta.rs"
+path = "src/meta/meta.rs"
 
 [[bin]]
 name = "robustmq"
-path = "src/robust.rs"
+path = "src/robust/robust.rs"
 
 [dependencies]
 clap = {version="4.4.7",features = [ "derive" ]}

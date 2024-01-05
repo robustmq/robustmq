@@ -38,6 +38,15 @@ impl RaftRocksDBStorageCore {
         return rc;
     }
 
+    pub fn is_need_init_snapshot(&self) -> bool {
+        let cf = self.conf_state();
+        let hs = self.hard_state();
+        if cf == ConfState::default() && hs == HardState::default() {
+            return true;
+        }
+        return false;
+    }
+
     /// Save HardState information to RocksDB
     pub fn save_conf_state(&self, cs: ConfState) -> Result<(), String> {
         let key = self.key_name_by_conf_state();
@@ -146,7 +155,7 @@ impl RaftRocksDBStorageCore {
 
         for entry in entrys {
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
-            
+
             let key = self.key_name_by_entry(entry.index);
             self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
 

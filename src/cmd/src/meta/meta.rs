@@ -12,17 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use broker::broker::Broker;
 use clap::command;
 use clap::Parser;
 use common::config::meta::MetaConfig;
 use common::config::parse_meta;
-use common::config::parse_server;
-use common::config::server::RobustConfig;
 use common::config::DEFAULT_META_CONFIG;
-use common::config::DEFAULT_SERVER_CONFIG;
 use common::log;
 use meta::Meta;
 
@@ -31,10 +25,6 @@ use meta::Meta;
 #[command(next_line_help = true)]
 
 struct ArgsParams {
-    /// broker server configuration file path
-    #[arg(short, long, default_value_t=String::from(DEFAULT_SERVER_CONFIG))]
-    server_conf: String,
-
     /// MetaService Indicates the path of the configuration file
     #[arg(short, long, default_value_t=String::from(DEFAULT_META_CONFIG))]
     meta_conf: String,
@@ -42,36 +32,12 @@ struct ArgsParams {
 
 fn main() {
     let args = ArgsParams::parse();
-
-    let server_conf: RobustConfig = parse_server(&args.server_conf);
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
-
     log::new(
         meta_conf.log_path.clone(),
         meta_conf.log_segment_size.clone(),
         meta_conf.log_file_num.clone(),
     );
-
-    // Start Meta
     let mut mt_s = Meta::new(meta_conf);
     mt_s.start();
-
-    // Start Broker
-    let app: Broker = Broker::new(Arc::new(server_conf));
-    app.start().unwrap();
-
-    // tokio::select! {
-    //     result = app.start() => {
-    //         if let Err(err) = result {
-    //             error(&format!("Fatal error occurs!,err:{:?}",err));
-    //         }
-    //     }
-    //     _ = signal::ctrl_c() => {
-    //         info("Listen for stop signal Ctrl+C...");
-    //         if let Err(err) = app.stop().await {
-    //             error(&format!("Fatal error occurs!,err:{:?}",err));
-    //         }
-    //         info("Goodbye!");
-    //     }
-    // }
 }

@@ -253,7 +253,6 @@ impl MetaRaft {
 
         let storage = self.storage.write().unwrap();
         for entry in entrys {
-            
             println!("{:?}", entry.get_entry_type());
             if entry.data.is_empty() {
                 continue;
@@ -331,10 +330,20 @@ impl MetaRaft {
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
         let conf = self.build_config();
-        let storage = RaftRocksDBStorage::new(&self.config);
+        let mut storage = RaftRocksDBStorage::new(&self.config);
         let logger = self.build_slog();
-        
-        // storage init 
+
+        // init storage
+        if storage.is_init_snapshot() {
+            let mut s = Snapshot::default();
+            // Because we don't use the same configuration to initialize every node, so we use
+            // a non-zero index to force new followers catch up logs by snapshot first, which will
+            // bring all nodes to the same initial state.
+            s.mut_metadata().index = 1;
+            s.mut_metadata().term = 1;
+            s.mut_metadata().mut_conf_state().voters = vec![self.config.node_id];
+            storage.apply_snapshot(s).unwrap();
+        }
 
         let mut node = RawNode::new(&conf, storage, &logger).unwrap();
 
