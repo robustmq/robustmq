@@ -36,8 +36,9 @@ pub mod raft;
 mod services;
 pub mod storage;
 mod tools;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Node {
     pub ip: String,
     pub id: u64,
@@ -132,6 +133,19 @@ impl Meta {
             });
         });
         thread_handles.push(raft_thread_join);
+
+        // Threads that run the daemon process
+        let datemon_thread = thread::Builder::new().name("daemon-process-thread".to_owned());
+        let cluster = self.cluster.clone();
+        let daemon_thread_join = datemon_thread.spawn(move || {
+            let daemon_runtime = create_runtime("daemon-runtime", 10);
+            let _ = daemon_runtime.enter();
+            daemon_runtime.block_on(async {
+                let cls = cluster.write().unwrap();
+                cls.start_process_thread();
+            });
+        });
+        thread_handles.push(daemon_thread_join);
 
         thread_handles.into_iter().for_each(|handle| {
             // join() might panic in case the thread panics
