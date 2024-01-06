@@ -1,5 +1,8 @@
-use crate::{raft::peer::Peer, Node};
-use std::collections::HashMap;
+use crate::{
+    raft::peer::{PeerManager, PeerMessage},
+    Node,
+};
+use common::log::{error_meta, info_meta};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeRole {
@@ -22,7 +25,7 @@ pub struct Cluster {
     pub leader: Option<Node>,
     pub role: NodeRole,
     pub state: NodeState,
-    pub peers: HashMap<u64, Peer>,
+    pub peer_manager: PeerManager,
 }
 
 impl Cluster {
@@ -32,34 +35,31 @@ impl Cluster {
             leader: None,
             role: NodeRole::Candidate,
             state: NodeState::Starting,
-            peers: HashMap::new(),
+            peer_manager: PeerManager::new(3),
         }
     }
 
     // Add Meta node
-    pub fn add_peer(&mut self, id: u64, peer: Peer) {
-        if let Some(mut pr) = self.peers.insert(id, peer) {
-            tokio::spawn(async move {
-                pr.start().await;
-            });
-        }
+    pub fn add_peer(&mut self, id: u64, node: Node) {
+        info_meta(&format!("addd node,{:?}", node));
+        self.peer_manager.add_peer(id, node);
     }
 
     // Add Meta node
     pub fn remove_peer(&mut self, id: u64) {
-        if let Some(mut per) = self.peers.remove(&id) {
-            per.stop();
-        }
+        self.peer_manager.remove_peer(id);
     }
 
     pub fn send_message(&mut self, id: u64, msg: Vec<u8>) {
-        if let Some(per) = self.peers.get_mut(&id) {
-            per.push(msg);
+        info_meta(&format!("send to:{}", id));
+        if let Some(node) = self.peer_manager.get_node_by_id(id) {
+            self.peer_manager.send_message(PeerMessage {
+                to: node.addr(),
+                data: msg,
+            })
+        } else {
+            error_meta(&format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id));
         }
-    }
-
-    pub fn get_addr_by_id(&self, id: u64) -> String {
-        return "".to_string();
     }
 
     pub fn is_leader(&self) -> bool {
@@ -72,5 +72,9 @@ impl Cluster {
 
     pub fn set_leader(&mut self, leader: Node) {
         self.leader = Some(leader);
+    }
+
+    pub fn start_process_thread(&self) {
+        self.peer_manager.start();
     }
 }

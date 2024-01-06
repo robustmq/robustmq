@@ -3,10 +3,8 @@ use super::message::{RaftMessage, RaftResponseMesage};
 use crate::client::send_raft_conf_change;
 use crate::cluster::Cluster;
 use crate::errors::MetaError;
-use crate::raft::peer::Peer;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use crate::storage::route::DataRoute;
-use crate::storage::schema::StorageData;
 use crate::Node;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
@@ -194,7 +192,7 @@ impl MetaRaft {
         // After receiving the data sent by the client,
         // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
-            info_meta(&format!("save message!!!,len:{}", ready.messages().len()));
+            info_meta(&format!("send message!!!,len:{}", ready.messages().len()));
             self.send_message(ready.take_messages());
         }
 
@@ -289,15 +287,18 @@ impl MetaRaft {
                         .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
                         .unwrap();
                     let id = change.get_node_id();
-                    let addr: String = deserialize(change.get_context()).unwrap();
                     let change_type = change.get_change_type();
-
                     match change_type {
                         ConfChangeType::AddNode => {
-                            let mut cls = self.cluster.write().unwrap();
-                            // let addr = cls.get_addr_by_id(id);
-                            let peer = Peer::new(addr);
-                            cls.add_peer(id, peer)
+                            match deserialize::<Node>(change.get_context()) {
+                                Ok(node) => {
+                                    let mut cls = self.cluster.write().unwrap();
+                                    cls.add_peer(id, node);
+                                }
+                                Err(e) => {
+                                    error_meta(&format!("Failed to parse Node data from context with error message {:?}", e));
+                                }
+                            }
                         }
                         ConfChangeType::RemoveNode => {
                             let mut cls = self.cluster.write().unwrap();
@@ -372,12 +373,13 @@ impl MetaRaft {
 
         // Add the leader node to the peer list
         let mut cluster = self.cluster.write().unwrap();
-        cluster.add_peer(leader_node.id, Peer::new(leader_node.addr()));
+        cluster.add_peer(leader_node.id.clone(), leader_node.clone());
 
         // try remove from the cluster
         let mut change = ConfChange::default();
         change.set_node_id(self.config.node_id);
         change.set_change_type(ConfChangeType::RemoveNode);
+        change.set_context(serialize(&cluster.local.addr()).unwrap());
         match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
             Ok(_) => {}
             Err(err) => {
@@ -392,14 +394,7 @@ impl MetaRaft {
         let mut change = ConfChange::default();
         change.set_node_id(self.config.node_id);
         change.set_change_type(ConfChangeType::AddNode);
-        change.set_context(
-            serialize(&format!(
-                "{}:{}",
-                self.config.addr.clone(),
-                self.config.port.clone()
-            ))
-            .unwrap(),
-        );
+        change.set_context(serialize(&cluster.local.addr()).unwrap());
         match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
             Ok(_) => {}
             Err(err) => {
