@@ -1,9 +1,7 @@
-use crate::{
-    raft::peer::{PeerManager, PeerMessage},
-    Node,
-};
+use crate::{raft::peer::PeerMessage, Node};
+use ahash::AHashMap;
 use common::log::{error_meta, info_meta};
-use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc::Sender;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeRole {
@@ -25,44 +23,49 @@ pub struct Cluster {
     pub leader: Option<Node>,
     pub role: NodeRole,
     pub state: NodeState,
-    pub peer_manager: PeerManager,
+    pub peers: AHashMap<u64, Node>,
+    peers_send: Sender<PeerMessage>,
 }
 
 impl Cluster {
-    pub fn new(
-        local: Node,
-        peer_message_send: Sender<PeerMessage>,
-        stop_send: Sender<bool>,
-    ) -> Cluster {
+    pub fn new(local: Node, peers_send: Sender<PeerMessage>) -> Cluster {
         Cluster {
             local,
             leader: None,
             role: NodeRole::Candidate,
             state: NodeState::Starting,
-            peer_manager: PeerManager::new(peer_message_send, stop_send),
+            peers: AHashMap::new(),
+            peers_send,
         }
     }
 
     // Add Meta node
     pub fn add_peer(&mut self, id: u64, node: Node) {
         info_meta(&format!("addd node,{:?}", node));
-        self.peer_manager.add_peer(id, node);
+        self.peers.insert(id, node);
     }
 
     // Add Meta node
     pub fn remove_peer(&mut self, id: u64) {
-        self.peer_manager.remove_peer(id);
+        self.peers.remove(&id);
     }
 
     pub async fn send_message(&mut self, id: u64, msg: Vec<u8>) {
-        info_meta(&format!("send to:{}", id));
-        if let Some(node) = self.peer_manager.get_node_by_id(id) {
-            self.peer_manager
-                .send_message(PeerMessage {
+        if let Some(node) = self.get_node_by_id(id) {
+            match self
+                .peers_send
+                .send(PeerMessage {
                     to: node.addr(),
                     data: msg,
                 })
                 .await
+            {
+                Ok(_) => {}
+                Err(e) => error_meta(&format!(
+                    "Failed to write Raft Message to send queue with error message: {:?}",
+                    e.to_string()
+                )),
+            }
         } else {
             error_meta(&format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id));
         }
@@ -80,7 +83,7 @@ impl Cluster {
         self.leader = Some(leader);
     }
 
-    pub fn start_process_thread(&mut self) {
-        self.peer_manager.start();
+    pub fn get_node_by_id(&self, id: u64) -> Option<&Node> {
+        self.peers.get(&id)
     }
 }

@@ -19,7 +19,7 @@ use common::log::{info, info_meta};
 use common::runtime::create_runtime;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
-use raft::peer::PeerMessage;
+use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
 use std::fmt;
 use std::fmt::Display;
@@ -83,8 +83,8 @@ impl Meta {
         ));
 
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
-        let (stop_service_send, _) = broadcast::channel::<bool>(1);
-        let (peer_message_send, _) = broadcast::channel::<PeerMessage>(1000);
+        let (_, stop_recv) = broadcast::channel::<bool>(1);
+        let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
 
         let cluster = Arc::new(RwLock::new(Cluster::new(
             Node::new(
@@ -93,7 +93,6 @@ impl Meta {
                 self.config.port.clone(),
             ),
             peer_message_send.clone(),
-            stop_service_send.clone(),
         )));
 
         let storage = Arc::new(RwLock::new(DataRoute::new()));
@@ -139,13 +138,12 @@ impl Meta {
 
         // Threads that run the daemon process
         let datemon_thread = thread::Builder::new().name("daemon-process-thread".to_owned());
-        let cluster_clone = cluster.clone();
         let daemon_thread_join = datemon_thread.spawn(move || {
             let daemon_runtime = create_runtime("daemon-runtime", 10);
             let _ = daemon_runtime.enter();
             daemon_runtime.block_on(async {
-                let mut cls = cluster_clone.write().unwrap();
-                cls.start_process_thread();
+                let mut peers_manager = PeersManager::new(peer_message_recv);
+                peers_manager.start().await;
             });
         });
         thread_handles.push(daemon_thread_join);
