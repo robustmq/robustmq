@@ -256,11 +256,6 @@ impl MetaRaft {
         raft_node: &mut RawNode<RaftRocksDBStorage>,
         entrys: Vec<Entry>,
     ) {
-        info_meta(&format!(
-            "handle committed entries !!!,len:{}",
-            entrys.len()
-        ));
-
         let storage = self.storage.write().unwrap();
         for entry in entrys {
             println!("{:?}", entry.get_entry_type());
