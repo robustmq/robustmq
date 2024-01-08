@@ -35,7 +35,7 @@ pub enum MetaError {
     #[error("Multiple leaders exist in a cluster, Node:{0} diff {1}")]
     MultipleLeaders(String,String),
 
-    #[error("data store disconnected")]
+    #[error("The service connection is incorrect, possibly because the service port is not started")]
     TonicTransport(#[from] tonic::transport::Error),
 
     #[error("Grpc call of the Meta node failed,Grpc status was {0}")]

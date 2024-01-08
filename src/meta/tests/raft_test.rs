@@ -10,7 +10,6 @@ mod tests {
     #[test]
     fn raft_node_1() {
         let mut conf = MetaConfig::default();
-        conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1221;
         conf.log_path = "/tmp/test_fold1/logs".to_string();

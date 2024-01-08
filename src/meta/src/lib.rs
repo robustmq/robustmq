@@ -19,13 +19,15 @@ use common::log::{info, info_meta};
 use common::runtime::create_runtime;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
+use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
 use std::thread;
 use storage::route::DataRoute;
-use tokio::sync::mpsc;
+use tokio::sync::broadcast::Sender;
+use tokio::sync::{broadcast, mpsc};
 use tonic::transport::Server;
 
 pub mod broker;
@@ -67,23 +69,11 @@ impl Display for Node {
 
 pub struct Meta {
     config: MetaConfig,
-    cluster: Arc<RwLock<Cluster>>,
-    storage: Arc<RwLock<DataRoute>>,
 }
 
 impl Meta {
     pub fn new(config: MetaConfig) -> Meta {
-        let cluster = Arc::new(RwLock::new(Cluster::new(Node::new(
-            config.addr.clone(),
-            config.node_id.clone(),
-            config.port.clone(),
-        ))));
-        let storage = Arc::new(RwLock::new(DataRoute::new()));
-        return Meta {
-            config,
-            cluster,
-            storage,
-        };
+        return Meta { config };
     }
 
     pub fn start(&mut self) {
@@ -92,13 +82,26 @@ impl Meta {
             self.config.addr, self.config.node_id
         ));
 
-        let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(10000);
+        let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
+        let (_, stop_recv) = broadcast::channel::<bool>(1);
+        let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
+
+        let cluster = Arc::new(RwLock::new(Cluster::new(
+            Node::new(
+                self.config.addr.clone(),
+                self.config.node_id.clone(),
+                self.config.port.clone(),
+            ),
+            peer_message_send.clone(),
+        )));
+
+        let storage = Arc::new(RwLock::new(DataRoute::new()));
         let mut thread_handles = Vec::new();
 
         // Thread running meta grpc server
         let grpc_thread = thread::Builder::new().name("meta-grpc-thread".to_owned());
         let config = self.config.clone();
-        let cluster = self.cluster.clone();
+        let cluster_clone = cluster.clone();
         let grpc_thread_join = grpc_thread.spawn(move || {
             let meta_http_runtime =
                 create_runtime("meta-grpc-runtime", config.runtime_work_threads);
@@ -110,7 +113,7 @@ impl Meta {
                     ip
                 ));
 
-                let service_handler = GrpcService::new(cluster, raft_message_send);
+                let service_handler = GrpcService::new(cluster_clone, raft_message_send);
                 Server::builder()
                     .add_service(MetaServiceServer::new(service_handler))
                     .serve(ip)
@@ -123,12 +126,11 @@ impl Meta {
         // Threads that run the meta Raft engine
         let raft_thread = thread::Builder::new().name("meta-raft-thread".to_owned());
         let config = self.config.clone();
-        let cluster = self.cluster.clone();
-        let storage = self.storage.clone();
+        let cluster_clone = cluster.clone();
         let raft_thread_join = raft_thread.spawn(move || {
             let meta_runtime = create_runtime("raft-runtime", 10);
             meta_runtime.block_on(async {
-                let mut raft = MetaRaft::new(config, cluster, storage, raft_message_recv);
+                let mut raft = MetaRaft::new(config, cluster_clone, storage, raft_message_recv);
                 raft.ready().await;
             });
         });
@@ -136,13 +138,12 @@ impl Meta {
 
         // Threads that run the daemon process
         let datemon_thread = thread::Builder::new().name("daemon-process-thread".to_owned());
-        let cluster = self.cluster.clone();
         let daemon_thread_join = datemon_thread.spawn(move || {
             let daemon_runtime = create_runtime("daemon-runtime", 10);
             let _ = daemon_runtime.enter();
             daemon_runtime.block_on(async {
-                let cls = cluster.write().unwrap();
-                cls.start_process_thread();
+                let mut peers_manager = PeersManager::new(peer_message_recv);
+                peers_manager.start().await;
             });
         });
         thread_handles.push(daemon_thread_join);
@@ -152,5 +153,9 @@ impl Meta {
             // we just ignore it
             let _ = handle.unwrap().join();
         });
+    }
+
+    pub fn watch_stop_signal(&self, stop_service_send: Sender<bool>) {
+        let _ = stop_service_send.send(true);
     }
 }
