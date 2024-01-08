@@ -154,6 +154,9 @@ impl RaftRocksDBStorageCore {
         }
 
         for entry in entrys {
+            if entry.data.is_empty() {
+                continue;
+            }
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
 
             let key = self.key_name_by_entry(entry.index);
