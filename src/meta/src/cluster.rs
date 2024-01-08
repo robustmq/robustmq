@@ -3,6 +3,7 @@ use crate::{
     Node,
 };
 use common::log::{error_meta, info_meta};
+use tokio::sync::broadcast::Sender;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeRole {
@@ -19,7 +20,6 @@ pub enum NodeState {
     Stop,
 }
 
-#[derive(Clone)]
 pub struct Cluster {
     pub local: Node,
     pub leader: Option<Node>,
@@ -29,13 +29,17 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn new(local: Node) -> Cluster {
+    pub fn new(
+        local: Node,
+        peer_message_send: Sender<PeerMessage>,
+        stop_send: Sender<bool>,
+    ) -> Cluster {
         Cluster {
             local,
             leader: None,
             role: NodeRole::Candidate,
             state: NodeState::Starting,
-            peer_manager: PeerManager::new(3),
+            peer_manager: PeerManager::new(peer_message_send, stop_send),
         }
     }
 
@@ -50,13 +54,15 @@ impl Cluster {
         self.peer_manager.remove_peer(id);
     }
 
-    pub fn send_message(&mut self, id: u64, msg: Vec<u8>) {
+    pub async fn send_message(&mut self, id: u64, msg: Vec<u8>) {
         info_meta(&format!("send to:{}", id));
         if let Some(node) = self.peer_manager.get_node_by_id(id) {
-            self.peer_manager.send_message(PeerMessage {
-                to: node.addr(),
-                data: msg,
-            })
+            self.peer_manager
+                .send_message(PeerMessage {
+                    to: node.addr(),
+                    data: msg,
+                })
+                .await
         } else {
             error_meta(&format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id));
         }
@@ -74,7 +80,7 @@ impl Cluster {
         self.leader = Some(leader);
     }
 
-    pub fn start_process_thread(&self) {
+    pub fn start_process_thread(&mut self) {
         self.peer_manager.start();
     }
 }

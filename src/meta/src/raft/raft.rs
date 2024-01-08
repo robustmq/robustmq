@@ -193,7 +193,7 @@ impl MetaRaft {
         // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
             info_meta(&format!("send message!!!,len:{}", ready.messages().len()));
-            self.send_message(ready.take_messages());
+            self.send_message(ready.take_messages()).await;
         }
 
         // If the snapshot is not empty, save the snapshot to Storage, and apply
@@ -234,7 +234,7 @@ impl MetaRaft {
                 "save persisted_messages!!!,len:{:?}",
                 ready.persisted_messages().len()
             ));
-            self.send_message(ready.take_persisted_messages());
+            self.send_message(ready.take_persisted_messages()).await;
         }
 
         // A call to advance tells Raft that it is ready for processing.
@@ -244,7 +244,7 @@ impl MetaRaft {
             raft_node.mut_store().set_hard_state_comit(commit).unwrap();
         }
 
-        self.send_message(light_rd.take_messages());
+        self.send_message(light_rd.take_messages()).await;
 
         self.handle_committed_entries(raft_node, light_rd.take_committed_entries());
 
@@ -331,12 +331,12 @@ impl MetaRaft {
         }
     }
 
-    fn send_message(&self, messages: Vec<raftPreludeMessage>) {
+    async fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
             let to = msg.get_to();
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
             let mut cluster = self.cluster.write().unwrap();
-            cluster.send_message(to, data);
+            cluster.send_message(to, data).await;
         }
     }
 
@@ -379,7 +379,7 @@ impl MetaRaft {
         let mut change = ConfChange::default();
         change.set_node_id(self.config.node_id);
         change.set_change_type(ConfChangeType::RemoveNode);
-        change.set_context(serialize(&cluster.local.addr()).unwrap());
+        change.set_context(serialize(&cluster.local).unwrap());
         match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
             Ok(_) => {}
             Err(err) => {
@@ -394,7 +394,7 @@ impl MetaRaft {
         let mut change = ConfChange::default();
         change.set_node_id(self.config.node_id);
         change.set_change_type(ConfChangeType::AddNode);
-        change.set_context(serialize(&cluster.local.addr()).unwrap());
+        change.set_context(serialize(&cluster.local).unwrap());
         match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
             Ok(_) => {}
             Err(err) => {
