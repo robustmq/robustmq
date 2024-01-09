@@ -65,4 +65,13 @@ mod tests {
             sleep(Duration::from_secs(1000));
         }
     }
+
+    #[test]
+    fn vec_test(){
+        let v = vec![1,2,3,4,5,6];
+        let start = 0 as usize;
+        let end = 3 as usize;
+        println!("{:?}",v[start..end].to_vec());
+        println!("{:?}",v[start..end].to_vec());
+    }
 }
