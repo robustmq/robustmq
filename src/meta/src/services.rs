@@ -190,6 +190,7 @@ impl MetaService for GrpcService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
 
+        info_meta(&format!("grpc receive send_raft_message data:{:?}", message));
         match self
             .raft_sender
             .send(RaftMessage::Raft { message, chan: sx })
@@ -219,7 +220,7 @@ impl MetaService for GrpcService {
         let change = ConfChange::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        info_meta(&format!("send_raft_conf_change change data:{:?}", change));
+        info_meta(&format!("grpc receive send_raft_conf_change change data:{:?}", change));
         match self
             .raft_sender
             .send(RaftMessage::ConfChange { change, chan: sx })

@@ -1,6 +1,7 @@
 use crate::storage::rocksdb::RocksDBStorage;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
+use common::log::info_meta;
 use prost::Message as _;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -91,7 +92,8 @@ impl RaftRocksDBStorageCore {
     }
 
     // Obtain the Entry based on the index ID
-    pub fn snapshot(&self) -> Snapshot {
+    pub fn snapshot(&mut self) -> Snapshot {
+        self.create_snapshot();
         return self.snapshot_data.clone();
     }
 
@@ -153,18 +155,29 @@ impl RaftRocksDBStorageCore {
             );
         }
 
+        let mut first: u64 = 0u64;
+        let mut last: u64 = 0u64;
+
+        // Remove all entries overwritten by `ents`.
         for entry in entrys {
-            if entry.data.is_empty() {
-                continue;
+            // if entry.data.is_empty() {
+            //     continue;
+            // }
+            if first == 0 {
+                first = entry.index;
             }
+            last = entry.index;
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
 
             let key = self.key_name_by_entry(entry.index);
             self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
 
-            self.save_last_index(entry.index).unwrap();
             self.uncommit_index.insert(entry.index, 1);
         }
+        info_meta(&format!("save first indx:{}",first));
+        info_meta(&format!("save last indx:{}",first));
+        self.save_first_index(first).unwrap();
+        self.save_last_index(last).unwrap();
 
         self.save_uncommit_index();
 
