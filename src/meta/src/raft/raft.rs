@@ -136,14 +136,14 @@ impl MetaRaft {
 
                 Ok(Some(RaftMessage::Raft { message, chan })) => {
                     // Step advances the state machine using the given message.
-                    let seq = self
-                        .seqnum
-                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
                     match raft_node.step(message) {
-                        Ok(_) => {
-                            self.resp_channel.insert(seq, chan);
-                        }
+                        // After the step message succeeds, you can return success directly
+                        Ok(_) => match chan.send(RaftResponseMesage::Success) {
+                            Ok(_) => {}
+                            Err(_) => {
+                                error_meta("commit entry Fails to return data to chan. chan may have been closed");
+                            }
+                        },
                         Err(e) => {
                             error_meta(&MetaError::RaftStepCommitFail(e.to_string()).to_string());
                         }
