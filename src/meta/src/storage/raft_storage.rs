@@ -223,6 +223,7 @@ impl RaftStorage for RaftRocksDBStorage {
             if snap.get_metadata().index < request_index {
                 snap.mut_metadata().index = request_index;
             }
+            info_meta(&format!("snap:{:?}",snap));
             Ok(snap)
         }
     }

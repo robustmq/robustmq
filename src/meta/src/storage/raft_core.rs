@@ -92,7 +92,8 @@ impl RaftRocksDBStorageCore {
     }
 
     // Obtain the Entry based on the index ID
-    pub fn snapshot(&self) -> Snapshot {
+    pub fn snapshot(&mut self) -> Snapshot {
+        self.create_snapshot();
         return self.snapshot_data.clone();
     }
 
@@ -174,7 +175,7 @@ impl RaftRocksDBStorageCore {
             self.uncommit_index.insert(entry.index, 1);
         }
         info_meta(&format!("save first indx:{}",first));
-        info_meta(&format!("save last indx:{}",last));
+        info_meta(&format!("save last indx:{}",first));
         self.save_first_index(first).unwrap();
         self.save_last_index(last).unwrap();
 
