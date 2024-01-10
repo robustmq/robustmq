@@ -1,6 +1,9 @@
 use crate::storage::rocksdb::RocksDBStorage;
 use bincode::{deserialize, serialize};
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
 use common::config::meta::MetaConfig;
+use common::log::error_meta;
 use common::log::info_meta;
 use prost::Message as _;
 use raft::eraftpb::HardState;
@@ -35,7 +38,6 @@ impl RaftRocksDBStorageCore {
             snapshot_data: Snapshot::default(),
         };
         rc.uncommit_index = rc.uncommit_index();
-        // rc.init_storage();
         return rc;
     }
 
@@ -174,8 +176,8 @@ impl RaftRocksDBStorageCore {
 
             self.uncommit_index.insert(entry.index, 1);
         }
-        info_meta(&format!("save first indx:{}",first));
-        info_meta(&format!("save last indx:{}",first));
+        info_meta(&format!("save first indx:{}", first));
+        info_meta(&format!("save last indx:{}", first));
         self.save_first_index(first).unwrap();
         self.save_last_index(last).unwrap();
 
@@ -222,53 +224,70 @@ impl RaftRocksDBStorageCore {
     /// Get the index of the first Entry from RocksDB
     pub fn first_index(&self) -> u64 {
         let key = self.key_name_by_first_index();
-        let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
-        if value == None {
-            self.snapshot_metadata.index + 1
-        } else {
-            value.unwrap()
+        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
+            Ok(value) => {
+                if let Some(val) = value {
+                    // let fi = u64::from_be_bytes(val);
+                    64
+                } else {
+                    self.snapshot_metadata.index + 1
+                }
+            }
+            Err(e) => {
+                error_meta(&e);
+                self.snapshot_metadata.index + 1
+            }
         }
     }
 
     /// Gets the index of the last Entry from RocksDB
     pub fn last_index(&self) -> u64 {
         let key = self.key_name_by_last_index();
-        let value = self.rds.read::<u64>(self.rds.cf_meta(), &key).unwrap();
-        if value == None {
-            self.snapshot_metadata.index
-        } else {
-            value.unwrap()
+        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
+            Ok(value) => {
+                if let Some(val) = value {
+                    let li = u64::from_be_bytes(val.try_into().unwrap());
+                    info_meta(&format!("li={}", li));
+                    li
+                } else {
+                    self.snapshot_metadata.index
+                }
+            }
+            Err(e) => {
+                error_meta(&e);
+                self.snapshot_metadata.index
+            }
         }
     }
 
     /// Obtain the Entry based on the index ID
     pub fn entry_by_idx(&self, idx: u64) -> Option<Entry> {
         let key = self.key_name_by_entry(idx);
-        let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
-        if value == None {
-            return None;
-        } else {
-            let vl = value.unwrap();
-            let et = Entry::decode(vl.as_ref())
-                .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
-                .unwrap();
-            return Some(et);
+        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
+            Ok(value) => {
+                if let Some(vl) = value {
+                    let et = Entry::decode(vl.as_ref())
+                        .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
+                        .unwrap();
+                    return Some(et);
+                }
+            }
+            Err(e) => error_meta(&e),
         }
+        return None;
     }
 
     pub fn save_last_index(&self, index: u64) -> Result<(), String> {
         let key = self.key_name_by_last_index();
-        self.rds.write(self.rds.cf_meta(), &key, &index)
-    }
-
-    pub fn save_entry(&self, index: u64, value: Entry) -> Result<(), String> {
-        let key = self.key_name_by_entry(index);
-        self.rds.write(self.rds.cf_meta(), &key, &index)
+        let value = index.encode_to_vec();
+        println!("{}",value.len());
+        self.rds.write(self.rds.cf_meta(), &key, &value)
     }
 
     pub fn save_first_index(&self, index: u64) -> Result<(), String> {
         let key = self.key_name_by_first_index();
-        self.rds.write(self.rds.cf_meta(), &key, &index)
+        let value = index.encode_to_vec();
+        self.rds.write(self.rds.cf_meta(), &key, &value)
     }
 
     pub fn truncate_entry(&self) {
@@ -312,9 +331,16 @@ impl RaftRocksDBStorageCore {
 
     pub fn uncommit_index(&self) -> HashMap<u64, i8> {
         let key = self.key_name_uncommit();
-        let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
-        if value != None {
-            return deserialize(value.unwrap().as_ref()).unwrap();
+        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
+            Ok(data) => {
+                if let Some(value) = data {
+                    match deserialize(value.as_ref()) {
+                        Ok(v) => return v,
+                        Err(err) => error_meta(&err.to_string()),
+                    }
+                }
+            }
+            Err(err) => error_meta(&err),
         }
         return HashMap::new();
     }

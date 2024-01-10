@@ -14,7 +14,7 @@
 
 use bincode::deserialize;
 use common::config::meta::MetaConfig;
-use common::log::error_meta;
+use common::log::{error_meta, info_meta};
 use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
@@ -135,9 +135,13 @@ impl RocksDBStorage {
                 for (family, value) in data {
                     let cf = self.get_column_family(family.to_string());
                     for raw in value {
-                        let key = raw[0].clone();
+                        let key = String::from_utf8(raw[0].clone()).unwrap();
                         let value = raw[1].clone();
-                        match self.write(cf, &String::from_utf8(key).unwrap(), &value) {
+                        info_meta(&format!(
+                            "apply snap,family:{:?},key:{:?},value:{:?}",
+                            family, key, value
+                        ));
+                        match self.write(cf, &key, &value) {
                             Ok(_) => {}
                             Err(err) => {
                                 error_meta(&format!(
