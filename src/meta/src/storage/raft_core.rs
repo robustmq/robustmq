@@ -1,7 +1,12 @@
+use super::keys::key_name_by_conf_state;
+use super::keys::key_name_by_entry;
+use super::keys::key_name_by_first_index;
+use super::keys::key_name_by_hard_state;
+use super::keys::key_name_by_last_index;
+use super::keys::key_name_uncommit;
+use super::rocksdb::DB_COLUMN_FAMILY_META;
 use crate::storage::rocksdb::RocksDBStorage;
 use bincode::{deserialize, serialize};
-use byteorder::BigEndian;
-use byteorder::ByteOrder;
 use common::config::meta::MetaConfig;
 use common::log::error_meta;
 use common::log::info_meta;
@@ -17,6 +22,7 @@ use raft::Result as RaftResult;
 use raft::StorageError;
 use std::cmp;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 pub struct RaftRocksDBStorageCore {
     rds: RocksDBStorage,
@@ -52,7 +58,7 @@ impl RaftRocksDBStorageCore {
 
     /// Save HardState information to RocksDB
     pub fn save_conf_state(&self, cs: ConfState) -> Result<(), String> {
-        let key = self.key_name_by_conf_state();
+        let key = key_name_by_conf_state();
         let value = ConfState::encode_to_vec(&cs);
         self.rds.write(self.rds.cf_meta(), &key, &value)
     }
@@ -69,7 +75,7 @@ impl RaftRocksDBStorageCore {
 
     // Save HardState information to RocksDB
     pub fn hard_state(&self) -> HardState {
-        let key = self.key_name_by_hard_state();
+        let key = key_name_by_hard_state();
         let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
         if value == None {
             HardState::default()
@@ -82,7 +88,7 @@ impl RaftRocksDBStorageCore {
 
     /// Save HardState information to RocksDB
     pub fn conf_state(&self) -> ConfState {
-        let key = self.key_name_by_conf_state();
+        let key = key_name_by_conf_state();
         let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
         if value == None {
             ConfState::default()
@@ -171,7 +177,7 @@ impl RaftRocksDBStorageCore {
             last = entry.index;
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
 
-            let key = self.key_name_by_entry(entry.index);
+            let key = key_name_by_entry(entry.index);
             self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
 
             self.uncommit_index.insert(entry.index, 1);
@@ -215,20 +221,29 @@ impl RaftRocksDBStorageCore {
         self.truncate_entry();
 
         // Restore snapshot data to persistent storage
-        self.rds.write_all(snapshot.data.as_ref());
+        self.write_all(snapshot.data.as_ref());
         return Ok(());
+    }
+
+    pub fn entrys(&self, low: u64, high: u64) -> Vec<Entry> {
+        let mut entry_list: Vec<Entry> = Vec::new();
+        for idx in low..=high {
+            if let Some(sret) = self.entry_by_idx(idx) {
+                entry_list.push(sret);
+            }
+        }
+        return entry_list;
     }
 }
 
 impl RaftRocksDBStorageCore {
     /// Get the index of the first Entry from RocksDB
     pub fn first_index(&self) -> u64 {
-        let key = self.key_name_by_first_index();
-        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
+        let key = key_name_by_first_index();
+        match self.rds.read::<u64>(self.rds.cf_meta(), &key) {
             Ok(value) => {
-                if let Some(val) = value {
-                    // let fi = u64::from_be_bytes(val);
-                    64
+                if let Some(fi) = value {
+                    fi
                 } else {
                     self.snapshot_metadata.index + 1
                 }
@@ -242,12 +257,10 @@ impl RaftRocksDBStorageCore {
 
     /// Gets the index of the last Entry from RocksDB
     pub fn last_index(&self) -> u64 {
-        let key = self.key_name_by_last_index();
-        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
+        let key = key_name_by_last_index();
+        match self.rds.read::<u64>(self.rds.cf_meta(), &key) {
             Ok(value) => {
-                if let Some(val) = value {
-                    let li = u64::from_be_bytes(val.try_into().unwrap());
-                    info_meta(&format!("li={}", li));
+                if let Some(li) = value {
                     li
                 } else {
                     self.snapshot_metadata.index
@@ -262,7 +275,7 @@ impl RaftRocksDBStorageCore {
 
     /// Obtain the Entry based on the index ID
     pub fn entry_by_idx(&self, idx: u64) -> Option<Entry> {
-        let key = self.key_name_by_entry(idx);
+        let key = key_name_by_entry(idx);
         match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
             Ok(value) => {
                 if let Some(vl) = value {
@@ -278,16 +291,13 @@ impl RaftRocksDBStorageCore {
     }
 
     pub fn save_last_index(&self, index: u64) -> Result<(), String> {
-        let key = self.key_name_by_last_index();
-        let value = index.encode_to_vec();
-        println!("{}",value.len());
-        self.rds.write(self.rds.cf_meta(), &key, &value)
+        let key = key_name_by_last_index();
+        self.rds.write(self.rds.cf_meta(), &key, &index)
     }
 
     pub fn save_first_index(&self, index: u64) -> Result<(), String> {
-        let key = self.key_name_by_first_index();
-        let value = index.encode_to_vec();
-        self.rds.write(self.rds.cf_meta(), &key, &value)
+        let key = key_name_by_first_index();
+        self.rds.write(self.rds.cf_meta(), &key, &index)
     }
 
     pub fn truncate_entry(&self) {
@@ -295,27 +305,26 @@ impl RaftRocksDBStorageCore {
         let current_first_index = self.first_index();
         let current_last_index = self.last_index();
         for idx in current_first_index..=current_last_index {
-            let key = self.key_name_by_entry(idx);
+            let key = key_name_by_entry(idx);
             let _ = self.rds.delete(self.rds.cf_meta(), &key);
         }
 
         // delete FirstIndex record
-        let key = self.key_name_by_first_index();
+        let key = key_name_by_first_index();
         let _ = self.rds.delete(self.rds.cf_meta(), &key);
 
         // delete LastIndex record
-        let key = self.key_name_by_last_index();
+        let key = key_name_by_last_index();
         let _ = self.rds.delete(self.rds.cf_meta(), &key);
     }
 
     /// Save HardState information to RocksDB
     pub fn save_hard_state(&self, hs: HardState) -> Result<(), String> {
-        let key = self.key_name_by_hard_state();
+        let key = key_name_by_hard_state();
         let val = HardState::encode_to_vec(&hs);
         self.rds.write(self.rds.cf_meta(), &key, &val)
     }
 
-    ///
     pub fn set_hard_state_commit(&self, commit: u64) -> Result<(), String> {
         let mut hs = self.hard_state();
         hs.commit = commit;
@@ -325,12 +334,12 @@ impl RaftRocksDBStorageCore {
     pub fn save_uncommit_index(&self) {
         let ui = self.uncommit_index.clone();
         let val = serialize(&ui).unwrap();
-        let key = self.key_name_uncommit();
+        let key = key_name_uncommit();
         let _ = self.rds.write(self.rds.cf_meta(), &key, &val);
     }
 
     pub fn uncommit_index(&self) -> HashMap<u64, i8> {
-        let key = self.key_name_uncommit();
+        let key = key_name_uncommit();
         match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
             Ok(data) => {
                 if let Some(value) = data {
@@ -344,30 +353,105 @@ impl RaftRocksDBStorageCore {
         }
         return HashMap::new();
     }
+    pub fn write_all(&self, data: &[u8]) {
+        if data.len() == 0 {
+            return;
+        }
+        match deserialize::<HashMap<String, Vec<HashMap<String, &[u8]>>>>(data) {
+            Ok(data) => {
+                for (family, value) in data {
+                    let cf = self.rds.get_column_family(family.to_string());
+                    for raw in value {
+                        for (key, val) in &raw {
+                            info_meta(&format!(
+                                "apply snap,family:{:?},key:{:?},value:{:?}",
+                                family, key, val
+                            ));
+
+                            match self.rds.write(cf, key, val) {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    error_meta(&format!(
+                                        "Error occurred during apply snapshot. Error message: {}",
+                                        err
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
+            }
+        }
+    }
 }
 
 impl RaftRocksDBStorageCore {
-    fn key_name_by_first_index(&self) -> String {
-        return "metasrv_first_index".to_string();
+    pub fn build_snapshot_data(&self) -> HashMap<String, HashMap<String, Vec<u8>>> {
+        let mut res = HashMap::new();
+        res.insert(
+            DB_COLUMN_FAMILY_META.to_string(),
+            self.build_snapshot_meta(),
+        );
+        return res;
     }
 
-    fn key_name_by_last_index(&self) -> String {
-        return "metasrv_last_index".to_string();
+    pub fn build_snapshot_meta(&self) -> HashMap<String, Vec<u8>> {
+        let first_index = self.first_index();
+        let last_index = self.last_index();
+        let hard_state = self.hard_state();
+        let conf_state = self.conf_state();
+        let uncommit = self.uncommit_index();
+        let entry = self.entrys(first_index, last_index);
+
+        let mut result = HashMap::new();
+        result.insert(
+            key_name_by_first_index(),
+            first_index.to_be_bytes().to_vec(),
+        );
+        result.insert(key_name_by_last_index(), last_index.to_be_bytes().to_vec());
+        result.insert(
+            key_name_by_hard_state(),
+            HardState::encode_to_vec(&hard_state),
+        );
+        result.insert(
+            key_name_by_conf_state(),
+            ConfState::encode_to_vec(&conf_state),
+        );
+        result.insert(key_name_uncommit(), serialize(&uncommit).unwrap());
+        
+        return result;
     }
 
-    fn key_name_by_hard_state(&self) -> String {
-        return "metasrv_hard_state".to_string();
-    }
+    pub fn build_snapshot_cluster(&self) {}
 
-    fn key_name_by_conf_state(&self) -> String {
-        return "metasrv_conf_state".to_string();
-    }
+    pub fn build_snapshot_mqtt(&self) {}
+}
 
-    fn key_name_by_entry(&self, idx: u64) -> String {
-        return format!("metasrv_entry_{}", idx);
-    }
+#[cfg(test)]
+mod tests {
+    use common::config::meta::MetaConfig;
 
-    fn key_name_uncommit(&self) -> String {
-        return "metasrv_uncommit_index".to_string();
+    use super::RaftRocksDBStorageCore;
+
+    #[test]
+    fn write_read_test() {
+        let mut conf = MetaConfig::default();
+        conf.data_path = "/tmp/tmp_test".to_string();
+        conf.data_path = "/tmp/tmp_test".to_string();
+
+        let rds = RaftRocksDBStorageCore::new(&conf);
+
+        let first_index = 1;
+        let _ = rds.save_first_index(first_index);
+        let read_first_index = rds.first_index();
+        assert_eq!(first_index, read_first_index);
+
+        let last_index = 2;
+        let _ = rds.save_last_index(last_index);
+        let last_index = rds.last_index();
+        assert_eq!(last_index, last_index);
     }
 }

@@ -110,6 +110,5 @@ mod tests {
         let v2 = 666u64.to_be_bytes();
         println!("{}",u64::from_be_bytes(v2));
 
-        
     }
 }

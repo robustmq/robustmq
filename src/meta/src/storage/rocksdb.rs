@@ -22,9 +22,9 @@ use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 
-const DB_COLUMN_FAMILY_META: &str = "meta";
-const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
-const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
+pub const DB_COLUMN_FAMILY_META: &str = "meta";
+pub const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
+pub const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
 
 fn column_family_list() -> Vec<String> {
     let mut list = Vec::new();
@@ -126,42 +126,9 @@ impl RocksDBStorage {
         return result;
     }
 
-    pub fn write_all(&self, data: &[u8]) {
-        if data.len() == 0 {
-            return;
-        }
-        match deserialize::<HashMap<String, Vec<Vec<Vec<u8>>>>>(data) {
-            Ok(data) => {
-                for (family, value) in data {
-                    let cf = self.get_column_family(family.to_string());
-                    for raw in value {
-                        let key = String::from_utf8(raw[0].clone()).unwrap();
-                        let value = raw[1].clone();
-                        info_meta(&format!(
-                            "apply snap,family:{:?},key:{:?},value:{:?}",
-                            family, key, value
-                        ));
-                        match self.write(cf, &key, &value) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                error_meta(&format!(
-                                    "Error occurred during apply snapshot. Error message: {}",
-                                    err
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-            Err(err) => {
-                error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
-            }
-        }
-    }
-
     // Read data from all Columnfamiliy
-    pub fn read_all(&self) -> HashMap<String, Vec<Vec<Vec<u8>>>> {
-        let mut result: HashMap<String, Vec<Vec<Vec<u8>>>> = HashMap::new();
+    pub fn read_all(&self) -> HashMap<String, Vec<HashMap<String, Vec<u8>>>> {
+        let mut result: HashMap<String, Vec<HashMap<String, Vec<u8>>>> = HashMap::new();
         for family in column_family_list().iter() {
             let cf = self.get_column_family(family.to_string());
             result.insert(family.to_string(), self.read_all_by_cf(cf));
@@ -170,24 +137,27 @@ impl RocksDBStorage {
     }
 
     // Read all data in a ColumnFamily
-    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Vec<Vec<Vec<u8>>> {
+    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Vec<HashMap<String, Vec<u8>>> {
         let mut iter = self.db.raw_iterator_cf(cf);
         iter.seek_to_first();
 
-        let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
+        let mut result: Vec<HashMap<String, Vec<u8>>> = Vec::new();
         while iter.valid() {
-            let key = iter.key();
-            let value = iter.value();
-
-            let mut raw: Vec<Vec<u8>> = Vec::new();
-            if key == None || value == None {
-                continue;
+            if let Some(key) = iter.key() {
+                if let Some(val) = iter.value() {
+                    match String::from_utf8(key.to_vec()) {
+                        Ok(key) => {
+                            let value = val.to_vec();
+                            let mut raw: HashMap<String, Vec<u8>> = HashMap::new();
+                            raw.insert(key, value);
+                            result.push(raw);
+                        }
+                        Err(e) => {
+                            error_meta(&e.to_string());
+                        }
+                    }
+                }
             }
-            raw.push(key.unwrap().to_vec());
-            raw.push(value.unwrap().to_vec());
-
-            result.push(raw);
-
             iter.next();
         }
         return result;
@@ -237,7 +207,7 @@ impl RocksDBStorage {
         return opts;
     }
 
-    fn get_column_family(&self, family: String) -> &ColumnFamily {
+    pub fn get_column_family(&self, family: String) -> &ColumnFamily {
         let cf = if family == DB_COLUMN_FAMILY_META {
             self.cf_meta()
         } else if family == DB_COLUMN_FAMILY_CLUSTER {
@@ -265,7 +235,9 @@ mod tests {
 
     #[tokio::test]
     async fn init_family() {
-        let config = MetaConfig::default();
+        let mut config = MetaConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
         let key = "name2";
         let res1 = rs.read::<User>(rs.cf_meta(), key);
@@ -296,34 +268,26 @@ mod tests {
 
     #[tokio::test]
     async fn read_all() {
-        let config = MetaConfig::default();
+        let mut config = MetaConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
         let result = rs.read_all_by_cf(rs.cf_meta());
         for raw in result.clone() {
-            let key = raw.get(0).unwrap().to_vec();
-            let value = raw.get(1).unwrap().to_vec();
-            println!(
-                "key={}, value={}",
-                String::from_utf8(key).unwrap(),
-                String::from_utf8(value).unwrap()
-            );
+            println!("{:?}", raw);
         }
         println!("size:{}", result.len());
     }
 
     #[tokio::test]
     async fn read_prefix() {
-        let config = MetaConfig::default();
+        let mut config = MetaConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
         let result = rs.read_prefix(rs.cf_meta(), "metasrv_conf");
         for raw in result.clone() {
-            let key = raw.get(0).unwrap().to_vec();
-            let value = raw.get(1).unwrap().to_vec();
-            println!(
-                "key={}, value={}",
-                String::from_utf8(key).unwrap(),
-                String::from_utf8(value).unwrap()
-            );
+            println!("{:?}", raw);
         }
         println!("size:{}", result.len());
     }
