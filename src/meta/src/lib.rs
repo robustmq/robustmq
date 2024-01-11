@@ -106,13 +106,12 @@ impl Meta {
         let config = self.config.clone();
         let cluster_clone = cluster.clone();
         let tcp_thread_join = tcp_thread.spawn(move || {
-            let meta_http_runtime =
-                create_runtime("meta-tcp-runtime", config.runtime_work_threads);
+            let meta_http_runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
 
             let cf1 = config.clone();
+            let cls1 = cluster_clone.clone();
             meta_http_runtime.spawn(async move {
-                let ip: SocketAddr = format!("{}:{}", cf1.addr, cf1.admin_port).parse().unwrap();
-                let http_s = HttpServer::new(ip);
+                let http_s = HttpServer::new(cf1, cls1);
                 http_s.start().await;
             });
 

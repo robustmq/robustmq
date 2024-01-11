@@ -13,17 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use axum::response::Json;
-use common::http_error::HttpError;
-use serde_json::{json, Value};
+pub struct HttpMeta {}
 
-pub async fn cluster_info() -> Result<Json<Value>, HttpError> {
-    let path = "";
-    println!("path is : {:#?}", path);
-    let api_path = path.to_owned();
-    match &api_path as &str {
-        "overview" => Ok(Json(json!({"API": " return API overview"}))),
-        "cluster_name" => Ok(Json(json!({"API": " return cluster name"}))),
-        _ => Err(HttpError::NotFound(api_path)),
+impl HttpMeta {
+    pub fn new() -> HttpMeta {
+        HttpMeta {}
+    }
+    pub async fn index(&self) -> String {
+        return "loboxu".to_string();
     }
 }
