@@ -37,6 +37,7 @@ tonic-build = "0.10.2"
 bincode = "1.3.3"
 prost = "0.12.3"
 ahash = "0.8.7"
+byteorder = "1.5.0"
 
 ## workspaces members
 bridge = { path = "src/bridge" }

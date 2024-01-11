@@ -1259,6 +1259,7 @@ version = "0.0.1"
 dependencies = [
  "ahash",
  "bincode",
+ "byteorder",
  "bytes",
  "common",
  "futures",

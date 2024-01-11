@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bincode::deserialize;
 use common::config::meta::MetaConfig;
 use common::log::error_meta;
 use rocksdb::SliceTransform;
@@ -22,9 +21,9 @@ use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 
-const DB_COLUMN_FAMILY_META: &str = "meta";
-const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
-const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
+pub const DB_COLUMN_FAMILY_META: &str = "meta";
+pub const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
+pub const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
 
 fn column_family_list() -> Vec<String> {
     let mut list = Vec::new();
@@ -81,6 +80,27 @@ impl RocksDBStorage {
         }
     }
 
+    //
+    pub fn read_str(&self, cf: &ColumnFamily, key: &str) -> Result<Option<String>, String> {
+        match self.db.get_cf(cf, key) {
+            Ok(opt) => match opt {
+                Some(found) => match String::from_utf8(found) {
+                    Ok(s) => Ok(Some(s)),
+                    Err(err) => Err(format!("Failed to deserialize: {:?}", err)),
+                },
+                None => Ok(None),
+            },
+            Err(err) => Err(format!("Failed to get from ColumnFamily: {:?}", err)),
+        }
+    }
+
+    //
+    pub fn write_str(&self, cf: &ColumnFamily, key: &str, value: String) -> Result<(), String> {
+        self.db
+            .put_cf(cf, key, value.into_bytes())
+            .map_err(|err| format!("Failed to put to ColumnFamily:{:?}", err))
+    }
+
     // Read data from the RocksDB
     pub fn read<T: DeserializeOwned>(
         &self,
@@ -126,38 +146,9 @@ impl RocksDBStorage {
         return result;
     }
 
-    pub fn write_all(&self, data: &[u8]) {
-        if data.len() == 0 {
-            return;
-        }
-        match deserialize::<HashMap<String, Vec<Vec<Vec<u8>>>>>(data) {
-            Ok(data) => {
-                for (family, value) in data {
-                    let cf = self.get_column_family(family.to_string());
-                    for raw in value {
-                        let key = raw[0].clone();
-                        let value = raw[1].clone();
-                        match self.write(cf, &String::from_utf8(key).unwrap(), &value) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                error_meta(&format!(
-                                    "Error occurred during apply snapshot. Error message: {}",
-                                    err
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-            Err(err) => {
-                error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
-            }
-        }
-    }
-
     // Read data from all Columnfamiliy
-    pub fn read_all(&self) -> HashMap<String, Vec<Vec<Vec<u8>>>> {
-        let mut result: HashMap<String, Vec<Vec<Vec<u8>>>> = HashMap::new();
+    pub fn read_all(&self) -> HashMap<String, Vec<HashMap<String, String>>> {
+        let mut result: HashMap<String, Vec<HashMap<String, String>>> = HashMap::new();
         for family in column_family_list().iter() {
             let cf = self.get_column_family(family.to_string());
             result.insert(family.to_string(), self.read_all_by_cf(cf));
@@ -166,24 +157,31 @@ impl RocksDBStorage {
     }
 
     // Read all data in a ColumnFamily
-    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Vec<Vec<Vec<u8>>> {
+    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Vec<HashMap<String, String>> {
         let mut iter = self.db.raw_iterator_cf(cf);
         iter.seek_to_first();
 
-        let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
+        let mut result: Vec<HashMap<String, String>> = Vec::new();
         while iter.valid() {
-            let key = iter.key();
-            let value = iter.value();
-
-            let mut raw: Vec<Vec<u8>> = Vec::new();
-            if key == None || value == None {
-                continue;
+            if let Some(key) = iter.key() {
+                if let Some(val) = iter.value() {
+                    match String::from_utf8(key.to_vec()) {
+                        Ok(key) => match String::from_utf8(val.to_vec()) {
+                            Ok(da) => {
+                                let mut raw: HashMap<String, String> = HashMap::new();
+                                raw.insert(key, da);
+                                result.push(raw);
+                            }
+                            Err(e) => {
+                                error_meta(&e.to_string());
+                            }
+                        },
+                        Err(e) => {
+                            error_meta(&e.to_string());
+                        }
+                    }
+                }
             }
-            raw.push(key.unwrap().to_vec());
-            raw.push(value.unwrap().to_vec());
-
-            result.push(raw);
-
             iter.next();
         }
         return result;
@@ -233,7 +231,7 @@ impl RocksDBStorage {
         return opts;
     }
 
-    fn get_column_family(&self, family: String) -> &ColumnFamily {
+    pub fn get_column_family(&self, family: String) -> &ColumnFamily {
         let cf = if family == DB_COLUMN_FAMILY_META {
             self.cf_meta()
         } else if family == DB_COLUMN_FAMILY_CLUSTER {
@@ -248,6 +246,8 @@ impl RocksDBStorage {
 #[cfg(test)]
 mod tests {
 
+    use crate::storage::keys::key_name_by_last_index;
+
     use super::RocksDBStorage;
     use common::config::meta::MetaConfig;
     use serde::{Deserialize, Serialize};
@@ -261,7 +261,9 @@ mod tests {
 
     #[tokio::test]
     async fn init_family() {
-        let config = MetaConfig::default();
+        let mut config = MetaConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
         let key = "name2";
         let res1 = rs.read::<User>(rs.cf_meta(), key);
@@ -292,34 +294,41 @@ mod tests {
 
     #[tokio::test]
     async fn read_all() {
-        let config = MetaConfig::default();
+        let mut config = MetaConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
+
+        let index = 66u64;
+        let cf = rs.cf_meta();
+
+        let key = key_name_by_last_index();
+        let _ = rs.write(cf, &key, &index);
+        let res1 = rs.read::<u64>(cf, &key).unwrap().unwrap();
+        assert_eq!(index, res1);
+
         let result = rs.read_all_by_cf(rs.cf_meta());
+        assert!(result.len() > 0);
         for raw in result.clone() {
-            let key = raw.get(0).unwrap().to_vec();
-            let value = raw.get(1).unwrap().to_vec();
-            println!(
-                "key={}, value={}",
-                String::from_utf8(key).unwrap(),
-                String::from_utf8(value).unwrap()
-            );
+            assert!(raw.contains_key(&key));
+            let v = raw.get(&key);
+            assert_eq!(index.to_string(), v.unwrap().to_string());
+
+            let _ = rs.write_str(cf, &key, v.unwrap().to_string());
+            let res1 = rs.read::<u64>(cf, &key).unwrap().unwrap();
+            assert_eq!(index, res1);
         }
-        println!("size:{}", result.len());
     }
 
     #[tokio::test]
     async fn read_prefix() {
-        let config = MetaConfig::default();
+        let mut config = MetaConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
         let result = rs.read_prefix(rs.cf_meta(), "metasrv_conf");
         for raw in result.clone() {
-            let key = raw.get(0).unwrap().to_vec();
-            let value = raw.get(1).unwrap().to_vec();
-            println!(
-                "key={}, value={}",
-                String::from_utf8(key).unwrap(),
-                String::from_utf8(value).unwrap()
-            );
+            println!("{:?}", raw);
         }
         println!("size:{}", result.len());
     }
