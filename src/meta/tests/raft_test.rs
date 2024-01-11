@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
+    use byteorder::{BigEndian, ReadBytesExt};
     use common::config::meta::MetaConfig;
     use common::log;
     use meta::Meta;
@@ -106,18 +106,9 @@ mod tests {
         println!("{:?}", v1);
         println!("{:?}", String::from_utf8(v1).unwrap());
 
+        let v2 = 666u64.encode_to_vec();
 
-        let v2 = 666u16.to_be_bytes();
-        println!("{:?}",666u16.to_be_bytes());
-        println!("{:?}",666u32.to_be_bytes());
-        println!("{:?}",666u64.to_be_bytes());
-        println!("{:?}",666u16.to_be_bytes().to_vec());
-        println!("{:?}",666u32.to_be_bytes().to_vec());
-        println!("{:?}",666u64.to_be_bytes().to_vec());
-        println!("{}",u16::from_be_bytes(v2));
-        // println!("{:?}",666u16.encode_to_vec());
-        println!("{:?}",666u32.encode_to_vec());
-        println!("{:?}",666u64.encode_to_vec());
-
+        let v2 = 666u64.to_be_bytes();
+        println!("{}",u64::from_be_bytes(v2));
     }
 }

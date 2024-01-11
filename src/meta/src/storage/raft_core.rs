@@ -357,7 +357,7 @@ impl RaftRocksDBStorageCore {
         if data.len() == 0 {
             return;
         }
-        match deserialize::<HashMap<String, Vec<HashMap<String, &[u8]>>>>(data) {
+        match deserialize::<HashMap<String, Vec<HashMap<String, String>>>>(data) {
             Ok(data) => {
                 for (family, value) in data {
                     let cf = self.rds.get_column_family(family.to_string());
@@ -368,7 +368,7 @@ impl RaftRocksDBStorageCore {
                                 family, key, val
                             ));
 
-                            match self.rds.write(cf, key, val) {
+                            match self.rds.write_str(cf, key, val.to_string()) {
                                 Ok(_) => {}
                                 Err(err) => {
                                     error_meta(&format!(
@@ -386,48 +386,6 @@ impl RaftRocksDBStorageCore {
             }
         }
     }
-}
-
-impl RaftRocksDBStorageCore {
-    pub fn build_snapshot_data(&self) -> HashMap<String, HashMap<String, Vec<u8>>> {
-        let mut res = HashMap::new();
-        res.insert(
-            DB_COLUMN_FAMILY_META.to_string(),
-            self.build_snapshot_meta(),
-        );
-        return res;
-    }
-
-    pub fn build_snapshot_meta(&self) -> HashMap<String, Vec<u8>> {
-        let first_index = self.first_index();
-        let last_index = self.last_index();
-        let hard_state = self.hard_state();
-        let conf_state = self.conf_state();
-        let uncommit = self.uncommit_index();
-        let entry = self.entrys(first_index, last_index);
-
-        let mut result = HashMap::new();
-        result.insert(
-            key_name_by_first_index(),
-            first_index.to_be_bytes().to_vec(),
-        );
-        result.insert(key_name_by_last_index(), last_index.to_be_bytes().to_vec());
-        result.insert(
-            key_name_by_hard_state(),
-            HardState::encode_to_vec(&hard_state),
-        );
-        result.insert(
-            key_name_by_conf_state(),
-            ConfState::encode_to_vec(&conf_state),
-        );
-        result.insert(key_name_uncommit(), serialize(&uncommit).unwrap());
-        
-        return result;
-    }
-
-    pub fn build_snapshot_cluster(&self) {}
-
-    pub fn build_snapshot_mqtt(&self) {}
 }
 
 #[cfg(test)]
