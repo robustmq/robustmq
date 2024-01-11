@@ -69,6 +69,7 @@ pub async fn send_raft_message(
         Ok(reply) => reply.into_inner(),
         Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
     };
+    
     return Ok(resp);
 }
 
