@@ -4,12 +4,10 @@ use super::keys::key_name_by_first_index;
 use super::keys::key_name_by_hard_state;
 use super::keys::key_name_by_last_index;
 use super::keys::key_name_uncommit;
-use super::rocksdb::DB_COLUMN_FAMILY_META;
 use crate::storage::rocksdb::RocksDBStorage;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::error_meta;
-use common::log::info_meta;
 use prost::Message as _;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -22,14 +20,13 @@ use raft::Result as RaftResult;
 use raft::StorageError;
 use std::cmp;
 use std::collections::HashMap;
-use std::hash::Hash;
 
 pub struct RaftRocksDBStorageCore {
     rds: RocksDBStorage,
-    pub snapshot_metadata: SnapshotMetadata,
-    pub trigger_snap_unavailable: bool,
     pub uncommit_index: HashMap<u64, i8>,
-    pub snapshot_data: Snapshot,
+    pub trigger_snap_unavailable: bool,
+    pub snapshot_metadata: SnapshotMetadata,
+    pub snapshot: Snapshot,
 }
 
 impl RaftRocksDBStorageCore {
@@ -39,9 +36,9 @@ impl RaftRocksDBStorageCore {
         let mut rc = RaftRocksDBStorageCore {
             rds,
             snapshot_metadata: SnapshotMetadata::default(),
-            trigger_snap_unavailable: false,
+            trigger_snap_unavailable: true,
             uncommit_index,
-            snapshot_data: Snapshot::default(),
+            snapshot: Snapshot::default(),
         };
         rc.uncommit_index = rc.uncommit_index();
         return rc;
@@ -99,43 +96,19 @@ impl RaftRocksDBStorageCore {
         }
     }
 
-    // Obtain the Entry based on the index ID
-    pub fn snapshot(&mut self) -> Snapshot {
-        self.create_snapshot();
-        return self.snapshot_data.clone();
-    }
-
-    // Example Create a data snapshot for the current system
-    pub fn create_snapshot(&mut self) {
-        let mut sns = Snapshot::default();
-
-        let hard_state = self.hard_state();
-        let conf_state = self.conf_state();
-
-        let meta = sns.mut_metadata();
-        meta.set_conf_state(conf_state);
-        meta.index = hard_state.commit;
-        meta.term = match meta.index.cmp(&self.snapshot_metadata.index) {
-            std::cmp::Ordering::Equal => self.snapshot_metadata.term,
-            std::cmp::Ordering::Greater => hard_state.term,
-            std::cmp::Ordering::Less => {
-                panic!(
-                    "commit {} < snapshot_metadata.index {}",
-                    meta.index, self.snapshot_metadata.index
-                );
-            }
-        };
-
-        let all_data = self.rds.read_all();
-        sns.data = serialize(&all_data).unwrap();
-
-        self.snapshot_data = sns;
-    }
-
     // todo
     pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
+        // update uncommit index
         self.uncommit_index.remove(&idx);
         self.save_uncommit_index();
+
+        // remove entry
+        let key = key_name_by_entry(idx);
+        let _ = self.rds.delete(self.rds.cf_meta(), &key);
+
+        // todo There could be a risk here
+        // update first_index
+        let _ = self.save_first_index(idx);
         return Ok(());
     }
 
@@ -163,65 +136,16 @@ impl RaftRocksDBStorageCore {
             );
         }
 
-        let mut first: u64 = 0u64;
-        let mut last: u64 = 0u64;
-
-        // Remove all entries overwritten by `ents`.
         for entry in entrys {
-            // if entry.data.is_empty() {
-            //     continue;
-            // }
-            if first == 0 {
-                first = entry.index;
-            }
-            last = entry.index;
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
-
             let key = key_name_by_entry(entry.index);
             self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
-
             self.uncommit_index.insert(entry.index, 1);
+            self.save_last_index(entry.index).unwrap();
         }
-        info_meta(&format!("save first indx:{}", first));
-        info_meta(&format!("save last indx:{}", first));
-        self.save_first_index(first).unwrap();
-        self.save_last_index(last).unwrap();
 
         self.save_uncommit_index();
 
-        return Ok(());
-    }
-
-    /// Overwrites the contents of this Storage object with those of the given snapshot.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the snapshot index is less than the storage's first index.
-
-    pub fn apply_snapshot(&mut self, mut snapshot: Snapshot) -> RaftResult<()> {
-        let mut meta = snapshot.take_metadata();
-        let index = meta.index;
-
-        if self.first_index() > index {
-            return Err(Error::Store(StorageError::SnapshotOutOfDate));
-        }
-
-        self.snapshot_metadata = meta.clone();
-
-        // update HardState
-        let mut hs = self.hard_state();
-        hs.set_term(cmp::max(hs.term, meta.term));
-        hs.set_commit(index);
-        let _ = self.save_hard_state(hs);
-
-        // update ConfState
-        let _ = self.save_conf_state(meta.take_conf_state());
-
-        // todo clear entries
-        self.truncate_entry();
-
-        // Restore snapshot data to persistent storage
-        self.write_all(snapshot.data.as_ref());
         return Ok(());
     }
 
@@ -276,6 +200,7 @@ impl RaftRocksDBStorageCore {
     /// Obtain the Entry based on the index ID
     pub fn entry_by_idx(&self, idx: u64) -> Option<Entry> {
         let key = key_name_by_entry(idx);
+        println!("{}",key);
         match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
             Ok(value) => {
                 if let Some(vl) = value {
@@ -298,24 +223,6 @@ impl RaftRocksDBStorageCore {
     pub fn save_first_index(&self, index: u64) -> Result<(), String> {
         let key = key_name_by_first_index();
         self.rds.write(self.rds.cf_meta(), &key, &index)
-    }
-
-    pub fn truncate_entry(&self) {
-        // delete Entry
-        let current_first_index = self.first_index();
-        let current_last_index = self.last_index();
-        for idx in current_first_index..=current_last_index {
-            let key = key_name_by_entry(idx);
-            let _ = self.rds.delete(self.rds.cf_meta(), &key);
-        }
-
-        // delete FirstIndex record
-        let key = key_name_by_first_index();
-        let _ = self.rds.delete(self.rds.cf_meta(), &key);
-
-        // delete LastIndex record
-        let key = key_name_by_last_index();
-        let _ = self.rds.delete(self.rds.cf_meta(), &key);
     }
 
     /// Save HardState information to RocksDB
@@ -353,6 +260,7 @@ impl RaftRocksDBStorageCore {
         }
         return HashMap::new();
     }
+
     pub fn write_all(&self, data: &[u8]) {
         if data.len() == 0 {
             return;
@@ -363,11 +271,6 @@ impl RaftRocksDBStorageCore {
                     let cf = self.rds.get_column_family(family.to_string());
                     for raw in value {
                         for (key, val) in &raw {
-                            info_meta(&format!(
-                                "apply snap,family:{:?},key:{:?},value:{:?}",
-                                family, key, val
-                            ));
-
                             match self.rds.write_str(cf, key, val.to_string()) {
                                 Ok(_) => {}
                                 Err(err) => {
@@ -385,6 +288,68 @@ impl RaftRocksDBStorageCore {
                 error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
             }
         }
+    }
+}
+
+impl RaftRocksDBStorageCore {
+    /// Overwrites the contents of this Storage object with those of the given snapshot.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the snapshot index is less than the storage's first index.
+
+    pub fn apply_snapshot(&mut self, mut snapshot: Snapshot) -> RaftResult<()> {
+        let mut meta = snapshot.take_metadata();
+        let index = meta.index;
+
+        if self.first_index() > index {
+            return Err(Error::Store(StorageError::SnapshotOutOfDate));
+        }
+
+        self.snapshot_metadata = meta.clone();
+
+        // Restore snapshot data to persistent storage
+        self.write_all(snapshot.data.as_ref());
+
+        // update HardState
+        let mut hs = self.hard_state();
+        hs.set_term(cmp::max(hs.term, meta.term));
+        hs.set_commit(index);
+        let _ = self.save_hard_state(hs);
+
+        // update ConfState
+        let _ = self.save_conf_state(meta.take_conf_state());
+        return Ok(());
+    }
+
+    // Obtain the Entry based on the index ID
+    pub fn snapshot(&mut self) -> Snapshot {
+        self.create_snapshot();
+        return self.snapshot.clone();
+    }
+
+    // Example Create a data snapshot for the current system
+    pub fn create_snapshot(&mut self) {
+        let mut sns = Snapshot::default();
+
+        // create snapshot metadata
+        let hard_state = self.hard_state();
+        let conf_state = self.conf_state();
+
+        let mut meta = SnapshotMetadata::default();
+        meta.set_conf_state(conf_state);
+        meta.set_index(hard_state.commit);
+        meta.set_term(hard_state.term);
+        sns.set_metadata(meta.clone());
+
+        // create snapshot data
+        let all_data = self.rds.read_all();
+        sns.set_data(serialize(&all_data).unwrap());
+
+        // update value
+        self.trigger_snap_unavailable = false;
+        self.snapshot = sns;
+        self.snapshot_metadata = meta.clone();
     }
 }
 

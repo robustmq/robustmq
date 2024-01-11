@@ -258,68 +258,64 @@ impl MetaRaft {
     ) {
         let storage = self.storage.write().unwrap();
         for entry in entrys {
-            println!("{:?}", entry.get_entry_type());
-            if entry.data.is_empty() {
-                continue;
-            }
-
-            println!("{:?}", entry.get_data());
-            match entry.get_entry_type() {
-                EntryType::EntryNormal => {
-                    let idx: u64 = entry.get_index();
-                    let _ = raft_node.mut_store().commmit_index(idx);
-
-                    // Saves the service data sent by the client
-                    match storage.route(entry.get_data().to_vec()) {
-                        Ok(_) => {}
-                        Err(err) => {
-                            error_meta(&err.to_string());
-                        }
-                    }
-                }
-                EntryType::EntryConfChange => {
-                    let change = ConfChange::decode(entry.get_data())
-                        .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
-                        .unwrap();
-                    let id = change.get_node_id();
-                    let change_type = change.get_change_type();
-                    match change_type {
-                        ConfChangeType::AddNode => {
-                            match deserialize::<Node>(change.get_context()) {
-                                Ok(node) => {
-                                    let mut cls = self.cluster.write().unwrap();
-                                    cls.add_peer(id, node);
-                                }
-                                Err(e) => {
-                                    error_meta(&format!("Failed to parse Node data from context with error message {:?}", e));
-                                }
+            if !entry.data.is_empty() {
+                match entry.get_entry_type() {
+                    EntryType::EntryNormal => {
+                        // Saves the service data sent by the client
+                        match storage.route(entry.get_data().to_vec()) {
+                            Ok(_) => {}
+                            Err(err) => {
+                                error_meta(&err.to_string());
                             }
                         }
-                        ConfChangeType::RemoveNode => {
-                            let mut cls = self.cluster.write().unwrap();
-                            cls.remove_peer(id);
+                    }
+                    EntryType::EntryConfChange => {
+                        let change = ConfChange::decode(entry.get_data())
+                            .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
+                            .unwrap();
+                        let id = change.get_node_id();
+                        let change_type = change.get_change_type();
+                        match change_type {
+                            ConfChangeType::AddNode => {
+                                match deserialize::<Node>(change.get_context()) {
+                                    Ok(node) => {
+                                        let mut cls = self.cluster.write().unwrap();
+                                        cls.add_peer(id, node);
+                                    }
+                                    Err(e) => {
+                                        error_meta(&format!("Failed to parse Node data from context with error message {:?}", e));
+                                    }
+                                }
+                            }
+                            ConfChangeType::RemoveNode => {
+                                let mut cls = self.cluster.write().unwrap();
+                                cls.remove_peer(id);
+                            }
+                            _ => unimplemented!(),
                         }
-                        _ => unimplemented!(),
-                    }
 
-                    if let Ok(cs) = raft_node.apply_conf_change(&change) {
-                        let _ = raft_node.mut_store().set_conf_state(cs);
+                        if let Ok(cs) = raft_node.apply_conf_change(&change) {
+                            let _ = raft_node.mut_store().set_conf_state(cs);
+                        }
                     }
+                    EntryType::EntryConfChangeV2 => {}
                 }
-                EntryType::EntryConfChangeV2 => {}
             }
 
-            let seq: usize = deserialize(entry.get_context()).unwrap();
-            match self.resp_channel.remove(&seq) {
-                Some(chan) => {
-                    match chan.send(RaftResponseMesage::Success) {
+            let idx: u64 = entry.get_index();
+            let _ = raft_node.mut_store().commmit_index(idx);
+
+            match deserialize(entry.get_context()) {
+                Ok(seq) => match self.resp_channel.remove(&seq) {
+                    Some(chan) => match chan.send(RaftResponseMesage::Success) {
                         Ok(_) => {}
                         Err(_) => {
                             error_meta("commit entry Fails to return data to chan. chan may have been closed");
                         }
-                    }
-                }
-                None => {}
+                    },
+                    None => {}
+                },
+                Err(_) => {}
             }
 
             self.create_snapshot(raft_node);

@@ -495,12 +495,15 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 name = "common"
 version = "0.0.1"
 dependencies = [
+ "axum 0.7.2",
  "env_logger",
  "lazy_static",
  "log",
  "log4rs",
  "prometheus",
  "serde",
+ "serde_json",
+ "thiserror",
  "tokio",
  "toml",
 ]
@@ -1258,6 +1261,7 @@ name = "meta"
 version = "0.0.1"
 dependencies = [
  "ahash",
+ "axum 0.7.2",
  "bincode",
  "byteorder",
  "bytes",

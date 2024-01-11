@@ -102,7 +102,6 @@ impl RaftRocksDBStorage {
         let store = self.core.write().unwrap();
         return store.is_need_init_snapshot();
     }
-    
 }
 
 impl RaftStorage for RaftRocksDBStorage {
@@ -183,8 +182,11 @@ impl RaftStorage for RaftRocksDBStorage {
             return Err(Error::Store(StorageError::Unavailable));
         }
 
-        let value = core.entry_by_idx(idx).unwrap();
-        return Ok(value.term);
+        if let Some(value) = core.entry_by_idx(idx) {
+            return Ok(value.term);
+        }
+
+        return Ok(core.snapshot_metadata.term);
     }
 
     /// Returns the index of the first log entry that is possible available via entries, which will
@@ -216,14 +218,12 @@ impl RaftStorage for RaftRocksDBStorage {
         info_meta(&format!("Node {} requests snapshot data", to));
         let mut core = self.write_lock();
         if core.trigger_snap_unavailable {
-            core.trigger_snap_unavailable = false;
             return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable));
         } else {
             let mut snap = core.snapshot();
             if snap.get_metadata().index < request_index {
                 snap.mut_metadata().index = request_index;
             }
-            info_meta(&format!("snap:{:?}",snap));
             Ok(snap)
         }
     }

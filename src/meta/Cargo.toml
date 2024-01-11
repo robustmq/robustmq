@@ -20,6 +20,7 @@ lazy_static.workspace = true
 bincode.workspace = true
 ahash.workspace = true
 byteorder.workspace = true
+axum.workspace =true
 
 raft = { version = "0.7",features = ["prost-codec"], default-features = false }
 prost = "0.11"
