@@ -15,6 +15,10 @@
  */
 pub struct HttpMeta {}
 
+pub async fn storage() -> String {
+    return "xxxx".to_string();
+}
+
 impl HttpMeta {
     pub fn new() -> HttpMeta {
         HttpMeta {}
