@@ -140,7 +140,7 @@ mod tests {
 
         let mut entries = Vec::new();
         let mut e1 = Entry::default();
-        e1.set_index(3);  
+        e1.set_index(2);  
         entries.push(e1);
 
         let mut e2 = Entry::default();

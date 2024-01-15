@@ -8,6 +8,7 @@ use crate::storage::rocksdb::RocksDBStorage;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::error_meta;
+use common::log::info_meta;
 use prost::Message as _;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -106,7 +107,7 @@ impl RaftRocksDBStorageCore {
         // remove entry
         let key = key_name_by_entry(idx);
         let _ = self.rds.delete(self.rds.cf_meta(), &key);
-        
+
         return Ok(());
     }
 
@@ -269,6 +270,7 @@ impl RaftRocksDBStorageCore {
                     let cf = self.rds.get_column_family(family.to_string());
                     for raw in value {
                         for (key, val) in &raw {
+                            info_meta(&format!("key:{:?},val{:?}", key, val.to_string()));
                             match self.rds.write_str(cf, key, val.to_string()) {
                                 Ok(_) => {}
                                 Err(err) => {
@@ -346,6 +348,7 @@ impl RaftRocksDBStorageCore {
 
         // update value
         self.trigger_snap_unavailable = false;
+        info_meta(&format!("snapshot:{:?}", sns));
         self.snapshot = sns;
         self.snapshot_metadata = meta.clone();
     }

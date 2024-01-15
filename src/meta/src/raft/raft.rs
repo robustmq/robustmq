@@ -11,7 +11,8 @@ use common::config::meta::MetaConfig;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
+    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
+    Snapshot,
 };
 use raft::{Config, RawNode};
 use slog::o;
@@ -187,7 +188,6 @@ impl MetaRaft {
         }
 
         let mut ready = raft_node.ready();
-
         // After receiving the data sent by the client,
         // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
@@ -210,6 +210,7 @@ impl MetaRaft {
 
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
+            info_meta(&format!("ready entrys:{:?}", ready.entries().len()));
             let entries = ready.entries();
             raft_node.mut_store().append(entries).unwrap();
         }
@@ -252,6 +253,10 @@ impl MetaRaft {
         let storage = self.storage.write().unwrap();
         for entry in entrys {
             if !entry.data.is_empty() {
+                info_meta(&format!(
+                    "ready entrys entry type:{:?}",
+                    entry.get_entry_type()
+                ));
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
@@ -318,6 +323,11 @@ impl MetaRaft {
     async fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
             let to = msg.get_to();
+            if msg.get_msg_type() != MessageType::MsgHeartbeat
+                && msg.get_msg_type() != MessageType::MsgHeartbeatResponse
+            {
+                info_meta(&format!("ready message:{:?}", msg));
+            }
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
             let mut cluster = self.cluster.write().unwrap();
             cluster.send_message(to, data).await;
@@ -326,8 +336,7 @@ impl MetaRaft {
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
         let mut storage = RaftRocksDBStorage::new(&self.config);
-        let hs = storage.read_lock().hard_state();
-        let conf = self.build_config(hs.commit);
+        let conf = self.build_config();
         let logger = self.build_slog();
 
         // init storage
@@ -352,8 +361,7 @@ impl MetaRaft {
 
     pub async fn new_follower(&self, leader_node: Node) -> RawNode<RaftRocksDBStorage> {
         let storage = RaftRocksDBStorage::new(&self.config);
-        let hs = storage.read_lock().hard_state();
-        let conf = self.build_config(hs.commit);
+        let conf = self.build_config();
         let logger = self.build_slog();
         let node = RawNode::new(&conf, storage, &logger).unwrap();
 
@@ -393,10 +401,11 @@ impl MetaRaft {
         return node;
     }
 
-    fn build_config(&self, index: u64) -> Config {
+    fn build_config(&self) -> Config {
         Config {
             // The unique ID for the Raft node.
-            id: self.config.node_id,
+            // id: self.config.node_id,
+            id: 1,
             // Election tick is for how long the follower may campaign again after
             // it doesn't receive any message from the leader.
             election_tick: 10,
@@ -410,7 +419,7 @@ impl MetaRaft {
             max_inflight_msgs: 256,
             // The Raft applied index.
             // You need to save your applied index when you apply the committed Raft logs.
-            applied: index,
+            // applied: index,
             ..Default::default()
         }
     }

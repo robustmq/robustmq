@@ -23,6 +23,7 @@ impl PeersManager {
             "Starts the thread that sends Raft messages to other nodes"
         ));
         loop {
+
             if let Some(data) = self.peer_message_recv.recv().await {
                 let addr = data.to;
                 let data = data.data;
