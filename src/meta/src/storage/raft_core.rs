@@ -36,7 +36,7 @@ impl RaftRocksDBStorageCore {
         let mut rc = RaftRocksDBStorageCore {
             rds,
             snapshot_metadata: SnapshotMetadata::default(),
-            trigger_snap_unavailable: true,
+            trigger_snap_unavailable: false,
             uncommit_index,
             snapshot: Snapshot::default(),
         };
@@ -98,6 +98,7 @@ impl RaftRocksDBStorageCore {
 
     // todo
     pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
+        println!(">> commit entry index:{}", idx);
         // update uncommit index
         self.uncommit_index.remove(&idx);
         self.save_uncommit_index();
@@ -105,10 +106,7 @@ impl RaftRocksDBStorageCore {
         // remove entry
         let key = key_name_by_entry(idx);
         let _ = self.rds.delete(self.rds.cf_meta(), &key);
-
-        // todo There could be a risk here
-        // update first_index
-        let _ = self.save_first_index(idx);
+        
         return Ok(());
     }
 
@@ -137,6 +135,7 @@ impl RaftRocksDBStorageCore {
         }
 
         for entry in entrys {
+            println!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
             self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
@@ -200,7 +199,6 @@ impl RaftRocksDBStorageCore {
     /// Obtain the Entry based on the index ID
     pub fn entry_by_idx(&self, idx: u64) -> Option<Entry> {
         let key = key_name_by_entry(idx);
-        println!("{}",key);
         match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
             Ok(value) => {
                 if let Some(vl) = value {

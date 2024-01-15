@@ -188,11 +188,9 @@ impl MetaRaft {
 
         let mut ready = raft_node.ready();
 
-        info_meta("raft on ready");
         // After receiving the data sent by the client,
         // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
-            info_meta(&format!("send message!!!,len:{}", ready.messages().len()));
             self.send_message(ready.take_messages()).await;
         }
 
@@ -212,7 +210,6 @@ impl MetaRaft {
 
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
-            info_meta(&format!("save entries!!!,len:{}", ready.entries().len()));
             let entries = ready.entries();
             raft_node.mut_store().append(entries).unwrap();
         }
@@ -230,10 +227,6 @@ impl MetaRaft {
         // Persisted Messages specifies outbound messages to be sent AFTER the HardState,
         // Entries and Snapshot are persisted to stable storage.
         if !ready.persisted_messages().is_empty() {
-            info_meta(&format!(
-                "save persisted_messages!!!,len:{:?}",
-                ready.persisted_messages().len()
-            ));
             self.send_message(ready.take_persisted_messages()).await;
         }
 
@@ -332,8 +325,9 @@ impl MetaRaft {
     }
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
-        let conf = self.build_config();
         let mut storage = RaftRocksDBStorage::new(&self.config);
+        let hs = storage.read_lock().hard_state();
+        let conf = self.build_config(hs.commit);
         let logger = self.build_slog();
 
         // init storage
@@ -357,8 +351,9 @@ impl MetaRaft {
     }
 
     pub async fn new_follower(&self, leader_node: Node) -> RawNode<RaftRocksDBStorage> {
-        let conf = self.build_config();
         let storage = RaftRocksDBStorage::new(&self.config);
+        let hs = storage.read_lock().hard_state();
+        let conf = self.build_config(hs.commit);
         let logger = self.build_slog();
         let node = RawNode::new(&conf, storage, &logger).unwrap();
 
@@ -398,10 +393,10 @@ impl MetaRaft {
         return node;
     }
 
-    fn build_config(&self) -> Config {
+    fn build_config(&self, index: u64) -> Config {
         Config {
             // The unique ID for the Raft node.
-            id: 1,
+            id: self.config.node_id,
             // Election tick is for how long the follower may campaign again after
             // it doesn't receive any message from the leader.
             election_tick: 10,
@@ -415,7 +410,7 @@ impl MetaRaft {
             max_inflight_msgs: 256,
             // The Raft applied index.
             // You need to save your applied index when you apply the committed Raft logs.
-            applied: 0,
+            applied: index,
             ..Default::default()
         }
     }

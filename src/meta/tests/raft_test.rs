@@ -13,8 +13,10 @@ mod tests {
     #[test]
     fn raft_node_1() {
         let mut conf = MetaConfig::default();
+        conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1221;
+        conf.admin_port=2221;
         conf.log_path = "/tmp/test_fold1/logs".to_string();
         conf.data_path = "/tmp/test_fold1/data".to_string();
         conf.meta_nodes = vec![
@@ -39,6 +41,7 @@ mod tests {
         conf.node_id = 2;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1222;
+        conf.admin_port=2222;
         conf.log_path = "/tmp/test_fold2/logs".to_string();
         conf.data_path = "/tmp/test_fold2/data".to_string();
         conf.meta_nodes = vec![
@@ -61,8 +64,9 @@ mod tests {
     fn raft_node_3() {
         let mut conf = MetaConfig::default();
         conf.node_id = 3;
-        conf.addr = "127.0.0.3".to_string();
+        conf.addr = "127.0.0.".to_string();
         conf.port = 1223;
+        conf.admin_port=2223;
         conf.log_path = "/tmp/test_fold3/logs".to_string();
         conf.data_path = "/tmp/test_fold3/data".to_string();
         conf.meta_nodes = vec![

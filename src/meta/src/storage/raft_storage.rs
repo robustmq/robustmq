@@ -76,13 +76,15 @@ impl RaftRocksDBStorage {
 
     pub fn set_hard_state(&mut self, hs: HardState) -> RaftResult<()> {
         let store = self.core.write().unwrap();
-        let _ = store.save_hard_state(hs);
+        let _ = store.save_hard_state(hs.clone());
+        let _ = store.save_first_index(hs.commit);
         return Ok(());
     }
 
     pub fn set_hard_state_comit(&mut self, hs: u64) -> RaftResult<()> {
         let store = self.core.write().unwrap();
         let _ = store.set_hard_state_commit(hs);
+        let _ = store.save_first_index(hs);
         return Ok(());
     }
 
