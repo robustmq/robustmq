@@ -9,6 +9,9 @@ mod tests {
     use std::thread::sleep;
     use std::time::Duration;
     use std::vec;
+    use raft::eraftpb::{
+        ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
+    };
 
     #[test]
     fn raft_node_1() {
@@ -114,5 +117,38 @@ mod tests {
 
         let v2 = 666u64.to_be_bytes();
         println!("{}",u64::from_be_bytes(v2));
+    }
+
+    #[test]
+    fn entry_vec_test(){
+        let mut entries = Vec::new();
+        let mut e1 = Entry::default();
+        e1.set_index(1);  
+        entries.push(e1);
+
+        let mut e2 = Entry::default();
+        e2.set_index(2);
+        entries.push(e2);
+
+
+        let mut res_entries = Vec::new();
+        res_entries.extend_from_slice(&entries);
+        println!("{:?}",res_entries);
+
+        res_entries.drain(1..);
+        println!("{:?}",res_entries);
+
+        let mut entries = Vec::new();
+        let mut e1 = Entry::default();
+        e1.set_index(3);  
+        entries.push(e1);
+
+        let mut e2 = Entry::default();
+        e2.set_index(4);
+        entries.push(e2);
+        res_entries.extend_from_slice(&entries);
+        println!("{:?}",res_entries);
+
+
     }
 }
