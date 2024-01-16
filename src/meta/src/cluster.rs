@@ -61,7 +61,9 @@ impl Cluster {
                 })
                 .await
             {
-                Ok(_) => {}
+                Ok(_) => {
+                    info_meta(&format!("peer message queue, send len:{:?}",self.peers_send.capacity()));
+                }
                 Err(e) => error_meta(&format!(
                     "Failed to write Raft Message to send queue with error message: {:?}",
                     e.to_string()
