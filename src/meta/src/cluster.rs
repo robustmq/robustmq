@@ -41,11 +41,13 @@ impl Cluster {
 
     // Add Meta node
     pub fn add_peer(&mut self, id: u64, node: Node) {
+        info_meta(&format!("add peer node:{:?}", node));
         self.peers.insert(id, node);
     }
 
     // Add Meta node
     pub fn remove_peer(&mut self, id: u64) {
+        info_meta(&format!("remove peer node id:{:?}", id));
         self.peers.remove(&id);
     }
 

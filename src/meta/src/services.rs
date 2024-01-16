@@ -28,7 +28,7 @@ use protocol::robust::meta::{
     TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest,
 };
 use protocol::robust::meta::{SendRaftConfChangeReply, SendRaftConfChangeRequest};
-use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
+use raft::eraftpb::{ConfChange, Message as raftPreludeMessage, MessageType};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
 
@@ -189,8 +189,16 @@ impl MetaService for GrpcService {
         let message = raftPreludeMessage::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        if message.get_msg_type() != MessageType::MsgHeartbeat
+            &&
+             message.get_msg_type() != MessageType::MsgHeartbeatResponse
+        {
+            info_meta(&format!(
+                "grpc receive send_raft_message data:{:?}",
+                message
+            ));
+        }
 
-        info_meta(&format!("grpc receive send_raft_message data:{:?}", message));
         match self
             .raft_sender
             .send(RaftMessage::Raft { message, chan: sx })
@@ -220,7 +228,10 @@ impl MetaService for GrpcService {
         let change = ConfChange::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        info_meta(&format!("grpc receive send_raft_conf_change change data:{:?}", change));
+        info_meta(&format!(
+            "grpc receive send_raft_conf_change change data:{:?}",
+            change
+        ));
         match self
             .raft_sender
             .send(RaftMessage::ConfChange { change, chan: sx })

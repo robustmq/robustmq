@@ -21,3 +21,7 @@ pub fn key_name_by_entry(idx: u64) -> String {
 pub fn key_name_uncommit() -> String {
     return "metasrv_uncommit_index".to_string();
 }
+
+pub fn key_name_snapshot() -> String{
+    return "metasrv_snapshot".to_string();
+}

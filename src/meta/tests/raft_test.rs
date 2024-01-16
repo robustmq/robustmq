@@ -9,12 +9,17 @@ mod tests {
     use std::thread::sleep;
     use std::time::Duration;
     use std::vec;
+    use raft::eraftpb::{
+        ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
+    };
 
     #[test]
     fn raft_node_1() {
         let mut conf = MetaConfig::default();
+        conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1221;
+        conf.admin_port=2221;
         conf.log_path = "/tmp/test_fold1/logs".to_string();
         conf.data_path = "/tmp/test_fold1/data".to_string();
         conf.meta_nodes = vec![
@@ -39,6 +44,7 @@ mod tests {
         conf.node_id = 2;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1222;
+        conf.admin_port=2222;
         conf.log_path = "/tmp/test_fold2/logs".to_string();
         conf.data_path = "/tmp/test_fold2/data".to_string();
         conf.meta_nodes = vec![
@@ -61,8 +67,9 @@ mod tests {
     fn raft_node_3() {
         let mut conf = MetaConfig::default();
         conf.node_id = 3;
-        conf.addr = "127.0.0.3".to_string();
+        conf.addr = "127.0.0.".to_string();
         conf.port = 1223;
+        conf.admin_port=2223;
         conf.log_path = "/tmp/test_fold3/logs".to_string();
         conf.data_path = "/tmp/test_fold3/data".to_string();
         conf.meta_nodes = vec![
@@ -110,5 +117,38 @@ mod tests {
 
         let v2 = 666u64.to_be_bytes();
         println!("{}",u64::from_be_bytes(v2));
+    }
+
+    #[test]
+    fn entry_vec_test(){
+        let mut entries = Vec::new();
+        let mut e1 = Entry::default();
+        e1.set_index(1);  
+        entries.push(e1);
+
+        let mut e2 = Entry::default();
+        e2.set_index(2);
+        entries.push(e2);
+
+
+        let mut res_entries = Vec::new();
+        res_entries.extend_from_slice(&entries);
+        println!("{:?}",res_entries);
+
+        res_entries.drain(1..);
+        println!("{:?}",res_entries);
+
+        let mut entries = Vec::new();
+        let mut e1 = Entry::default();
+        e1.set_index(2);  
+        entries.push(e1);
+
+        let mut e2 = Entry::default();
+        e2.set_index(4);
+        entries.push(e2);
+        res_entries.extend_from_slice(&entries);
+        println!("{:?}",res_entries);
+
+
     }
 }

@@ -3,9 +3,9 @@ addr = "127.0.0.1"
 port = 1228
 admin_port = 1227
 meta_nodes = ["127.0.0.1:1228"]
-runtime_work_threads = 3
-data_path = "/tmp/data"
-log_path = "/tmp/logs"
+runtime_work_threads = 100
+data_path = "/tmp/robust/data"
+log_path = "/tmp/robust/logs"
 log_segment_size = 1073741824
 log_file_num=50
 

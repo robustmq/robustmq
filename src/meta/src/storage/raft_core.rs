@@ -3,17 +3,20 @@ use super::keys::key_name_by_entry;
 use super::keys::key_name_by_first_index;
 use super::keys::key_name_by_hard_state;
 use super::keys::key_name_by_last_index;
+use super::keys::key_name_snapshot;
 use super::keys::key_name_uncommit;
 use crate::storage::rocksdb::RocksDBStorage;
 use bincode::{deserialize, serialize};
 use common::config::meta::MetaConfig;
 use common::log::error_meta;
+use common::log::info_meta;
 use prost::Message as _;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
 use raft::prelude::Snapshot;
 use raft::prelude::SnapshotMetadata;
+use raft::prelude::Status;
 use raft::Error;
 use raft::RaftState;
 use raft::Result as RaftResult;
@@ -26,7 +29,6 @@ pub struct RaftRocksDBStorageCore {
     pub uncommit_index: HashMap<u64, i8>,
     pub trigger_snap_unavailable: bool,
     pub snapshot_metadata: SnapshotMetadata,
-    pub snapshot: Snapshot,
 }
 
 impl RaftRocksDBStorageCore {
@@ -36,9 +38,8 @@ impl RaftRocksDBStorageCore {
         let mut rc = RaftRocksDBStorageCore {
             rds,
             snapshot_metadata: SnapshotMetadata::default(),
-            trigger_snap_unavailable: true,
+            trigger_snap_unavailable: false,
             uncommit_index,
-            snapshot: Snapshot::default(),
         };
         rc.uncommit_index = rc.uncommit_index();
         return rc;
@@ -87,7 +88,7 @@ impl RaftRocksDBStorageCore {
     pub fn conf_state(&self) -> ConfState {
         let key = key_name_by_conf_state();
         let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
-        if value == None {
+        if value.is_none() {
             ConfState::default()
         } else {
             return ConfState::decode(value.unwrap().as_ref())
@@ -98,17 +99,21 @@ impl RaftRocksDBStorageCore {
 
     // todo
     pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
+        let entry = self.entry_by_idx(idx);
+        if entry.is_none() {
+            info_meta(&format!("commit_to {} but the entry does not exist", idx))
+        }
+
+        println!(">> commit entry index:{}", idx);
         // update uncommit index
         self.uncommit_index.remove(&idx);
         self.save_uncommit_index();
 
-        // remove entry
-        let key = key_name_by_entry(idx);
-        let _ = self.rds.delete(self.rds.cf_meta(), &key);
-
-        // todo There could be a risk here
-        // update first_index
-        let _ = self.save_first_index(idx);
+        // update hs
+        let mut hs = self.hard_state();
+        hs.commit = idx;
+        hs.term = entry.unwrap().get_term();
+        let _ = self.save_hard_state(hs);
         return Ok(());
     }
 
@@ -137,6 +142,7 @@ impl RaftRocksDBStorageCore {
         }
 
         for entry in entrys {
+            println!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
             self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
@@ -200,7 +206,6 @@ impl RaftRocksDBStorageCore {
     /// Obtain the Entry based on the index ID
     pub fn entry_by_idx(&self, idx: u64) -> Option<Entry> {
         let key = key_name_by_entry(idx);
-        println!("{}",key);
         match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
             Ok(value) => {
                 if let Some(vl) = value {
@@ -245,6 +250,12 @@ impl RaftRocksDBStorageCore {
         let _ = self.rds.write(self.rds.cf_meta(), &key, &val);
     }
 
+    pub fn save_snapshot_data(&self, snapshot: Snapshot) {
+        let val = Snapshot::encode_to_vec(&snapshot);
+        let key = key_name_snapshot();
+        let _ = self.rds.write(self.rds.cf_meta(), &key, &val);
+    }
+
     pub fn uncommit_index(&self) -> HashMap<u64, i8> {
         let key = key_name_uncommit();
         match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
@@ -271,6 +282,7 @@ impl RaftRocksDBStorageCore {
                     let cf = self.rds.get_column_family(family.to_string());
                     for raw in value {
                         for (key, val) in &raw {
+                            info_meta(&format!("key:{:?},val{:?}", key, val.to_string()));
                             match self.rds.write_str(cf, key, val.to_string()) {
                                 Ok(_) => {}
                                 Err(err) => {
@@ -325,7 +337,15 @@ impl RaftRocksDBStorageCore {
     // Obtain the Entry based on the index ID
     pub fn snapshot(&mut self) -> Snapshot {
         self.create_snapshot();
-        return self.snapshot.clone();
+        let key = key_name_snapshot();
+        let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
+        if value.is_none() {
+            Snapshot::default()
+        } else {
+            return Snapshot::decode(value.unwrap().as_ref())
+                .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
+                .unwrap();
+        }
     }
 
     // Example Create a data snapshot for the current system
@@ -347,8 +367,12 @@ impl RaftRocksDBStorageCore {
         sns.set_data(serialize(&all_data).unwrap());
 
         // update value
-        self.trigger_snap_unavailable = false;
-        self.snapshot = sns;
+        info_meta(&format!("snapshot:{:?}", sns));
+        let _ = self.save_first_index(hard_state.commit);
+        
+        //todo clear < first_index entry log
+
+        self.save_snapshot_data(sns);
         self.snapshot_metadata = meta.clone();
     }
 }
