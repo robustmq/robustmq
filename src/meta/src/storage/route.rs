@@ -1,4 +1,5 @@
 use bincode::{deserialize, serialize};
+use common::log::info_meta;
 
 use crate::errors::MetaError;
 
@@ -26,10 +27,12 @@ impl DataRoute {
     }
 
     pub fn register_broker(&self, data: String) -> Result<(), MetaError> {
+        info_meta("persisted register broker");
         return Ok(());
     }
 
     pub fn unregister_broker(&self, data: String) -> Result<(), MetaError> {
+        info_meta("persisted unregister broker");
         return Ok(());
     }
 }
