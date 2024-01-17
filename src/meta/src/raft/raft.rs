@@ -210,7 +210,6 @@ impl MetaRaft {
 
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
-            info_meta(&format!("ready entrys:{:?}", ready.entries().len()));
             let entries = ready.entries();
             raft_node.mut_store().append(entries).unwrap();
         }
@@ -336,7 +335,8 @@ impl MetaRaft {
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
         let mut storage = RaftRocksDBStorage::new(&self.config);
-        let conf = self.build_config();
+        let hs = storage.read_lock().hard_state();
+        let conf = self.build_config(hs.commit);
         let logger = self.build_slog();
 
         // init storage
@@ -361,7 +361,8 @@ impl MetaRaft {
 
     pub async fn new_follower(&self, leader_node: Node) -> RawNode<RaftRocksDBStorage> {
         let storage = RaftRocksDBStorage::new(&self.config);
-        let conf = self.build_config();
+        let hs = storage.read_lock().hard_state();
+        let conf = self.build_config(hs.commit);
         let logger = self.build_slog();
         let node = RawNode::new(&conf, storage, &logger).unwrap();
 
@@ -401,11 +402,11 @@ impl MetaRaft {
         return node;
     }
 
-    fn build_config(&self) -> Config {
+    fn build_config(&self, apply: u64) -> Config {
         Config {
             // The unique ID for the Raft node.
             // id: self.config.node_id,
-            id: 1,
+            id: self.config.node_id,
             // Election tick is for how long the follower may campaign again after
             // it doesn't receive any message from the leader.
             election_tick: 10,
@@ -419,7 +420,7 @@ impl MetaRaft {
             max_inflight_msgs: 256,
             // The Raft applied index.
             // You need to save your applied index when you apply the committed Raft logs.
-            // applied: index,
+            applied: apply,
             ..Default::default()
         }
     }

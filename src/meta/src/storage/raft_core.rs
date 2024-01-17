@@ -42,6 +42,10 @@ impl RaftRocksDBStorageCore {
             uncommit_index,
         };
         rc.uncommit_index = rc.uncommit_index();
+        info_meta(&format!("init data,hard state:{:?}", rc.hard_state()));
+        info_meta(&format!("init data,conf state:{:?}", rc.conf_state()));
+        info_meta(&format!("init data,first index :{:?}", rc.first_index()));
+        info_meta(&format!("init data,last index:{:?}", rc.last_index()));
         return rc;
     }
 
@@ -369,7 +373,7 @@ impl RaftRocksDBStorageCore {
         // update value
         info_meta(&format!("snapshot:{:?}", sns));
         let _ = self.save_first_index(hard_state.commit);
-        
+
         //todo clear < first_index entry log
 
         self.save_snapshot_data(sns);
