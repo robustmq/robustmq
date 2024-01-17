@@ -67,7 +67,7 @@ mod tests {
     fn raft_node_3() {
         let mut conf = MetaConfig::default();
         conf.node_id = 3;
-        conf.addr = "127.0.0.".to_string();
+        conf.addr = "127.0.0.1".to_string();
         conf.port = 1223;
         conf.admin_port=2223;
         conf.log_path = "/tmp/test_fold3/logs".to_string();

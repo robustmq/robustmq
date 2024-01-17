@@ -46,6 +46,10 @@ impl RaftRocksDBStorageCore {
         info_meta(&format!("init data,conf state:{:?}", rc.conf_state()));
         info_meta(&format!("init data,first index :{:?}", rc.first_index()));
         info_meta(&format!("init data,last index:{:?}", rc.last_index()));
+        info_meta(&format!(
+            "init data,uncommit index:{:?}",
+            rc.uncommit_index()
+        ));
         return rc;
     }
 
@@ -146,6 +150,9 @@ impl RaftRocksDBStorageCore {
         }
 
         for entry in entrys {
+            if entry.get_data().is_empty() {
+                continue;
+            }
             println!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
