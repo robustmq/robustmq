@@ -44,7 +44,7 @@ impl Default for MetaConfig {
             port: 1227,
             admin_port: 1226,
             runtime_work_threads: 10,
-            log_segment_size: 1024 * 1024 * 1024,
+            log_segment_size: 1024 * 1024 * 1024 * 1024 * 1024,
             log_file_num: 50,
             data_path: "/tmp/data".to_string(),
             log_path: "/tmp/logs".to_string(),

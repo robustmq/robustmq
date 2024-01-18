@@ -31,7 +31,9 @@ use protocol::robust::meta::{SendRaftConfChangeReply, SendRaftConfChangeRequest}
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage, MessageType};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
+use tokio::time::timeout;
 
+use std::time::Duration;
 use std::{
     sync::{Arc, RwLock},
     time::Instant,
@@ -50,20 +52,23 @@ impl GrpcService {
             raft_sender,
         }
     }
+}
 
-    pub fn wait_raft_commit(&self, mut rx: Receiver<RaftResponseMesage>) -> bool {
-        let now = Instant::now();
-        loop {
-            match rx.try_recv() {
-                Ok(_) => {
-                    return true;
-                }
-                Err(_) => {
-                    if now.elapsed().as_secs() > 30 {
-                        return false;
-                    }
-                }
+async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
+    let res = timeout(Duration::from_secs(30), async {
+        match rx.await {
+            Ok(val) => {
+                return val;
             }
+            Err(_) => {
+                return RaftResponseMesage::Fail;
+            }
+        }
+    });
+    match res.await {
+        Ok(_) => return true,
+        Err(_) => {
+            return false;
         }
     }
 }
@@ -173,7 +178,7 @@ impl MetaService for GrpcService {
             })
             .await;
 
-        if !self.wait_raft_commit(rx) {
+        if !recv_chan_resp(rx).await {
             return Err(Status::cancelled(
                 MetaError::MetaLogCommitTimeout("broker_un_register".to_string()).to_string(),
             ));
@@ -190,8 +195,7 @@ impl MetaService for GrpcService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         if message.get_msg_type() != MessageType::MsgHeartbeat
-            &&
-             message.get_msg_type() != MessageType::MsgHeartbeatResponse
+            && message.get_msg_type() != MessageType::MsgHeartbeatResponse
         {
             info_meta(&format!(
                 "grpc receive send_raft_message data:{:?}",
@@ -205,7 +209,7 @@ impl MetaService for GrpcService {
             .await
         {
             Ok(_) => {
-                if !self.wait_raft_commit(rx) {
+                if !recv_chan_resp(rx).await {
                     return Err(Status::cancelled(
                         MetaError::MetaLogCommitTimeout("send_raft_message".to_string())
                             .to_string(),
@@ -238,7 +242,7 @@ impl MetaService for GrpcService {
             .await
         {
             Ok(_) => {
-                if !self.wait_raft_commit(rx) {
+                if !recv_chan_resp(rx).await {
                     return Err(Status::cancelled(
                         MetaError::MetaLogCommitTimeout("send_raft_conf_change".to_string())
                             .to_string(),
