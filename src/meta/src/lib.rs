@@ -116,7 +116,7 @@ impl Meta {
             });
 
             let cf2 = config.clone();
-            meta_http_runtime.block_on(async move {
+            meta_http_runtime.spawn(async move {
                 let ip = format!("{}:{}", cf2.addr, cf2.port).parse().unwrap();
 
                 info_meta(&format!(
@@ -125,12 +125,15 @@ impl Meta {
                 ));
 
                 let service_handler = GrpcService::new(cluster_clone, raft_message_send);
+
                 Server::builder()
                     .add_service(MetaServiceServer::new(service_handler))
                     .serve(ip)
                     .await
                     .unwrap();
             });
+
+            sleep(Duration::from_secs(100000000));
         });
         sleep(Duration::from_secs(2));
         thread_handles.push(tcp_thread_join);
@@ -140,7 +143,7 @@ impl Meta {
         let config = self.config.clone();
         let cluster_clone = cluster.clone();
         let raft_thread_join = datemon_thread.spawn(move || {
-            let meta_runtime = create_runtime("daemon-runtime", 10);
+            let meta_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
             meta_runtime.spawn(async {
                 let mut peers_manager = PeersManager::new(peer_message_recv);

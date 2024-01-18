@@ -137,6 +137,7 @@ impl MetaRaft {
 
                 Ok(Some(RaftMessage::Raft { message, chan })) => {
                     // Step advances the state machine using the given message.
+                    
                     match raft_node.step(message) {
                         // After the step message succeeds, you can return success directly
                         Ok(_) => match chan.send(RaftResponseMesage::Success) {

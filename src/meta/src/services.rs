@@ -59,7 +59,7 @@ impl GrpcService {
                     return true;
                 }
                 Err(_) => {
-                    if now.elapsed().as_secs() > 30 {
+                    if now.elapsed().as_secs() > 10 {
                         return false;
                     }
                 }

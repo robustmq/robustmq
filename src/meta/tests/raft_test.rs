@@ -22,6 +22,7 @@ mod tests {
         conf.admin_port=2221;
         conf.log_path = "/tmp/test_fold1/logs".to_string();
         conf.data_path = "/tmp/test_fold1/data".to_string();
+        conf.runtime_work_threads = 1000;
         conf.meta_nodes = vec![
             "127.0.0.1:1221".to_string(),
             "127.0.0.1:1222".to_string(),
@@ -45,6 +46,7 @@ mod tests {
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1222;
         conf.admin_port=2222;
+        conf.runtime_work_threads = 1000;
         conf.log_path = "/tmp/test_fold2/logs".to_string();
         conf.data_path = "/tmp/test_fold2/data".to_string();
         conf.meta_nodes = vec![
@@ -70,6 +72,7 @@ mod tests {
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1223;
         conf.admin_port=2223;
+        conf.runtime_work_threads = 1000;
         conf.log_path = "/tmp/test_fold3/logs".to_string();
         conf.data_path = "/tmp/test_fold3/data".to_string();
         conf.meta_nodes = vec![

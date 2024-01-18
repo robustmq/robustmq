@@ -16,7 +16,6 @@ use raft::prelude::ConfState;
 use raft::prelude::Entry;
 use raft::prelude::Snapshot;
 use raft::prelude::SnapshotMetadata;
-use raft::prelude::Status;
 use raft::Error;
 use raft::RaftState;
 use raft::Result as RaftResult;
@@ -42,6 +41,7 @@ impl RaftRocksDBStorageCore {
             uncommit_index,
         };
         rc.uncommit_index = rc.uncommit_index();
+        rc.snapshot_metadata = rc.create_snapshot_metadata();
         info_meta(&format!("init data,hard state:{:?}", rc.hard_state()));
         info_meta(&format!("init data,conf state:{:?}", rc.conf_state()));
         info_meta(&format!("init data,first index :{:?}", rc.first_index()));
@@ -364,13 +364,7 @@ impl RaftRocksDBStorageCore {
         let mut sns = Snapshot::default();
 
         // create snapshot metadata
-        let hard_state = self.hard_state();
-        let conf_state = self.conf_state();
-
-        let mut meta = SnapshotMetadata::default();
-        meta.set_conf_state(conf_state);
-        meta.set_index(hard_state.commit);
-        meta.set_term(hard_state.term);
+        let meta = self.create_snapshot_metadata();
         sns.set_metadata(meta.clone());
 
         // create snapshot data
@@ -379,12 +373,23 @@ impl RaftRocksDBStorageCore {
 
         // update value
         info_meta(&format!("snapshot:{:?}", sns));
-        let _ = self.save_first_index(hard_state.commit);
+        let _ = self.save_first_index(meta.get_index());
 
         //todo clear < first_index entry log
 
         self.save_snapshot_data(sns);
         self.snapshot_metadata = meta.clone();
+    }
+
+    pub fn create_snapshot_metadata(&self) -> SnapshotMetadata {
+        let hard_state = self.hard_state();
+        let conf_state = self.conf_state();
+
+        let mut meta: SnapshotMetadata = SnapshotMetadata::default();
+        meta.set_conf_state(conf_state);
+        meta.set_index(hard_state.commit);
+        meta.set_term(hard_state.term);
+        return meta;
     }
 }
 
