@@ -24,7 +24,6 @@ use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
 use std::fmt;
 use std::fmt::Display;
-use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use std::thread::{self, sleep};
 use std::time::Duration;
