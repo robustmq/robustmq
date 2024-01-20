@@ -14,7 +14,7 @@ use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
     Snapshot,
 };
-use raft::{Config, RawNode};
+use raft::{Config, RawNode, StateRole};
 use slog::o;
 use slog::Drain;
 use std::collections::HashMap;
@@ -24,7 +24,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 use tokio::time::timeout;
 
 pub struct MetaRaft {
@@ -35,6 +35,7 @@ pub struct MetaRaft {
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
     storage: Arc<RwLock<DataRoute>>,
     entry_num: AtomicUsize,
+    stop_recv: watch::Receiver<bool>,
 }
 
 impl MetaRaft {
@@ -43,6 +44,7 @@ impl MetaRaft {
         cluster: Arc<RwLock<Cluster>>,
         storage: Arc<RwLock<DataRoute>>,
         receiver: Receiver<RaftMessage>,
+        stop_recv: watch::Receiver<bool>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
         let entry_num = AtomicUsize::new(1);
@@ -55,6 +57,7 @@ impl MetaRaft {
             resp_channel,
             storage,
             entry_num,
+            stop_recv,
         };
     }
 
@@ -111,12 +114,19 @@ impl MetaRaft {
         let mut raft_node = if self.config.node_id == leader_node.id {
             self.new_leader()
         } else {
-            self.new_follower(leader_node).await
+            self.new_follower(leader_node.clone()).await
         };
 
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
+            if self.stop_recv.has_changed().unwrap() {
+                if *self.stop_recv.borrow() {
+                    info_meta("Raft Node stopped");
+                    self.stop(&mut raft_node, leader_node.clone()).await;
+                    break;
+                }
+            }
             match timeout(heartbeat, self.receiver.recv()).await {
                 Ok(Some(RaftMessage::ConfChange { change, chan })) => {
                     let seq = self
@@ -137,7 +147,7 @@ impl MetaRaft {
 
                 Ok(Some(RaftMessage::Raft { message, chan })) => {
                     // Step advances the state machine using the given message.
-                    
+
                     match raft_node.step(message) {
                         // After the step message succeeds, you can return success directly
                         Ok(_) => match chan.send(RaftResponseMesage::Success) {
@@ -355,8 +365,8 @@ impl MetaRaft {
         let mut node = RawNode::new(&conf, storage, &logger).unwrap();
 
         // Change the role of the current node to Leader
-        node.raft.become_candidate();
-        node.raft.become_leader();
+        // node.raft.become_candidate();
+        // node.raft.become_leader();
         return node;
     }
 
@@ -401,6 +411,33 @@ impl MetaRaft {
             }
         }
         return node;
+    }
+
+    async fn stop(&self, raft_node: &mut RawNode<RaftRocksDBStorage>, leader_node: Node) {
+        if raft_node.raft.state == StateRole::Follower {
+            let cluster = self.cluster.write().unwrap();
+            let mut change = ConfChange::default();
+            change.set_node_id(self.config.node_id);
+            change.set_change_type(ConfChangeType::RemoveNode);
+            change.set_context(serialize(&cluster.local).unwrap());
+            match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change))
+                .await
+            {
+                Ok(_) => {
+                    info_meta(&format!(
+                        "Node {:?} is successfully removed from the cluster.",
+                        cluster.local
+                    ));
+                }
+                Err(err) => {
+                    info_meta(&format!(
+                        "Attempts to remove the current node from the cluster after initializing a Follower node fail with the error message {}",
+                        err.to_string()
+                    ));
+                }
+            }
+        }
+        //todo
     }
 
     fn build_config(&self, apply: u64) -> Config {

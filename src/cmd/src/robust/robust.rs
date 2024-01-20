@@ -25,6 +25,7 @@ use common::config::DEFAULT_META_CONFIG;
 use common::config::DEFAULT_SERVER_CONFIG;
 use common::log;
 use meta::Meta;
+use tokio::sync::watch;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -45,6 +46,7 @@ fn main() {
 
     let server_conf: RobustConfig = parse_server(&args.server_conf);
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
+    let (stop_send, _) = watch::channel(true);
 
     log::new(
         meta_conf.log_path.clone(),
@@ -54,7 +56,7 @@ fn main() {
 
     // Start Meta
     let mut mt_s = Meta::new(meta_conf);
-    mt_s.start();
+    mt_s.run(stop_send);
 
     // Start Broker
     let app: Broker = Broker::new(Arc::new(server_conf));

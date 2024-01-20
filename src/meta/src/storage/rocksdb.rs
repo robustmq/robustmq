@@ -150,9 +150,9 @@ impl RocksDBStorage {
     pub fn read_all(&self) -> HashMap<String, Vec<HashMap<String, String>>> {
         let mut result: HashMap<String, Vec<HashMap<String, String>>> = HashMap::new();
         for family in column_family_list().iter() {
-            if family.to_string() == DB_COLUMN_FAMILY_META.to_string() {
-                continue;
-            }
+            // if family.to_string() == DB_COLUMN_FAMILY_META.to_string() {
+            //     continue;
+            // }
             let cf = self.get_column_family(family.to_string());
             result.insert(family.to_string(), self.read_all_by_cf(cf));
         }

@@ -190,7 +190,7 @@ impl RaftRocksDBStorageCore {
                 }
             }
             Err(e) => {
-                error_meta(&e);
+                error_meta(&format!("Failed to read the first index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index));
                 self.snapshot_metadata.index + 1
             }
         }
@@ -208,7 +208,7 @@ impl RaftRocksDBStorageCore {
                 }
             }
             Err(e) => {
-                error_meta(&e);
+                error_meta(&format!("Failed to read the last index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index));
                 self.snapshot_metadata.index
             }
         }
@@ -226,7 +226,10 @@ impl RaftRocksDBStorageCore {
                     return Some(et);
                 }
             }
-            Err(e) => error_meta(&e),
+            Err(e) => error_meta(&format!(
+                "Failed to read entry. The failure information is {}, and the current index is {}",
+                e, idx
+            )),
         }
         return None;
     }
