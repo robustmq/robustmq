@@ -1,5 +1,4 @@
 use super::raft_core::RaftRocksDBStorageCore;
-use common::config::meta::MetaConfig;
 use common::log::info_meta;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -20,18 +19,18 @@ pub struct RaftRocksDBStorage {
 }
 
 impl RaftRocksDBStorage {
-    pub fn new(config: &MetaConfig) -> Self {
-        let core = RaftRocksDBStorageCore::new(config);
-        return RaftRocksDBStorage {
-            core: Arc::new(RwLock::new(core)),
-        };
+    pub fn new(core: Arc<RwLock<RaftRocksDBStorageCore>>) -> Self {
+        return RaftRocksDBStorage { core };
     }
 
-    pub fn new_with_conf_state<T>(config: &MetaConfig, conf_state: T) -> RaftRocksDBStorage
+    pub fn new_with_conf_state<T>(
+        core: Arc<RwLock<RaftRocksDBStorageCore>>,
+        conf_state: T,
+    ) -> RaftRocksDBStorage
     where
         ConfState: From<T>,
     {
-        let store = RaftRocksDBStorage::new(config);
+        let store = RaftRocksDBStorage::new(core);
         store.initialize_with_conf_state(conf_state);
         return store;
     }
