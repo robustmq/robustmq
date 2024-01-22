@@ -18,6 +18,7 @@ pub enum NodeState {
     Stop,
 }
 
+#[derive(Clone)]
 pub struct Cluster {
     pub local: Node,
     pub leader: Option<Node>,

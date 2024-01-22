@@ -3,6 +3,7 @@ use super::message::{RaftMessage, RaftResponseMesage};
 use crate::client::send_raft_conf_change;
 use crate::cluster::Cluster;
 use crate::errors::MetaError;
+use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use crate::storage::route::DataRoute;
 use crate::Node;
@@ -11,10 +12,10 @@ use common::config::meta::MetaConfig;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
-    Snapshot,
+    ConfChange, ConfChangeType, ConfState, Entry, EntryType, Message as raftPreludeMessage,
+    MessageType, Snapshot,
 };
-use raft::{Config, RawNode};
+use raft::{Config, RawNode, StateRole};
 use slog::o;
 use slog::Drain;
 use std::collections::HashMap;
@@ -24,7 +25,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 use tokio::time::timeout;
 
 pub struct MetaRaft {
@@ -33,16 +34,20 @@ pub struct MetaRaft {
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
-    storage: Arc<RwLock<DataRoute>>,
+    data_route: Arc<RwLock<DataRoute>>,
     entry_num: AtomicUsize,
+    stop_recv: watch::Receiver<bool>,
+    storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
 impl MetaRaft {
     pub fn new(
         config: MetaConfig,
         cluster: Arc<RwLock<Cluster>>,
-        storage: Arc<RwLock<DataRoute>>,
+        data_route: Arc<RwLock<DataRoute>>,
         receiver: Receiver<RaftMessage>,
+        stop_recv: watch::Receiver<bool>,
+        storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
         let entry_num = AtomicUsize::new(1);
@@ -53,8 +58,10 @@ impl MetaRaft {
             receiver,
             seqnum,
             resp_channel,
-            storage,
+            data_route,
             entry_num,
+            stop_recv,
+            storage,
         };
     }
 
@@ -111,12 +118,19 @@ impl MetaRaft {
         let mut raft_node = if self.config.node_id == leader_node.id {
             self.new_leader()
         } else {
-            self.new_follower(leader_node).await
+            self.new_follower(leader_node.clone()).await
         };
 
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
+            if self.stop_recv.has_changed().unwrap() {
+                if *self.stop_recv.borrow() {
+                    info_meta("Raft Node stopped");
+                    self.stop(&mut raft_node, leader_node.clone()).await;
+                    break;
+                }
+            }
             match timeout(heartbeat, self.receiver.recv()).await {
                 Ok(Some(RaftMessage::ConfChange { change, chan })) => {
                     let seq = self
@@ -137,7 +151,7 @@ impl MetaRaft {
 
                 Ok(Some(RaftMessage::Raft { message, chan })) => {
                     // Step advances the state machine using the given message.
-                    
+
                     match raft_node.step(message) {
                         // After the step message succeeds, you can return success directly
                         Ok(_) => match chan.send(RaftResponseMesage::Success) {
@@ -250,7 +264,7 @@ impl MetaRaft {
         raft_node: &mut RawNode<RaftRocksDBStorage>,
         entrys: Vec<Entry>,
     ) {
-        let storage = self.storage.write().unwrap();
+        let data_route = self.data_route.write().unwrap();
         for entry in entrys {
             if !entry.data.is_empty() {
                 info_meta(&format!(
@@ -260,7 +274,7 @@ impl MetaRaft {
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
-                        match storage.route(entry.get_data().to_vec()) {
+                        match data_route.route(entry.get_data().to_vec()) {
                             Ok(_) => {}
                             Err(err) => {
                                 error_meta(&err.to_string());
@@ -335,7 +349,7 @@ impl MetaRaft {
     }
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
-        let mut storage = RaftRocksDBStorage::new(&self.config);
+        let mut storage = RaftRocksDBStorage::new(self.storage.clone());
         let hs = storage.read_lock().hard_state();
         let conf = self.build_config(hs.commit);
         let logger = self.build_slog();
@@ -352,17 +366,15 @@ impl MetaRaft {
             storage.apply_snapshot(s).unwrap();
         }
 
-        let mut node = RawNode::new(&conf, storage, &logger).unwrap();
+        let node = RawNode::new(&conf, storage, &logger).unwrap();
 
-        // Change the role of the current node to Leader
-        node.raft.become_candidate();
-        node.raft.become_leader();
         return node;
     }
 
     pub async fn new_follower(&self, leader_node: Node) -> RawNode<RaftRocksDBStorage> {
-        let storage = RaftRocksDBStorage::new(&self.config);
+        let storage = RaftRocksDBStorage::new(self.storage.clone());
         let hs = storage.read_lock().hard_state();
+
         let conf = self.build_config(hs.commit);
         let logger = self.build_slog();
         let node = RawNode::new(&conf, storage, &logger).unwrap();
@@ -403,6 +415,33 @@ impl MetaRaft {
         return node;
     }
 
+    async fn stop(&self, raft_node: &mut RawNode<RaftRocksDBStorage>, leader_node: Node) {
+        if raft_node.raft.state == StateRole::Follower {
+            let cluster = self.cluster.write().unwrap();
+            let mut change = ConfChange::default();
+            change.set_node_id(self.config.node_id);
+            change.set_change_type(ConfChangeType::RemoveNode);
+            change.set_context(serialize(&cluster.local).unwrap());
+            match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change))
+                .await
+            {
+                Ok(_) => {
+                    info_meta(&format!(
+                        "Node {:?} is successfully removed from the cluster.",
+                        cluster.local
+                    ));
+                }
+                Err(err) => {
+                    info_meta(&format!(
+                        "Attempts to remove the current node from the cluster after initializing a Follower node fail with the error message {}",
+                        err.to_string()
+                    ));
+                }
+            }
+        }
+        //todo
+    }
+
     fn build_config(&self, apply: u64) -> Config {
         Config {
             // The unique ID for the Raft node.
@@ -422,6 +461,7 @@ impl MetaRaft {
             // The Raft applied index.
             // You need to save your applied index when you apply the committed Raft logs.
             applied: apply,
+            // check_quorum: true,
             ..Default::default()
         }
     }

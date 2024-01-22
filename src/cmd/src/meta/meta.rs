@@ -18,7 +18,9 @@ use common::config::meta::MetaConfig;
 use common::config::parse_meta;
 use common::config::DEFAULT_META_CONFIG;
 use common::log;
+use common::tools::handle_running;
 use meta::Meta;
+use tokio::sync::watch;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -30,14 +32,18 @@ struct ArgsParams {
     meta_conf: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = ArgsParams::parse();
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
+    let (stop_send, _) = watch::channel(true);
     log::new(
         meta_conf.log_path.clone(),
         meta_conf.log_segment_size.clone(),
         meta_conf.log_file_num.clone(),
     );
     let mut mt_s = Meta::new(meta_conf);
-    mt_s.start();
+    let meta_service: Vec<Result<std::thread::JoinHandle<()>, std::io::Error>> =
+        mt_s.run(stop_send);
+    handle_running(meta_service);
 }

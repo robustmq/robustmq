@@ -1,17 +1,17 @@
 #[cfg(test)]
 mod tests {
     use byteorder::{BigEndian, ReadBytesExt};
-    use common::config::meta::MetaConfig;
     use common::log;
+    use common::tools::handle_running;
+    use common::{config::meta::MetaConfig, tools::create_fold};
     use meta::Meta;
     use prost::Message;
-    use std::io::Cursor;
-    use std::thread::sleep;
-    use std::time::Duration;
-    use std::vec;
     use raft::eraftpb::{
         ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
     };
+    use std::io::Cursor;
+    use std::vec;
+    use tokio::{signal, sync::watch};
 
     #[test]
     fn raft_node_1() {
@@ -19,7 +19,7 @@ mod tests {
         conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1221;
-        conf.admin_port=2221;
+        conf.admin_port = 2221;
         conf.log_path = "/tmp/test_fold1/logs".to_string();
         conf.data_path = "/tmp/test_fold1/data".to_string();
         conf.meta_nodes = vec![
@@ -30,12 +30,10 @@ mod tests {
 
         log::new(conf.log_path.clone(), 1024, 50);
 
+        let (stop_send, _) = watch::channel(true);
         let mut mt = Meta::new(conf);
-        mt.start();
-
-        loop {
-            sleep(Duration::from_secs(1000));
-        }
+        let meta_service = mt.run(stop_send);
+        handle_running(meta_service);
     }
 
     #[test]
@@ -44,9 +42,11 @@ mod tests {
         conf.node_id = 2;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1222;
-        conf.admin_port=2222;
+        conf.admin_port = 2222;
         conf.log_path = "/tmp/test_fold2/logs".to_string();
         conf.data_path = "/tmp/test_fold2/data".to_string();
+        create_fold(conf.data_path.clone());
+        create_fold(conf.log_path.clone());
         conf.meta_nodes = vec![
             "127.0.0.1:1221".to_string(),
             "127.0.0.1:1222".to_string(),
@@ -54,13 +54,10 @@ mod tests {
         ];
 
         log::new(conf.log_path.clone(), 1024, 50);
-
+        let (stop_send, _) = watch::channel(true);
         let mut mt = Meta::new(conf);
-        mt.start();
-
-        loop {
-            sleep(Duration::from_secs(1000));
-        }
+        let meta_service = mt.run(stop_send);
+        handle_running(meta_service);
     }
 
     #[test]
@@ -69,7 +66,7 @@ mod tests {
         conf.node_id = 3;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1223;
-        conf.admin_port=2223;
+        conf.admin_port = 2223;
         conf.log_path = "/tmp/test_fold3/logs".to_string();
         conf.data_path = "/tmp/test_fold3/data".to_string();
         conf.meta_nodes = vec![
@@ -79,13 +76,11 @@ mod tests {
         ];
 
         log::new(conf.log_path.clone(), 1024, 50);
-
+        let (stop_send, _) = watch::channel(true);
         let mut mt = Meta::new(conf);
-        mt.start();
 
-        loop {
-            sleep(Duration::from_secs(1000));
-        }
+        let meta_service = mt.run(stop_send);
+        handle_running(meta_service);
     }
 
     #[test]
@@ -116,39 +111,41 @@ mod tests {
         let v2 = 666u64.encode_to_vec();
 
         let v2 = 666u64.to_be_bytes();
-        println!("{}",u64::from_be_bytes(v2));
+        println!("{}", u64::from_be_bytes(v2));
     }
 
     #[test]
-    fn entry_vec_test(){
+    fn entry_vec_test() {
         let mut entries = Vec::new();
         let mut e1 = Entry::default();
-        e1.set_index(1);  
+        e1.set_index(1);
         entries.push(e1);
 
         let mut e2 = Entry::default();
         e2.set_index(2);
         entries.push(e2);
 
-
         let mut res_entries = Vec::new();
         res_entries.extend_from_slice(&entries);
-        println!("{:?}",res_entries);
+        println!("{:?}", res_entries);
 
         res_entries.drain(1..);
-        println!("{:?}",res_entries);
+        println!("{:?}", res_entries);
 
         let mut entries = Vec::new();
         let mut e1 = Entry::default();
-        e1.set_index(2);  
+        e1.set_index(2);
         entries.push(e1);
 
         let mut e2 = Entry::default();
         e2.set_index(4);
         entries.push(e2);
         res_entries.extend_from_slice(&entries);
-        println!("{:?}",res_entries);
+        println!("{:?}", res_entries);
+    }
 
-
+    #[tokio::test]
+    async fn signal() {
+        signal::ctrl_c().await.expect("failed to listen for event");
     }
 }

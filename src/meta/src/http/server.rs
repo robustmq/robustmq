@@ -1,5 +1,8 @@
 use super::meta::{storage, HttpMeta};
-use crate::{cluster::Cluster, storage::rocksdb::RocksDBStorage};
+use crate::{
+    cluster::Cluster,
+    storage::{raft_core::RaftRocksDBStorageCore, rocksdb::RocksDBStorage},
+};
 use axum::routing::get;
 use axum::Router;
 use common::{config::meta::MetaConfig, log::info};
@@ -14,10 +17,15 @@ pub struct HttpServer {
     ip: SocketAddr,
     cluster: Arc<RwLock<Cluster>>,
     http_meta: HttpMeta,
+    storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
 impl HttpServer {
-    pub fn new(config: MetaConfig, cluster: Arc<RwLock<Cluster>>) -> Self {
+    pub fn new(
+        config: MetaConfig,
+        cluster: Arc<RwLock<Cluster>>,
+        storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    ) -> Self {
         let ip: SocketAddr = format!("{}:{}", config.addr, config.admin_port)
             .parse()
             .unwrap();
@@ -27,6 +35,7 @@ impl HttpServer {
             ip,
             cluster,
             http_meta,
+            storage,
         };
     }
 
@@ -35,7 +44,7 @@ impl HttpServer {
         let app = self.routes();
         let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
         info(&format!(
-            "RobustMQ Broker HTTP Server start success. bind addr:{}",
+            "RobustMQ Meta HTTP Server start success. bind addr:{}",
             ip
         ));
         axum::serve(listener, app).await.unwrap();

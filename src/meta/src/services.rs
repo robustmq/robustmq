@@ -17,9 +17,10 @@
 use super::cluster::Cluster;
 use super::errors::MetaError;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
+use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
 use bincode::serialize;
-use common::log::{debug, info, info_meta};
+use common::log::{debug, info_meta};
 use prost::Message as _;
 use protocol::robust::meta::{
     meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
@@ -33,23 +34,26 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
 use tokio::time::timeout;
 
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use std::{
-    sync::{Arc, RwLock},
-    time::Instant,
-};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcService {
     cluster: Arc<RwLock<Cluster>>,
     raft_sender: Sender<RaftMessage>,
+    rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
 impl GrpcService {
-    pub fn new(cluster: Arc<RwLock<Cluster>>, raft_sender: Sender<RaftMessage>) -> Self {
+    pub fn new(
+        cluster: Arc<RwLock<Cluster>>,
+        raft_sender: Sender<RaftMessage>,
+        rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    ) -> Self {
         GrpcService {
             cluster,
             raft_sender,
+            rocksdb_storage,
         }
     }
 }
