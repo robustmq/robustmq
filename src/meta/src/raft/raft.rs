@@ -127,8 +127,7 @@ impl MetaRaft {
             match self.stop_recv.try_recv() {
                 Ok(val) => {
                     if val {
-                        info_meta("Raft Node stopped");
-                        self.stop(&mut raft_node, leader_node.clone()).await;
+                        info_meta("Raft Node Process services stop.");
                         break;
                     }
                 }
@@ -394,69 +393,7 @@ impl MetaRaft {
 
         let logger = self.build_slog();
         let node = RawNode::new(&conf, storage, &logger).unwrap();
-
-        // // Add the leader node to the peer list
-        // let mut cluster = self.cluster.write().unwrap();
-        // cluster.add_peer(leader_node.id.clone(), leader_node.clone());
-
-        // // try remove from the cluster
-        // let mut change = ConfChange::default();
-        // change.set_node_id(self.config.node_id);
-        // change.set_change_type(ConfChangeType::RemoveNode);
-        // change.set_context(serialize(&cluster.local).unwrap());
-        // match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
-        //     Ok(_) => {}
-        //     Err(err) => {
-        //         info_meta(&format!(
-        //             "Attempts to remove the current node from the cluster after initializing a Follower node fail with the error message {}",
-        //             err.to_string()
-        //         ));
-        //     }
-        // }
-
-        // // Join the cluster
-        // let mut change = ConfChange::default();
-        // change.set_node_id(self.config.node_id);
-        // change.set_change_type(ConfChangeType::AddNode);
-        // change.set_context(serialize(&cluster.local).unwrap());
-        // match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
-        //     Ok(_) => {}
-        //     Err(err) => {
-        //         info_meta(&format!(
-        //             "Error occurs when initializing a Follower node and adding the node to the cluster with the error message {}",
-        //             err.to_string()
-        //         ));
-        //     }
-        // }
         return node;
-    }
-
-    async fn stop(&self, raft_node: &mut RawNode<RaftRocksDBStorage>, leader_node: Node) {
-        if raft_node.raft.state == StateRole::Follower {
-            let cluster = self.cluster.read().unwrap();
-            let mut change = ConfChange::default();
-            change.set_node_id(self.config.node_id);
-            change.set_change_type(ConfChangeType::RemoveNode);
-            change.set_context(serialize(&cluster.local).unwrap());
-            match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change))
-                .await
-            {
-                Ok(_) => {
-                    info_meta(&format!(
-                        "Node {:?} is successfully removed from the cluster.",
-                        cluster.local
-                    ));
-                }
-                Err(err) => {
-                    info_meta(&format!(
-                        "Attempts to remove the current node from the cluster after initializing a Follower node fail with the error message {}",
-                        err.to_string()
-                    ));
-                }
-            }
-        }
-
-        //todo
     }
 
     fn build_config(&self, apply: u64) -> Config {
