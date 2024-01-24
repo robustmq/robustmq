@@ -123,7 +123,7 @@ impl Meta {
             });
 
             let cf2 = config.clone();
-            meta_http_runtime.block_on(async move {
+            meta_http_runtime.spawn(async move {
                 let ip = format!("{}:{}", cf2.addr, cf2.port).parse().unwrap();
 
                 info_meta(&format!(
@@ -141,12 +141,13 @@ impl Meta {
                     .unwrap();
             });
 
-            // meta_http_runtime.block_on(async {
-            //     while stop_recv_c.recv().await.unwrap() {
-            //         info_meta("TCP and GRPC Server services stop.");
-            //         // break;
-            //     }
-            // });
+            meta_http_runtime.block_on(async {
+                if stop_recv_c.recv().await.unwrap() {
+                    info_meta("TCP and GRPC Server services stop.");
+                }
+            });
+
+            info_meta("server thread stop.");
         });
         thread_result.push(tcp_thread_join);
 
@@ -185,8 +186,7 @@ impl Meta {
                 );
                 raft.ready().await;
             });
-
-            info_meta("Daemon thread stop .....");
+            info_meta("daemon thread stop.");
         });
 
         thread_result.push(daemon_thread_join);
