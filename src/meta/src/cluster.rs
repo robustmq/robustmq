@@ -1,7 +1,11 @@
-use crate::{raft::peer::PeerMessage, Node};
+use crate::{
+    raft::peer::{self, PeerMessage, PeersManager},
+    Node,
+};
 use ahash::AHashMap;
 use common::log::{error_meta, info_meta};
 use tokio::sync::mpsc::Sender;
+use toml::Table;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeRole {
@@ -29,13 +33,21 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn new(local: Node, peers_send: Sender<PeerMessage>) -> Cluster {
+    pub fn new(local: Node, peers_send: Sender<PeerMessage>, nodes: Table) -> Cluster {
+        let mut peers = AHashMap::new();
+        for (node_id, addr) in nodes {
+            let (ip, port) = addr.as_str().unwrap().split_once(":").unwrap();
+            let p: u16 = port.to_string().trim().parse().unwrap();
+            let id: u64 = node_id.to_string().trim().parse().unwrap();
+            peers.insert(id, Node::new(ip.to_string(), id, p));
+        }
+
         Cluster {
             local,
             leader: None,
             role: NodeRole::Candidate,
             state: NodeState::Starting,
-            peers: AHashMap::new(),
+            peers: peers,
             peers_send,
         }
     }
@@ -87,5 +99,13 @@ impl Cluster {
 
     pub fn get_node_by_id(&self, id: u64) -> Option<&Node> {
         self.peers.get(&id)
+    }
+
+    pub fn node_ids(&self) -> Vec<u64> {
+        let mut voters = Vec::new();
+        for (id, _) in self.peers.iter() {
+            voters.push(*id);
+        }
+        return voters;
     }
 }

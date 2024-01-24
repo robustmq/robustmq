@@ -375,7 +375,6 @@ impl RaftRocksDBStorageCore {
         sns.set_data(serialize(&all_data).unwrap());
 
         // update value
-        info_meta(&format!("snapshot:{:?}", sns));
         let _ = self.save_first_index(meta.get_index());
 
         //todo clear < first_index entry log

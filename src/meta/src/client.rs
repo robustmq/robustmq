@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+use common::log::info_meta;
 use protocol::robust::meta::{
     meta_service_client::MetaServiceClient, FindLeaderReply, FindLeaderRequest,
     SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,

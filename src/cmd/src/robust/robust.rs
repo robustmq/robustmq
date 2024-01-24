@@ -25,6 +25,7 @@ use common::config::DEFAULT_META_CONFIG;
 use common::config::DEFAULT_SERVER_CONFIG;
 use common::log;
 use meta::Meta;
+use tokio::sync::broadcast;
 use tokio::sync::watch;
 
 #[derive(Parser, Debug)]
@@ -46,7 +47,7 @@ fn main() {
 
     let server_conf: RobustConfig = parse_server(&args.server_conf);
     let meta_conf: MetaConfig = parse_meta(&args.meta_conf);
-    let (stop_send, _) = watch::channel(true);
+    let (stop_send, _) = broadcast::channel(2);
 
     log::new(
         meta_conf.log_path.clone(),

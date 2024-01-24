@@ -25,13 +25,11 @@ use raft::raft::MetaRaft;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
-use std::thread::{self, sleep, JoinHandle};
-use std::time::Duration;
+use std::thread::{self, JoinHandle};
 use storage::raft_core::RaftRocksDBStorageCore;
-use storage::raft_storage::RaftRocksDBStorage;
 use storage::route::DataRoute;
 use tokio::signal;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{broadcast, mpsc};
 use tonic::transport::Server;
 
 pub mod broker;
@@ -83,7 +81,7 @@ impl Meta {
 
     pub fn run(
         &mut self,
-        stop_send: watch::Sender<bool>,
+        stop_send: broadcast::Sender<bool>,
     ) -> Vec<Result<JoinHandle<()>, std::io::Error>> {
         info(&format!(
             "Meta node starting, node IP :{}, node ID:{}",
@@ -101,10 +99,12 @@ impl Meta {
                 self.config.port.clone(),
             ),
             peer_message_send.clone(),
+            self.config.nodes.clone(),
         )));
 
         let data_route = Arc::new(RwLock::new(DataRoute::new()));
         let mut thread_result = Vec::new();
+
         // Thread running meta tcp server
         let tcp_thread = thread::Builder::new().name("meta-tcp-thread".to_owned());
         let config = self.config.clone();
@@ -123,7 +123,7 @@ impl Meta {
             });
 
             let cf2 = config.clone();
-            meta_http_runtime.spawn(async move {
+            meta_http_runtime.block_on(async move {
                 let ip = format!("{}:{}", cf2.addr, cf2.port).parse().unwrap();
 
                 info_meta(&format!(
@@ -141,13 +141,12 @@ impl Meta {
                     .unwrap();
             });
 
-            meta_http_runtime.block_on(async {
-                while stop_recv_c.changed().await.is_ok() {
-                    if *stop_recv_c.borrow() {
-                        break;
-                    }
-                }
-            });
+            // meta_http_runtime.block_on(async {
+            //     while stop_recv_c.recv().await.unwrap() {
+            //         info_meta("TCP and GRPC Server services stop.");
+            //         // break;
+            //     }
+            // });
         });
         thread_result.push(tcp_thread_join);
 
@@ -166,10 +165,12 @@ impl Meta {
             });
 
             meta_runtime.spawn(async move {
-                signal::ctrl_c().await.expect("failed to listen for event");
-                match stop_send.send(true) {
-                    Ok(_) => info_meta("When ctrl + c is received, the service starts to stop"),
-                    Err(_) => {}
+                loop {
+                    signal::ctrl_c().await.expect("failed to listen for event");
+                    match stop_send.send(true) {
+                        Ok(_) => info_meta("When ctrl + c is received, the service starts to stop"),
+                        Err(_) => {}
+                    }
                 }
             });
 
@@ -184,6 +185,8 @@ impl Meta {
                 );
                 raft.ready().await;
             });
+
+            info_meta("Daemon thread stop .....");
         });
 
         thread_result.push(daemon_thread_join);
