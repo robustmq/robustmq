@@ -13,23 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 use crate::{client::find_leader, errors::MetaError, Node};
+use ahash::AHashMap;
 use common::log::{error_meta, info_meta};
 use futures_util::{future::select_ok, FutureExt};
 
 #[derive(Clone)]
 pub struct Election {
     local: Node,
-    voters: Vec<String>,
+    voters: AHashMap<u64, Node>,
 }
 
 impl Election {
-    pub fn new(local: Node, votes: Vec<String>) -> Self {
-        return Election {
-            local,
-            voters: votes,
-        };
+    pub fn new(local: Node, voters: AHashMap<u64, Node>) -> Self {
+        info_meta(&format!("{:?}",voters));
+        return Election { local, voters };
     }
 
     pub async fn leader_election(&self) -> Result<Node, MetaError> {
@@ -49,7 +47,8 @@ impl Election {
     // Obtain the cluster Leader information from multiple nodes in parallel
     async fn find_leader_info(&self) -> Result<Node, MetaError> {
         let mut futs = Vec::new();
-        for addr in &self.voters {
+        for (_, node) in &self.voters {
+            let addr = node.addr();
             if addr.to_string() == self.local.addr() {
                 continue;
             }

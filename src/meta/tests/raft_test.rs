@@ -9,9 +9,12 @@ mod tests {
     use raft::eraftpb::{
         ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
     };
+    use std::collections::HashMap;
     use std::io::Cursor;
     use std::vec;
+    use tokio::sync::broadcast;
     use tokio::{signal, sync::watch};
+    use toml::Table;
 
     #[test]
     fn raft_node_1() {
@@ -22,15 +25,25 @@ mod tests {
         conf.admin_port = 2221;
         conf.log_path = "/tmp/test_fold1/logs".to_string();
         conf.data_path = "/tmp/test_fold1/data".to_string();
-        conf.meta_nodes = vec![
-            "127.0.0.1:1221".to_string(),
-            "127.0.0.1:1222".to_string(),
-            "127.0.0.1:1223".to_string(),
-        ];
+
+        let mut nodes = Table::new();
+        nodes.insert(
+            1.to_string(),
+            toml::Value::String("127.0.0.1:1221".to_string()),
+        );
+        nodes.insert(
+            2.to_string(),
+            toml::Value::String("127.0.0.1:1222".to_string()),
+        );
+        nodes.insert(
+            2.to_string(),
+            toml::Value::String("127.0.0.1:1223".to_string()),
+        );
+        conf.nodes = nodes;
 
         log::new(conf.log_path.clone(), 1024, 50);
 
-        let (stop_send, _) = watch::channel(true);
+        let (stop_send, _) = broadcast::channel(10);
         let mut mt = Meta::new(conf);
         let meta_service = mt.run(stop_send);
         handle_running(meta_service);
@@ -47,14 +60,24 @@ mod tests {
         conf.data_path = "/tmp/test_fold2/data".to_string();
         create_fold(conf.data_path.clone());
         create_fold(conf.log_path.clone());
-        conf.meta_nodes = vec![
-            "127.0.0.1:1221".to_string(),
-            "127.0.0.1:1222".to_string(),
-            "127.0.0.1:1223".to_string(),
-        ];
+
+        let mut nodes = Table::new();
+        nodes.insert(
+            1.to_string(),
+            toml::Value::String("127.0.0.1:1221".to_string()),
+        );
+        nodes.insert(
+            2.to_string(),
+            toml::Value::String("127.0.0.1:1222".to_string()),
+        );
+        nodes.insert(
+            2.to_string(),
+            toml::Value::String("127.0.0.1:1223".to_string()),
+        );
+        conf.nodes = nodes;
 
         log::new(conf.log_path.clone(), 1024, 50);
-        let (stop_send, _) = watch::channel(true);
+        let (stop_send, _) = broadcast::channel(10);
         let mut mt = Meta::new(conf);
         let meta_service = mt.run(stop_send);
         handle_running(meta_service);
@@ -69,14 +92,24 @@ mod tests {
         conf.admin_port = 2223;
         conf.log_path = "/tmp/test_fold3/logs".to_string();
         conf.data_path = "/tmp/test_fold3/data".to_string();
-        conf.meta_nodes = vec![
-            "127.0.0.1:1221".to_string(),
-            "127.0.0.1:1222".to_string(),
-            "127.0.0.1:1223".to_string(),
-        ];
+
+        let mut nodes = Table::new();
+        nodes.insert(
+            1.to_string(),
+            toml::Value::String("127.0.0.1:1221".to_string()),
+        );
+        nodes.insert(
+            2.to_string(),
+            toml::Value::String("127.0.0.1:1222".to_string()),
+        );
+        nodes.insert(
+            2.to_string(),
+            toml::Value::String("127.0.0.1:1223".to_string()),
+        );
+        conf.nodes = nodes;
 
         log::new(conf.log_path.clone(), 1024, 50);
-        let (stop_send, _) = watch::channel(true);
+        let (stop_send, _) = broadcast::channel(10);
         let mut mt = Meta::new(conf);
 
         let meta_service = mt.run(stop_send);

@@ -12,8 +12,8 @@ use common::config::meta::MetaConfig;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, ConfState, Entry, EntryType, Message as raftPreludeMessage,
-    MessageType, Snapshot,
+    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
+    Snapshot,
 };
 use raft::{Config, RawNode, StateRole};
 use slog::o;
@@ -25,7 +25,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::time::Instant;
 use tokio::sync::mpsc::Receiver;
-use tokio::sync::{oneshot, watch};
+use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
 pub struct MetaRaft {
@@ -36,7 +36,7 @@ pub struct MetaRaft {
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
     data_route: Arc<RwLock<DataRoute>>,
     entry_num: AtomicUsize,
-    stop_recv: watch::Receiver<bool>,
+    stop_recv: broadcast::Receiver<bool>,
     storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
@@ -46,7 +46,7 @@ impl MetaRaft {
         cluster: Arc<RwLock<Cluster>>,
         data_route: Arc<RwLock<DataRoute>>,
         receiver: Receiver<RaftMessage>,
-        stop_recv: watch::Receiver<bool>,
+        stop_recv: broadcast::Receiver<bool>,
         storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
@@ -76,13 +76,13 @@ impl MetaRaft {
 
     async fn get_leader_node(&self) -> Node {
         let mut cluster = self.cluster.write().unwrap();
-        let mata_nodes = self.config.meta_nodes.clone();
+        let mata_nodes = self.config.nodes.clone();
         if mata_nodes.len() == 1 {
             return cluster.local.clone();
         }
 
         // Leader Election
-        let elec = Election::new(cluster.local.clone(), mata_nodes);
+        let elec = Election::new(cluster.local.clone(), cluster.peers.clone());
         let ld = match elec.leader_election().await {
             Ok(nd) => nd,
             Err(err) => {
@@ -124,13 +124,17 @@ impl MetaRaft {
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
-            if self.stop_recv.has_changed().unwrap() {
-                if *self.stop_recv.borrow() {
-                    info_meta("Raft Node stopped");
-                    self.stop(&mut raft_node, leader_node.clone()).await;
-                    break;
+            match self.stop_recv.try_recv() {
+                Ok(val) => {
+                    if val {
+                        info_meta("Raft Node stopped");
+                        self.stop(&mut raft_node, leader_node.clone()).await;
+                        break;
+                    }
                 }
+                Err(_) => {}
             }
+
             match timeout(heartbeat, self.receiver.recv()).await {
                 Ok(Some(RaftMessage::ConfChange { change, chan })) => {
                     let seq = self
@@ -349,9 +353,13 @@ impl MetaRaft {
     }
 
     fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
+        let cluster = self.cluster.read().unwrap();
         let mut storage = RaftRocksDBStorage::new(self.storage.clone());
+
+        // build config
         let hs = storage.read_lock().hard_state();
         let conf = self.build_config(hs.commit);
+
         let logger = self.build_slog();
 
         // init storage
@@ -362,7 +370,7 @@ impl MetaRaft {
             // bring all nodes to the same initial state.
             s.mut_metadata().index = 1;
             s.mut_metadata().term = 1;
-            s.mut_metadata().mut_conf_state().voters = vec![self.config.node_id];
+            s.mut_metadata().mut_conf_state().voters = cluster.node_ids();
             storage.apply_snapshot(s).unwrap();
         }
 
@@ -372,52 +380,60 @@ impl MetaRaft {
     }
 
     pub async fn new_follower(&self, leader_node: Node) -> RawNode<RaftRocksDBStorage> {
+        let cluster = self.cluster.read().unwrap();
         let storage = RaftRocksDBStorage::new(self.storage.clone());
-        let hs = storage.read_lock().hard_state();
 
+        // build config
+        let hs = storage.read_lock().hard_state();
         let conf = self.build_config(hs.commit);
+
+        // init voters && learns
+        let mut cs = storage.read_lock().conf_state();
+        cs.voters = cluster.node_ids();
+        let _ = storage.write_lock().save_conf_state(cs);
+
         let logger = self.build_slog();
         let node = RawNode::new(&conf, storage, &logger).unwrap();
 
-        // Add the leader node to the peer list
-        let mut cluster = self.cluster.write().unwrap();
-        cluster.add_peer(leader_node.id.clone(), leader_node.clone());
+        // // Add the leader node to the peer list
+        // let mut cluster = self.cluster.write().unwrap();
+        // cluster.add_peer(leader_node.id.clone(), leader_node.clone());
 
-        // try remove from the cluster
-        let mut change = ConfChange::default();
-        change.set_node_id(self.config.node_id);
-        change.set_change_type(ConfChangeType::RemoveNode);
-        change.set_context(serialize(&cluster.local).unwrap());
-        match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
-            Ok(_) => {}
-            Err(err) => {
-                info_meta(&format!(
-                    "Attempts to remove the current node from the cluster after initializing a Follower node fail with the error message {}",
-                    err.to_string()
-                ));
-            }
-        }
+        // // try remove from the cluster
+        // let mut change = ConfChange::default();
+        // change.set_node_id(self.config.node_id);
+        // change.set_change_type(ConfChangeType::RemoveNode);
+        // change.set_context(serialize(&cluster.local).unwrap());
+        // match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
+        //     Ok(_) => {}
+        //     Err(err) => {
+        //         info_meta(&format!(
+        //             "Attempts to remove the current node from the cluster after initializing a Follower node fail with the error message {}",
+        //             err.to_string()
+        //         ));
+        //     }
+        // }
 
-        // Join the cluster
-        let mut change = ConfChange::default();
-        change.set_node_id(self.config.node_id);
-        change.set_change_type(ConfChangeType::AddNode);
-        change.set_context(serialize(&cluster.local).unwrap());
-        match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
-            Ok(_) => {}
-            Err(err) => {
-                info_meta(&format!(
-                    "Error occurs when initializing a Follower node and adding the node to the cluster with the error message {}",
-                    err.to_string()
-                ));
-            }
-        }
+        // // Join the cluster
+        // let mut change = ConfChange::default();
+        // change.set_node_id(self.config.node_id);
+        // change.set_change_type(ConfChangeType::AddNode);
+        // change.set_context(serialize(&cluster.local).unwrap());
+        // match send_raft_conf_change(&leader_node.addr(), ConfChange::encode_to_vec(&change)).await {
+        //     Ok(_) => {}
+        //     Err(err) => {
+        //         info_meta(&format!(
+        //             "Error occurs when initializing a Follower node and adding the node to the cluster with the error message {}",
+        //             err.to_string()
+        //         ));
+        //     }
+        // }
         return node;
     }
 
     async fn stop(&self, raft_node: &mut RawNode<RaftRocksDBStorage>, leader_node: Node) {
         if raft_node.raft.state == StateRole::Follower {
-            let cluster = self.cluster.write().unwrap();
+            let cluster = self.cluster.read().unwrap();
             let mut change = ConfChange::default();
             change.set_node_id(self.config.node_id);
             change.set_change_type(ConfChangeType::RemoveNode);
@@ -439,6 +455,7 @@ impl MetaRaft {
                 }
             }
         }
+
         //todo
     }
 

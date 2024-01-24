@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use self::meta::MetaConfig;
+use crate::tools::create_fold;
 use server::RobustConfig;
 use std::fs;
 use std::path;
 use toml;
-use crate::tools::create_fold;
-use self::meta::MetaConfig;
 
 pub mod meta;
 pub mod server;
@@ -42,7 +42,6 @@ pub fn parse_meta(config_path: &String) -> MetaConfig {
 }
 
 fn read_file(config_path: &String) -> String {
-    
     if !path::Path::new(config_path).exists() {
         panic!("The configuration file does not exist.");
     }

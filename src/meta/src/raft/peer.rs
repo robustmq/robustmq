@@ -23,13 +23,16 @@ impl PeersManager {
             "Starts the thread that sends Raft messages to other nodes"
         ));
         loop {
-
             if let Some(data) = self.peer_message_recv.recv().await {
                 let addr = data.to;
                 let data = data.data;
                 match send_raft_message(&addr, data).await {
                     Ok(_) => debug_meta(&format!("Send Raft message to node {} Successful.", addr)),
-                    Err(e) => error_meta(&e.to_string()),
+                    Err(e) => error_meta(&format!(
+                        "Failed to send data to {}, error message: {}",
+                        addr,
+                        e.to_string()
+                    )),
                 }
             }
         }

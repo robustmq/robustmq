@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+use std::collections::{HashMap, HashSet};
+
 use serde::Deserialize;
+use toml::Table;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct MetaConfig {
@@ -27,7 +30,7 @@ pub struct MetaConfig {
     pub log_path: String,
     pub log_segment_size: u64,
     pub log_file_num: u32,
-    pub meta_nodes: Vec<String>,
+    pub nodes: Table,
     pub rocksdb: Rocksdb,
 }
 
@@ -48,7 +51,7 @@ impl Default for MetaConfig {
             log_file_num: 50,
             data_path: "/tmp/data".to_string(),
             log_path: "/tmp/logs".to_string(),
-            meta_nodes: vec![],
+            nodes: Table::new(),
             rocksdb: Rocksdb {
                 max_open_files: Some(100),
             },
@@ -58,10 +61,16 @@ impl Default for MetaConfig {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::parse_meta;
+
     use super::MetaConfig;
 
     #[test]
     fn meta_default() {
+        let conf: MetaConfig = parse_meta(
+            &"../../config/raft/node-1.toml"
+                .to_string(),
+        );
         MetaConfig::default();
         //todo meta test case
     }

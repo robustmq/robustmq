@@ -1280,6 +1280,7 @@ dependencies = [
  "slog-term",
  "thiserror",
  "tokio",
+ "toml",
  "tonic",
 ]
 
