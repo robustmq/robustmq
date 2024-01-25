@@ -1,6 +1,5 @@
 use super::election::Election;
 use super::message::{RaftMessage, RaftResponseMesage};
-use crate::client::send_raft_conf_change;
 use crate::cluster::Cluster;
 use crate::errors::MetaError;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
@@ -15,9 +14,9 @@ use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
     Snapshot,
 };
-use raft::{Config, RawNode, StateRole};
-use slog::o;
+use raft::{raw_node, Config, RawNode};
 use slog::Drain;
+use slog::{info, o};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::sync::atomic::AtomicUsize;
@@ -65,62 +64,8 @@ impl MetaRaft {
         };
     }
 
-    pub async fn ready(&mut self) {
-        info_meta("Meta raft state machine is being initialized");
-
-        // After voting and election, the Leader of the current cluster is obtained
-        let leader_node = self.get_leader_node().await;
-
-        self.run(leader_node).await;
-    }
-
-    async fn get_leader_node(&self) -> Node {
-        let mut cluster = self.cluster.write().unwrap();
-        let mata_nodes = self.config.nodes.clone();
-        if mata_nodes.len() == 1 {
-            return cluster.local.clone();
-        }
-
-        // Leader Election
-        let elec = Election::new(cluster.local.clone(), cluster.peers.clone());
-        let ld = match elec.leader_election().await {
-            Ok(nd) => nd,
-            Err(err) => {
-                error_meta(&format!(
-                    "When a node fails to obtain the Leader from another node during startup, the current node is set to the Leader node. Error message {}",
-                    err
-                ));
-
-                // todo We need to deal with the split-brain problem here. We'll deal with it later
-                return Node::new(
-                    self.config.addr.clone(),
-                    self.config.node_id.clone(),
-                    self.config.port.clone(),
-                );
-            }
-        };
-
-        info_meta(&format!("cluster Leader is {}", ld));
-
-        // Stores the leader and role information of the current cluster
-        cluster.set_leader(ld.clone());
-
-        if self.config.node_id == ld.id {
-            cluster.set_role(crate::cluster::NodeRole::Leader);
-        } else {
-            cluster.set_role(crate::cluster::NodeRole::Follower);
-        };
-
-        return ld;
-    }
-
-    pub async fn run(&mut self, leader_node: Node) {
-        let mut raft_node = if self.config.node_id == leader_node.id {
-            self.new_leader()
-        } else {
-            self.new_follower(leader_node.clone()).await
-        };
-
+    pub async fn run(&mut self) {
+        let mut raft_node = self.new_node().await;
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
@@ -351,34 +296,7 @@ impl MetaRaft {
         }
     }
 
-    fn new_leader(&self) -> RawNode<RaftRocksDBStorage> {
-        let cluster = self.cluster.read().unwrap();
-        let mut storage = RaftRocksDBStorage::new(self.storage.clone());
-
-        // build config
-        let hs = storage.read_lock().hard_state();
-        let conf = self.build_config(hs.commit);
-
-        let logger = self.build_slog();
-
-        // init storage
-        if storage.is_init_snapshot() {
-            let mut s = Snapshot::default();
-            // Because we don't use the same configuration to initialize every node, so we use
-            // a non-zero index to force new followers catch up logs by snapshot first, which will
-            // bring all nodes to the same initial state.
-            s.mut_metadata().index = 1;
-            s.mut_metadata().term = 1;
-            s.mut_metadata().mut_conf_state().voters = cluster.node_ids();
-            storage.apply_snapshot(s).unwrap();
-        }
-
-        let node = RawNode::new(&conf, storage, &logger).unwrap();
-
-        return node;
-    }
-
-    pub async fn new_follower(&self, leader_node: Node) -> RawNode<RaftRocksDBStorage> {
+    pub async fn new_node(&self) -> RawNode<RaftRocksDBStorage> {
         let cluster = self.cluster.read().unwrap();
         let storage = RaftRocksDBStorage::new(self.storage.clone());
 
