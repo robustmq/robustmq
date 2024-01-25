@@ -146,8 +146,7 @@ impl Meta {
                     info_meta("TCP and GRPC Server services stop.");
                 }
             });
-
-            info_meta("server thread stop.");
+            
         });
         thread_result.push(tcp_thread_join);
 
@@ -184,9 +183,8 @@ impl Meta {
                     stop_recv_c,
                     rocksdb_storage_c,
                 );
-                raft.ready().await;
+                raft.run().await;
             });
-            info_meta("daemon thread stop.");
         });
 
         thread_result.push(daemon_thread_join);

@@ -42,14 +42,6 @@ impl RaftRocksDBStorageCore {
         };
         rc.uncommit_index = rc.uncommit_index();
         rc.snapshot_metadata = rc.create_snapshot_metadata();
-        info_meta(&format!("init data,hard state:{:?}", rc.hard_state()));
-        info_meta(&format!("init data,conf state:{:?}", rc.conf_state()));
-        info_meta(&format!("init data,first index :{:?}", rc.first_index()));
-        info_meta(&format!("init data,last index:{:?}", rc.last_index()));
-        info_meta(&format!(
-            "init data,uncommit index:{:?}",
-            rc.uncommit_index()
-        ));
         return rc;
     }
 
