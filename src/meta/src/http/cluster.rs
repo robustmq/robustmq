@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-pub struct HttpMeta {}
 
-pub async fn storage() -> String {
-    return "xxxx".to_string();
-}
+use super::response::{success_response, IndexResponse};
+use crate::cluster::Cluster;
+use std::sync::{Arc, RwLock};
 
-impl HttpMeta {
-    pub fn new() -> HttpMeta {
-        HttpMeta {}
-    }
-    pub async fn index(&self) -> String {
-        return "loboxu".to_string();
-    }
+pub async fn controller_index(cluster: Arc<RwLock<Cluster>>) -> String {
+    let cs = cluster.read().unwrap();
+    let resp = IndexResponse {
+        local: cs.local.clone(),
+        node_lists: cs.peers.clone(),
+        role: format!("{:?}", cs.raft_role),
+    };
+
+    return success_response(resp);
 }

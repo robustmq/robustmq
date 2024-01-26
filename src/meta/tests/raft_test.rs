@@ -9,11 +9,10 @@ mod tests {
     use raft::eraftpb::{
         ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
     };
-    use std::collections::HashMap;
     use std::io::Cursor;
     use std::vec;
     use tokio::sync::broadcast;
-    use tokio::{signal, sync::watch};
+    use tokio::{signal};
     use toml::Table;
 
     #[test]

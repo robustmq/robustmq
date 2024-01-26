@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-pub mod election;
 pub mod raft;
 pub mod message;
 pub mod peer;

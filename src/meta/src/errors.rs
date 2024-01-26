@@ -55,6 +55,8 @@ pub enum MetaError {
 
     #[error("Failed to ConfChange Raft message to Raft state machine, error message: {0}")]
     RaftConfChangeCommitFail(String),
+
+    
 }
 
 

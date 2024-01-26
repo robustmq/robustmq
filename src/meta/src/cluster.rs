@@ -1,18 +1,10 @@
-use crate::{
-    raft::peer::{self, PeerMessage, PeersManager},
-    Node,
-};
-use ahash::AHashMap;
+use std::collections::HashMap;
+
+use crate::{raft::peer::PeerMessage, Node};
 use common::log::{error_meta, info_meta};
+use raft::StateRole;
 use tokio::sync::mpsc::Sender;
 use toml::Table;
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum NodeRole {
-    Leader,
-    Follower,
-    Candidate,
-}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeState {
@@ -26,15 +18,15 @@ pub enum NodeState {
 pub struct Cluster {
     pub local: Node,
     pub leader: Option<Node>,
-    pub role: NodeRole,
     pub state: NodeState,
-    pub peers: AHashMap<u64, Node>,
+    pub raft_role: StateRole,
+    pub peers: HashMap<u64, Node>,
     peers_send: Sender<PeerMessage>,
 }
 
 impl Cluster {
     pub fn new(local: Node, peers_send: Sender<PeerMessage>, nodes: Table) -> Cluster {
-        let mut peers = AHashMap::new();
+        let mut peers = HashMap::new();
         for (node_id, addr) in nodes {
             let (ip, port) = addr.as_str().unwrap().split_once(":").unwrap();
             let p: u16 = port.to_string().trim().parse().unwrap();
@@ -45,7 +37,7 @@ impl Cluster {
         Cluster {
             local,
             leader: None,
-            role: NodeRole::Candidate,
+            raft_role: StateRole::Follower,
             state: NodeState::Starting,
             peers: peers,
             peers_send,
@@ -86,11 +78,11 @@ impl Cluster {
     }
 
     pub fn is_leader(&self) -> bool {
-        self.role == NodeRole::Leader
+        self.raft_role == StateRole::Leader
     }
 
-    pub fn set_role(&mut self, role: NodeRole) {
-        self.role = role;
+    pub fn set_role(&mut self, role: StateRole) {
+        self.raft_role = role;
     }
 
     pub fn set_leader(&mut self, leader: Node) {
@@ -107,5 +99,19 @@ impl Cluster {
             voters.push(*id);
         }
         return voters;
+    }
+
+    pub fn leader_addr(&self) -> String {
+        if let Some(leader) = self.leader.clone() {
+            return leader.addr();
+        }
+        return "".to_string();
+    }
+
+    pub fn leader_alive(&self) -> bool {
+        if let Some(_) = self.leader.clone() {
+            return true;
+        }
+        return false;
     }
 }

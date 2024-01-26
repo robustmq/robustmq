@@ -18,18 +18,6 @@ syntax = "proto3";
 package meta;
 
 service MetaService {
-  
-  // Obtain information about the Leader node in the cluster
-  rpc FindLeader (FindLeaderRequest) returns (FindLeaderReply) {}
-
-  // Initiates a vote election request to other nodes in the cluster  
-  rpc Vote(VoteRequest) returns (VoteReply){}
-
-  // Leader node notifies itself of being elected as the Leader
-  rpc TransformLeader(TransformLeaderRequest) returns (TransformLeaderReply) {}
-
-  // Leader node sends a heartbeat message to a Follower node
-  rpc Heartbeat(HeartbeatRequest) returns(HeartbeatReply){}
 
   rpc BrokerRegister(BrokerRegisterRequest) returns(BrokerRegisterReply){}
 
@@ -41,42 +29,6 @@ service MetaService {
 
   // Send ConfChange messages to Raft with other nodes
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
-}
-
-
-message FindLeaderRequest{
-
-}
-
-message FindLeaderReply{
-  uint64 LeaderId = 1;
-  string LeaderIp = 2;
-  int32 LeaderPort = 3;
-}
-
-message VoteRequest {
-  uint64 node_id = 1;
-}
-
-message VoteReply {
-  uint64 vote_node_id = 1;
-}
-
-message HeartbeatRequest{
-  uint64 node_id = 1;
-}
-
-message HeartbeatReply{
-
-}
-
-message TransformLeaderRequest {
-  uint64 node_id = 1;
-  string node_ip = 2;
-}
-
-message TransformLeaderReply {
-  bool vote_node_id = 1;
 }
 
 message BrokerRegisterRequest{

@@ -16,17 +16,16 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
+use crate::client::broker_register;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
 use bincode::serialize;
-use common::log::{debug, info_meta};
+use common::log::info_meta;
 use prost::Message as _;
 use protocol::robust::meta::{
     meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
-    BrokerUnRegisterReply, BrokerUnRegisterRequest, FindLeaderReply, FindLeaderRequest,
-    HeartbeatReply, HeartbeatRequest, SendRaftMessageReply, SendRaftMessageRequest,
-    TransformLeaderReply, TransformLeaderRequest, VoteReply, VoteRequest,
+    BrokerUnRegisterReply, BrokerUnRegisterRequest, SendRaftMessageReply, SendRaftMessageRequest,
 };
 use protocol::robust::meta::{SendRaftConfChangeReply, SendRaftConfChangeRequest};
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage, MessageType};
@@ -56,6 +55,37 @@ impl GrpcService {
             rocksdb_storage,
         }
     }
+
+    fn rewrite_leader(&self) -> bool {
+        return self.cluster.read().unwrap().is_leader();
+    }
+
+    fn verify(&self) -> Result<(), MetaError> {
+        let cluster = self.cluster.read().unwrap();
+
+        if cluster.leader_alive() {
+            return Err(MetaError::MetaClusterNotLeaderNode);
+        }
+
+        return Ok(());
+    }
+
+    async fn apply_raft_machine(&self, data: StorageData, action: String) -> Result<(), MetaError> {
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+
+        let _ = self
+            .raft_sender
+            .send(RaftMessage::Propose {
+                data: serialize(&data).unwrap(),
+                chan: sx,
+            })
+            .await;
+
+        if !recv_chan_resp(rx).await {
+            return Err(MetaError::MetaLogCommitTimeout(action));
+        }
+        return Ok(());
+    }
 }
 
 async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
@@ -79,84 +109,42 @@ async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
 
 #[tonic::async_trait]
 impl MetaService for GrpcService {
-    async fn find_leader(
-        &self,
-        _: Request<FindLeaderRequest>,
-    ) -> Result<Response<FindLeaderReply>, Status> {
-        let cluster = self.cluster.read().unwrap();
-        let mut reply = FindLeaderReply::default();
-
-        // If the Leader exists in the cluster, the current Leader information is displayed
-        if cluster.is_leader() {
-            if let Some(n) = cluster.leader.clone() {
-                reply.leader_id = n.id;
-                reply.leader_ip = n.ip;
-                reply.leader_port = n.inner_port as i32;
-                return Ok(Response::new(reply));
-            }
-        }
-        Ok(Response::new(reply))
-    }
-
-    async fn vote(&self, request: Request<VoteRequest>) -> Result<Response<VoteReply>, Status> {
-        let cluster = self.cluster.read().unwrap();
-
-        if cluster.is_leader() {
-            return Err(Status::aborted(
-                MetaError::LeaderExistsNotAllowElection.to_string(),
-            ));
-        }
-
-        // if let Some(voter) = node.voter {
-        //     return Err(Status::aborted(
-        //         MetaError::NodeBeingVotedOn { node_id: voter }.to_string(),
-        //     ));
-        // }
-
-        let req_node_id = request.into_inner().node_id;
-
-        if req_node_id <= 0 {
-            return Err(Status::aborted(
-                MetaError::UnavailableNodeId {
-                    node_id: req_node_id,
-                }
-                .to_string(),
-            ));
-        }
-
-        // node.voter = Some(req_node_id);
-
-        Ok(Response::new(VoteReply {
-            vote_node_id: req_node_id,
-        }))
-    }
-
-    async fn transform_leader(
-        &self,
-        request: Request<TransformLeaderRequest>,
-    ) -> Result<Response<TransformLeaderReply>, Status> {
-        let _ = request.into_inner();
-
-        let reply = TransformLeaderReply::default();
-        Ok(Response::new(reply))
-    }
-
-    async fn heartbeat(
-        &self,
-        request: Request<HeartbeatRequest>,
-    ) -> Result<Response<HeartbeatReply>, Status> {
-        let node_id = request.into_inner().node_id;
-        debug(&format!("Receiving the message from node ID {}", node_id));
-        Ok(Response::new(HeartbeatReply::default()))
-    }
-
+    
     async fn broker_register(
         &self,
         request: Request<BrokerRegisterRequest>,
     ) -> Result<Response<BrokerRegisterReply>, Status> {
-        let id = request.into_inner().node_id;
+        match self.verify() {
+            Ok(_) => {}
+            Err(e) => return Err(Status::cancelled(e.to_string())),
+        }
 
-        Ok(Response::new(BrokerRegisterReply::default()))
+        if self.rewrite_leader() {
+            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            match broker_register(&leader_addr, request.into_inner()).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
+
+        let node_id = request.into_inner().node_id;
+        let addr = "127.0.0.1".to_string();
+
+        let value = StorageDataStructBroker { node_id, addr };
+        let data = StorageData::new(
+            StorageDataType::RegisterBroker,
+            serde_json::to_string(&value).unwrap(),
+        );
+
+        match self
+            .apply_raft_machine(data, "broker_register".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(BrokerRegisterReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn broker_un_register(
@@ -164,31 +152,18 @@ impl MetaService for GrpcService {
         request: Request<BrokerUnRegisterRequest>,
     ) -> Result<Response<BrokerUnRegisterReply>, Status> {
         let node_id = request.into_inner().node_id;
-        let addr = "127.0.0.1".to_string();
 
-        let value = StorageDataStructBroker { node_id, addr };
-        let data = StorageData::new(
-            StorageDataType::UnRegisterBroker,
-            serde_json::to_string(&value).unwrap(),
-        );
+        let data = StorageData::new(StorageDataType::UnRegisterBroker, node_id.to_string());
 
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-
-        let _ = self
-            .raft_sender
-            .send(RaftMessage::Propose {
-                data: serialize(&data).unwrap(),
-                chan: sx,
-            })
-            .await;
-
-        if !recv_chan_resp(rx).await {
-            return Err(Status::cancelled(
-                MetaError::MetaLogCommitTimeout("broker_un_register".to_string()).to_string(),
-            ));
+        match self
+            .apply_raft_machine(data, "broker_un_register".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(BrokerUnRegisterReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
         }
-
-        Ok(Response::new(BrokerUnRegisterReply::default()))
     }
 
     async fn send_raft_message(
@@ -198,14 +173,7 @@ impl MetaService for GrpcService {
         let message = raftPreludeMessage::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        if message.get_msg_type() != MessageType::MsgHeartbeat
-            && message.get_msg_type() != MessageType::MsgHeartbeatResponse
-        {
-            info_meta(&format!(
-                "grpc receive send_raft_message data:{:?}",
-                message
-            ));
-        }
+        
 
         match self
             .raft_sender

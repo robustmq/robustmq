@@ -14,47 +14,44 @@
  * limitations under the License.
  */
 
-use common::log::info_meta;
+use crate::errors::MetaError;
 use protocol::robust::meta::{
-    meta_service_client::MetaServiceClient, FindLeaderReply, FindLeaderRequest,
-    SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-    SendRaftMessageRequest, VoteReply, VoteRequest,
+    meta_service_client::MetaServiceClient, BrokerRegisterReply, BrokerRegisterRequest,
+    BrokerUnRegisterReply, BrokerUnRegisterRequest, SendRaftConfChangeReply,
+    SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest,
 };
 
-use crate::errors::MetaError;
-
-///
-pub async fn find_leader(addr: &String) -> Result<FindLeaderReply, MetaError> {
+pub async fn broker_register(
+    addr: &String,
+    request: BrokerRegisterRequest,
+) -> Result<BrokerRegisterReply, MetaError> {
     let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
         Ok(client) => client,
         Err(err) => return Err(MetaError::TonicTransport(err)),
     };
 
-    let request = tonic::Request::new(FindLeaderRequest {});
-
-    let resp = match client.find_leader(request).await {
+    let resp = match client.broker_register(request).await {
         Ok(reply) => reply.into_inner(),
         Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
     };
     return Ok(resp);
 }
 
-/// Initiate a vote request, asking other nodes to vote for you
-pub async fn vote(addr: &String, node_id: u64) -> Result<VoteReply, MetaError> {
+pub async fn un_broker_register(
+    addr: &String,
+    request: BrokerUnRegisterRequest,
+) -> Result<BrokerUnRegisterReply, MetaError> {
     let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
         Ok(client) => client,
         Err(err) => return Err(MetaError::TonicTransport(err)),
     };
-    let request = tonic::Request::new(VoteRequest { node_id });
 
-    let resp = match client.vote(request).await {
+    let resp = match client.broker_un_register(request).await {
         Ok(reply) => reply.into_inner(),
         Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
     };
     return Ok(resp);
 }
-
-pub async fn transform_leader() {}
 
 pub async fn send_raft_message(
     addr: &String,
