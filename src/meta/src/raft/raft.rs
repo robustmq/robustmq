@@ -1,4 +1,3 @@
-use super::election::Election;
 use super::message::{RaftMessage, RaftResponseMesage};
 use crate::cluster::Cluster;
 use crate::errors::MetaError;
@@ -14,9 +13,9 @@ use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
     Snapshot,
 };
-use raft::{raw_node, Config, RawNode};
+use raft::{Config, RawNode, StateRole};
+use slog::o;
 use slog::Drain;
-use slog::{info, o};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::sync::atomic::AtomicUsize;
@@ -65,7 +64,7 @@ impl MetaRaft {
     }
 
     pub async fn run(&mut self) {
-        let mut raft_node = self.new_node().await;
+        let mut raft_node: RawNode<RaftRocksDBStorage> = self.new_node().await;
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
@@ -141,6 +140,15 @@ impl MetaRaft {
                 now = Instant::now();
             }
 
+            if self.cluster.read().unwrap().raft_role != raft_node.raft.state {
+                info_meta(&format!(
+                    "Node Raft Role changes from  【{:?}】 to 【{:?}】",
+                    self.cluster.read().unwrap().raft_role,
+                    raft_node.raft.state
+                ));
+                self.cluster.write().unwrap().set_role(raft_node.raft.state)
+            }
+            // info_meta(&format!("{:?}",raft_node.raft.state));
             self.on_ready(&mut raft_node).await;
         }
     }
