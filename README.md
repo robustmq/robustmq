@@ -41,7 +41,7 @@ cargo run --package cmd --bin meta -- --conf=config/meta.toml
 cargo run --package cmd --bin meta -- --conf=config/raft/node-1.toml
 cargo run --package cmd --bin meta -- --conf=config/raft/node-2.toml
 cargo run --package cmd --bin meta -- --conf=config/raft/node-3.toml
-``
+```
 
 ## Architecture
 ![Architecture Image](docs/robustmq-architecture.png)
