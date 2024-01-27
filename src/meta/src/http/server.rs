@@ -47,7 +47,8 @@ impl HttpServer {
 
     pub fn routes(&self) -> Router {
         let cluster = self.cluster.clone();
-        let meta = Router::new().route(ROUTE_ROOT, get(move || controller_index(cluster)));
+        let storage = self.storage.clone();
+        let meta = Router::new().route(ROUTE_ROOT, get(move || controller_index(cluster,storage)));
 
         let app = Router::new().merge(meta);
         return app;
