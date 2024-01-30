@@ -19,20 +19,20 @@ use super::*;
 use crate::mqtt::*;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-mod connect;
-mod connack;
-mod publish;
-mod puback;
-mod pubrec;
-mod pubrel;
-mod pubcomp;
-mod subscribe;
-mod suback;
-mod unsubscribe;
-mod unsuback;
-mod ping;
-mod disconnect;
-
+pub mod connect;
+pub mod connack;
+pub mod publish;
+pub mod puback;
+pub mod pubrec;
+pub mod pubrel;
+pub mod pubcomp;
+pub mod subscribe;
+pub mod suback;
+pub mod unsubscribe;
+pub mod unsuback;
+pub mod ping;
+pub mod disconnect;
+pub mod codec;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

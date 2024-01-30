@@ -12,3 +12,7 @@ thiserror.workspace = true
 tonic.workspace = true
 prost.workspace = true
 tonic-build.workspace = true
+tokio-util.workspace = true
+bincode.workspace = true
+tokio.workspace = true
+futures.workspace = true
