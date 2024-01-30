@@ -19,11 +19,4 @@ mod tests {
             )
             .unwrap();
     }
-    #[test]
-    fn mqtt4_frame_server() {
-        
-    }
-
-    #[test]
-    fn mqtt4_frame_client() {}
 }

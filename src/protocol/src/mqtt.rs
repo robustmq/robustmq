@@ -15,7 +15,7 @@
  */
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use std::{io, str::Utf8Error, string::FromUtf8Error, fmt, slice::Iter};
+use std::{fmt, io, slice::Iter, str::Utf8Error, string::FromUtf8Error};
 
 /// This module is the place where all the protocal specifics gets abstracted
 /// out and creates structures which are common across protocols. Since, MQTT
@@ -26,22 +26,22 @@ use std::{io, str::Utf8Error, string::FromUtf8Error, fmt, slice::Iter};
 // handling of properties can be made simplier internally
 
 ///MQTT packet type
-#[repr(u8)] 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PacketType {
-    Connect = 1, 
-    ConnAck, 
-    Publish, 
-    PubAck, 
-    PubRec, 
-    PubRel, 
-    PubComp, 
+    Connect = 1,
+    ConnAck,
+    Publish,
+    PubAck,
+    PubRec,
+    PubRel,
+    PubComp,
     Subscribe,
-    SubAck, 
+    SubAck,
     Unsubscribe,
     UnsubAck,
-    PingReq, 
-    PingResp, 
+    PingReq,
+    PingResp,
     Disconnect,
 }
 
@@ -116,11 +116,11 @@ impl FixedHeader {
             8 => Ok(PacketType::Subscribe),
             9 => Ok(PacketType::SubAck),
             10 => Ok(PacketType::Unsubscribe),
-            11 => Ok(PacketType::UnsubAck), 
+            11 => Ok(PacketType::UnsubAck),
             12 => Ok(PacketType::PingReq),
             13 => Ok(PacketType::PingResp),
             14 => Ok(PacketType::Disconnect),
-            _ => Err(Error::InvalidPacketType(num))
+            _ => Err(Error::InvalidPacketType(num)),
         }
     }
 
@@ -152,10 +152,10 @@ pub fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
     Ok(FixedHeader::new(*byte1, len_len, len))
 }
 
-/// Parses variable byte integer in the stream and returns the length 
+/// Parses variable byte integer in the stream and returns the length
 /// and number of bytes that make it. Used for remaining length calculation
 /// as well as for calculating property lengths
-pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error>{
+pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error> {
     let mut len: usize = 0;
     let mut len_len = 0;
     let mut done = false;
@@ -167,7 +167,7 @@ pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error>{
         len_len += 1;
         let byte = *byte as usize;
         len += (byte & 0x7F) << shift;
-        
+
         // stop when continue bit is 0
         done = (byte & 0x80) == 0;
         if done {
@@ -182,8 +182,8 @@ pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error>{
             return Err(Error::MalformedRemainingLength);
         }
     }
-     // Not enough bytes to frame remaining length. wait for one more byte
-     if !done {
+    // Not enough bytes to frame remaining length. wait for one more byte
+    if !done {
         return Err(Error::InsufficientBytes(1));
     }
 
@@ -205,7 +205,7 @@ pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, Er
     if fixed_header.remaining_len > max_packet_size {
         return Err(Error::PayloadSizeLimitExceeded(fixed_header.remaining_len));
     }
-    
+
     // If the current call fails due to insufficient bytes in the stream
     // after calculating remaining length, we extend the stream
     let frame_length = fixed_header.frame_length();
@@ -214,7 +214,6 @@ pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, Er
     }
 
     Ok(fixed_header)
-    
 }
 
 /// Read a series of bytes with a length from a byte stream
@@ -233,7 +232,7 @@ pub fn read_mqtt_bytes(stream: &mut Bytes) -> Result<Bytes, Error> {
 // Reads a string from bytes stream
 pub fn read_mqtt_string(stream: &mut Bytes) -> Result<String, Error> {
     let s = read_mqtt_bytes(stream)?;
-    match String::from_utf8(s.to_vec()){
+    match String::from_utf8(s.to_vec()) {
         Ok(v) => Ok(v),
         Err(_e) => Err(Error::TopicNotUtf8),
     }
@@ -327,7 +326,7 @@ pub struct Connect {
 }
 
 /// ConnectProperties can be used in MQTT Version 5
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ConnectProperties {
     /// Expiry interval property after loosing connection
     pub session_expiry_interval: Option<u32>,
@@ -396,29 +395,32 @@ pub struct Login {
 }
 
 impl fmt::Display for Connect {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result{
-        write!(f, "client_id:{:?}, clean_session:{}, keep_alive:{}s ", 
-        self.client_id, 
-        self.clean_session, 
-        self.keep_alive)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "client_id:{:?}, clean_session:{}, keep_alive:{}s ",
+            self.client_id, self.clean_session, self.keep_alive
+        )
     }
 }
 
 impl fmt::Display for LastWill {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "will_topic:{:?}, qos:{:?}, will_message:{:?}, retain:{} ", 
-        self.topic, 
-        self.qos,
-        self.message,
-        self.retain)
+        write!(
+            f,
+            "will_topic:{:?}, qos:{:?}, will_message:{:?}, retain:{} ",
+            self.topic, self.qos, self.message, self.retain
+        )
     }
 }
 
 impl fmt::Display for Login {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "username:{:?}, password:{:?} ",
-        self.username,
-        self.password)
+        write!(
+            f,
+            "username:{:?}, password:{:?} ",
+            self.username, self.password
+        )
     }
 }
 
@@ -517,9 +519,11 @@ pub struct ConnAckProperties {
 
 impl fmt::Display for ConnAck {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "session_present:{}, return_code:{:?} ",
-        self.session_present,
-        self.code)
+        write!(
+            f,
+            "session_present:{}, return_code:{:?} ",
+            self.session_present, self.code
+        )
     }
 }
 
@@ -548,7 +552,6 @@ impl fmt::Display for ConnAckProperties {
         self.server_reference,
         self.authentication_method,
         self.authentication_data)
-        
     }
 }
 
@@ -610,13 +613,11 @@ pub struct PublishProperties {
 
 impl fmt::Display for Publish {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "topic:{:?}, payload:{:?}, dup:{}, qos:{:?}, message_identifier:{}, retain:{} ",
-        self.topic,
-        self.payload,
-        self.dup,
-        self.qos,
-        self.pkid,
-        self.retain)
+        write!(
+            f,
+            "topic:{:?}, payload:{:?}, dup:{}, qos:{:?}, message_identifier:{}, retain:{} ",
+            self.topic, self.payload, self.dup, self.qos, self.pkid, self.retain
+        )
     }
 }
 
@@ -665,17 +666,17 @@ pub struct PubAckProperties {
 
 impl fmt::Display for PubAck {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "pkid:{:?}, reason:{:?}",
-        self.pkid,
-        self.reason)
+        write!(f, "pkid:{:?}, reason:{:?}", self.pkid, self.reason)
     }
 }
 
 impl fmt::Display for PubAckProperties {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "reason_string:{:?}, user_properties:{:?}",
-        self.reason_string,
-        self.user_properties)
+        write!(
+            f,
+            "reason_string:{:?}, user_properties:{:?}",
+            self.reason_string, self.user_properties
+        )
     }
 }
 //-----------------------------PubRec packet---------------------------------
@@ -708,17 +709,17 @@ pub struct PubRecProperties {
 
 impl fmt::Display for PubRec {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "pkid:{:?}, reason:{:?}",
-        self.pkid,
-        self.reason)
+        write!(f, "pkid:{:?}, reason:{:?}", self.pkid, self.reason)
     }
 }
 
 impl fmt::Display for PubRecProperties {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "reason_string:{:?}, user_properties:{:?}",
-        self.reason_string,
-        self.user_properties)
+        write!(
+            f,
+            "reason_string:{:?}, user_properties:{:?}",
+            self.reason_string, self.user_properties
+        )
     }
 }
 
@@ -744,7 +745,7 @@ pub struct PubRelProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
-impl fmt::Display for PubRel{
+impl fmt::Display for PubRel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -756,9 +757,11 @@ impl fmt::Display for PubRel{
 
 impl fmt::Display for PubRelProperties {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "reason_string:{:?}, user_properties:{:?}",
-        self.reason_string,
-        self.user_properties)
+        write!(
+            f,
+            "reason_string:{:?}, user_properties:{:?}",
+            self.reason_string, self.user_properties
+        )
     }
 }
 
@@ -784,8 +787,7 @@ pub struct PubCompProperties {
     pub user_properties: Vec<(String, String)>,
 }
 
-
-impl fmt::Display for PubComp{
+impl fmt::Display for PubComp {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
@@ -797,9 +799,11 @@ impl fmt::Display for PubComp{
 
 impl fmt::Display for PubCompProperties {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "reason_string:{:?}, user_properties:{:?}",
-        self.reason_string,
-        self.user_properties)
+        write!(
+            f,
+            "reason_string:{:?}, user_properties:{:?}",
+            self.reason_string, self.user_properties
+        )
     }
 }
 
@@ -816,8 +820,8 @@ pub struct Subscribe {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Filter {
     //  in mqtt v4, there are only path and qos valid
-    pub path: String, 
-    pub qos: QoS, 
+    pub path: String,
+    pub qos: QoS,
 
     // the following options are only valid in mqtt v5
     pub nolocal: bool,
@@ -828,7 +832,7 @@ pub struct Filter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RetainForwardRule {
     OnEverySubscribe,
-    OnNewSubscribe, 
+    OnNewSubscribe,
     Never,
 }
 
@@ -886,7 +890,7 @@ pub struct SubAckProperties {
 /// Unsubscribe packet
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unsubscribe {
-    pub pkid: u16, 
+    pub pkid: u16,
     pub filters: Vec<String>,
 }
 
@@ -907,7 +911,7 @@ pub struct UnsubAck {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum UnsubAckReason {
-    Success, 
+    Success,
     NoSubscriptionExisted,
     UnspecifiedError,
     ImplementationSpecificError,
@@ -999,7 +1003,7 @@ pub enum DisconnectReasonCode {
 pub struct DisconnectProperties {
     /// Session Expiry Interval in seconds
     pub session_expiry_interval: Option<u32>,
-    
+
     /// Human readable reason for the disconnect
     pub reason_string: Option<String>,
 
@@ -1011,7 +1015,7 @@ pub struct DisconnectProperties {
 }
 
 /// Error during serialization and deserialization
-#[derive(Debug,thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Invalid return code received as response fro connect = {0}")]
     InvalidConnectReturnCode(u8),
@@ -1060,7 +1064,6 @@ pub enum Error {
     #[error("data store disconnected")]
     IoError(#[from] io::Error),
 }
-
 
 pub trait Protocol {
     fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<Packet, Error>;

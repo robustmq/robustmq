@@ -8,6 +8,12 @@ use super::{
 
 pub struct Mqtt4Codec {}
 
+impl Mqtt4Codec {
+    pub fn new() -> Mqtt4Codec {
+        return Mqtt4Codec {};
+    }
+}
+
 impl codec::Encoder<Packet> for Mqtt4Codec {
     type Error = super::Error;
     fn encode(&mut self, packet: Packet, buffer: &mut BytesMut) -> Result<(), Self::Error> {
