@@ -32,6 +32,7 @@ pub mod unsubscribe;
 pub mod unsuback;
 pub mod ping;
 pub mod disconnect;
+pub mod codec;
 
 #[derive(Debug, Clone)]
 pub struct MqttV4;

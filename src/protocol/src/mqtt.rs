@@ -1011,7 +1011,7 @@ pub struct DisconnectProperties {
 }
 
 /// Error during serialization and deserialization
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug,thiserror::Error)]
 pub enum Error {
     #[error("Invalid return code received as response fro connect = {0}")]
     InvalidConnectReturnCode(u8),
@@ -1057,7 +1057,10 @@ pub enum Error {
     PayloadSizeIncorrect,
     #[error("Invalid property type = {0}")]
     InvalidPropertyType(u8),
+    #[error("data store disconnected")]
+    IoError(#[from] io::Error),
 }
+
 
 pub trait Protocol {
     fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<Packet, Error>;

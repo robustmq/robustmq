@@ -1688,9 +1688,11 @@ name = "protocol"
 version = "0.0.1"
 dependencies = [
  "axum 0.7.2",
+ "bincode",
  "bytes",
  "prost 0.12.3",
  "thiserror",
+ "tokio-util",
  "tonic",
  "tonic-build",
 ]
