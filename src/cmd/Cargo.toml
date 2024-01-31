@@ -6,8 +6,8 @@ license.workspace = true
 default-run = "robustmq"
 
 [[bin]]
-name = "broker"
-path = "src/broker/broker.rs"
+name = "mqtt"
+path = "src/mqtt/broker.rs"
 
 [[bin]]
 name = "cmd"
@@ -26,5 +26,5 @@ clap = {version="4.4.7",features = [ "derive" ]}
 common.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
-broker.workspace = true
+mqtt-broker.workspace = true
 meta.workspace = true
