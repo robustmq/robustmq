@@ -4,7 +4,7 @@ mod tests {
     use common::log;
     use common::tools::handle_running;
     use common::{config::meta::MetaConfig, tools::create_fold};
-    use meta::Meta;
+    use meta_server::Meta;
     use prost::Message;
     use raft::eraftpb::{
         ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
@@ -12,7 +12,6 @@ mod tests {
     use std::io::Cursor;
     use std::vec;
     use tokio::sync::broadcast;
-    use tokio::{signal};
     use toml::Table;
 
     #[test]
@@ -176,8 +175,4 @@ mod tests {
         println!("{:?}", res_entries);
     }
 
-    #[tokio::test]
-    async fn signal() {
-        signal::ctrl_c().await.expect("failed to listen for event");
-    }
 }

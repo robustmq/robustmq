@@ -1,5 +1,5 @@
 [package]
-name = "bridge"
+name = "mqtt-bridge"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

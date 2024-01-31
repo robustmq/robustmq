@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use broker::broker::Broker;
+use mqtt_broker::broker::Broker;
 use clap::command;
 use clap::Parser;
 use common::config::meta::MetaConfig;
@@ -24,7 +24,7 @@ use common::config::server::RobustConfig;
 use common::config::DEFAULT_META_CONFIG;
 use common::config::DEFAULT_SERVER_CONFIG;
 use common::log;
-use meta::Meta;
+use meta_server::Meta;
 use tokio::sync::broadcast;
 use tokio::sync::watch;
 

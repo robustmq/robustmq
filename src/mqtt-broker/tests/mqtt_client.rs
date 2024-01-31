@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use broker::network::network::Network;
+    use mqtt_broker::network::network::Network;
     use bytes::{Bytes, BytesMut};
 
     use protocol::{

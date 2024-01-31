@@ -109,7 +109,7 @@ mod tests {
         println!("Got: {:?}", data.unwrap().unwrap());
     }
 
-    /// Build the connect content package for the mqtt4 protocol
+    /// Build the connect content package for the mqtt5 protocol
     fn build_mqtt5_pg_connect() -> Packet {
         let client_id = String::from("test_client_id");
         let login = Some(Login {
@@ -134,7 +134,7 @@ mod tests {
         return Packet::Connect(connect, Some(properties), lastwill, None, login);
     }
 
-    /// Build the connect content package for the mqtt4 protocol
+    /// Build the connect content package for the mqtt5 protocol
     fn build_mqtt5_pg_connect_ack() -> Packet {
         let ack: ConnAck = ConnAck {
             session_present: true,

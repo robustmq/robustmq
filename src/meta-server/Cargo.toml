@@ -1,5 +1,5 @@
 [package]
-name = "meta"
+name = "meta-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
