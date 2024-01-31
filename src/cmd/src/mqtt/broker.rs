@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use broker::broker::Broker;
-use clap::command;
-use clap::Parser;
+use mqtt_broker::broker::Broker;
+use clap::{command, Parser};
 use common::config::parse_server;
 use common::config::server::RobustConfig;
 use common::config::DEFAULT_SERVER_CONFIG;

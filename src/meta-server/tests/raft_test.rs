@@ -4,7 +4,6 @@ mod tests {
     use common::log;
     use common::tools::handle_running;
     use common::{config::meta::MetaConfig, tools::create_fold};
-    use meta::Meta;
     use prost::Message;
     use raft::eraftpb::{
         ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
@@ -12,7 +11,6 @@ mod tests {
     use std::io::Cursor;
     use std::vec;
     use tokio::sync::broadcast;
-    use tokio::{signal};
     use toml::Table;
 
     #[test]

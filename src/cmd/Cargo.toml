@@ -27,4 +27,4 @@ common.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
 mqtt-broker.workspace = true
-meta.workspace = true
+meta-server.workspace = true
