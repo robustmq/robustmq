@@ -175,8 +175,4 @@ mod tests {
         println!("{:?}", res_entries);
     }
 
-    #[tokio::test]
-    async fn signal() {
-        signal::ctrl_c().await.expect("failed to listen for event");
-    }
 }
