@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "src/bridge",
-    "src/broker",
+    "src/broker-mqtt",
     "src/cmd",
     "src/common",
     "src/meta",
@@ -42,7 +42,7 @@ toml = "0.8.8"
 
 ## workspaces members
 bridge = { path = "src/bridge" }
-broker = { path = "src/broker" }
+broker = { path = "src/broker-mqtt" }
 cmd = { path = "src/cmd" }
 common = { path = "src/common" }
 storage = { path = "src/storage" }
