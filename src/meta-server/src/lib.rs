@@ -17,6 +17,7 @@ use cluster::Cluster;
 use common::config::meta::MetaConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
+use controller::controller::Controller;
 use http::server::HttpServer;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
@@ -40,6 +41,7 @@ pub mod http;
 pub mod raft;
 mod services;
 pub mod storage;
+pub mod controller;
 mod tools;
 use serde::{Deserialize, Serialize};
 
@@ -157,14 +159,14 @@ impl Meta {
         let stop_recv_c = stop_send.subscribe();
         let rocksdb_storage_c = rocksdb_storage.clone();
         let daemon_thread_join = daemon_thread.spawn(move || {
-            let meta_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+            let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
-            meta_runtime.spawn(async move {
+            daemon_runtime.spawn(async move {
                 let mut peers_manager = PeersManager::new(peer_message_recv);
                 peers_manager.start().await;
             });
 
-            meta_runtime.spawn(async move {
+            daemon_runtime.spawn(async move {
                 loop {
                     signal::ctrl_c().await.expect("failed to listen for event");
                     match stop_send.send(true) {
@@ -173,8 +175,13 @@ impl Meta {
                     }
                 }
             });
+            
+            daemon_runtime.spawn(async move {
+                let ctrl = Controller::new();
+                ctrl.start().await;
+            });
 
-            meta_runtime.block_on(async move {
+            daemon_runtime.block_on(async move {
                 let mut raft: MetaRaft = MetaRaft::new(
                     config,
                     cluster_clone,

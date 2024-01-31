@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
     use common::runtime::create_runtime;
-    use protocol::robust::meta::{meta_service_client::MetaServiceClient, BrokerUnRegisterRequest};
+    use protocol::robust::meta::{meta_service_client::MetaServiceClient, SetRequest};
     use tokio::runtime::Runtime;
 
     #[test]
-    fn broker_un_register() {
+    fn set() {
         let runtime: Runtime = create_runtime("meta-test", 3);
 
         let _gurad = runtime.enter();
@@ -15,8 +15,8 @@ mod tests {
                 .await
                 .unwrap();
 
-            let request = tonic::Request::new(BrokerUnRegisterRequest { node_id: 1 });
-            let response = client.broker_un_register(request).await.unwrap();
+            let request = tonic::Request::new(SetRequest::default());
+            let response = client.set(request).await.unwrap();
 
             println!("response={:?}", response);
         });

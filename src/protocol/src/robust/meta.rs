@@ -1,21 +1,56 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BrokerRegisterRequest {
-    #[prost(uint64, tag = "1")]
-    pub node_id: u64,
+pub struct SetRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "2")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BrokerRegisterReply {}
+pub struct SetReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BrokerUnRegisterRequest {
-    #[prost(uint64, tag = "1")]
-    pub node_id: u64,
+pub struct GetRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BrokerUnRegisterReply {}
+pub struct GetReply {
+    #[prost(bytes = "vec", tag = "1")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsReply {
+    #[prost(bool, tag = "1")]
+    pub exist: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteReply {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HeartbeatRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HeartbeatReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SendRaftMessageRequest {
@@ -119,13 +154,11 @@ pub mod meta_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        pub async fn broker_register(
+        /// Save or update data in Meta Server
+        pub async fn set(
             &mut self,
-            request: impl tonic::IntoRequest<super::BrokerRegisterRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::BrokerRegisterReply>,
-            tonic::Status,
-        > {
+            request: impl tonic::IntoRequest<super::SetRequest>,
+        ) -> std::result::Result<tonic::Response<super::SetReply>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -136,22 +169,76 @@ pub mod meta_service_client {
                     )
                 })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/BrokerRegister",
-            );
+            let path = http::uri::PathAndQuery::from_static("/meta.MetaService/set");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("meta.MetaService", "BrokerRegister"));
+            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "set"));
             self.inner.unary(req, path, codec).await
         }
-        ///
-        pub async fn broker_un_register(
+        /// Get data in Meta Server
+        pub async fn get(
             &mut self,
-            request: impl tonic::IntoRequest<super::BrokerUnRegisterRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::BrokerUnRegisterReply>,
-            tonic::Status,
-        > {
+            request: impl tonic::IntoRequest<super::GetRequest>,
+        ) -> std::result::Result<tonic::Response<super::GetReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/meta.MetaService/get");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "get"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Check whether data exists in the Meta Server
+        pub async fn exists(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ExistsRequest>,
+        ) -> std::result::Result<tonic::Response<super::ExistsReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/meta.MetaService/exists");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "exists"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Delete data from Meta Server
+        pub async fn delete(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteRequest>,
+        ) -> std::result::Result<tonic::Response<super::DeleteReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/meta.MetaService/delete");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("meta.MetaService", "delete"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
+        pub async fn heartbeat(
+            &mut self,
+            request: impl tonic::IntoRequest<super::HeartbeatRequest>,
+        ) -> std::result::Result<tonic::Response<super::HeartbeatReply>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -163,11 +250,11 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/BrokerUnRegister",
+                "/meta.MetaService/heartbeat",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("meta.MetaService", "BrokerUnRegister"));
+                .insert(GrpcMethod::new("meta.MetaService", "heartbeat"));
             self.inner.unary(req, path, codec).await
         }
         /// Raft messages are sent between nodes
@@ -231,21 +318,31 @@ pub mod meta_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with MetaServiceServer.
     #[async_trait]
     pub trait MetaService: Send + Sync + 'static {
-        async fn broker_register(
+        /// Save or update data in Meta Server
+        async fn set(
             &self,
-            request: tonic::Request<super::BrokerRegisterRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::BrokerRegisterReply>,
-            tonic::Status,
-        >;
-        ///
-        async fn broker_un_register(
+            request: tonic::Request<super::SetRequest>,
+        ) -> std::result::Result<tonic::Response<super::SetReply>, tonic::Status>;
+        /// Get data in Meta Server
+        async fn get(
             &self,
-            request: tonic::Request<super::BrokerUnRegisterRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::BrokerUnRegisterReply>,
-            tonic::Status,
-        >;
+            request: tonic::Request<super::GetRequest>,
+        ) -> std::result::Result<tonic::Response<super::GetReply>, tonic::Status>;
+        /// Check whether data exists in the Meta Server
+        async fn exists(
+            &self,
+            request: tonic::Request<super::ExistsRequest>,
+        ) -> std::result::Result<tonic::Response<super::ExistsReply>, tonic::Status>;
+        /// Delete data from Meta Server
+        async fn delete(
+            &self,
+            request: tonic::Request<super::DeleteRequest>,
+        ) -> std::result::Result<tonic::Response<super::DeleteReply>, tonic::Status>;
+        /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
+        async fn heartbeat(
+            &self,
+            request: tonic::Request<super::HeartbeatRequest>,
+        ) -> std::result::Result<tonic::Response<super::HeartbeatReply>, tonic::Status>;
         /// Raft messages are sent between nodes
         async fn send_raft_message(
             &self,
@@ -342,25 +439,23 @@ pub mod meta_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/meta.MetaService/BrokerRegister" => {
+                "/meta.MetaService/set" => {
                     #[allow(non_camel_case_types)]
-                    struct BrokerRegisterSvc<T: MetaService>(pub Arc<T>);
-                    impl<
-                        T: MetaService,
-                    > tonic::server::UnaryService<super::BrokerRegisterRequest>
-                    for BrokerRegisterSvc<T> {
-                        type Response = super::BrokerRegisterReply;
+                    struct setSvc<T: MetaService>(pub Arc<T>);
+                    impl<T: MetaService> tonic::server::UnaryService<super::SetRequest>
+                    for setSvc<T> {
+                        type Response = super::SetReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::BrokerRegisterRequest>,
+                            request: tonic::Request<super::SetRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::broker_register(&inner, request).await
+                                <T as MetaService>::set(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -372,7 +467,7 @@ pub mod meta_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = BrokerRegisterSvc(inner);
+                        let method = setSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -388,26 +483,23 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/meta.MetaService/BrokerUnRegister" => {
+                "/meta.MetaService/get" => {
                     #[allow(non_camel_case_types)]
-                    struct BrokerUnRegisterSvc<T: MetaService>(pub Arc<T>);
-                    impl<
-                        T: MetaService,
-                    > tonic::server::UnaryService<super::BrokerUnRegisterRequest>
-                    for BrokerUnRegisterSvc<T> {
-                        type Response = super::BrokerUnRegisterReply;
+                    struct getSvc<T: MetaService>(pub Arc<T>);
+                    impl<T: MetaService> tonic::server::UnaryService<super::GetRequest>
+                    for getSvc<T> {
+                        type Response = super::GetReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::BrokerUnRegisterRequest>,
+                            request: tonic::Request<super::GetRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::broker_un_register(&inner, request)
-                                    .await
+                                <T as MetaService>::get(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -419,7 +511,145 @@ pub mod meta_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = BrokerUnRegisterSvc(inner);
+                        let method = getSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/exists" => {
+                    #[allow(non_camel_case_types)]
+                    struct existsSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::ExistsRequest>
+                    for existsSvc<T> {
+                        type Response = super::ExistsReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ExistsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::exists(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = existsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/delete" => {
+                    #[allow(non_camel_case_types)]
+                    struct deleteSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::DeleteRequest>
+                    for deleteSvc<T> {
+                        type Response = super::DeleteReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::delete(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = deleteSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/meta.MetaService/heartbeat" => {
+                    #[allow(non_camel_case_types)]
+                    struct heartbeatSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::HeartbeatRequest>
+                    for heartbeatSvc<T> {
+                        type Response = super::HeartbeatReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::HeartbeatRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::heartbeat(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = heartbeatSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
