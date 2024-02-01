@@ -18,11 +18,20 @@ syntax = "proto3";
 package meta;
 
 service MetaService {
+  // Save or update data in Meta Server
+  rpc set(SetRequest) returns(SetReply){}
 
-  rpc BrokerRegister(BrokerRegisterRequest) returns(BrokerRegisterReply){}
+  // Get data in Meta Server
+  rpc get(GetRequest) returns(GetReply){}
 
-  // 
-  rpc BrokerUnRegister(BrokerUnRegisterRequest) returns(BrokerUnRegisterReply){}
+  // Check whether data exists in the Meta Server
+  rpc exists(ExistsRequest) returns(ExistsReply){}
+
+  // Delete data from Meta Server
+  rpc delete(DeleteRequest) returns(DeleteReply){}
+
+  // Broker node reports a heartbeat, notifying Meta Server that the node is alive
+  rpc heartbeat(HeartbeatRequest) returns(HeartbeatReply){}
 
   // Raft messages are sent between nodes
   rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
@@ -31,19 +40,42 @@ service MetaService {
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
 }
 
-message BrokerRegisterRequest{
-  uint64 node_id = 1;
+message SetRequest{
+  string key = 1;
+  bytes  data = 2;
 }
 
-message BrokerRegisterReply{
-
+message SetReply{
 }
 
-message BrokerUnRegisterRequest{
-  uint64 node_id = 1;
+message GetRequest{
+  string key = 1;
 }
 
-message BrokerUnRegisterReply{
+message GetReply{
+  bytes  data = 1;
+}
+
+message ExistsRequest{
+  string key = 1;
+}
+
+message ExistsReply{
+  bool exist = 1;
+}
+
+message DeleteRequest{
+  string key = 1;
+}
+
+message DeleteReply{
+}
+
+message HeartbeatRequest{
+  string key = 1;
+}
+
+message HeartbeatReply{
 
 }
 

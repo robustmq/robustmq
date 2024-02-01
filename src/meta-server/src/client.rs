@@ -16,37 +16,19 @@
 
 use crate::errors::MetaError;
 use protocol::robust::meta::{
-    meta_service_client::MetaServiceClient, BrokerRegisterReply, BrokerRegisterRequest,
-    BrokerUnRegisterReply, BrokerUnRegisterRequest, SendRaftConfChangeReply,
-    SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest,
+    meta_service_client::MetaServiceClient, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, SetReply, SetRequest
 };
 
-pub async fn broker_register(
+pub async fn grpc_client_set(
     addr: &String,
-    request: BrokerRegisterRequest,
-) -> Result<BrokerRegisterReply, MetaError> {
+    request: SetRequest,
+) -> Result<SetReply, MetaError> {
     let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
         Ok(client) => client,
         Err(err) => return Err(MetaError::TonicTransport(err)),
     };
 
-    let resp = match client.broker_register(request).await {
-        Ok(reply) => reply.into_inner(),
-        Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
-    };
-    return Ok(resp);
-}
-
-pub async fn un_broker_register(
-    addr: &String,
-    request: BrokerUnRegisterRequest,
-) -> Result<BrokerUnRegisterReply, MetaError> {
-    let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
-        Ok(client) => client,
-        Err(err) => return Err(MetaError::TonicTransport(err)),
-    };
-
-    let resp = match client.broker_un_register(request).await {
+    let resp = match client.set(tonic::Request::new(request)).await {
         Ok(reply) => reply.into_inner(),
         Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
     };

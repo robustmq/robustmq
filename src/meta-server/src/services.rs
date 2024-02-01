@@ -16,7 +16,7 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
-use crate::client::broker_register;
+use crate::client::grpc_client_set;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
@@ -24,10 +24,12 @@ use bincode::serialize;
 use common::log::info_meta;
 use prost::Message as _;
 use protocol::robust::meta::{
-    meta_service_server::MetaService, BrokerRegisterReply, BrokerRegisterRequest,
-    BrokerUnRegisterReply, BrokerUnRegisterRequest, SendRaftMessageReply, SendRaftMessageRequest,
+    meta_service_server::MetaService, SendRaftMessageReply, SendRaftMessageRequest,
 };
-use protocol::robust::meta::{SendRaftConfChangeReply, SendRaftConfChangeRequest};
+use protocol::robust::meta::{
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, HeartbeatReply,
+    HeartbeatRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SetReply, SetRequest,
+};
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage, MessageType};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
@@ -109,61 +111,47 @@ async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
 
 #[tonic::async_trait]
 impl MetaService for GrpcService {
-    
-    async fn broker_register(
-        &self,
-        request: Request<BrokerRegisterRequest>,
-    ) -> Result<Response<BrokerRegisterReply>, Status> {
-        match self.verify() {
-            Ok(_) => {}
-            Err(e) => return Err(Status::cancelled(e.to_string())),
-        }
-
+    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetReply>, Status> {
+        let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.cluster.read().unwrap().leader_addr();
-            match broker_register(&leader_addr, request.into_inner()).await {
+            match grpc_client_set(&leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
         }
 
-        let node_id = request.into_inner().node_id;
-        let addr = "127.0.0.1".to_string();
-
-        let value = StorageDataStructBroker { node_id, addr };
-        let data = StorageData::new(
-            StorageDataType::RegisterBroker,
-            serde_json::to_string(&value).unwrap(),
-        );
-
-        match self
-            .apply_raft_machine(data, "broker_register".to_string())
-            .await
-        {
-            Ok(_) => return Ok(Response::new(BrokerRegisterReply::default())),
+        let data = StorageData::new(StorageDataType::Set, req.key, req.data);
+        match self.apply_raft_machine(data, "set".to_string()).await {
+            Ok(_) => return Ok(Response::new(SetReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
     }
 
-    async fn broker_un_register(
+    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
+        return Ok(Response::new(GetReply::default()));
+    }
+
+    async fn delete(
         &self,
-        request: Request<BrokerUnRegisterRequest>,
-    ) -> Result<Response<BrokerUnRegisterReply>, Status> {
-        let node_id = request.into_inner().node_id;
+        request: Request<DeleteRequest>,
+    ) -> Result<Response<DeleteReply>, Status> {
+        return Ok(Response::new(DeleteReply::default()));
+    }
 
-        let data = StorageData::new(StorageDataType::UnRegisterBroker, node_id.to_string());
-
-        match self
-            .apply_raft_machine(data, "broker_un_register".to_string())
-            .await
-        {
-            Ok(_) => return Ok(Response::new(BrokerUnRegisterReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+    async fn exists(
+        &self,
+        request: Request<ExistsRequest>,
+    ) -> Result<Response<ExistsReply>, Status> {
+        return Ok(Response::new(ExistsReply::default()));
+    }
+    async fn heartbeat(
+        &self,
+        request: Request<HeartbeatRequest>,
+    ) -> Result<Response<HeartbeatReply>, Status> {
+        return Ok(Response::new(HeartbeatReply::default()));
     }
 
     async fn send_raft_message(
@@ -173,7 +161,6 @@ impl MetaService for GrpcService {
         let message = raftPreludeMessage::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        
 
         match self
             .raft_sender

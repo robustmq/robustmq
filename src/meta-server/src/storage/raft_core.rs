@@ -31,8 +31,7 @@ pub struct RaftRocksDBStorageCore {
 }
 
 impl RaftRocksDBStorageCore {
-    pub fn new(config: &MetaConfig) -> Self {
-        let rds = RocksDBStorage::new(config);
+    pub fn new(rds: RocksDBStorage) -> Self {
         let uncommit_index = HashMap::new();
         let mut rc = RaftRocksDBStorageCore {
             rds,
