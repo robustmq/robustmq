@@ -16,6 +16,7 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
+use crate::client::grpc_client_set;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
@@ -111,34 +112,22 @@ async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
 #[tonic::async_trait]
 impl MetaService for GrpcService {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetReply>, Status> {
-
+        let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.cluster.read().unwrap().leader_addr();
-            match broker_register(&leader_addr, request.into_inner()).await {
+            match grpc_client_set(&leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
         }
 
-        let node_id = request.into_inner().node_id;
-        let addr = "127.0.0.1".to_string();
-
-        let value = StorageDataStructBroker { node_id, addr };
-        let data = StorageData::new(
-            StorageDataType::RegisterBroker,
-            serde_json::to_string(&value).unwrap(),
-        );
-
-        match self
-            .apply_raft_machine(data, "broker_register".to_string())
-            .await
-        {
+        let data = StorageData::new(StorageDataType::Set, req.key, req.data);
+        match self.apply_raft_machine(data, "set".to_string()).await {
             Ok(_) => return Ok(Response::new(SetReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
-        return Ok(Response::new(SetReply::default()));
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {

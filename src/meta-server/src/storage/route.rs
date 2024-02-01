@@ -16,22 +16,21 @@ impl DataRoute {
     pub fn route(&self, data: Vec<u8>) -> Result<(), MetaError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
-            StorageDataType::RegisterBroker => {
-                return self.register_broker(storage_data.data);
+            StorageDataType::Set => {
+                return self.set(storage_data.key, storage_data.value);
             }
-            StorageDataType::UnRegisterBroker => {
-                return self.unregister_broker(storage_data.data);
+            StorageDataType::Delete => {
+                return self.delete(storage_data.key);
             }
         }
-        return Ok(());
     }
 
-    pub fn register_broker(&self, data: String) -> Result<(), MetaError> {
+    pub fn set(&self, key: String, value: Option<Vec<u8>>) -> Result<(), MetaError> {
         info_meta("persisted register broker");
         return Ok(());
     }
 
-    pub fn unregister_broker(&self, data: String) -> Result<(), MetaError> {
+    pub fn delete(&self, data: String) -> Result<(), MetaError> {
         info_meta("persisted unregister broker");
         return Ok(());
     }

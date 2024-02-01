@@ -19,7 +19,7 @@ use protocol::robust::meta::{
     meta_service_client::MetaServiceClient, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, SetReply, SetRequest
 };
 
-pub async fn set(
+pub async fn grpc_client_set(
     addr: &String,
     request: SetRequest,
 ) -> Result<SetReply, MetaError> {
