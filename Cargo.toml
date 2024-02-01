@@ -6,7 +6,8 @@ members = [
     "src/cmd",
     "src/common",
     "src/protocol",
-    "src/storage",
+    "src/storage-server",
+    "src/storage-adapter"
 ]
 
 resolver = "2"
@@ -44,8 +45,9 @@ toml = "0.8.8"
 mqtt-bridge = { path = "src/mqtt-bridge" }
 mqtt-broker = { path = "src/mqtt-broker" }
 meta-server = { path = "src/meta-server" }
+storage-server = { path = "src/storage-server" }
+storage-adapter = { path = "src/storage-adapter" }
 cmd = { path = "src/cmd" }
 common = { path = "src/common" }
-storage = { path = "src/storage" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
