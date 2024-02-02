@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
+pub mod cluster_storage;
 pub mod keys;
-pub mod kv_storage;
+pub mod mqtt_storage;
 pub mod raft_core;
 pub mod raft_storage;
 pub mod rocksdb;

@@ -197,6 +197,10 @@ impl RocksDBStorage {
         }
     }
 
+    pub fn exist(&self, cf: &ColumnFamily, key: &str) -> bool {
+        self.db.key_may_exist_cf(cf, key)
+    }
+
     pub fn cf_meta(&self) -> &ColumnFamily {
         return self.db.cf_handle(&DB_COLUMN_FAMILY_META).unwrap();
     }
