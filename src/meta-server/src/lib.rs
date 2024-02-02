@@ -27,7 +27,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
-use storage::kv_storage;
+use storage::cluster_storage;
 use storage::raft_core::RaftRocksDBStorageCore;
 use storage::rocksdb::RocksDBStorage;
 use storage::route::DataRoute;
@@ -94,9 +94,9 @@ impl Meta {
 
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
-        let rds = Arc::new(RwLock::new(RocksDBStorage::new(&self.config)));
-        let rocksdb_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(rds)));
-        let kv_storage = Arc::new(RwLock::new(kv_storage::KvStorage::new()));
+        let rds: Arc<RwLock<RocksDBStorage>> = Arc::new(RwLock::new(RocksDBStorage::new(&self.config)));
+        let rocksdb_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(rds.clone())));
+        let kv_storage = Arc::new(RwLock::new(cluster_storage::ClusterStorage::new(rds.clone())));
 
         let cluster = Arc::new(RwLock::new(Cluster::new(
             Node::new(
