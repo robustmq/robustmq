@@ -94,9 +94,12 @@ impl Meta {
 
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
-        let rds: Arc<RwLock<RocksDBStorage>> = Arc::new(RwLock::new(RocksDBStorage::new(&self.config)));
+        let rds: Arc<RwLock<RocksDBStorage>> =
+            Arc::new(RwLock::new(RocksDBStorage::new(&self.config)));
         let rocksdb_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(rds.clone())));
-        let kv_storage = Arc::new(RwLock::new(cluster_storage::ClusterStorage::new(rds.clone())));
+        let cluster_storage = Arc::new(RwLock::new(cluster_storage::ClusterStorage::new(
+            rds.clone(),
+        )));
 
         let cluster = Arc::new(RwLock::new(Cluster::new(
             Node::new(
@@ -108,7 +111,7 @@ impl Meta {
             self.config.nodes.clone(),
         )));
 
-        let data_route = Arc::new(RwLock::new(DataRoute::new()));
+        let data_route = Arc::new(RwLock::new(DataRoute::new(cluster_storage.clone())));
         let mut thread_result = Vec::new();
 
         // Thread running meta tcp server
@@ -117,14 +120,16 @@ impl Meta {
         let cluster_clone = cluster.clone();
         let mut stop_recv_c = stop_send.subscribe();
         let rocksdb_storage_c = rocksdb_storage.clone();
+        let cluster_storage_c = cluster_storage.clone();
         let tcp_thread_join = tcp_thread.spawn(move || {
             let meta_http_runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
 
             let cf1 = config.clone();
             let cls1 = cluster_clone.clone();
             let rocksdb_storage_c1 = rocksdb_storage_c.clone();
+            let cluster_storage_c1 = cluster_storage_c.clone();
             meta_http_runtime.spawn(async move {
-                let http_s = HttpServer::new(cf1, cls1, rocksdb_storage_c1);
+                let http_s = HttpServer::new(cf1, cls1, rocksdb_storage_c1, cluster_storage_c1);
                 http_s.start().await;
             });
 
@@ -137,8 +142,12 @@ impl Meta {
                     ip
                 ));
 
-                let service_handler =
-                    GrpcService::new(cluster_clone, raft_message_send, rocksdb_storage_c);
+                let service_handler = GrpcService::new(
+                    cluster_clone,
+                    raft_message_send,
+                    rocksdb_storage_c,
+                    cluster_storage_c,
+                );
 
                 Server::builder()
                     .add_service(MetaServiceServer::new(service_handler))

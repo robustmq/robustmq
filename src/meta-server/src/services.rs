@@ -18,6 +18,7 @@ use super::cluster::Cluster;
 use super::errors::MetaError;
 use crate::client::grpc_client_set;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
+use crate::storage::cluster_storage::ClusterStorage;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
 use bincode::serialize;
@@ -43,6 +44,7 @@ pub struct GrpcService {
     cluster: Arc<RwLock<Cluster>>,
     raft_sender: Sender<RaftMessage>,
     rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    cluster_storage: Arc<RwLock<ClusterStorage>>,
 }
 
 impl GrpcService {
@@ -50,11 +52,13 @@ impl GrpcService {
         cluster: Arc<RwLock<Cluster>>,
         raft_sender: Sender<RaftMessage>,
         rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+        cluster_storage: Arc<RwLock<ClusterStorage>>,
     ) -> Self {
         GrpcService {
             cluster,
             raft_sender,
             rocksdb_storage,
+            cluster_storage,
         }
     }
 
