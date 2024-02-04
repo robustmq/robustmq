@@ -1,4 +1,7 @@
-use crate::{cluster::Cluster, storage::raft_core::RaftRocksDBStorageCore};
+use crate::{
+    cluster::Cluster,
+    storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore},
+};
 use axum::routing::get;
 use axum::Router;
 use common::{config::meta::MetaConfig, log::info};
@@ -7,15 +10,16 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::cluster::controller_index;
+use super::cluster::{cluster_info, controller_index};
 
 pub const ROUTE_ROOT: &str = "/";
-pub const RAFT_INFO: &str = "/raft";
+pub const CLUSTER_INFO: &str = "/cluster-info";
 
 pub struct HttpServer {
     ip: SocketAddr,
     cluster: Arc<RwLock<Cluster>>,
     storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    cluster_storage: Arc<RwLock<ClusterStorage>>,
 }
 
 impl HttpServer {
@@ -23,6 +27,7 @@ impl HttpServer {
         config: MetaConfig,
         cluster: Arc<RwLock<Cluster>>,
         storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+        cluster_storage: Arc<RwLock<ClusterStorage>>,
     ) -> Self {
         let ip: SocketAddr = format!("{}:{}", config.addr, config.admin_port)
             .parse()
@@ -31,6 +36,7 @@ impl HttpServer {
             ip,
             cluster,
             storage,
+            cluster_storage,
         };
     }
 
@@ -48,7 +54,10 @@ impl HttpServer {
     pub fn routes(&self) -> Router {
         let cluster = self.cluster.clone();
         let storage = self.storage.clone();
-        let meta = Router::new().route(ROUTE_ROOT, get(move || controller_index(cluster,storage)));
+        let cluster_storage = self.cluster_storage.clone();
+        let meta = Router::new()
+            .route(ROUTE_ROOT, get(move || controller_index(cluster, storage)))
+            .route(CLUSTER_INFO, get(|| cluster_info(cluster_storage)));
 
         let app = Router::new().merge(meta);
         return app;

@@ -11,6 +11,10 @@ impl ClusterStorage {
         ClusterStorage { rds }
     }
 
+    pub fn save_broker_info(&self) {}
+
+    pub fn get_broker_info(&self) {}
+
     pub fn set(&self, key: String, value: Vec<u8>) {
         let rds = self.rds.write().unwrap();
         rds.write(rds.cf_cluster(), &key, &value).unwrap();

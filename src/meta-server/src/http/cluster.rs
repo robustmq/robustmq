@@ -15,7 +15,10 @@
  */
 
 use super::response::{success_response, IndexResponse, RaftInfo};
-use crate::{cluster::Cluster, storage::raft_core::RaftRocksDBStorageCore};
+use crate::{
+    cluster::Cluster,
+    storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore},
+};
 use std::sync::{Arc, RwLock};
 
 pub async fn controller_index(
@@ -51,4 +54,8 @@ pub async fn controller_index(
     };
 
     return success_response(resp);
+}
+
+pub async fn cluster_info(cluster_storage: Arc<RwLock<ClusterStorage>>) -> String {
+    return "".to_string();
 }
