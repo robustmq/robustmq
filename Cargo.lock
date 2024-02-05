@@ -2046,7 +2046,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "storage-server"
+name = "storage-engine"
 version = "0.0.1"
 dependencies = [
  "axum 0.7.4",

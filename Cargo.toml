@@ -6,7 +6,7 @@ members = [
     "src/cmd",
     "src/common",
     "src/protocol",
-    "src/storage-server",
+    "src/storage-engine",
     "src/storage-adapter"
 ]
 
@@ -45,7 +45,7 @@ toml = "0.8.8"
 mqtt-bridge = { path = "src/mqtt-bridge" }
 mqtt-broker = { path = "src/mqtt-broker" }
 meta-server = { path = "src/meta-server" }
-storage-server = { path = "src/storage-server" }
+storage-engine = { path = "src/storage-engine" }
 storage-adapter = { path = "src/storage-adapter" }
 cmd = { path = "src/cmd" }
 common = { path = "src/common" }
