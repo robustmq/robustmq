@@ -2,11 +2,11 @@
 members = [
     "src/mqtt-bridge",
     "src/mqtt-broker",
-    "src/meta-server",
+    "src/placement-center",
     "src/cmd",
     "src/common",
     "src/protocol",
-    "src/storage-server",
+    "src/storage-engine",
     "src/storage-adapter"
 ]
 
@@ -44,8 +44,8 @@ toml = "0.8.8"
 ## workspaces members
 mqtt-bridge = { path = "src/mqtt-bridge" }
 mqtt-broker = { path = "src/mqtt-broker" }
-meta-server = { path = "src/meta-server" }
-storage-server = { path = "src/storage-server" }
+placement-center = { path = "src/placement-center" }
+storage-engine = { path = "src/storage-engine" }
 storage-adapter = { path = "src/storage-adapter" }
 cmd = { path = "src/cmd" }
 common = { path = "src/common" }

@@ -19,7 +19,7 @@ use common::config::parse_meta;
 use common::config::DEFAULT_META_CONFIG;
 use common::log;
 use common::tools::handle_running;
-use meta_server::Meta;
+use placement_center::Meta;
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]

@@ -456,8 +456,8 @@ dependencies = [
  "clap",
  "common",
  "lazy_static",
- "meta-server",
  "mqtt-broker",
+ "placement-center",
  "tokio",
 ]
 
@@ -1236,34 +1236,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "523dc4f511e55ab87b694dc30d0f820d60906ef06413f93d4d7a1385599cc149"
 
 [[package]]
-name = "meta-server"
-version = "0.0.1"
-dependencies = [
- "ahash",
- "axum 0.7.4",
- "bincode",
- "byteorder",
- "bytes",
- "common",
- "futures",
- "futures-util",
- "lazy_static",
- "prost 0.11.9",
- "protocol",
- "raft",
- "rocksdb",
- "serde",
- "serde_json",
- "slog",
- "slog-async",
- "slog-term",
- "thiserror",
- "tokio",
- "toml",
- "tonic",
-]
-
-[[package]]
 name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1480,6 +1452,34 @@ name = "pkg-config"
 version = "0.3.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
+
+[[package]]
+name = "placement-center"
+version = "0.0.1"
+dependencies = [
+ "ahash",
+ "axum 0.7.4",
+ "bincode",
+ "byteorder",
+ "bytes",
+ "common",
+ "futures",
+ "futures-util",
+ "lazy_static",
+ "prost 0.11.9",
+ "protocol",
+ "raft",
+ "rocksdb",
+ "serde",
+ "serde_json",
+ "slog",
+ "slog-async",
+ "slog-term",
+ "thiserror",
+ "tokio",
+ "toml",
+ "tonic",
+]
 
 [[package]]
 name = "powerfmt"
@@ -2046,7 +2046,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "storage-server"
+name = "storage-engine"
 version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
