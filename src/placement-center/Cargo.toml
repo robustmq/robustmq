@@ -1,5 +1,5 @@
 [package]
-name = "meta-server"
+name = "placement-center"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

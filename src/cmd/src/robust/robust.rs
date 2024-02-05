@@ -24,7 +24,7 @@ use common::config::server::RobustConfig;
 use common::config::DEFAULT_META_CONFIG;
 use common::config::DEFAULT_SERVER_CONFIG;
 use common::log;
-use meta_server::Meta;
+use placement_center::Meta;
 use tokio::sync::broadcast;
 use tokio::sync::watch;
 

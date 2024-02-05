@@ -4,7 +4,7 @@ mod tests {
     use common::log;
     use common::tools::handle_running;
     use common::{config::meta::MetaConfig, tools::create_fold};
-    use meta_server::Meta;
+    use placement_center::Meta;
     use prost::Message;
     use raft::eraftpb::{
         ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
