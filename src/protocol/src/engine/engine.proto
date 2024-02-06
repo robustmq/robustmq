@@ -115,6 +115,7 @@ message ReadLCRIResponseProto {
 }
 
 service RecordServerClientService {
+    rpc ClusterName();
     rpc CreateShard();
     rpc GetShard();
     rpc WriteRecordSet(WriteRecordSetRequestProto) returns(WriteRecordSetResponseProto);
