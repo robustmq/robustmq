@@ -1,6 +1,5 @@
 addr = "127.0.0.1"
 grpc_port = 9987
-admin_port = 9988
 
 [mqtt]
 mqtt4_port = 9989

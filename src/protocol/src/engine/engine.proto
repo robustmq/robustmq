@@ -1,0 +1,126 @@
+enum ProtocolVersion {
+    V1 = 1;
+}
+
+enum Priority {
+    LOW = 0;
+    NORMAL = 1;
+    HIGH = 2;
+}
+
+message PacketHeader {
+    required ProtocolVersion version = 1;
+    required sint64 call_id = 2;
+    optional Priority priority = 3 [default = NORMAL];
+}
+
+message Record {
+    required sint64 ri = 1;
+    required string data = 2;
+}
+
+message RecordSet {
+    repeated Record records = 1;
+}
+
+message WriteRecordSetRequestProto {
+    required PacketHeader header = 1;
+    enum Flag {
+        RECOVER = 1;
+        SEGMENT_START = 2;
+    }
+    optional sint32 flag = 2;  // ORed by multiple Flags
+    required string segment_name = 3; //namespace_journal_001
+    required sint64 lcri = 4;
+    required uint32 checksum = 5;
+    required sint64 sri = 6;
+    repeated sint64 record_lens = 7;
+}
+
+message ReadRecordSetRequestProto {
+    required PacketHeader header = 1;
+    enum Flag {
+        FENCE = 1;
+    }
+    optional sint32 flag = 2;  // ORed by multiple Flags
+    required string segment_name = 3;
+    required sint64 sri = 4;
+    required uint64 max_num_records = 5;
+}
+
+message WriteLCRIRequestProto {
+    required PacketHeader header = 1;
+    required string segment_name = 2;
+    required sint64 lcri = 3;
+}
+
+message ReadLCRIRequestProto {
+    required PacketHeader header = 1;
+    required string segment_name = 2;
+}
+
+// message DeleteSegmentRequestProto {
+//     required PacketHeader header = 1;
+//     required StatusCode status = 2;
+//     required string segment_name = 3;
+// }
+
+enum StatusCode {
+    OK = 200;
+
+    EBADREQ = 400;
+    EREPEATED = 496;
+    ENOSEGMENT = 497;
+    ENORECORD = 498;
+    ETOOMANYREQUESTS = 499;
+
+    EIO = 596;
+    EFENCED = 597;
+    EREADONLY = 598;
+    EBADVERSION = 599;
+    
+    EINTERNALERROR = 699;
+}
+
+message Status {
+    required StatusCode code = 1;
+    optional string message = 2;
+}
+
+message WriteRecordSetResponseProto {
+    required PacketHeader header = 1;
+    required Status status = 2;
+}
+
+message ReadRecordSetResponseProto {
+    required PacketHeader header = 1;
+    required Status status = 2;
+    required string segment_name = 3;
+    optional RecordSet record_set = 4;
+    optional sint64 lcri = 5;
+    optional sint64 lcri_update_ts_ns = 6;    
+}
+
+message WriteLCRIResponseProto {
+    required PacketHeader header = 1;
+    required Status status = 2;
+    required string segment_name = 3;
+}
+
+message ReadLCRIResponseProto {
+    optional PacketHeader header = 1;
+    required Status status = 2;
+    required string segment_name = 3;
+    optional sint64 lcri = 4;
+}
+
+service RecordServerClientService {
+    rpc ClusterName();
+    rpc CreateShard();
+    rpc GetShard();
+    rpc WriteRecordSet(WriteRecordSetRequestProto) returns(WriteRecordSetResponseProto);
+    rpc ReadRecordSet(ReadRecordSetRequestProto) returns(ReadRecordSetResponseProto);
+    rpc WriteLCRI(WriteLCRIRequestProto) returns(WriteLCRIResponseProto);
+    rpc ReadLCRI(ReadLCRIRequestProto) returns(ReadLCRIResponseProto);
+    rpc DeleteSegment(DeleteSegmentRequestProto) returns(DeleteSegmentResponseProto);
+}
