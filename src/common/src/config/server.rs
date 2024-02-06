@@ -20,7 +20,6 @@ use serde::Deserialize;
 pub struct RobustConfig {
     pub addr: String,
     pub grpc_port: usize,
-    pub admin_port: usize,
     pub broker: Broker,
     pub network: Network,
     pub runtime: Runtime,

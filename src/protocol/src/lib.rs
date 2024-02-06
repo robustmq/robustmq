@@ -18,3 +18,4 @@ pub mod mqttv4;
 pub mod mqttv5;
 pub mod mqtt;
 pub mod robust;
+pub mod engine;
