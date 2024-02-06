@@ -3,11 +3,13 @@ members = [
     "src/mqtt-bridge",
     "src/mqtt-broker",
     "src/placement-center",
+    "src/placement-client",
     "src/cmd",
     "src/common",
     "src/protocol",
     "src/storage-engine",
-    "src/storage-adapter"
+    "src/storage-adapter",
+    "src/storage-object"
 ]
 
 resolver = "2"
@@ -45,8 +47,10 @@ toml = "0.8.8"
 mqtt-bridge = { path = "src/mqtt-bridge" }
 mqtt-broker = { path = "src/mqtt-broker" }
 placement-center = { path = "src/placement-center" }
+placement-client = { path = "src/placement-center" }
 storage-engine = { path = "src/storage-engine" }
 storage-adapter = { path = "src/storage-adapter" }
+storage-object = { path = "src/storage-object" }
 cmd = { path = "src/cmd" }
 common = { path = "src/common" }
 protocol = { path = "src/protocol" }
