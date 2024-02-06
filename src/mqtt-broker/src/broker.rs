@@ -1,12 +1,8 @@
-use crate::{grpc::server::GrpcServer, http::server::HttpServer, network::tcp_server::TcpServer};
-use common::{config::server::RobustConfig, log::info, runtime::create_runtime, version::banner};
+use crate::{grpc::server::GrpcServer, network::tcp_server::TcpServer};
+use common::{config::server::RobustConfig, runtime::create_runtime, version::banner};
 use flume::{Receiver, Sender};
 use std::{
-    fmt::Result,
-    net::SocketAddr,
-    sync::Arc,
-    thread::{self, sleep},
-    time::Duration,
+    fmt::Result, net::SocketAddr, sync::Arc, thread
 };
 use tokio::{io, time::error::Elapsed};
 
@@ -71,20 +67,12 @@ impl Broker {
 
             // start Grpc Server
             let c = config.clone();
-            inner_runtime.spawn(async move {
+            inner_runtime.block_on(async move {
                 let ip: SocketAddr = format!("{}:{}", c.addr, c.grpc_port).parse().unwrap();
                 let g_s = GrpcServer::new(ip);
                 g_s.start().await;
             });
             
-            // start HTTP Server
-            inner_runtime.block_on(async {
-                let ip: SocketAddr = format!("{}:{}", config.addr, config.admin_port)
-                    .parse()
-                    .unwrap();
-                let http_s = HttpServer::new(ip);
-                http_s.start().await;
-            })
         });
         thread_handles.push(inner_thread_join);
 
@@ -98,18 +86,6 @@ impl Broker {
         });
 
         return Ok(());
-    }
-
-    fn signal_hook(&self) {
-        loop {
-            if let Ok(sig) = self.signal_rt.recv() {
-                if sig == 1 {
-                    info("Start to stop network processes!");
-                    break;
-                }
-            }
-            sleep(Duration::from_millis(1));
-        }
     }
 
     pub fn stop(&self) -> Result {

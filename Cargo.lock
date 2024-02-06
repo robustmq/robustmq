@@ -1482,6 +1482,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "placement-client"
+version = "0.0.1"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "thiserror",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2047,6 +2056,15 @@ dependencies = [
 
 [[package]]
 name = "storage-engine"
+version = "0.0.1"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "thiserror",
+]
+
+[[package]]
+name = "storage-object"
 version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
