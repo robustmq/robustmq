@@ -24,21 +24,27 @@ RobustMQ is a 100% Rust-based, minimalist, highly cohesive cloud-native messagin
 
 ### Introduce
 - 100% Rust kernel
+  
 A new messaging engine kernel implemented 100% in Rust. It is hoped to build a cloud-native message engine with high performance, high reliability and high stability by using Rust language's characteristics of high performance and high security.
 
 - Multi-protocol support
+  
 Support MQTT 3.1/5.0, AMQP, RocketMQ Remoting, Kafka Protocol, OpenMessing, JNS, SQS, WebSocket and other mainstream messaging protocols. It is hoped to build a message engine that can meet various scenarios to reduce the learning and operation cost of maintaining multiple message engines at the same time.
 
 - Layered architecture
+  
 Typical hierarchical architecture, with independent computing, storage, scheduling layers. Each layer supports distributed cluster deployment and provides simple, fast, Serverless horizontal capacity expansion and contraction.
 
 - Multi Tenant
+  
 Supports the multi-tenant feature. Multiple virtual clusters can be created on one physical cluster, and virtual clusters can be isolated from each other. From the implementation point of view, plugins support a variety of forms of stream limiting mechanisms.
 
 - Multilevel storage
+  
 Designed for IDC and cloud infrastructure, the storage layer supports multiple storage media such as physical hard disks, cloud hard disks, and object storage. At the same time, performance, stability, and cost are taken into account, which is suitable for a variety of different business scenarios.
 
 - Minimal, high cohesion
+  
 The architecture is refined, and there is no need to rely on external dependent components. By simplifying the complexity of the kernel architecture, it improves stability and reduces long-term learning and maintenance costs.
 
 ### Build
