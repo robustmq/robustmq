@@ -9,3 +9,5 @@ license.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
+tonic.workspace = true
+protocol.workspace = true
