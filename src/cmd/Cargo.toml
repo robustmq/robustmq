@@ -15,7 +15,7 @@ path = "src/cmd/cmd.rs"
 
 [[bin]]
 name = "meta"
-path = "src/meta/meta.rs"
+path = "src/placement/center.rs"
 
 [[bin]]
 name = "robustmq"
