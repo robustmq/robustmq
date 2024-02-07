@@ -1,0 +1,89 @@
+syntax = "proto3";
+package storage;
+
+enum ApiKey{
+    produce = 0;
+}
+
+enum ApiVersion{
+     V0 = 0;
+}
+
+enum ErrorCode{
+    Success = 0;
+}
+
+message RequestHeader{
+    ApiKey request_api_key = 1;
+    ApiVersion request_api_version = 2;
+    uint32 correlation_id = 3;
+    string client_id = 4;
+    bytes tagged_fields = 5;
+}
+
+message ResponseHeader{
+     uint32 correlation_id = 1;
+    bytes tagged_fields = 2;
+}
+
+message WriteRecords{
+
+}
+
+message WriteRequest{
+    RequestHeader header = 1;
+    string shard_name = 2;
+    WriteRecords records = 3;
+}
+
+message WriteResponse{
+    ResponseHeader header = 1;
+    ErrorCode error_code = 2;
+    string error_message = 3;
+    string shard_name = 4;
+    uint64 base_offset = 5;
+    uint64 record_append_time_ms = 6;
+}
+
+message ReadRequest{
+    RequestHeader header = 1;
+
+}
+
+message ReadResponse{
+    ResponseHeader header = 1;
+}
+
+message CreateShardRequest{
+}
+
+message CreateShardResponse{
+}
+
+message CreateSegmentRequest{
+}
+
+message CreateSegmentResponse{
+}
+
+message ShardDetailRequest{
+}
+
+message ShardDetailResponse{
+}
+
+service ShardService {
+
+  //  
+  rpc write(WriteRequest) returns(WriteResponse){}
+
+  // 
+  rpc read(ReadRequest) returns(ReadResponse){}
+
+  rpc CreateShard(CreateShardRequest) returns(CreateShardResponse){}
+
+  rpc CreateSegment(CreateSegmentRequest) returns(CreateSegmentResponse){}
+
+  rpc ShardDetail(ShardDetailRequest) returns(ShardDetailResponse){}
+
+}

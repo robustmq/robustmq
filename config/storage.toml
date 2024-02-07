@@ -1,0 +1,12 @@
+node_id = 1
+addr = "127.0.0.1"
+port = 1228
+nodes = { 1 = "127.0.0.1:1228" }
+runtime_work_threads = 100
+data_path = "/tmp/robust/storage/data"
+log_path = "/tmp/robust/storage/logs"
+log_segment_size = 1099511627776
+log_file_num=50
+
+[rocksdb]
+max_open_files = 10000
