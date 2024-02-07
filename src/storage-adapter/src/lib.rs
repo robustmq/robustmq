@@ -1,3 +1,1 @@
-mod partition;
-mod segment;
-mod topic;
+mod storage;
