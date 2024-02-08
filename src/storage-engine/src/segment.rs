@@ -1,4 +1,5 @@
 pub struct Segment {
+    pub shard_id: String,
     pub shard_name: String,
     pub segment_seq: u64,
     pub start_offset: u64,
