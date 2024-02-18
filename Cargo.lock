@@ -2066,7 +2066,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "storage-object"
+name = "storage-remote"
 version = "0.0.1"
 dependencies = [
  "axum 0.7.4",

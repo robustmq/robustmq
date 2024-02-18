@@ -1,4 +1,5 @@
 pub struct Shard {
+    pub shard_id: String,
     pub shard_name: String,
     pub start_segment: u64,
     pub end_segment: u64,
