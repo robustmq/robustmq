@@ -9,7 +9,7 @@ members = [
     "src/protocol",
     "src/storage-engine",
     "src/storage-adapter",
-    "src/storage-object"
+    "src/storage-remote"
 ]
 
 resolver = "2"
@@ -50,7 +50,7 @@ placement-center = { path = "src/placement-center" }
 placement-client = { path = "src/placement-center" }
 storage-engine = { path = "src/storage-engine" }
 storage-adapter = { path = "src/storage-adapter" }
-storage-object = { path = "src/storage-object" }
+storage-object = { path = "src/storage-remote" }
 cmd = { path = "src/cmd" }
 common = { path = "src/common" }
 protocol = { path = "src/protocol" }
