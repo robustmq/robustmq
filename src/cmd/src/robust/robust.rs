@@ -54,11 +54,14 @@ fn main() {
         meta_conf.log_file_num.clone(),
     );
 
-    // Start Meta
+    // Start Placement Center
     let mut mt_s = Meta::new(meta_conf);
     mt_s.run(stop_send);
 
-    // Start Broker
+    // Start Storage Engine
+
+    // Start Broker Server
     let app: Broker = Broker::new(Arc::new(server_conf));
     app.start().unwrap();
+
 }
