@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use self::placement_center::PlacementCenterConfig;
+use self::storage_engine::StorageEngineConfig;
 use crate::tools::create_fold;
 use broker_server::BrokerServerConfig;
 use std::fs;
@@ -35,13 +36,23 @@ pub fn parse_server(config_path: &String) -> BrokerServerConfig {
 }
 
 /// Parsing reads the MetaService configuration
-pub fn parse_meta(config_path: &String) -> PlacementCenterConfig {
+pub fn parse_placement_center(config_path: &String) -> PlacementCenterConfig {
     let content = read_file(config_path);
-    let meta_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
-    create_fold(meta_config.data_path.clone());
-    create_fold(meta_config.log_path.clone());
-    return meta_config;
+    let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
+    create_fold(pc_config.data_path.clone());
+    create_fold(pc_config.log_path.clone());
+    return pc_config;
 }
+
+/// Parsing reads the StorageEngine configuration
+pub fn parse_storage_engine(config_path: &String) -> StorageEngineConfig {
+    let content = read_file(config_path);
+    let pc_config: StorageEngineConfig = toml::from_str(&content).unwrap();
+    create_fold(pc_config.data_path.clone());
+    create_fold(pc_config.log_path.clone());
+    return pc_config;
+}
+
 
 fn read_file(config_path: &String) -> String {
     if !path::Path::new(config_path).exists() {

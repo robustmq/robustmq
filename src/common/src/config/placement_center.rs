@@ -61,13 +61,13 @@ impl Default for PlacementCenterConfig {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::parse_meta;
+    use crate::config::parse_placement_center;
 
     use super::PlacementCenterConfig;
 
     #[test]
     fn meta_default() {
-        let conf: PlacementCenterConfig = parse_meta(
+        let conf: PlacementCenterConfig = parse_placement_center(
             &"../../config/raft/node-1.toml"
                 .to_string(),
         );

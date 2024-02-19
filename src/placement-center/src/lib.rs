@@ -122,19 +122,19 @@ impl Meta {
         let rocksdb_storage_c = rocksdb_storage.clone();
         let cluster_storage_c = cluster_storage.clone();
         let tcp_thread_join = tcp_thread.spawn(move || {
-            let meta_tcp_runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
+            let runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
 
             let cf1 = config.clone();
             let cls1 = cluster_clone.clone();
             let rocksdb_storage_c1 = rocksdb_storage_c.clone();
             let cluster_storage_c1 = cluster_storage_c.clone();
-            meta_tcp_runtime.spawn(async move {
+            runtime.spawn(async move {
                 let http_s = HttpServer::new(cf1, cls1, rocksdb_storage_c1, cluster_storage_c1);
                 http_s.start().await;
             });
 
             let cf2 = config.clone();
-            meta_tcp_runtime.spawn(async move {
+            runtime.spawn(async move {
                 let ip = format!("{}:{}", cf2.addr, cf2.port).parse().unwrap();
 
                 info_meta(&format!(
@@ -156,7 +156,7 @@ impl Meta {
                     .unwrap();
             });
 
-            meta_tcp_runtime.block_on(async {
+            runtime.block_on(async {
                 if stop_recv_c.recv().await.unwrap() {
                     info_meta("TCP and GRPC Server services stop.");
                 }

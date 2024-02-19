@@ -18,7 +18,7 @@ use mqtt_broker::broker::Broker;
 use clap::command;
 use clap::Parser;
 use common::config::placement_center::PlacementCenterConfig;
-use common::config::parse_meta;
+use common::config::parse_placement_center;
 use common::config::parse_server;
 use common::config::broker_server::BrokerServerConfig;
 use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
@@ -26,7 +26,6 @@ use common::config::DEFAULT_BROKER_SERVER_CONFIG;
 use common::log;
 use placement_center::Meta;
 use tokio::sync::broadcast;
-use tokio::sync::watch;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -46,7 +45,7 @@ fn main() {
     let args = ArgsParams::parse();
 
     let server_conf: BrokerServerConfig = parse_server(&args.server_conf);
-    let meta_conf: PlacementCenterConfig = parse_meta(&args.meta_conf);
+    let meta_conf: PlacementCenterConfig = parse_placement_center(&args.meta_conf);
     let (stop_send, _) = broadcast::channel(2);
 
     log::new(
