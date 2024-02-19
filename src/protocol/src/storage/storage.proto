@@ -74,16 +74,14 @@ message ShardDetailResponse{
 
 service ShardService {
 
-  //  
-  rpc write(WriteRequest) returns(WriteResponse){}
-
   // 
   rpc read(ReadRequest) returns(ReadResponse){}
 
+  //  
+  rpc write(WriteRequest) returns(WriteResponse){}
+
   rpc CreateShard(CreateShardRequest) returns(CreateShardResponse){}
 
-  rpc CreateSegment(CreateSegmentRequest) returns(CreateSegmentResponse){}
-
-  rpc ShardDetail(ShardDetailRequest) returns(ShardDetailResponse){}
-
+  rpc DescribeShard(ShardDetailRequest) returns(ShardDetailResponse){}
+    
 }

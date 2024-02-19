@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::config::meta::MetaConfig;
+use common::config::placement_center::PlacementCenterConfig;
 use common::log::error_meta;
 use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
@@ -39,7 +39,7 @@ pub struct RocksDBStorage {
 
 impl RocksDBStorage {
     /// Create a rocksdb instance
-    pub fn new(config: &MetaConfig) -> Self {
+    pub fn new(config: &PlacementCenterConfig) -> Self {
         let opts: Options = Self::open_db_opts(config);
         let db_path = format!("{}/{}", config.data_path, "_storage_rocksdb");
 
@@ -213,7 +213,7 @@ impl RocksDBStorage {
         return self.db.cf_handle(&DB_COLUMN_FAMILY_MQTT).unwrap();
     }
 
-    fn open_db_opts(config: &MetaConfig) -> Options {
+    fn open_db_opts(config: &PlacementCenterConfig) -> Options {
         let mut opts = Options::default();
         opts.create_if_missing(true);
         opts.create_missing_column_families(true);
@@ -256,7 +256,7 @@ mod tests {
     use crate::storage::keys::key_name_by_last_index;
 
     use super::RocksDBStorage;
-    use common::config::meta::MetaConfig;
+    use common::config::placement_center::PlacementCenterConfig;
     use serde::{Deserialize, Serialize};
     use tokio::fs::remove_dir;
 
@@ -268,7 +268,7 @@ mod tests {
 
     #[tokio::test]
     async fn init_family() {
-        let mut config = MetaConfig::default();
+        let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
@@ -301,7 +301,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_all() {
-        let mut config = MetaConfig::default();
+        let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);
@@ -329,7 +329,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_prefix() {
-        let mut config = MetaConfig::default();
+        let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBStorage::new(&config);

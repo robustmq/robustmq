@@ -3,7 +3,7 @@ mod tests {
     use byteorder::{BigEndian, ReadBytesExt};
     use common::log;
     use common::tools::handle_running;
-    use common::{config::meta::MetaConfig, tools::create_fold};
+    use common::{config::placement_center::PlacementCenterConfig, tools::create_fold};
     use placement_center::Meta;
     use prost::Message;
     use raft::eraftpb::{
@@ -16,7 +16,7 @@ mod tests {
 
     #[test]
     fn raft_node_1() {
-        let mut conf = MetaConfig::default();
+        let mut conf = PlacementCenterConfig::default();
         conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1221;
@@ -49,7 +49,7 @@ mod tests {
 
     #[test]
     fn raft_node_2() {
-        let mut conf = MetaConfig::default();
+        let mut conf = PlacementCenterConfig::default();
         conf.node_id = 2;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1222;
@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn raft_node_3() {
-        let mut conf = MetaConfig::default();
+        let mut conf = PlacementCenterConfig::default();
         conf.node_id = 3;
         conf.addr = "127.0.0.1".to_string();
         conf.port = 1223;

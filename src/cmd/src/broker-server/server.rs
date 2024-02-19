@@ -16,8 +16,8 @@ use std::sync::Arc;
 use mqtt_broker::broker::Broker;
 use clap::{command, Parser};
 use common::config::parse_server;
-use common::config::server::RobustConfig;
-use common::config::DEFAULT_SERVER_CONFIG;
+use common::config::broker_server::BrokerServerConfig;
+use common::config::DEFAULT_BROKER_SERVER_CONFIG;
 use common::log;
 
 #[derive(Parser, Debug)]
@@ -26,13 +26,13 @@ use common::log;
 
 struct ArgsParams {
     /// broker server configuration file path
-    #[arg(short, long, default_value_t=String::from(DEFAULT_SERVER_CONFIG))]
+    #[arg(short, long, default_value_t=String::from(DEFAULT_BROKER_SERVER_CONFIG))]
     server_conf: String,
 }
 
 fn main() {
     let args = ArgsParams::parse();
-    let server_conf: RobustConfig = parse_server(&args.server_conf);
+    let server_conf: BrokerServerConfig = parse_server(&args.server_conf);
     log::new(
         server_conf.log.log_path.clone(),
         server_conf.log.log_segment_size.clone(),

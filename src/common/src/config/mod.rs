@@ -12,30 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::meta::MetaConfig;
+use self::placement_center::PlacementCenterConfig;
 use crate::tools::create_fold;
-use server::RobustConfig;
+use broker_server::BrokerServerConfig;
 use std::fs;
 use std::path;
 use toml;
 
-pub mod meta;
-pub mod server;
+pub mod placement_center;
+pub mod broker_server;
+pub mod storage_engine;
 
-pub const DEFAULT_SERVER_CONFIG: &str = "config/server.toml";
-pub const DEFAULT_META_CONFIG: &str = "config/meta.toml";
+pub const DEFAULT_BROKER_SERVER_CONFIG: &str = "config/broker-server.toml";
+pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "config/placement-center.toml";
+pub const DEFAULT_STORAGE_ENGINE_CONFIG: &str = "config/storage-engine.toml";
 
 /// Parsing reads the RobustMQ Server configuration
-pub fn parse_server(config_path: &String) -> RobustConfig {
+pub fn parse_server(config_path: &String) -> BrokerServerConfig {
     let content = read_file(config_path);
-    let server_config: RobustConfig = toml::from_str(&content).unwrap();
+    let server_config: BrokerServerConfig = toml::from_str(&content).unwrap();
     return server_config;
 }
 
 /// Parsing reads the MetaService configuration
-pub fn parse_meta(config_path: &String) -> MetaConfig {
+pub fn parse_meta(config_path: &String) -> PlacementCenterConfig {
     let content = read_file(config_path);
-    let meta_config: MetaConfig = toml::from_str(&content).unwrap();
+    let meta_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
     create_fold(meta_config.data_path.clone());
     create_fold(meta_config.log_path.clone());
     return meta_config;

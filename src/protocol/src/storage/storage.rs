@@ -234,6 +234,28 @@ pub mod shard_service_client {
             self
         }
         ///
+        pub async fn read(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ReadRequest>,
+        ) -> std::result::Result<tonic::Response<super::ReadResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/storage.ShardService/read",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("storage.ShardService", "read"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
         pub async fn write(
             &mut self,
             request: impl tonic::IntoRequest<super::WriteRequest>,
@@ -254,28 +276,6 @@ pub mod shard_service_client {
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("storage.ShardService", "write"));
-            self.inner.unary(req, path, codec).await
-        }
-        ///
-        pub async fn read(
-            &mut self,
-            request: impl tonic::IntoRequest<super::ReadRequest>,
-        ) -> std::result::Result<tonic::Response<super::ReadResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/storage.ShardService/read",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("storage.ShardService", "read"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_shard(
@@ -303,32 +303,7 @@ pub mod shard_service_client {
                 .insert(GrpcMethod::new("storage.ShardService", "CreateShard"));
             self.inner.unary(req, path, codec).await
         }
-        pub async fn create_segment(
-            &mut self,
-            request: impl tonic::IntoRequest<super::CreateSegmentRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreateSegmentResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/storage.ShardService/CreateSegment",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("storage.ShardService", "CreateSegment"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn shard_detail(
+        pub async fn describe_shard(
             &mut self,
             request: impl tonic::IntoRequest<super::ShardDetailRequest>,
         ) -> std::result::Result<
@@ -346,11 +321,11 @@ pub mod shard_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/storage.ShardService/ShardDetail",
+                "/storage.ShardService/DescribeShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("storage.ShardService", "ShardDetail"));
+                .insert(GrpcMethod::new("storage.ShardService", "DescribeShard"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -363,15 +338,15 @@ pub mod shard_service_server {
     #[async_trait]
     pub trait ShardService: Send + Sync + 'static {
         ///
-        async fn write(
-            &self,
-            request: tonic::Request<super::WriteRequest>,
-        ) -> std::result::Result<tonic::Response<super::WriteResponse>, tonic::Status>;
-        ///
         async fn read(
             &self,
             request: tonic::Request<super::ReadRequest>,
         ) -> std::result::Result<tonic::Response<super::ReadResponse>, tonic::Status>;
+        ///
+        async fn write(
+            &self,
+            request: tonic::Request<super::WriteRequest>,
+        ) -> std::result::Result<tonic::Response<super::WriteResponse>, tonic::Status>;
         async fn create_shard(
             &self,
             request: tonic::Request<super::CreateShardRequest>,
@@ -379,14 +354,7 @@ pub mod shard_service_server {
             tonic::Response<super::CreateShardResponse>,
             tonic::Status,
         >;
-        async fn create_segment(
-            &self,
-            request: tonic::Request<super::CreateSegmentRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreateSegmentResponse>,
-            tonic::Status,
-        >;
-        async fn shard_detail(
+        async fn describe_shard(
             &self,
             request: tonic::Request<super::ShardDetailRequest>,
         ) -> std::result::Result<
@@ -473,6 +441,50 @@ pub mod shard_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
+                "/storage.ShardService/read" => {
+                    #[allow(non_camel_case_types)]
+                    struct readSvc<T: ShardService>(pub Arc<T>);
+                    impl<T: ShardService> tonic::server::UnaryService<super::ReadRequest>
+                    for readSvc<T> {
+                        type Response = super::ReadResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ReadRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as ShardService>::read(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = readSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 "/storage.ShardService/write" => {
                     #[allow(non_camel_case_types)]
                     struct writeSvc<T: ShardService>(pub Arc<T>);
@@ -503,50 +515,6 @@ pub mod shard_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = writeSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/storage.ShardService/read" => {
-                    #[allow(non_camel_case_types)]
-                    struct readSvc<T: ShardService>(pub Arc<T>);
-                    impl<T: ShardService> tonic::server::UnaryService<super::ReadRequest>
-                    for readSvc<T> {
-                        type Response = super::ReadResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::ReadRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as ShardService>::read(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = readSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -608,59 +576,13 @@ pub mod shard_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/storage.ShardService/CreateSegment" => {
+                "/storage.ShardService/DescribeShard" => {
                     #[allow(non_camel_case_types)]
-                    struct CreateSegmentSvc<T: ShardService>(pub Arc<T>);
-                    impl<
-                        T: ShardService,
-                    > tonic::server::UnaryService<super::CreateSegmentRequest>
-                    for CreateSegmentSvc<T> {
-                        type Response = super::CreateSegmentResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::CreateSegmentRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as ShardService>::create_segment(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = CreateSegmentSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/storage.ShardService/ShardDetail" => {
-                    #[allow(non_camel_case_types)]
-                    struct ShardDetailSvc<T: ShardService>(pub Arc<T>);
+                    struct DescribeShardSvc<T: ShardService>(pub Arc<T>);
                     impl<
                         T: ShardService,
                     > tonic::server::UnaryService<super::ShardDetailRequest>
-                    for ShardDetailSvc<T> {
+                    for DescribeShardSvc<T> {
                         type Response = super::ShardDetailResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
@@ -672,7 +594,7 @@ pub mod shard_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ShardService>::shard_detail(&inner, request).await
+                                <T as ShardService>::describe_shard(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -684,7 +606,7 @@ pub mod shard_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = ShardDetailSvc(inner);
+                        let method = DescribeShardSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

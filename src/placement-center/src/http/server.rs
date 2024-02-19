@@ -4,7 +4,7 @@ use crate::{
 };
 use axum::routing::get;
 use axum::Router;
-use common::{config::meta::MetaConfig, log::info};
+use common::{config::placement_center::PlacementCenterConfig, log::info};
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
@@ -24,7 +24,7 @@ pub struct HttpServer {
 
 impl HttpServer {
     pub fn new(
-        config: MetaConfig,
+        config: PlacementCenterConfig,
         cluster: Arc<RwLock<Cluster>>,
         storage: Arc<RwLock<RaftRocksDBStorageCore>>,
         cluster_storage: Arc<RwLock<ClusterStorage>>,

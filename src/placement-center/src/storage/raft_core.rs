@@ -406,7 +406,7 @@ impl RaftRocksDBStorageCore {
 mod tests {
     use std::sync::{Arc, RwLock};
 
-    use common::config::meta::MetaConfig;
+    use common::config::placement_center::PlacementCenterConfig;
 
     use crate::storage::rocksdb::RocksDBStorage;
 
@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn write_read_test() {
-        let mut conf = MetaConfig::default();
+        let mut conf = PlacementCenterConfig::default();
         conf.data_path = "/tmp/tmp_test".to_string();
         conf.data_path = "/tmp/tmp_test".to_string();
 

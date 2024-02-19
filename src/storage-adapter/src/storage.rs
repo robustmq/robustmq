@@ -1,4 +1,4 @@
-pub trait storage{
-    pub fn write();
-    pub fn read();
+pub trait storage {
+    fn write();
+    fn read();
 }
