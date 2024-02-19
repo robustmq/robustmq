@@ -14,9 +14,9 @@
 
 use clap::command;
 use clap::Parser;
-use common::config::meta::MetaConfig;
+use common::config::placement_center::PlacementCenterConfig;
 use common::config::parse_meta;
-use common::config::DEFAULT_META_CONFIG;
+use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 use common::log;
 use common::tools::handle_running;
 use placement_center::Meta;
@@ -28,13 +28,13 @@ use tokio::sync::broadcast;
 
 struct ArgsParams {
     /// MetaService Indicates the path of the configuration file
-    #[arg(short, long, default_value_t=String::from(DEFAULT_META_CONFIG))]
+    #[arg(short, long, default_value_t=String::from(DEFAULT_PLACEMENT_CENTER_CONFIG))]
     conf: String,
 }
 
 fn main() {
     let args = ArgsParams::parse();
-    let conf: MetaConfig = parse_meta(&args.conf);
+    let conf: PlacementCenterConfig = parse_meta(&args.conf);
     let (stop_send, _) = broadcast::channel(2);
     log::new(
         conf.log_path.clone(),

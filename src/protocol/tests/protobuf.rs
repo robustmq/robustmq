@@ -23,7 +23,7 @@ mod tests {
             .build_server(true)
             .out_dir("src/storage") // you can change the generated code's location
             .compile(
-                &["src/storage/services.proto"],
+                &["src/storage/storage.proto"],
                 &["src/storage/"], // specify the root location to search proto dependencies
             )
             .unwrap();

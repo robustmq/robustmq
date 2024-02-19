@@ -17,7 +17,7 @@
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct RobustConfig {
+pub struct BrokerServerConfig {
     pub addr: String,
     pub grpc_port: usize,
     pub broker: Broker,

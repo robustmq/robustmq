@@ -10,6 +10,7 @@ pub struct Shard {
 }
 
 impl Shard {
+    
     pub fn create_segment(){
 
     }

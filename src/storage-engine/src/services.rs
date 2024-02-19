@@ -1,5 +1,5 @@
 use protocol::storage::storage::{
-    shard_service_server::ShardService, CreateSegmentRequest, CreateSegmentResponse,
+    shard_service_server::ShardService,
     CreateShardRequest, CreateShardResponse, ReadRequest, ReadResponse, ShardDetailRequest,
     ShardDetailResponse, WriteRequest, WriteResponse,
 };
@@ -27,14 +27,7 @@ impl ShardService for StorageService {
         return Ok(Response::new(CreateShardResponse::default()));
     }
 
-    async fn create_segment(
-        &self,
-        request: Request<CreateSegmentRequest>,
-    ) -> Result<Response<CreateSegmentResponse>, Status> {
-        return Ok(Response::new(CreateSegmentResponse::default()));
-    }
-
-    async fn shard_detail(
+    async fn describe_shard(
         &self,
         request: Request<ShardDetailRequest>,
     ) -> Result<Response<ShardDetailResponse>, Status> {

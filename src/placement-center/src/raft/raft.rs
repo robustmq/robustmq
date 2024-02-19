@@ -6,7 +6,7 @@ use crate::storage::raft_storage::RaftRocksDBStorage;
 use crate::storage::route::DataRoute;
 use crate::Node;
 use bincode::{deserialize, serialize};
-use common::config::meta::MetaConfig;
+use common::config::placement_center::PlacementCenterConfig;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
@@ -27,7 +27,7 @@ use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
 pub struct MetaRaft {
-    config: MetaConfig,
+    config: PlacementCenterConfig,
     cluster: Arc<RwLock<Cluster>>,
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
@@ -40,7 +40,7 @@ pub struct MetaRaft {
 
 impl MetaRaft {
     pub fn new(
-        config: MetaConfig,
+        config: PlacementCenterConfig,
         cluster: Arc<RwLock<Cluster>>,
         data_route: Arc<RwLock<DataRoute>>,
         receiver: Receiver<RaftMessage>,

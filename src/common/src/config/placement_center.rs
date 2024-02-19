@@ -20,7 +20,7 @@ use serde::Deserialize;
 use toml::Table;
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct MetaConfig {
+pub struct PlacementCenterConfig {
     pub node_id: u64,
     pub addr: String,
     pub port: u16,
@@ -39,9 +39,9 @@ pub struct Rocksdb {
     pub max_open_files: Option<i32>,
 }
 
-impl Default for MetaConfig {
+impl Default for PlacementCenterConfig {
     fn default() -> Self {
-        MetaConfig {
+        PlacementCenterConfig {
             node_id: 1,
             addr: "127.0.0.1".to_string(),
             port: 1227,
@@ -63,15 +63,15 @@ impl Default for MetaConfig {
 mod tests {
     use crate::config::parse_meta;
 
-    use super::MetaConfig;
+    use super::PlacementCenterConfig;
 
     #[test]
     fn meta_default() {
-        let conf: MetaConfig = parse_meta(
+        let conf: PlacementCenterConfig = parse_meta(
             &"../../config/raft/node-1.toml"
                 .to_string(),
         );
-        MetaConfig::default();
+        PlacementCenterConfig::default();
         //todo meta test case
     }
 }

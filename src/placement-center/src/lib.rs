@@ -14,7 +14,7 @@
 
 use self::services::GrpcService;
 use cluster::Cluster;
-use common::config::meta::MetaConfig;
+use common::config::placement_center::PlacementCenterConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
 use controller::controller::Controller;
@@ -75,11 +75,11 @@ impl Display for Node {
 }
 
 pub struct Meta {
-    config: MetaConfig,
+    config: PlacementCenterConfig,
 }
 
 impl Meta {
-    pub fn new(config: MetaConfig) -> Meta {
+    pub fn new(config: PlacementCenterConfig) -> Meta {
         return Meta { config };
     }
 
@@ -122,19 +122,19 @@ impl Meta {
         let rocksdb_storage_c = rocksdb_storage.clone();
         let cluster_storage_c = cluster_storage.clone();
         let tcp_thread_join = tcp_thread.spawn(move || {
-            let meta_http_runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
+            let meta_tcp_runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
 
             let cf1 = config.clone();
             let cls1 = cluster_clone.clone();
             let rocksdb_storage_c1 = rocksdb_storage_c.clone();
             let cluster_storage_c1 = cluster_storage_c.clone();
-            meta_http_runtime.spawn(async move {
+            meta_tcp_runtime.spawn(async move {
                 let http_s = HttpServer::new(cf1, cls1, rocksdb_storage_c1, cluster_storage_c1);
                 http_s.start().await;
             });
 
             let cf2 = config.clone();
-            meta_http_runtime.spawn(async move {
+            meta_tcp_runtime.spawn(async move {
                 let ip = format!("{}:{}", cf2.addr, cf2.port).parse().unwrap();
 
                 info_meta(&format!(
@@ -156,7 +156,7 @@ impl Meta {
                     .unwrap();
             });
 
-            meta_http_runtime.block_on(async {
+            meta_tcp_runtime.block_on(async {
                 if stop_recv_c.recv().await.unwrap() {
                     info_meta("TCP and GRPC Server services stop.");
                 }

@@ -1,5 +1,5 @@
 use crate::{grpc::server::GrpcServer, network::tcp_server::TcpServer};
-use common::{config::server::RobustConfig, runtime::create_runtime, version::banner};
+use common::{config::broker_server::BrokerServerConfig, runtime::create_runtime, version::banner};
 use flume::{Receiver, Sender};
 use std::{
     fmt::Result, net::SocketAddr, sync::Arc, thread
@@ -16,13 +16,13 @@ pub enum Error {
 }
 
 pub struct Broker {
-    config: Arc<RobustConfig>,
+    config: Arc<BrokerServerConfig>,
     signal_st: Sender<u16>,
     signal_rt: Receiver<u16>,
 }
 
 impl Broker {
-    pub fn new(config: Arc<RobustConfig>) -> Broker {
+    pub fn new(config: Arc<BrokerServerConfig>) -> Broker {
         let (signal_st, signal_rt) = flume::bounded::<u16>(1);
         return Broker {
             config,
