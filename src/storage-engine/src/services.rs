@@ -1,14 +1,20 @@
 use protocol::storage::storage::{
-    shard_service_server::ShardService,
-    CreateShardRequest, CreateShardResponse, ReadRequest, ReadResponse, ShardDetailRequest,
-    ShardDetailResponse, WriteRequest, WriteResponse,
+    storage_engine_service_server::StorageEngineService, CreateShardRequest, CreateShardResponse,
+    ReadRequest, ReadResponse, ShardDetailRequest, ShardDetailResponse, WriteRequest,
+    WriteResponse,
 };
 use tonic::{Request, Response, Status};
 
 pub struct StorageService {}
 
+impl StorageService{
+    pub fn new() -> Self{
+        return StorageService{};
+    }
+}
+
 #[tonic::async_trait]
-impl ShardService for StorageService {
+impl StorageEngineService for StorageService {
     async fn write(
         &self,
         request: Request<WriteRequest>,

@@ -12,3 +12,4 @@ axum.workspace = true
 thiserror.workspace = true
 tonic.workspace = true
 protocol.workspace = true
+tokio.workspace = true

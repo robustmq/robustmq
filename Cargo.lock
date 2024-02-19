@@ -458,6 +458,7 @@ dependencies = [
  "lazy_static",
  "mqtt-broker",
  "placement-center",
+ "storage-engine",
  "tokio",
 ]
 
@@ -2063,6 +2064,7 @@ dependencies = [
  "common",
  "protocol",
  "thiserror",
+ "tokio",
  "tonic",
 ]
 
