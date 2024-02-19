@@ -149,15 +149,15 @@ impl ErrorCode {
     }
 }
 /// Generated client implementations.
-pub mod shard_service_client {
+pub mod storage_engine_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct ShardServiceClient<T> {
+    pub struct StorageEngineServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl ShardServiceClient<tonic::transport::Channel> {
+    impl StorageEngineServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -168,7 +168,7 @@ pub mod shard_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> ShardServiceClient<T>
+    impl<T> StorageEngineServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -186,7 +186,7 @@ pub mod shard_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> ShardServiceClient<InterceptedService<T, F>>
+        ) -> StorageEngineServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -200,7 +200,7 @@ pub mod shard_service_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            ShardServiceClient::new(InterceptedService::new(inner, interceptor))
+            StorageEngineServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -249,10 +249,11 @@ pub mod shard_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/storage.ShardService/read",
+                "/storage.StorageEngineService/read",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("storage.ShardService", "read"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("storage.StorageEngineService", "read"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -271,11 +272,11 @@ pub mod shard_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/storage.ShardService/write",
+                "/storage.StorageEngineService/write",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("storage.ShardService", "write"));
+                .insert(GrpcMethod::new("storage.StorageEngineService", "write"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_shard(
@@ -296,11 +297,11 @@ pub mod shard_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/storage.ShardService/CreateShard",
+                "/storage.StorageEngineService/CreateShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("storage.ShardService", "CreateShard"));
+                .insert(GrpcMethod::new("storage.StorageEngineService", "CreateShard"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn describe_shard(
@@ -321,22 +322,24 @@ pub mod shard_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/storage.ShardService/DescribeShard",
+                "/storage.StorageEngineService/DescribeShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("storage.ShardService", "DescribeShard"));
+                .insert(
+                    GrpcMethod::new("storage.StorageEngineService", "DescribeShard"),
+                );
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod shard_service_server {
+pub mod storage_engine_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with ShardServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with StorageEngineServiceServer.
     #[async_trait]
-    pub trait ShardService: Send + Sync + 'static {
+    pub trait StorageEngineService: Send + Sync + 'static {
         ///
         async fn read(
             &self,
@@ -363,7 +366,7 @@ pub mod shard_service_server {
         >;
     }
     #[derive(Debug)]
-    pub struct ShardServiceServer<T: ShardService> {
+    pub struct StorageEngineServiceServer<T: StorageEngineService> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
@@ -371,7 +374,7 @@ pub mod shard_service_server {
         max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: ShardService> ShardServiceServer<T> {
+    impl<T: StorageEngineService> StorageEngineServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -423,9 +426,10 @@ pub mod shard_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for ShardServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>>
+    for StorageEngineServiceServer<T>
     where
-        T: ShardService,
+        T: StorageEngineService,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -441,11 +445,12 @@ pub mod shard_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/storage.ShardService/read" => {
+                "/storage.StorageEngineService/read" => {
                     #[allow(non_camel_case_types)]
-                    struct readSvc<T: ShardService>(pub Arc<T>);
-                    impl<T: ShardService> tonic::server::UnaryService<super::ReadRequest>
-                    for readSvc<T> {
+                    struct readSvc<T: StorageEngineService>(pub Arc<T>);
+                    impl<
+                        T: StorageEngineService,
+                    > tonic::server::UnaryService<super::ReadRequest> for readSvc<T> {
                         type Response = super::ReadResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
@@ -457,7 +462,7 @@ pub mod shard_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ShardService>::read(&inner, request).await
+                                <T as StorageEngineService>::read(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -485,11 +490,11 @@ pub mod shard_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/storage.ShardService/write" => {
+                "/storage.StorageEngineService/write" => {
                     #[allow(non_camel_case_types)]
-                    struct writeSvc<T: ShardService>(pub Arc<T>);
+                    struct writeSvc<T: StorageEngineService>(pub Arc<T>);
                     impl<
-                        T: ShardService,
+                        T: StorageEngineService,
                     > tonic::server::UnaryService<super::WriteRequest> for writeSvc<T> {
                         type Response = super::WriteResponse;
                         type Future = BoxFuture<
@@ -502,7 +507,7 @@ pub mod shard_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ShardService>::write(&inner, request).await
+                                <T as StorageEngineService>::write(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -530,11 +535,11 @@ pub mod shard_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/storage.ShardService/CreateShard" => {
+                "/storage.StorageEngineService/CreateShard" => {
                     #[allow(non_camel_case_types)]
-                    struct CreateShardSvc<T: ShardService>(pub Arc<T>);
+                    struct CreateShardSvc<T: StorageEngineService>(pub Arc<T>);
                     impl<
-                        T: ShardService,
+                        T: StorageEngineService,
                     > tonic::server::UnaryService<super::CreateShardRequest>
                     for CreateShardSvc<T> {
                         type Response = super::CreateShardResponse;
@@ -548,7 +553,8 @@ pub mod shard_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ShardService>::create_shard(&inner, request).await
+                                <T as StorageEngineService>::create_shard(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -576,11 +582,11 @@ pub mod shard_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/storage.ShardService/DescribeShard" => {
+                "/storage.StorageEngineService/DescribeShard" => {
                     #[allow(non_camel_case_types)]
-                    struct DescribeShardSvc<T: ShardService>(pub Arc<T>);
+                    struct DescribeShardSvc<T: StorageEngineService>(pub Arc<T>);
                     impl<
-                        T: ShardService,
+                        T: StorageEngineService,
                     > tonic::server::UnaryService<super::ShardDetailRequest>
                     for DescribeShardSvc<T> {
                         type Response = super::ShardDetailResponse;
@@ -594,7 +600,8 @@ pub mod shard_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as ShardService>::describe_shard(&inner, request).await
+                                <T as StorageEngineService>::describe_shard(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -637,7 +644,7 @@ pub mod shard_service_server {
             }
         }
     }
-    impl<T: ShardService> Clone for ShardServiceServer<T> {
+    impl<T: StorageEngineService> Clone for StorageEngineServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -649,7 +656,7 @@ pub mod shard_service_server {
             }
         }
     }
-    impl<T: ShardService> Clone for _Inner<T> {
+    impl<T: StorageEngineService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(Arc::clone(&self.0))
         }
@@ -659,7 +666,8 @@ pub mod shard_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: ShardService> tonic::server::NamedService for ShardServiceServer<T> {
-        const NAME: &'static str = "storage.ShardService";
+    impl<T: StorageEngineService> tonic::server::NamedService
+    for StorageEngineServiceServer<T> {
+        const NAME: &'static str = "storage.StorageEngineService";
     }
 }

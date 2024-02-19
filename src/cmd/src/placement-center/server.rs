@@ -14,8 +14,8 @@
 
 use clap::command;
 use clap::Parser;
+use common::config::parse_placement_center;
 use common::config::placement_center::PlacementCenterConfig;
-use common::config::parse_meta;
 use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 use common::log;
 use common::tools::handle_running;
@@ -34,7 +34,7 @@ struct ArgsParams {
 
 fn main() {
     let args = ArgsParams::parse();
-    let conf: PlacementCenterConfig = parse_meta(&args.conf);
+    let conf: PlacementCenterConfig = parse_placement_center(&args.conf);
     let (stop_send, _) = broadcast::channel(2);
     log::new(
         conf.log_path.clone(),

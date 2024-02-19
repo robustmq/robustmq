@@ -6,16 +6,16 @@ license.workspace = true
 default-run = "robustmq"
 
 [[bin]]
-name = "mqtt"
-path = "src/mqtt/broker.rs"
+name = "broker-server"
+path = "src/broker-server/server.rs"
 
 [[bin]]
-name = "cmd"
-path = "src/cmd/cmd.rs"
+name = "storage-engine"
+path = "src/storage-engine/server.rs"
 
 [[bin]]
-name = "meta"
-path = "src/placement/center.rs"
+name = "placement-center"
+path = "src/placement-center/server.rs"
 
 [[bin]]
 name = "robustmq"
@@ -28,3 +28,4 @@ lazy_static.workspace = true
 tokio.workspace = true
 mqtt-broker.workspace = true
 placement-center.workspace = true
+storage-engine.workspace =true

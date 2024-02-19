@@ -72,7 +72,7 @@ message ShardDetailRequest{
 message ShardDetailResponse{
 }
 
-service ShardService {
+service StorageEngineService {
 
   // 
   rpc read(ReadRequest) returns(ReadResponse){}

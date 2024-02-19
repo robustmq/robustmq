@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-use std::collections::{HashMap, HashSet};
-
 use serde::Deserialize;
 use toml::Table;
 
