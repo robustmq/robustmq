@@ -129,7 +129,7 @@ impl MetaService for GrpcService {
         }
 
         // Params validate
-
+        
         // Raft state machine is used to store Node data
         let data = StorageData::new(StorageDataType::RegisterNode, RegisterNodeRequest::encode_to_vec(&req) );
         match self.apply_raft_machine(data, "register_node".to_string()).await {

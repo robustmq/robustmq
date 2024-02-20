@@ -23,6 +23,7 @@ byteorder.workspace = true
 axum.workspace = true
 toml.workspace = true
 raft = { version = "0.7", features = ["prost-codec"], default-features = false }
+# raft = { git = "https://github.com/robustmq/raft-rs", features = ["prost-codec"], default-features = false }
 prost = "0.11"
 
 slog = "2"

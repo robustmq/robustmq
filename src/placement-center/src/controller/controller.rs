@@ -1,10 +1,10 @@
 use common::log::info_meta;
 
-pub struct Controller {}
+pub struct StorageEneineController {}
 
-impl Controller {
+impl StorageEneineController {
     pub fn new() -> Self {
-        Controller {}
+        StorageEneineController {}
     }
 
     pub async fn start(&self) {
