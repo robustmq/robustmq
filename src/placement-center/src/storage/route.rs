@@ -23,25 +23,22 @@ impl DataRoute {
     pub fn route(&self, data: Vec<u8>) -> Result<(), MetaError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
-            StorageDataType::Set => {
-                return self.set(storage_data.key, storage_data.value);
+            StorageDataType::RegisterNode => {
+                return self.register_node(storage_data.value);
             }
-            StorageDataType::Delete => {
-                return self.delete(storage_data.key);
+            StorageDataType::UngisterNode => {
+                return self.unregister_node(storage_data.value);
             }
         }
     }
 
-    pub fn set(&self, key: String, value: Option<Vec<u8>>) -> Result<(), MetaError> {
-        let storage = self.cluster_storage.write().unwrap();
-        storage.set(key, value.unwrap());
+    pub fn register_node(&self, value: Vec<u8>) -> Result<(), MetaError> {
+
         return Ok(());
     }
 
-    pub fn delete(&self, key: String) -> Result<(), MetaError> {
-        let storage = self.cluster_storage.write().unwrap();
-        storage.delete(key);
-        info_meta("persisted unregister broker");
+    pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), MetaError> {
+
         return Ok(());
     }
 }

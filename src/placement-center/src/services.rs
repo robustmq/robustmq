@@ -16,22 +16,23 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
-use crate::client::grpc_client_set;
+use crate::client::register_node;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::cluster_storage::ClusterStorage;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
-use crate::storage::schema::{StorageData, StorageDataStructBroker, StorageDataType};
+use crate::storage::schema::{StorageData, StorageDataType};
 use bincode::serialize;
 use common::log::info_meta;
-use prost::Message as _;
+use prost::Message;
+
 use protocol::robust::meta::{
     meta_service_server::MetaService, SendRaftMessageReply, SendRaftMessageRequest,
 };
 use protocol::robust::meta::{
-    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, HeartbeatReply,
-    HeartbeatRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SetReply, SetRequest,
+    HeartbeatReply, HeartbeatRequest, RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,  UnRegisterNodeReply, UnRegisterNodeRequest,
 };
-use raft::eraftpb::{ConfChange, Message as raftPreludeMessage, MessageType};
+use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
+
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
 use tokio::time::timeout;
@@ -115,42 +116,34 @@ async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
 
 #[tonic::async_trait]
 impl MetaService for GrpcService {
-    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetReply>, Status> {
+    
+    async fn register_node(&self, request: Request<RegisterNodeRequest>) -> Result<Response<RegisterNodeReply>, Status> {
         let req = request.into_inner();
+
         if self.rewrite_leader() {
             let leader_addr = self.cluster.read().unwrap().leader_addr();
-            match grpc_client_set(&leader_addr, req).await {
+            match register_node(&leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
         }
 
-        let data = StorageData::new(StorageDataType::Set, req.key, req.data);
-        match self.apply_raft_machine(data, "set".to_string()).await {
-            Ok(_) => return Ok(Response::new(SetReply::default())),
+        // Params validate
+
+        // Raft state machine is used to store Node data
+        let data = StorageData::new(StorageDataType::RegisterNode, RegisterNodeRequest::encode_to_vec(&req) );
+        match self.apply_raft_machine(data, "register_node".to_string()).await {
+            Ok(_) => return Ok(Response::new(RegisterNodeReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
     }
 
-    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
-        return Ok(Response::new(GetReply::default()));
+    async fn un_register_node(&self, request: Request<UnRegisterNodeRequest>) -> Result<Response<UnRegisterNodeReply>, Status> {
+        return Ok(Response::new(UnRegisterNodeReply::default()));
     }
 
-    async fn delete(
-        &self,
-        request: Request<DeleteRequest>,
-    ) -> Result<Response<DeleteReply>, Status> {
-        return Ok(Response::new(DeleteReply::default()));
-    }
-
-    async fn exists(
-        &self,
-        request: Request<ExistsRequest>,
-    ) -> Result<Response<ExistsReply>, Status> {
-        return Ok(Response::new(ExistsReply::default()));
-    }
     async fn heartbeat(
         &self,
         request: Request<HeartbeatRequest>,

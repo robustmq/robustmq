@@ -34,14 +34,15 @@ thiserror = "1"                                          #错误定义和处理
 bytes = { version = "1", features = ["serde"] }
 flume = "0.11.0"
 futures-util = "0.3.30"
-rocksdb = "0.21.0"
-tonic = "0.10.2"
-tonic-build = "0.10.2"
+rocksdb = "0.22.0"
+tonic = "0.11.0"
+tonic-build = "0.11.0"
 bincode = "1.3.3"
 prost = "0.12.3"
 ahash = "0.8.7"
 byteorder = "1.5.0"
 toml = "0.8.8"
+protobuf-build = "0.15.1"
 
 ## workspaces members
 mqtt-bridge = { path = "src/mqtt-bridge" }

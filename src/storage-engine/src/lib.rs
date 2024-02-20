@@ -73,7 +73,10 @@ impl StorageEngine {
                 loop {
                     signal::ctrl_c().await.expect("failed to listen for event");
                     match stop_send.send(true) {
-                        Ok(_) => {info_meta("When ctrl + c is received, the service starts to stop");break;},
+                        Ok(_) => {
+                            info_meta("When ctrl + c is received, the service starts to stop");
+                            break;
+                        }
                         Err(_) => {}
                     }
                 }
