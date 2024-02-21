@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use common::runtime::create_runtime;
-    use protocol::robust::meta::{meta_service_client::MetaServiceClient, SetRequest};
+    use protocol::robust::meta::{meta_service_client::MetaServiceClient, RegisterNodeRequest};
     use tokio::runtime::Runtime;
 
     #[test]
@@ -15,8 +15,8 @@ mod tests {
                 .await
                 .unwrap();
 
-            let request = tonic::Request::new(SetRequest::default());
-            let response = client.set(request).await.unwrap();
+            let request = tonic::Request::new(RegisterNodeRequest::default());
+            let response = client.register_node(request).await.unwrap();
 
             println!("response={:?}", response);
         });
