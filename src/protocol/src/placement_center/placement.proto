@@ -25,13 +25,22 @@ enum NodeType{
 service MetaService {
   
   //
-  rpc register_node(RegisterNodeRequest) returns(RegisterNodeReply){}
+  rpc register_node(RegisterNodeRequest) returns(CommonReply){}
 
   //
-  rpc un_register_node(UnRegisterNodeRequest) returns(UnRegisterNodeReply){}
+  rpc un_register_node(UnRegisterNodeRequest) returns(CommonReply){}
+
+  //
+  rpc create_shard(CreateShardRequest) returns(CommonReply){}
+ 
+  //
+  rpc get_shard(GetShardRequest) returns(CommonReply){}
+
+  //
+  rpc delete_shard(DeleteShardRequest) returns(CommonReply){}
 
   // Broker node reports a heartbeat, notifying Meta Server that the node is alive
-  rpc heartbeat(HeartbeatRequest) returns(HeartbeatReply){}
+  rpc heartbeat(HeartbeatRequest) returns(CommonReply){}
 
   // Raft messages are sent between nodes
   rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
@@ -40,12 +49,12 @@ service MetaService {
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
 }
 
-message HeartbeatRequest{
-  string key = 1;
+message CommonReply{
+
 }
 
-message HeartbeatReply{
-
+message HeartbeatRequest{
+  string key = 1;
 }
 
 message SendRaftMessageRequest{
@@ -73,13 +82,20 @@ message RegisterNodeRequest{
     
 }
 
-message RegisterNodeReply{
-}
-
 message UnRegisterNodeRequest{
     string cluster_name = 2;
     uint64 node_id = 4;
 }
 
-message UnRegisterNodeReply{
+message CreateShardRequest{
+  
 }
+
+message GetShardRequest{
+  
+}
+
+message DeleteShardRequest{
+  
+}
+

@@ -17,7 +17,7 @@ use cluster::Cluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
-use controller::controller::StorageEneineController;
+use controller::storage_controller::StorageEneineController;
 use http::server::HttpServer;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;

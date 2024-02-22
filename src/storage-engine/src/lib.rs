@@ -3,7 +3,6 @@ use std::thread::{self, JoinHandle};
 use common::{
     config::storage_engine::StorageEngineConfig, log::info_meta, runtime::create_runtime,
 };
-use protocol::storage::storage::storage_engine_service_server::StorageEngineServiceServer;
 use services::StorageService;
 use tokio::{signal, sync::broadcast};
 use tonic::transport::Server;
