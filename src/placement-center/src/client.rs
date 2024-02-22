@@ -16,19 +16,20 @@
 
 use crate::errors::MetaError;
 use protocol::robust::meta::{
-    meta_service_client::MetaServiceClient, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, SetReply, SetRequest
+    meta_service_client::MetaServiceClient, RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest
 };
 
-pub async fn grpc_client_set(
+
+pub async fn register_node(
     addr: &String,
-    request: SetRequest,
-) -> Result<SetReply, MetaError> {
+    request: RegisterNodeRequest,
+) -> Result<RegisterNodeReply, MetaError> {
     let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
         Ok(client) => client,
         Err(err) => return Err(MetaError::TonicTransport(err)),
     };
 
-    let resp = match client.set(tonic::Request::new(request)).await {
+    let resp = match client.register_node(tonic::Request::new(request)).await {
         Ok(reply) => reply.into_inner(),
         Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
     };

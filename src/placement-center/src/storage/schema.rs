@@ -4,18 +4,18 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum StorageDataType {
-    Set,
-    Delete,
+    RegisterNode,
+    UngisterNode,
 }
 
 impl fmt::Display for StorageDataType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            StorageDataType::Set => {
-                write!(f, "RegisterBroker")
+            StorageDataType::RegisterNode => {
+                write!(f, "RegisterNode")
             }
-            StorageDataType::Delete => {
-                write!(f, "UnRegisterBroker")
+            StorageDataType::UngisterNode => {
+                write!(f, "UngisterNode")
             }
         }
     }
@@ -24,23 +24,21 @@ impl fmt::Display for StorageDataType {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StorageData {
     pub data_type: StorageDataType,
-    pub key: String,
-    pub value: Option<Vec<u8>>,
+    pub value: Vec<u8>,
 }
 
 impl StorageData {
-    pub fn new(data_type: StorageDataType, key: String, value: Vec<u8>) -> StorageData {
+    pub fn new(data_type: StorageDataType, value: Vec<u8>) -> StorageData {
         return StorageData {
             data_type,
-            key,
-            value: Some(value),
+            value: value,
         };
     }
 }
 
 impl fmt::Display for StorageData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {}, {:?})", self.data_type, self.key, self.value)
+        write!(f, "({}, {:?})", self.data_type, self.value)
     }
 }
 

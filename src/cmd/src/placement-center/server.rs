@@ -19,7 +19,7 @@ use common::config::placement_center::PlacementCenterConfig;
 use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 use common::log;
 use common::tools::handle_running;
-use placement_center::Meta;
+use placement_center::PlacementCenter;
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]
@@ -41,8 +41,8 @@ fn main() {
         conf.log_segment_size.clone(),
         conf.log_file_num.clone(),
     );
-    let mut mt_s = Meta::new(conf);
-    let meta_service: Vec<Result<std::thread::JoinHandle<()>, std::io::Error>> =
-        mt_s.run(stop_send);
-    handle_running(meta_service);
+    let mut pc = PlacementCenter::new(conf);
+    let service: Vec<Result<std::thread::JoinHandle<()>, std::io::Error>> =
+        pc.run(stop_send);
+    handle_running(service);
 }

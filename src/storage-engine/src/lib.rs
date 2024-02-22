@@ -5,7 +5,7 @@ use common::{
 };
 use protocol::storage::storage::storage_engine_service_server::StorageEngineServiceServer;
 use services::StorageService;
-use tokio::sync::broadcast;
+use tokio::{signal, sync::broadcast};
 use tonic::transport::Server;
 
 mod index;
@@ -63,6 +63,27 @@ impl StorageEngine {
             });
         });
         thread_result.push(tcp_thread_join);
+
+        // Threads that run the daemon thread
+        let daemon_thread = thread::Builder::new().name("daemon-thread".to_owned());
+
+        let daemon_thread_join = daemon_thread.spawn(move || {
+            let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+            daemon_runtime.block_on(async move {
+                loop {
+                    signal::ctrl_c().await.expect("failed to listen for event");
+                    match stop_send.send(true) {
+                        Ok(_) => {
+                            info_meta("When ctrl + c is received, the service starts to stop");
+                            break;
+                        }
+                        Err(_) => {}
+                    }
+                }
+            });
+        });
+
+        thread_result.push(daemon_thread_join);
         return thread_result;
     }
 }

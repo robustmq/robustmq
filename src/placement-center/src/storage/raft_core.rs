@@ -22,17 +22,16 @@ use raft::StorageError;
 use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::RwLock;
 
 pub struct RaftRocksDBStorageCore {
     pub uncommit_index: HashMap<u64, i8>,
     pub trigger_snap_unavailable: bool,
     pub snapshot_metadata: SnapshotMetadata,
-    pub rds: Arc<RwLock<RocksDBStorage>>,
+    pub rds: Arc<RocksDBStorage>,
 }
 
 impl RaftRocksDBStorageCore {
-    pub fn new(rds: Arc<RwLock<RocksDBStorage>>) -> Self {
+    pub fn new(rds: Arc<RocksDBStorage>) -> Self {
         let uncommit_index = HashMap::new();
         let mut rc = RaftRocksDBStorageCore {
             rds,
@@ -56,10 +55,9 @@ impl RaftRocksDBStorageCore {
 
     /// Save HardState information to RocksDB
     pub fn save_conf_state(&self, cs: ConfState) -> Result<(), String> {
-        let rds = self.rds.write().unwrap();
         let key = key_name_by_conf_state();
         let value = ConfState::encode_to_vec(&cs);
-        rds.write(rds.cf_meta(), &key, &value)
+        self.rds.write(self.rds.cf_meta(), &key, &value)
     }
 
     // Return RaftState
@@ -74,9 +72,8 @@ impl RaftRocksDBStorageCore {
 
     // Save HardState information to RocksDB
     pub fn hard_state(&self) -> HardState {
-        let rds = self.rds.read().unwrap();
         let key = key_name_by_hard_state();
-        let value = rds.read::<Vec<u8>>(rds.cf_meta(), &key).unwrap();
+        let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
         if value == None {
             HardState::default()
         } else {
@@ -88,9 +85,8 @@ impl RaftRocksDBStorageCore {
 
     /// Save HardState information to RocksDB
     pub fn conf_state(&self) -> ConfState {
-        let rds = self.rds.read().unwrap();
         let key = key_name_by_conf_state();
-        let value = rds.read::<Vec<u8>>(rds.cf_meta(), &key).unwrap();
+        let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
         if value.is_none() {
             ConfState::default()
         } else {
@@ -144,12 +140,11 @@ impl RaftRocksDBStorageCore {
             );
         }
 
-        let rds = self.rds.write().unwrap();
         for entry in entrys {
             println!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
-            rds.write(rds.cf_meta(), &key, &data).unwrap();
+            self.rds.write(self.rds.cf_meta(), &key, &data).unwrap();
             self.uncommit_index.insert(entry.index, 1);
             self.save_last_index(entry.index).unwrap();
         }
@@ -173,9 +168,8 @@ impl RaftRocksDBStorageCore {
 impl RaftRocksDBStorageCore {
     /// Get the index of the first Entry from RocksDB
     pub fn first_index(&self) -> u64 {
-        let rds = self.rds.read().unwrap();
         let key = key_name_by_first_index();
-        match rds.read::<u64>(rds.cf_meta(), &key) {
+        match self.rds.read::<u64>(self.rds.cf_meta(), &key) {
             Ok(value) => {
                 if let Some(fi) = value {
                     fi
@@ -192,9 +186,8 @@ impl RaftRocksDBStorageCore {
 
     /// Gets the index of the last Entry from RocksDB
     pub fn last_index(&self) -> u64 {
-        let rds = self.rds.read().unwrap();
         let key = key_name_by_last_index();
-        match rds.read::<u64>(rds.cf_meta(), &key) {
+        match self.rds.read::<u64>(self.rds.cf_meta(), &key) {
             Ok(value) => {
                 if let Some(li) = value {
                     li
@@ -211,9 +204,8 @@ impl RaftRocksDBStorageCore {
 
     /// Obtain the Entry based on the index ID
     pub fn entry_by_idx(&self, idx: u64) -> Option<Entry> {
-        let rds = self.rds.read().unwrap();
         let key = key_name_by_entry(idx);
-        match rds.read::<Vec<u8>>(rds.cf_meta(), &key) {
+        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
             Ok(value) => {
                 if let Some(vl) = value {
                     let et = Entry::decode(vl.as_ref())
@@ -231,23 +223,20 @@ impl RaftRocksDBStorageCore {
     }
 
     pub fn save_last_index(&self, index: u64) -> Result<(), String> {
-        let rds = self.rds.write().unwrap();
         let key = key_name_by_last_index();
-        rds.write(rds.cf_meta(), &key, &index)
+        self.rds.write(self.rds.cf_meta(), &key, &index)
     }
 
     pub fn save_first_index(&self, index: u64) -> Result<(), String> {
-        let rds = self.rds.write().unwrap();
         let key = key_name_by_first_index();
-        rds.write(rds.cf_meta(), &key, &index)
+        self.rds.write(self.rds.cf_meta(), &key, &index)
     }
 
     /// Save HardState information to RocksDB
     pub fn save_hard_state(&self, hs: HardState) -> Result<(), String> {
-        let rds = self.rds.write().unwrap();
         let key = key_name_by_hard_state();
         let val = HardState::encode_to_vec(&hs);
-        rds.write(rds.cf_meta(), &key, &val)
+        self.rds.write(self.rds.cf_meta(), &key, &val)
     }
 
     pub fn set_hard_state_commit(&self, commit: u64) -> Result<(), String> {
@@ -257,24 +246,21 @@ impl RaftRocksDBStorageCore {
     }
 
     pub fn save_uncommit_index(&self) {
-        let rds = self.rds.write().unwrap();
         let ui = self.uncommit_index.clone();
         let val = serialize(&ui).unwrap();
         let key = key_name_uncommit();
-        let _ = rds.write(rds.cf_meta(), &key, &val);
+        let _ = self.rds.write(self.rds.cf_meta(), &key, &val);
     }
 
     pub fn save_snapshot_data(&self, snapshot: Snapshot) {
-        let rds = self.rds.write().unwrap();
         let val = Snapshot::encode_to_vec(&snapshot);
         let key = key_name_snapshot();
-        let _ = rds.write(rds.cf_meta(), &key, &val);
+        let _ = self.rds.write(self.rds.cf_meta(), &key, &val);
     }
 
     pub fn uncommit_index(&self) -> HashMap<u64, i8> {
-        let rds = self.rds.read().unwrap();
         let key = key_name_uncommit();
-        match rds.read::<Vec<u8>>(rds.cf_meta(), &key) {
+        match self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key) {
             Ok(data) => {
                 if let Some(value) = data {
                     match deserialize(value.as_ref()) {
@@ -293,15 +279,14 @@ impl RaftRocksDBStorageCore {
             return;
         }
 
-        let rds = self.rds.write().unwrap();
         match deserialize::<HashMap<String, Vec<HashMap<String, String>>>>(data) {
             Ok(data) => {
                 for (family, value) in data {
-                    let cf = rds.get_column_family(family.to_string());
+                    let cf = self.rds.get_column_family(family.to_string());
                     for raw in value {
                         for (key, val) in &raw {
                             info_meta(&format!("key:{:?},val{:?}", key, val.to_string()));
-                            match rds.write_str(cf, key, val.to_string()) {
+                            match self.rds.write_str(cf, key, val.to_string()) {
                                 Ok(_) => {}
                                 Err(err) => {
                                     error_meta(&format!(
@@ -356,8 +341,7 @@ impl RaftRocksDBStorageCore {
     pub fn snapshot(&mut self) -> Snapshot {
         self.create_snapshot();
         let key = key_name_snapshot();
-        let rds = self.rds.read().unwrap();
-        let value = rds.read::<Vec<u8>>(rds.cf_meta(), &key).unwrap();
+        let value = self.rds.read::<Vec<u8>>(self.rds.cf_meta(), &key).unwrap();
         if value.is_none() {
             Snapshot::default()
         } else {
@@ -377,8 +361,7 @@ impl RaftRocksDBStorageCore {
 
         // create snapshot data
 
-        let rds = self.rds.read().unwrap();
-        let all_data = rds.read_all();
+        let all_data = self.rds.read_all();
         sns.set_data(serialize(&all_data).unwrap());
 
         // update value
@@ -404,7 +387,7 @@ impl RaftRocksDBStorageCore {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, RwLock};
+    use std::sync::Arc;
 
     use common::config::placement_center::PlacementCenterConfig;
 
@@ -418,7 +401,7 @@ mod tests {
         conf.data_path = "/tmp/tmp_test".to_string();
         conf.data_path = "/tmp/tmp_test".to_string();
 
-        let rds: Arc<RwLock<RocksDBStorage>> = Arc::new(RwLock::new(RocksDBStorage::new(&conf)));
+        let rds: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&conf));
         let rds = RaftRocksDBStorageCore::new(rds);
 
         let first_index = 1;

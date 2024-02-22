@@ -17,7 +17,7 @@ use cluster::Cluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
-use controller::controller::Controller;
+use controller::controller::StorageEneineController;
 use http::server::HttpServer;
 use protocol::robust::meta::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
@@ -74,13 +74,13 @@ impl Display for Node {
     }
 }
 
-pub struct Meta {
+pub struct PlacementCenter {
     config: PlacementCenterConfig,
 }
 
-impl Meta {
-    pub fn new(config: PlacementCenterConfig) -> Meta {
-        return Meta { config };
+impl PlacementCenter {
+    pub fn new(config: PlacementCenterConfig) -> PlacementCenter {
+        return PlacementCenter { config };
     }
 
     pub fn run(
@@ -94,8 +94,8 @@ impl Meta {
 
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
-        let rds: Arc<RwLock<RocksDBStorage>> =
-            Arc::new(RwLock::new(RocksDBStorage::new(&self.config)));
+        let rds: Arc<RocksDBStorage> =
+            Arc::new(RocksDBStorage::new(&self.config));
         let rocksdb_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(rds.clone())));
         let cluster_storage = Arc::new(RwLock::new(cluster_storage::ClusterStorage::new(
             rds.clone(),
@@ -189,7 +189,7 @@ impl Meta {
             });
 
             daemon_runtime.spawn(async move {
-                let ctrl = Controller::new();
+                let ctrl = StorageEneineController::new();
                 ctrl.start().await;
             });
 
