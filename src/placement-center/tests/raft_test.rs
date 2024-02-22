@@ -4,7 +4,7 @@ mod tests {
     use common::log;
     use common::tools::handle_running;
     use common::{config::placement_center::PlacementCenterConfig, tools::create_fold};
-    use placement_center::Meta;
+    use placement_center::PlacementCenter;
     use prost::Message;
     use raft::eraftpb::{
         ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
@@ -42,7 +42,7 @@ mod tests {
         log::new(conf.log_path.clone(), 1024, 50);
 
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = Meta::new(conf);
+        let mut mt = PlacementCenter::new(conf);
         let meta_service = mt.run(stop_send);
         handle_running(meta_service);
     }
@@ -76,7 +76,7 @@ mod tests {
 
         log::new(conf.log_path.clone(), 1024, 50);
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = Meta::new(conf);
+        let mut mt = PlacementCenter::new(conf);
         let meta_service = mt.run(stop_send);
         handle_running(meta_service);
     }
@@ -108,7 +108,7 @@ mod tests {
 
         log::new(conf.log_path.clone(), 1024, 50);
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = Meta::new(conf);
+        let mut mt = PlacementCenter::new(conf);
 
         let meta_service = mt.run(stop_send);
         handle_running(meta_service);

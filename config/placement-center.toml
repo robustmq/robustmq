@@ -4,8 +4,8 @@ port = 1228
 admin_port = 1227
 nodes = { 1 = "127.0.0.1:1228" }
 runtime_work_threads = 100
-data_path = "/tmp/robust/data"
-log_path = "/tmp/robust/logs"
+data_path = "/tmp/robust5/data"
+log_path = "/tmp/robust5/logs"
 log_segment_size = 1099511627776
 log_file_num=50
 

@@ -24,7 +24,7 @@ use common::config::broker_server::BrokerServerConfig;
 use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 use common::config::DEFAULT_BROKER_SERVER_CONFIG;
 use common::log;
-use placement_center::Meta;
+use placement_center::PlacementCenter;
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]
@@ -55,7 +55,7 @@ fn main() {
     );
 
     // Start Placement Center
-    let mut mt_s = Meta::new(meta_conf);
+    let mut mt_s = PlacementCenter::new(meta_conf);
     mt_s.run(stop_send);
 
     // Start Storage Engine
