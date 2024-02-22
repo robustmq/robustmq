@@ -56,6 +56,6 @@ pub async fn controller_index(
     return success_response(resp);
 }
 
-pub async fn cluster_info(cluster_storage: Arc<RwLock<ClusterStorage>>) -> String {
+pub async fn cluster_info(cluster_storage: Arc<ClusterStorage>) -> String {
     return "".to_string();
 }

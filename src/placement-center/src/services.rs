@@ -16,7 +16,7 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
-use crate::client::register_node;
+use crate::client::{register_node, unregister_node};
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::cluster_storage::ClusterStorage;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
@@ -45,7 +45,7 @@ pub struct GrpcService {
     cluster: Arc<RwLock<Cluster>>,
     raft_sender: Sender<RaftMessage>,
     rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-    cluster_storage: Arc<RwLock<ClusterStorage>>,
+    cluster_storage: Arc<ClusterStorage>,
 }
 
 impl GrpcService {
@@ -53,7 +53,7 @@ impl GrpcService {
         cluster: Arc<RwLock<Cluster>>,
         raft_sender: Sender<RaftMessage>,
         rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-        cluster_storage: Arc<RwLock<ClusterStorage>>,
+        cluster_storage: Arc<ClusterStorage>,
     ) -> Self {
         GrpcService {
             cluster,
@@ -141,7 +141,26 @@ impl MetaService for GrpcService {
     }
 
     async fn un_register_node(&self, request: Request<UnRegisterNodeRequest>) -> Result<Response<UnRegisterNodeReply>, Status> {
-        return Ok(Response::new(UnRegisterNodeReply::default()));
+        
+        let req = request.into_inner();
+        if self.rewrite_leader() {
+            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            match unregister_node(&leader_addr, req).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
+
+        // Params validate
+        
+        // Raft state machine is used to store Node data
+        let data = StorageData::new(StorageDataType::RegisterNode, UnRegisterNodeRequest::encode_to_vec(&req) );
+        match self.apply_raft_machine(data, "un_register_node".to_string()).await {
+            Ok(_) => return Ok(Response::new(UnRegisterNodeReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn heartbeat(

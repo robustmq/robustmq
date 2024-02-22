@@ -97,9 +97,9 @@ impl PlacementCenter {
         let rds: Arc<RocksDBStorage> =
             Arc::new(RocksDBStorage::new(&self.config));
         let rocksdb_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(rds.clone())));
-        let cluster_storage = Arc::new(RwLock::new(cluster_storage::ClusterStorage::new(
+        let cluster_storage = Arc::new(cluster_storage::ClusterStorage::new(
             rds.clone(),
-        )));
+        ));
 
         let cluster = Arc::new(RwLock::new(Cluster::new(
             Node::new(

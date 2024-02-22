@@ -34,8 +34,8 @@ pub struct RegisterNodeRequest {
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub node_ip: ::prost::alloc::string::String,
-    #[prost(uint32, tag = "4")]
-    pub node_id: u32,
+    #[prost(uint64, tag = "4")]
+    pub node_id: u64,
     #[prost(uint32, tag = "5")]
     pub node_port: u32,
     #[prost(string, tag = "6")]
@@ -47,8 +47,10 @@ pub struct RegisterNodeReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UnRegisterNodeRequest {
-    #[prost(bytes = "vec", tag = "1")]
-    pub message: ::prost::alloc::vec::Vec<u8>,
+    #[prost(string, tag = "2")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "4")]
+    pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

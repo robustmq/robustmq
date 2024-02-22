@@ -30,9 +30,6 @@ service MetaService {
   //
   rpc un_register_node(UnRegisterNodeRequest) returns(UnRegisterNodeReply){}
 
-  // 
-  rpc cluster_node_list(ClusterNodeListRequest) returns(ClusterNodeListReply){}
-
   // Broker node reports a heartbeat, notifying Meta Server that the node is alive
   rpc heartbeat(HeartbeatRequest) returns(HeartbeatReply){}
 
@@ -70,7 +67,7 @@ message RegisterNodeRequest{
     NodeType node_type = 1;
     string cluster_name = 2;
     string node_ip = 3;
-    uint32 node_id = 4;
+    uint64 node_id = 4;
     uint32 node_port = 5;
     string extend_info = 6;
     
@@ -80,15 +77,9 @@ message RegisterNodeReply{
 }
 
 message UnRegisterNodeRequest{
-    bytes message = 1;
+    string cluster_name = 2;
+    uint64 node_id = 4;
 }
 
 message UnRegisterNodeReply{
-}
-
-message ClusterNodeListRequest{
-    string cluster_name = 1;
-}
-
-message ClusterNodeListReply{
 }
