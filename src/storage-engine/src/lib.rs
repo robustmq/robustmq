@@ -3,6 +3,7 @@ use std::thread::{self, JoinHandle};
 use common::{
     config::storage_engine::StorageEngineConfig, log::info_meta, runtime::create_runtime,
 };
+use protocol::storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer;
 use services::StorageService;
 use tokio::{signal, sync::broadcast};
 use tonic::transport::Server;
@@ -15,6 +16,7 @@ mod shard;
 mod storage;
 mod v1;
 mod v2;
+mod raft_group;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,

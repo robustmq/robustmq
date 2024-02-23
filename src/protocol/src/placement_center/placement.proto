@@ -15,7 +15,7 @@
  */
 
 syntax = "proto3";
-package meta;
+package placement;
 
 enum NodeType{
     BrokerServerNode = 0;
@@ -88,7 +88,9 @@ message UnRegisterNodeRequest{
 }
 
 message CreateShardRequest{
-  
+    string cluster_name = 1;
+    string shard_name = 2;
+    uint32 replica = 3;
 }
 
 message GetShardRequest{

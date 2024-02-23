@@ -13,6 +13,7 @@ axum.workspace =true
 serde.workspace =true
 serde_json.workspace =true
 toml.workspace = true
+uuid.workspace = true
 log = "0.4.0"
 env_logger = "0.10.0"
 log4rs = "1.2.0"

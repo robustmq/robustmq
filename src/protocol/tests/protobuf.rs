@@ -4,27 +4,28 @@ mod tests {
     fn create_rust_pb() {
         tonic_build::configure()
             .build_server(true)
-            .out_dir("src/robust") // you can change the generated code's location
+            .out_dir("src/broker_server") // you can change the generated code's location
             .compile(
-                &["src/robust/broker.proto"],
-                &["src/robust/"], // specify the root location to search proto dependencies
-            )
-            .unwrap();
-        tonic_build::configure()
-            .build_server(true)
-            .out_dir("src/robust") // you can change the generated code's location
-            .compile(
-                &["src/robust/meta.proto"],
-                &["src/robust/"], // specify the root location to search proto dependencies
+                &["src/broker_server/broker.proto"],
+                &["src/broker_server/"], // specify the root location to search proto dependencies
             )
             .unwrap();
 
         tonic_build::configure()
             .build_server(true)
-            .out_dir("src/storage") // you can change the generated code's location
+            .out_dir("src/placement_center") // you can change the generated code's location
             .compile(
-                &["src/storage/storage.proto"],
-                &["src/storage/"], // specify the root location to search proto dependencies
+                &["src/placement_center/placement.proto"],
+                &["src/placement_center/"], // specify the root location to search proto dependencies
+            )
+            .unwrap();
+
+        tonic_build::configure()
+            .build_server(true)
+            .out_dir("src/storage_engine") // you can change the generated code's location
+            .compile(
+                &["src/storage_engine/storage.proto"],
+                &["src/storage_engine/"], // specify the root location to search proto dependencies
             )
             .unwrap();
 

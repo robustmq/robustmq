@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub enum StorageDataType {
     RegisterNode,
     UngisterNode,
+    CreateShard,
 }
 
 impl fmt::Display for StorageDataType {
@@ -16,6 +17,9 @@ impl fmt::Display for StorageDataType {
             }
             StorageDataType::UngisterNode => {
                 write!(f, "UngisterNode")
+            }
+            StorageDataType::CreateShard => {
+                write!(f, "CreateShard")
             }
         }
     }

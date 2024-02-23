@@ -16,7 +16,7 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
-use crate::client::{register_node, unregister_node};
+use crate::client::{create_shard, register_node, unregister_node};
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::cluster_storage::ClusterStorage;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
@@ -25,11 +25,11 @@ use bincode::serialize;
 use common::log::info_meta;
 use prost::Message;
 
-use protocol::robust::meta::{
+use protocol::placement_center::placement::{
     meta_service_server::MetaService, SendRaftMessageReply, SendRaftMessageRequest,
 };
-use protocol::robust::meta::{
-    HeartbeatReply, HeartbeatRequest, RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,  UnRegisterNodeReply, UnRegisterNodeRequest,
+use protocol::placement_center::placement::{
+    CommonReply, CreateShardRequest, DeleteShardRequest, GetShardRequest, HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, UnRegisterNodeRequest
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 
@@ -117,7 +117,7 @@ async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
 #[tonic::async_trait]
 impl MetaService for GrpcService {
     
-    async fn register_node(&self, request: Request<RegisterNodeRequest>) -> Result<Response<RegisterNodeReply>, Status> {
+    async fn register_node(&self, request: Request<RegisterNodeRequest>) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
 
         if self.rewrite_leader() {
@@ -133,14 +133,14 @@ impl MetaService for GrpcService {
         // Raft state machine is used to store Node data
         let data = StorageData::new(StorageDataType::RegisterNode, RegisterNodeRequest::encode_to_vec(&req) );
         match self.apply_raft_machine(data, "register_node".to_string()).await {
-            Ok(_) => return Ok(Response::new(RegisterNodeReply::default())),
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
     }
 
-    async fn un_register_node(&self, request: Request<UnRegisterNodeRequest>) -> Result<Response<UnRegisterNodeReply>, Status> {
+    async fn un_register_node(&self, request: Request<UnRegisterNodeRequest>) -> Result<Response<CommonReply>, Status> {
         
         let req = request.into_inner();
         if self.rewrite_leader() {
@@ -156,18 +156,51 @@ impl MetaService for GrpcService {
         // Raft state machine is used to store Node data
         let data = StorageData::new(StorageDataType::RegisterNode, UnRegisterNodeRequest::encode_to_vec(&req) );
         match self.apply_raft_machine(data, "un_register_node".to_string()).await {
-            Ok(_) => return Ok(Response::new(UnRegisterNodeReply::default())),
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
     }
 
+    async fn create_shard(&self, request: Request<CreateShardRequest>) -> Result<Response<CommonReply>, Status> {
+        
+        let req = request.into_inner();
+        if self.rewrite_leader() {
+            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            match create_shard(&leader_addr, req).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
+
+        // Params validate
+        
+        // Raft state machine is used to store Node data
+        let data = StorageData::new(StorageDataType::RegisterNode, CreateShardRequest::encode_to_vec(&req) );
+        match self.apply_raft_machine(data, "create_shard".to_string()).await {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn get_shard(&self, request: Request<GetShardRequest>) -> Result<Response<CommonReply>, Status> {
+        
+        return Ok(Response::new(CommonReply::default()));
+    }
+
+    async fn delete_shard(&self, request: Request<DeleteShardRequest>) -> Result<Response<CommonReply>, Status> {
+        
+        return Ok(Response::new(CommonReply::default()));
+    }
+
     async fn heartbeat(
         &self,
         request: Request<HeartbeatRequest>,
-    ) -> Result<Response<HeartbeatReply>, Status> {
-        return Ok(Response::new(HeartbeatReply::default()));
+    ) -> Result<Response<CommonReply>, Status> {
+        return Ok(Response::new(CommonReply::default()));
     }
 
     async fn send_raft_message(

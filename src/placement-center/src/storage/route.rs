@@ -1,12 +1,15 @@
 use crate::errors::MetaError;
 use bincode::deserialize;
+use common::tools::unique_id;
 use prost::Message as _;
-use protocol::robust::meta::{RegisterNodeRequest, UnRegisterNodeRequest};
+use protocol::placement_center::placement::{
+    CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+};
 use std::sync::Arc;
 use tonic::Status;
 
 use super::{
-    cluster_storage::{ClusterStorage, NodeInfo},
+    cluster_storage::{ClusterStorage, NodeInfo, ShardInfo, ShardStatus},
     schema::{StorageData, StorageDataType},
 };
 
@@ -28,6 +31,9 @@ impl DataRoute {
             }
             StorageDataType::UngisterNode => {
                 return self.unregister_node(storage_data.value);
+            }
+            StorageDataType::CreateShard => {
+                return self.create_shard(storage_data.value);
             }
         }
     }
@@ -56,6 +62,27 @@ impl DataRoute {
             .remove_node(req.cluster_name, req.node_id);
         return Ok(());
     }
+
+    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), MetaError>{
+        let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+
+        // save shard info
+        let mut shard_info = ShardInfo::default();
+        shard_info.shard_id = unique_id();
+        shard_info.shard_name = req.shard_name;
+        shard_info.replica = req.replica;
+
+        // Computing replica distribution
+        shard_info.replicas = Vec::new();
+
+        shard_info.status = ShardStatus::Idle;
+
+        // create Shard
+        
+        return Ok(());
+    }
 }
 
 #[cfg(test)]
@@ -64,7 +91,7 @@ mod tests {
 
     use common::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
-    use protocol::robust::meta::{NodeType, RegisterNodeRequest};
+    use protocol::placement_center::placement::{NodeType, RegisterNodeRequest};
 
     use crate::storage::{cluster_storage::ClusterStorage, rocksdb::RocksDBStorage};
 

@@ -15,15 +15,15 @@
  */
 
 use crate::errors::MetaError;
-use protocol::robust::meta::{
-    meta_service_client::MetaServiceClient, RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeReply, UnRegisterNodeRequest
+use protocol::placement_center::placement::{
+    meta_service_client::MetaServiceClient, CommonReply, CreateShardRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest
 };
 
 
 pub async fn register_node(
     addr: &String,
     request: RegisterNodeRequest,
-) -> Result<RegisterNodeReply, MetaError> {
+) -> Result<CommonReply, MetaError> {
     let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
         Ok(client) => client,
         Err(err) => return Err(MetaError::TonicTransport(err)),
@@ -39,13 +39,29 @@ pub async fn register_node(
 pub async fn unregister_node(
     addr: &String,
     request: UnRegisterNodeRequest,
-) -> Result<UnRegisterNodeReply, MetaError> {
+) -> Result<CommonReply, MetaError> {
     let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
         Ok(client) => client,
         Err(err) => return Err(MetaError::TonicTransport(err)),
     };
 
     let resp = match client.un_register_node(tonic::Request::new(request)).await {
+        Ok(reply) => reply.into_inner(),
+        Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
+    };
+    return Ok(resp);
+}
+
+pub async fn create_shard(
+    addr: &String,
+    request: CreateShardRequest,
+) -> Result<CommonReply, MetaError> {
+    let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
+        Ok(client) => client,
+        Err(err) => return Err(MetaError::TonicTransport(err)),
+    };
+
+    let resp = match client.create_shard(tonic::Request::new(request)).await {
         Ok(reply) => reply.into_inner(),
         Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
     };

@@ -17,9 +17,9 @@ use cluster::Cluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
-use controller::storage_controller::StorageEneineController;
+use controller::Controller;
 use http::server::HttpServer;
-use protocol::robust::meta::meta_service_server::MetaServiceServer;
+use protocol::placement_center::placement::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
 use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
@@ -189,7 +189,7 @@ impl PlacementCenter {
             });
 
             daemon_runtime.spawn(async move {
-                let ctrl = StorageEneineController::new();
+                let ctrl = Controller::new();
                 ctrl.start().await;
             });
 

@@ -2,7 +2,7 @@
 mod tests {
     use std::{thread, time::Duration};
     use common::runtime::create_runtime;
-    use protocol::robust::broker::{broker_service_client::BrokerServiceClient, StopBrokerRequest};
+    use protocol::broker_server::broker::{broker_service_client::BrokerServiceClient, StopBrokerRequest};
 
     #[test]
     fn stop_broker() {

@@ -126,6 +126,18 @@ impl ClusterStorage {
         }
         return None;
     }
+
+    // create shard info
+    pub fn create_shard(&self, cluster_name: String, shard_info: ShardInfo) {
+        let cf = self.rds.cf_cluster();
+        let cluster_key = self.shard_key(&cluster_name, shard_info.shard_name.clone());
+        match self.rds.write(cf, &cluster_key, &shard_info) {
+            Ok(_) => {}
+            Err(e) => {
+                error_meta(&e);
+            }
+        }
+    }
 }
 
 impl ClusterStorage {
@@ -135,6 +147,10 @@ impl ClusterStorage {
 
     fn cluster_key(&self, cluster_name: &String) -> String {
         return format!("node_{}", cluster_name);
+    }
+
+    fn shard_key(&self, cluster_name: &String, shard_name: String) -> String {
+        return format!("shard_{}_{}", cluster_name, shard_name);
     }
 }
 
@@ -149,4 +165,22 @@ pub struct NodeInfo {
     pub node_id: u64,
     pub node_ip: String,
     pub node_port: u32,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub struct ShardInfo {
+    pub shard_id: String,
+    pub shard_name: String,
+    pub replica: u32,
+    pub replicas: Vec<u64>,
+    pub status: ShardStatus,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+pub enum ShardStatus {
+    #[default]
+    Idle,
+    Write,
+    PrepareSealUp,
+    SealUp,
 }

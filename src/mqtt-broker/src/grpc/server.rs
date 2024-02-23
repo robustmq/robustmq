@@ -1,6 +1,6 @@
 use super::services::GrpcBrokerServices;
 use common::{log::info, metrics::broker::metrics_grpc_broker_running};
-use protocol::robust::broker::broker_service_server::BrokerServiceServer;
+use protocol::broker_server::broker::broker_service_server::BrokerServiceServer;
 use std::net::SocketAddr;
 use tonic::transport::Server;
 
