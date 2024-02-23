@@ -1,4 +1,4 @@
-use protocol::robust::broker::{
+use protocol::broker_server::broker::{
     broker_service_server::BrokerService, StopBrokerReply, StopBrokerRequest,
 };
 use tonic::{Request, Response, Status};

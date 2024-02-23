@@ -1,4 +1,4 @@
-use protocol::storage::storage::{
+use protocol::storage_engine::storage::{
     storage_engine_service_server::StorageEngineService, CreateShardRequest, CreateShardResponse,
     ReadRequest, ReadResponse, ShardDetailRequest, ShardDetailResponse, WriteRequest,
     WriteResponse,

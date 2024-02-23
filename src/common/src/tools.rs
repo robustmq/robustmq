@@ -11,3 +11,7 @@ pub fn handle_running(threads: Vec<Result<std::thread::JoinHandle<()>, std::io::
         th.unwrap().join().unwrap();
     }
 }
+
+pub fn unique_id() -> String{
+    return "".to_string()
+}

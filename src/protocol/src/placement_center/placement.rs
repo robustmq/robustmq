@@ -1,12 +1,12 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CommonReply {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HeartbeatRequest {
     #[prost(string, tag = "1")]
     pub key: ::prost::alloc::string::String,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HeartbeatReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SendRaftMessageRequest {
@@ -34,8 +34,8 @@ pub struct RegisterNodeRequest {
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub node_ip: ::prost::alloc::string::String,
-    #[prost(uint32, tag = "4")]
-    pub node_id: u32,
+    #[prost(uint64, tag = "4")]
+    pub node_id: u64,
     #[prost(uint32, tag = "5")]
     pub node_port: u32,
     #[prost(string, tag = "6")]
@@ -43,16 +43,28 @@ pub struct RegisterNodeRequest {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RegisterNodeReply {}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UnRegisterNodeRequest {
-    #[prost(bytes = "vec", tag = "1")]
-    pub message: ::prost::alloc::vec::Vec<u8>,
+    #[prost(string, tag = "2")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "4")]
+    pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct UnRegisterNodeReply {}
+pub struct CreateShardRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub shard_name: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "3")]
+    pub replica: u32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetShardRequest {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteShardRequest {}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum NodeType {
@@ -168,10 +180,7 @@ pub mod meta_service_client {
         pub async fn register_node(
             &mut self,
             request: impl tonic::IntoRequest<super::RegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RegisterNodeReply>,
-            tonic::Status,
-        > {
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -183,21 +192,18 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/register_node",
+                "/placement.MetaService/register_node",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("meta.MetaService", "register_node"));
+                .insert(GrpcMethod::new("placement.MetaService", "register_node"));
             self.inner.unary(req, path, codec).await
         }
         ///
         pub async fn un_register_node(
             &mut self,
             request: impl tonic::IntoRequest<super::UnRegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::UnRegisterNodeReply>,
-            tonic::Status,
-        > {
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -209,18 +215,87 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/un_register_node",
+                "/placement.MetaService/un_register_node",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("meta.MetaService", "un_register_node"));
+                .insert(GrpcMethod::new("placement.MetaService", "un_register_node"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn create_shard(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateShardRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.MetaService/create_shard",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("placement.MetaService", "create_shard"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn get_shard(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetShardRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.MetaService/get_shard",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("placement.MetaService", "get_shard"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn delete_shard(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteShardRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.MetaService/delete_shard",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("placement.MetaService", "delete_shard"));
             self.inner.unary(req, path, codec).await
         }
         /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
         pub async fn heartbeat(
             &mut self,
             request: impl tonic::IntoRequest<super::HeartbeatRequest>,
-        ) -> std::result::Result<tonic::Response<super::HeartbeatReply>, tonic::Status> {
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -232,11 +307,11 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/heartbeat",
+                "/placement.MetaService/heartbeat",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("meta.MetaService", "heartbeat"));
+                .insert(GrpcMethod::new("placement.MetaService", "heartbeat"));
             self.inner.unary(req, path, codec).await
         }
         /// Raft messages are sent between nodes
@@ -258,11 +333,11 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/SendRaftMessage",
+                "/placement.MetaService/SendRaftMessage",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("meta.MetaService", "SendRaftMessage"));
+                .insert(GrpcMethod::new("placement.MetaService", "SendRaftMessage"));
             self.inner.unary(req, path, codec).await
         }
         /// Send ConfChange messages to Raft with other nodes
@@ -284,11 +359,11 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/meta.MetaService/SendRaftConfChange",
+                "/placement.MetaService/SendRaftConfChange",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("meta.MetaService", "SendRaftConfChange"));
+                .insert(GrpcMethod::new("placement.MetaService", "SendRaftConfChange"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -304,23 +379,32 @@ pub mod meta_service_server {
         async fn register_node(
             &self,
             request: tonic::Request<super::RegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::RegisterNodeReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
         ///
         async fn un_register_node(
             &self,
             request: tonic::Request<super::UnRegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::UnRegisterNodeReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn create_shard(
+            &self,
+            request: tonic::Request<super::CreateShardRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn get_shard(
+            &self,
+            request: tonic::Request<super::GetShardRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn delete_shard(
+            &self,
+            request: tonic::Request<super::DeleteShardRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
         /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
         async fn heartbeat(
             &self,
             request: tonic::Request<super::HeartbeatRequest>,
-        ) -> std::result::Result<tonic::Response<super::HeartbeatReply>, tonic::Status>;
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
         /// Raft messages are sent between nodes
         async fn send_raft_message(
             &self,
@@ -417,14 +501,14 @@ pub mod meta_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/meta.MetaService/register_node" => {
+                "/placement.MetaService/register_node" => {
                     #[allow(non_camel_case_types)]
                     struct register_nodeSvc<T: MetaService>(pub Arc<T>);
                     impl<
                         T: MetaService,
                     > tonic::server::UnaryService<super::RegisterNodeRequest>
                     for register_nodeSvc<T> {
-                        type Response = super::RegisterNodeReply;
+                        type Response = super::CommonReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -463,14 +547,14 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/meta.MetaService/un_register_node" => {
+                "/placement.MetaService/un_register_node" => {
                     #[allow(non_camel_case_types)]
                     struct un_register_nodeSvc<T: MetaService>(pub Arc<T>);
                     impl<
                         T: MetaService,
                     > tonic::server::UnaryService<super::UnRegisterNodeRequest>
                     for un_register_nodeSvc<T> {
-                        type Response = super::UnRegisterNodeReply;
+                        type Response = super::CommonReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -509,14 +593,152 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/meta.MetaService/heartbeat" => {
+                "/placement.MetaService/create_shard" => {
+                    #[allow(non_camel_case_types)]
+                    struct create_shardSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::CreateShardRequest>
+                    for create_shardSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateShardRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::create_shard(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = create_shardSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.MetaService/get_shard" => {
+                    #[allow(non_camel_case_types)]
+                    struct get_shardSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::GetShardRequest>
+                    for get_shardSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetShardRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::get_shard(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = get_shardSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.MetaService/delete_shard" => {
+                    #[allow(non_camel_case_types)]
+                    struct delete_shardSvc<T: MetaService>(pub Arc<T>);
+                    impl<
+                        T: MetaService,
+                    > tonic::server::UnaryService<super::DeleteShardRequest>
+                    for delete_shardSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteShardRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MetaService>::delete_shard(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = delete_shardSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.MetaService/heartbeat" => {
                     #[allow(non_camel_case_types)]
                     struct heartbeatSvc<T: MetaService>(pub Arc<T>);
                     impl<
                         T: MetaService,
                     > tonic::server::UnaryService<super::HeartbeatRequest>
                     for heartbeatSvc<T> {
-                        type Response = super::HeartbeatReply;
+                        type Response = super::CommonReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -555,7 +777,7 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/meta.MetaService/SendRaftMessage" => {
+                "/placement.MetaService/SendRaftMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SendRaftMessageSvc<T: MetaService>(pub Arc<T>);
                     impl<
@@ -601,7 +823,7 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/meta.MetaService/SendRaftConfChange" => {
+                "/placement.MetaService/SendRaftConfChange" => {
                     #[allow(non_camel_case_types)]
                     struct SendRaftConfChangeSvc<T: MetaService>(pub Arc<T>);
                     impl<
@@ -686,6 +908,6 @@ pub mod meta_service_server {
         }
     }
     impl<T: MetaService> tonic::server::NamedService for MetaServiceServer<T> {
-        const NAME: &'static str = "meta.MetaService";
+        const NAME: &'static str = "placement.MetaService";
     }
 }

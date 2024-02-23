@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use common::runtime::create_runtime;
-    use protocol::robust::meta::{meta_service_client::MetaServiceClient, RegisterNodeRequest};
+    use protocol::placement_center::placement::{meta_service_client::MetaServiceClient, RegisterNodeRequest};
     use tokio::runtime::Runtime;
 
     #[test]

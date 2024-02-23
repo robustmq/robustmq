@@ -19,7 +19,7 @@ pub struct HttpServer {
     ip: SocketAddr,
     cluster: Arc<RwLock<Cluster>>,
     storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-    cluster_storage: Arc<RwLock<ClusterStorage>>,
+    cluster_storage: Arc<ClusterStorage>,
 }
 
 impl HttpServer {
@@ -27,7 +27,7 @@ impl HttpServer {
         config: PlacementCenterConfig,
         cluster: Arc<RwLock<Cluster>>,
         storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-        cluster_storage: Arc<RwLock<ClusterStorage>>,
+        cluster_storage: Arc<ClusterStorage>,
     ) -> Self {
         let ip: SocketAddr = format!("{}:{}", config.addr, config.admin_port)
             .parse()
