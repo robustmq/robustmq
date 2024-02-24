@@ -1,26 +1,41 @@
-use crate::errors::MetaError;
+use crate::{
+    broker_cluster::BrokerCluster,
+    errors::MetaError,
+    storage::{
+        cluster_storage::{ClusterInfo, NodeInfo, ShardInfo, ShardStatus},
+        schema::{StorageData, StorageDataType},
+    },
+    storage_cluster::StorageCluster,
+};
 use bincode::deserialize;
 use common::tools::unique_id;
 use prost::Message as _;
 use protocol::placement_center::placement::{
-    CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+    ClusterType, CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest
 };
 use std::sync::Arc;
 use tonic::Status;
 
-use super::{
-    cluster_storage::{ClusterStorage, NodeInfo, ShardInfo, ShardStatus},
-    schema::{StorageData, StorageDataType},
-};
+use super::cluster_storage::ClusterStorage;
 
 #[derive(Clone)]
 pub struct DataRoute {
     cluster_storage: Arc<ClusterStorage>,
+    storage_cluster: Arc<StorageCluster>,
+    broker_cluster: Arc<BrokerCluster>,
 }
 
 impl DataRoute {
-    pub fn new(cluster_storage: Arc<ClusterStorage>) -> DataRoute {
-        return DataRoute { cluster_storage };
+    pub fn new(
+        cluster_storage: Arc<ClusterStorage>,
+        storage_cluster: Arc<StorageCluster>,
+        broker_cluster: Arc<BrokerCluster>,
+    ) -> DataRoute {
+        return DataRoute {
+            cluster_storage,
+            storage_cluster,
+            broker_cluster,
+        };
     }
 
     pub fn route(&self, data: Vec<u8>) -> Result<(), MetaError> {
@@ -35,6 +50,9 @@ impl DataRoute {
             StorageDataType::CreateShard => {
                 return self.create_shard(storage_data.value);
             }
+            StorageDataType::DeleteShard => {
+                return self.create_shard(storage_data.value);
+            }
         }
     }
 
@@ -42,14 +60,30 @@ impl DataRoute {
         let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
-
         let cluster_name = req.cluster_name;
+
+        if !self.storage_cluster.cluster_list.contains_key(&cluster_name){
+            // let cluster_info = ClusterInfo{
+            //     cluster_name: cluster_name.clone(),
+            //     cluster_type: req.cluster_type().as_str_name().to_string(),
+            //     nodes: Vec::new(),
+            // };
+
+            // if req.cluster_type() == ClusterType::BrokerServer{
+
+            // }
+        }
+
+        
         let mut node = NodeInfo::default();
         node.node_id = req.node_id;
         node.node_ip = req.node_ip;
         node.node_port = req.node_port;
         self.cluster_storage
             .save_node(cluster_name, req.node_type.to_string(), node);
+
+        
+
         return Ok(());
     }
 
@@ -63,7 +97,7 @@ impl DataRoute {
         return Ok(());
     }
 
-    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), MetaError>{
+    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), MetaError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
@@ -74,13 +108,26 @@ impl DataRoute {
         shard_info.shard_name = req.shard_name;
         shard_info.replica = req.replica;
 
-        // Computing replica distribution
+        //todo Computing replica distribution
         shard_info.replicas = Vec::new();
-
         shard_info.status = ShardStatus::Idle;
+        self.cluster_storage
+            .save_shard(req.cluster_name, shard_info);
 
-        // create Shard
-        
+        // create next segment
+
+        return Ok(());
+    }
+
+    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), MetaError> {
+        // delete all segment
+
+        // delete shard info
+        let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        self.cluster_storage
+            .delete_shard(req.cluster_name, req.shard_name);
         return Ok(());
     }
 }
@@ -89,11 +136,14 @@ impl DataRoute {
 mod tests {
     use std::sync::Arc;
 
+    use crate::{
+        broker_cluster::BrokerCluster,
+        storage::{cluster_storage::ClusterStorage, rocksdb::RocksDBStorage},
+        storage_cluster::StorageCluster,
+    };
     use common::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
-    use protocol::placement_center::placement::{NodeType, RegisterNodeRequest};
-
-    use crate::storage::{cluster_storage::ClusterStorage, rocksdb::RocksDBStorage};
+    use protocol::placement_center::placement::{ClusterType, RegisterNodeRequest};
 
     use super::DataRoute;
 
@@ -108,14 +158,16 @@ mod tests {
         req.node_id = node_id;
         req.node_ip = node_ip.clone();
         req.node_port = node_port;
-        req.node_type = NodeType::BrokerServerNode.into();
+        req.node_type = ClusterType::BrokerServer.into();
         req.cluster_name = cluster_name.clone();
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);
 
         let rocksdb_storage = Arc::new(RocksDBStorage::new(&PlacementCenterConfig::default()));
         let cluster_storage = Arc::new(ClusterStorage::new(rocksdb_storage));
-        let route = DataRoute::new(cluster_storage.clone());
+        let broker_cluster = Arc::new(BrokerCluster::new());
+        let storage_cluster = Arc::new(StorageCluster::new());
+        let route = DataRoute::new(cluster_storage.clone(), storage_cluster, broker_cluster);
         let _ = route.register_node(data);
 
         let cluster = cluster_storage.get_cluster(&cluster_name);

@@ -16,7 +16,7 @@
 
 use crate::errors::MetaError;
 use protocol::placement_center::placement::{
-    meta_service_client::MetaServiceClient, CommonReply, CreateShardRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest
+    meta_service_client::MetaServiceClient, CommonReply, CreateShardRequest, DeleteShardRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest
 };
 
 
@@ -62,6 +62,22 @@ pub async fn create_shard(
     };
 
     let resp = match client.create_shard(tonic::Request::new(request)).await {
+        Ok(reply) => reply.into_inner(),
+        Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
+    };
+    return Ok(resp);
+}
+
+pub async fn delete_shard(
+    addr: &String,
+    request: DeleteShardRequest,
+) -> Result<CommonReply, MetaError> {
+    let mut client = match MetaServiceClient::connect(format!("http://{}", addr)).await {
+        Ok(client) => client,
+        Err(err) => return Err(MetaError::TonicTransport(err)),
+    };
+
+    let resp = match client.delete_shard(tonic::Request::new(request)).await {
         Ok(reply) => reply.into_inner(),
         Err(status) => return Err(MetaError::MetaGrpcStatus(status)),
     };

@@ -1,23 +1,19 @@
-use crate::storage::cluster_storage::{ClusterInfo, NodeInfo, ShardInfo};
-use std::collections::HashMap;
+use crate::{storage_cluster::StorageCluster, storage::cluster_storage::{ClusterInfo, NodeInfo, ShardInfo}};
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Default)]
 pub struct StorageEngineController {
-    pub cluster_list: HashMap<String, ClusterInfo>,
-    pub node_list: HashMap<u64, NodeInfo>,
-    pub shard_list: HashMap<String, ShardInfo>,
+   pub storage_cluser: Arc<StorageCluster>,
 }
 
 impl StorageEngineController {
-    pub fn new() -> StorageEngineController {
+    pub fn new(broker_cluser: Arc<StorageCluster>) -> StorageEngineController {
         let mut controller = StorageEngineController::default();
-        controller.cluster_list = controller.load_cluster_list();
-        controller.node_list = controller.load_node_list();
-        controller.shard_list = controller.load_shard_list();
+        controller.storage_cluser = broker_cluser;
         return controller;
     }
 
-    pub fn start(&self){
+    pub async fn start(&self){
         // 
     }
 
