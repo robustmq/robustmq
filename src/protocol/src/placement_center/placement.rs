@@ -29,7 +29,7 @@ pub struct SendRaftConfChangeReply {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RegisterNodeRequest {
     #[prost(enumeration = "ClusterType", tag = "1")]
-    pub node_type: i32,
+    pub cluster_type: i32,
     #[prost(string, tag = "2")]
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
@@ -44,9 +44,9 @@ pub struct RegisterNodeRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UnRegisterNodeRequest {
-    #[prost(string, tag = "2")]
+    #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
-    #[prost(uint64, tag = "4")]
+    #[prost(uint64, tag = "2")]
     pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

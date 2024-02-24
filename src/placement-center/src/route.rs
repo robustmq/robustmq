@@ -2,7 +2,7 @@ use crate::{
     broker_cluster::BrokerCluster,
     errors::MetaError,
     storage::{
-        cluster_storage::{NodeInfo, ShardInfo, ShardStatus},
+        cluster_storage::{ClusterInfo, NodeInfo, ShardInfo, ShardStatus},
         schema::{StorageData, StorageDataType},
     },
     storage_cluster::StorageCluster,
@@ -11,7 +11,7 @@ use bincode::deserialize;
 use common::tools::unique_id;
 use prost::Message as _;
 use protocol::placement_center::placement::{
-    CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+    ClusterType, CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -60,10 +60,21 @@ impl DataRoute {
         let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
-
         let cluster_name = req.cluster_name;
 
-        // 
+        if !self.storage_cluster.cluster_list.contains_key(&cluster_name){
+            // let cluster_info = ClusterInfo{
+            //     cluster_name: cluster_name.clone(),
+            //     cluster_type: req.cluster_type().as_str_name().to_string(),
+            //     nodes: Vec::new(),
+            // };
+
+            // if req.cluster_type() == ClusterType::BrokerServer{
+
+            // }
+        }
+
+        
         let mut node = NodeInfo::default();
         node.node_id = req.node_id;
         node.node_ip = req.node_ip;
@@ -71,8 +82,8 @@ impl DataRoute {
         self.cluster_storage
             .save_node(cluster_name, req.node_type.to_string(), node);
 
-        // update cache
         
+
         return Ok(());
     }
 
@@ -119,7 +130,6 @@ impl DataRoute {
             .delete_shard(req.cluster_name, req.shard_name);
         return Ok(());
     }
-
 }
 
 #[cfg(test)]

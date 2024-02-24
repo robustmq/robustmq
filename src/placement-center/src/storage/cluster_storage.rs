@@ -182,6 +182,7 @@ impl ClusterStorage {
 #[derive(Default,Clone, Debug, Serialize, Deserialize)]
 pub struct ClusterInfo {
     pub cluster_name: String,
+    pub cluster_type: String,
     pub nodes: Vec<u64>,
 }
 

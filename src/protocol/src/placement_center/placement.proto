@@ -75,7 +75,7 @@ message SendRaftConfChangeReply{
 }
 
 message RegisterNodeRequest{
-    ClusterType node_type = 1;
+    ClusterType cluster_type = 1;
     string cluster_name = 2;
     string node_ip = 3;
     uint64 node_id = 4;
@@ -85,8 +85,8 @@ message RegisterNodeRequest{
 }
 
 message UnRegisterNodeRequest{
-    string cluster_name = 2;
-    uint64 node_id = 4;
+    string cluster_name = 1;
+    uint64 node_id = 2;
 }
 
 message CreateShardRequest{
