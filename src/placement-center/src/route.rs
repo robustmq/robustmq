@@ -62,12 +62,17 @@ impl DataRoute {
             .unwrap();
 
         let cluster_name = req.cluster_name;
+
+        // 
         let mut node = NodeInfo::default();
         node.node_id = req.node_id;
         node.node_ip = req.node_ip;
         node.node_port = req.node_port;
         self.cluster_storage
             .save_node(cluster_name, req.node_type.to_string(), node);
+
+        // update cache
+        
         return Ok(());
     }
 
@@ -114,7 +119,7 @@ impl DataRoute {
             .delete_shard(req.cluster_name, req.shard_name);
         return Ok(());
     }
-    
+
 }
 
 #[cfg(test)]
