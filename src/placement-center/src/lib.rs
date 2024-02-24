@@ -13,16 +13,19 @@
 // limitations under the License.
 
 use self::services::GrpcService;
+use broker_cluster::BrokerCluster;
 use cluster::Cluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
-use controller::Controller;
+use controller::broker_controller::BrokerServerController;
+use controller::storage_controller::StorageEngineController;
 use http::server::HttpServer;
 use protocol::placement_center::placement::meta_service_server::MetaServiceServer;
 use raft::message::RaftMessage;
 use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
+use route::DataRoute;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
@@ -30,21 +33,25 @@ use std::thread::{self, JoinHandle};
 use storage::cluster_storage;
 use storage::raft_core::RaftRocksDBStorageCore;
 use storage::rocksdb::RocksDBStorage;
-use storage::route::DataRoute;
+use storage_cluster::StorageCluster;
 use tokio::signal;
 use tokio::sync::{broadcast, mpsc};
 use tonic::transport::Server;
 
 pub mod broker;
+mod broker_cluster;
 pub mod client;
 pub mod cluster;
 pub mod controller;
 mod errors;
 pub mod http;
 pub mod raft;
+mod route;
 mod services;
 pub mod storage;
+mod storage_cluster;
 mod tools;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -94,12 +101,9 @@ impl PlacementCenter {
 
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
-        let rds: Arc<RocksDBStorage> =
-            Arc::new(RocksDBStorage::new(&self.config));
+        let rds: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&self.config));
         let rocksdb_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(rds.clone())));
-        let cluster_storage = Arc::new(cluster_storage::ClusterStorage::new(
-            rds.clone(),
-        ));
+        let cluster_storage = Arc::new(cluster_storage::ClusterStorage::new(rds.clone()));
 
         let cluster = Arc::new(RwLock::new(Cluster::new(
             Node::new(
@@ -111,7 +115,14 @@ impl PlacementCenter {
             self.config.nodes.clone(),
         )));
 
-        let data_route = Arc::new(RwLock::new(DataRoute::new(cluster_storage.clone())));
+        let storage_cluster = Arc::new(StorageCluster::new());
+        let broker_cluster = Arc::new(BrokerCluster::new());
+
+        let data_route = Arc::new(RwLock::new(DataRoute::new(
+            cluster_storage.clone(),
+            storage_cluster.clone(),
+            broker_cluster.clone(),
+        )));
         let mut thread_result = Vec::new();
 
         // Thread running meta tcp server
@@ -170,6 +181,9 @@ impl PlacementCenter {
         let cluster_clone = cluster.clone();
         let stop_recv_c = stop_send.subscribe();
         let rocksdb_storage_c = rocksdb_storage.clone();
+        let storage_cluster_c = storage_cluster.clone();
+        let broker_cluster_c = broker_cluster.clone();
+
         let daemon_thread_join = daemon_thread.spawn(move || {
             let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
@@ -188,8 +202,15 @@ impl PlacementCenter {
                 }
             });
 
+            // start storage engine controller;
             daemon_runtime.spawn(async move {
-                let ctrl = Controller::new();
+                let ctrl = StorageEngineController::new(storage_cluster_c);
+                ctrl.start().await;
+            });
+
+            // start broker server controller;
+            daemon_runtime.spawn(async move {
+                let ctrl = BrokerServerController::new(broker_cluster_c);
                 ctrl.start().await;
             });
 

@@ -16,7 +16,7 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
-use crate::client::{create_shard, register_node, unregister_node};
+use crate::client::{create_shard, delete_shard, register_node, unregister_node};
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::cluster_storage::ClusterStorage;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
@@ -29,7 +29,9 @@ use protocol::placement_center::placement::{
     meta_service_server::MetaService, SendRaftMessageReply, SendRaftMessageRequest,
 };
 use protocol::placement_center::placement::{
-    CommonReply, CreateShardRequest, DeleteShardRequest, GetShardRequest, HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, UnRegisterNodeRequest
+    CommonReply, CreateShardRequest, DeleteShardRequest, GetShardReply,ReportMonitorRequest, GetShardRequest,
+    HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+    UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 
@@ -116,8 +118,10 @@ async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
 
 #[tonic::async_trait]
 impl MetaService for GrpcService {
-    
-    async fn register_node(&self, request: Request<RegisterNodeRequest>) -> Result<Response<CommonReply>, Status> {
+    async fn register_node(
+        &self,
+        request: Request<RegisterNodeRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
 
         if self.rewrite_leader() {
@@ -129,10 +133,16 @@ impl MetaService for GrpcService {
         }
 
         // Params validate
-        
+
         // Raft state machine is used to store Node data
-        let data = StorageData::new(StorageDataType::RegisterNode, RegisterNodeRequest::encode_to_vec(&req) );
-        match self.apply_raft_machine(data, "register_node".to_string()).await {
+        let data = StorageData::new(
+            StorageDataType::RegisterNode,
+            RegisterNodeRequest::encode_to_vec(&req),
+        );
+        match self
+            .apply_raft_machine(data, "register_node".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -140,8 +150,10 @@ impl MetaService for GrpcService {
         }
     }
 
-    async fn un_register_node(&self, request: Request<UnRegisterNodeRequest>) -> Result<Response<CommonReply>, Status> {
-        
+    async fn un_register_node(
+        &self,
+        request: Request<UnRegisterNodeRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.cluster.read().unwrap().leader_addr();
@@ -152,10 +164,16 @@ impl MetaService for GrpcService {
         }
 
         // Params validate
-        
+
         // Raft state machine is used to store Node data
-        let data = StorageData::new(StorageDataType::RegisterNode, UnRegisterNodeRequest::encode_to_vec(&req) );
-        match self.apply_raft_machine(data, "un_register_node".to_string()).await {
+        let data = StorageData::new(
+            StorageDataType::RegisterNode,
+            UnRegisterNodeRequest::encode_to_vec(&req),
+        );
+        match self
+            .apply_raft_machine(data, "un_register_node".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -163,8 +181,10 @@ impl MetaService for GrpcService {
         }
     }
 
-    async fn create_shard(&self, request: Request<CreateShardRequest>) -> Result<Response<CommonReply>, Status> {
-        
+    async fn create_shard(
+        &self,
+        request: Request<CreateShardRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.cluster.read().unwrap().leader_addr();
@@ -175,10 +195,16 @@ impl MetaService for GrpcService {
         }
 
         // Params validate
-        
+
         // Raft state machine is used to store Node data
-        let data = StorageData::new(StorageDataType::RegisterNode, CreateShardRequest::encode_to_vec(&req) );
-        match self.apply_raft_machine(data, "create_shard".to_string()).await {
+        let data = StorageData::new(
+            StorageDataType::RegisterNode,
+            CreateShardRequest::encode_to_vec(&req),
+        );
+        match self
+            .apply_raft_machine(data, "create_shard".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -186,20 +212,74 @@ impl MetaService for GrpcService {
         }
     }
 
-    async fn get_shard(&self, request: Request<GetShardRequest>) -> Result<Response<CommonReply>, Status> {
-        
-        return Ok(Response::new(CommonReply::default()));
+    async fn get_shard(
+        &self,
+        request: Request<GetShardRequest>,
+    ) -> Result<Response<GetShardReply>, Status> {
+        let req = request.into_inner();
+        let shard_info = self
+            .cluster_storage
+            .get_shard(req.cluster_name.clone(), req.shard_name);
+        let mut result = GetShardReply::default();
+        if shard_info.is_none() {
+            let si = shard_info.unwrap();
+            result.cluster_name = req.cluster_name;
+            result.shard_id = si.shard_id;
+            result.shard_name = si.shard_name;
+            result.replica = si.replica;
+            result.replicas = serialize(&si.replicas).unwrap();
+        }
+
+        return Ok(Response::new(result));
     }
 
-    async fn delete_shard(&self, request: Request<DeleteShardRequest>) -> Result<Response<CommonReply>, Status> {
+    async fn delete_shard(
+        &self,
+        request: Request<DeleteShardRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        if self.rewrite_leader() {
+            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            match delete_shard(&leader_addr, req).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
+
+        // Params validate
+
+        // Raft state machine is used to store Node data
+        let data = StorageData::new(
+            StorageDataType::RegisterNode,
+            DeleteShardRequest::encode_to_vec(&req),
+        );
+        match self
+            .apply_raft_machine(data, "delete_shard".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
         
-        return Ok(Response::new(CommonReply::default()));
     }
 
     async fn heartbeat(
         &self,
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        
+        return Ok(Response::new(CommonReply::default()));
+    }
+
+    async fn report_monitor(
+        &self,
+        request: Request<ReportMonitorRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+
         return Ok(Response::new(CommonReply::default()));
     }
 

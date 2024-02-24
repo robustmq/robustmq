@@ -7,6 +7,7 @@ pub enum StorageDataType {
     RegisterNode,
     UngisterNode,
     CreateShard,
+    DeleteShard,
 }
 
 impl fmt::Display for StorageDataType {
@@ -20,6 +21,9 @@ impl fmt::Display for StorageDataType {
             }
             StorageDataType::CreateShard => {
                 write!(f, "CreateShard")
+            }
+            StorageDataType::DeleteShard => {
+                write!(f, "DeleteShard")
             }
         }
     }
