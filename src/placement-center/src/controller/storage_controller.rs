@@ -1,13 +1,13 @@
 use crate::{storage_cluster::StorageCluster, storage::cluster_storage::{ClusterInfo, NodeInfo, ShardInfo}};
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 #[derive(Default)]
 pub struct StorageEngineController {
-   pub storage_cluser: Arc<StorageCluster>,
+   pub storage_cluser: Arc<RwLock<StorageCluster>>,
 }
 
 impl StorageEngineController {
-    pub fn new(broker_cluser: Arc<StorageCluster>) -> StorageEngineController {
+    pub fn new(broker_cluser: Arc<RwLock<StorageCluster>>) -> StorageEngineController {
         let mut controller = StorageEngineController::default();
         controller.storage_cluser = broker_cluser;
         return controller;

@@ -26,6 +26,7 @@ use raft::message::RaftMessage;
 use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
 use route::DataRoute;
+use runtime::heartbeat::Heartbeat;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
@@ -47,6 +48,7 @@ mod errors;
 pub mod http;
 pub mod raft;
 mod route;
+mod runtime;
 mod services;
 pub mod storage;
 mod storage_cluster;
@@ -115,8 +117,8 @@ impl PlacementCenter {
             self.config.nodes.clone(),
         )));
 
-        let storage_cluster = Arc::new(StorageCluster::new());
-        let broker_cluster = Arc::new(BrokerCluster::new());
+        let storage_cluster = Arc::new(RwLock::new(StorageCluster::new()));
+        let broker_cluster = Arc::new(RwLock::new(BrokerCluster::new()));
 
         let data_route = Arc::new(RwLock::new(DataRoute::new(
             cluster_storage.clone(),
@@ -125,6 +127,8 @@ impl PlacementCenter {
         )));
         let mut thread_result = Vec::new();
 
+        let heartbeat = Heartbeat::new(100000, storage_cluster.clone(), broker_cluster.clone());
+
         // Thread running meta tcp server
         let tcp_thread = thread::Builder::new().name("meta-tcp-thread".to_owned());
         let config = self.config.clone();
@@ -132,6 +136,8 @@ impl PlacementCenter {
         let mut stop_recv_c = stop_send.subscribe();
         let rocksdb_storage_c = rocksdb_storage.clone();
         let cluster_storage_c = cluster_storage.clone();
+        let storage_cluster_c = storage_cluster.clone();
+        let broker_cluster_c = broker_cluster.clone();
         let tcp_thread_join = tcp_thread.spawn(move || {
             let runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
 
@@ -158,6 +164,8 @@ impl PlacementCenter {
                     raft_message_send,
                     rocksdb_storage_c,
                     cluster_storage_c,
+                    storage_cluster_c.clone(),
+                    broker_cluster_c.clone(),
                 );
 
                 Server::builder()
@@ -212,6 +220,11 @@ impl PlacementCenter {
             daemon_runtime.spawn(async move {
                 let ctrl = BrokerServerController::new(broker_cluster_c);
                 ctrl.start().await;
+            });
+
+            // start heartbeat check thread;
+            daemon_runtime.spawn(async move {
+                heartbeat.start_heartbeat_check().await;
             });
 
             daemon_runtime.block_on(async move {

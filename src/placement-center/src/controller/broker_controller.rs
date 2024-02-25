@@ -1,15 +1,15 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use crate::broker_cluster::BrokerCluster;
 
 #[derive(Default,Clone)]
 pub struct BrokerServerController {
-    pub storage_cluser: Arc<BrokerCluster>,
+    pub storage_cluser: Arc<RwLock<BrokerCluster>>,
 }
 
 
 impl BrokerServerController {
-    pub fn new(storage_cluser: Arc<BrokerCluster>) -> BrokerServerController{
+    pub fn new(storage_cluser: Arc<RwLock<BrokerCluster>>) -> BrokerServerController{
         let mut bsc = BrokerServerController::default();
         bsc.storage_cluser = storage_cluser;
         return bsc;

@@ -4,6 +4,10 @@ pub struct CommonReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HeartbeatRequest {
+    #[prost(enumeration = "ClusterType", tag = "1")]
+    pub cluster_type: i32,
+    #[prost(string, tag = "2")]
+    pub cluster_name: ::prost::alloc::string::String,
     #[prost(uint64, tag = "4")]
     pub node_id: u64,
 }
@@ -44,9 +48,11 @@ pub struct RegisterNodeRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UnRegisterNodeRequest {
-    #[prost(string, tag = "1")]
+    #[prost(enumeration = "ClusterType", tag = "1")]
+    pub cluster_type: i32,
+    #[prost(string, tag = "2")]
     pub cluster_name: ::prost::alloc::string::String,
-    #[prost(uint64, tag = "2")]
+    #[prost(uint64, tag = "3")]
     pub node_id: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

@@ -16,11 +16,13 @@
 
 use super::cluster::Cluster;
 use super::errors::MetaError;
+use crate::broker_cluster::BrokerCluster;
 use crate::client::{create_shard, delete_shard, register_node, unregister_node};
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::cluster_storage::ClusterStorage;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataType};
+use crate::storage_cluster::StorageCluster;
 use bincode::serialize;
 use common::log::info_meta;
 use prost::Message;
@@ -29,9 +31,9 @@ use protocol::placement_center::placement::{
     meta_service_server::MetaService, SendRaftMessageReply, SendRaftMessageRequest,
 };
 use protocol::placement_center::placement::{
-    CommonReply, CreateShardRequest, DeleteShardRequest, GetShardReply,ReportMonitorRequest, GetShardRequest,
-    HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-    UnRegisterNodeRequest,
+    ClusterType, CommonReply, CreateShardRequest, DeleteShardRequest, GetShardReply,
+    GetShardRequest, HeartbeatRequest, RegisterNodeRequest, ReportMonitorRequest,
+    SendRaftConfChangeReply, SendRaftConfChangeRequest, UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 
@@ -40,7 +42,7 @@ use tokio::sync::oneshot::{self, Receiver};
 use tokio::time::timeout;
 
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::time::{self, Duration, Instant, SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcService {
@@ -48,6 +50,8 @@ pub struct GrpcService {
     raft_sender: Sender<RaftMessage>,
     rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     cluster_storage: Arc<ClusterStorage>,
+    storage_cluster: Arc<RwLock<StorageCluster>>,
+    broker_cluster: Arc<RwLock<BrokerCluster>>,
 }
 
 impl GrpcService {
@@ -56,12 +60,16 @@ impl GrpcService {
         raft_sender: Sender<RaftMessage>,
         rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
         cluster_storage: Arc<ClusterStorage>,
+        storage_cluster: Arc<RwLock<StorageCluster>>,
+        broker_cluster: Arc<RwLock<BrokerCluster>>,
     ) -> Self {
         GrpcService {
             cluster,
             raft_sender,
             rocksdb_storage,
             cluster_storage,
+            storage_cluster,
+            broker_cluster,
         }
     }
 
@@ -262,7 +270,6 @@ impl MetaService for GrpcService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
-        
     }
 
     async fn heartbeat(
@@ -270,7 +277,21 @@ impl MetaService for GrpcService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        
+        // Params validate
+
+        //
+        let time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        let cluster_type = req.cluster_type();
+        if cluster_type.eq(&ClusterType::BrokerServer) {
+            //todo
+        }
+        if cluster_type.eq(&ClusterType::StorageEngine) {
+            let mut sc = self.storage_cluster.write().unwrap();
+            sc.heart_time(req.node_id, time);
+        }
         return Ok(Response::new(CommonReply::default()));
     }
 
