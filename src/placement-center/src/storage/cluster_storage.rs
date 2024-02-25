@@ -191,7 +191,7 @@ pub struct NodeInfo {
     pub node_id: u64,
     pub node_ip: String,
     pub node_port: u32,
-    pub heart_time: u64,
+    pub cluster_name: String,
 }
 
 #[derive(Default,Clone, Debug, Serialize, Deserialize)]

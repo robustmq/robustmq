@@ -13,7 +13,7 @@ use prost::Message as _;
 use protocol::placement_center::placement::{
     ClusterType, CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest
 };
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tonic::Status;
 
 use super::cluster_storage::ClusterStorage;
@@ -21,15 +21,15 @@ use super::cluster_storage::ClusterStorage;
 #[derive(Clone)]
 pub struct DataRoute {
     cluster_storage: Arc<ClusterStorage>,
-    storage_cluster: Arc<StorageCluster>,
-    broker_cluster: Arc<BrokerCluster>,
+    storage_cluster: Arc<RwLock<StorageCluster>>,
+    broker_cluster: Arc<RwLock<BrokerCluster>>,
 }
 
 impl DataRoute {
     pub fn new(
         cluster_storage: Arc<ClusterStorage>,
-        storage_cluster: Arc<StorageCluster>,
-        broker_cluster: Arc<BrokerCluster>,
+        storage_cluster: Arc<RwLock<StorageCluster>>,
+        broker_cluster: Arc<RwLock<BrokerCluster>>,
     ) -> DataRoute {
         return DataRoute {
             cluster_storage,
@@ -38,6 +38,7 @@ impl DataRoute {
         };
     }
 
+    //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
     pub fn route(&self, data: Vec<u8>) -> Result<(), MetaError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
@@ -56,44 +57,65 @@ impl DataRoute {
         }
     }
 
+    //BrokerServer or StorageEngine clusters register node information with the PCC.
+    //You need to persist storage node information, update caches, and so on.
     pub fn register_node(&self, value: Vec<u8>) -> Result<(), MetaError> {
         let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
+        let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
-
-        if !self.storage_cluster.cluster_list.contains_key(&cluster_name){
-            // let cluster_info = ClusterInfo{
-            //     cluster_name: cluster_name.clone(),
-            //     cluster_type: req.cluster_type().as_str_name().to_string(),
-            //     nodes: Vec::new(),
-            // };
-
-            // if req.cluster_type() == ClusterType::BrokerServer{
-
-            // }
-        }
-
         
+        let cluster_info = ClusterInfo{
+            cluster_name: cluster_name.clone(),
+            cluster_type: cluster_type.as_str_name().to_string(),
+            nodes: Vec::new(),
+        };
+
         let mut node = NodeInfo::default();
         node.node_id = req.node_id;
         node.node_ip = req.node_ip;
         node.node_port = req.node_port;
-        self.cluster_storage
-            .save_node(cluster_name, req.node_type.to_string(), node);
 
+        if cluster_type == ClusterType::BrokerServer{
+            // todo 
+        }
         
+        if cluster_type == ClusterType::StorageEngine{
+            let mut sc = self.storage_cluster.write().unwrap();
+            if !sc.cluster_list.contains_key(&cluster_name){
+                sc.add_cluster(cluster_info);
+            }
+            sc.add_node(node.clone());
+            // todo 
+        }
+          
+        self.cluster_storage
+            .save_node(cluster_name, cluster_type.as_str_name().to_string(), node);
 
         return Ok(());
     }
 
+    // If a node is removed from the cluster, the client may leave the cluster voluntarily or the node is removed because the heartbeat detection fails.
     pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), MetaError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
+        let cluster_type = req.cluster_type();
+
+        if cluster_type.eq(&ClusterType::BrokerServer){
+            // todo 
+        }
+
+        if req.cluster_type().eq(&ClusterType::StorageEngine){
+            let mut sc = self.storage_cluster.write().unwrap();
+            sc.remove_node(req.node_id);
+            // todo 
+        }
 
         self.cluster_storage
-            .remove_node(req.cluster_name, req.node_id);
+        .remove_node(req.cluster_name, req.node_id);
+    
         return Ok(());
     }
 
@@ -107,13 +129,13 @@ impl DataRoute {
         shard_info.shard_id = unique_id();
         shard_info.shard_name = req.shard_name;
         shard_info.replica = req.replica;
-
-        //todo Computing replica distribution
-        shard_info.replicas = Vec::new();
+        shard_info.replicas = Vec::new(); //todo Computing replica distribution
         shard_info.status = ShardStatus::Idle;
         self.cluster_storage
-            .save_shard(req.cluster_name, shard_info);
+            .save_shard(req.cluster_name, shard_info.clone());
 
+        let mut sc = self.storage_cluster.write().unwrap();
+        sc.add_shard(shard_info);
         // create next segment
 
         return Ok(());
@@ -134,7 +156,7 @@ impl DataRoute {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::{Arc, RwLock};
 
     use crate::{
         broker_cluster::BrokerCluster,
@@ -158,16 +180,16 @@ mod tests {
         req.node_id = node_id;
         req.node_ip = node_ip.clone();
         req.node_port = node_port;
-        req.node_type = ClusterType::BrokerServer.into();
+        req.cluster_type = ClusterType::BrokerServer.into();
         req.cluster_name = cluster_name.clone();
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);
 
         let rocksdb_storage = Arc::new(RocksDBStorage::new(&PlacementCenterConfig::default()));
         let cluster_storage = Arc::new(ClusterStorage::new(rocksdb_storage));
-        let broker_cluster = Arc::new(BrokerCluster::new());
-        let storage_cluster = Arc::new(StorageCluster::new());
-        let route = DataRoute::new(cluster_storage.clone(), storage_cluster, broker_cluster);
+        let broker_cluster = Arc::new(RwLock::new(BrokerCluster::new()));
+        let storage_cluster = Arc::new(RwLock::new(StorageCluster::new()));
+        let mut route = DataRoute::new(cluster_storage.clone(), storage_cluster, broker_cluster);
         let _ = route.register_node(data);
 
         let cluster = cluster_storage.get_cluster(&cluster_name);

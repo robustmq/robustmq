@@ -52,10 +52,12 @@ service MetaService {
 }
 
 message CommonReply{
-
+    
 }
 
 message HeartbeatRequest{
+    ClusterType cluster_type = 1;
+    string cluster_name = 2;
     uint64 node_id = 4;
 }
 
@@ -81,12 +83,12 @@ message RegisterNodeRequest{
     uint64 node_id = 4;
     uint32 node_port = 5;
     string extend_info = 6;
-    
 }
 
 message UnRegisterNodeRequest{
-    string cluster_name = 1;
-    uint64 node_id = 2;
+    ClusterType cluster_type = 1;
+    string cluster_name = 2;
+    uint64 node_id = 3;
 }
 
 message CreateShardRequest{
