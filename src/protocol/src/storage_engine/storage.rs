@@ -331,6 +331,60 @@ pub mod storage_engine_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        pub async fn create_segment(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateShardRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::CreateShardResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/storage.StorageEngineService/CreateSegment",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("storage.StorageEngineService", "CreateSegment"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn delete_segment(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ShardDetailRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ShardDetailResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/storage.StorageEngineService/DeleteSegment",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("storage.StorageEngineService", "DeleteSegment"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -358,6 +412,20 @@ pub mod storage_engine_service_server {
             tonic::Status,
         >;
         async fn describe_shard(
+            &self,
+            request: tonic::Request<super::ShardDetailRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ShardDetailResponse>,
+            tonic::Status,
+        >;
+        async fn create_segment(
+            &self,
+            request: tonic::Request<super::CreateShardRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::CreateShardResponse>,
+            tonic::Status,
+        >;
+        async fn delete_segment(
             &self,
             request: tonic::Request<super::ShardDetailRequest>,
         ) -> std::result::Result<
@@ -614,6 +682,100 @@ pub mod storage_engine_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = DescribeShardSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/storage.StorageEngineService/CreateSegment" => {
+                    #[allow(non_camel_case_types)]
+                    struct CreateSegmentSvc<T: StorageEngineService>(pub Arc<T>);
+                    impl<
+                        T: StorageEngineService,
+                    > tonic::server::UnaryService<super::CreateShardRequest>
+                    for CreateSegmentSvc<T> {
+                        type Response = super::CreateShardResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateShardRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as StorageEngineService>::create_segment(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = CreateSegmentSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/storage.StorageEngineService/DeleteSegment" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteSegmentSvc<T: StorageEngineService>(pub Arc<T>);
+                    impl<
+                        T: StorageEngineService,
+                    > tonic::server::UnaryService<super::ShardDetailRequest>
+                    for DeleteSegmentSvc<T> {
+                        type Response = super::ShardDetailResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ShardDetailRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as StorageEngineService>::delete_segment(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DeleteSegmentSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

@@ -143,15 +143,15 @@ impl ClusterType {
     }
 }
 /// Generated client implementations.
-pub mod meta_service_client {
+pub mod placement_center_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct MetaServiceClient<T> {
+    pub struct PlacementCenterServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl MetaServiceClient<tonic::transport::Channel> {
+    impl PlacementCenterServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -162,7 +162,7 @@ pub mod meta_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> MetaServiceClient<T>
+    impl<T> PlacementCenterServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -180,7 +180,7 @@ pub mod meta_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> MetaServiceClient<InterceptedService<T, F>>
+        ) -> PlacementCenterServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -194,7 +194,9 @@ pub mod meta_service_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            MetaServiceClient::new(InterceptedService::new(inner, interceptor))
+            PlacementCenterServiceClient::new(
+                InterceptedService::new(inner, interceptor),
+            )
         }
         /// Compress requests with the given encoding.
         ///
@@ -243,11 +245,13 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/RegisterNode",
+                "/placement.PlacementCenterService/RegisterNode",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "RegisterNode"));
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "RegisterNode"),
+                );
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -266,11 +270,16 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/UnRegister_node",
+                "/placement.PlacementCenterService/UnRegister_node",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "UnRegister_node"));
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "UnRegister_node",
+                    ),
+                );
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -289,11 +298,13 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/CreateShard",
+                "/placement.PlacementCenterService/CreateShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "CreateShard"));
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "CreateShard"),
+                );
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -312,11 +323,11 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/GetShard",
+                "/placement.PlacementCenterService/GetShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "GetShard"));
+                .insert(GrpcMethod::new("placement.PlacementCenterService", "GetShard"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -335,11 +346,13 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/DeleteShard",
+                "/placement.PlacementCenterService/DeleteShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "DeleteShard"));
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "DeleteShard"),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
@@ -358,11 +371,13 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/heartbeat",
+                "/placement.PlacementCenterService/heartbeat",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "heartbeat"));
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "heartbeat"),
+                );
             self.inner.unary(req, path, codec).await
         }
         pub async fn report_monitor(
@@ -380,11 +395,13 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/ReportMonitor",
+                "/placement.PlacementCenterService/ReportMonitor",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "ReportMonitor"));
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "ReportMonitor"),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// Raft messages are sent between nodes
@@ -406,11 +423,16 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/SendRaftMessage",
+                "/placement.PlacementCenterService/SendRaftMessage",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "SendRaftMessage"));
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "SendRaftMessage",
+                    ),
+                );
             self.inner.unary(req, path, codec).await
         }
         /// Send ConfChange messages to Raft with other nodes
@@ -432,22 +454,27 @@ pub mod meta_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.MetaService/SendRaftConfChange",
+                "/placement.PlacementCenterService/SendRaftConfChange",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("placement.MetaService", "SendRaftConfChange"));
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "SendRaftConfChange",
+                    ),
+                );
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod meta_service_server {
+pub mod placement_center_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with MetaServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with PlacementCenterServiceServer.
     #[async_trait]
-    pub trait MetaService: Send + Sync + 'static {
+    pub trait PlacementCenterService: Send + Sync + 'static {
         ///
         async fn register_node(
             &self,
@@ -500,7 +527,7 @@ pub mod meta_service_server {
         >;
     }
     #[derive(Debug)]
-    pub struct MetaServiceServer<T: MetaService> {
+    pub struct PlacementCenterServiceServer<T: PlacementCenterService> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
@@ -508,7 +535,7 @@ pub mod meta_service_server {
         max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: MetaService> MetaServiceServer<T> {
+    impl<T: PlacementCenterService> PlacementCenterServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -560,9 +587,10 @@ pub mod meta_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for MetaServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>>
+    for PlacementCenterServiceServer<T>
     where
-        T: MetaService,
+        T: PlacementCenterService,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -578,11 +606,11 @@ pub mod meta_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/placement.MetaService/RegisterNode" => {
+                "/placement.PlacementCenterService/RegisterNode" => {
                     #[allow(non_camel_case_types)]
-                    struct RegisterNodeSvc<T: MetaService>(pub Arc<T>);
+                    struct RegisterNodeSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::RegisterNodeRequest>
                     for RegisterNodeSvc<T> {
                         type Response = super::CommonReply;
@@ -596,7 +624,11 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::register_node(&inner, request).await
+                                <T as PlacementCenterService>::register_node(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -624,11 +656,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/UnRegister_node" => {
+                "/placement.PlacementCenterService/UnRegister_node" => {
                     #[allow(non_camel_case_types)]
-                    struct UnRegister_nodeSvc<T: MetaService>(pub Arc<T>);
+                    struct UnRegister_nodeSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::UnRegisterNodeRequest>
                     for UnRegister_nodeSvc<T> {
                         type Response = super::CommonReply;
@@ -642,7 +674,11 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::un_register_node(&inner, request).await
+                                <T as PlacementCenterService>::un_register_node(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -670,11 +706,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/CreateShard" => {
+                "/placement.PlacementCenterService/CreateShard" => {
                     #[allow(non_camel_case_types)]
-                    struct CreateShardSvc<T: MetaService>(pub Arc<T>);
+                    struct CreateShardSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::CreateShardRequest>
                     for CreateShardSvc<T> {
                         type Response = super::CommonReply;
@@ -688,7 +724,8 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::create_shard(&inner, request).await
+                                <T as PlacementCenterService>::create_shard(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -716,11 +753,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/GetShard" => {
+                "/placement.PlacementCenterService/GetShard" => {
                     #[allow(non_camel_case_types)]
-                    struct GetShardSvc<T: MetaService>(pub Arc<T>);
+                    struct GetShardSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::GetShardRequest>
                     for GetShardSvc<T> {
                         type Response = super::GetShardReply;
@@ -734,7 +771,8 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::get_shard(&inner, request).await
+                                <T as PlacementCenterService>::get_shard(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -762,11 +800,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/DeleteShard" => {
+                "/placement.PlacementCenterService/DeleteShard" => {
                     #[allow(non_camel_case_types)]
-                    struct DeleteShardSvc<T: MetaService>(pub Arc<T>);
+                    struct DeleteShardSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::DeleteShardRequest>
                     for DeleteShardSvc<T> {
                         type Response = super::CommonReply;
@@ -780,7 +818,8 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::delete_shard(&inner, request).await
+                                <T as PlacementCenterService>::delete_shard(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -808,11 +847,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/heartbeat" => {
+                "/placement.PlacementCenterService/heartbeat" => {
                     #[allow(non_camel_case_types)]
-                    struct heartbeatSvc<T: MetaService>(pub Arc<T>);
+                    struct heartbeatSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::HeartbeatRequest>
                     for heartbeatSvc<T> {
                         type Response = super::CommonReply;
@@ -826,7 +865,8 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::heartbeat(&inner, request).await
+                                <T as PlacementCenterService>::heartbeat(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -854,11 +894,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/ReportMonitor" => {
+                "/placement.PlacementCenterService/ReportMonitor" => {
                     #[allow(non_camel_case_types)]
-                    struct ReportMonitorSvc<T: MetaService>(pub Arc<T>);
+                    struct ReportMonitorSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::ReportMonitorRequest>
                     for ReportMonitorSvc<T> {
                         type Response = super::CommonReply;
@@ -872,7 +912,11 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::report_monitor(&inner, request).await
+                                <T as PlacementCenterService>::report_monitor(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -900,11 +944,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/SendRaftMessage" => {
+                "/placement.PlacementCenterService/SendRaftMessage" => {
                     #[allow(non_camel_case_types)]
-                    struct SendRaftMessageSvc<T: MetaService>(pub Arc<T>);
+                    struct SendRaftMessageSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::SendRaftMessageRequest>
                     for SendRaftMessageSvc<T> {
                         type Response = super::SendRaftMessageReply;
@@ -918,7 +962,11 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::send_raft_message(&inner, request).await
+                                <T as PlacementCenterService>::send_raft_message(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -946,11 +994,11 @@ pub mod meta_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.MetaService/SendRaftConfChange" => {
+                "/placement.PlacementCenterService/SendRaftConfChange" => {
                     #[allow(non_camel_case_types)]
-                    struct SendRaftConfChangeSvc<T: MetaService>(pub Arc<T>);
+                    struct SendRaftConfChangeSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
-                        T: MetaService,
+                        T: PlacementCenterService,
                     > tonic::server::UnaryService<super::SendRaftConfChangeRequest>
                     for SendRaftConfChangeSvc<T> {
                         type Response = super::SendRaftConfChangeReply;
@@ -964,7 +1012,10 @@ pub mod meta_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MetaService>::send_raft_conf_change(&inner, request)
+                                <T as PlacementCenterService>::send_raft_conf_change(
+                                        &inner,
+                                        request,
+                                    )
                                     .await
                             };
                             Box::pin(fut)
@@ -1008,7 +1059,7 @@ pub mod meta_service_server {
             }
         }
     }
-    impl<T: MetaService> Clone for MetaServiceServer<T> {
+    impl<T: PlacementCenterService> Clone for PlacementCenterServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -1020,7 +1071,7 @@ pub mod meta_service_server {
             }
         }
     }
-    impl<T: MetaService> Clone for _Inner<T> {
+    impl<T: PlacementCenterService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(Arc::clone(&self.0))
         }
@@ -1030,7 +1081,8 @@ pub mod meta_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: MetaService> tonic::server::NamedService for MetaServiceServer<T> {
-        const NAME: &'static str = "placement.MetaService";
+    impl<T: PlacementCenterService> tonic::server::NamedService
+    for PlacementCenterServiceServer<T> {
+        const NAME: &'static str = "placement.PlacementCenterService";
     }
 }

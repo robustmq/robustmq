@@ -1,5 +1,5 @@
 [package]
-name = "placement-client"
+name = "clients"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,3 +9,5 @@ license.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
+protocol.workspace = true
+common.workspace =true

@@ -3,7 +3,7 @@ members = [
     "src/mqtt-bridge",
     "src/mqtt-broker",
     "src/placement-center",
-    "src/placement-client",
+    "src/clients",
     "src/cmd",
     "src/common",
     "src/protocol",
@@ -48,7 +48,7 @@ uuid = "1.7.0"
 mqtt-bridge = { path = "src/mqtt-bridge" }
 mqtt-broker = { path = "src/mqtt-broker" }
 placement-center = { path = "src/placement-center" }
-placement-client = { path = "src/placement-center" }
+clients = { path = "centers" }
 storage-engine = { path = "src/storage-engine" }
 storage-adapter = { path = "src/storage-adapter" }
 storage-object = { path = "src/storage-remote" }

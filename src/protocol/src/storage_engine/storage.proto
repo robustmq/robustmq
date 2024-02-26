@@ -83,5 +83,9 @@ service StorageEngineService {
   rpc CreateShard(CreateShardRequest) returns(CreateShardResponse){}
 
   rpc DescribeShard(ShardDetailRequest) returns(ShardDetailResponse){}
+
+  rpc CreateSegment(CreateShardRequest) returns(CreateShardResponse){}
+
+  rpc DeleteSegment(ShardDetailRequest) returns(ShardDetailResponse){}
     
 }

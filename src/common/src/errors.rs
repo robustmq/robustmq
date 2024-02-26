@@ -18,7 +18,7 @@ use thiserror::Error;
 use tonic::Status;
 
 #[derive(Error,Debug)]
-pub enum MetaError {
+pub enum RobustMQError {
     #[error("Operation cannot be initiated because the Leader exists in the cluster")]
     LeaderExistsNotAllowElection,
     
@@ -62,12 +62,12 @@ pub enum MetaError {
 
 #[cfg(test)]
 mod tests{
-    use crate::errors::MetaError;
+    use crate::errors::RobustMQError;
 
 
     #[test]
     fn thiserror_to_string(){
-        println!("{}",MetaError::LeaderExistsNotAllowElection.to_string());
-        println!("{}",MetaError::NodeBeingVotedOn { node_id: 18 }.to_string());
+        println!("{}",RobustMQError::LeaderExistsNotAllowElection.to_string());
+        println!("{}",RobustMQError::NodeBeingVotedOn { node_id: 18 }.to_string());
     }
 }

@@ -22,7 +22,7 @@ enum ClusterType{
     StorageEngine = 1;
 }
 
-service MetaService {
+service PlacementCenterService {
   
   //
   rpc RegisterNode(RegisterNodeRequest) returns(CommonReply){}
