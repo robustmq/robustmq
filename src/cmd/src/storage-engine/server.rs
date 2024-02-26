@@ -18,7 +18,6 @@ use common::config::parse_storage_engine;
 use common::config::storage_engine::StorageEngineConfig;
 use common::config::DEFAULT_STORAGE_ENGINE_CONFIG;
 use common::log;
-use common::tools::handle_running;
 use storage_engine::StorageEngine;
 use tokio::sync::broadcast;
 
@@ -32,7 +31,8 @@ struct ArgsParams {
     conf: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = ArgsParams::parse();
     let conf: StorageEngineConfig = parse_storage_engine(&args.conf);
     let (stop_send, _) = broadcast::channel(2);
@@ -41,8 +41,6 @@ fn main() {
         conf.log_segment_size.clone(),
         conf.log_file_num.clone(),
     );
-    let mt_s = StorageEngine::new(conf);
-    let meta_service: Vec<Result<std::thread::JoinHandle<()>, std::io::Error>> =
-        mt_s.start(stop_send);
-    handle_running(meta_service);
+    let mt_s = StorageEngine::new(conf, stop_send);
+    mt_s.start().await;
 }
