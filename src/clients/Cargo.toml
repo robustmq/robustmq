@@ -11,3 +11,4 @@ axum.workspace = true
 thiserror.workspace = true
 protocol.workspace = true
 common.workspace =true
+tonic.workspace = true

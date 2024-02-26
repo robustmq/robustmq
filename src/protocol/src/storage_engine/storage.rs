@@ -75,6 +75,12 @@ pub struct CreateSegmentRequest {}
 pub struct CreateSegmentResponse {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteSegmentRequest {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteSegmentResponse {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ShardDetailRequest {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -333,9 +339,9 @@ pub mod storage_engine_service_client {
         }
         pub async fn create_segment(
             &mut self,
-            request: impl tonic::IntoRequest<super::CreateShardRequest>,
+            request: impl tonic::IntoRequest<super::CreateSegmentRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::CreateShardResponse>,
+            tonic::Response<super::CreateSegmentResponse>,
             tonic::Status,
         > {
             self.inner
@@ -360,9 +366,9 @@ pub mod storage_engine_service_client {
         }
         pub async fn delete_segment(
             &mut self,
-            request: impl tonic::IntoRequest<super::ShardDetailRequest>,
+            request: impl tonic::IntoRequest<super::DeleteSegmentRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::ShardDetailResponse>,
+            tonic::Response<super::DeleteSegmentResponse>,
             tonic::Status,
         > {
             self.inner
@@ -420,16 +426,16 @@ pub mod storage_engine_service_server {
         >;
         async fn create_segment(
             &self,
-            request: tonic::Request<super::CreateShardRequest>,
+            request: tonic::Request<super::CreateSegmentRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::CreateShardResponse>,
+            tonic::Response<super::CreateSegmentResponse>,
             tonic::Status,
         >;
         async fn delete_segment(
             &self,
-            request: tonic::Request<super::ShardDetailRequest>,
+            request: tonic::Request<super::DeleteSegmentRequest>,
         ) -> std::result::Result<
-            tonic::Response<super::ShardDetailResponse>,
+            tonic::Response<super::DeleteSegmentResponse>,
             tonic::Status,
         >;
     }
@@ -702,16 +708,16 @@ pub mod storage_engine_service_server {
                     struct CreateSegmentSvc<T: StorageEngineService>(pub Arc<T>);
                     impl<
                         T: StorageEngineService,
-                    > tonic::server::UnaryService<super::CreateShardRequest>
+                    > tonic::server::UnaryService<super::CreateSegmentRequest>
                     for CreateSegmentSvc<T> {
-                        type Response = super::CreateShardResponse;
+                        type Response = super::CreateSegmentResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::CreateShardRequest>,
+                            request: tonic::Request<super::CreateSegmentRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
@@ -749,16 +755,16 @@ pub mod storage_engine_service_server {
                     struct DeleteSegmentSvc<T: StorageEngineService>(pub Arc<T>);
                     impl<
                         T: StorageEngineService,
-                    > tonic::server::UnaryService<super::ShardDetailRequest>
+                    > tonic::server::UnaryService<super::DeleteSegmentRequest>
                     for DeleteSegmentSvc<T> {
-                        type Response = super::ShardDetailResponse;
+                        type Response = super::DeleteSegmentResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::ShardDetailRequest>,
+                            request: tonic::Request<super::DeleteSegmentRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {

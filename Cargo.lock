@@ -466,6 +466,7 @@ dependencies = [
  "common",
  "protocol",
  "thiserror",
+ "tonic",
 ]
 
 [[package]]
@@ -2076,6 +2077,7 @@ version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
  "bytes",
+ "clients",
  "common",
  "protocol",
  "thiserror",

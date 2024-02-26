@@ -13,3 +13,4 @@ thiserror.workspace = true
 tonic.workspace = true
 protocol.workspace = true
 tokio.workspace = true
+clients.workspace =true
