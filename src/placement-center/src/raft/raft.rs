@@ -1,19 +1,19 @@
 use super::message::{RaftMessage, RaftResponseMesage};
 use crate::cluster::Cluster;
-use crate::errors::MetaError;
 use crate::route::DataRoute;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::raft_storage::RaftRocksDBStorage;
 use crate::Node;
 use bincode::{deserialize, serialize};
 use common::config::placement_center::PlacementCenterConfig;
+use common::errors::RobustMQError;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
     Snapshot,
 };
-use raft::{Config, RawNode, StateRole};
+use raft::{Config, RawNode};
 use slog::o;
 use slog::Drain;
 use std::collections::HashMap;
@@ -90,7 +90,7 @@ impl MetaRaft {
                         }
                         Err(e) => {
                             error_meta(
-                                &MetaError::RaftConfChangeCommitFail(e.to_string()).to_string(),
+                                &RobustMQError::RaftConfChangeCommitFail(e.to_string()).to_string(),
                             );
                         }
                     }
@@ -108,7 +108,9 @@ impl MetaRaft {
                             }
                         },
                         Err(e) => {
-                            error_meta(&MetaError::RaftStepCommitFail(e.to_string()).to_string());
+                            error_meta(
+                                &RobustMQError::RaftStepCommitFail(e.to_string()).to_string(),
+                            );
                         }
                     }
                 }
@@ -124,7 +126,7 @@ impl MetaRaft {
                         }
                         Err(e) => {
                             error_meta(
-                                &MetaError::RaftProposeCommitFail(e.to_string()).to_string(),
+                                &RobustMQError::RaftProposeCommitFail(e.to_string()).to_string(),
                             );
                         }
                     }

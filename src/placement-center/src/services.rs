@@ -15,7 +15,6 @@
  */
 
 use super::cluster::Cluster;
-use super::errors::MetaError;
 use crate::broker_cluster::BrokerCluster;
 use crate::client::{create_shard, delete_shard, register_node, unregister_node};
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
@@ -24,11 +23,12 @@ use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataType};
 use crate::storage_cluster::StorageCluster;
 use bincode::serialize;
+use common::errors::RobustMQError;
 use common::log::info_meta;
 use prost::Message;
 
-use protocol::placement_center::placement::{
-    meta_service_server::MetaService, SendRaftMessageReply, SendRaftMessageRequest,
+use protocol::placement_center::placement::placement_center_service_server::PlacementCenterService;
+use protocol::placement_center::placement::{ SendRaftMessageReply, SendRaftMessageRequest,
 };
 use protocol::placement_center::placement::{
     ClusterType, CommonReply, CreateShardRequest, DeleteShardRequest, GetShardReply,
@@ -77,17 +77,17 @@ impl GrpcService {
         return self.cluster.read().unwrap().is_leader();
     }
 
-    fn verify(&self) -> Result<(), MetaError> {
+    fn verify(&self) -> Result<(), RobustMQError> {
         let cluster = self.cluster.read().unwrap();
 
         if cluster.leader_alive() {
-            return Err(MetaError::MetaClusterNotLeaderNode);
+            return Err(RobustMQError::MetaClusterNotLeaderNode);
         }
 
         return Ok(());
     }
 
-    async fn apply_raft_machine(&self, data: StorageData, action: String) -> Result<(), MetaError> {
+    async fn apply_raft_machine(&self, data: StorageData, action: String) -> Result<(), RobustMQError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
 
         let _ = self
@@ -99,7 +99,7 @@ impl GrpcService {
             .await;
 
         if !recv_chan_resp(rx).await {
-            return Err(MetaError::MetaLogCommitTimeout(action));
+            return Err(RobustMQError::MetaLogCommitTimeout(action));
         }
         return Ok(());
     }
@@ -125,7 +125,7 @@ async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
 }
 
 #[tonic::async_trait]
-impl MetaService for GrpcService {
+impl PlacementCenterService for GrpcService {
     async fn register_node(
         &self,
         request: Request<RegisterNodeRequest>,
@@ -320,14 +320,14 @@ impl MetaService for GrpcService {
             Ok(_) => {
                 if !recv_chan_resp(rx).await {
                     return Err(Status::cancelled(
-                        MetaError::MetaLogCommitTimeout("send_raft_message".to_string())
+                        RobustMQError::MetaLogCommitTimeout("send_raft_message".to_string())
                             .to_string(),
                     ));
                 }
             }
             Err(e) => {
                 return Err(Status::aborted(
-                    MetaError::RaftStepCommitFail(e.to_string()).to_string(),
+                    RobustMQError::RaftStepCommitFail(e.to_string()).to_string(),
                 ));
             }
         }
@@ -353,14 +353,14 @@ impl MetaService for GrpcService {
             Ok(_) => {
                 if !recv_chan_resp(rx).await {
                     return Err(Status::cancelled(
-                        MetaError::MetaLogCommitTimeout("send_raft_conf_change".to_string())
+                        RobustMQError::MetaLogCommitTimeout("send_raft_conf_change".to_string())
                             .to_string(),
                     ));
                 }
             }
             Err(e) => {
                 return Err(Status::aborted(
-                    MetaError::RaftStepCommitFail(e.to_string()).to_string(),
+                    RobustMQError::RaftStepCommitFail(e.to_string()).to_string(),
                 ));
             }
         }

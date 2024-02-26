@@ -66,6 +66,12 @@ message CreateSegmentRequest{
 message CreateSegmentResponse{
 }
 
+message DeleteSegmentRequest{
+}
+
+message DeleteSegmentResponse{
+}
+
 message ShardDetailRequest{
 }
 
@@ -83,5 +89,9 @@ service StorageEngineService {
   rpc CreateShard(CreateShardRequest) returns(CreateShardResponse){}
 
   rpc DescribeShard(ShardDetailRequest) returns(ShardDetailResponse){}
+
+  rpc CreateSegment(CreateSegmentRequest) returns(CreateSegmentResponse){}
+
+  rpc DeleteSegment(DeleteSegmentRequest) returns(DeleteSegmentResponse){}
     
 }

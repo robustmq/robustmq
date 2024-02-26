@@ -1,9 +1,11 @@
+cluster_name = "StorageEngine1"
 node_id = 1
 addr = "127.0.0.1"
 port = 1228
 admin_port = 1229
 nodes = { 1 = "127.0.0.1:1228" }
 runtime_work_threads = 100
+placement_center = ["127.0.0.1:8741","127.0.0.1:8741","127.0.0.1:8741"]
 data_path = "/tmp/robust/storage/data,/tmp/robust/storage/data,/tmp/robust/storage/data,/tmp/robust/storage/data,/tmp/robust/storage/data"
 log_path = "/tmp/robust/storage/logs"
 log_segment_size = 1099511627776

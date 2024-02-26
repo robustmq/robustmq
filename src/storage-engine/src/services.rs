@@ -1,7 +1,5 @@
 use protocol::storage_engine::storage::{
-    storage_engine_service_server::StorageEngineService, CreateShardRequest, CreateShardResponse,
-    ReadRequest, ReadResponse, ShardDetailRequest, ShardDetailResponse, WriteRequest,
-    WriteResponse,
+    storage_engine_service_server::StorageEngineService, CreateSegmentRequest, CreateSegmentResponse,DeleteSegmentRequest,DeleteSegmentResponse, CreateShardRequest, CreateShardResponse, ReadRequest, ReadResponse, ShardDetailRequest, ShardDetailResponse, WriteRequest, WriteResponse
 };
 use tonic::{Request, Response, Status};
 
@@ -38,5 +36,19 @@ impl StorageEngineService for StorageService {
         request: Request<ShardDetailRequest>,
     ) -> Result<Response<ShardDetailResponse>, Status> {
         return Ok(Response::new(ShardDetailResponse::default()));
+    }
+
+    async fn create_segment(
+        &self,
+        request: Request<CreateSegmentRequest>,
+    ) -> Result<Response<CreateSegmentResponse>, Status> {
+        return Ok(Response::new(CreateSegmentResponse::default()));
+    }
+
+    async fn delete_segment(
+        &self,
+        request: Request<DeleteSegmentRequest>,
+    ) -> Result<Response<DeleteSegmentResponse>, Status> {
+        return Ok(Response::new(DeleteSegmentResponse::default()));
     }
 }

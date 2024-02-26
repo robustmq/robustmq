@@ -21,7 +21,7 @@ use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::HttpServer;
-use protocol::placement_center::placement::meta_service_server::MetaServiceServer;
+use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::message::RaftMessage;
 use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
@@ -44,7 +44,6 @@ mod broker_cluster;
 pub mod client;
 pub mod cluster;
 pub mod controller;
-mod errors;
 pub mod http;
 pub mod raft;
 mod route;
@@ -169,7 +168,7 @@ impl PlacementCenter {
                 );
 
                 Server::builder()
-                    .add_service(MetaServiceServer::new(service_handler))
+                    .add_service(PlacementCenterServiceServer::new(service_handler))
                     .serve(ip)
                     .await
                     .unwrap();

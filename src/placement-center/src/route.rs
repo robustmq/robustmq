@@ -1,6 +1,5 @@
 use crate::{
     broker_cluster::BrokerCluster,
-    errors::MetaError,
     storage::{
         cluster_storage::{ClusterInfo, NodeInfo, ShardInfo, ShardStatus},
         schema::{StorageData, StorageDataType},
@@ -8,7 +7,7 @@ use crate::{
     storage_cluster::StorageCluster,
 };
 use bincode::deserialize;
-use common::tools::unique_id;
+use common::{errors::RobustMQError, tools::unique_id};
 use prost::Message as _;
 use protocol::placement_center::placement::{
     ClusterType, CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest
@@ -39,7 +38,7 @@ impl DataRoute {
     }
 
     //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
-    pub fn route(&self, data: Vec<u8>) -> Result<(), MetaError> {
+    pub fn route(&self, data: Vec<u8>) -> Result<(), RobustMQError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
             StorageDataType::RegisterNode => {
@@ -59,7 +58,7 @@ impl DataRoute {
 
     //BrokerServer or StorageEngine clusters register node information with the PCC.
     //You need to persist storage node information, update caches, and so on.
-    pub fn register_node(&self, value: Vec<u8>) -> Result<(), MetaError> {
+    pub fn register_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
@@ -97,7 +96,7 @@ impl DataRoute {
     }
 
     // If a node is removed from the cluster, the client may leave the cluster voluntarily or the node is removed because the heartbeat detection fails.
-    pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), MetaError> {
+    pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
@@ -119,7 +118,7 @@ impl DataRoute {
         return Ok(());
     }
 
-    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), MetaError> {
+    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
@@ -141,7 +140,7 @@ impl DataRoute {
         return Ok(());
     }
 
-    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), MetaError> {
+    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         // delete all segment
 
         // delete shard info

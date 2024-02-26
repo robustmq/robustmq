@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use common::runtime::create_runtime;
-    use protocol::placement_center::placement::{meta_service_client::MetaServiceClient, RegisterNodeRequest};
+    use protocol::placement_center::placement::{placement_center_service_client::PlacementCenterServiceClient, RegisterNodeRequest};
     use tokio::runtime::Runtime;
 
     #[test]
@@ -11,7 +11,7 @@ mod tests {
         let _gurad = runtime.enter();
 
         runtime.block_on(async move {
-            let mut client = MetaServiceClient::connect("http://127.0.0.1:1228")
+            let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
                 .await
                 .unwrap();
 
