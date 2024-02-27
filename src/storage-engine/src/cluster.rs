@@ -16,7 +16,7 @@ pub async fn register_storage_engine_node(config: StorageEngineConfig) {
     req.cluster_name = config.cluster_name;
     req.node_id = config.node_id;
     req.node_ip = config.addr;
-    req.node_port = config.port;
+    req.node_port = config.grpc_port;
     req.extend_info = "".to_string();
 
     let mut res_err = None;

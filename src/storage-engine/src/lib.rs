@@ -1,13 +1,10 @@
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common::{
-    config::storage_engine::StorageEngineConfig, log::info_meta, runtime::create_runtime,
+    config::storage_engine::StorageEngineConfig, log::info_meta,
+    metrics::register_prometheus_export, runtime::create_runtime,
 };
-use protocol::{
-    placement_center::placement::{ClusterType, HeartbeatRequest},
-    storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer,
-};
+use protocol::storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer;
 use services::StorageService;
-use std::thread::{self, JoinHandle};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tonic::transport::Server;
 
@@ -58,12 +55,12 @@ impl StorageEngine {
 
     // start GRPC && HTTP Server
     async fn start_server(&self) {
-        let ip = format!("{}:{}", self.config.addr, self.config.port)
-            .parse()
-            .unwrap();
+        // start grpc server
+        let port = self.config.grpc_port;
         self.server_runtime.spawn(async move {
+            let ip = format!("0.0.0.0:{}", port).parse().unwrap();
             info_meta(&format!(
-                "RobustMQ StorageEngine Grpc Server start success. bind addr:{}",
+                "RobustMQ StorageEngine Grpc Server start success. bind port:{}",
                 ip
             ));
 
@@ -75,6 +72,12 @@ impl StorageEngine {
                 .await
                 .unwrap();
         });
+
+        // start prometheus http server
+        let prometheus_port = self.config.prometheus_port;
+        self.server_runtime.spawn(async move {
+            register_prometheus_export(prometheus_port).await;
+        });
     }
 
     // Start Daemon Thread
@@ -82,7 +85,6 @@ impl StorageEngine {
         let config = self.config.clone();
         self.daemon_runtime
             .spawn(async move { report_heartbeat(config) });
-        
     }
 
     // Wait for the service process to stop
