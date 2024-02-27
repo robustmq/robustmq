@@ -16,7 +16,7 @@ use self::services::GrpcService;
 use broker_cluster::BrokerCluster;
 use cluster::PlacementCluster;
 use common::config::placement_center::PlacementCenterConfig;
-use common::log::{info, info_meta};
+use common::log::info_meta;
 use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
@@ -91,7 +91,11 @@ pub struct PlacementCenter {
     storage_cluster: Arc<RwLock<StorageCluster>>,
     // Cache metadata information for the Broker Server cluster
     broker_cluster: Arc<RwLock<BrokerCluster>>,
+    // Cache metadata information for the Placement Cluster cluster
+    placement_cluster: Arc<RwLock<PlacementCluster>>,
+    // Storage implementation of Raft Group information
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    // Placement Center Cluster information storage implementation
     cluster_storage: Arc<cluster_storage::ClusterStorage>,
     stop_send: broadcast::Sender<bool>,
 }
@@ -108,6 +112,11 @@ impl PlacementCenter {
             Arc::new(RwLock::new(StorageCluster::new()));
         let broker_cluster: Arc<RwLock<BrokerCluster>> =
             Arc::new(RwLock::new(BrokerCluster::new()));
+        let placement_cluster: Arc<RwLock<PlacementCluster>> =
+            Arc::new(RwLock::new(PlacementCluster::new(
+                Node::new(config.addr.clone(), config.node_id, config.grpc_port),
+                config.nodes.clone(),
+            )));
 
         let rocksdb_handle: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&config));
         let raft_storage: Arc<RwLock<RaftRocksDBStorageCore>> = Arc::new(RwLock::new(
@@ -123,6 +132,7 @@ impl PlacementCenter {
             daemon_runtime,
             storage_cluster,
             broker_cluster,
+            placement_cluster,
             raft_storage,
             cluster_storage,
             stop_send,
@@ -133,39 +143,27 @@ impl PlacementCenter {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
 
-        let placement_cluster: Arc<RwLock<PlacementCluster>> =
-            Arc::new(RwLock::new(PlacementCluster::new(
-                Node::new(
-                    self.config.addr.clone(),
-                    self.config.node_id,
-                    self.config.grpc_port,
-                ),
-                peer_message_send,
-                self.config.nodes.clone(),
-            )));
-
         self.start_broker_controller().await;
 
         self.start_engine_controller().await;
 
         self.start_peers_manager(peer_message_recv).await;
 
-        self.start_raft_machine(placement_cluster.clone(), raft_message_recv)
+        self.start_raft_machine(peer_message_send, raft_message_recv)
             .await;
 
-        self.start_http_server(placement_cluster.clone()).await;
+        self.start_http_server().await;
 
-        self.start_grpc_server(placement_cluster.clone(), raft_message_send)
-            .await;
+        self.start_grpc_server(raft_message_send).await;
 
         self.awaiting_stop().await;
     }
 
     // Start HTTP Server
-    pub async fn start_http_server(&self, placement_cluster: Arc<RwLock<PlacementCluster>>) {
+    pub async fn start_http_server(&self) {
         let http_s = HttpServer::new(
             self.config.clone(),
-            placement_cluster,
+            self.placement_cluster.clone(),
             self.raft_storage.clone(),
             self.cluster_storage.clone(),
         );
@@ -175,16 +173,12 @@ impl PlacementCenter {
     }
 
     // Start Grpc Server
-    pub async fn start_grpc_server(
-        &self,
-        placement_cluster: Arc<RwLock<PlacementCluster>>,
-        raft_sender: Sender<RaftMessage>,
-    ) {
+    pub async fn start_grpc_server(&self, raft_sender: Sender<RaftMessage>) {
         let ip = format!("0.0.0.0:{}", self.config.grpc_port)
             .parse()
             .unwrap();
         let service_handler = GrpcService::new(
-            placement_cluster,
+            self.placement_cluster.clone(),
             raft_sender,
             self.raft_storage.clone(),
             self.cluster_storage.clone(),
@@ -241,7 +235,7 @@ impl PlacementCenter {
     // Start Raft Status Machine
     pub async fn start_raft_machine(
         &self,
-        placement_cluster: Arc<RwLock<PlacementCluster>>,
+        peer_message_send: Sender<PeerMessage>,
         raft_message_recv: Receiver<RaftMessage>,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
@@ -249,17 +243,21 @@ impl PlacementCenter {
             self.storage_cluster.clone(),
             self.broker_cluster.clone(),
         )));
+
         let mut raft: MetaRaft = MetaRaft::new(
             self.config.clone(),
-            placement_cluster,
+            self.placement_cluster.clone(),
             data_route,
+            peer_message_send,
             raft_message_recv,
             self.stop_send.subscribe(),
             self.raft_storage.clone(),
         );
+
         self.daemon_runtime.spawn(async move {
             raft.run().await;
         });
+
         info_meta("Raft state machine was started successfully");
     }
 

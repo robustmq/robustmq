@@ -1,4 +1,5 @@
 use super::message::{RaftMessage, RaftResponseMesage};
+use super::peer::PeerMessage;
 use crate::cluster::PlacementCluster;
 use crate::route::DataRoute;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
@@ -22,7 +23,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use std::time::Instant;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
@@ -34,6 +35,7 @@ pub struct MetaRaft {
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
     data_route: Arc<RwLock<DataRoute>>,
     entry_num: AtomicUsize,
+    peer_message_send: Sender<PeerMessage>,
     stop_recv: broadcast::Receiver<bool>,
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
@@ -43,6 +45,7 @@ impl MetaRaft {
         config: PlacementCenterConfig,
         placement_cluster: Arc<RwLock<PlacementCluster>>,
         data_route: Arc<RwLock<DataRoute>>,
+        peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
         raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
@@ -58,6 +61,7 @@ impl MetaRaft {
             resp_channel,
             data_route,
             entry_num,
+            peer_message_send,
             stop_recv,
             raft_storage,
         };
@@ -148,7 +152,10 @@ impl MetaRaft {
                     self.placement_cluster.read().unwrap().raft_role,
                     raft_node.raft.state
                 ));
-                self.placement_cluster.write().unwrap().set_role(raft_node.raft.state)
+                self.placement_cluster
+                    .write()
+                    .unwrap()
+                    .set_role(raft_node.raft.state)
             }
             // info_meta(&format!("{:?}",raft_node.raft.state));
             self.on_ready(&mut raft_node).await;
@@ -301,8 +308,7 @@ impl MetaRaft {
                 info_meta(&format!("ready message:{:?}", msg));
             }
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
-            let mut cluster = self.placement_cluster.write().unwrap();
-            cluster.send_message(to, data).await;
+            self.send_peer_message(to, data).await;
         }
     }
 
@@ -375,6 +381,27 @@ impl MetaRaft {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if num % 1000 == 0 {
             raft_node.mut_store().create_snapshot().unwrap();
+        }
+    }
+
+    pub async fn send_peer_message(&self, id: u64, msg: Vec<u8>) {
+        if let Some(node) = self.placement_cluster.read().unwrap().get_node_by_id(id) {
+            match self
+                .peer_message_send
+                .send(PeerMessage {
+                    to: node.addr(),
+                    data: msg,
+                })
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => error_meta(&format!(
+                    "Failed to write Raft Message to send queue with error message: {:?}",
+                    e.to_string()
+                )),
+            }
+        } else {
+            error_meta(&format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id));
         }
     }
 }
