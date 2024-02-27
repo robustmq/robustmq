@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use super::cluster::Cluster;
+use super::cluster::PlacementCluster;
 use crate::broker_cluster::BrokerCluster;
 use crate::client::{create_shard, delete_shard, register_node, unregister_node};
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
@@ -46,9 +46,9 @@ use std::time::{self, Duration, Instant, SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcService {
-    cluster: Arc<RwLock<Cluster>>,
+    placement_cluster: Arc<RwLock<PlacementCluster>>,
     raft_sender: Sender<RaftMessage>,
-    rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     cluster_storage: Arc<ClusterStorage>,
     storage_cluster: Arc<RwLock<StorageCluster>>,
     broker_cluster: Arc<RwLock<BrokerCluster>>,
@@ -56,17 +56,17 @@ pub struct GrpcService {
 
 impl GrpcService {
     pub fn new(
-        cluster: Arc<RwLock<Cluster>>,
+        placement_cluster: Arc<RwLock<PlacementCluster>>,
         raft_sender: Sender<RaftMessage>,
-        rocksdb_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+        raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
         cluster_storage: Arc<ClusterStorage>,
         storage_cluster: Arc<RwLock<StorageCluster>>,
         broker_cluster: Arc<RwLock<BrokerCluster>>,
     ) -> Self {
         GrpcService {
-            cluster,
+            placement_cluster,
             raft_sender,
-            rocksdb_storage,
+            raft_storage,
             cluster_storage,
             storage_cluster,
             broker_cluster,
@@ -74,11 +74,11 @@ impl GrpcService {
     }
 
     fn rewrite_leader(&self) -> bool {
-        return self.cluster.read().unwrap().is_leader();
+        return self.placement_cluster.read().unwrap().is_leader();
     }
 
     fn verify(&self) -> Result<(), RobustMQError> {
-        let cluster = self.cluster.read().unwrap();
+        let cluster = self.placement_cluster.read().unwrap();
 
         if cluster.leader_alive() {
             return Err(RobustMQError::MetaClusterNotLeaderNode);
@@ -133,7 +133,7 @@ impl PlacementCenterService for GrpcService {
         let req = request.into_inner();
 
         if self.rewrite_leader() {
-            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
             match register_node(&leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
@@ -164,7 +164,7 @@ impl PlacementCenterService for GrpcService {
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         if self.rewrite_leader() {
-            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
             match unregister_node(&leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
@@ -195,7 +195,7 @@ impl PlacementCenterService for GrpcService {
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         if self.rewrite_leader() {
-            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
             match create_shard(&leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
@@ -247,7 +247,7 @@ impl PlacementCenterService for GrpcService {
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         if self.rewrite_leader() {
-            let leader_addr = self.cluster.read().unwrap().leader_addr();
+            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
             match delete_shard(&leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),

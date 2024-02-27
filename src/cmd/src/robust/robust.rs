@@ -46,7 +46,7 @@ fn main() {
 
     let server_conf: BrokerServerConfig = parse_server(&args.server_conf);
     let meta_conf: PlacementCenterConfig = parse_placement_center(&args.meta_conf);
-    let (stop_send, _) = broadcast::channel(2);
+    // let (stop_send, _) = broadcast::channel(2);
 
     log::new(
         meta_conf.log_path.clone(),
@@ -55,8 +55,8 @@ fn main() {
     );
 
     // Start Placement Center
-    let mut mt_s = PlacementCenter::new(meta_conf);
-    mt_s.run(stop_send);
+    // let mut mt_s = PlacementCenter::new(meta_conf);
+    // mt_s.run(stop_send);
 
     // Start Storage Engine
 

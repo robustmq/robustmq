@@ -1,5 +1,5 @@
 use super::message::{RaftMessage, RaftResponseMesage};
-use crate::cluster::Cluster;
+use crate::cluster::PlacementCluster;
 use crate::route::DataRoute;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::raft_storage::RaftRocksDBStorage;
@@ -28,38 +28,38 @@ use tokio::time::timeout;
 
 pub struct MetaRaft {
     config: PlacementCenterConfig,
-    cluster: Arc<RwLock<Cluster>>,
+    placement_cluster: Arc<RwLock<PlacementCluster>>,
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
     data_route: Arc<RwLock<DataRoute>>,
     entry_num: AtomicUsize,
     stop_recv: broadcast::Receiver<bool>,
-    storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
 impl MetaRaft {
     pub fn new(
         config: PlacementCenterConfig,
-        cluster: Arc<RwLock<Cluster>>,
+        placement_cluster: Arc<RwLock<PlacementCluster>>,
         data_route: Arc<RwLock<DataRoute>>,
         receiver: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
-        storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+        raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
         let entry_num = AtomicUsize::new(1);
         let resp_channel = HashMap::new();
         return Self {
             config,
-            cluster,
+            placement_cluster,
             receiver,
             seqnum,
             resp_channel,
             data_route,
             entry_num,
             stop_recv,
-            storage,
+            raft_storage,
         };
     }
 
@@ -142,13 +142,13 @@ impl MetaRaft {
                 now = Instant::now();
             }
 
-            if self.cluster.read().unwrap().raft_role != raft_node.raft.state {
+            if self.placement_cluster.read().unwrap().raft_role != raft_node.raft.state {
                 info_meta(&format!(
                     "Node Raft Role changes from  【{:?}】 to 【{:?}】",
-                    self.cluster.read().unwrap().raft_role,
+                    self.placement_cluster.read().unwrap().raft_role,
                     raft_node.raft.state
                 ));
-                self.cluster.write().unwrap().set_role(raft_node.raft.state)
+                self.placement_cluster.write().unwrap().set_role(raft_node.raft.state)
             }
             // info_meta(&format!("{:?}",raft_node.raft.state));
             self.on_ready(&mut raft_node).await;
@@ -249,7 +249,7 @@ impl MetaRaft {
                             ConfChangeType::AddNode => {
                                 match deserialize::<Node>(change.get_context()) {
                                     Ok(node) => {
-                                        let mut cls = self.cluster.write().unwrap();
+                                        let mut cls = self.placement_cluster.write().unwrap();
                                         cls.add_peer(id, node);
                                     }
                                     Err(e) => {
@@ -258,7 +258,7 @@ impl MetaRaft {
                                 }
                             }
                             ConfChangeType::RemoveNode => {
-                                let mut cls = self.cluster.write().unwrap();
+                                let mut cls = self.placement_cluster.write().unwrap();
                                 cls.remove_peer(id);
                             }
                             _ => unimplemented!(),
@@ -301,14 +301,14 @@ impl MetaRaft {
                 info_meta(&format!("ready message:{:?}", msg));
             }
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
-            let mut cluster = self.cluster.write().unwrap();
+            let mut cluster = self.placement_cluster.write().unwrap();
             cluster.send_message(to, data).await;
         }
     }
 
     pub async fn new_node(&self) -> RawNode<RaftRocksDBStorage> {
-        let cluster = self.cluster.read().unwrap();
-        let storage = RaftRocksDBStorage::new(self.storage.clone());
+        let cluster = self.placement_cluster.read().unwrap();
+        let storage = RaftRocksDBStorage::new(self.raft_storage.clone());
 
         // build config
         let hs = storage.read_lock().hard_state();

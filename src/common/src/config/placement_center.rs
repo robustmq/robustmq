@@ -21,8 +21,8 @@ use toml::Table;
 pub struct PlacementCenterConfig {
     pub node_id: u64,
     pub addr: String,
-    pub port: u16,
-    pub admin_port: u16,
+    pub grpc_port: u16,
+    pub http_port: u16,
     pub runtime_work_threads: usize,
     pub data_path: String,
     pub log_path: String,
@@ -42,8 +42,8 @@ impl Default for PlacementCenterConfig {
         PlacementCenterConfig {
             node_id: 1,
             addr: "127.0.0.1".to_string(),
-            port: 1227,
-            admin_port: 1226,
+            grpc_port: 1227,
+            http_port: 1226,
             runtime_work_threads: 10,
             log_segment_size: 1024 * 1024 * 1024 * 1024 * 1024,
             log_file_num: 50,

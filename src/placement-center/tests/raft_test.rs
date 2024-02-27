@@ -14,13 +14,13 @@ mod tests {
     use tokio::sync::broadcast;
     use toml::Table;
 
-    #[test]
-    fn raft_node_1() {
+    #[tokio::test]
+    async fn raft_node_1() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
-        conf.port = 1221;
-        conf.admin_port = 2221;
+        conf.grpc_port = 1221;
+        conf.http_port = 2221;
         conf.log_path = "/tmp/test_fold1/logs".to_string();
         conf.data_path = "/tmp/test_fold1/data".to_string();
 
@@ -42,18 +42,18 @@ mod tests {
         log::new(conf.log_path.clone(), 1024, 50);
 
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf);
-        let meta_service = mt.run(stop_send);
-        handle_running(meta_service);
+        let mut mt = PlacementCenter::new(conf, stop_send);
+
+        mt.start().await;
     }
 
-    #[test]
-    fn raft_node_2() {
+    #[tokio::test]
+    async fn raft_node_2() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 2;
         conf.addr = "127.0.0.1".to_string();
-        conf.port = 1222;
-        conf.admin_port = 2222;
+        conf.grpc_port = 1222;
+        conf.http_port = 2222;
         conf.log_path = "/tmp/test_fold2/logs".to_string();
         conf.data_path = "/tmp/test_fold2/data".to_string();
         create_fold(conf.data_path.clone());
@@ -76,18 +76,18 @@ mod tests {
 
         log::new(conf.log_path.clone(), 1024, 50);
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf);
-        let meta_service = mt.run(stop_send);
-        handle_running(meta_service);
+        let mut mt = PlacementCenter::new(conf, stop_send);
+
+        mt.start().await;
     }
 
-    #[test]
-    fn raft_node_3() {
+    #[tokio::test]
+    async fn raft_node_3() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 3;
         conf.addr = "127.0.0.1".to_string();
-        conf.port = 1223;
-        conf.admin_port = 2223;
+        conf.grpc_port = 1223;
+        conf.http_port = 2223;
         conf.log_path = "/tmp/test_fold3/logs".to_string();
         conf.data_path = "/tmp/test_fold3/data".to_string();
 
@@ -108,10 +108,9 @@ mod tests {
 
         log::new(conf.log_path.clone(), 1024, 50);
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf);
+        let mut mt = PlacementCenter::new(conf, stop_send);
 
-        let meta_service = mt.run(stop_send);
-        handle_running(meta_service);
+        mt.start().await;
     }
 
     #[test]
@@ -174,5 +173,4 @@ mod tests {
         res_entries.extend_from_slice(&entries);
         println!("{:?}", res_entries);
     }
-
 }
