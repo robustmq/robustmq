@@ -1,5 +1,5 @@
 use crate::{
-    cluster::Cluster,
+    cluster::PlacementCluster,
     storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore},
 };
 use axum::routing::get;
@@ -17,7 +17,7 @@ pub const CLUSTER_INFO: &str = "/cluster-info";
 
 pub struct HttpServer {
     ip: SocketAddr,
-    cluster: Arc<RwLock<Cluster>>,
+    cluster: Arc<RwLock<PlacementCluster>>,
     storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     cluster_storage: Arc<ClusterStorage>,
 }
@@ -25,11 +25,11 @@ pub struct HttpServer {
 impl HttpServer {
     pub fn new(
         config: PlacementCenterConfig,
-        cluster: Arc<RwLock<Cluster>>,
+        cluster: Arc<RwLock<PlacementCluster>>,
         storage: Arc<RwLock<RaftRocksDBStorageCore>>,
         cluster_storage: Arc<ClusterStorage>,
     ) -> Self {
-        let ip: SocketAddr = format!("{}:{}", config.addr, config.admin_port)
+        let ip: SocketAddr = format!("{}:{}", config.addr, config.http_port)
             .parse()
             .unwrap();
         return Self {

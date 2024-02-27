@@ -32,7 +32,8 @@ struct ArgsParams {
     conf: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = ArgsParams::parse();
     let conf: PlacementCenterConfig = parse_placement_center(&args.conf);
     let (stop_send, _) = broadcast::channel(2);
@@ -41,8 +42,6 @@ fn main() {
         conf.log_segment_size.clone(),
         conf.log_file_num.clone(),
     );
-    let mut pc = PlacementCenter::new(conf);
-    let service: Vec<Result<std::thread::JoinHandle<()>, std::io::Error>> =
-        pc.run(stop_send);
-    handle_running(service);
+    let mut pc = PlacementCenter::new(conf, stop_send);
+    pc.start().await;
 }

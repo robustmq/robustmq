@@ -16,13 +16,13 @@
 
 use super::response::{success_response, IndexResponse, RaftInfo};
 use crate::{
-    cluster::Cluster,
+    cluster::PlacementCluster,
     storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore},
 };
 use std::sync::{Arc, RwLock};
 
 pub async fn controller_index(
-    cluster: Arc<RwLock<Cluster>>,
+    cluster: Arc<RwLock<PlacementCluster>>,
     storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 ) -> String {
     let cluster_read = cluster.read().unwrap();

@@ -14,7 +14,7 @@
 
 use self::services::GrpcService;
 use broker_cluster::BrokerCluster;
-use cluster::Cluster;
+use cluster::PlacementCluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::{info, info_meta};
 use common::runtime::create_runtime;
@@ -30,12 +30,13 @@ use runtime::heartbeat::Heartbeat;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
-use std::thread::{self, JoinHandle};
 use storage::cluster_storage;
 use storage::raft_core::RaftRocksDBStorageCore;
 use storage::rocksdb::RocksDBStorage;
 use storage_cluster::StorageCluster;
+use tokio::runtime::Runtime;
 use tokio::signal;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
 use tonic::transport::Server;
 
@@ -84,162 +85,204 @@ impl Display for Node {
 
 pub struct PlacementCenter {
     config: PlacementCenterConfig,
+    server_runtime: Runtime,
+    daemon_runtime: Runtime,
+    // Cache metadata information for the Storage Engine cluster
+    storage_cluster: Arc<RwLock<StorageCluster>>,
+    // Cache metadata information for the Broker Server cluster
+    broker_cluster: Arc<RwLock<BrokerCluster>>,
+    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    cluster_storage: Arc<cluster_storage::ClusterStorage>,
+    stop_send: broadcast::Sender<bool>,
 }
 
 impl PlacementCenter {
-    pub fn new(config: PlacementCenterConfig) -> PlacementCenter {
-        return PlacementCenter { config };
-    }
-
-    pub fn run(
-        &mut self,
+    pub fn new(
+        config: PlacementCenterConfig,
         stop_send: broadcast::Sender<bool>,
-    ) -> Vec<Result<JoinHandle<()>, std::io::Error>> {
-        info(&format!(
-            "Meta node starting, node IP :{}, node ID:{}",
-            self.config.addr, self.config.node_id
+    ) -> PlacementCenter {
+        let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
+        let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+
+        let storage_cluster: Arc<RwLock<StorageCluster>> =
+            Arc::new(RwLock::new(StorageCluster::new()));
+        let broker_cluster: Arc<RwLock<BrokerCluster>> =
+            Arc::new(RwLock::new(BrokerCluster::new()));
+
+        let rocksdb_handle: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&config));
+        let raft_storage: Arc<RwLock<RaftRocksDBStorageCore>> = Arc::new(RwLock::new(
+            RaftRocksDBStorageCore::new(rocksdb_handle.clone()),
         ));
 
+        let cluster_storage: Arc<cluster_storage::ClusterStorage> =
+            Arc::new(cluster_storage::ClusterStorage::new(rocksdb_handle.clone()));
+
+        return PlacementCenter {
+            config,
+            server_runtime,
+            daemon_runtime,
+            storage_cluster,
+            broker_cluster,
+            raft_storage,
+            cluster_storage,
+            stop_send,
+        };
+    }
+
+    pub async fn start(&mut self) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
-        let rds: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&self.config));
-        let rocksdb_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(rds.clone())));
-        let cluster_storage = Arc::new(cluster_storage::ClusterStorage::new(rds.clone()));
 
-        let cluster = Arc::new(RwLock::new(Cluster::new(
-            Node::new(
-                self.config.addr.clone(),
-                self.config.node_id.clone(),
-                self.config.port.clone(),
-            ),
-            peer_message_send.clone(),
-            self.config.nodes.clone(),
-        )));
+        let placement_cluster: Arc<RwLock<PlacementCluster>> =
+            Arc::new(RwLock::new(PlacementCluster::new(
+                Node::new(
+                    self.config.addr.clone(),
+                    self.config.node_id,
+                    self.config.grpc_port,
+                ),
+                peer_message_send,
+                self.config.nodes.clone(),
+            )));
 
-        let storage_cluster = Arc::new(RwLock::new(StorageCluster::new()));
-        let broker_cluster = Arc::new(RwLock::new(BrokerCluster::new()));
+        self.start_broker_controller().await;
 
+        self.start_engine_controller().await;
+
+        self.start_peers_manager(peer_message_recv).await;
+
+        self.start_raft_machine(placement_cluster.clone(), raft_message_recv)
+            .await;
+
+        self.start_http_server(placement_cluster.clone()).await;
+
+        self.start_grpc_server(placement_cluster.clone(), raft_message_send)
+            .await;
+
+        self.awaiting_stop().await;
+    }
+
+    // Start HTTP Server
+    pub async fn start_http_server(&self, placement_cluster: Arc<RwLock<PlacementCluster>>) {
+        let http_s = HttpServer::new(
+            self.config.clone(),
+            placement_cluster,
+            self.raft_storage.clone(),
+            self.cluster_storage.clone(),
+        );
+        self.server_runtime.spawn(async move {
+            http_s.start().await;
+        });
+    }
+
+    // Start Grpc Server
+    pub async fn start_grpc_server(
+        &self,
+        placement_cluster: Arc<RwLock<PlacementCluster>>,
+        raft_sender: Sender<RaftMessage>,
+    ) {
+        let ip = format!("0.0.0.0:{}", self.config.grpc_port)
+            .parse()
+            .unwrap();
+        let service_handler = GrpcService::new(
+            placement_cluster,
+            raft_sender,
+            self.raft_storage.clone(),
+            self.cluster_storage.clone(),
+            self.storage_cluster.clone(),
+            self.broker_cluster.clone(),
+        );
+        self.server_runtime.spawn(async move {
+            info_meta(&format!(
+                "RobustMQ Meta Grpc Server start success. bind addr:{}",
+                ip
+            ));
+            Server::builder()
+                .add_service(PlacementCenterServiceServer::new(service_handler))
+                .serve(ip)
+                .await
+                .unwrap();
+        });
+    }
+
+    // Start Storage Engine Cluster Controller
+    pub async fn start_engine_controller(&self) {
+        let storage_cluster: Arc<RwLock<StorageCluster>> = self.storage_cluster.clone();
+        self.daemon_runtime.spawn(async move {
+            let ctrl = StorageEngineController::new(storage_cluster);
+            ctrl.start().await;
+        });
+        info_meta("Storage Engine Controller started successfully");
+    }
+
+    // Start Broker Server Cluster Controller
+    pub async fn start_broker_controller(&self) {
+        let broker_cluster = self.broker_cluster.clone();
+        self.daemon_runtime.spawn(async move {
+            let ctrl = BrokerServerController::new(broker_cluster);
+            ctrl.start().await;
+        });
+        info_meta("Broker Server Controller started successfully");
+    }
+
+    // Start Cluster hearbeat check thread
+    pub async fn start_heartbeat_check(&self) {
+        let heartbeat = Heartbeat::new(
+            100000,
+            self.storage_cluster.clone(),
+            self.broker_cluster.clone(),
+        );
+        self.daemon_runtime.spawn(async move {
+            heartbeat.start_heartbeat_check().await;
+        });
+
+        info_meta("Cluster node heartbeat detection thread started successfully");
+    }
+
+    // Start Raft Status Machine
+    pub async fn start_raft_machine(
+        &self,
+        placement_cluster: Arc<RwLock<PlacementCluster>>,
+        raft_message_recv: Receiver<RaftMessage>,
+    ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
-            cluster_storage.clone(),
-            storage_cluster.clone(),
-            broker_cluster.clone(),
+            self.cluster_storage.clone(),
+            self.storage_cluster.clone(),
+            self.broker_cluster.clone(),
         )));
-        let mut thread_result = Vec::new();
-
-        let heartbeat = Heartbeat::new(100000, storage_cluster.clone(), broker_cluster.clone());
-
-        // Thread running meta tcp server
-        let tcp_thread = thread::Builder::new().name("meta-tcp-thread".to_owned());
-        let config = self.config.clone();
-        let cluster_clone = cluster.clone();
-        let mut stop_recv_c = stop_send.subscribe();
-        let rocksdb_storage_c = rocksdb_storage.clone();
-        let cluster_storage_c = cluster_storage.clone();
-        let storage_cluster_c = storage_cluster.clone();
-        let broker_cluster_c = broker_cluster.clone();
-        let tcp_thread_join = tcp_thread.spawn(move || {
-            let runtime = create_runtime("meta-tcp-runtime", config.runtime_work_threads);
-
-            let cf1 = config.clone();
-            let cls1 = cluster_clone.clone();
-            let rocksdb_storage_c1 = rocksdb_storage_c.clone();
-            let cluster_storage_c1 = cluster_storage_c.clone();
-            runtime.spawn(async move {
-                let http_s = HttpServer::new(cf1, cls1, rocksdb_storage_c1, cluster_storage_c1);
-                http_s.start().await;
-            });
-
-            let cf2 = config.clone();
-            runtime.spawn(async move {
-                let ip = format!("{}:{}", cf2.addr, cf2.port).parse().unwrap();
-
-                info_meta(&format!(
-                    "RobustMQ Meta Grpc Server start success. bind addr:{}",
-                    ip
-                ));
-
-                let service_handler = GrpcService::new(
-                    cluster_clone,
-                    raft_message_send,
-                    rocksdb_storage_c,
-                    cluster_storage_c,
-                    storage_cluster_c.clone(),
-                    broker_cluster_c.clone(),
-                );
-
-                Server::builder()
-                    .add_service(PlacementCenterServiceServer::new(service_handler))
-                    .serve(ip)
-                    .await
-                    .unwrap();
-            });
-
-            runtime.block_on(async {
-                if stop_recv_c.recv().await.unwrap() {
-                    info_meta("TCP and GRPC Server services stop.");
-                }
-            });
+        let mut raft: MetaRaft = MetaRaft::new(
+            self.config.clone(),
+            placement_cluster,
+            data_route,
+            raft_message_recv,
+            self.stop_send.subscribe(),
+            self.raft_storage.clone(),
+        );
+        self.daemon_runtime.spawn(async move {
+            raft.run().await;
         });
-        thread_result.push(tcp_thread_join);
+        info_meta("Raft state machine was started successfully");
+    }
 
-        // Threads that run the meta Raft engine
-        let daemon_thread = thread::Builder::new().name("daemon-thread".to_owned());
-        let config = self.config.clone();
-        let cluster_clone = cluster.clone();
-        let stop_recv_c = stop_send.subscribe();
-        let rocksdb_storage_c = rocksdb_storage.clone();
-        let storage_cluster_c = storage_cluster.clone();
-        let broker_cluster_c = broker_cluster.clone();
-
-        let daemon_thread_join = daemon_thread.spawn(move || {
-            let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
-
-            daemon_runtime.spawn(async move {
-                let mut peers_manager = PeersManager::new(peer_message_recv);
-                peers_manager.start().await;
-            });
-
-            daemon_runtime.spawn(async move {
-                loop {
-                    signal::ctrl_c().await.expect("failed to listen for event");
-                    match stop_send.send(true) {
-                        Ok(_) => info_meta("When ctrl + c is received, the service starts to stop"),
-                        Err(_) => {}
-                    }
-                }
-            });
-
-            // start storage engine controller;
-            daemon_runtime.spawn(async move {
-                let ctrl = StorageEngineController::new(storage_cluster_c);
-                ctrl.start().await;
-            });
-
-            // start broker server controller;
-            daemon_runtime.spawn(async move {
-                let ctrl = BrokerServerController::new(broker_cluster_c);
-                ctrl.start().await;
-            });
-
-            // start heartbeat check thread;
-            daemon_runtime.spawn(async move {
-                heartbeat.start_heartbeat_check().await;
-            });
-
-            daemon_runtime.block_on(async move {
-                let mut raft: MetaRaft = MetaRaft::new(
-                    config,
-                    cluster_clone,
-                    data_route,
-                    raft_message_recv,
-                    stop_recv_c,
-                    rocksdb_storage_c,
-                );
-                raft.run().await;
-            });
+    // Start Raft Node Peer Manager
+    pub async fn start_peers_manager(&self, peer_message_recv: Receiver<PeerMessage>) {
+        let mut peers_manager = PeersManager::new(peer_message_recv);
+        self.daemon_runtime.spawn(async move {
+            peers_manager.start().await;
         });
+        info_meta("Raft Node inter-node communication management thread started successfully");
+    }
 
-        thread_result.push(daemon_thread_join);
-        return thread_result;
+    // Wait Stop Signal
+    pub async fn awaiting_stop(&self) {
+        loop {
+            signal::ctrl_c().await.expect("failed to listen for event");
+            match self.stop_send.send(true) {
+                Ok(_) => {
+                    info_meta("When ctrl + c is received, the service starts to stop");
+                    break;
+                }
+                Err(_) => {}
+            }
+        }
     }
 }

@@ -13,8 +13,12 @@
 // limitations under the License.
 
 pub mod broker;
+use axum::routing::{get, Route};
+use axum::Router;
 use prometheus::IntGaugeVec;
 use prometheus::{Encoder, TextEncoder};
+
+use crate::log::info;
 
 lazy_static::lazy_static! {
     static ref APP_VERSION: IntGaugeVec =
@@ -25,13 +29,26 @@ const SERVER_LABLE_MQTT: &str = "mqtt4";
 const SERVER_LABLE_GRPC: &str = "grpc";
 const SERVER_LABLE_HTTP: &str = "http";
 
-
 pub fn dump_metrics() -> String {
     let mut buffer = Vec::new();
     let encoder = TextEncoder::new();
     let mf = prometheus::gather();
-    encoder
-        .encode(&mf, &mut buffer).unwrap();
+    encoder.encode(&mf, &mut buffer).unwrap();
     let res = String::from_utf8(buffer).unwrap();
     return res;
+}
+
+pub async fn register_prometheus_export(port: u16) {
+    let ip = format!("0.0.0.0:{}", port);
+    let route = Router::new().route("/metrics", get(route_metrics));
+    let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
+    info(&format!(
+        "Prometheus HTTP Server started successfully, listening port: {}",
+        port
+    ));
+    axum::serve(listener, route).await.unwrap();
+}
+
+pub async fn route_metrics() -> String {
+    return dump_metrics();
 }

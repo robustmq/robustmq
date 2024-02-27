@@ -1,14 +1,14 @@
-use std::thread::{self, JoinHandle};
-
-use cluster::register_storage_engine_node;
+use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common::{
-    config::storage_engine::StorageEngineConfig, log::info_meta, runtime::create_runtime,
+    config::storage_engine::StorageEngineConfig, log::info_meta,
+    metrics::register_prometheus_export, runtime::create_runtime,
 };
 use protocol::storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer;
 use services::StorageService;
-use tokio::{signal, sync::broadcast};
+use tokio::{runtime::Runtime, signal, sync::broadcast};
 use tonic::transport::Server;
 
+mod cluster;
 mod index;
 mod raft_group;
 mod record;
@@ -18,91 +18,92 @@ mod shard;
 mod storage;
 mod v1;
 mod v2;
-mod cluster;
+mod metadata;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,
+    stop_send: broadcast::Sender<bool>,
+    server_runtime: Runtime,
+    daemon_runtime: Runtime,
 }
 
 impl StorageEngine {
-    pub fn new(config: StorageEngineConfig) -> Self {
-        return StorageEngine { config };
+    pub fn new(config: StorageEngineConfig, stop_send: broadcast::Sender<bool>) -> Self {
+        let server_runtime =
+            create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
+
+        let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+        return StorageEngine {
+            config,
+            stop_send,
+            server_runtime,
+            daemon_runtime,
+        };
     }
 
-    pub async fn start(
-        &self,
-        stop_send: broadcast::Sender<bool>,
-    ) -> Vec<Result<JoinHandle<()>, std::io::Error>> {
-        let mut thread_result = Vec::new();
-        
+    pub async fn start(&self) {
         // Register Node
-        register_storage_engine_node(self.config.clone()).await;
-        
+        // register_storage_engine_node(self.config.clone()).await;
+
         // start GRPC && HTTP Server
-        let tcp_thread_join = self.start_server(stop_send.subscribe());
-        thread_result.push(tcp_thread_join);
+        self.start_server().await;
 
         // Threads that run the daemon thread
-        let daemon_thread_join = self.start_daemon_thread(stop_send);
-        thread_result.push(daemon_thread_join);
-        return thread_result;
+        self.start_daemon_thread().await;
+
+        self.waiting_stop().await;
     }
 
     // start GRPC && HTTP Server
-    fn start_server(
-        &self,
-        mut stop_recv: broadcast::Receiver<bool>,
-    ) -> Result<JoinHandle<()>, std::io::Error> {
-        let config = self.config.clone();
-        let tcp_thread = thread::Builder::new().name("storage-engine-server-thread".to_owned());
-        tcp_thread.spawn(move || {
-            let runtime =
-                create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
+    async fn start_server(&self) {
+        // start grpc server
+        let port = self.config.grpc_port;
+        self.server_runtime.spawn(async move {
+            let ip = format!("0.0.0.0:{}", port).parse().unwrap();
+            info_meta(&format!(
+                "RobustMQ StorageEngine Grpc Server start success. bind port:{}",
+                ip
+            ));
 
-            runtime.spawn(async move {
-                let ip = format!("{}:{}", config.addr, config.port).parse().unwrap();
+            let service_handler = StorageService::new();
 
-                info_meta(&format!(
-                    "RobustMQ StorageEngine Grpc Server start success. bind addr:{}",
-                    ip
-                ));
+            Server::builder()
+                .add_service(StorageEngineServiceServer::new(service_handler))
+                .serve(ip)
+                .await
+                .unwrap();
+        });
 
-                let service_handler = StorageService::new();
-
-                Server::builder()
-                    .add_service(StorageEngineServiceServer::new(service_handler))
-                    .serve(ip)
-                    .await
-                    .unwrap();
-            });
-
-            runtime.block_on(async {
-                if stop_recv.recv().await.unwrap() {
-                    info_meta("TCP and GRPC Server services stop.");
-                }
-            });
-        })
+        // start prometheus http server
+        let prometheus_port = self.config.prometheus_port;
+        self.server_runtime.spawn(async move {
+            register_prometheus_export(prometheus_port).await;
+        });
     }
 
     // Start Daemon Thread
-    fn start_daemon_thread(&self, stop_send: broadcast::Sender<bool>) -> Result<JoinHandle<()>, std::io::Error> {
-        let daemon_thread = thread::Builder::new().name("daemon-thread".to_owned());
+    async fn start_daemon_thread(&self) {
         let config = self.config.clone();
-        daemon_thread.spawn(move || {
-            
-            let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
-            daemon_runtime.block_on(async move {
-                loop {
-                    signal::ctrl_c().await.expect("failed to listen for event");
-                    match stop_send.send(true) {
-                        Ok(_) => {
-                            info_meta("When ctrl + c is received, the service starts to stop");
-                            break;
-                        }
-                        Err(_) => {}
-                    }
+        self.daemon_runtime
+            .spawn(async move { report_heartbeat(config) });
+    }
+
+    // Wait for the service process to stop
+    async fn waiting_stop(&self) {
+        loop {
+            signal::ctrl_c().await.expect("failed to listen for event");
+            match self.stop_send.send(true) {
+                Ok(_) => {
+                    info_meta("When ctrl + c is received, the service starts to stop");
+                    self.stop_server().await;
+                    break;
                 }
-            });
-        })
+                Err(_) => {}
+            }
+        }
+    }
+    async fn stop_server(&self) {
+        // unregister node
+        // unregister_storage_engine_node(self.config.clone()).await;
     }
 }
