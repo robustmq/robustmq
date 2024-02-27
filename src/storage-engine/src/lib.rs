@@ -18,6 +18,7 @@ mod shard;
 mod storage;
 mod v1;
 mod v2;
+mod metadata;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,
