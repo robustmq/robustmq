@@ -15,7 +15,7 @@
  */
 
  use common::errors::RobustMQError;
- use protocol::placement_center::placement::{ placement_center_service_client::PlacementCenterServiceClient, CommonReply, CreateShardRequest, DeleteShardRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest
+ use protocol::placement_center::placement::{ placement_center_service_client::PlacementCenterServiceClient, CommonReply, CreateShardRequest, DeleteShardRequest, HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest
  };
  
  
@@ -82,6 +82,22 @@
      };
      return Ok(resp);
  }
+
+ pub async fn heartbeat(
+    addr: &String,
+    request: HeartbeatRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let mut client = match PlacementCenterServiceClient::connect(format!("http://{}", addr)).await {
+        Ok(client) => client,
+        Err(err) => return Err(RobustMQError::TonicTransport(err)),
+    };
+
+    let resp = match client.heartbeat(tonic::Request::new(request)).await {
+        Ok(reply) => reply.into_inner(),
+        Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
+    };
+    return Ok(resp);
+}
  
  pub async fn send_raft_message(
      addr: &String,

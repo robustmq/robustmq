@@ -1,8 +1,11 @@
-use cluster::{register_storage_engine_node, unregister_storage_engine_node};
+use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common::{
     config::storage_engine::StorageEngineConfig, log::info_meta, runtime::create_runtime,
 };
-use protocol::storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer;
+use protocol::{
+    placement_center::placement::{ClusterType, HeartbeatRequest},
+    storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer,
+};
 use services::StorageService;
 use std::thread::{self, JoinHandle};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
@@ -75,7 +78,12 @@ impl StorageEngine {
     }
 
     // Start Daemon Thread
-    async fn start_daemon_thread(&self) {}
+    async fn start_daemon_thread(&self) {
+        let config = self.config.clone();
+        self.daemon_runtime
+            .spawn(async move { report_heartbeat(config) });
+        
+    }
 
     // Wait for the service process to stop
     async fn waiting_stop(&self) {
