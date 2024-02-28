@@ -56,7 +56,7 @@ mod tools;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default,Clone, Deserialize, Serialize)]
 pub struct Node {
     pub ip: String,
     pub id: u64,
@@ -141,7 +141,7 @@ impl PlacementCenter {
 
     pub async fn start(&mut self) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
-        let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
+        let (peer_message_send, peer_message_recv) = mpsc::channel::<String>(1000);
 
         self.start_broker_controller().await;
 
@@ -235,7 +235,7 @@ impl PlacementCenter {
     // Start Raft Status Machine
     pub async fn start_raft_machine(
         &self,
-        peer_message_send: Sender<PeerMessage>,
+        peer_message_send: Sender<String>,
         raft_message_recv: Receiver<RaftMessage>,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
@@ -262,7 +262,7 @@ impl PlacementCenter {
     }
 
     // Start Raft Node Peer Manager
-    pub async fn start_peers_manager(&self, peer_message_recv: Receiver<PeerMessage>) {
+    pub async fn start_peers_manager(&self, peer_message_recv: Receiver<String>) {
         let mut peers_manager = PeersManager::new(peer_message_recv);
         self.daemon_runtime.spawn(async move {
             peers_manager.start().await;

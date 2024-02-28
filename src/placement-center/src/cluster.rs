@@ -1,20 +1,20 @@
 use std::collections::HashMap;
 
-use crate::{raft::peer::PeerMessage, Node};
-use common::log::{error_meta, info_meta};
+use crate:: Node;
+use common::log:: info_meta;
 use raft::StateRole;
-use tokio::sync::mpsc::Sender;
 use toml::Table;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Default, Debug,Eq, PartialOrd, Ord, Clone)]
 pub enum NodeState {
+    #[default]
     Running,
     Starting,
     Stoping,
     Stop,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default, Debug)]
 pub struct PlacementCluster {
     pub local: Node,
     pub leader: Option<Node>,
