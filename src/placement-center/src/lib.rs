@@ -18,6 +18,7 @@ use cluster::PlacementCluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::info_meta;
 use common::runtime::create_runtime;
+use common::version::banner;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::HttpServer;
@@ -56,7 +57,7 @@ mod tools;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default,Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct Node {
     pub ip: String,
     pub id: u64,
@@ -97,14 +98,10 @@ pub struct PlacementCenter {
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     // Placement Center Cluster information storage implementation
     cluster_storage: Arc<cluster_storage::ClusterStorage>,
-    stop_send: broadcast::Sender<bool>,
 }
 
 impl PlacementCenter {
-    pub fn new(
-        config: PlacementCenterConfig,
-        stop_send: broadcast::Sender<bool>,
-    ) -> PlacementCenter {
+    pub fn new(config: PlacementCenterConfig) -> PlacementCenter {
         let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
@@ -135,32 +132,31 @@ impl PlacementCenter {
             placement_cluster,
             raft_storage,
             cluster_storage,
-            stop_send,
         };
     }
 
-    pub async fn start(&mut self) {
+    pub fn start(&mut self, stop_send: broadcast::Sender<bool>, is_banner: bool) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
-        let (peer_message_send, peer_message_recv) = mpsc::channel::<String>(1000);
+        let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
+        let stop_recv = stop_send.subscribe();
 
-        self.start_broker_controller().await;
+        self.start_broker_controller();
 
-        self.start_engine_controller().await;
+        self.start_engine_controller();
 
-        self.start_peers_manager(peer_message_recv).await;
+        self.start_peers_manager(peer_message_recv);
 
-        self.start_raft_machine(peer_message_send, raft_message_recv)
-            .await;
+        self.start_http_server();
 
-        self.start_http_server().await;
+        self.start_grpc_server(raft_message_send);
 
-        self.start_grpc_server(raft_message_send).await;
+        self.awaiting_stop(stop_send);
 
-        self.awaiting_stop().await;
+        self.start_raft_machine(peer_message_send, raft_message_recv, stop_recv, is_banner);
     }
 
     // Start HTTP Server
-    pub async fn start_http_server(&self) {
+    pub fn start_http_server(&self) {
         let http_s = HttpServer::new(
             self.config.clone(),
             self.placement_cluster.clone(),
@@ -173,7 +169,7 @@ impl PlacementCenter {
     }
 
     // Start Grpc Server
-    pub async fn start_grpc_server(&self, raft_sender: Sender<RaftMessage>) {
+    pub fn start_grpc_server(&self, raft_sender: Sender<RaftMessage>) {
         let ip = format!("0.0.0.0:{}", self.config.grpc_port)
             .parse()
             .unwrap();
@@ -199,7 +195,7 @@ impl PlacementCenter {
     }
 
     // Start Storage Engine Cluster Controller
-    pub async fn start_engine_controller(&self) {
+    pub fn start_engine_controller(&self) {
         let storage_cluster: Arc<RwLock<StorageCluster>> = self.storage_cluster.clone();
         self.daemon_runtime.spawn(async move {
             let ctrl = StorageEngineController::new(storage_cluster);
@@ -209,7 +205,7 @@ impl PlacementCenter {
     }
 
     // Start Broker Server Cluster Controller
-    pub async fn start_broker_controller(&self) {
+    pub fn start_broker_controller(&self) {
         let broker_cluster = self.broker_cluster.clone();
         self.daemon_runtime.spawn(async move {
             let ctrl = BrokerServerController::new(broker_cluster);
@@ -219,7 +215,7 @@ impl PlacementCenter {
     }
 
     // Start Cluster hearbeat check thread
-    pub async fn start_heartbeat_check(&self) {
+    pub fn start_heartbeat_check(&self) {
         let heartbeat = Heartbeat::new(
             100000,
             self.storage_cluster.clone(),
@@ -233,10 +229,12 @@ impl PlacementCenter {
     }
 
     // Start Raft Status Machine
-    pub async fn start_raft_machine(
+    pub fn start_raft_machine(
         &self,
-        peer_message_send: Sender<String>,
+        peer_message_send: Sender<PeerMessage>,
         raft_message_recv: Receiver<RaftMessage>,
+        stop_recv: broadcast::Receiver<bool>,
+        is_banner: bool,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
             self.cluster_storage.clone(),
@@ -250,19 +248,16 @@ impl PlacementCenter {
             data_route,
             peer_message_send,
             raft_message_recv,
-            self.stop_send.subscribe(),
+            stop_recv,
             self.raft_storage.clone(),
         );
-
-        self.daemon_runtime.spawn(async move {
+        self.daemon_runtime.block_on(async move {
             raft.run().await;
         });
-
-        info_meta("Raft state machine was started successfully");
     }
 
     // Start Raft Node Peer Manager
-    pub async fn start_peers_manager(&self, peer_message_recv: Receiver<String>) {
+    pub fn start_peers_manager(&self, peer_message_recv: Receiver<PeerMessage>) {
         let mut peers_manager = PeersManager::new(peer_message_recv);
         self.daemon_runtime.spawn(async move {
             peers_manager.start().await;
@@ -271,16 +266,18 @@ impl PlacementCenter {
     }
 
     // Wait Stop Signal
-    pub async fn awaiting_stop(&self) {
-        loop {
-            signal::ctrl_c().await.expect("failed to listen for event");
-            match self.stop_send.send(true) {
-                Ok(_) => {
-                    info_meta("When ctrl + c is received, the service starts to stop");
-                    break;
+    pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+        self.daemon_runtime.spawn(async move {
+            loop {
+                signal::ctrl_c().await.expect("failed to listen for event");
+                match stop_send.send(true) {
+                    Ok(_) => {
+                        info_meta("When ctrl + c is received, the service starts to stop");
+                        break;
+                    }
+                    Err(_) => {}
                 }
-                Err(_) => {}
             }
-        }
+        });
     }
 }

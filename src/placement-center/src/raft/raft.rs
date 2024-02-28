@@ -35,7 +35,7 @@ pub struct MetaRaft {
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
     data_route: Arc<RwLock<DataRoute>>,
     entry_num: AtomicUsize,
-    peer_message_send: Sender<String>,
+    peer_message_send: Sender<PeerMessage>,
     stop_recv: broadcast::Receiver<bool>,
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
@@ -45,7 +45,7 @@ impl MetaRaft {
         config: PlacementCenterConfig,
         placement_cluster: Arc<RwLock<PlacementCluster>>,
         data_route: Arc<RwLock<DataRoute>>,
-        peer_message_send: Sender<String>,
+        peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
         raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
@@ -388,7 +388,11 @@ impl MetaRaft {
         if let Some(node) = self.placement_cluster.read().unwrap().get_node_by_id(id) {
             match self
                 .peer_message_send
-                .send("".to_string()).await
+                .send(PeerMessage {
+                    to: node.addr(),
+                    data: msg,
+                })
+                .await
             {
                 Ok(_) => {}
                 Err(e) => error_meta(&format!(
