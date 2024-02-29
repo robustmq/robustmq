@@ -3,11 +3,8 @@ use std::{
     thread::sleep,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-
-use common::log::error_meta;
-use protocol::placement_center::placement::{ClusterType, UnRegisterNodeRequest};
-
-use crate::{broker_cluster::BrokerCluster, client::unregister_node, storage_cluster::StorageCluster};
+use protocol::placement_center::placement::UnRegisterNodeRequest;
+use crate::{broker_cluster::BrokerCluster, storage_cluster::StorageCluster};
 
 #[derive(Debug, Clone)]
 pub struct Heartbeat {

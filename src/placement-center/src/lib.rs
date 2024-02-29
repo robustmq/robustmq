@@ -18,7 +18,6 @@ use cluster::PlacementCluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::info_meta;
 use common::runtime::create_runtime;
-use common::version::banner;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::HttpServer;

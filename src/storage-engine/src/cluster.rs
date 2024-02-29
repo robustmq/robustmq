@@ -1,6 +1,4 @@
 use std::time::Duration;
-
-use clients::placement_center::{heartbeat, register_node, unregister_node};
 use common::{
     config::storage_engine::StorageEngineConfig,
     log::{debug, error, info_meta},
@@ -21,7 +19,7 @@ pub async fn register_storage_engine_node(config: StorageEngineConfig) {
 
     let mut res_err = None;
     for addr in config.placement_center {
-        match register_node(&addr, req.clone()).await {
+        match PLACEMENT_CENTER_CLIENT.register_node(addr, req.clone()).await {
             Ok(_) => {
                 info_meta(&format!(
                     "Node {} has been successfully registered",
