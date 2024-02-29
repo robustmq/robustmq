@@ -2,20 +2,17 @@
 mod tests {
     use byteorder::{BigEndian, ReadBytesExt};
     use common::log;
-    use common::tools::handle_running;
     use common::{config::placement_center::PlacementCenterConfig, tools::create_fold};
     use placement_center::PlacementCenter;
     use prost::Message;
-    use raft::eraftpb::{
-        ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
-    };
+    use raft::eraftpb::Entry;
     use std::io::Cursor;
     use std::vec;
     use tokio::sync::broadcast;
     use toml::Table;
 
-    #[tokio::test]
-    async fn raft_node_1() {
+    #[test]
+    fn raft_node_1() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
@@ -42,13 +39,13 @@ mod tests {
         log::new(conf.log_path.clone(), 1024, 50);
 
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf, stop_send);
+        let mut mt = PlacementCenter::new(conf);
 
-        mt.start().await;
+        mt.start(stop_send, false);
     }
 
-    #[tokio::test]
-    async fn raft_node_2() {
+    #[test]
+    fn raft_node_2() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 2;
         conf.addr = "127.0.0.1".to_string();
@@ -76,13 +73,13 @@ mod tests {
 
         log::new(conf.log_path.clone(), 1024, 50);
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf, stop_send);
+        let mut mt = PlacementCenter::new(conf);
 
-        mt.start().await;
+        mt.start(stop_send, false);
     }
 
-    #[tokio::test]
-    async fn raft_node_3() {
+    #[test]
+    fn raft_node_3() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 3;
         conf.addr = "127.0.0.1".to_string();
@@ -108,9 +105,9 @@ mod tests {
 
         log::new(conf.log_path.clone(), 1024, 50);
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf, stop_send);
+        let mut mt = PlacementCenter::new(conf);
 
-        mt.start().await;
+        mt.start(stop_send, false);
     }
 
     #[test]

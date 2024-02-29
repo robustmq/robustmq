@@ -22,6 +22,7 @@ ahash.workspace = true
 byteorder.workspace = true
 axum.workspace = true
 toml.workspace = true
+clients.workspace = true
 # raft = { version = "0.7", features = ["prost-codec"], default-features = false }
 #prost = "0.11"
 # raft = { path = "/Users/bytedance/Desktop/code/robustmq-project/raft-rs",  features = ["prost-codec"], default-features = false }

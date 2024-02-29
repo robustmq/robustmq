@@ -56,7 +56,8 @@ pub enum RobustMQError {
     #[error("Failed to ConfChange Raft message to Raft state machine, error message: {0}")]
     RaftConfChangeCommitFail(String),
 
-    
+    #[error("Connection pool connecting to IP {0} is missing connections")]
+    MissingConnectionAvailable(String),
 }
 
 

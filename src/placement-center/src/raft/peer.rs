@@ -1,6 +1,6 @@
 use crate::client::send_raft_message;
 use common::log::{debug_meta, error_meta, info_meta};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 
 #[derive(Debug, Clone)]
 pub struct PeerMessage {

@@ -18,7 +18,6 @@ use common::config::parse_placement_center;
 use common::config::placement_center::PlacementCenterConfig;
 use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 use common::log;
-use common::tools::handle_running;
 use placement_center::PlacementCenter;
 use tokio::sync::broadcast;
 
@@ -32,8 +31,7 @@ struct ArgsParams {
     conf: String,
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let args = ArgsParams::parse();
     let conf: PlacementCenterConfig = parse_placement_center(&args.conf);
     let (stop_send, _) = broadcast::channel(2);
@@ -42,6 +40,6 @@ async fn main() {
         conf.log_segment_size.clone(),
         conf.log_file_num.clone(),
     );
-    let mut pc = PlacementCenter::new(conf, stop_send);
-    pc.start().await;
+    let mut pc = PlacementCenter::new(conf);
+    pc.start(stop_send, true);
 }

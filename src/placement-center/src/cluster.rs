@@ -1,31 +1,30 @@
 use std::collections::HashMap;
 
-use crate::{raft::peer::PeerMessage, Node};
-use common::log::{error_meta, info_meta};
+use crate:: Node;
+use common::log:: info_meta;
 use raft::StateRole;
-use tokio::sync::mpsc::Sender;
 use toml::Table;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Default, Debug,Eq, PartialOrd, Ord, Clone)]
 pub enum NodeState {
+    #[default]
     Running,
     Starting,
     Stoping,
     Stop,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default, Debug)]
 pub struct PlacementCluster {
     pub local: Node,
     pub leader: Option<Node>,
     pub state: NodeState,
     pub raft_role: StateRole,
     pub peers: HashMap<u64, Node>,
-    peers_send: Sender<PeerMessage>,
 }
 
 impl PlacementCluster {
-    pub fn new(local: Node, peers_send: Sender<PeerMessage>, nodes: Table) -> PlacementCluster {
+    pub fn new(local: Node, nodes: Table) -> PlacementCluster {
         let mut peers = HashMap::new();
         for (node_id, addr) in nodes {
             let (ip, port) = addr.as_str().unwrap().split_once(":").unwrap();
@@ -40,7 +39,6 @@ impl PlacementCluster {
             raft_role: StateRole::Follower,
             state: NodeState::Starting,
             peers: peers,
-            peers_send,
         }
     }
 
@@ -54,27 +52,6 @@ impl PlacementCluster {
     pub fn remove_peer(&mut self, id: u64) {
         info_meta(&format!("remove peer node id:{:?}", id));
         self.peers.remove(&id);
-    }
-
-    pub async fn send_message(&mut self, id: u64, msg: Vec<u8>) {
-        if let Some(node) = self.get_node_by_id(id) {
-            match self
-                .peers_send
-                .send(PeerMessage {
-                    to: node.addr(),
-                    data: msg,
-                })
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => error_meta(&format!(
-                    "Failed to write Raft Message to send queue with error message: {:?}",
-                    e.to_string()
-                )),
-            }
-        } else {
-            error_meta(&format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id));
-        }
     }
 
     pub fn is_leader(&self) -> bool {
