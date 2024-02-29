@@ -464,6 +464,7 @@ dependencies = [
  "axum 0.7.4",
  "bytes",
  "common",
+ "lazy_static",
  "protocol",
  "thiserror",
  "tonic",
