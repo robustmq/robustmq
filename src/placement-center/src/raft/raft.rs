@@ -1,6 +1,6 @@
 use super::message::{RaftMessage, RaftResponseMesage};
-use super::peer::PeerMessage;
 use crate::cluster::PlacementCluster;
+use crate::peer::PeerMessage;
 use crate::route::DataRoute;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::raft_storage::RaftRocksDBStorage;
@@ -10,6 +10,7 @@ use common::config::placement_center::PlacementCenterConfig;
 use common::errors::RobustMQError;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
+use protocol::placement_center::placement::ClusterType;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
     Snapshot,
@@ -390,6 +391,7 @@ impl MetaRaft {
                 .peer_message_send
                 .send(PeerMessage {
                     to: node.addr(),
+                    interface: crate::peer::InterfaceEnum::SEND_RAFT_MESSAGE,
                     data: msg,
                 })
                 .await

@@ -20,6 +20,7 @@ package placement;
 enum ClusterType{
     BrokerServer = 0;
     StorageEngine = 1;
+    PlacementCenter = 2;
 }
 
 service PlacementCenterService {

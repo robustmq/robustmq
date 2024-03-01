@@ -14,6 +14,7 @@
 
 use self::services::GrpcService;
 use broker_cluster::BrokerCluster;
+use clients::placement_center::PlacementCenterClientManager;
 use cluster::PlacementCluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::info_meta;
@@ -21,9 +22,9 @@ use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::HttpServer;
+use peer::{PeerMessage, PeersSender};
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::message::RaftMessage;
-use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
 use route::DataRoute;
 use runtime::heartbeat::Heartbeat;
@@ -46,6 +47,7 @@ pub mod client;
 pub mod cluster;
 pub mod controller;
 pub mod http;
+mod peer;
 pub mod raft;
 mod route;
 mod runtime;
@@ -137,6 +139,7 @@ impl PlacementCenter {
     pub fn start(&mut self, stop_send: broadcast::Sender<bool>, is_banner: bool) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
+
         let stop_recv = stop_send.subscribe();
 
         self.start_broker_controller();
@@ -146,6 +149,8 @@ impl PlacementCenter {
         self.start_peers_manager(peer_message_recv);
 
         self.start_http_server();
+
+        self.start_heartbeat_check(raft_message_send.clone());
 
         self.start_grpc_server(raft_message_send);
 
@@ -214,7 +219,7 @@ impl PlacementCenter {
     }
 
     // Start Cluster hearbeat check thread
-    pub fn start_heartbeat_check(&self) {
+    pub fn start_heartbeat_check(&self, raft_sender: Sender<RaftMessage>) {
         let heartbeat = Heartbeat::new(
             100000,
             self.storage_cluster.clone(),
@@ -257,10 +262,11 @@ impl PlacementCenter {
 
     // Start Raft Node Peer Manager
     pub fn start_peers_manager(&self, peer_message_recv: Receiver<PeerMessage>) {
-        let mut peers_manager = PeersManager::new(peer_message_recv);
+        let mut peers_manager = PeersSender::new(peer_message_recv);
         self.daemon_runtime.spawn(async move {
-            peers_manager.start().await;
+            peers_manager.start_reveive().await;
         });
+
         info_meta("Raft Node inter-node communication management thread started successfully");
     }
 

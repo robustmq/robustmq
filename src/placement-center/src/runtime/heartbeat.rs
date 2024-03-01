@@ -1,10 +1,10 @@
+use crate::{broker_cluster::BrokerCluster, storage_cluster::StorageCluster};
+use protocol::placement_center::placement::UnRegisterNodeRequest;
 use std::{
     sync::{Arc, RwLock},
     thread::sleep,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use protocol::placement_center::placement::UnRegisterNodeRequest;
-use crate::{broker_cluster::BrokerCluster, storage_cluster::StorageCluster};
 
 #[derive(Debug, Clone)]
 pub struct Heartbeat {
@@ -32,7 +32,7 @@ impl Heartbeat {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis();
-            
+
             // storage engine cluster
             let mut ec = self.storage_cluster.read().unwrap();
             for (node_id, node) in &ec.node_list {
@@ -40,8 +40,8 @@ impl Heartbeat {
                     if time - *prev_time >= self.timeout_ms {
                         // remove node
                         let cluster_name = node.cluster_name.clone();
-                        if let Some(cluster) = ec.cluster_list.get(&cluster_name){
-                            let mut req  = UnRegisterNodeRequest::default();
+                        if let Some(cluster) = ec.cluster_list.get(&cluster_name) {
+                            let mut req = UnRegisterNodeRequest::default();
                             req.node_id = *node_id;
                             req.cluster_name = node.cluster_name.clone();
                             req.cluster_type = 1; // todo
@@ -62,7 +62,7 @@ impl Heartbeat {
                 }
             }
 
-             // broker server cluster
+            // broker server cluster
 
             sleep(Duration::from_millis(100));
         }
