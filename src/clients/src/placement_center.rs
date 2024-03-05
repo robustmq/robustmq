@@ -70,7 +70,6 @@ pub async fn register_node(
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         if times > retry_times() {
-                            error_meta("");
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
@@ -101,7 +100,6 @@ pub async fn unregister_node(
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         if times > retry_times() {
-                            error_meta("");
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
@@ -132,7 +130,6 @@ pub async fn create_shard(
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         if times > retry_times() {
-                            error_meta("");
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
@@ -163,7 +160,6 @@ pub async fn delete_shard(
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         if times > retry_times() {
-                            error_meta("");
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
@@ -191,7 +187,6 @@ pub async fn heartbeat(
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         if times > retry_times() {
-                            error_meta("");
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
@@ -223,7 +218,6 @@ pub async fn send_raft_message(
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         if times > retry_times() {
-                            error_meta("");
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
@@ -255,7 +249,6 @@ pub async fn send_raft_conf_change(
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         if times > retry_times() {
-                            error_meta("");
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
