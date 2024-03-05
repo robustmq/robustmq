@@ -16,33 +16,34 @@
 
 use super::cluster::PlacementCluster;
 use crate::broker_cluster::BrokerCluster;
-use crate::client::{create_shard, delete_shard, register_node, unregister_node};
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
 use crate::storage::cluster_storage::ClusterStorage;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataType};
 use crate::storage_cluster::StorageCluster;
 use bincode::serialize;
+use clients::placement_center::{create_shard, delete_shard, register_node, unregister_node};
+use clients::ClientPool;
 use common::errors::RobustMQError;
 use common::log::info_meta;
 use prost::Message;
 
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterService;
-use protocol::placement_center::placement::{ SendRaftMessageReply, SendRaftMessageRequest,
-};
 use protocol::placement_center::placement::{
     ClusterType, CommonReply, CreateShardRequest, DeleteShardRequest, GetShardReply,
     GetShardRequest, HeartbeatRequest, RegisterNodeRequest, ReportMonitorRequest,
     SendRaftConfChangeReply, SendRaftConfChangeRequest, UnRegisterNodeRequest,
 };
+use protocol::placement_center::placement::{SendRaftMessageReply, SendRaftMessageRequest};
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
+use tokio::sync::Mutex;
 use tokio::time::timeout;
 
 use std::sync::{Arc, RwLock};
-use std::time::{self, Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcService {
@@ -52,6 +53,7 @@ pub struct GrpcService {
     cluster_storage: Arc<ClusterStorage>,
     storage_cluster: Arc<RwLock<StorageCluster>>,
     broker_cluster: Arc<RwLock<BrokerCluster>>,
+    client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl GrpcService {
@@ -62,6 +64,7 @@ impl GrpcService {
         cluster_storage: Arc<ClusterStorage>,
         storage_cluster: Arc<RwLock<StorageCluster>>,
         broker_cluster: Arc<RwLock<BrokerCluster>>,
+        client_poll: Arc<Mutex<ClientPool>>,
     ) -> Self {
         GrpcService {
             placement_cluster,
@@ -70,6 +73,7 @@ impl GrpcService {
             cluster_storage,
             storage_cluster,
             broker_cluster,
+            client_poll,
         }
     }
 
@@ -87,7 +91,11 @@ impl GrpcService {
         return Ok(());
     }
 
-    async fn apply_raft_machine(&self, data: StorageData, action: String) -> Result<(), RobustMQError> {
+    async fn apply_raft_machine(
+        &self,
+        data: StorageData,
+        action: String,
+    ) -> Result<(), RobustMQError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
 
         let _ = self
@@ -134,7 +142,7 @@ impl PlacementCenterService for GrpcService {
 
         if self.rewrite_leader() {
             let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
-            match register_node(&leader_addr, req).await {
+            match register_node(self.client_poll.clone(), leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -165,7 +173,7 @@ impl PlacementCenterService for GrpcService {
         let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
-            match unregister_node(&leader_addr, req).await {
+            match unregister_node(self.client_poll.clone(),leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -194,9 +202,10 @@ impl PlacementCenterService for GrpcService {
         request: Request<CreateShardRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
+
         if self.rewrite_leader() {
             let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
-            match create_shard(&leader_addr, req).await {
+            match create_shard(self.client_poll.clone(), leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -248,7 +257,7 @@ impl PlacementCenterService for GrpcService {
         let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
-            match delete_shard(&leader_addr, req).await {
+            match delete_shard(self.client_poll.clone(),leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }

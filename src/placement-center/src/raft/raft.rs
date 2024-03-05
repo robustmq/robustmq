@@ -391,7 +391,6 @@ impl MetaRaft {
                 .peer_message_send
                 .send(PeerMessage {
                     to: node.addr(),
-                    interface: crate::peer::InterfaceEnum::SEND_RAFT_MESSAGE,
                     data: msg,
                 })
                 .await
