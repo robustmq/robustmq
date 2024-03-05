@@ -1,6 +1,7 @@
-use crate::client::send_raft_message;
+use clients::{placement_center::send_raft_message, ClientPool};
 use common::log::{debug_meta, error_meta, info_meta};
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct PeerMessage {
@@ -8,14 +9,20 @@ pub struct PeerMessage {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug)]
 pub struct PeersManager {
-    pub peer_message_recv: mpsc::Receiver<PeerMessage>,
+    peer_message_recv: mpsc::Receiver<PeerMessage>,
+    client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl PeersManager {
-    pub fn new(peer_message_recv: mpsc::Receiver<PeerMessage>) -> PeersManager {
-        let pm = PeersManager { peer_message_recv };
+    pub fn new(
+        peer_message_recv: mpsc::Receiver<PeerMessage>,
+        client_poll: Arc<Mutex<ClientPool>>,
+    ) -> PeersManager {
+        let pm = PeersManager {
+            peer_message_recv,
+            client_poll,
+        };
         return pm;
     }
     pub async fn start(&mut self) {
@@ -26,7 +33,7 @@ impl PeersManager {
             if let Some(data) = self.peer_message_recv.recv().await {
                 let addr = data.to;
                 let data = data.data;
-                match send_raft_message(&addr, data).await {
+                match send_raft_message(self.client_poll.clone(), addr.clone(), data).await {
                     Ok(_) => debug_meta(&format!("Send Raft message to node {} Successful.", addr)),
                     Err(e) => error_meta(&format!(
                         "Failed to send data to {}, error message: {}",

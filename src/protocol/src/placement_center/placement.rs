@@ -121,6 +121,7 @@ pub struct ReportMonitorRequest {
 pub enum ClusterType {
     BrokerServer = 0,
     StorageEngine = 1,
+    PlacementCenter = 2,
 }
 impl ClusterType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -131,6 +132,7 @@ impl ClusterType {
         match self {
             ClusterType::BrokerServer => "BrokerServer",
             ClusterType::StorageEngine => "StorageEngine",
+            ClusterType::PlacementCenter => "PlacementCenter",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -138,6 +140,7 @@ impl ClusterType {
         match value {
             "BrokerServer" => Some(Self::BrokerServer),
             "StorageEngine" => Some(Self::StorageEngine),
+            "PlacementCenter" => Some(Self::PlacementCenter),
             _ => None,
         }
     }

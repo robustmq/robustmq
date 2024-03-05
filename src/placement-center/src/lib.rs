@@ -14,6 +14,7 @@
 
 use self::services::GrpcService;
 use broker_cluster::BrokerCluster;
+use clients::ClientPool;
 use cluster::PlacementCluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::info_meta;
@@ -21,9 +22,9 @@ use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::HttpServer;
+use peer::{PeerMessage, PeersManager};
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::message::RaftMessage;
-use raft::peer::{PeerMessage, PeersManager};
 use raft::raft::MetaRaft;
 use route::DataRoute;
 use runtime::heartbeat::Heartbeat;
@@ -37,15 +38,15 @@ use storage_cluster::StorageCluster;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, Mutex};
 use tonic::transport::Server;
 
 pub mod broker;
 mod broker_cluster;
-pub mod client;
 pub mod cluster;
 pub mod controller;
 pub mod http;
+mod peer;
 pub mod raft;
 mod route;
 mod runtime;
@@ -97,6 +98,8 @@ pub struct PlacementCenter {
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     // Placement Center Cluster information storage implementation
     cluster_storage: Arc<cluster_storage::ClusterStorage>,
+
+    client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl PlacementCenter {
@@ -122,6 +125,8 @@ impl PlacementCenter {
         let cluster_storage: Arc<cluster_storage::ClusterStorage> =
             Arc::new(cluster_storage::ClusterStorage::new(rocksdb_handle.clone()));
 
+        let client_poll = Arc::new(Mutex::new(ClientPool::new()));
+
         return PlacementCenter {
             config,
             server_runtime,
@@ -131,12 +136,14 @@ impl PlacementCenter {
             placement_cluster,
             raft_storage,
             cluster_storage,
+            client_poll,
         };
     }
 
     pub fn start(&mut self, stop_send: broadcast::Sender<bool>, is_banner: bool) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
+
         let stop_recv = stop_send.subscribe();
 
         self.start_broker_controller();
@@ -146,6 +153,8 @@ impl PlacementCenter {
         self.start_peers_manager(peer_message_recv);
 
         self.start_http_server();
+
+        self.start_heartbeat_check(raft_message_send.clone());
 
         self.start_grpc_server(raft_message_send);
 
@@ -179,6 +188,7 @@ impl PlacementCenter {
             self.cluster_storage.clone(),
             self.storage_cluster.clone(),
             self.broker_cluster.clone(),
+            self.client_poll.clone(),
         );
         self.server_runtime.spawn(async move {
             info_meta(&format!(
@@ -214,7 +224,7 @@ impl PlacementCenter {
     }
 
     // Start Cluster hearbeat check thread
-    pub fn start_heartbeat_check(&self) {
+    pub fn start_heartbeat_check(&self, raft_sender: Sender<RaftMessage>) {
         let heartbeat = Heartbeat::new(
             100000,
             self.storage_cluster.clone(),
@@ -257,10 +267,11 @@ impl PlacementCenter {
 
     // Start Raft Node Peer Manager
     pub fn start_peers_manager(&self, peer_message_recv: Receiver<PeerMessage>) {
-        let mut peers_manager = PeersManager::new(peer_message_recv);
+        let mut peers_manager = PeersManager::new(peer_message_recv, self.client_poll.clone());
         self.daemon_runtime.spawn(async move {
             peers_manager.start().await;
         });
+
         info_meta("Raft Node inter-node communication management thread started successfully");
     }
 

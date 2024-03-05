@@ -15,4 +15,3 @@
  */
 pub mod raft;
 pub mod message;
-pub mod peer;

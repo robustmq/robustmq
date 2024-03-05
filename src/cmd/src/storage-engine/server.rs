@@ -31,8 +31,7 @@ struct ArgsParams {
     conf: String,
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let args = ArgsParams::parse();
     let conf: StorageEngineConfig = parse_storage_engine(&args.conf);
     let (stop_send, _) = broadcast::channel(2);
@@ -42,5 +41,5 @@ async fn main() {
         conf.log_file_num.clone(),
     );
     let mt_s = StorageEngine::new(conf, stop_send);
-    mt_s.start().await;
+    mt_s.start();
 }

@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use clients::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common::{
     config::storage_engine::StorageEngineConfig, log::info_meta,
@@ -5,11 +8,16 @@ use common::{
 };
 use protocol::storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer;
 use services::StorageService;
-use tokio::{runtime::Runtime, signal, sync::broadcast};
+use tokio::{
+    runtime::Runtime,
+    signal,
+    sync::{broadcast, Mutex},
+};
 use tonic::transport::Server;
 
 mod cluster;
 mod index;
+mod metadata;
 mod raft_group;
 mod record;
 mod segment;
@@ -18,13 +26,13 @@ mod shard;
 mod storage;
 mod v1;
 mod v2;
-mod metadata;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,
     stop_send: broadcast::Sender<bool>,
     server_runtime: Runtime,
     daemon_runtime: Runtime,
+    client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl StorageEngine {
@@ -33,29 +41,33 @@ impl StorageEngine {
             create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
 
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+
+        let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new()));
+
         return StorageEngine {
             config,
             stop_send,
             server_runtime,
             daemon_runtime,
+            client_poll,
         };
     }
 
-    pub async fn start(&self) {
+    pub fn start(&self) {
         // Register Node
         // register_storage_engine_node(self.config.clone()).await;
 
         // start GRPC && HTTP Server
-        self.start_server().await;
+        self.start_server();
 
         // Threads that run the daemon thread
-        self.start_daemon_thread().await;
+        self.start_daemon_thread();
 
-        self.waiting_stop().await;
+        self.waiting_stop();
     }
 
     // start GRPC && HTTP Server
-    async fn start_server(&self) {
+    fn start_server(&self) {
         // start grpc server
         let port = self.config.grpc_port;
         self.server_runtime.spawn(async move {
@@ -82,25 +94,28 @@ impl StorageEngine {
     }
 
     // Start Daemon Thread
-    async fn start_daemon_thread(&self) {
+    fn start_daemon_thread(&self) {
         let config = self.config.clone();
+        let client_poll = self.client_poll.clone();
         self.daemon_runtime
-            .spawn(async move { report_heartbeat(config) });
+            .spawn(async move { report_heartbeat(client_poll, config) });
     }
 
     // Wait for the service process to stop
-    async fn waiting_stop(&self) {
-        loop {
-            signal::ctrl_c().await.expect("failed to listen for event");
-            match self.stop_send.send(true) {
-                Ok(_) => {
-                    info_meta("When ctrl + c is received, the service starts to stop");
-                    self.stop_server().await;
-                    break;
+    fn waiting_stop(&self) {
+        self.daemon_runtime.block_on(async move {
+            loop {
+                signal::ctrl_c().await.expect("failed to listen for event");
+                match self.stop_send.send(true) {
+                    Ok(_) => {
+                        info_meta("When ctrl + c is received, the service starts to stop");
+                        self.stop_server().await;
+                        break;
+                    }
+                    Err(_) => {}
                 }
-                Err(_) => {}
             }
-        }
+        });
     }
     async fn stop_server(&self) {
         // unregister node

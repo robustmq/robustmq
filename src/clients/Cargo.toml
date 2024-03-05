@@ -13,3 +13,5 @@ protocol.workspace = true
 common.workspace =true
 tonic.workspace = true
 lazy_static.workspace =true
+tokio.workspace = true
+mobc.workspace = true
