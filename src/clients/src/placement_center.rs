@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::{retry_call, ClientPool};
-use common::errors::RobustMQError;
+use crate::{retry_times, ClientPool};
+use common::{errors::RobustMQError, log::error_meta};
 use mobc::Manager;
 use protocol::placement_center::placement::{
     placement_center_service_client::PlacementCenterServiceClient, CommonReply, CreateShardRequest,
     DeleteShardRequest, HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply,
     SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest,
 };
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::{sync::Arc, time::Duration};
+use tokio::{sync::Mutex, time::sleep};
 use tonic::transport::Channel;
 
 pub struct PlacementCenterConnectionManager {
@@ -61,11 +61,23 @@ pub async fn register_node(
 ) -> Result<CommonReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let resp = match client.register_node(tonic::Request::new(request)).await {
-                Ok(reply) => reply.into_inner(),
-                Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
-            };
-            return Ok(resp);
+            let mut times = 0;
+            loop {
+                match client
+                    .register_node(tonic::Request::new(request.clone()))
+                    .await
+                {
+                    Ok(reply) => return Ok(reply.into_inner()),
+                    Err(status) => {
+                        if times > retry_times() {
+                            error_meta("");
+                            return Err(RobustMQError::MetaGrpcStatus(status));
+                        }
+                        times = times + 1;
+                        sleep(Duration::from_secs(times)).await;
+                    }
+                };
+            }
         }
         Err(e) => {
             return Err(e);
@@ -80,11 +92,23 @@ pub async fn unregister_node(
 ) -> Result<CommonReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let resp = match client.un_register_node(tonic::Request::new(request)).await {
-                Ok(reply) => reply.into_inner(),
-                Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
-            };
-            return Ok(resp);
+            let mut times = 0;
+            loop {
+                match client
+                    .un_register_node(tonic::Request::new(request.clone()))
+                    .await
+                {
+                    Ok(reply) => return Ok(reply.into_inner()),
+                    Err(status) => {
+                        if times > retry_times() {
+                            error_meta("");
+                            return Err(RobustMQError::MetaGrpcStatus(status));
+                        }
+                        times = times + 1;
+                        sleep(Duration::from_secs(times)).await;
+                    }
+                };
+            }
         }
         Err(e) => {
             return Err(e);
@@ -99,11 +123,23 @@ pub async fn create_shard(
 ) -> Result<CommonReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let resp = match client.create_shard(tonic::Request::new(request)).await {
-                Ok(reply) => reply.into_inner(),
-                Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
-            };
-            return Ok(resp);
+            let mut times = 0;
+            loop {
+                match client
+                    .create_shard(tonic::Request::new(request.clone()))
+                    .await
+                {
+                    Ok(reply) => return Ok(reply.into_inner()),
+                    Err(status) => {
+                        if times > retry_times() {
+                            error_meta("");
+                            return Err(RobustMQError::MetaGrpcStatus(status));
+                        }
+                        times = times + 1;
+                        sleep(Duration::from_secs(times)).await;
+                    }
+                };
+            }
         }
         Err(e) => {
             return Err(e);
@@ -118,11 +154,23 @@ pub async fn delete_shard(
 ) -> Result<CommonReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let resp = match client.delete_shard(tonic::Request::new(request)).await {
-                Ok(reply) => reply.into_inner(),
-                Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
-            };
-            return Ok(resp);
+            let mut times = 0;
+            loop {
+                match client
+                    .delete_shard(tonic::Request::new(request.clone()))
+                    .await
+                {
+                    Ok(reply) => return Ok(reply.into_inner()),
+                    Err(status) => {
+                        if times > retry_times() {
+                            error_meta("");
+                            return Err(RobustMQError::MetaGrpcStatus(status));
+                        }
+                        times = times + 1;
+                        sleep(Duration::from_secs(times)).await;
+                    }
+                };
+            }
         }
         Err(e) => {
             return Err(e);
@@ -137,14 +185,20 @@ pub async fn heartbeat(
 ) -> Result<CommonReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let call = async {
-                let resp = match client.heartbeat(tonic::Request::new(request)).await {
-                    Ok(reply) => reply.into_inner(),
-                    Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
+            let mut times = 0;
+            loop {
+                match client.heartbeat(tonic::Request::new(request.clone())).await {
+                    Ok(reply) => return Ok(reply.into_inner()),
+                    Err(status) => {
+                        if times > retry_times() {
+                            error_meta("");
+                            return Err(RobustMQError::MetaGrpcStatus(status));
+                        }
+                        times = times + 1;
+                        sleep(Duration::from_secs(times)).await;
+                    }
                 };
-                return Ok(resp);
-            };
-            return retry_call::<CommonReply>(call).await;
+            }
         }
         Err(e) => {
             return Err(e);
@@ -159,13 +213,24 @@ pub async fn send_raft_message(
 ) -> Result<SendRaftMessageReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let request = tonic::Request::new(SendRaftMessageRequest { message });
-
-            let resp = match client.send_raft_message(request).await {
-                Ok(reply) => reply.into_inner(),
-                Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
-            };
-            return Ok(resp);
+            let request = SendRaftMessageRequest { message };
+            let mut times = 0;
+            loop {
+                match client
+                    .send_raft_message(tonic::Request::new(request.clone()))
+                    .await
+                {
+                    Ok(reply) => return Ok(reply.into_inner()),
+                    Err(status) => {
+                        if times > retry_times() {
+                            error_meta("");
+                            return Err(RobustMQError::MetaGrpcStatus(status));
+                        }
+                        times = times + 1;
+                        sleep(Duration::from_secs(times)).await;
+                    }
+                };
+            }
         }
         Err(e) => {
             return Err(e);
@@ -180,13 +245,24 @@ pub async fn send_raft_conf_change(
 ) -> Result<SendRaftConfChangeReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let request = tonic::Request::new(SendRaftConfChangeRequest { message });
-
-            let resp = match client.send_raft_conf_change(request).await {
-                Ok(reply) => reply.into_inner(),
-                Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
-            };
-            return Ok(resp);
+            let request = SendRaftConfChangeRequest { message };
+            let mut times = 0;
+            loop {
+                match client
+                    .send_raft_conf_change(tonic::Request::new(request.clone()))
+                    .await
+                {
+                    Ok(reply) => return Ok(reply.into_inner()),
+                    Err(status) => {
+                        if times > retry_times() {
+                            error_meta("");
+                            return Err(RobustMQError::MetaGrpcStatus(status));
+                        }
+                        times = times + 1;
+                        sleep(Duration::from_secs(times)).await;
+                    }
+                };
+            }
         }
         Err(e) => {
             return Err(e);

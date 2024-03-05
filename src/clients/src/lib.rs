@@ -71,6 +71,14 @@ impl ClientPool {
     }
 }
 
+pub fn retry_times() -> u64 {
+    return 16;
+}
+
+pub fn retry_sleep_time(times: u64) -> u64 {
+    return times * 3;
+}
+
 pub async fn retry_call<T>(
     call: impl Future<Output = Result<T, RobustMQError>>,
 ) -> Result<T, RobustMQError> {
