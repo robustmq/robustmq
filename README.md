@@ -50,14 +50,14 @@ The architecture is refined, and there is no need to rely on external dependent 
 ### Build
 - Run standalone by placement-center
 ```
-cargo run --package cmd --bin meta -- --conf=config/meta.toml
+cargo run --package cmd --bin meta -- --conf=config/placement-center.toml
 ```
 
 - Run cluster by placement-center
 ```
-cargo run --package cmd --bin meta -- --conf=config/raft/node-1.toml
-cargo run --package cmd --bin meta -- --conf=config/raft/node-2.toml
-cargo run --package cmd --bin meta -- --conf=config/raft/node-3.toml
+cargo run --package cmd --bin meta -- --conf=cluster/placement-center/node-1.toml
+cargo run --package cmd --bin meta -- --conf=cluster/placement-center/node-2.toml
+cargo run --package cmd --bin meta -- --conf=cluster/placement-center/node-3.toml
 ```
 
 

@@ -1,7 +1,7 @@
 node_id = 2
 addr = "127.0.0.1"
-port = 2228
-admin_port = 2227
+grpc_port = 2228
+http_port = 2227
 nodes = { 1 = "127.0.0.1:1228", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:3228" }
 runtime_work_threads = 100
 data_path = "/tmp/robust2/data"
