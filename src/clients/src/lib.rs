@@ -19,7 +19,9 @@ use std::{collections::HashMap, future::Future, sync::Arc};
 use common::errors::RobustMQError;
 use mobc::Pool;
 use placement_center::PlacementCenterConnectionManager;
-use protocol::placement_center::placement::placement_center_service_client::PlacementCenterServiceClient;
+use protocol::placement_center::placement::{
+    placement_center_service_client::PlacementCenterServiceClient, CommonReply,
+};
 use tonic::transport::Channel;
 pub mod broker_server;
 pub mod placement_center;
@@ -70,9 +72,9 @@ impl ClientPool {
 }
 
 pub async fn retry_call<T>(
-    call: impl FnOnce() -> dyn Future<Output = Result<T, RobustMQError>>,
+    call: impl Future<Output = Result<T, RobustMQError>>,
 ) -> Result<T, RobustMQError> {
-    
+    return call.await;
 }
 
 #[cfg(test)]

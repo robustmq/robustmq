@@ -137,7 +137,7 @@ pub async fn heartbeat(
 ) -> Result<CommonReply, RobustMQError> {
     match get_client(client_poll, addr.clone()).await {
         Ok(mut client) => {
-            let call = || async {
+            let call = async {
                 let resp = match client.heartbeat(tonic::Request::new(request)).await {
                     Ok(reply) => reply.into_inner(),
                     Err(status) => return Err(RobustMQError::MetaGrpcStatus(status)),
