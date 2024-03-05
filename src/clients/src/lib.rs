@@ -1,71 +1,61 @@
-use std::collections::HashMap;
+/*
+ * Copyright (c) 2023 RobustMQ Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+use std::{collections::HashMap, future::Future, sync::Arc};
 
 use common::errors::RobustMQError;
-use mobc::{Manager, Pool};
+use mobc::Pool;
+use placement_center::PlacementCenterConnectionManager;
 use protocol::placement_center::placement::placement_center_service_client::PlacementCenterServiceClient;
 use tonic::transport::Channel;
-
 pub mod broker_server;
 pub mod placement_center;
 pub mod storage_engine;
 
-pub struct GrpcConnectionManager {
-    pub addr: String,
-}
-
-impl GrpcConnectionManager {
-    pub fn new(addr: String) -> Self {
-        Self { addr }
-    }
-}
-
-#[tonic::async_trait]
-impl Manager for GrpcConnectionManager {
-    type Connection = PlacementCenterServiceClient<Channel>;
-    type Error = RobustMQError;
-
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match PlacementCenterServiceClient::connect(format!("http://{}", self.addr.clone())).await {
-            Ok(client) => {
-                return Ok(client);
-            }
-            Err(err) => return Err(RobustMQError::TonicTransport(err)),
-        };
-    }
-
-    async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
-        Ok(conn)
-    }
-}
-
 pub struct ClientPool {
-    pools: HashMap<String, Pool<GrpcConnectionManager>>,
+    placement_center_pools: HashMap<String, Pool<PlacementCenterConnectionManager>>,
 }
 
 impl Clone for ClientPool {
     fn clone(&self) -> Self {
         Self {
-            pools: self.pools.clone(),
+            placement_center_pools: self.placement_center_pools.clone(),
         }
     }
 }
 
 impl ClientPool {
     pub fn new() -> Self {
-        let pools = HashMap::new();
-        Self { pools }
+        let placement_center_pools = HashMap::new();
+        Self {
+            placement_center_pools,
+        }
     }
 
-    pub async fn get(
+    pub async fn get_placement_center_client(
         &mut self,
         addr: String,
     ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
-        if self.pools.contains_key(&addr) {
-            let manager = GrpcConnectionManager::new(addr.clone());
+        if self.placement_center_pools.contains_key(&addr) {
+            let manager = PlacementCenterConnectionManager::new(addr.clone());
             let pool = Pool::builder().max_open(3).build(manager);
-            self.pools.insert(addr.clone(), pool.clone());
+            self.placement_center_pools
+                .insert(addr.clone(), pool.clone());
         }
-        if let Some(client) = self.pools.get(&addr) {
+        if let Some(client) = self.placement_center_pools.get(&addr) {
             match client.clone().get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());
@@ -79,6 +69,12 @@ impl ClientPool {
     }
 }
 
+pub async fn retry_call<T>(
+    call: impl FnOnce() -> dyn Future<Output = Result<T, RobustMQError>>,
+) -> Result<T, RobustMQError> {
+    
+}
+
 #[cfg(test)]
 mod tests {
     use protocol::placement_center::placement::RegisterNodeRequest;
@@ -89,7 +85,7 @@ mod tests {
     async fn conects() {
         let mut pool = ClientPool::new();
         let addr = "127.0.0.1:2193".to_string();
-        match pool.get(addr).await {
+        match pool.get_placement_center_client(addr).await {
             Ok(mut client) => {
                 let r = client.register_node(RegisterNodeRequest::default()).await;
             }
