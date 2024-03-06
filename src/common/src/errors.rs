@@ -58,6 +58,9 @@ pub enum RobustMQError {
 
     #[error("Connection pool connecting to IP {0} is missing connections")]
     MissingConnectionAvailable(String),
+    
+    #[error("No connection information available, {0}")]
+    NoAvailableConnection(String)
 }
 
 

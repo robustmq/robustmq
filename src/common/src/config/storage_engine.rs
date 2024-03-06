@@ -25,7 +25,7 @@ pub struct StorageEngineConfig {
     pub grpc_port: u32,
     pub prometheus_port: u16,
     pub runtime_work_threads: usize,
-    pub data_path: String,
+    pub data_path: Vec<String>,
     pub log_path: String,
     pub log_segment_size: u64,
     pub log_file_num: u32,
@@ -51,7 +51,7 @@ impl Default for StorageEngineConfig {
             runtime_work_threads: 10,
             log_segment_size: 1024 * 1024 * 1024 * 1024 * 1024,
             log_file_num: 50,
-            data_path: "/tmp/data".to_string(),
+            data_path: Vec::new(),
             log_path: "/tmp/logs".to_string(),
             nodes: Table::new(),
             rocksdb: Rocksdb {

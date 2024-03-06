@@ -51,7 +51,7 @@ impl ClientPool {
         &mut self,
         addr: String,
     ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
-        if self.placement_center_pools.contains_key(&addr) {
+        if !self.placement_center_pools.contains_key(&addr) {
             let manager = PlacementCenterConnectionManager::new(addr.clone());
             let pool = Pool::builder().max_open(3).build(manager);
             self.placement_center_pools
@@ -63,11 +63,11 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::LeaderExistsNotAllowElection);
+                    return Err(RobustMQError::NoAvailableConnection(e.to_string()));
                 }
             };
         }
-        return Err(RobustMQError::LeaderExistsNotAllowElection);
+        return Err(RobustMQError::NoAvailableConnection("".to_string()));
     }
 }
 

@@ -21,7 +21,7 @@ use protocol::placement_center::placement::{
     DeleteShardRequest, HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply,
     SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest,
 };
-use std::{sync::Arc, time::Duration};
+use std::{mem, sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time::sleep};
 use tonic::transport::Channel;
 
@@ -69,6 +69,12 @@ pub async fn register_node(
                 {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
+                        error_meta(&format!(
+                            "{},target ip:{},call function:{}",
+                            status.to_string(),
+                            addr,
+                            "register_node"
+                        ));
                         if times > retry_times() {
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
@@ -99,6 +105,12 @@ pub async fn unregister_node(
                 {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
+                        error_meta(&format!(
+                            "{},target ip:{},call function:{}",
+                            status.to_string(),
+                            addr,
+                            "unregister_node"
+                        ));
                         if times > retry_times() {
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
@@ -129,6 +141,12 @@ pub async fn create_shard(
                 {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
+                        error_meta(&format!(
+                            "{},target ip:{},call function:{}",
+                            status.to_string(),
+                            addr,
+                            "create_shard"
+                        ));
                         if times > retry_times() {
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
@@ -159,6 +177,12 @@ pub async fn delete_shard(
                 {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
+                        error_meta(&format!(
+                            "{},target ip:{},call function:{}",
+                            status.to_string(),
+                            addr,
+                            "delete_shard"
+                        ));
                         if times > retry_times() {
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
@@ -186,6 +210,12 @@ pub async fn heartbeat(
                 match client.heartbeat(tonic::Request::new(request.clone())).await {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
+                        error_meta(&format!(
+                            "{},target ip:{},call function:{}",
+                            status.to_string(),
+                            addr,
+                            "heartbeat"
+                        ));
                         if times > retry_times() {
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
@@ -217,6 +247,12 @@ pub async fn send_raft_message(
                 {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
+                        error_meta(&format!(
+                            "{},target ip:{},call function:{}",
+                            status.to_string(),
+                            addr,
+                            "send_raft_message"
+                        ));
                         if times > retry_times() {
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
@@ -248,6 +284,12 @@ pub async fn send_raft_conf_change(
                 {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
+                        error_meta(&format!(
+                            "{},target ip:{},call function:{}",
+                            status.to_string(),
+                            addr,
+                            "send_raft_conf_change"
+                        ));
                         if times > retry_times() {
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }

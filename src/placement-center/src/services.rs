@@ -78,7 +78,7 @@ impl GrpcService {
     }
 
     fn rewrite_leader(&self) -> bool {
-        return self.placement_cluster.read().unwrap().is_leader();
+        return !self.placement_cluster.read().unwrap().is_leader();
     }
 
     fn verify(&self) -> Result<(), RobustMQError> {
