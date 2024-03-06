@@ -10,7 +10,7 @@ use bincode::deserialize;
 use common::{errors::RobustMQError, tools::unique_id};
 use prost::Message as _;
 use protocol::placement_center::placement::{
-    ClusterType, CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest
+    ClusterType, CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
 use std::sync::{Arc, RwLock};
 use tonic::Status;
@@ -64,8 +64,8 @@ impl DataRoute {
             .unwrap();
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
-        
-        let cluster_info = ClusterInfo{
+
+        let cluster_info = ClusterInfo {
             cluster_name: cluster_name.clone(),
             cluster_type: cluster_type.as_str_name().to_string(),
             nodes: Vec::new(),
@@ -76,19 +76,19 @@ impl DataRoute {
         node.node_ip = req.node_ip;
         node.node_port = req.node_port;
 
-        if cluster_type == ClusterType::BrokerServer{
-            // todo 
+        if cluster_type == ClusterType::BrokerServer {
+            // todo
         }
-        
-        if cluster_type == ClusterType::StorageEngine{
+
+        if cluster_type == ClusterType::StorageEngine {
             let mut sc = self.storage_cluster.write().unwrap();
-            if !sc.cluster_list.contains_key(&cluster_name){
+            if !sc.cluster_list.contains_key(&cluster_name) {
                 sc.add_cluster(cluster_info);
             }
             sc.add_node(node.clone());
-            // todo 
+            // todo
         }
-          
+
         self.cluster_storage
             .save_node(cluster_name, cluster_type.as_str_name().to_string(), node);
 
@@ -102,19 +102,19 @@ impl DataRoute {
             .unwrap();
         let cluster_type = req.cluster_type();
 
-        if cluster_type.eq(&ClusterType::BrokerServer){
-            // todo 
+        if cluster_type.eq(&ClusterType::BrokerServer) {
+            // todo
         }
 
-        if req.cluster_type().eq(&ClusterType::StorageEngine){
+        if req.cluster_type().eq(&ClusterType::StorageEngine) {
             let mut sc = self.storage_cluster.write().unwrap();
             sc.remove_node(req.node_id);
-            // todo 
+            // todo
         }
 
         self.cluster_storage
-        .remove_node(req.cluster_name, req.node_id);
-    
+            .remove_node(req.cluster_name, req.node_id);
+
         return Ok(());
     }
 

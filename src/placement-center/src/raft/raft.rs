@@ -161,6 +161,7 @@ impl MetaRaft {
             // info_meta(&format!("{:?}",raft_node.raft.state));
             self.on_ready(&mut raft_node).await;
         }
+        
     }
 
     async fn on_ready(&mut self, raft_node: &mut RawNode<RaftRocksDBStorage>) {

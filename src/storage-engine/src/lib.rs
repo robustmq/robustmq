@@ -55,7 +55,7 @@ impl StorageEngine {
 
     pub fn start(&self) {
         // Register Node
-        // register_storage_engine_node(self.config.clone()).await;
+        self.register_node();
 
         // start GRPC && HTTP Server
         self.start_server();
@@ -117,8 +117,14 @@ impl StorageEngine {
             }
         });
     }
+
+    fn register_node(&self) {
+        self.daemon_runtime.block_on(async move {
+            register_storage_engine_node(self.client_poll.clone(), self.config.clone()).await;
+        });
+    }
     async fn stop_server(&self) {
         // unregister node
-        // unregister_storage_engine_node(self.config.clone()).await;
+        unregister_storage_engine_node(self.client_poll.clone(), self.config.clone()).await;
     }
 }

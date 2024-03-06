@@ -1,6 +1,6 @@
 use crate::{
     cluster::PlacementCluster,
-    storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore},
+    storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore}, storage_cluster::StorageCluster,
 };
 use axum::routing::get;
 use axum::Router;
@@ -10,16 +10,17 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::cluster::{cluster_info, controller_index};
+use super::cluster::{controller_index, storage_engine};
 
 pub const ROUTE_ROOT: &str = "/";
-pub const CLUSTER_INFO: &str = "/cluster-info";
+pub const STORAGE_ENGINE: &str = "/storage-engine";
 
 pub struct HttpServer {
     ip: SocketAddr,
     cluster: Arc<RwLock<PlacementCluster>>,
     storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     cluster_storage: Arc<ClusterStorage>,
+    engine_cluster: Arc<RwLock<StorageCluster>>,
 }
 
 impl HttpServer {
@@ -28,6 +29,7 @@ impl HttpServer {
         cluster: Arc<RwLock<PlacementCluster>>,
         storage: Arc<RwLock<RaftRocksDBStorageCore>>,
         cluster_storage: Arc<ClusterStorage>,
+        engine_cluster: Arc<RwLock<StorageCluster>>,
     ) -> Self {
         let ip: SocketAddr = format!("{}:{}", config.addr, config.http_port)
             .parse()
@@ -37,6 +39,7 @@ impl HttpServer {
             cluster,
             storage,
             cluster_storage,
+            engine_cluster
         };
     }
 
@@ -55,9 +58,10 @@ impl HttpServer {
         let cluster = self.cluster.clone();
         let storage = self.storage.clone();
         let cluster_storage = self.cluster_storage.clone();
+        let engine_cluster = self.engine_cluster.clone();
         let meta = Router::new()
             .route(ROUTE_ROOT, get(move || controller_index(cluster, storage)))
-            .route(CLUSTER_INFO, get(|| cluster_info(cluster_storage)));
+            .route(STORAGE_ENGINE, get(|| storage_engine(engine_cluster)));
 
         let app = Router::new().merge(meta);
         return app;

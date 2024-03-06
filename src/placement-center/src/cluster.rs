@@ -23,6 +23,7 @@ pub struct PlacementCluster {
     pub peers: HashMap<u64, Node>,
 }
 
+
 impl PlacementCluster {
     pub fn new(local: Node, nodes: Table) -> PlacementCluster {
         let mut peers = HashMap::new();

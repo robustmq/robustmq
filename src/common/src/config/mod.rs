@@ -48,7 +48,9 @@ pub fn parse_placement_center(config_path: &String) -> PlacementCenterConfig {
 pub fn parse_storage_engine(config_path: &String) -> StorageEngineConfig {
     let content = read_file(config_path);
     let pc_config: StorageEngineConfig = toml::from_str(&content).unwrap();
-    create_fold(pc_config.data_path.clone());
+    for fold in pc_config.data_path.clone() {
+        create_fold(fold);
+    }
     create_fold(pc_config.log_path.clone());
     return pc_config;
 }

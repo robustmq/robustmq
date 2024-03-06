@@ -89,7 +89,7 @@ pub struct PlacementCenter {
     server_runtime: Runtime,
     daemon_runtime: Runtime,
     // Cache metadata information for the Storage Engine cluster
-    storage_cluster: Arc<RwLock<StorageCluster>>,
+    engine_cluster: Arc<RwLock<StorageCluster>>,
     // Cache metadata information for the Broker Server cluster
     broker_cluster: Arc<RwLock<BrokerCluster>>,
     // Cache metadata information for the Placement Cluster cluster
@@ -131,7 +131,7 @@ impl PlacementCenter {
             config,
             server_runtime,
             daemon_runtime,
-            storage_cluster,
+            engine_cluster: storage_cluster,
             broker_cluster,
             placement_cluster,
             raft_storage,
@@ -170,6 +170,7 @@ impl PlacementCenter {
             self.placement_cluster.clone(),
             self.raft_storage.clone(),
             self.cluster_storage.clone(),
+            self.engine_cluster.clone(),
         );
         self.server_runtime.spawn(async move {
             http_s.start().await;
@@ -186,7 +187,7 @@ impl PlacementCenter {
             raft_sender,
             self.raft_storage.clone(),
             self.cluster_storage.clone(),
-            self.storage_cluster.clone(),
+            self.engine_cluster.clone(),
             self.broker_cluster.clone(),
             self.client_poll.clone(),
         );
@@ -205,7 +206,7 @@ impl PlacementCenter {
 
     // Start Storage Engine Cluster Controller
     pub fn start_engine_controller(&self) {
-        let storage_cluster: Arc<RwLock<StorageCluster>> = self.storage_cluster.clone();
+        let storage_cluster: Arc<RwLock<StorageCluster>> = self.engine_cluster.clone();
         self.daemon_runtime.spawn(async move {
             let ctrl = StorageEngineController::new(storage_cluster);
             ctrl.start().await;
@@ -227,7 +228,7 @@ impl PlacementCenter {
     pub fn start_heartbeat_check(&self, raft_sender: Sender<RaftMessage>) {
         let heartbeat = Heartbeat::new(
             100000,
-            self.storage_cluster.clone(),
+            self.engine_cluster.clone(),
             self.broker_cluster.clone(),
         );
         self.daemon_runtime.spawn(async move {
@@ -247,7 +248,7 @@ impl PlacementCenter {
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
             self.cluster_storage.clone(),
-            self.storage_cluster.clone(),
+            self.engine_cluster.clone(),
             self.broker_cluster.clone(),
         )));
 

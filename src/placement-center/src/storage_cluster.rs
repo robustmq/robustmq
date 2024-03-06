@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::storage::cluster_storage::{ClusterInfo, NodeInfo, ShardInfo};
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct StorageCluster {
     pub cluster_list: HashMap<String, ClusterInfo>,
     pub node_list: HashMap<u64, NodeInfo>,

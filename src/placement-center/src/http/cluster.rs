@@ -17,7 +17,7 @@
 use super::response::{success_response, IndexResponse, RaftInfo};
 use crate::{
     cluster::PlacementCluster,
-    storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore},
+    storage::raft_core::RaftRocksDBStorageCore, storage_cluster::StorageCluster,
 };
 use std::sync::{Arc, RwLock};
 
@@ -56,6 +56,12 @@ pub async fn controller_index(
     return success_response(resp);
 }
 
-pub async fn cluster_info(cluster_storage: Arc<ClusterStorage>) -> String {
-    return "".to_string();
+pub async fn storage_engine(storage_cluster: Arc<RwLock<StorageCluster>>) -> String {
+    let data = storage_cluster.read().unwrap();
+    return success_response(data.clone());
+}
+
+pub async fn broker_server(storage_cluster: Arc<RwLock<StorageCluster>>) -> String {
+    let data = storage_cluster.read().unwrap();
+    return success_response(data.node_list.clone());
 }
