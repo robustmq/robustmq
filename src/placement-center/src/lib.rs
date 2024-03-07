@@ -21,7 +21,7 @@ use common::log::info_meta;
 use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
-use http::server::HttpServer;
+use http::server::{start_http_server, HttpServerState};
 use peer::{PeerMessage, PeersManager};
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::message::RaftMessage;
@@ -165,15 +165,15 @@ impl PlacementCenter {
 
     // Start HTTP Server
     pub fn start_http_server(&self) {
-        let http_s = HttpServer::new(
-            self.config.clone(),
+        let state: HttpServerState = HttpServerState::new(
             self.placement_cluster.clone(),
             self.raft_storage.clone(),
             self.cluster_storage.clone(),
             self.engine_cluster.clone(),
         );
+        let port = self.config.http_port;
         self.server_runtime.spawn(async move {
-            http_s.start().await;
+            start_http_server(port, state).await;
         });
     }
 

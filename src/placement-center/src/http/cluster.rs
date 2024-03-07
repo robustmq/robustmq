@@ -14,19 +14,41 @@
  * limitations under the License.
  */
 
-use super::response::{success_response, IndexResponse, RaftInfo};
-use crate::{
-    cluster::PlacementCluster,
-    storage::raft_core::RaftRocksDBStorageCore, storage_cluster::StorageCluster,
+use super::{
+    response::success_response,
+    server::HttpServerState,
 };
-use std::sync::{Arc, RwLock};
+use axum::extract::State;
+use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use crate::Node;
 
-pub async fn controller_index(
-    cluster: Arc<RwLock<PlacementCluster>>,
-    storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-) -> String {
-    let cluster_read = cluster.read().unwrap();
-    let storage = storage.read().unwrap();
+#[derive(Serialize, Deserialize)]
+pub struct IndexResponse {
+    pub local: Node,
+    pub node_lists: HashMap<u64, Node>,
+    pub raft: RaftInfo,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct RaftInfo {
+    pub role: String,
+    pub first_index: u64,
+    pub last_index: u64,
+    pub term: u64,
+    pub vote: u64,
+    pub commit: u64,
+    pub voters: Vec<u64>,
+    pub learners: Vec<u64>,
+    pub voters_outgoing: Vec<u64>,
+    pub learners_next: Vec<u64>,
+    pub auto_leave: bool,
+    pub uncommit_index:HashMap<u64, i8>,
+}
+
+pub async fn placement_center(State(state): State<HttpServerState>) -> String {
+    let cluster_read = state.placement_storage.read().unwrap();
+    let storage = state.raft_storage.read().unwrap();
 
     let hs = storage.hard_state();
     let cs = storage.conf_state();
@@ -56,12 +78,7 @@ pub async fn controller_index(
     return success_response(resp);
 }
 
-pub async fn storage_engine(storage_cluster: Arc<RwLock<StorageCluster>>) -> String {
-    let data = storage_cluster.read().unwrap();
+pub async fn storage_engine(State(state): State<HttpServerState>) -> String {
+    let data = state.engine_cluster.read().unwrap();
     return success_response(data.clone());
-}
-
-pub async fn broker_server(storage_cluster: Arc<RwLock<StorageCluster>>) -> String {
-    let data = storage_cluster.read().unwrap();
-    return success_response(data.node_list.clone());
 }
