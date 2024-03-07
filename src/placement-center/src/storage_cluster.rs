@@ -1,7 +1,5 @@
 use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
-
 use crate::storage::cluster_storage::{ClusterInfo, NodeInfo, ShardInfo};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]

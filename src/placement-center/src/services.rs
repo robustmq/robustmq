@@ -294,13 +294,16 @@ impl PlacementCenterService for GrpcService {
             .unwrap()
             .as_millis();
         let cluster_type = req.cluster_type();
+
         if cluster_type.eq(&ClusterType::BrokerServer) {
             //todo
         }
+
         if cluster_type.eq(&ClusterType::StorageEngine) {
             let mut sc = self.storage_cluster.write().unwrap();
             sc.heart_time(req.node_id, time);
         }
+
         return Ok(Response::new(CommonReply::default()));
     }
 
