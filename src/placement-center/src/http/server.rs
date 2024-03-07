@@ -11,10 +11,12 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use super::cluster::{placement_center, storage_engine};
+use super::cluster::{metrics, placement_center, storage_engine, test};
 
 pub const ROUTE_ROOT: &str = "/";
 pub const STORAGE_ENGINE: &str = "/storage-engine";
+pub const ROUTE_TEST: &str = "/test";
+pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {
@@ -54,7 +56,10 @@ pub async fn start_http_server(port: u16, state: HttpServerState) {
 fn routes(state: HttpServerState) -> Router {
     let meta = Router::new()
         .route(ROUTE_ROOT, get(placement_center))
-        .route(STORAGE_ENGINE, get(storage_engine));
+        .route(STORAGE_ENGINE, get(storage_engine))
+        .route(ROUTE_TEST, get(test))
+        .route(ROUTE_METRICS, get(metrics))
+        ;
     let app = Router::new().merge(meta);
     return app.with_state(state);
 }
