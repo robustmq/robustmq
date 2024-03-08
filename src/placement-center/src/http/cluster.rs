@@ -19,7 +19,9 @@ use super::{
     server::HttpServerState,
 };
 use axum::extract::State;
-use std::collections::HashMap;
+use common::metrics::dump_metrics;
+use tokio::time::sleep;
+use std::{collections::HashMap, time::Duration};
 use serde::{Deserialize, Serialize};
 use crate::Node;
 
@@ -79,6 +81,14 @@ pub async fn placement_center(State(state): State<HttpServerState>) -> String {
 }
 
 pub async fn storage_engine(State(state): State<HttpServerState>) -> String {
-    let data = state.engine_cluster.read().unwrap();
-    return success_response(data.clone());
+    // let data = state.engine_cluster.read().unwrap();
+    return success_response("");
+}
+
+pub async fn test(State(state): State<HttpServerState>) -> String {
+    return success_response("");
+}
+
+pub async fn metrics() -> String {
+    return dump_metrics();
 }

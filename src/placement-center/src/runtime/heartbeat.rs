@@ -1,4 +1,3 @@
-use crate::{broker_cluster::BrokerCluster, storage_cluster::StorageCluster};
 use protocol::placement_center::placement::UnRegisterNodeRequest;
 use std::{
     sync::{Arc, RwLock},
@@ -6,18 +5,20 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use crate::cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache};
+
 #[derive(Debug, Clone)]
 pub struct Heartbeat {
     timeout_ms: u128,
-    storage_cluster: Arc<RwLock<StorageCluster>>,
-    broker_cluster: Arc<RwLock<BrokerCluster>>,
+    storage_cluster: Arc<RwLock<EngineClusterCache>>,
+    broker_cluster: Arc<RwLock<BrokerClusterCache>>,
 }
 
 impl Heartbeat {
     pub fn new(
         timeout_ms: u128,
-        storage_cluster: Arc<RwLock<StorageCluster>>,
-        broker_cluster: Arc<RwLock<BrokerCluster>>,
+        storage_cluster: Arc<RwLock<EngineClusterCache>>,
+        broker_cluster: Arc<RwLock<BrokerClusterCache>>,
     ) -> Self {
         return Heartbeat {
             timeout_ms,

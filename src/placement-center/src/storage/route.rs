@@ -1,10 +1,9 @@
 use crate::{
-    broker_cluster::BrokerCluster,
+    cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
     storage::{
-        cluster_storage::{ClusterInfo, NodeInfo, ShardInfo, ShardStatus},
+        data_rw_layer::{ClusterInfo, NodeInfo, ShardInfo, ShardStatus},
         schema::{StorageData, StorageDataType},
     },
-    storage_cluster::StorageCluster,
 };
 use bincode::deserialize;
 use common::{errors::RobustMQError, tools::unique_id};
@@ -15,25 +14,25 @@ use protocol::placement_center::placement::{
 use std::sync::{Arc, RwLock};
 use tonic::Status;
 
-use super::cluster_storage::ClusterStorage;
+use super::data_rw_layer::DataRwLayer;
 
 #[derive(Clone)]
 pub struct DataRoute {
-    cluster_storage: Arc<ClusterStorage>,
-    storage_cluster: Arc<RwLock<StorageCluster>>,
-    broker_cluster: Arc<RwLock<BrokerCluster>>,
+    cluster_storage: Arc<DataRwLayer>,
+    engine_cache: Arc<RwLock<EngineClusterCache>>,
+    broker_cache: Arc<RwLock<BrokerClusterCache>>,
 }
 
 impl DataRoute {
     pub fn new(
-        cluster_storage: Arc<ClusterStorage>,
-        storage_cluster: Arc<RwLock<StorageCluster>>,
-        broker_cluster: Arc<RwLock<BrokerCluster>>,
+        cluster_storage: Arc<DataRwLayer>,
+        engine_cache: Arc<RwLock<EngineClusterCache>>,
+        broker_cache: Arc<RwLock<BrokerClusterCache>>,
     ) -> DataRoute {
         return DataRoute {
             cluster_storage,
-            storage_cluster,
-            broker_cluster,
+            engine_cache,
+            broker_cache,
         };
     }
 
@@ -81,7 +80,7 @@ impl DataRoute {
         }
 
         if cluster_type == ClusterType::StorageEngine {
-            let mut sc = self.storage_cluster.write().unwrap();
+            let mut sc = self.engine_cache.write().unwrap();
             if !sc.cluster_list.contains_key(&cluster_name) {
                 sc.add_cluster(cluster_info);
             }
@@ -107,7 +106,7 @@ impl DataRoute {
         }
 
         if req.cluster_type().eq(&ClusterType::StorageEngine) {
-            let mut sc = self.storage_cluster.write().unwrap();
+            let mut sc = self.engine_cache.write().unwrap();
             sc.remove_node(req.node_id);
             // todo
         }
@@ -133,7 +132,7 @@ impl DataRoute {
         self.cluster_storage
             .save_shard(req.cluster_name, shard_info.clone());
 
-        let mut sc = self.storage_cluster.write().unwrap();
+        let mut sc = self.engine_cache.write().unwrap();
         sc.add_shard(shard_info);
         // create next segment
 
@@ -157,11 +156,7 @@ impl DataRoute {
 mod tests {
     use std::sync::{Arc, RwLock};
 
-    use crate::{
-        broker_cluster::BrokerCluster,
-        storage::{cluster_storage::ClusterStorage, rocksdb::RocksDBStorage},
-        storage_cluster::StorageCluster,
-    };
+    use crate::{cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache}, storage::{data_rw_layer::DataRwLayer, rocksdb::RocksDBStorage}};
     use common::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
     use protocol::placement_center::placement::{ClusterType, RegisterNodeRequest};
@@ -185,10 +180,10 @@ mod tests {
         let data = RegisterNodeRequest::encode_to_vec(&req);
 
         let rocksdb_storage = Arc::new(RocksDBStorage::new(&PlacementCenterConfig::default()));
-        let cluster_storage = Arc::new(ClusterStorage::new(rocksdb_storage));
-        let broker_cluster = Arc::new(RwLock::new(BrokerCluster::new()));
-        let storage_cluster = Arc::new(RwLock::new(StorageCluster::new()));
-        let mut route = DataRoute::new(cluster_storage.clone(), storage_cluster, broker_cluster);
+        let cluster_storage = Arc::new(DataRwLayer::new(rocksdb_storage));
+        let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
+        let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
+        let mut route = DataRoute::new(cluster_storage.clone(), engine_cache, broker_cache);
         let _ = route.register_node(data);
 
         let cluster = cluster_storage.get_cluster(&cluster_name);

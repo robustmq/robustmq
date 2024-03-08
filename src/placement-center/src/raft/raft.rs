@@ -1,16 +1,15 @@
 use super::message::{RaftMessage, RaftResponseMesage};
-use crate::cluster::PlacementCluster;
-use crate::peer::PeerMessage;
-use crate::route::DataRoute;
-use crate::storage::raft_core::RaftRocksDBStorageCore;
-use crate::storage::raft_storage::RaftRocksDBStorage;
+use super::core::RaftRocksDBStorageCore;
+use super::storage::RaftRocksDBStorage;
+use crate::cache::placement_cluster::PlacementClusterCache;
+use crate::network::peer::PeerMessage;
+use crate::storage::route::DataRoute;
 use crate::Node;
 use bincode::{deserialize, serialize};
 use common::config::placement_center::PlacementCenterConfig;
 use common::errors::RobustMQError;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
-use protocol::placement_center::placement::ClusterType;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
     Snapshot,
@@ -30,7 +29,7 @@ use tokio::time::timeout;
 
 pub struct MetaRaft {
     config: PlacementCenterConfig,
-    placement_cluster: Arc<RwLock<PlacementCluster>>,
+    placement_cluster: Arc<RwLock<PlacementClusterCache>>,
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
@@ -44,7 +43,7 @@ pub struct MetaRaft {
 impl MetaRaft {
     pub fn new(
         config: PlacementCenterConfig,
-        placement_cluster: Arc<RwLock<PlacementCluster>>,
+        placement_cluster: Arc<RwLock<PlacementClusterCache>>,
         data_route: Arc<RwLock<DataRoute>>,
         peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,

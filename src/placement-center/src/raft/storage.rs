@@ -1,4 +1,4 @@
-use super::raft_core::RaftRocksDBStorageCore;
+use super::core::RaftRocksDBStorageCore;
 use common::log::info_meta;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
