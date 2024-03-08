@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::network::peer::{PeerMessage, PeersManager};
+use self::server::peer::{PeerMessage, PeersManager};
 use cache::broker_cluster::BrokerClusterCache;
 use cache::engine_cluster::EngineClusterCache;
 use cache::placement_cluster::PlacementClusterCache;
@@ -23,8 +23,8 @@ use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
-use network::grpc::GrpcService;
-use network::heartbeat::Heartbeat;
+use server::grpc::GrpcService;
+use server::heartbeat::Heartbeat;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::core::RaftRocksDBStorageCore;
 use raft::message::RaftMessage;
@@ -45,7 +45,7 @@ mod broker;
 mod cache;
 mod controller;
 mod http;
-mod network;
+mod server;
 mod raft;
 mod rocksdb;
 

@@ -2,7 +2,7 @@ use super::message::{RaftMessage, RaftResponseMesage};
 use super::core::RaftRocksDBStorageCore;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement_cluster::PlacementClusterCache;
-use crate::network::peer::PeerMessage;
+use crate::server::peer::PeerMessage;
 use crate::rocksdb::route::DataRoute;
 use crate::Node;
 use bincode::{deserialize, serialize};
