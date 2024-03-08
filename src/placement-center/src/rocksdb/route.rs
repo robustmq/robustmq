@@ -1,6 +1,6 @@
 use crate::{
     cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
-    storage::{
+    rocksdb::{
         data_rw_layer::{ClusterInfo, NodeInfo, ShardInfo, ShardStatus},
         schema::{StorageData, StorageDataType},
     },
@@ -156,7 +156,7 @@ impl DataRoute {
 mod tests {
     use std::sync::{Arc, RwLock};
 
-    use crate::{cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache}, storage::{data_rw_layer::DataRwLayer, rocksdb::RocksDBStorage}};
+    use crate::{cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache}, rocksdb::{data_rw_layer::DataRwLayer, rocksdb::RocksDBStorage}};
     use common::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
     use protocol::placement_center::placement::{ClusterType, RegisterNodeRequest};

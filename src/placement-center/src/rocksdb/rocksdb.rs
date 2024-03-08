@@ -253,7 +253,7 @@ impl RocksDBStorage {
 #[cfg(test)]
 mod tests {
 
-    use crate::storage::keys::key_name_by_last_index;
+    use crate::rocksdb::keys::key_name_by_last_index;
 
     use super::RocksDBStorage;
     use common::config::placement_center::PlacementCenterConfig;
