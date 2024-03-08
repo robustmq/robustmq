@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use self::services::GrpcService;
-use broker_cluster::BrokerCluster;
+use cache::broker_cluster::BrokerClusterCache;
+use cache::engine_cluster::EngineClusterCache;
+use cache::placement_cluster::PlacementClusterCache;
 use clients::ClientPool;
-use cluster::PlacementCluster;
 use common::config::placement_center::PlacementCenterConfig;
 use common::log::info_meta;
 use common::runtime::create_runtime;
@@ -31,10 +32,9 @@ use runtime::heartbeat::Heartbeat;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
-use storage::cluster_storage;
+use storage::data_rw_layer;
 use storage::raft_core::RaftRocksDBStorageCore;
 use storage::rocksdb::RocksDBStorage;
-use storage_cluster::StorageCluster;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -42,8 +42,7 @@ use tokio::sync::{broadcast, mpsc, Mutex};
 use tonic::transport::Server;
 
 pub mod broker;
-mod broker_cluster;
-pub mod cluster;
+mod cache;
 pub mod controller;
 pub mod http;
 mod peer;
@@ -52,7 +51,6 @@ mod route;
 mod runtime;
 mod services;
 pub mod storage;
-mod storage_cluster;
 mod tools;
 
 use serde::{Deserialize, Serialize};
@@ -86,44 +84,41 @@ impl Display for Node {
 
 pub struct PlacementCenter {
     config: PlacementCenterConfig,
+
     server_runtime: Runtime,
     daemon_runtime: Runtime,
     // Cache metadata information for the Storage Engine cluster
-    engine_cluster: Arc<RwLock<StorageCluster>>,
+    engine_cache: Arc<RwLock<EngineClusterCache>>,
     // Cache metadata information for the Broker Server cluster
-    broker_cluster: Arc<RwLock<BrokerCluster>>,
+    broker_cache: Arc<RwLock<BrokerClusterCache>>,
     // Cache metadata information for the Placement Cluster cluster
-    placement_cluster: Arc<RwLock<PlacementCluster>>,
+    placement_cache: Arc<RwLock<PlacementClusterCache>>,
     // Storage implementation of Raft Group information
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
     // Placement Center Cluster information storage implementation
-    cluster_storage: Arc<cluster_storage::ClusterStorage>,
-
+    data_rw_layer: Arc<data_rw_layer::DataRwLayer>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl PlacementCenter {
     pub fn new(config: PlacementCenterConfig) -> PlacementCenter {
+
         let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
-        let storage_cluster: Arc<RwLock<StorageCluster>> =
-            Arc::new(RwLock::new(StorageCluster::new()));
-        let broker_cluster: Arc<RwLock<BrokerCluster>> =
-            Arc::new(RwLock::new(BrokerCluster::new()));
-        let placement_cluster: Arc<RwLock<PlacementCluster>> =
-            Arc::new(RwLock::new(PlacementCluster::new(
-                Node::new(config.addr.clone(), config.node_id, config.grpc_port),
-                config.nodes.clone(),
-            )));
+        let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
+        let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
+        let placement_cache = Arc::new(RwLock::new(PlacementClusterCache::new(
+            Node::new(config.addr.clone(), config.node_id, config.grpc_port),
+            config.nodes.clone(),
+        )));
 
-        let rocksdb_handle: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&config));
-        let raft_storage: Arc<RwLock<RaftRocksDBStorageCore>> = Arc::new(RwLock::new(
-            RaftRocksDBStorageCore::new(rocksdb_handle.clone()),
-        ));
+        let rocksdb_handle = Arc::new(RocksDBStorage::new(&config));
+        let raft_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(
+            rocksdb_handle.clone(),
+        )));
 
-        let cluster_storage: Arc<cluster_storage::ClusterStorage> =
-            Arc::new(cluster_storage::ClusterStorage::new(rocksdb_handle.clone()));
+        let data_rw_layer = Arc::new(data_rw_layer::DataRwLayer::new(rocksdb_handle.clone()));
 
         let client_poll = Arc::new(Mutex::new(ClientPool::new()));
 
@@ -131,11 +126,11 @@ impl PlacementCenter {
             config,
             server_runtime,
             daemon_runtime,
-            engine_cluster: storage_cluster,
-            broker_cluster,
-            placement_cluster,
+            engine_cache,
+            broker_cache,
+            placement_cache,
             raft_storage,
-            cluster_storage,
+            data_rw_layer,
             client_poll,
         };
     }
@@ -166,10 +161,10 @@ impl PlacementCenter {
     // Start HTTP Server
     pub fn start_http_server(&self) {
         let state: HttpServerState = HttpServerState::new(
-            self.placement_cluster.clone(),
+            self.placement_cache.clone(),
             self.raft_storage.clone(),
-            self.cluster_storage.clone(),
-            self.engine_cluster.clone(),
+            self.data_rw_layer.clone(),
+            self.engine_cache.clone(),
         );
         let port = self.config.http_port;
         self.server_runtime.spawn(async move {
@@ -183,12 +178,12 @@ impl PlacementCenter {
             .parse()
             .unwrap();
         let service_handler = GrpcService::new(
-            self.placement_cluster.clone(),
+            self.placement_cache.clone(),
             raft_sender,
             self.raft_storage.clone(),
-            self.cluster_storage.clone(),
-            self.engine_cluster.clone(),
-            self.broker_cluster.clone(),
+            self.data_rw_layer.clone(),
+            self.engine_cache.clone(),
+            self.broker_cache.clone(),
             self.client_poll.clone(),
         );
         self.server_runtime.spawn(async move {
@@ -206,9 +201,9 @@ impl PlacementCenter {
 
     // Start Storage Engine Cluster Controller
     pub fn start_engine_controller(&self) {
-        let storage_cluster: Arc<RwLock<StorageCluster>> = self.engine_cluster.clone();
+        let engine_cache= self.engine_cache.clone();
         self.daemon_runtime.spawn(async move {
-            let ctrl = StorageEngineController::new(storage_cluster);
+            let ctrl = StorageEngineController::new(engine_cache);
             ctrl.start().await;
         });
         info_meta("Storage Engine Controller started successfully");
@@ -216,9 +211,9 @@ impl PlacementCenter {
 
     // Start Broker Server Cluster Controller
     pub fn start_broker_controller(&self) {
-        let broker_cluster = self.broker_cluster.clone();
+        let broker_cache = self.broker_cache.clone();
         self.daemon_runtime.spawn(async move {
-            let ctrl = BrokerServerController::new(broker_cluster);
+            let ctrl = BrokerServerController::new(broker_cache);
             ctrl.start().await;
         });
         info_meta("Broker Server Controller started successfully");
@@ -226,11 +221,8 @@ impl PlacementCenter {
 
     // Start Cluster hearbeat check thread
     pub fn start_heartbeat_check(&self, raft_sender: Sender<RaftMessage>) {
-        let heartbeat = Heartbeat::new(
-            100000,
-            self.engine_cluster.clone(),
-            self.broker_cluster.clone(),
-        );
+        let heartbeat =
+            Heartbeat::new(100000, self.engine_cache.clone(), self.broker_cache.clone());
         self.daemon_runtime.spawn(async move {
             heartbeat.start_heartbeat_check().await;
         });
@@ -247,14 +239,14 @@ impl PlacementCenter {
         is_banner: bool,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
-            self.cluster_storage.clone(),
-            self.engine_cluster.clone(),
-            self.broker_cluster.clone(),
+            self.data_rw_layer.clone(),
+            self.engine_cache.clone(),
+            self.broker_cache.clone(),
         )));
 
         let mut raft: MetaRaft = MetaRaft::new(
             self.config.clone(),
-            self.placement_cluster.clone(),
+            self.placement_cache.clone(),
             data_route,
             peer_message_send,
             raft_message_recv,

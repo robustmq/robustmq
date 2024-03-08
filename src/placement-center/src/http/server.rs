@@ -1,8 +1,4 @@
-use crate::{
-    cluster::PlacementCluster,
-    storage::{cluster_storage::ClusterStorage, raft_core::RaftRocksDBStorageCore},
-    storage_cluster::StorageCluster,
-};
+use crate::{cache::{engine_cluster::EngineClusterCache, placement_cluster::PlacementClusterCache}, storage::{data_rw_layer::DataRwLayer, raft_core::RaftRocksDBStorageCore}};
 use axum::routing::get;
 use axum::Router;
 use common::log::info;
@@ -20,18 +16,18 @@ pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {
-    pub placement_storage: Arc<RwLock<PlacementCluster>>,
+    pub placement_storage: Arc<RwLock<PlacementClusterCache>>,
     pub raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-    pub cluster_storage: Arc<ClusterStorage>,
-    pub engine_cluster: Arc<RwLock<StorageCluster>>,
+    pub cluster_storage: Arc<DataRwLayer>,
+    pub engine_cluster: Arc<RwLock<EngineClusterCache>>,
 }
 
 impl HttpServerState {
     pub fn new(
-        placement_storage: Arc<RwLock<PlacementCluster>>,
+        placement_storage: Arc<RwLock<PlacementClusterCache>>,
         raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-        cluster_storage: Arc<ClusterStorage>,
-        engine_cluster: Arc<RwLock<StorageCluster>>,
+        cluster_storage: Arc<DataRwLayer>,
+        engine_cluster: Arc<RwLock<EngineClusterCache>>,
     ) -> Self {
         return Self {
             placement_storage,

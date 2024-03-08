@@ -3,13 +3,13 @@ use common::log::error_meta;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-pub struct ClusterStorage {
+pub struct DataRwLayer {
     rds: Arc<RocksDBStorage>,
 }
 
-impl ClusterStorage {
+impl DataRwLayer {
     pub fn new(rds: Arc<RocksDBStorage>) -> Self {
-        ClusterStorage { rds }
+        DataRwLayer { rds }
     }
 
     // get node list
@@ -165,7 +165,7 @@ impl ClusterStorage {
     }
 }
 
-impl ClusterStorage {
+impl DataRwLayer {
     fn node_key(&self, cluster_name: &String, node_id: u64) -> String {
         return format!("node_{}_{}", cluster_name, node_id);
     }

@@ -1,18 +1,18 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use crate::storage::cluster_storage::{ClusterInfo, NodeInfo, ShardInfo};
+use crate::storage::data_rw_layer::{ClusterInfo, NodeInfo, ShardInfo};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct StorageCluster {
+pub struct EngineClusterCache {
     pub cluster_list: HashMap<String, ClusterInfo>,
     pub node_list: HashMap<u64, NodeInfo>,
     pub shard_list: HashMap<String, ShardInfo>,
     pub node_heartbeat: HashMap<u64, u128>,
 }
 
-impl StorageCluster {
-    pub fn new() -> StorageCluster {
-        let bc = StorageCluster::default();
+impl EngineClusterCache {
+    pub fn new() -> EngineClusterCache {
+        let bc = EngineClusterCache::default();
         return bc;
     }
 

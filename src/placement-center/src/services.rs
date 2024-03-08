@@ -1,3 +1,6 @@
+use crate::cache::broker_cluster::BrokerClusterCache;
+use crate::cache::engine_cluster::EngineClusterCache;
+use crate::cache::placement_cluster::PlacementClusterCache;
 /*
  * Copyright (c) 2023 RobustMQ Team
  *
@@ -13,14 +16,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-use super::cluster::PlacementCluster;
-use crate::broker_cluster::BrokerCluster;
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
-use crate::storage::cluster_storage::ClusterStorage;
+use crate::storage::data_rw_layer::DataRwLayer;
 use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataType};
-use crate::storage_cluster::StorageCluster;
 use bincode::serialize;
 use clients::placement_center::{create_shard, delete_shard, register_node, unregister_node};
 use clients::ClientPool;
@@ -47,42 +46,42 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcService {
-    placement_cluster: Arc<RwLock<PlacementCluster>>,
+    placement_cache: Arc<RwLock<PlacementClusterCache>>,
     raft_sender: Sender<RaftMessage>,
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-    cluster_storage: Arc<ClusterStorage>,
-    storage_cluster: Arc<RwLock<StorageCluster>>,
-    broker_cluster: Arc<RwLock<BrokerCluster>>,
+    cluster_storage: Arc<DataRwLayer>,
+    engine_cache: Arc<RwLock<EngineClusterCache>>,
+    broker_cache: Arc<RwLock<BrokerClusterCache>>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl GrpcService {
     pub fn new(
-        placement_cluster: Arc<RwLock<PlacementCluster>>,
+        placement_cache: Arc<RwLock<PlacementClusterCache>>,
         raft_sender: Sender<RaftMessage>,
         raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-        cluster_storage: Arc<ClusterStorage>,
-        storage_cluster: Arc<RwLock<StorageCluster>>,
-        broker_cluster: Arc<RwLock<BrokerCluster>>,
+        cluster_storage: Arc<DataRwLayer>,
+        engine_cache: Arc<RwLock<EngineClusterCache>>,
+        broker_cache: Arc<RwLock<BrokerClusterCache>>,
         client_poll: Arc<Mutex<ClientPool>>,
     ) -> Self {
         GrpcService {
-            placement_cluster,
+            placement_cache,
             raft_sender,
             raft_storage,
             cluster_storage,
-            storage_cluster,
-            broker_cluster,
+            engine_cache,
+            broker_cache,
             client_poll,
         }
     }
 
     fn rewrite_leader(&self) -> bool {
-        return !self.placement_cluster.read().unwrap().is_leader();
+        return !self.placement_cache.read().unwrap().is_leader();
     }
 
     fn verify(&self) -> Result<(), RobustMQError> {
-        let cluster = self.placement_cluster.read().unwrap();
+        let cluster = self.placement_cache.read().unwrap();
 
         if cluster.leader_alive() {
             return Err(RobustMQError::MetaClusterNotLeaderNode);
@@ -141,7 +140,7 @@ impl PlacementCenterService for GrpcService {
         let req = request.into_inner();
 
         if self.rewrite_leader() {
-            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
+            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
             match register_node(self.client_poll.clone(), leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
@@ -172,8 +171,8 @@ impl PlacementCenterService for GrpcService {
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         if self.rewrite_leader() {
-            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
-            match unregister_node(self.client_poll.clone(),leader_addr, req).await {
+            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
+            match unregister_node(self.client_poll.clone(), leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -204,7 +203,7 @@ impl PlacementCenterService for GrpcService {
         let req = request.into_inner();
 
         if self.rewrite_leader() {
-            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
+            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
             match create_shard(self.client_poll.clone(), leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
@@ -256,8 +255,8 @@ impl PlacementCenterService for GrpcService {
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         if self.rewrite_leader() {
-            let leader_addr = self.placement_cluster.read().unwrap().leader_addr();
-            match delete_shard(self.client_poll.clone(),leader_addr, req).await {
+            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
+            match delete_shard(self.client_poll.clone(), leader_addr, req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -300,7 +299,7 @@ impl PlacementCenterService for GrpcService {
         }
 
         if cluster_type.eq(&ClusterType::StorageEngine) {
-            let mut sc = self.storage_cluster.write().unwrap();
+            let mut sc = self.engine_cache.write().unwrap();
             sc.heart_time(req.node_id, time);
         }
 

@@ -1,20 +1,26 @@
-use crate::{storage_cluster::StorageCluster, storage::cluster_storage::{ClusterInfo, NodeInfo, ShardInfo}};
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use crate::{
+    cache::engine_cluster::EngineClusterCache,
+    storage::data_rw_layer::{ClusterInfo, NodeInfo, ShardInfo},
+};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Default)]
 pub struct StorageEngineController {
-   pub storage_cluser: Arc<RwLock<StorageCluster>>,
+    pub engine_cache: Arc<RwLock<EngineClusterCache>>,
 }
 
 impl StorageEngineController {
-    pub fn new(broker_cluser: Arc<RwLock<StorageCluster>>) -> StorageEngineController {
+    pub fn new(engine_cache: Arc<RwLock<EngineClusterCache>>) -> StorageEngineController {
         let mut controller = StorageEngineController::default();
-        controller.storage_cluser = broker_cluser;
+        controller.engine_cache = engine_cache;
         return controller;
     }
 
-    pub async fn start(&self){
-        // 
+    pub async fn start(&self) {
+        //
     }
 
     fn load_cluster_list(&self) -> HashMap<String, ClusterInfo> {
