@@ -17,8 +17,8 @@ use crate::cache::placement_cluster::PlacementClusterCache;
  * limitations under the License.
  */
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
+use crate::raft::core::RaftRocksDBStorageCore;
 use crate::storage::data_rw_layer::DataRwLayer;
-use crate::storage::raft_core::RaftRocksDBStorageCore;
 use crate::storage::schema::{StorageData, StorageDataType};
 use bincode::serialize;
 use clients::placement_center::{create_shard, delete_shard, register_node, unregister_node};

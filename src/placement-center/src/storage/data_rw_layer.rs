@@ -1,4 +1,4 @@
-use super::rocksdb::RocksDBStorage;
+use super::{keys::{key_cluster, key_node, key_shard}, rocksdb::RocksDBStorage};
 use common::log::error_meta;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -21,7 +21,7 @@ impl DataRwLayer {
             return result;
         }
         for node_id in cluster_info.unwrap().nodes {
-            let key = self.node_key(&cluster_name, node_id);
+            let key = key_node(&cluster_name, node_id);
             match self.rds.read::<NodeInfo>(cf, &key) {
                 Ok(node_info) => {
                     if let Some(ni) = node_info {
@@ -53,7 +53,7 @@ impl DataRwLayer {
         self.save_cluster(ci);
 
         // save node info
-        let node_key = self.node_key(&cluster_name, node.node_id);
+        let node_key = key_node(&cluster_name, node.node_id);
         match self.rds.write(cf, &node_key, &node) {
             Ok(_) => {}
             Err(e) => {
@@ -80,7 +80,7 @@ impl DataRwLayer {
         }
 
         // delete node info
-        let node_key = self.node_key(&cluster_name, node_id);
+        let node_key = key_node(&cluster_name, node_id);
         match self.rds.delete(cf, &node_key) {
             Ok(_) => {}
             Err(e) => {
@@ -92,7 +92,7 @@ impl DataRwLayer {
     // save cluster info
     pub fn save_cluster(&self, cluster_info: ClusterInfo) {
         let cf = self.rds.cf_cluster();
-        let cluster_key = self.cluster_key(&cluster_info.cluster_name);
+        let cluster_key = key_cluster(&cluster_info.cluster_name);
         match self.rds.write(cf, &cluster_key, &cluster_info) {
             Ok(_) => {}
             Err(e) => {
@@ -104,7 +104,7 @@ impl DataRwLayer {
     // get cluster info
     pub fn get_cluster(&self, cluster_name: &String) -> Option<ClusterInfo> {
         let cf = self.rds.cf_cluster();
-        let cluster_key = self.cluster_key(&cluster_name);
+        let cluster_key = key_cluster(&cluster_name);
         match self.rds.read::<ClusterInfo>(cf, &cluster_key) {
             Ok(cluster_info) => {
                 return cluster_info;
@@ -117,7 +117,7 @@ impl DataRwLayer {
     // get node info
     pub fn get_node(&self, cluster_name: String, node_id: u64) -> Option<NodeInfo> {
         let cf = self.rds.cf_cluster();
-        let cluster_key = self.node_key(&cluster_name, node_id);
+        let cluster_key = key_node(&cluster_name, node_id);
         match self.rds.read::<NodeInfo>(cf, &cluster_key) {
             Ok(cluster_info) => {
                 return cluster_info;
@@ -130,7 +130,7 @@ impl DataRwLayer {
     // save shard info
     pub fn save_shard(&self, cluster_name: String, shard_info: ShardInfo) {
         let cf = self.rds.cf_cluster();
-        let shard_key = self.shard_key(&cluster_name, shard_info.shard_name.clone());
+        let shard_key = key_shard(&cluster_name, shard_info.shard_name.clone());
         match self.rds.write(cf, &shard_key, &shard_info) {
             Ok(_) => {}
             Err(e) => {
@@ -142,7 +142,7 @@ impl DataRwLayer {
     // get shard info
     pub fn get_shard(&self, cluster_name: String, shard_name: String) -> Option<ShardInfo> {
         let cf = self.rds.cf_cluster();
-        let shard_key: String = self.shard_key(&cluster_name, shard_name);
+        let shard_key: String = key_shard(&cluster_name, shard_name);
         match self.rds.read::<ShardInfo>(cf, &shard_key) {
             Ok(ci) => {
                 return ci;
@@ -155,27 +155,13 @@ impl DataRwLayer {
     // delete shard info
     pub fn delete_shard(&self, cluster_name: String, shard_name: String) {
         let cf = self.rds.cf_cluster();
-        let shard_key = self.shard_key(&cluster_name, shard_name);
+        let shard_key = key_shard(&cluster_name, shard_name);
         match self.rds.delete(cf, &shard_key) {
             Ok(_) => {}
             Err(e) => {
                 error_meta(&e);
             }
         }
-    }
-}
-
-impl DataRwLayer {
-    fn node_key(&self, cluster_name: &String, node_id: u64) -> String {
-        return format!("node_{}_{}", cluster_name, node_id);
-    }
-
-    fn cluster_key(&self, cluster_name: &String) -> String {
-        return format!("node_{}", cluster_name);
-    }
-
-    fn shard_key(&self, cluster_name: &String, shard_name: String) -> String {
-        return format!("shard_{}_{}", cluster_name, shard_name);
     }
 }
 
