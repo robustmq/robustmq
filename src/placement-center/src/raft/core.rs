@@ -1,11 +1,11 @@
-use crate::storage::keys::key_name_by_conf_state;
-use crate::storage::keys::key_name_by_entry;
-use crate::storage::keys::key_name_by_first_index;
-use crate::storage::keys::key_name_by_hard_state;
-use crate::storage::keys::key_name_by_last_index;
-use crate::storage::keys::key_name_snapshot;
-use crate::storage::keys::key_name_uncommit;
-use crate::storage::rocksdb::RocksDBStorage;
+use crate::rocksdb::keys::key_name_by_conf_state;
+use crate::rocksdb::keys::key_name_by_entry;
+use crate::rocksdb::keys::key_name_by_first_index;
+use crate::rocksdb::keys::key_name_by_hard_state;
+use crate::rocksdb::keys::key_name_by_last_index;
+use crate::rocksdb::keys::key_name_snapshot;
+use crate::rocksdb::keys::key_name_uncommit;
+use crate::rocksdb::rocksdb::RocksDBStorage;
 use bincode::{deserialize, serialize};
 use common::log::error_meta;
 use common::log::info_meta;
@@ -391,7 +391,7 @@ mod tests {
 
     use common::config::placement_center::PlacementCenterConfig;
 
-    use crate::storage::rocksdb::RocksDBStorage;
+    use crate::rocksdb::rocksdb::RocksDBStorage;
 
     use super::RaftRocksDBStorageCore;
 

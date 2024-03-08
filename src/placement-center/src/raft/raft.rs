@@ -3,7 +3,7 @@ use super::core::RaftRocksDBStorageCore;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement_cluster::PlacementClusterCache;
 use crate::network::peer::PeerMessage;
-use crate::storage::route::DataRoute;
+use crate::rocksdb::route::DataRoute;
 use crate::Node;
 use bincode::{deserialize, serialize};
 use common::config::placement_center::PlacementCenterConfig;
@@ -27,7 +27,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
-pub struct MetaRaft {
+pub struct PlacementCenterRaftGroup {
     config: PlacementCenterConfig,
     placement_cluster: Arc<RwLock<PlacementClusterCache>>,
     receiver: Receiver<RaftMessage>,
@@ -40,7 +40,7 @@ pub struct MetaRaft {
     raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
 }
 
-impl MetaRaft {
+impl PlacementCenterRaftGroup {
     pub fn new(
         config: PlacementCenterConfig,
         placement_cluster: Arc<RwLock<PlacementClusterCache>>,

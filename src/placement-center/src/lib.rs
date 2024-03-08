@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::services::GrpcService;
+use self::network::peer::{PeerMessage, PeersManager};
 use cache::broker_cluster::BrokerClusterCache;
 use cache::engine_cluster::EngineClusterCache;
 use cache::placement_cluster::PlacementClusterCache;
@@ -23,34 +23,31 @@ use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
-use self::network::peer::{PeerMessage, PeersManager};
+use network::grpc::GrpcService;
+use network::heartbeat::Heartbeat;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raft::message::RaftMessage;
-use raft::raft::MetaRaft;
 use raft::core::RaftRocksDBStorageCore;
-use runtime::heartbeat::Heartbeat;
-use storage::route::DataRoute;
+use raft::message::RaftMessage;
+use raft::raft::PlacementCenterRaftGroup;
+use rocksdb::data_rw_layer;
+use rocksdb::rocksdb::RocksDBStorage;
+use rocksdb::route::DataRoute;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
-use storage::data_rw_layer;
-use storage::rocksdb::RocksDBStorage;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tonic::transport::Server;
 
-pub mod broker;
+mod broker;
 mod cache;
-pub mod controller;
-pub mod http;
+mod controller;
+mod http;
 mod network;
-pub mod raft;
-mod runtime;
-mod services;
-pub mod storage;
-mod tools;
+mod raft;
+mod rocksdb;
 
 use serde::{Deserialize, Serialize};
 
@@ -101,7 +98,6 @@ pub struct PlacementCenter {
 
 impl PlacementCenter {
     pub fn new(config: PlacementCenterConfig) -> PlacementCenter {
-
         let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
@@ -200,7 +196,7 @@ impl PlacementCenter {
 
     // Start Storage Engine Cluster Controller
     pub fn start_engine_controller(&self) {
-        let engine_cache= self.engine_cache.clone();
+        let engine_cache = self.engine_cache.clone();
         self.daemon_runtime.spawn(async move {
             let ctrl = StorageEngineController::new(engine_cache);
             ctrl.start().await;
@@ -243,7 +239,7 @@ impl PlacementCenter {
             self.broker_cache.clone(),
         )));
 
-        let mut raft: MetaRaft = MetaRaft::new(
+        let mut raft: PlacementCenterRaftGroup = PlacementCenterRaftGroup::new(
             self.config.clone(),
             self.placement_cache.clone(),
             data_route,
