@@ -253,17 +253,48 @@ impl RocksDBEngine {
 #[cfg(test)]
 mod tests {
 
+    use std::{fmt::format, time::Duration};
+
     use crate::rocksdb::keys::key_name_by_last_index;
 
     use super::RocksDBEngine;
-    use common::config::placement_center::PlacementCenterConfig;
+    use common::{config::placement_center::PlacementCenterConfig, log::info_meta};
     use serde::{Deserialize, Serialize};
-    use tokio::fs::remove_dir;
+    use tokio::{fs::remove_dir, time::sleep};
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
     struct User {
         pub name: String,
         pub age: u32,
+    }
+
+    #[tokio::test]
+    async fn multi_rocksdb_instance() {
+        for i in 1..100 {
+            let mut config = PlacementCenterConfig::default();
+            config.data_path = "/tmp/tmp_test".to_string();
+            config.log_path = "/tmp/tmp_log".to_string();
+            tokio::spawn(async move {
+                let rs = RocksDBEngine::new(&config);
+                let key = format!("name2{}", i);
+
+                let name = format!("lobo{}", i);
+                let user = User {
+                    name: name.clone(),
+                    age: 18,
+                };
+                let res4 = rs.write(rs.cf_meta(), &key, &user);
+                assert!(res4.is_ok());
+
+                let res1 = rs.read::<User>(rs.cf_meta(), &key);
+                let r = res1.unwrap();
+                assert!(!r.is_none());
+                assert_eq!(r.unwrap().name, name);
+                println!("spawn {}, key:{}", i, key);
+            });
+        }
+
+        sleep(Duration::from_secs(5)).await;
     }
 
     #[tokio::test]

@@ -1,11 +1,40 @@
-use std::collections::HashMap;
-
-use crate:: Node;
-use common::log:: info_meta;
+use common::log::info_meta;
 use raft::StateRole;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+};
 use toml::Table;
 
-#[derive(PartialEq, Default, Debug,Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+pub struct Node {
+    pub ip: String,
+    pub id: u64,
+    pub inner_port: u16,
+}
+
+impl Node {
+    pub fn new(ip: String, id: u64, port: u16) -> Node {
+        Node {
+            ip,
+            id,
+            inner_port: port,
+        }
+    }
+
+    pub fn addr(&self) -> String {
+        format!("{}:{}", self.ip, self.inner_port)
+    }
+}
+
+impl Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ip:{},id:{},port:{}", self.ip, self.id, self.inner_port)
+    }
+}
+
+#[derive(PartialEq, Default, Debug, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeState {
     #[default]
     Running,
@@ -22,7 +51,6 @@ pub struct PlacementClusterCache {
     pub raft_role: StateRole,
     pub peers: HashMap<u64, Node>,
 }
-
 
 impl PlacementClusterCache {
     pub fn new(local: Node, nodes: Table) -> PlacementClusterCache {

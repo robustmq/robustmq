@@ -1,15 +1,15 @@
+use super::cluster::{metrics, placement_center, storage_engine, test};
 use crate::{
     cache::{engine_cluster::EngineClusterCache, placement_cluster::PlacementClusterCache},
     rocksdb::raft::RaftMachineStorage,
 };
 use axum::routing::get;
 use axum::Router;
-use common::log::info;
+use common::{config::placement_center::placement_center_conf, log::info};
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
 };
-use super::cluster::{metrics, placement_center, storage_engine, test};
 
 pub const ROUTE_ROOT: &str = "/";
 pub const STORAGE_ENGINE: &str = "/storage-engine";
@@ -37,8 +37,9 @@ impl HttpServerState {
     }
 }
 
-pub async fn start_http_server(port: u16, state: HttpServerState) {
-    let ip: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+pub async fn start_http_server(state: HttpServerState) {
+    let config = placement_center_conf();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.http_port).parse().unwrap();
     let app = routes(state);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     info(&format!(

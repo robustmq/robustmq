@@ -15,9 +15,9 @@
 use self::server::peer::{PeerMessage, PeersManager};
 use cache::broker_cluster::BrokerClusterCache;
 use cache::engine_cluster::EngineClusterCache;
-use cache::placement_cluster::PlacementClusterCache;
+use cache::placement_cluster::{Node, PlacementClusterCache};
 use clients::ClientPool;
-use common::config::placement_center::PlacementCenterConfig;
+use common::config::placement_center::placement_center_conf;
 use common::log::info_meta;
 use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
@@ -28,19 +28,14 @@ use raft::message::RaftMessage;
 use raft::raft::RaftMachine;
 use raft::route::DataRoute;
 use rocksdb::raft::RaftMachineStorage;
-use rocksdb::rocksdb::RocksDBEngine;
 use server::grpc::GrpcService;
 use server::heartbeat::Heartbeat;
-use std::fmt;
-use std::fmt::Display;
 use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tonic::transport::Server;
-
-mod broker;
 mod cache;
 mod controller;
 mod http;
@@ -48,38 +43,7 @@ mod raft;
 mod rocksdb;
 mod server;
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
-pub struct Node {
-    pub ip: String,
-    pub id: u64,
-    pub inner_port: u16,
-}
-
-impl Node {
-    pub fn new(ip: String, id: u64, port: u16) -> Node {
-        Node {
-            ip,
-            id,
-            inner_port: port,
-        }
-    }
-
-    pub fn addr(&self) -> String {
-        format!("{}:{}", self.ip, self.inner_port)
-    }
-}
-
-impl Display for Node {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ip:{},id:{},port:{}", self.ip, self.id, self.inner_port)
-    }
-}
-
 pub struct PlacementCenter {
-    config: PlacementCenterConfig,
-
     server_runtime: Runtime,
     daemon_runtime: Runtime,
     // Cache metadata information for the Storage Engine cluster
@@ -90,13 +54,12 @@ pub struct PlacementCenter {
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     // Storage implementation of Raft Group information
     raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
-    //
-    rocksdb_engine: Arc<RocksDBEngine>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl PlacementCenter {
-    pub fn new(config: PlacementCenterConfig) -> PlacementCenter {
+    pub fn new() -> PlacementCenter {
+        let config = placement_center_conf();
         let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
@@ -107,21 +70,17 @@ impl PlacementCenter {
             config.nodes.clone(),
         )));
 
-        let rocksdb_engine: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
-        let raft_machine_storage =
-            Arc::new(RwLock::new(RaftMachineStorage::new(rocksdb_engine.clone())));
+        let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new()));
 
         let client_poll = Arc::new(Mutex::new(ClientPool::new()));
 
         return PlacementCenter {
-            config,
             server_runtime,
             daemon_runtime,
             engine_cache,
             broker_cache,
             placement_cache,
             raft_machine_storage,
-            rocksdb_engine,
             client_poll,
         };
     }
@@ -156,17 +115,15 @@ impl PlacementCenter {
             self.raft_machine_storage.clone(),
             self.engine_cache.clone(),
         );
-        let port = self.config.http_port;
         self.server_runtime.spawn(async move {
-            start_http_server(port, state).await;
+            start_http_server(state).await;
         });
     }
 
     // Start Grpc Server
     pub fn start_grpc_server(&self, raft_sender: Sender<RaftMessage>) {
-        let ip = format!("0.0.0.0:{}", self.config.grpc_port)
-            .parse()
-            .unwrap();
+        let config = placement_center_conf();
+        let ip = format!("0.0.0.0:{}", config.grpc_port).parse().unwrap();
         let service_handler = GrpcService::new(
             self.placement_cache.clone(),
             raft_sender,
@@ -228,13 +185,11 @@ impl PlacementCenter {
         is_banner: bool,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
-            self.rocksdb_engine.clone(),
             self.engine_cache.clone(),
             self.broker_cache.clone(),
         )));
 
         let mut raft: RaftMachine = RaftMachine::new(
-            self.config.clone(),
             self.placement_cache.clone(),
             data_route,
             peer_message_send,

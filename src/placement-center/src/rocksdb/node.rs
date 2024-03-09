@@ -3,9 +3,8 @@ use super::{
     keys::key_node,
     rocksdb::RocksDBEngine,
 };
-use common::log::error_meta;
+use common::{config::placement_center::placement_center_conf, log::error_meta};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeInfo {
@@ -15,24 +14,25 @@ pub struct NodeInfo {
     pub cluster_name: String,
 }
 
-#[derive(Clone)]
 pub struct NodeStorage {
-    rds: Arc<RocksDBEngine>,
+    rocksdb_engine: RocksDBEngine,
     cluster_storage: ClusterStorage,
 }
 
 impl NodeStorage {
-    pub fn new(rds: Arc<RocksDBEngine>) -> Self {
-        let cluster_storage = ClusterStorage::new(rds.clone());
+    pub fn new() -> Self {
+        let config = placement_center_conf();
+        let rocksdb_engine = RocksDBEngine::new(&config);
+        let cluster_storage = ClusterStorage::new();
         NodeStorage {
-            rds,
+            rocksdb_engine,
             cluster_storage,
         }
     }
 
     pub fn node_list(&self, cluster_name: String) -> Vec<NodeInfo> {
         let mut result = Vec::new();
-        let cf = self.rds.cf_cluster();
+        let cf = self.rocksdb_engine.cf_cluster();
 
         let cluster_info = self.cluster_storage.get_cluster(&cluster_name);
         if cluster_info.is_none() {
@@ -41,7 +41,7 @@ impl NodeStorage {
 
         for node_id in cluster_info.unwrap().nodes {
             let key = key_node(&cluster_name, node_id);
-            match self.rds.read::<NodeInfo>(cf, &key) {
+            match self.rocksdb_engine.read::<NodeInfo>(cf, &key) {
                 Ok(node_info) => {
                     if let Some(ni) = node_info {
                         result.push(ni);
@@ -55,7 +55,7 @@ impl NodeStorage {
 
     // save node info
     pub fn save_node(&self, cluster_name: String, cluster_type: String, node: NodeInfo) {
-        let cf = self.rds.cf_cluster();
+        let cf = self.rocksdb_engine.cf_cluster();
 
         // save or update cluster info
         let mut ci = ClusterInfo::default();
@@ -71,7 +71,7 @@ impl NodeStorage {
 
         // save node info
         let node_key = key_node(&cluster_name, node.node_id);
-        match self.rds.write(cf, &node_key, &node) {
+        match self.rocksdb_engine.write(cf, &node_key, &node) {
             Ok(_) => {}
             Err(e) => {
                 error_meta(&e);
@@ -80,7 +80,7 @@ impl NodeStorage {
     }
 
     pub fn remove_node(&self, cluster_name: String, node_id: u64) {
-        let cf = self.rds.cf_cluster();
+        let cf = self.rocksdb_engine.cf_cluster();
 
         // save or update cluster info
         let mut cluster_info = self.cluster_storage.get_cluster(&cluster_name);
@@ -98,7 +98,7 @@ impl NodeStorage {
 
         // delete node info
         let node_key = key_node(&cluster_name, node_id);
-        match self.rds.delete(cf, &node_key) {
+        match self.rocksdb_engine.delete(cf, &node_key) {
             Ok(_) => {}
             Err(e) => {
                 error_meta(&e);
@@ -108,9 +108,9 @@ impl NodeStorage {
 
     // get node info
     pub fn get_node(&self, cluster_name: String, node_id: u64) -> Option<NodeInfo> {
-        let cf = self.rds.cf_cluster();
+        let cf = self.rocksdb_engine.cf_cluster();
         let cluster_key = key_node(&cluster_name, node_id);
-        match self.rds.read::<NodeInfo>(cf, &cluster_key) {
+        match self.rocksdb_engine.read::<NodeInfo>(cf, &cluster_key) {
             Ok(cluster_info) => {
                 return cluster_info;
             }

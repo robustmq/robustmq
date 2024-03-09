@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
     use byteorder::{BigEndian, ReadBytesExt};
-    use common::log;
+    use common::config::placement_center::init_placement_center_conf_by_config;
+    use common::log::{self, init_placement_center_log};
     use common::{config::placement_center::PlacementCenterConfig, tools::create_fold};
     use placement_center::PlacementCenter;
     use prost::Message;
@@ -35,11 +36,11 @@ mod tests {
             toml::Value::String("127.0.0.1:1223".to_string()),
         );
         conf.nodes = nodes;
-
-        log::new(conf.log_path.clone(), 1024, 50);
+        init_placement_center_conf_by_config(conf);
+        init_placement_center_log();
 
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf);
+        let mut mt = PlacementCenter::new();
 
         mt.start(stop_send, false);
     }
@@ -70,10 +71,11 @@ mod tests {
             toml::Value::String("127.0.0.1:1223".to_string()),
         );
         conf.nodes = nodes;
+        init_placement_center_conf_by_config(conf);
+        init_placement_center_log();
 
-        log::new(conf.log_path.clone(), 1024, 50);
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf);
+        let mut mt = PlacementCenter::new();
 
         mt.start(stop_send, false);
     }
@@ -103,9 +105,11 @@ mod tests {
         );
         conf.nodes = nodes;
 
-        log::new(conf.log_path.clone(), 1024, 50);
+        init_placement_center_conf_by_config(conf);
+        init_placement_center_log();
+
         let (stop_send, _) = broadcast::channel(10);
-        let mut mt = PlacementCenter::new(conf);
+        let mut mt = PlacementCenter::new();
 
         mt.start(stop_send, false);
     }

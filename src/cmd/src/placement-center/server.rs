@@ -14,10 +14,9 @@
 
 use clap::command;
 use clap::Parser;
-use common::config::parse_placement_center;
-use common::config::placement_center::PlacementCenterConfig;
+use common::config::placement_center::init_placement_center_conf_by_path;
 use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
-use common::log;
+use common::log::init_placement_center_log;
 use placement_center::PlacementCenter;
 use tokio::sync::broadcast;
 
@@ -33,13 +32,9 @@ struct ArgsParams {
 
 fn main() {
     let args = ArgsParams::parse();
-    let conf: PlacementCenterConfig = parse_placement_center(&args.conf);
+    init_placement_center_conf_by_path(&args.conf);
+    init_placement_center_log();
     let (stop_send, _) = broadcast::channel(2);
-    log::new(
-        conf.log_path.clone(),
-        conf.log_segment_size.clone(),
-        conf.log_file_num.clone(),
-    );
-    let mut pc = PlacementCenter::new(conf);
+    let mut pc = PlacementCenter::new();
     pc.start(stop_send, true);
 }

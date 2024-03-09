@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
+use std::sync::OnceLock;
+
 use serde::Deserialize;
 use toml::Table;
+
+use crate::{config::read_file, tools::create_fold};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PlacementCenterConfig {
@@ -57,19 +61,56 @@ impl Default for PlacementCenterConfig {
     }
 }
 
+static COMPUTATION: OnceLock<PlacementCenterConfig> = OnceLock::new();
+
+pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static PlacementCenterConfig {
+    // n.b. static items do not call [`Drop`] on program termination, so if
+    // [`DeepThought`] impls Drop, that will not be used for this instance.
+    COMPUTATION.get_or_init(|| {
+        let content = read_file(config_path);
+        let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
+        create_fold(pc_config.data_path.clone());
+        create_fold(pc_config.log_path.clone());
+        return pc_config;
+    })
+}
+
+pub fn init_placement_center_conf_by_config(
+    config: PlacementCenterConfig,
+) -> &'static PlacementCenterConfig {
+    // n.b. static items do not call [`Drop`] on program termination, so if
+    // [`DeepThought`] impls Drop, that will not be used for this instance.
+    COMPUTATION.get_or_init(|| {
+        return config;
+    })
+}
+
+pub fn placement_center_conf() -> &'static PlacementCenterConfig {
+    match COMPUTATION.get() {
+        Some(config) => {
+            return config;
+        }
+        None => {
+            panic!(
+                "Placement center configuration is not initialized, check the configuration file."
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::config::parse_placement_center;
+    use crate::config::placement_center::init_placement_center_conf_by_path;
 
-    use super::PlacementCenterConfig;
+    use super::{placement_center_conf, PlacementCenterConfig};
 
     #[test]
     fn meta_default() {
-        let conf: PlacementCenterConfig = parse_placement_center(
-            &"../../config/raft/node-1.toml"
-                .to_string(),
-        );
-        PlacementCenterConfig::default();
-        //todo meta test case
+        let path =
+            &"/Users/bytedance/Desktop/code/robustmq-project/robustmq/config/placement-center.toml"
+                .to_string();
+        init_placement_center_conf_by_path(path);
+        let conf: &PlacementCenterConfig = placement_center_conf();
+        assert_eq!(conf.grpc_port, 1228);
     }
 }

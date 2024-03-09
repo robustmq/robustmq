@@ -28,6 +28,8 @@ use log4rs::{
     Config,
 };
 
+use crate::config::placement_center::{placement_center_conf, PlacementCenterConfig};
+
 pub fn info(msg: &str) -> () {
     log::info!(target:"app::server", "{}",msg)
 }
@@ -52,7 +54,7 @@ pub fn error_meta(msg: &str) -> () {
     log::error!(target:"app::meta", "{}",msg)
 }
 
-pub fn new(path: String, segment_log_size: u64, log_fie_count: u32) {
+pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
     let stdout = ConsoleAppender::builder()
         .encoder(Box::new(PatternEncoder::new(
             "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}",
@@ -121,13 +123,22 @@ pub fn new(path: String, segment_log_size: u64, log_fie_count: u32) {
     let _ = log4rs::init_config(config).unwrap();
 }
 
+pub fn init_placement_center_log() {
+    let conf = placement_center_conf();
+    init_log(
+        conf.log_path.clone(),
+        conf.log_segment_size,
+        conf.log_file_num,
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn log_print() {
-        new("".to_string(), 1024 * 1024 * 1024, 50);
+        init_log("".to_string(), 1024 * 1024 * 1024, 50);
         info("lobo");
         info_meta("server lobo");
     }

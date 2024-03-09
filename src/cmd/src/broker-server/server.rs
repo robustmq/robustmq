@@ -33,11 +33,6 @@ struct ArgsParams {
 fn main() {
     let args = ArgsParams::parse();
     let server_conf: BrokerServerConfig = parse_server(&args.server_conf);
-    log::new(
-        server_conf.log.log_path.clone(),
-        server_conf.log.log_segment_size.clone(),
-        server_conf.log.log_file_num.clone(),
-    );
 
     // Start Broker
     let app: Broker = Broker::new(Arc::new(server_conf));
