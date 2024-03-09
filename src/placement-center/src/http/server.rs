@@ -1,4 +1,7 @@
-use crate::{cache::{engine_cluster::EngineClusterCache, placement_cluster::PlacementClusterCache}, rocksdb::{raft::RaftMachineStorage, rwlayer::RwLayer}};
+use crate::{
+    cache::{engine_cluster::EngineClusterCache, placement_cluster::PlacementClusterCache},
+    rocksdb::raft::RaftMachineStorage,
+};
 use axum::routing::get;
 use axum::Router;
 use common::log::info;
@@ -6,7 +9,6 @@ use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
 };
-
 use super::cluster::{metrics, placement_center, storage_engine, test};
 
 pub const ROUTE_ROOT: &str = "/";
@@ -16,24 +18,21 @@ pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {
-    pub placement_storage: Arc<RwLock<PlacementClusterCache>>,
+    pub placement_cache: Arc<RwLock<PlacementClusterCache>>,
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
-    pub cluster_storage: Arc<RwLayer>,
-    pub engine_cluster: Arc<RwLock<EngineClusterCache>>,
+    pub engine_cache: Arc<RwLock<EngineClusterCache>>,
 }
 
 impl HttpServerState {
     pub fn new(
-        placement_storage: Arc<RwLock<PlacementClusterCache>>,
+        placement_cache: Arc<RwLock<PlacementClusterCache>>,
         raft_storage: Arc<RwLock<RaftMachineStorage>>,
-        cluster_storage: Arc<RwLayer>,
-        engine_cluster: Arc<RwLock<EngineClusterCache>>,
+        engine_cache: Arc<RwLock<EngineClusterCache>>,
     ) -> Self {
         return Self {
-            placement_storage,
+            placement_cache,
             raft_storage,
-            cluster_storage,
-            engine_cluster,
+            engine_cache,
         };
     }
 }
@@ -54,8 +53,7 @@ fn routes(state: HttpServerState) -> Router {
         .route(ROUTE_ROOT, get(placement_center))
         .route(STORAGE_ENGINE, get(storage_engine))
         .route(ROUTE_TEST, get(test))
-        .route(ROUTE_METRICS, get(metrics))
-        ;
+        .route(ROUTE_METRICS, get(metrics));
     let app = Router::new().merge(meta);
     return app.with_state(state);
 }

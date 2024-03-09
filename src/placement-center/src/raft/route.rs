@@ -1,8 +1,11 @@
 use crate::{
     cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
     rocksdb::{
-        rwlayer::{ClusterInfo, NodeInfo, RwLayer, ShardInfo, ShardStatus},
+        cluster::{ClusterInfo, ClusterStorage},
+        node::{NodeInfo, NodeStorage},
+        rocksdb::RocksDBEngine,
         schema::{StorageData, StorageDataType},
+        shard::{ShardInfo, ShardStatus, ShardStorage},
     },
 };
 use bincode::deserialize;
@@ -16,21 +19,28 @@ use tonic::Status;
 
 #[derive(Clone)]
 pub struct DataRoute {
-    cluster_storage: Arc<RwLayer>,
     engine_cache: Arc<RwLock<EngineClusterCache>>,
     broker_cache: Arc<RwLock<BrokerClusterCache>>,
+    node_storage: NodeStorage,
+    cluster_storage: ClusterStorage,
+    shard_storage: ShardStorage,
 }
 
 impl DataRoute {
     pub fn new(
-        cluster_storage: Arc<RwLayer>,
+        rocksdb_engine: Arc<RocksDBEngine>,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
         broker_cache: Arc<RwLock<BrokerClusterCache>>,
     ) -> DataRoute {
+        let node_storage = NodeStorage::new(rocksdb_engine.clone());
+        let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
+        let shard_storage = ShardStorage::new(rocksdb_engine.clone());
         return DataRoute {
-            cluster_storage,
             engine_cache,
             broker_cache,
+            node_storage,
+            cluster_storage,
+            shard_storage,
         };
     }
 
@@ -86,7 +96,7 @@ impl DataRoute {
             // todo
         }
 
-        self.cluster_storage
+        self.node_storage
             .save_node(cluster_name, cluster_type.as_str_name().to_string(), node);
 
         return Ok(());
@@ -109,8 +119,7 @@ impl DataRoute {
             // todo
         }
 
-        self.cluster_storage
-            .remove_node(req.cluster_name, req.node_id);
+        self.node_storage.remove_node(req.cluster_name, req.node_id);
 
         return Ok(());
     }
@@ -127,7 +136,7 @@ impl DataRoute {
         shard_info.replica = req.replica;
         shard_info.replicas = Vec::new(); //todo Computing replica distribution
         shard_info.status = ShardStatus::Idle;
-        self.cluster_storage
+        self.shard_storage
             .save_shard(req.cluster_name, shard_info.clone());
 
         let mut sc = self.engine_cache.write().unwrap();
@@ -144,7 +153,7 @@ impl DataRoute {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
-        self.cluster_storage
+        self.shard_storage
             .delete_shard(req.cluster_name, req.shard_name);
         return Ok(());
     }
@@ -154,7 +163,12 @@ impl DataRoute {
 mod tests {
     use std::sync::{Arc, RwLock};
 
-    use crate::{cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache}, rocksdb::{rwlayer::RwLayer, rocksdb::RocksDBStorage}};
+    use crate::{
+        cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
+        rocksdb::{
+            cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
+        },
+    };
     use common::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
     use protocol::placement_center::placement::{ClusterType, RegisterNodeRequest};
@@ -177,26 +191,35 @@ mod tests {
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);
 
-        let rocksdb_storage = Arc::new(RocksDBStorage::new(&PlacementCenterConfig::default()));
-        let cluster_storage = Arc::new(RwLayer::new(rocksdb_storage));
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(&PlacementCenterConfig::default()));
+
         let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
         let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
-        let mut route = DataRoute::new(cluster_storage.clone(), engine_cache, broker_cache);
+
+        let mut route = DataRoute::new(
+            rocksdb_engine.clone(),
+            engine_cache,
+            broker_cache,
+        );
         let _ = route.register_node(data);
+
+        let node_storage = NodeStorage::new(rocksdb_engine.clone());
+        let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
+        let shard_storage = ShardStorage::new(rocksdb_engine.clone());
 
         let cluster = cluster_storage.get_cluster(&cluster_name);
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
         assert_eq!(cl.nodes, vec![node_id]);
 
-        let node = cluster_storage.get_node(cluster_name.clone(), node_id);
+        let node = node_storage.get_node(cluster_name.clone(), node_id);
         let nd = node.unwrap();
         assert_eq!(nd.node_id, node_id);
         assert_eq!(nd.node_ip, node_ip);
         assert_eq!(nd.node_port, node_port);
 
-        let _ = cluster_storage.remove_node(cluster_name.clone(), node_id);
-        let res = cluster_storage.get_node(cluster_name.clone(), node_id);
+        let _ = node_storage.remove_node(cluster_name.clone(), node_id);
+        let res = node_storage.get_node(cluster_name.clone(), node_id);
         assert!(res.is_none());
 
         let cluster = cluster_storage.get_cluster(&cluster_name);

@@ -5,7 +5,7 @@ use crate::rocksdb::keys::key_name_by_hard_state;
 use crate::rocksdb::keys::key_name_by_last_index;
 use crate::rocksdb::keys::key_name_snapshot;
 use crate::rocksdb::keys::key_name_uncommit;
-use crate::rocksdb::rocksdb::RocksDBStorage;
+use crate::rocksdb::rocksdb::RocksDBEngine;
 use bincode::{deserialize, serialize};
 use common::log::error_meta;
 use common::log::info_meta;
@@ -27,11 +27,11 @@ pub struct RaftMachineStorage {
     pub uncommit_index: HashMap<u64, i8>,
     pub trigger_snap_unavailable: bool,
     pub snapshot_metadata: SnapshotMetadata,
-    pub rds: Arc<RocksDBStorage>,
+    pub rds: Arc<RocksDBEngine>,
 }
 
 impl RaftMachineStorage {
-    pub fn new(rds: Arc<RocksDBStorage>) -> Self {
+    pub fn new(rds: Arc<RocksDBEngine>) -> Self {
         let uncommit_index = HashMap::new();
         let mut rc = RaftMachineStorage {
             rds,
@@ -391,7 +391,7 @@ mod tests {
 
     use common::config::placement_center::PlacementCenterConfig;
 
-    use crate::rocksdb::rocksdb::RocksDBStorage;
+    use crate::rocksdb::rocksdb::RocksDBEngine;
 
     use super::RaftMachineStorage;
 
@@ -401,7 +401,7 @@ mod tests {
         conf.data_path = "/tmp/tmp_test".to_string();
         conf.data_path = "/tmp/tmp_test".to_string();
 
-        let rds: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&conf));
+        let rds: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&conf));
         let rds = RaftMachineStorage::new(rds);
 
         let first_index = 1;

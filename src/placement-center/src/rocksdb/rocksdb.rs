@@ -33,11 +33,11 @@ fn column_family_list() -> Vec<String> {
     return list;
 }
 
-pub struct RocksDBStorage {
+pub struct RocksDBEngine {
     db: DB,
 }
 
-impl RocksDBStorage {
+impl RocksDBEngine {
     /// Create a rocksdb instance
     pub fn new(config: &PlacementCenterConfig) -> Self {
         let opts: Options = Self::open_db_opts(config);
@@ -58,7 +58,7 @@ impl RocksDBStorage {
             }
         }
 
-        return RocksDBStorage { db: instance };
+        return RocksDBEngine { db: instance };
     }
 
     /// Write the data serialization to RocksDB
@@ -255,7 +255,7 @@ mod tests {
 
     use crate::rocksdb::keys::key_name_by_last_index;
 
-    use super::RocksDBStorage;
+    use super::RocksDBEngine;
     use common::config::placement_center::PlacementCenterConfig;
     use serde::{Deserialize, Serialize};
     use tokio::fs::remove_dir;
@@ -271,7 +271,7 @@ mod tests {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
-        let rs = RocksDBStorage::new(&config);
+        let rs = RocksDBEngine::new(&config);
         let key = "name2";
         let res1 = rs.read::<User>(rs.cf_meta(), key);
         assert!(res1.unwrap().is_none());
@@ -304,7 +304,7 @@ mod tests {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
-        let rs = RocksDBStorage::new(&config);
+        let rs = RocksDBEngine::new(&config);
 
         let index = 66u64;
         let cf = rs.cf_meta();
@@ -332,7 +332,7 @@ mod tests {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
-        let rs = RocksDBStorage::new(&config);
+        let rs = RocksDBEngine::new(&config);
         let result = rs.read_prefix(rs.cf_meta(), "metasrv_conf");
         for raw in result.clone() {
             println!("{:?}", raw);

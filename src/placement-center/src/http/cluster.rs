@@ -49,7 +49,7 @@ pub struct RaftInfo {
 }
 
 pub async fn placement_center(State(state): State<HttpServerState>) -> String {
-    let cluster_read = state.placement_storage.read().unwrap();
+    let cluster_read = state.placement_cache.read().unwrap();
     let storage = state.raft_storage.read().unwrap();
 
     let hs = storage.hard_state();

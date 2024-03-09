@@ -23,15 +23,14 @@ use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
-use rocksdb::raft::RaftMachineStorage;
-use server::grpc::GrpcService;
-use server::heartbeat::Heartbeat;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::message::RaftMessage;
 use raft::raft::RaftMachine;
-use rocksdb::rwlayer;
-use rocksdb::rocksdb::RocksDBStorage;
 use raft::route::DataRoute;
+use rocksdb::raft::RaftMachineStorage;
+use rocksdb::rocksdb::RocksDBEngine;
+use server::grpc::GrpcService;
+use server::heartbeat::Heartbeat;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
@@ -45,9 +44,9 @@ mod broker;
 mod cache;
 mod controller;
 mod http;
-mod server;
 mod raft;
 mod rocksdb;
+mod server;
 
 use serde::{Deserialize, Serialize};
 
@@ -90,9 +89,9 @@ pub struct PlacementCenter {
     // Cache metadata information for the Placement Cluster cluster
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     // Storage implementation of Raft Group information
-    raft_storage: Arc<RwLock<RaftMachineStorage>>,
-    // Placement Center Cluster information storage implementation
-    data_rw_layer: Arc<rwlayer::RwLayer>,
+    raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
+    //
+    rocksdb_engine: Arc<RocksDBEngine>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
@@ -108,12 +107,9 @@ impl PlacementCenter {
             config.nodes.clone(),
         )));
 
-        let rocksdb_handle = Arc::new(RocksDBStorage::new(&config));
-        let raft_storage = Arc::new(RwLock::new(RaftMachineStorage::new(
-            rocksdb_handle.clone(),
-        )));
-
-        let data_rw_layer = Arc::new(rwlayer::RwLayer::new(rocksdb_handle.clone()));
+        let rocksdb_engine: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
+        let raft_machine_storage =
+            Arc::new(RwLock::new(RaftMachineStorage::new(rocksdb_engine.clone())));
 
         let client_poll = Arc::new(Mutex::new(ClientPool::new()));
 
@@ -124,8 +120,8 @@ impl PlacementCenter {
             engine_cache,
             broker_cache,
             placement_cache,
-            raft_storage,
-            data_rw_layer,
+            raft_machine_storage,
+            rocksdb_engine,
             client_poll,
         };
     }
@@ -157,8 +153,7 @@ impl PlacementCenter {
     pub fn start_http_server(&self) {
         let state: HttpServerState = HttpServerState::new(
             self.placement_cache.clone(),
-            self.raft_storage.clone(),
-            self.data_rw_layer.clone(),
+            self.raft_machine_storage.clone(),
             self.engine_cache.clone(),
         );
         let port = self.config.http_port;
@@ -175,8 +170,7 @@ impl PlacementCenter {
         let service_handler = GrpcService::new(
             self.placement_cache.clone(),
             raft_sender,
-            self.raft_storage.clone(),
-            self.data_rw_layer.clone(),
+            self.raft_machine_storage.clone(),
             self.engine_cache.clone(),
             self.broker_cache.clone(),
             self.client_poll.clone(),
@@ -234,7 +228,7 @@ impl PlacementCenter {
         is_banner: bool,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
-            self.data_rw_layer.clone(),
+            self.rocksdb_engine.clone(),
             self.engine_cache.clone(),
             self.broker_cache.clone(),
         )));
@@ -246,7 +240,7 @@ impl PlacementCenter {
             peer_message_send,
             raft_message_recv,
             stop_recv,
-            self.raft_storage.clone(),
+            self.raft_machine_storage.clone(),
         );
         self.daemon_runtime.block_on(async move {
             raft.run().await;
