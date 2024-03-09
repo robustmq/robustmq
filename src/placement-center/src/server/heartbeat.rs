@@ -1,3 +1,4 @@
+use common::log::error_meta;
 use protocol::placement_center::placement::{ClusterType, UnRegisterNodeRequest};
 use std::{
     sync::{Arc, RwLock},
@@ -55,7 +56,15 @@ impl Heartbeat {
                             req.node_id = *node_id;
                             req.cluster_name = node.cluster_name.clone();
                             req.cluster_type = ClusterType::StorageEngine.into();
-                            self.placement_center_storage.delete_node(req).await;
+                            let pcs = self.placement_center_storage.clone();
+                            tokio::spawn(async move {
+                                match pcs.delete_node(req).await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        error_meta(&e.to_string());
+                                    }
+                                }
+                            });
                         }
                     }
                 } else {

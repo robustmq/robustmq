@@ -98,7 +98,6 @@ impl PlacementCenter {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
         let placement_center_storage = Arc::new(PlacementCenterStorage::new(raft_message_send));
-
         let stop_recv = stop_send.subscribe();
 
         self.start_broker_controller();
@@ -107,15 +106,15 @@ impl PlacementCenter {
 
         self.start_peers_manager(peer_message_recv);
 
-        self.start_http_server();
+        self.start_raft_machine(peer_message_send, raft_message_recv, stop_recv);
 
         self.start_heartbeat_check(placement_center_storage.clone());
+
+        self.start_http_server();
 
         self.start_grpc_server(placement_center_storage.clone());
 
         self.awaiting_stop(stop_send);
-
-        self.start_raft_machine(peer_message_send, raft_message_recv, stop_recv);
     }
 
     // Start HTTP Server
@@ -227,7 +226,7 @@ impl PlacementCenter {
 
     // Wait Stop Signal
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
-        self.daemon_runtime.spawn(async move {
+        self.daemon_runtime.block_on(async move {
             loop {
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match stop_send.send(true) {
