@@ -28,6 +28,7 @@ use raft::message::RaftMessage;
 use raft::raft::RaftMachine;
 use raft::route::DataRoute;
 use rocksdb::raft::RaftMachineStorage;
+use rocksdb::rocksdb::RocksDBEngine;
 use server::grpc::GrpcService;
 use server::heartbeat::Heartbeat;
 use std::sync::{Arc, RwLock};
@@ -52,8 +53,11 @@ pub struct PlacementCenter {
     broker_cache: Arc<RwLock<BrokerClusterCache>>,
     // Cache metadata information for the Placement Cluster cluster
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
-    // Storage implementation of Raft Group information
+    // Global implementation of Raft state machine data storage
     raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
+    // Raft Global read and write pointer
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    // Global GRPC client connection pool
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
@@ -70,7 +74,11 @@ impl PlacementCenter {
             config.nodes.clone(),
         )));
 
-        let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new()));
+        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
+
+        let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new(
+            rocksdb_engine_handler.clone(),
+        )));
 
         let client_poll = Arc::new(Mutex::new(ClientPool::new()));
 
@@ -81,6 +89,7 @@ impl PlacementCenter {
             broker_cache,
             placement_cache,
             raft_machine_storage,
+            rocksdb_engine_handler,
             client_poll,
         };
     }
@@ -185,6 +194,7 @@ impl PlacementCenter {
         is_banner: bool,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
+            self.rocksdb_engine_handler.clone(),
             self.engine_cache.clone(),
             self.broker_cache.clone(),
         )));
