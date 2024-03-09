@@ -24,9 +24,9 @@ use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raft::message::RaftMessage;
-use raft::raft::RaftMachine;
-use raft::route::DataRoute;
+use raft::data_route::DataRoute;
+use raft::status_machine::RaftMachine;
+use raft::storage::{PlacementCenterStorage, RaftMessage};
 use rocksdb::raft::RaftMachineStorage;
 use rocksdb::rocksdb::RocksDBEngine;
 use server::grpc::GrpcService;
@@ -97,6 +97,7 @@ impl PlacementCenter {
     pub fn start(&mut self, stop_send: broadcast::Sender<bool>, is_banner: bool) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
+        let placement_center_storage = Arc::new(PlacementCenterStorage::new(raft_message_send));
 
         let stop_recv = stop_send.subscribe();
 
@@ -108,9 +109,9 @@ impl PlacementCenter {
 
         self.start_http_server();
 
-        self.start_heartbeat_check(raft_message_send.clone());
+        self.start_heartbeat_check(placement_center_storage.clone());
 
-        self.start_grpc_server(raft_message_send);
+        self.start_grpc_server(placement_center_storage.clone());
 
         self.awaiting_stop(stop_send);
 
@@ -130,15 +131,13 @@ impl PlacementCenter {
     }
 
     // Start Grpc Server
-    pub fn start_grpc_server(&self, raft_sender: Sender<RaftMessage>) {
+    pub fn start_grpc_server(&self, placement_center_storage: Arc<PlacementCenterStorage>) {
         let config = placement_center_conf();
         let ip = format!("0.0.0.0:{}", config.grpc_port).parse().unwrap();
         let service_handler = GrpcService::new(
+            placement_center_storage,
             self.placement_cache.clone(),
-            raft_sender,
-            self.raft_machine_storage.clone(),
             self.engine_cache.clone(),
-            self.broker_cache.clone(),
             self.client_poll.clone(),
         );
         self.server_runtime.spawn(async move {
@@ -175,9 +174,14 @@ impl PlacementCenter {
     }
 
     // Start Cluster hearbeat check thread
-    pub fn start_heartbeat_check(&self, raft_sender: Sender<RaftMessage>) {
-        let heartbeat =
-            Heartbeat::new(100000, self.engine_cache.clone(), self.broker_cache.clone());
+    pub fn start_heartbeat_check(&self, placement_center_storage: Arc<PlacementCenterStorage>) {
+        let heartbeat = Heartbeat::new(
+            100000,
+            1000,
+            self.engine_cache.clone(),
+            self.broker_cache.clone(),
+            placement_center_storage,
+        );
         self.daemon_runtime.spawn(async move {
             heartbeat.start_heartbeat_check().await;
         });

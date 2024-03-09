@@ -1,29 +1,38 @@
-use protocol::placement_center::placement::UnRegisterNodeRequest;
+use protocol::placement_center::placement::{ClusterType, UnRegisterNodeRequest};
 use std::{
     sync::{Arc, RwLock},
     thread::sleep,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
-use crate::cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache};
+use crate::{
+    cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
+    raft::storage::PlacementCenterStorage,
+};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Heartbeat {
     timeout_ms: u128,
-    storage_cluster: Arc<RwLock<EngineClusterCache>>,
+    check_time_ms: u128,
+    engine_cache: Arc<RwLock<EngineClusterCache>>,
     broker_cluster: Arc<RwLock<BrokerClusterCache>>,
+    placement_center_storage: Arc<PlacementCenterStorage>,
 }
 
 impl Heartbeat {
     pub fn new(
         timeout_ms: u128,
-        storage_cluster: Arc<RwLock<EngineClusterCache>>,
+        check_time_ms: u128,
+        engine_cache: Arc<RwLock<EngineClusterCache>>,
         broker_cluster: Arc<RwLock<BrokerClusterCache>>,
+        placement_center_storage: Arc<PlacementCenterStorage>,
     ) -> Self {
         return Heartbeat {
             timeout_ms,
-            storage_cluster,
+            check_time_ms,
+            engine_cache,
             broker_cluster,
+            placement_center_storage,
         };
     }
 
@@ -35,31 +44,23 @@ impl Heartbeat {
                 .as_millis();
 
             // storage engine cluster
-            let mut ec = self.storage_cluster.read().unwrap();
+            let ec = self.engine_cache.read().unwrap();
             for (node_id, node) in &ec.node_list {
                 if let Some(prev_time) = ec.node_heartbeat.get(node_id) {
                     if time - *prev_time >= self.timeout_ms {
                         // remove node
                         let cluster_name = node.cluster_name.clone();
-                        if let Some(cluster) = ec.cluster_list.get(&cluster_name) {
+                        if let Some(_) = ec.cluster_list.get(&cluster_name) {
                             let mut req = UnRegisterNodeRequest::default();
                             req.node_id = *node_id;
                             req.cluster_name = node.cluster_name.clone();
-                            req.cluster_type = 1; // todo
-
-                            let addr = "".to_string();
-                            // match unregister_node(&addr, req).await {
-                            //     Ok(_) => {},
-                            //     Err(e) => error_meta(&e.to_string()),
-                            // }
+                            req.cluster_type = ClusterType::StorageEngine.into();
+                            self.placement_center_storage.delete_node(req).await;
                         }
                     }
                 } else {
-                    //
-                    self.storage_cluster
-                        .write()
-                        .unwrap()
-                        .heart_time(*node_id, time);
+                    let mut ec = self.engine_cache.write().unwrap();
+                    ec.heart_time(*node_id, time);
                 }
             }
 

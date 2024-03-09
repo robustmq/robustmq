@@ -17,7 +17,6 @@
 pub mod shard;
 pub mod keys;
 pub mod rocksdb;
-pub mod schema;
 pub mod node;
 pub mod raft;
 pub mod cluster;

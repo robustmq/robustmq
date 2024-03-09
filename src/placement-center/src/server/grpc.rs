@@ -1,6 +1,3 @@
-use crate::cache::broker_cluster::BrokerClusterCache;
-use crate::cache::engine_cluster::EngineClusterCache;
-use crate::cache::placement_cluster::PlacementClusterCache;
 /*
  * Copyright (c) 2023 RobustMQ Team
  *
@@ -16,14 +13,12 @@ use crate::cache::placement_cluster::PlacementClusterCache;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::raft::message::{RaftMessage, RaftResponseMesage};
-use crate::rocksdb::raft::RaftMachineStorage;
-use crate::rocksdb::schema::{StorageData, StorageDataType};
-use bincode::serialize;
+use crate::cache::engine_cluster::EngineClusterCache;
+use crate::cache::placement_cluster::PlacementClusterCache;
+use crate::raft::storage::PlacementCenterStorage;
 use clients::placement_center::{create_shard, delete_shard, register_node, unregister_node};
 use clients::ClientPool;
 use common::errors::RobustMQError;
-use common::log::info_meta;
 use prost::Message;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement::{
@@ -33,38 +28,29 @@ use protocol::placement_center::placement::{
 };
 use protocol::placement_center::placement::{SendRaftMessageReply, SendRaftMessageRequest};
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
-use tokio::sync::mpsc::Sender;
-use tokio::sync::oneshot::{self, Receiver};
-use tokio::sync::Mutex;
-use tokio::time::timeout;
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcService {
+    placement_center_storage: Arc<PlacementCenterStorage>,
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
-    raft_sender: Sender<RaftMessage>,
-    raft_storage: Arc<RwLock<RaftMachineStorage>>,
     engine_cache: Arc<RwLock<EngineClusterCache>>,
-    broker_cache: Arc<RwLock<BrokerClusterCache>>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl GrpcService {
     pub fn new(
+        placement_center_storage: Arc<PlacementCenterStorage>,
         placement_cache: Arc<RwLock<PlacementClusterCache>>,
-        raft_sender: Sender<RaftMessage>,
-        raft_storage: Arc<RwLock<RaftMachineStorage>>,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
-        broker_cache: Arc<RwLock<BrokerClusterCache>>,
         client_poll: Arc<Mutex<ClientPool>>,
     ) -> Self {
         GrpcService {
+            placement_center_storage,
             placement_cache,
-            raft_sender,
-            raft_storage,
             engine_cache,
-            broker_cache,
             client_poll,
         }
     }
@@ -81,46 +67,6 @@ impl GrpcService {
         }
 
         return Ok(());
-    }
-
-    async fn apply_raft_machine(
-        &self,
-        data: StorageData,
-        action: String,
-    ) -> Result<(), RobustMQError> {
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-
-        let _ = self
-            .raft_sender
-            .send(RaftMessage::Propose {
-                data: serialize(&data).unwrap(),
-                chan: sx,
-            })
-            .await;
-
-        if !recv_chan_resp(rx).await {
-            return Err(RobustMQError::MetaLogCommitTimeout(action));
-        }
-        return Ok(());
-    }
-}
-
-async fn recv_chan_resp(rx: Receiver<RaftResponseMesage>) -> bool {
-    let res = timeout(Duration::from_secs(30), async {
-        match rx.await {
-            Ok(val) => {
-                return val;
-            }
-            Err(_) => {
-                return RaftResponseMesage::Fail;
-            }
-        }
-    });
-    match res.await {
-        Ok(_) => return true,
-        Err(_) => {
-            return false;
-        }
     }
 }
 
@@ -143,14 +89,7 @@ impl PlacementCenterService for GrpcService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::RegisterNode,
-            RegisterNodeRequest::encode_to_vec(&req),
-        );
-        match self
-            .apply_raft_machine(data, "register_node".to_string())
-            .await
-        {
+        match self.placement_center_storage.save_node(req).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -163,6 +102,7 @@ impl PlacementCenterService for GrpcService {
         request: Request<UnRegisterNodeRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
+
         if self.rewrite_leader() {
             let leader_addr = self.placement_cache.read().unwrap().leader_addr();
             match unregister_node(self.client_poll.clone(), leader_addr, req).await {
@@ -174,14 +114,8 @@ impl PlacementCenterService for GrpcService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::RegisterNode,
-            UnRegisterNodeRequest::encode_to_vec(&req),
-        );
-        match self
-            .apply_raft_machine(data, "un_register_node".to_string())
-            .await
-        {
+
+        match self.placement_center_storage.delete_node(req).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -206,14 +140,31 @@ impl PlacementCenterService for GrpcService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::RegisterNode,
-            CreateShardRequest::encode_to_vec(&req),
-        );
-        match self
-            .apply_raft_machine(data, "create_shard".to_string())
-            .await
-        {
+        match self.placement_center_storage.save_shard(req).await {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_shard(
+        &self,
+        request: Request<DeleteShardRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        if self.rewrite_leader() {
+            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
+            match delete_shard(self.client_poll.clone(), leader_addr, req).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
+
+        // Params validate
+
+        // Raft state machine is used to store Node data
+        match self.placement_center_storage.delete_shard(req).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -240,37 +191,6 @@ impl PlacementCenterService for GrpcService {
         // }
 
         return Ok(Response::new(result));
-    }
-
-    async fn delete_shard(
-        &self,
-        request: Request<DeleteShardRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
-        let req = request.into_inner();
-        if self.rewrite_leader() {
-            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match delete_shard(self.client_poll.clone(), leader_addr, req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
-        // Params validate
-
-        // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::RegisterNode,
-            DeleteShardRequest::encode_to_vec(&req),
-        );
-        match self
-            .apply_raft_machine(data, "delete_shard".to_string())
-            .await
-        {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
     }
 
     async fn heartbeat(
@@ -314,28 +234,19 @@ impl PlacementCenterService for GrpcService {
     ) -> Result<Response<SendRaftMessageReply>, Status> {
         let message = raftPreludeMessage::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
 
         match self
-            .raft_sender
-            .send(RaftMessage::Raft { message, chan: sx })
+            .placement_center_storage
+            .save_raft_message(message)
             .await
         {
-            Ok(_) => {
-                if !recv_chan_resp(rx).await {
-                    return Err(Status::cancelled(
-                        RobustMQError::MetaLogCommitTimeout("send_raft_message".to_string())
-                            .to_string(),
-                    ));
-                }
-            }
+            Ok(_) => return Ok(Response::new(SendRaftMessageReply::default())),
             Err(e) => {
-                return Err(Status::aborted(
-                    RobustMQError::RaftStepCommitFail(e.to_string()).to_string(),
+                return Err(Status::cancelled(
+                    RobustMQError::MetaLogCommitTimeout(e.to_string()).to_string(),
                 ));
             }
         }
-        Ok(Response::new(SendRaftMessageReply::default()))
     }
 
     async fn send_raft_conf_change(
@@ -344,30 +255,18 @@ impl PlacementCenterService for GrpcService {
     ) -> Result<Response<SendRaftConfChangeReply>, Status> {
         let change = ConfChange::decode(request.into_inner().message.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
-        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        info_meta(&format!(
-            "grpc receive send_raft_conf_change change data:{:?}",
-            change
-        ));
+
         match self
-            .raft_sender
-            .send(RaftMessage::ConfChange { change, chan: sx })
+            .placement_center_storage
+            .save_conf_raft_message(change)
             .await
         {
-            Ok(_) => {
-                if !recv_chan_resp(rx).await {
-                    return Err(Status::cancelled(
-                        RobustMQError::MetaLogCommitTimeout("send_raft_conf_change".to_string())
-                            .to_string(),
-                    ));
-                }
-            }
+            Ok(_) => return Ok(Response::new(SendRaftConfChangeReply::default())),
             Err(e) => {
-                return Err(Status::aborted(
-                    RobustMQError::RaftStepCommitFail(e.to_string()).to_string(),
+                return Err(Status::cancelled(
+                    RobustMQError::MetaLogCommitTimeout(e.to_string()).to_string(),
                 ));
             }
         }
-        Ok(Response::new(SendRaftConfChangeReply::default()))
     }
 }

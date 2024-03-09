@@ -4,7 +4,6 @@ use crate::{
         cluster::{ClusterInfo, ClusterStorage},
         node::{NodeInfo, NodeStorage},
         rocksdb::RocksDBEngine,
-        schema::{StorageData, StorageDataType},
         shard::{ShardInfo, ShardStatus, ShardStorage},
     },
 };
@@ -16,6 +15,8 @@ use protocol::placement_center::placement::{
 };
 use std::sync::{Arc, RwLock};
 use tonic::Status;
+
+use super::storage::{StorageData, StorageDataType};
 
 pub struct DataRoute {
     engine_cache: Arc<RwLock<EngineClusterCache>>,

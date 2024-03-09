@@ -1,230 +1,246 @@
-use common::log::info_meta;
-use raft::eraftpb::HardState;
-use raft::prelude::ConfState;
-use raft::prelude::Entry;
-use raft::prelude::Snapshot;
-use raft::Error;
-use raft::RaftState;
-use raft::Result as RaftResult;
-use raft::Storage as RaftStorage;
-use raft::StorageError;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::sync::RwLockReadGuard;
-use std::sync::RwLockWriteGuard;
+use std::fmt;
+use std::time::Duration;
 
-use crate::rocksdb::raft::RaftMachineStorage;
+use bincode::serialize;
+use common::errors::RobustMQError;
+use prost::Message;
+use protocol::placement_center::placement::CreateShardRequest;
+use protocol::placement_center::placement::DeleteShardRequest;
+use protocol::placement_center::placement::RegisterNodeRequest;
+use protocol::placement_center::placement::UnRegisterNodeRequest;
+use raft::eraftpb::ConfChange;
+use raft::eraftpb::Message as raftPreludeMessage;
+use serde::Deserialize;
+use serde::Serialize;
+use tokio::sync::oneshot;
+use tokio::sync::oneshot::Receiver;
+use tokio::sync::oneshot::Sender;
+use tokio::time::timeout;
+pub enum RaftResponseMesage {
+    Success,
+    Fail,
+}
+pub enum RaftMessage {
+    ConfChange {
+        change: ConfChange,
+        chan: Sender<RaftResponseMesage>,
+    },
 
-pub struct RaftRocksDBStorage {
-    core: Arc<RwLock<RaftMachineStorage>>,
+    // Received a message from another node
+    Raft {
+        message: raftPreludeMessage,
+        chan: Sender<RaftResponseMesage>,
+    },
+
+    // The data sent by the client is received. Procedure
+    Propose {
+        data: Vec<u8>,
+        chan: Sender<RaftResponseMesage>,
+    },
 }
 
-impl RaftRocksDBStorage {
-    pub fn new(core: Arc<RwLock<RaftMachineStorage>>) -> Self {
-        return RaftRocksDBStorage { core };
-    }
-
-    pub fn new_with_conf_state<T>(
-        core: Arc<RwLock<RaftMachineStorage>>,
-        conf_state: T,
-    ) -> RaftRocksDBStorage
-    where
-        ConfState: From<T>,
-    {
-        let store = RaftRocksDBStorage::new(core);
-        store.initialize_with_conf_state(conf_state);
-        return store;
-    }
-
-    pub fn initialize_with_conf_state<T>(&self, conf_state: T)
-    where
-        ConfState: From<T>,
-    {
-        assert!(!self.initial_state().unwrap().initialized());
-        let _ = self
-            .write_lock()
-            .save_conf_state(ConfState::from(conf_state));
-    }
-
-    pub fn read_lock(&self) -> RwLockReadGuard<'_, RaftMachineStorage> {
-        self.core.read().unwrap()
-    }
-
-    pub fn write_lock(&self) -> RwLockWriteGuard<'_, RaftMachineStorage> {
-        self.core.write().unwrap()
-    }
+#[derive(Debug, Deserialize, Serialize)]
+pub enum StorageDataType {
+    RegisterNode,
+    UngisterNode,
+    CreateShard,
+    DeleteShard,
 }
 
-impl RaftRocksDBStorage {
-    pub fn apply_snapshot(&mut self, snapshot: Snapshot) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
-        let _ = store.apply_snapshot(snapshot);
-        Ok(())
-    }
-
-    pub fn append(&mut self, entrys: &Vec<Entry>) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
-        let _ = store.append(entrys);
-        return Ok(());
-    }
-
-    pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
-        let _ = store.commmit_index(idx);
-        return Ok(());
-    }
-
-    pub fn set_hard_state(&mut self, hs: HardState) -> RaftResult<()> {
-        let store = self.core.write().unwrap();
-        let _ = store.save_hard_state(hs.clone());
-        return Ok(());
-    }
-
-    pub fn set_hard_state_comit(&mut self, hs: u64) -> RaftResult<()> {
-        let store = self.core.write().unwrap();
-        let _ = store.set_hard_state_commit(hs);
-        return Ok(());
-    }
-
-    pub fn set_conf_state(&mut self, cs: ConfState) -> RaftResult<()> {
-        let store = self.core.write().unwrap();
-        let _ = store.save_conf_state(cs);
-        return Ok(());
-    }
-
-    pub fn create_snapshot(&mut self) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
-        let _ = store.create_snapshot();
-        return Ok(());
-    }
-
-    pub fn is_init_snapshot(&self) -> bool {
-        let store = self.core.write().unwrap();
-        return store.is_need_init_snapshot();
+impl fmt::Display for StorageDataType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StorageDataType::RegisterNode => {
+                write!(f, "RegisterNode")
+            }
+            StorageDataType::UngisterNode => {
+                write!(f, "UngisterNode")
+            }
+            StorageDataType::CreateShard => {
+                write!(f, "CreateShard")
+            }
+            StorageDataType::DeleteShard => {
+                write!(f, "DeleteShard")
+            }
+        }
     }
 }
 
-impl RaftStorage for RaftRocksDBStorage {
-    /// `initial_state` is called when Raft is initialized. This interface will return a `RaftState`
-    /// which contains `HardState` and `ConfState`.
-    ///
-    /// `RaftState` could be initialized or not. If it's initialized it means the `Storage` is
-    /// created with a configuration, and its last index and term should be greater than 0.
-    fn initial_state(&self) -> RaftResult<RaftState> {
-        let core = self.read_lock();
-        return Ok(core.raft_state());
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StorageData {
+    pub data_type: StorageDataType,
+    pub value: Vec<u8>,
+}
+
+impl StorageData {
+    pub fn new(data_type: StorageDataType, value: Vec<u8>) -> StorageData {
+        return StorageData {
+            data_type,
+            value: value,
+        };
+    }
+}
+
+impl fmt::Display for StorageData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {:?})", self.data_type, self.value)
+    }
+}
+pub struct PlacementCenterStorage {
+    raft_status_machine_sender: tokio::sync::mpsc::Sender<RaftMessage>,
+}
+
+impl PlacementCenterStorage {
+    pub fn new(raft_sender: tokio::sync::mpsc::Sender<RaftMessage>) -> Self {
+        return PlacementCenterStorage {
+            raft_status_machine_sender: raft_sender,
+        };
     }
 
-    /// Returns a slice of log entries in the range `[low, high)`.
-    /// max_size limits the total size of the log entries returned if not `None`, however
-    /// the slice of entries returned will always have length at least 1 if entries are
-    /// found in the range.
-    ///
-    /// Entries are supported to be fetched asynchronously depending on the context. Async is optional.
-    /// Storage should check context.can_async() first and decide whether to fetch entries asynchronously
-    /// based on its own implementation. If the entries are fetched asynchronously, storage should return
-    /// LogTemporarilyUnavailable, and application needs to call `on_entries_fetched(context)` to trigger
-    /// re-fetch of the entries after the storage finishes fetching the entries.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `high` is higher than `Storage::last_index(&self) + 1`.
-    fn entries(
+    //
+    pub async fn save_node(&self, data: RegisterNodeRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::RegisterNode,
+            RegisterNodeRequest::encode_to_vec(&data),
+        );
+        return self
+            .apply_propose_message(data, "register_node".to_string())
+            .await;
+    }
+
+    pub async fn delete_node(&self, data: UnRegisterNodeRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::UngisterNode,
+            UnRegisterNodeRequest::encode_to_vec(&data),
+        );
+        return self
+            .apply_propose_message(data, "un_register_node".to_string())
+            .await;
+    }
+
+    pub async fn save_shard(&self, data: CreateShardRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::CreateShard,
+            CreateShardRequest::encode_to_vec(&data),
+        );
+        return self
+            .apply_propose_message(data, "create_shard".to_string())
+            .await;
+    }
+
+    pub async fn delete_shard(&self, data: DeleteShardRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::DeleteShard,
+            DeleteShardRequest::encode_to_vec(&data),
+        );
+        return self
+            .apply_propose_message(data, "delete_shard".to_string())
+            .await;
+    }
+
+    pub async fn save_raft_message(
         &self,
-        low: u64,
-        high: u64,
-        _: impl Into<Option<u64>>,
-        _: raft::GetEntriesContext,
-    ) -> RaftResult<Vec<Entry>> {
-        let core = self.read_lock();
-        if low < core.first_index() {
-            return Err(Error::Store(StorageError::Compacted));
-        }
+        message: raftPreludeMessage,
+    ) -> Result<(), RobustMQError> {
+        return self
+            .apply_raft_message(message, "send_raft_message".to_string())
+            .await;
+    }
 
-        if high > core.last_index() + 1 {
-            panic!(
-                "index out of bound (last: {}, high: {})",
-                core.last_index() + 1,
-                high
+    pub async fn save_conf_raft_message(&self, change: ConfChange) -> Result<(), RobustMQError> {
+        return self
+            .apply_conf_raft_message(change, "send_conf_raft_message".to_string())
+            .await;
+    }
+
+    pub fn get_raft_status_machine_sender(&self) -> tokio::sync::mpsc::Sender<RaftMessage> {
+        return self.raft_status_machine_sender.clone();
+    }
+
+    //
+    async fn apply_propose_message(
+        &self,
+        data: StorageData,
+        action: String,
+    ) -> Result<(), RobustMQError> {
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        return self
+            .apply_raft_status_machine_message(
+                RaftMessage::Propose {
+                    data: serialize(&data).unwrap(),
+                    chan: sx,
+                },
+                action,
+                rx,
             )
-        }
+            .await;
+    }
 
-        let mut entry_list: Vec<Entry> = Vec::new();
-        for idx in low..=high {
-            let sret = core.entry_by_idx(idx);
-            if sret == None {
-                continue;
+    //
+    async fn apply_raft_message(
+        &self,
+        message: raftPreludeMessage,
+        action: String,
+    ) -> Result<(), RobustMQError> {
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        return self
+            .apply_raft_status_machine_message(
+                RaftMessage::Raft {
+                    message: message,
+                    chan: sx,
+                },
+                action,
+                rx,
+            )
+            .await;
+    }
+
+    //
+    async fn apply_conf_raft_message(
+        &self,
+        change: ConfChange,
+        action: String,
+    ) -> Result<(), RobustMQError> {
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        return self
+            .apply_raft_status_machine_message(
+                RaftMessage::ConfChange { change, chan: sx },
+                action,
+                rx,
+            )
+            .await;
+    }
+
+    async fn apply_raft_status_machine_message(
+        &self,
+        message: RaftMessage,
+        action: String,
+        rx: Receiver<RaftResponseMesage>,
+    ) -> Result<(), RobustMQError> {
+        let _ = self.raft_status_machine_sender.send(message).await;
+        if !self.wait_recv_chan_resp(rx).await {
+            return Err(RobustMQError::MetaLogCommitTimeout(action));
+        }
+        return Ok(());
+    }
+
+    //
+    async fn wait_recv_chan_resp(&self, rx: Receiver<RaftResponseMesage>) -> bool {
+        let res = timeout(Duration::from_secs(30), async {
+            match rx.await {
+                Ok(val) => {
+                    return val;
+                }
+                Err(_) => {
+                    return RaftResponseMesage::Fail;
+                }
             }
-            entry_list.push(sret.unwrap());
-        }
-
-        // todo limit size
-
-        return Ok(entry_list);
-    }
-
-    /// Returns the term of entry idx, which must be in the range
-    /// [first_index()-1, last_index()]. The term of the entry before
-    /// first_index is retained for matching purpose even though the
-    /// rest of that entry may not be available.
-    fn term(&self, idx: u64) -> RaftResult<u64> {
-        let core = self.read_lock();
-
-        if idx == core.snapshot_metadata.index {
-            return Ok(core.snapshot_metadata.index);
-        }
-
-        if idx < core.first_index() {
-            return Err(Error::Store(StorageError::Compacted));
-        }
-
-        if idx > core.last_index() {
-            return Err(Error::Store(StorageError::Unavailable));
-        }
-
-        if let Some(value) = core.entry_by_idx(idx) {
-            return Ok(value.term);
-        }
-
-        return Ok(core.snapshot_metadata.term);
-    }
-
-    /// Returns the index of the first log entry that is possible available via entries, which will
-    /// always equal to `truncated index` plus 1.
-    ///
-    /// New created (but not initialized) `Storage` can be considered as truncated at 0 so that 1
-    /// will be returned in this case.
-    fn first_index(&self) -> RaftResult<u64> {
-        let core = self.read_lock();
-        let fi = core.first_index();
-        Ok(fi)
-    }
-
-    /// The index of the last entry replicated in the `Storage`.
-    fn last_index(&self) -> RaftResult<u64> {
-        let core = self.read_lock();
-        let li = core.last_index();
-        Ok(li)
-    }
-
-    /// Returns the most recent snapshot.
-    ///
-    /// If snapshot is temporarily unavailable, it should return SnapshotTemporarilyUnavailable,
-    /// so raft state machine could know that Storage needs some time to prepare
-    /// snapshot and call snapshot later.
-    /// A snapshot's index must not less than the `request_index`.
-    /// `to` indicates which peer is requesting the snapshot.
-    fn snapshot(&self, request_index: u64, to: u64) -> RaftResult<Snapshot> {
-        info_meta(&format!("Node {} requests snapshot data", to));
-        let mut core = self.write_lock();
-        if core.trigger_snap_unavailable {
-            return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable));
-        } else {
-            let mut snap = core.snapshot();
-            if snap.get_metadata().index < request_index {
-                snap.mut_metadata().index = request_index;
+        });
+        match res.await {
+            Ok(_) => return true,
+            Err(_) => {
+                return false;
             }
-            Ok(snap)
         }
     }
 }
