@@ -94,7 +94,7 @@ impl PlacementCenter {
         };
     }
 
-    pub fn start(&mut self, stop_send: broadcast::Sender<bool>, is_banner: bool) {
+    pub fn start(&mut self, stop_send: broadcast::Sender<bool>) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
         let placement_center_storage = Arc::new(PlacementCenterStorage::new(raft_message_send));
@@ -115,7 +115,7 @@ impl PlacementCenter {
 
         self.awaiting_stop(stop_send);
 
-        self.start_raft_machine(peer_message_send, raft_message_recv, stop_recv, is_banner);
+        self.start_raft_machine(peer_message_send, raft_message_recv, stop_recv);
     }
 
     // Start HTTP Server
@@ -195,7 +195,6 @@ impl PlacementCenter {
         peer_message_send: Sender<PeerMessage>,
         raft_message_recv: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
-        is_banner: bool,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
             self.rocksdb_engine_handler.clone(),
@@ -211,7 +210,7 @@ impl PlacementCenter {
             stop_recv,
             self.raft_machine_storage.clone(),
         );
-        self.daemon_runtime.block_on(async move {
+        self.daemon_runtime.spawn(async move {
             raft.run().await;
         });
     }
