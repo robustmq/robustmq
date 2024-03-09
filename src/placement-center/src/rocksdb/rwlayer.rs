@@ -3,13 +3,13 @@ use common::log::error_meta;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-pub struct DataRwLayer {
+pub struct RwLayer {
     rds: Arc<RocksDBStorage>,
 }
 
-impl DataRwLayer {
+impl RwLayer {
     pub fn new(rds: Arc<RocksDBStorage>) -> Self {
-        DataRwLayer { rds }
+        RwLayer { rds }
     }
 
     // get node list

@@ -23,15 +23,15 @@ use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
+use rocksdb::raft::RaftMachineStorage;
 use server::grpc::GrpcService;
 use server::heartbeat::Heartbeat;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raft::core::RaftRocksDBStorageCore;
 use raft::message::RaftMessage;
-use raft::raft::PlacementCenterRaftGroup;
-use rocksdb::data_rw_layer;
+use raft::raft::RaftMachine;
+use rocksdb::rwlayer;
 use rocksdb::rocksdb::RocksDBStorage;
-use rocksdb::route::DataRoute;
+use raft::route::DataRoute;
 use std::fmt;
 use std::fmt::Display;
 use std::sync::{Arc, RwLock};
@@ -90,9 +90,9 @@ pub struct PlacementCenter {
     // Cache metadata information for the Placement Cluster cluster
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     // Storage implementation of Raft Group information
-    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    raft_storage: Arc<RwLock<RaftMachineStorage>>,
     // Placement Center Cluster information storage implementation
-    data_rw_layer: Arc<data_rw_layer::DataRwLayer>,
+    data_rw_layer: Arc<rwlayer::RwLayer>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
@@ -109,11 +109,11 @@ impl PlacementCenter {
         )));
 
         let rocksdb_handle = Arc::new(RocksDBStorage::new(&config));
-        let raft_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(
+        let raft_storage = Arc::new(RwLock::new(RaftMachineStorage::new(
             rocksdb_handle.clone(),
         )));
 
-        let data_rw_layer = Arc::new(data_rw_layer::DataRwLayer::new(rocksdb_handle.clone()));
+        let data_rw_layer = Arc::new(rwlayer::RwLayer::new(rocksdb_handle.clone()));
 
         let client_poll = Arc::new(Mutex::new(ClientPool::new()));
 
@@ -239,7 +239,7 @@ impl PlacementCenter {
             self.broker_cache.clone(),
         )));
 
-        let mut raft: PlacementCenterRaftGroup = PlacementCenterRaftGroup::new(
+        let mut raft: RaftMachine = RaftMachine::new(
             self.config.clone(),
             self.placement_cache.clone(),
             data_route,

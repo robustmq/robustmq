@@ -1,7 +1,7 @@
 use crate::{
     cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
     rocksdb::{
-        data_rw_layer::{ClusterInfo, NodeInfo, ShardInfo, ShardStatus},
+        rwlayer::{ClusterInfo, NodeInfo, RwLayer, ShardInfo, ShardStatus},
         schema::{StorageData, StorageDataType},
     },
 };
@@ -14,18 +14,16 @@ use protocol::placement_center::placement::{
 use std::sync::{Arc, RwLock};
 use tonic::Status;
 
-use super::data_rw_layer::DataRwLayer;
-
 #[derive(Clone)]
 pub struct DataRoute {
-    cluster_storage: Arc<DataRwLayer>,
+    cluster_storage: Arc<RwLayer>,
     engine_cache: Arc<RwLock<EngineClusterCache>>,
     broker_cache: Arc<RwLock<BrokerClusterCache>>,
 }
 
 impl DataRoute {
     pub fn new(
-        cluster_storage: Arc<DataRwLayer>,
+        cluster_storage: Arc<RwLayer>,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
         broker_cache: Arc<RwLock<BrokerClusterCache>>,
     ) -> DataRoute {
@@ -156,7 +154,7 @@ impl DataRoute {
 mod tests {
     use std::sync::{Arc, RwLock};
 
-    use crate::{cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache}, rocksdb::{data_rw_layer::DataRwLayer, rocksdb::RocksDBStorage}};
+    use crate::{cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache}, rocksdb::{rwlayer::RwLayer, rocksdb::RocksDBStorage}};
     use common::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
     use protocol::placement_center::placement::{ClusterType, RegisterNodeRequest};
@@ -180,7 +178,7 @@ mod tests {
         let data = RegisterNodeRequest::encode_to_vec(&req);
 
         let rocksdb_storage = Arc::new(RocksDBStorage::new(&PlacementCenterConfig::default()));
-        let cluster_storage = Arc::new(DataRwLayer::new(rocksdb_storage));
+        let cluster_storage = Arc::new(RwLayer::new(rocksdb_storage));
         let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
         let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
         let mut route = DataRoute::new(cluster_storage.clone(), engine_cache, broker_cache);

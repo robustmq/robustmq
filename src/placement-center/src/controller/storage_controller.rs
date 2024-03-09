@@ -1,6 +1,6 @@
 use crate::{
     cache::engine_cluster::EngineClusterCache,
-    rocksdb::data_rw_layer::{ClusterInfo, NodeInfo, ShardInfo},
+    rocksdb::rwlayer::{ClusterInfo, NodeInfo, ShardInfo},
 };
 use std::{
     collections::HashMap,

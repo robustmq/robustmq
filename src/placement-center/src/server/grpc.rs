@@ -17,8 +17,8 @@ use crate::cache::placement_cluster::PlacementClusterCache;
  * limitations under the License.
  */
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
-use crate::raft::core::RaftRocksDBStorageCore;
-use crate::rocksdb::data_rw_layer::DataRwLayer;
+use crate::rocksdb::raft::RaftMachineStorage;
+use crate::rocksdb::rwlayer::RwLayer;
 use crate::rocksdb::schema::{StorageData, StorageDataType};
 use bincode::serialize;
 use clients::placement_center::{create_shard, delete_shard, register_node, unregister_node};
@@ -48,8 +48,8 @@ use tonic::{Request, Response, Status};
 pub struct GrpcService {
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     raft_sender: Sender<RaftMessage>,
-    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-    cluster_storage: Arc<DataRwLayer>,
+    raft_storage: Arc<RwLock<RaftMachineStorage>>,
+    cluster_storage: Arc<RwLayer>,
     engine_cache: Arc<RwLock<EngineClusterCache>>,
     broker_cache: Arc<RwLock<BrokerClusterCache>>,
     client_poll: Arc<Mutex<ClientPool>>,
@@ -59,8 +59,8 @@ impl GrpcService {
     pub fn new(
         placement_cache: Arc<RwLock<PlacementClusterCache>>,
         raft_sender: Sender<RaftMessage>,
-        raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-        cluster_storage: Arc<DataRwLayer>,
+        raft_storage: Arc<RwLock<RaftMachineStorage>>,
+        cluster_storage: Arc<RwLayer>,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
         broker_cache: Arc<RwLock<BrokerClusterCache>>,
         client_poll: Arc<Mutex<ClientPool>>,

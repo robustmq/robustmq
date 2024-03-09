@@ -1,9 +1,9 @@
 use super::message::{RaftMessage, RaftResponseMesage};
-use super::core::RaftRocksDBStorageCore;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement_cluster::PlacementClusterCache;
+use crate::rocksdb::raft::RaftMachineStorage;
 use crate::server::peer::PeerMessage;
-use crate::rocksdb::route::DataRoute;
+use crate::raft::route::DataRoute;
 use crate::Node;
 use bincode::{deserialize, serialize};
 use common::config::placement_center::PlacementCenterConfig;
@@ -27,7 +27,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
-pub struct PlacementCenterRaftGroup {
+pub struct RaftMachine {
     config: PlacementCenterConfig,
     placement_cluster: Arc<RwLock<PlacementClusterCache>>,
     receiver: Receiver<RaftMessage>,
@@ -37,10 +37,10 @@ pub struct PlacementCenterRaftGroup {
     entry_num: AtomicUsize,
     peer_message_send: Sender<PeerMessage>,
     stop_recv: broadcast::Receiver<bool>,
-    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    raft_storage: Arc<RwLock<RaftMachineStorage>>,
 }
 
-impl PlacementCenterRaftGroup {
+impl RaftMachine {
     pub fn new(
         config: PlacementCenterConfig,
         placement_cluster: Arc<RwLock<PlacementClusterCache>>,
@@ -48,7 +48,7 @@ impl PlacementCenterRaftGroup {
         peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
-        raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+        raft_storage: Arc<RwLock<RaftMachineStorage>>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
         let entry_num = AtomicUsize::new(1);

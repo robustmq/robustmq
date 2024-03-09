@@ -23,17 +23,17 @@ use std::cmp;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub struct RaftRocksDBStorageCore {
+pub struct RaftMachineStorage {
     pub uncommit_index: HashMap<u64, i8>,
     pub trigger_snap_unavailable: bool,
     pub snapshot_metadata: SnapshotMetadata,
     pub rds: Arc<RocksDBStorage>,
 }
 
-impl RaftRocksDBStorageCore {
+impl RaftMachineStorage {
     pub fn new(rds: Arc<RocksDBStorage>) -> Self {
         let uncommit_index = HashMap::new();
-        let mut rc = RaftRocksDBStorageCore {
+        let mut rc = RaftMachineStorage {
             rds,
             snapshot_metadata: SnapshotMetadata::default(),
             trigger_snap_unavailable: false,
@@ -165,7 +165,7 @@ impl RaftRocksDBStorageCore {
     }
 }
 
-impl RaftRocksDBStorageCore {
+impl RaftMachineStorage {
     /// Get the index of the first Entry from RocksDB
     pub fn first_index(&self) -> u64 {
         let key = key_name_by_first_index();
@@ -306,7 +306,7 @@ impl RaftRocksDBStorageCore {
     }
 }
 
-impl RaftRocksDBStorageCore {
+impl RaftMachineStorage {
     /// Overwrites the contents of this Storage object with those of the given snapshot.
     ///
     /// # Panics
@@ -393,7 +393,7 @@ mod tests {
 
     use crate::rocksdb::rocksdb::RocksDBStorage;
 
-    use super::RaftRocksDBStorageCore;
+    use super::RaftMachineStorage;
 
     #[test]
     fn write_read_test() {
@@ -402,7 +402,7 @@ mod tests {
         conf.data_path = "/tmp/tmp_test".to_string();
 
         let rds: Arc<RocksDBStorage> = Arc::new(RocksDBStorage::new(&conf));
-        let rds = RaftRocksDBStorageCore::new(rds);
+        let rds = RaftMachineStorage::new(rds);
 
         let first_index = 1;
         let _ = rds.save_first_index(first_index);
