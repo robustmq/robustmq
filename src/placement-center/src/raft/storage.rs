@@ -1,4 +1,3 @@
-use super::core::RaftRocksDBStorageCore;
 use common::log::info_meta;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -14,17 +13,19 @@ use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
+use crate::rocksdb::raft::RaftMachineStorage;
+
 pub struct RaftRocksDBStorage {
-    core: Arc<RwLock<RaftRocksDBStorageCore>>,
+    core: Arc<RwLock<RaftMachineStorage>>,
 }
 
 impl RaftRocksDBStorage {
-    pub fn new(core: Arc<RwLock<RaftRocksDBStorageCore>>) -> Self {
+    pub fn new(core: Arc<RwLock<RaftMachineStorage>>) -> Self {
         return RaftRocksDBStorage { core };
     }
 
     pub fn new_with_conf_state<T>(
-        core: Arc<RwLock<RaftRocksDBStorageCore>>,
+        core: Arc<RwLock<RaftMachineStorage>>,
         conf_state: T,
     ) -> RaftRocksDBStorage
     where
@@ -45,11 +46,11 @@ impl RaftRocksDBStorage {
             .save_conf_state(ConfState::from(conf_state));
     }
 
-    pub fn read_lock(&self) -> RwLockReadGuard<'_, RaftRocksDBStorageCore> {
+    pub fn read_lock(&self) -> RwLockReadGuard<'_, RaftMachineStorage> {
         self.core.read().unwrap()
     }
 
-    pub fn write_lock(&self) -> RwLockWriteGuard<'_, RaftRocksDBStorageCore> {
+    pub fn write_lock(&self) -> RwLockWriteGuard<'_, RaftMachineStorage> {
         self.core.write().unwrap()
     }
 }

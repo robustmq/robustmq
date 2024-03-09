@@ -12,75 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::network::peer::{PeerMessage, PeersManager};
+use self::server::peer::{PeerMessage, PeersManager};
 use cache::broker_cluster::BrokerClusterCache;
 use cache::engine_cluster::EngineClusterCache;
-use cache::placement_cluster::PlacementClusterCache;
+use cache::placement_cluster::{Node, PlacementClusterCache};
 use clients::ClientPool;
-use common::config::placement_center::PlacementCenterConfig;
+use common::config::placement_center::placement_center_conf;
 use common::log::info_meta;
 use common::runtime::create_runtime;
 use controller::broker_controller::BrokerServerController;
 use controller::storage_controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
-use network::grpc::GrpcService;
-use network::heartbeat::Heartbeat;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raft::core::RaftRocksDBStorageCore;
 use raft::message::RaftMessage;
-use raft::raft::PlacementCenterRaftGroup;
-use rocksdb::data_rw_layer;
-use rocksdb::rocksdb::RocksDBStorage;
-use rocksdb::route::DataRoute;
-use std::fmt;
-use std::fmt::Display;
+use raft::raft::RaftMachine;
+use raft::route::DataRoute;
+use rocksdb::raft::RaftMachineStorage;
+use server::grpc::GrpcService;
+use server::heartbeat::Heartbeat;
 use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tonic::transport::Server;
-
-mod broker;
 mod cache;
 mod controller;
 mod http;
-mod network;
 mod raft;
 mod rocksdb;
-
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
-pub struct Node {
-    pub ip: String,
-    pub id: u64,
-    pub inner_port: u16,
-}
-
-impl Node {
-    pub fn new(ip: String, id: u64, port: u16) -> Node {
-        Node {
-            ip,
-            id,
-            inner_port: port,
-        }
-    }
-
-    pub fn addr(&self) -> String {
-        format!("{}:{}", self.ip, self.inner_port)
-    }
-}
-
-impl Display for Node {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ip:{},id:{},port:{}", self.ip, self.id, self.inner_port)
-    }
-}
+mod server;
 
 pub struct PlacementCenter {
-    config: PlacementCenterConfig,
-
     server_runtime: Runtime,
     daemon_runtime: Runtime,
     // Cache metadata information for the Storage Engine cluster
@@ -90,14 +53,13 @@ pub struct PlacementCenter {
     // Cache metadata information for the Placement Cluster cluster
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     // Storage implementation of Raft Group information
-    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-    // Placement Center Cluster information storage implementation
-    data_rw_layer: Arc<data_rw_layer::DataRwLayer>,
+    raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl PlacementCenter {
-    pub fn new(config: PlacementCenterConfig) -> PlacementCenter {
+    pub fn new() -> PlacementCenter {
+        let config = placement_center_conf();
         let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
@@ -108,24 +70,17 @@ impl PlacementCenter {
             config.nodes.clone(),
         )));
 
-        let rocksdb_handle = Arc::new(RocksDBStorage::new(&config));
-        let raft_storage = Arc::new(RwLock::new(RaftRocksDBStorageCore::new(
-            rocksdb_handle.clone(),
-        )));
-
-        let data_rw_layer = Arc::new(data_rw_layer::DataRwLayer::new(rocksdb_handle.clone()));
+        let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new()));
 
         let client_poll = Arc::new(Mutex::new(ClientPool::new()));
 
         return PlacementCenter {
-            config,
             server_runtime,
             daemon_runtime,
             engine_cache,
             broker_cache,
             placement_cache,
-            raft_storage,
-            data_rw_layer,
+            raft_machine_storage,
             client_poll,
         };
     }
@@ -157,26 +112,22 @@ impl PlacementCenter {
     pub fn start_http_server(&self) {
         let state: HttpServerState = HttpServerState::new(
             self.placement_cache.clone(),
-            self.raft_storage.clone(),
-            self.data_rw_layer.clone(),
+            self.raft_machine_storage.clone(),
             self.engine_cache.clone(),
         );
-        let port = self.config.http_port;
         self.server_runtime.spawn(async move {
-            start_http_server(port, state).await;
+            start_http_server(state).await;
         });
     }
 
     // Start Grpc Server
     pub fn start_grpc_server(&self, raft_sender: Sender<RaftMessage>) {
-        let ip = format!("0.0.0.0:{}", self.config.grpc_port)
-            .parse()
-            .unwrap();
+        let config = placement_center_conf();
+        let ip = format!("0.0.0.0:{}", config.grpc_port).parse().unwrap();
         let service_handler = GrpcService::new(
             self.placement_cache.clone(),
             raft_sender,
-            self.raft_storage.clone(),
-            self.data_rw_layer.clone(),
+            self.raft_machine_storage.clone(),
             self.engine_cache.clone(),
             self.broker_cache.clone(),
             self.client_poll.clone(),
@@ -234,19 +185,17 @@ impl PlacementCenter {
         is_banner: bool,
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
-            self.data_rw_layer.clone(),
             self.engine_cache.clone(),
             self.broker_cache.clone(),
         )));
 
-        let mut raft: PlacementCenterRaftGroup = PlacementCenterRaftGroup::new(
-            self.config.clone(),
+        let mut raft: RaftMachine = RaftMachine::new(
             self.placement_cache.clone(),
             data_route,
             peer_message_send,
             raft_message_recv,
             stop_recv,
-            self.raft_storage.clone(),
+            self.raft_machine_storage.clone(),
         );
         self.daemon_runtime.block_on(async move {
             raft.run().await;

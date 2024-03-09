@@ -35,15 +35,6 @@ pub fn parse_server(config_path: &String) -> BrokerServerConfig {
     return server_config;
 }
 
-/// Parsing reads the MetaService configuration
-pub fn parse_placement_center(config_path: &String) -> PlacementCenterConfig {
-    let content = read_file(config_path);
-    let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
-    create_fold(pc_config.data_path.clone());
-    create_fold(pc_config.log_path.clone());
-    return pc_config;
-}
-
 /// Parsing reads the StorageEngine configuration
 pub fn parse_storage_engine(config_path: &String) -> StorageEngineConfig {
     let content = read_file(config_path);

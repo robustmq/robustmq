@@ -15,5 +15,5 @@
  */
 pub mod raft;
 pub mod message;
-pub mod core;
 pub mod storage;
+pub mod route;

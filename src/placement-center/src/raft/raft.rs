@@ -1,12 +1,11 @@
 use super::message::{RaftMessage, RaftResponseMesage};
-use super::core::RaftRocksDBStorageCore;
 use super::storage::RaftRocksDBStorage;
-use crate::cache::placement_cluster::PlacementClusterCache;
-use crate::network::peer::PeerMessage;
-use crate::rocksdb::route::DataRoute;
-use crate::Node;
+use crate::cache::placement_cluster::{Node, PlacementClusterCache};
+use crate::raft::route::DataRoute;
+use crate::rocksdb::raft::RaftMachineStorage;
+use crate::server::peer::PeerMessage;
 use bincode::{deserialize, serialize};
-use common::config::placement_center::PlacementCenterConfig;
+use common::config::placement_center::placement_center_conf;
 use common::errors::RobustMQError;
 use common::log::{error_meta, info_meta};
 use prost::Message as _;
@@ -27,8 +26,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
-pub struct PlacementCenterRaftGroup {
-    config: PlacementCenterConfig,
+pub struct RaftMachine {
     placement_cluster: Arc<RwLock<PlacementClusterCache>>,
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
@@ -37,24 +35,22 @@ pub struct PlacementCenterRaftGroup {
     entry_num: AtomicUsize,
     peer_message_send: Sender<PeerMessage>,
     stop_recv: broadcast::Receiver<bool>,
-    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+    raft_storage: Arc<RwLock<RaftMachineStorage>>,
 }
 
-impl PlacementCenterRaftGroup {
+impl RaftMachine {
     pub fn new(
-        config: PlacementCenterConfig,
         placement_cluster: Arc<RwLock<PlacementClusterCache>>,
         data_route: Arc<RwLock<DataRoute>>,
         peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
-        raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
+        raft_storage: Arc<RwLock<RaftMachineStorage>>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
         let entry_num = AtomicUsize::new(1);
         let resp_channel = HashMap::new();
         return Self {
-            config,
             placement_cluster,
             receiver,
             seqnum,
@@ -160,7 +156,6 @@ impl PlacementCenterRaftGroup {
             // info_meta(&format!("{:?}",raft_node.raft.state));
             self.on_ready(&mut raft_node).await;
         }
-        
     }
 
     async fn on_ready(&mut self, raft_node: &mut RawNode<RaftRocksDBStorage>) {
@@ -332,10 +327,11 @@ impl PlacementCenterRaftGroup {
     }
 
     fn build_config(&self, apply: u64) -> Config {
+        let conf = placement_center_conf();
         Config {
             // The unique ID for the Raft node.
             // id: self.config.node_id,
-            id: self.config.node_id,
+            id: conf.node_id,
             // Election tick is for how long the follower may campaign again after
             // it doesn't receive any message from the leader.
             election_tick: 10,
@@ -356,7 +352,8 @@ impl PlacementCenterRaftGroup {
     }
 
     fn build_slog(&self) -> slog::Logger {
-        let path = format!("{}/raft.log", self.config.log_path.clone());
+        let conf = placement_center_conf();
+        let path = format!("{}/raft.log", conf.log_path.clone());
         let file = OpenOptions::new()
             .create(true)
             .write(true)

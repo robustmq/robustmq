@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
+use crate::cache::placement_cluster::Node;
+
 use super::{
     response::success_response,
     server::HttpServerState,
 };
 use axum::extract::State;
 use common::metrics::dump_metrics;
-use tokio::time::sleep;
-use std::{collections::HashMap, time::Duration};
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use crate::Node;
 
 #[derive(Serialize, Deserialize)]
 pub struct IndexResponse {
@@ -49,7 +49,7 @@ pub struct RaftInfo {
 }
 
 pub async fn placement_center(State(state): State<HttpServerState>) -> String {
-    let cluster_read = state.placement_storage.read().unwrap();
+    let cluster_read = state.placement_cache.read().unwrap();
     let storage = state.raft_storage.read().unwrap();
 
     let hs = storage.hard_state();

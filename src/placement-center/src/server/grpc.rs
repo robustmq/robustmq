@@ -17,8 +17,7 @@ use crate::cache::placement_cluster::PlacementClusterCache;
  * limitations under the License.
  */
 use crate::raft::message::{RaftMessage, RaftResponseMesage};
-use crate::raft::core::RaftRocksDBStorageCore;
-use crate::rocksdb::data_rw_layer::DataRwLayer;
+use crate::rocksdb::raft::RaftMachineStorage;
 use crate::rocksdb::schema::{StorageData, StorageDataType};
 use bincode::serialize;
 use clients::placement_center::{create_shard, delete_shard, register_node, unregister_node};
@@ -26,7 +25,6 @@ use clients::ClientPool;
 use common::errors::RobustMQError;
 use common::log::info_meta;
 use prost::Message;
-
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement::{
     ClusterType, CommonReply, CreateShardRequest, DeleteShardRequest, GetShardReply,
@@ -35,12 +33,10 @@ use protocol::placement_center::placement::{
 };
 use protocol::placement_center::placement::{SendRaftMessageReply, SendRaftMessageRequest};
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
-
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot::{self, Receiver};
 use tokio::sync::Mutex;
 use tokio::time::timeout;
-
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
@@ -48,8 +44,7 @@ use tonic::{Request, Response, Status};
 pub struct GrpcService {
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     raft_sender: Sender<RaftMessage>,
-    raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-    cluster_storage: Arc<DataRwLayer>,
+    raft_storage: Arc<RwLock<RaftMachineStorage>>,
     engine_cache: Arc<RwLock<EngineClusterCache>>,
     broker_cache: Arc<RwLock<BrokerClusterCache>>,
     client_poll: Arc<Mutex<ClientPool>>,
@@ -59,8 +54,7 @@ impl GrpcService {
     pub fn new(
         placement_cache: Arc<RwLock<PlacementClusterCache>>,
         raft_sender: Sender<RaftMessage>,
-        raft_storage: Arc<RwLock<RaftRocksDBStorageCore>>,
-        cluster_storage: Arc<DataRwLayer>,
+        raft_storage: Arc<RwLock<RaftMachineStorage>>,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
         broker_cache: Arc<RwLock<BrokerClusterCache>>,
         client_poll: Arc<Mutex<ClientPool>>,
@@ -69,7 +63,6 @@ impl GrpcService {
             placement_cache,
             raft_sender,
             raft_storage,
-            cluster_storage,
             engine_cache,
             broker_cache,
             client_poll,
@@ -233,18 +226,18 @@ impl PlacementCenterService for GrpcService {
         request: Request<GetShardRequest>,
     ) -> Result<Response<GetShardReply>, Status> {
         let req = request.into_inner();
-        let shard_info = self
-            .cluster_storage
-            .get_shard(req.cluster_name.clone(), req.shard_name);
+        // let shard_info = self
+        //     .cluster_storage
+        //     .get_shard(req.cluster_name.clone(), req.shard_name);
         let mut result = GetShardReply::default();
-        if shard_info.is_none() {
-            let si = shard_info.unwrap();
-            result.cluster_name = req.cluster_name;
-            result.shard_id = si.shard_id;
-            result.shard_name = si.shard_name;
-            result.replica = si.replica;
-            result.replicas = serialize(&si.replicas).unwrap();
-        }
+        // if shard_info.is_none() {
+        //     let si = shard_info.unwrap();
+        //     result.cluster_name = req.cluster_name;
+        //     result.shard_id = si.shard_id;
+        //     result.shard_name = si.shard_name;
+        //     result.replica = si.replica;
+        //     result.replicas = serialize(&si.replicas).unwrap();
+        // }
 
         return Ok(Response::new(result));
     }

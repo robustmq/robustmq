@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use crate::rocksdb::data_rw_layer::{ClusterInfo, NodeInfo, ShardInfo};
+use crate::rocksdb::{cluster::ClusterInfo, node::NodeInfo, shard::ShardInfo};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct EngineClusterCache {

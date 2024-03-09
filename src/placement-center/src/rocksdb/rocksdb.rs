@@ -33,11 +33,11 @@ fn column_family_list() -> Vec<String> {
     return list;
 }
 
-pub struct RocksDBStorage {
+pub struct RocksDBEngine {
     db: DB,
 }
 
-impl RocksDBStorage {
+impl RocksDBEngine {
     /// Create a rocksdb instance
     pub fn new(config: &PlacementCenterConfig) -> Self {
         let opts: Options = Self::open_db_opts(config);
@@ -58,7 +58,7 @@ impl RocksDBStorage {
             }
         }
 
-        return RocksDBStorage { db: instance };
+        return RocksDBEngine { db: instance };
     }
 
     /// Write the data serialization to RocksDB
@@ -253,12 +253,14 @@ impl RocksDBStorage {
 #[cfg(test)]
 mod tests {
 
+    use std::{fmt::format, time::Duration};
+
     use crate::rocksdb::keys::key_name_by_last_index;
 
-    use super::RocksDBStorage;
-    use common::config::placement_center::PlacementCenterConfig;
+    use super::RocksDBEngine;
+    use common::{config::placement_center::PlacementCenterConfig, log::info_meta};
     use serde::{Deserialize, Serialize};
-    use tokio::fs::remove_dir;
+    use tokio::{fs::remove_dir, time::sleep};
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
     struct User {
@@ -267,11 +269,40 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn multi_rocksdb_instance() {
+        for i in 1..100 {
+            let mut config = PlacementCenterConfig::default();
+            config.data_path = "/tmp/tmp_test".to_string();
+            config.log_path = "/tmp/tmp_log".to_string();
+            tokio::spawn(async move {
+                let rs = RocksDBEngine::new(&config);
+                let key = format!("name2{}", i);
+
+                let name = format!("lobo{}", i);
+                let user = User {
+                    name: name.clone(),
+                    age: 18,
+                };
+                let res4 = rs.write(rs.cf_meta(), &key, &user);
+                assert!(res4.is_ok());
+
+                let res1 = rs.read::<User>(rs.cf_meta(), &key);
+                let r = res1.unwrap();
+                assert!(!r.is_none());
+                assert_eq!(r.unwrap().name, name);
+                println!("spawn {}, key:{}", i, key);
+            });
+        }
+
+        sleep(Duration::from_secs(5)).await;
+    }
+
+    #[tokio::test]
     async fn init_family() {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
-        let rs = RocksDBStorage::new(&config);
+        let rs = RocksDBEngine::new(&config);
         let key = "name2";
         let res1 = rs.read::<User>(rs.cf_meta(), key);
         assert!(res1.unwrap().is_none());
@@ -304,7 +335,7 @@ mod tests {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
-        let rs = RocksDBStorage::new(&config);
+        let rs = RocksDBEngine::new(&config);
 
         let index = 66u64;
         let cf = rs.cf_meta();
@@ -332,7 +363,7 @@ mod tests {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
-        let rs = RocksDBStorage::new(&config);
+        let rs = RocksDBEngine::new(&config);
         let result = rs.read_prefix(rs.cf_meta(), "metasrv_conf");
         for raw in result.clone() {
             println!("{:?}", raw);
