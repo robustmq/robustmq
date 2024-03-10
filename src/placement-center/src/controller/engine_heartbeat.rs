@@ -6,7 +6,7 @@ use std::{
     thread::sleep,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, oneshot};
 
 pub struct StorageEngineNodeHeartBeat {
     timeout_ms: u128,
@@ -72,6 +72,7 @@ impl StorageEngineNodeHeartBeat {
                             req.cluster_name = node.cluster_name.clone();
                             req.cluster_type = ClusterType::StorageEngine.into();
                             let pcs = self.placement_center_storage.clone();
+
                             tokio::spawn(async move {
                                 match pcs.delete_node(req).await {
                                     Ok(_) => {

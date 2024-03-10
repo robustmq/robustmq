@@ -9,7 +9,7 @@ use crate::{
         shard::ShardInfo,
     },
 };
-use common::log::info_meta;
+use common::{config::placement_center::placement_center_conf, log::info_meta};
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
@@ -72,9 +72,10 @@ impl StorageEngineController {
     // Start the heartbeat detection thread of the Storage Engine node
     pub fn start_node_heartbeat_check(&self) {
         let stop_recv = self.stop_send.subscribe();
+        let config = placement_center_conf();
         let mut heartbeat = StorageEngineNodeHeartBeat::new(
-            30000,
-            1000,
+            config.heartbeat_timeout_ms.into(),
+            config.heartbeat_check_time_ms,
             self.engine_cache.clone(),
             self.placement_center_storage.clone(),
             stop_recv,

@@ -43,7 +43,9 @@ impl EngineClusterCache {
                 cluster.nodes.remove(index);
                 self.add_cluster(cluster);
             }
-            Err(_) => {}
+            Err(_) => {
+                self.add_cluster(cluster);
+            }
         }
     }
 
