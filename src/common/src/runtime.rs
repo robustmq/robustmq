@@ -154,4 +154,24 @@ mod tests {
         // assert!(metric_text.contains("runtime_threads_idle{thread_name=\"test\"}"));
         // assert!(metric_text.contains("runtime_threads_alive{thread_name=\"test\"}"));
     }
+
+    #[test]
+    fn test_runtime_in_runtime() {
+        let rt = create_runtime("test", 10);
+        rt.spawn(async {
+            println!("main spawn");
+            tokio::spawn(async {
+                println!("main spawn2");
+                tokio::spawn(async {
+                    println!("main spawn3");
+                    tokio::spawn(async {
+                        println!("main spawn4");
+                    });
+                });
+            });
+            sleep(Duration::from_millis(5));
+        });
+
+        sleep(Duration::from_secs(500));
+    }
 }

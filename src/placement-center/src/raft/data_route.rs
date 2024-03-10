@@ -3,7 +3,7 @@ use crate::{
     rocksdb::{
         cluster::{ClusterInfo, ClusterStorage},
         node::{NodeInfo, NodeStorage},
-        schema::{StorageData, StorageDataType},
+        rocksdb::RocksDBEngine,
         shard::{ShardInfo, ShardStatus, ShardStorage},
     },
 };
@@ -16,6 +16,8 @@ use protocol::placement_center::placement::{
 use std::sync::{Arc, RwLock};
 use tonic::Status;
 
+use super::storage::{StorageData, StorageDataType};
+
 pub struct DataRoute {
     engine_cache: Arc<RwLock<EngineClusterCache>>,
     broker_cache: Arc<RwLock<BrokerClusterCache>>,
@@ -26,12 +28,13 @@ pub struct DataRoute {
 
 impl DataRoute {
     pub fn new(
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
         broker_cache: Arc<RwLock<BrokerClusterCache>>,
     ) -> DataRoute {
-        let node_storage = NodeStorage::new();
-        let cluster_storage = ClusterStorage::new();
-        let shard_storage = ShardStorage::new();
+        let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
+        let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
+        let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
         return DataRoute {
             engine_cache,
             broker_cache,
@@ -85,11 +88,11 @@ impl DataRoute {
         }
 
         if cluster_type == ClusterType::StorageEngine {
-            let mut sc = self.engine_cache.write().unwrap();
-            if !sc.cluster_list.contains_key(&cluster_name) {
-                sc.add_cluster(cluster_info);
-            }
-            sc.add_node(node.clone());
+            // let mut sc = self.engine_cache.write().unwrap();
+            // if !sc.cluster_list.contains_key(&cluster_name) {
+            //     sc.add_cluster(cluster_info);
+            // }
+            // sc.add_node(node.clone());
             // todo
         }
 
@@ -193,12 +196,12 @@ mod tests {
         let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
         let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
 
-        let mut route = DataRoute::new(engine_cache, broker_cache);
+        let mut route = DataRoute::new(rocksdb_engine.clone(), engine_cache, broker_cache);
         let _ = route.register_node(data);
 
-        let node_storage = NodeStorage::new();
-        let cluster_storage = ClusterStorage::new();
-        let shard_storage = ShardStorage::new();
+        let node_storage = NodeStorage::new(rocksdb_engine.clone());
+        let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
+        let shard_storage = ShardStorage::new(rocksdb_engine.clone());
 
         let cluster = cluster_storage.get_cluster(&cluster_name);
         let cl = cluster.unwrap();

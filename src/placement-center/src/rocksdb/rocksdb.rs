@@ -18,6 +18,7 @@ use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
+
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -253,7 +254,7 @@ impl RocksDBEngine {
 #[cfg(test)]
 mod tests {
 
-    use std::{fmt::format, time::Duration};
+    use std::{fmt::format, sync::Arc, time::Duration};
 
     use crate::rocksdb::keys::key_name_by_last_index;
 
@@ -270,12 +271,13 @@ mod tests {
 
     #[tokio::test]
     async fn multi_rocksdb_instance() {
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.log_path = "/tmp/tmp_log".to_string();
+        let rs_handler = Arc::new(RocksDBEngine::new(&config));
         for i in 1..100 {
-            let mut config = PlacementCenterConfig::default();
-            config.data_path = "/tmp/tmp_test".to_string();
-            config.log_path = "/tmp/tmp_log".to_string();
+            let rs = rs_handler.clone();
             tokio::spawn(async move {
-                let rs = RocksDBEngine::new(&config);
                 let key = format!("name2{}", i);
 
                 let name = format!("lobo{}", i);
@@ -291,6 +293,7 @@ mod tests {
                 assert!(!r.is_none());
                 assert_eq!(r.unwrap().name, name);
                 println!("spawn {}, key:{}", i, key);
+                sleep(Duration::from_secs(5)).await;
             });
         }
 

@@ -25,6 +25,7 @@ impl PeersManager {
         };
         return pm;
     }
+    
     pub async fn start(&mut self) {
         info_meta(&format!(
             "Starts the thread that sends Raft messages to other nodes"

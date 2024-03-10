@@ -1,7 +1,7 @@
-use super::message::{RaftMessage, RaftResponseMesage};
-use super::storage::RaftRocksDBStorage;
+use super::rocksdb_storage::RaftRocksDBStorage;
+use super::storage::{RaftMessage, RaftResponseMesage};
 use crate::cache::placement_cluster::{Node, PlacementClusterCache};
-use crate::raft::route::DataRoute;
+use crate::raft::data_route::DataRoute;
 use crate::rocksdb::raft::RaftMachineStorage;
 use crate::server::peer::PeerMessage;
 use bincode::{deserialize, serialize};
@@ -384,20 +384,23 @@ impl RaftMachine {
 
     pub async fn send_peer_message(&self, id: u64, msg: Vec<u8>) {
         if let Some(node) = self.placement_cluster.read().unwrap().get_node_by_id(id) {
-            match self
-                .peer_message_send
-                .send(PeerMessage {
-                    to: node.addr(),
-                    data: msg,
-                })
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => error_meta(&format!(
-                    "Failed to write Raft Message to send queue with error message: {:?}",
-                    e.to_string()
-                )),
-            }
+            let send = self.peer_message_send.clone();
+            let node_c = node.clone();
+            tokio::spawn(async move {
+                match send
+                    .send(PeerMessage {
+                        to: node_c.addr(),
+                        data: msg,
+                    })
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(e) => error_meta(&format!(
+                        "Failed to write Raft Message to send queue with error message: {:?}",
+                        e.to_string()
+                    )),
+                }
+            });
         } else {
             error_meta(&format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id));
         }

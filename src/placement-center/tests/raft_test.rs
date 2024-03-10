@@ -42,7 +42,7 @@ mod tests {
         let (stop_send, _) = broadcast::channel(10);
         let mut mt = PlacementCenter::new();
 
-        mt.start(stop_send, false);
+        mt.start(stop_send);
     }
 
     #[test]
@@ -77,7 +77,7 @@ mod tests {
         let (stop_send, _) = broadcast::channel(10);
         let mut mt = PlacementCenter::new();
 
-        mt.start(stop_send, false);
+        mt.start(stop_send);
     }
 
     #[test]
@@ -111,7 +111,7 @@ mod tests {
         let (stop_send, _) = broadcast::channel(10);
         let mut mt = PlacementCenter::new();
 
-        mt.start(stop_send, false);
+        mt.start(stop_send);
     }
 
     #[test]
