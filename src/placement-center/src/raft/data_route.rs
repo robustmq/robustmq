@@ -82,6 +82,7 @@ impl DataRoute {
         node.node_id = req.node_id;
         node.node_ip = req.node_ip;
         node.node_port = req.node_port;
+        node.cluster_name = cluster_name.clone();
 
         if cluster_type == ClusterType::BrokerServer {
             // todo

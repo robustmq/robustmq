@@ -50,7 +50,7 @@ impl StorageEngineController {
     pub fn start_node_heartbeat_check(&self) {
         let stop_recv = self.stop_send.subscribe();
         let mut heartbeat = StorageEngineNodeHeartBeat::new(
-            100000,
+            5000,
             1000,
             self.engine_cache.clone(),
             self.placement_center_storage.clone(),
@@ -59,6 +59,5 @@ impl StorageEngineController {
         tokio::spawn(async move {
             heartbeat.start().await;
         });
-        info_meta("Storage Engine ßCluster node heartbeat detection thread started successfully");
     }
 }

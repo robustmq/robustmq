@@ -1,5 +1,5 @@
 use crate::{cache::engine_cluster::EngineClusterCache, raft::storage::PlacementCenterStorage};
-use common::log::error_meta;
+use common::log::{error_meta, info_meta};
 use protocol::placement_center::placement::{ClusterType, UnRegisterNodeRequest};
 use std::{
     sync::{Arc, RwLock},
@@ -34,6 +34,7 @@ impl StorageEngineNodeHeartBeat {
     }
 
     pub async fn start(&mut self) {
+        info_meta("Storage Engine Cluster node heartbeat detection thread started successfully");
         loop {
             match self.stop_recv.try_recv() {
                 Ok(val) => {
@@ -62,6 +63,7 @@ impl StorageEngineNodeHeartBeat {
                 if let Some(prev_time) = node_heartbeat.get(&node_id) {
                     // Detects whether the heartbeat rate of a node exceeds the unreported rate.
                     // If yes, remove the node
+                    println!("{},{}", time - *prev_time, self.timeout_ms);
                     if time - *prev_time >= self.timeout_ms {
                         let cluster_name = node.cluster_name.clone();
                         if let Some(_) = cluster_list.get(&cluster_name) {
@@ -72,7 +74,12 @@ impl StorageEngineNodeHeartBeat {
                             let pcs = self.placement_center_storage.clone();
                             tokio::spawn(async move {
                                 match pcs.delete_node(req).await {
-                                    Ok(_) => {}
+                                    Ok(_) => {
+                                        info_meta(
+                                            &format!("The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
+                                            node_id,
+                                            node.node_ip));
+                                    }
                                     Err(e) => {
                                         error_meta(&e.to_string());
                                     }
