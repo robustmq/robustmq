@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-use std::{collections::HashMap, future::Future, sync::Arc};
+use std::{collections::HashMap, future::Future};
 
 use common::errors::RobustMQError;
 use mobc::Pool;
 use placement_center::PlacementCenterConnectionManager;
-use protocol::placement_center::placement::{
-    placement_center_service_client::PlacementCenterServiceClient, CommonReply,
-};
+use protocol::placement_center::placement::placement_center_service_client::PlacementCenterServiceClient;
 use tonic::transport::Channel;
 pub mod broker_server;
 pub mod placement_center;

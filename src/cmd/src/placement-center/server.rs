@@ -37,4 +37,5 @@ fn main() {
     let (stop_send, _) = broadcast::channel(2);
     let mut pc = PlacementCenter::new();
     pc.start(stop_send);
+    println!("{}",333);
 }

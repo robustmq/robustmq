@@ -30,7 +30,6 @@ use raft::storage::{PlacementCenterStorage, RaftMessage};
 use rocksdb::raft::RaftMachineStorage;
 use rocksdb::rocksdb::RocksDBEngine;
 use server::grpc::GrpcService;
-use server::heartbeat::Heartbeat;
 use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::signal;
@@ -45,8 +44,8 @@ mod rocksdb;
 mod server;
 
 pub struct PlacementCenter {
-    server_runtime: Runtime,
-    daemon_runtime: Runtime,
+    server_runtime: Arc<Runtime>,
+    daemon_runtime: Arc<Runtime>,
     // Cache metadata information for the Storage Engine cluster
     engine_cache: Arc<RwLock<EngineClusterCache>>,
     // Cache metadata information for the Broker Server cluster
@@ -64,8 +63,14 @@ pub struct PlacementCenter {
 impl PlacementCenter {
     pub fn new() -> PlacementCenter {
         let config = placement_center_conf();
-        let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
-        let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+        let server_runtime = Arc::new(create_runtime(
+            "server-runtime",
+            config.runtime_work_threads,
+        ));
+        let daemon_runtime = Arc::new(create_runtime(
+            "daemon-runtime",
+            config.runtime_work_threads,
+        ));
 
         let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
         let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
@@ -98,17 +103,14 @@ impl PlacementCenter {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
         let placement_center_storage = Arc::new(PlacementCenterStorage::new(raft_message_send));
-        let stop_recv = stop_send.subscribe();
 
         self.start_broker_controller();
 
-        self.start_engine_controller();
+        self.start_engine_controller(placement_center_storage.clone(), stop_send.clone());
 
         self.start_peers_manager(peer_message_recv);
 
-        self.start_raft_machine(peer_message_send, raft_message_recv, stop_recv);
-
-        self.start_heartbeat_check(placement_center_storage.clone());
+        self.start_raft_machine(peer_message_send, raft_message_recv, stop_send.subscribe());
 
         self.start_http_server();
 
@@ -153,10 +155,17 @@ impl PlacementCenter {
     }
 
     // Start Storage Engine Cluster Controller
-    pub fn start_engine_controller(&self) {
-        let engine_cache = self.engine_cache.clone();
+    pub fn start_engine_controller(
+        &self,
+        placement_center_storage: Arc<PlacementCenterStorage>,
+        stop_send: broadcast::Sender<bool>,
+    ) {
+        let ctrl = StorageEngineController::new(
+            self.engine_cache.clone(),
+            placement_center_storage,
+            stop_send,
+        );
         self.daemon_runtime.spawn(async move {
-            let ctrl = StorageEngineController::new(engine_cache);
             ctrl.start().await;
         });
         info_meta("Storage Engine Controller started successfully");
@@ -170,22 +179,6 @@ impl PlacementCenter {
             ctrl.start().await;
         });
         info_meta("Broker Server Controller started successfully");
-    }
-
-    // Start Cluster hearbeat check thread
-    pub fn start_heartbeat_check(&self, placement_center_storage: Arc<PlacementCenterStorage>) {
-        let heartbeat = Heartbeat::new(
-            100000,
-            1000,
-            self.engine_cache.clone(),
-            self.broker_cache.clone(),
-            placement_center_storage,
-        );
-        self.daemon_runtime.spawn(async move {
-            heartbeat.start_heartbeat_check().await;
-        });
-
-        info_meta("Cluster node heartbeat detection thread started successfully");
     }
 
     // Start Raft Status Machine
@@ -226,6 +219,7 @@ impl PlacementCenter {
 
     // Wait Stop Signal
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+        // Wait for the stop signal
         self.daemon_runtime.block_on(async move {
             loop {
                 signal::ctrl_c().await.expect("failed to listen for event");

@@ -88,11 +88,11 @@ impl DataRoute {
         }
 
         if cluster_type == ClusterType::StorageEngine {
-            let mut sc = self.engine_cache.write().unwrap();
-            if !sc.cluster_list.contains_key(&cluster_name) {
-                sc.add_cluster(cluster_info);
-            }
-            sc.add_node(node.clone());
+            // let mut sc = self.engine_cache.write().unwrap();
+            // if !sc.cluster_list.contains_key(&cluster_name) {
+            //     sc.add_cluster(cluster_info);
+            // }
+            // sc.add_node(node.clone());
             // todo
         }
 

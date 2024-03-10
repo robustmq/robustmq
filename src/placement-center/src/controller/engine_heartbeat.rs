@@ -1,3 +1,4 @@
+use crate::{cache::engine_cluster::EngineClusterCache, raft::storage::PlacementCenterStorage};
 use common::log::error_meta;
 use protocol::placement_center::placement::{ClusterType, UnRegisterNodeRequest};
 use std::{
@@ -5,51 +6,55 @@ use std::{
     thread::sleep,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use tokio::sync::broadcast;
 
-use crate::{
-    cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
-    raft::storage::PlacementCenterStorage,
-};
-
-#[derive(Clone)]
-pub struct Heartbeat {
+pub struct StorageEngineNodeHeartBeat {
     timeout_ms: u128,
-    check_time_ms: u128,
+    check_time_ms: u64,
     engine_cache: Arc<RwLock<EngineClusterCache>>,
-    broker_cluster: Arc<RwLock<BrokerClusterCache>>,
     placement_center_storage: Arc<PlacementCenterStorage>,
+    stop_recv: broadcast::Receiver<bool>,
 }
 
-impl Heartbeat {
+impl StorageEngineNodeHeartBeat {
     pub fn new(
         timeout_ms: u128,
-        check_time_ms: u128,
+        check_time_ms: u64,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
-        broker_cluster: Arc<RwLock<BrokerClusterCache>>,
         placement_center_storage: Arc<PlacementCenterStorage>,
+        stop_recv: broadcast::Receiver<bool>,
     ) -> Self {
-        return Heartbeat {
+        return StorageEngineNodeHeartBeat {
             timeout_ms,
             check_time_ms,
             engine_cache,
-            broker_cluster,
             placement_center_storage,
+            stop_recv,
         };
     }
 
-    pub async fn start_heartbeat_check(&self) {
+    pub async fn start(&mut self) {
         loop {
+            match self.stop_recv.try_recv() {
+                Ok(val) => {
+                    if val {
+                        break;
+                    }
+                }
+                Err(_) => {}
+            }
+
             let time = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis();
 
-            // storage engine cluster
             let ec = self.engine_cache.read().unwrap();
             for (node_id, node) in &ec.node_list {
                 if let Some(prev_time) = ec.node_heartbeat.get(node_id) {
+                    // Detects whether the heartbeat rate of a node exceeds the unreported rate.
+                    // If yes, remove the node
                     if time - *prev_time >= self.timeout_ms {
-                        // remove node
                         let cluster_name = node.cluster_name.clone();
                         if let Some(_) = ec.cluster_list.get(&cluster_name) {
                             let mut req = UnRegisterNodeRequest::default();
@@ -73,9 +78,7 @@ impl Heartbeat {
                 }
             }
 
-            // broker server cluster
-
-            sleep(Duration::from_millis(100));
+            sleep(Duration::from_millis(self.check_time_ms));
         }
     }
 }
