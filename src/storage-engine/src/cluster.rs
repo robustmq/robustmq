@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 use clients::{placement_center::{heartbeat, register_node, unregister_node}, ClientPool};
 use common::{
     config::storage_engine::StorageEngineConfig,
-    log::{debug, error, info_meta},
+    log::{debug, error, info, info_meta},
 };
 use protocol::placement_center::placement::{
     ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
@@ -73,7 +73,7 @@ pub async fn report_heartbeat(client_poll: Arc<Mutex<ClientPool>>, config: Stora
         for addr in config.placement_center.clone() {
             match heartbeat(client_poll.clone(), addr, req.clone()).await {
                 Ok(_) => {
-                    debug(&format!(
+                    info(&format!(
                         "Node {} successfully reports the heartbeat communication",
                         config.node_id
                     ));
