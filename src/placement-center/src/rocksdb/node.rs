@@ -10,10 +10,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeInfo {
+    pub node_uid: String,
     pub node_id: u64,
     pub node_ip: String,
     pub node_port: u32,
     pub cluster_name: String,
+    pub create_time: u128,
 }
 
 pub struct NodeStorage {
@@ -54,23 +56,8 @@ impl NodeStorage {
         return result;
     }
 
-    // save node info
     pub fn save_node(&self, cluster_name: String, cluster_type: String, node: NodeInfo) {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-
-        // save or update cluster info
-        let mut ci = ClusterInfo::default();
-        let mut cluster_info = self.cluster_storage.get_cluster(&cluster_name);
-        if cluster_info.is_none() {
-            ci.cluster_name = cluster_name.clone();
-        } else {
-            ci = cluster_info.unwrap();
-        }
-        ci.nodes.push(node.node_id);
-        ci.nodes.dedup();
-        self.cluster_storage.save_cluster(ci);
-
-        // save node info
         let node_key = key_node(&cluster_name, node.node_id);
         match self.rocksdb_engine_handler.write(cf, &node_key, &node) {
             Ok(_) => {}
@@ -80,24 +67,8 @@ impl NodeStorage {
         }
     }
 
-    pub fn remove_node(&self, cluster_name: String, node_id: u64) {
+    pub fn delete_node(&self, cluster_name: &String, node_id: u64) {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-
-        // save or update cluster info
-        let mut cluster_info = self.cluster_storage.get_cluster(&cluster_name);
-        if !cluster_info.is_none() {
-            let mut ci = cluster_info.unwrap();
-            let mut nodes = Vec::new();
-            for nid in ci.nodes {
-                if nid != node_id {
-                    nodes.push(nid);
-                }
-            }
-            ci.nodes = nodes;
-            self.cluster_storage.save_cluster(ci);
-        }
-
-        // delete node info
         let node_key = key_node(&cluster_name, node_id);
         match self.rocksdb_engine_handler.delete(cf, &node_key) {
             Ok(_) => {}
@@ -107,7 +78,6 @@ impl NodeStorage {
         }
     }
 
-    // get node info
     pub fn get_node(&self, cluster_name: String, node_id: u64) -> Option<NodeInfo> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let cluster_key = key_node(&cluster_name, node_id);

@@ -1,4 +1,10 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::Path,
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use uuid::Uuid;
 
 pub fn create_fold(fold: String) {
     if !Path::new(&fold).exists() {
@@ -6,12 +12,14 @@ pub fn create_fold(fold: String) {
     }
 }
 
-pub fn handle_running(threads: Vec<Result<std::thread::JoinHandle<()>, std::io::Error>>) {
-    for th in threads {
-        th.unwrap().join().unwrap();
-    }
+pub fn now_mills() -> u128 {
+    return SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
 }
 
-pub fn unique_id() -> String{
-    return "".to_string()
+pub fn unique_id() -> String {
+    let uuid = Uuid::new_v4();
+    return uuid.to_string();
 }
