@@ -59,11 +59,11 @@ impl StorageEngineNodeHeartBeat {
             // To avoid occupying the read lock of the Cache for a long time, manually release the read lock after data is read
             drop(ec);
 
-            for (node_id, node) in node_list {
+            for (_, node) in node_list {
+                let node_id = node.node_id;
                 if let Some(prev_time) = node_heartbeat.get(&node_id) {
                     // Detects whether the heartbeat rate of a node exceeds the unreported rate.
                     // If yes, remove the node
-                    println!("{},{}", time - *prev_time, self.timeout_ms);
                     if time - *prev_time >= self.timeout_ms {
                         let cluster_name = node.cluster_name.clone();
                         if let Some(_) = cluster_list.get(&cluster_name) {

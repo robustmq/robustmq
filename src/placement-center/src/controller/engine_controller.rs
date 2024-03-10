@@ -50,7 +50,7 @@ impl StorageEngineController {
     pub fn start_node_heartbeat_check(&self) {
         let stop_recv = self.stop_send.subscribe();
         let mut heartbeat = StorageEngineNodeHeartBeat::new(
-            5000,
+            30000,
             1000,
             self.engine_cache.clone(),
             self.placement_center_storage.clone(),

@@ -10,10 +10,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeInfo {
+    pub node_uid: String,
     pub node_id: u64,
     pub node_ip: String,
     pub node_port: u32,
     pub cluster_name: String,
+    pub create_time: u128,
 }
 
 pub struct NodeStorage {

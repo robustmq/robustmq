@@ -2,7 +2,7 @@
 mod tests {
     use protocol::placement_center::placement::{
         placement_center_service_client::PlacementCenterServiceClient, ClusterType,
-        HeartbeatRequest, RegisterNodeRequest,
+        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 
     #[tokio::test]
@@ -38,6 +38,24 @@ mod tests {
         request.node_id = node_id();
         let response = client
             .heartbeat(tonic::Request::new(request))
+            .await
+            .unwrap();
+
+        println!("response={:?}", response);
+    }
+
+    #[tokio::test]
+    async fn test_unregister_node() {
+        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+            .await
+            .unwrap();
+
+        let mut request = UnRegisterNodeRequest::default();
+        request.cluster_type = cluster_type();
+        request.cluster_name = cluster_name();
+        request.node_id = node_id();
+        let response = client
+            .un_register_node(tonic::Request::new(request))
             .await
             .unwrap();
 
