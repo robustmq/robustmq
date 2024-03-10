@@ -163,12 +163,12 @@ impl PlacementCenter {
         let ctrl = StorageEngineController::new(
             self.engine_cache.clone(),
             placement_center_storage,
+            self.rocksdb_engine_handler.clone(),
             stop_send,
         );
         self.daemon_runtime.spawn(async move {
             ctrl.start().await;
         });
-        info_meta("Storage Engine Controller started successfully");
     }
 
     // Start Broker Server Cluster Controller

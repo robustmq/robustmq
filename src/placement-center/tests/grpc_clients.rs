@@ -66,15 +66,15 @@ mod tests {
         return ClusterType::StorageEngine.into();
     }
     fn cluster_name() -> String {
-        return "tokio-test".to_string();
+        return "tokio-test2".to_string();
     }
 
     fn node_id() -> u64 {
-        return 2;
+        return 3;
     }
 
     fn node_ip() -> String {
-        return "127.0.0.1".to_string();
+        return "127.0.0.3".to_string();
     }
 
     fn node_port() -> u32 {

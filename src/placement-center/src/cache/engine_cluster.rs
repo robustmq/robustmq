@@ -27,7 +27,9 @@ impl EngineClusterCache {
             return;
         }
         let mut cluster = self.cluster_list.remove(&cluster_name).unwrap();
-        cluster.nodes.push(node_id);
+        if !cluster.nodes.contains(&node_id) {
+            cluster.nodes.push(node_id);
+        }
         self.add_cluster(cluster);
     }
 
@@ -50,6 +52,7 @@ impl EngineClusterCache {
             self.node_key(node.cluster_name.clone(), node.node_id),
             node.clone(),
         );
+
         self.heart_time(node.node_id, now_mills());
     }
 

@@ -75,7 +75,7 @@ impl DataRoute {
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
 
-        let mut node = NodeInfo {
+        let node = NodeInfo {
             node_uid: unique_id(),
             node_id: req.node_id,
             node_ip: req.node_ip,
@@ -90,7 +90,7 @@ impl DataRoute {
 
         // Update the information in the StorageEngine cache
         if cluster_type == ClusterType::StorageEngine {
-            // update cluster cache
+            // update cluster
             let mut sc = self.engine_cache.write().unwrap();
             if !sc.cluster_list.contains_key(&cluster_name) {
                 let cluster_info = ClusterInfo {
@@ -100,18 +100,24 @@ impl DataRoute {
                     nodes: vec![req.node_id],
                     create_time: now_mills(),
                 };
-                sc.add_cluster(cluster_info);
+                sc.add_cluster(cluster_info.clone());
+                self.cluster_storage.save_cluster(cluster_info);
+                self.cluster_storage.save_all_cluster(cluster_name.clone());
             } else {
                 sc.add_cluster_node(cluster_name.clone(), node.node_id);
+                self.cluster_storage
+                    .add_cluster_node(&cluster_name, node.node_id);
             }
 
-            // update node cache
+            // update node
             sc.add_node(node.clone());
         }
 
-        // Persisting storage node data
-        self.node_storage
-            .save_node(cluster_name, cluster_type.as_str_name().to_string(), node);
+        self.node_storage.save_node(
+            cluster_name.clone(),
+            cluster_type.as_str_name().to_string(),
+            node,
+        );
 
         return Ok(());
     }
@@ -132,11 +138,12 @@ impl DataRoute {
         if cluster_type.eq(&ClusterType::StorageEngine) {
             let mut sc = self.engine_cache.write().unwrap();
             sc.remove_cluster_node(cluster_name.clone(), node_id);
-            sc.remove_node(cluster_name.clone(), req.node_id);
+            sc.remove_node(cluster_name.clone(), node_id);
         }
 
-        self.node_storage.remove_node(cluster_name, req.node_id);
-
+        self.node_storage.delete_node(&cluster_name, node_id);
+        self.cluster_storage
+            .remove_cluster_node(&cluster_name, node_id);
         return Ok(());
     }
 
@@ -230,7 +237,7 @@ mod tests {
         assert_eq!(nd.node_ip, node_ip);
         assert_eq!(nd.node_port, node_port);
 
-        let _ = node_storage.remove_node(cluster_name.clone(), node_id);
+        let _ = node_storage.delete_node(&cluster_name, node_id);
         let res = node_storage.get_node(cluster_name.clone(), node_id);
         assert!(res.is_none());
 
