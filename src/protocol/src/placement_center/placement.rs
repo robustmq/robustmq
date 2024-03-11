@@ -99,7 +99,22 @@ pub struct DeleteShardRequest {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SegmentInfo {}
+pub struct CreateSegmentRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub shard_name: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteSegmentRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub shard_name: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "3")]
+    pub segment_seq: u32,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReportMonitorRequest {
@@ -358,6 +373,56 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        ///
+        pub async fn create_segment(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateSegmentRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/CreateSegment",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "CreateSegment"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn delete_segment(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteSegmentRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/DeleteSegment",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "DeleteSegment"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
         /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
         pub async fn heartbeat(
             &mut self,
@@ -502,6 +567,16 @@ pub mod placement_center_service_server {
         async fn delete_shard(
             &self,
             request: tonic::Request<super::DeleteShardRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn create_segment(
+            &self,
+            request: tonic::Request<super::CreateSegmentRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn delete_segment(
+            &self,
+            request: tonic::Request<super::DeleteSegmentRequest>,
         ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
         /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
         async fn heartbeat(
@@ -835,6 +910,106 @@ pub mod placement_center_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = DeleteShardSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/CreateSegment" => {
+                    #[allow(non_camel_case_types)]
+                    struct CreateSegmentSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::CreateSegmentRequest>
+                    for CreateSegmentSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateSegmentRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::create_segment(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = CreateSegmentSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/DeleteSegment" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteSegmentSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::DeleteSegmentRequest>
+                    for DeleteSegmentSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteSegmentRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::delete_segment(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DeleteSegmentSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

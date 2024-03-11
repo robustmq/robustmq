@@ -38,6 +38,14 @@ pub fn key_shard(cluster_name: &String, shard_name: String) -> String {
     return format!("shard_{}_{}", cluster_name, shard_name);
 }
 
+pub fn key_segment(cluster_name: &String, shard_name: &String, segement_seq: u64) -> String {
+    return format!("segment_{}_{}_{}", cluster_name, shard_name, segement_seq);
+}
+
 pub fn key_all_cluster() -> String {
     return "all_cluster".to_string();
+}
+
+pub fn key_all_shard(cluster_name: &String) -> String {
+    return format!("all_shard_{}", cluster_name);
 }

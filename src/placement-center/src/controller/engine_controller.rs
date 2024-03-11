@@ -3,17 +3,11 @@ use crate::{
     cache::engine_cluster::EngineClusterCache,
     raft::storage::PlacementCenterStorage,
     rocksdb::{
-        cluster::{ClusterInfo, ClusterStorage},
-        node::{NodeInfo, NodeStorage},
-        rocksdb::RocksDBEngine,
-        shard::ShardInfo,
+        cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
     },
 };
 use common::{config::placement_center::placement_center_conf, log::info_meta};
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 
 pub struct StorageEngineController {
@@ -51,6 +45,8 @@ impl StorageEngineController {
 
         let mut engine = self.engine_cache.write().unwrap();
         let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        let shard_handler = ShardStorage::new(self.rocksdb_engine_handler.clone());
+
         for cluster in cluster_list {
             let cluster_name = cluster.cluster_name.clone();
 
@@ -60,12 +56,17 @@ impl StorageEngineController {
             // load node cache
             let node_list = node_handler.node_list(cluster_name.clone());
             for node in node_list {
-                engine.add_node(node.clone());
+                engine.add_node(node);
             }
 
             // load shard cache
+            let shard_list = shard_handler.shard_list(cluster_name.clone());
+            for shard in shard_list {
+                engine.add_shard(shard);
+            }
 
             // load segment cache
+            
         }
     }
 

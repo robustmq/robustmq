@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
     use protocol::placement_center::placement::{
-        placement_center_service_client::PlacementCenterServiceClient, ClusterType,
-        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+        placement_center_service_client::PlacementCenterServiceClient, ClusterType, CreateShardRequest, DeleteShardRequest, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest
     };
 
     #[tokio::test]
@@ -60,6 +59,49 @@ mod tests {
             .unwrap();
 
         println!("response={:?}", response);
+    }
+
+    #[tokio::test]
+    async fn test_create_shard() {
+        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+            .await
+            .unwrap();
+
+        let mut request = CreateShardRequest::default();
+        request.cluster_name = cluster_name();
+        request.shard_name = shard_name();
+        request.replica = shard_replica();
+        let response = client
+            .create_shard(tonic::Request::new(request))
+            .await
+            .unwrap();
+
+        println!("response={:?}", response);
+    }
+
+    #[tokio::test]
+    async fn test_delete_shard() {
+        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+            .await
+            .unwrap();
+
+        let mut request = DeleteShardRequest::default();
+        request.cluster_name = cluster_name();
+        request.shard_name = shard_name();
+        let response = client
+            .delete_shard(tonic::Request::new(request))
+            .await
+            .unwrap();
+
+        println!("response={:?}", response);
+    }
+
+    fn shard_name() -> String {
+        return "test1".to_string();
+    }
+
+    fn shard_replica() -> u32 {
+        return 1;
     }
 
     fn cluster_type() -> i32 {

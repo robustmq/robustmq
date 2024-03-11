@@ -15,7 +15,6 @@
  */
 
 use crate::cache::placement_cluster::Node;
-
 use super::{
     response::success_response,
     server::HttpServerState,
@@ -78,15 +77,6 @@ pub async fn placement_center(State(state): State<HttpServerState>) -> String {
     };
 
     return success_response(resp);
-}
-
-pub async fn storage_engine(State(state): State<HttpServerState>) -> String {
-    let data = state.engine_cache.read().unwrap();
-    return success_response(data.clone());
-}
-
-pub async fn test(State(state): State<HttpServerState>) -> String {
-    return success_response("");
 }
 
 pub async fn metrics() -> String {

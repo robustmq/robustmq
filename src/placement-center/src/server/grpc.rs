@@ -16,15 +16,18 @@
 use crate::cache::engine_cluster::EngineClusterCache;
 use crate::cache::placement_cluster::PlacementClusterCache;
 use crate::raft::storage::PlacementCenterStorage;
-use clients::placement_center::{create_shard, delete_shard, register_node, unregister_node};
+use clients::placement_center::{
+    create_segment, create_shard, delete_segment, delete_shard, register_node, unregister_node,
+};
 use clients::ClientPool;
 use common::errors::RobustMQError;
 use prost::Message;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement::{
-    ClusterType, CommonReply, CreateShardRequest, DeleteShardRequest, GetShardReply,
-    GetShardRequest, HeartbeatRequest, RegisterNodeRequest, ReportMonitorRequest,
-    SendRaftConfChangeReply, SendRaftConfChangeRequest, UnRegisterNodeRequest,
+    ClusterType, CommonReply, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
+    DeleteShardRequest, GetShardReply, GetShardRequest, HeartbeatRequest, RegisterNodeRequest,
+    ReportMonitorRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+    UnRegisterNodeRequest,
 };
 use protocol::placement_center::placement::{SendRaftMessageReply, SendRaftMessageRequest};
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
@@ -226,6 +229,54 @@ impl PlacementCenterService for GrpcService {
         let req = request.into_inner();
 
         return Ok(Response::new(CommonReply::default()));
+    }
+
+    async fn create_segment(
+        &self,
+        request: Request<CreateSegmentRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        if self.rewrite_leader() {
+            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
+            match create_segment(self.client_poll.clone(), leader_addr, req).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
+
+        // Params validate
+
+        // Raft state machine is used to store Node data
+        match self.placement_center_storage.create_segment(req).await {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_segment(
+        &self,
+        request: Request<DeleteSegmentRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        if self.rewrite_leader() {
+            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
+            match delete_segment(self.client_poll.clone(), leader_addr, req).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
+
+        // Params validate
+
+        // Raft state machine is used to store Node data
+        match self.placement_center_storage.delete_segment(req).await {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn send_raft_message(
