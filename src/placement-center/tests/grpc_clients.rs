@@ -70,11 +70,11 @@ mod tests {
     }
 
     fn node_id() -> u64 {
-        return 3;
+        return 4;
     }
 
     fn node_ip() -> String {
-        return "127.0.0.3".to_string();
+        return "127.0.0.4".to_string();
     }
 
     fn node_port() -> u32 {

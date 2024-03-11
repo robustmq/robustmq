@@ -122,7 +122,8 @@ impl DataRoute {
         return Ok(());
     }
 
-    // If a node is removed from the cluster, the client may leave the cluster voluntarily or the node is removed because the heartbeat detection fails.
+    // If a node is removed from the cluster,
+    // the client may leave the cluster voluntarily or the node is removed because the heartbeat detection fails.
     pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))

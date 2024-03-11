@@ -6,11 +6,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct ShardInfo {
+    pub shard_uid: String,
+    pub cluster_name: String,
     pub shard_id: String,
     pub shard_name: String,
     pub replica: u32,
     pub replicas: Vec<u64>,
     pub status: ShardStatus,
+    pub create_time: u128,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
