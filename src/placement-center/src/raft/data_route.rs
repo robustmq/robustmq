@@ -247,7 +247,21 @@ impl DataRoute {
         let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
+        let cluster_name = req.cluster_name;
+        let shard_name = req.shard_name;
+        let segment_seq = req.segment_seq;
 
+        // Updating cache information
+        let mut ec = self.engine_cache.write().unwrap();
+        ec.remove_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+
+        // Update persistence information
+        self.segment_storage
+            .delete_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+        self.shard_storage
+            .delete_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+
+        // todo call storage engine delete segment
         return Ok(());
     }
 

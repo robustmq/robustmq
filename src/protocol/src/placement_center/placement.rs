@@ -112,8 +112,8 @@ pub struct DeleteSegmentRequest {
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub shard_name: ::prost::alloc::string::String,
-    #[prost(uint32, tag = "3")]
-    pub segment_seq: u32,
+    #[prost(uint64, tag = "3")]
+    pub segment_seq: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

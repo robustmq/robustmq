@@ -113,6 +113,21 @@ impl EngineClusterCache {
         }
     }
 
+    pub fn remove_segment(&mut self, cluster_name: String, shard_name: String, segment_seq: u64) {
+        let key = self.segment_key(cluster_name.clone(), shard_name.clone(), segment_seq);
+        self.segment_list.remove(&key);
+
+        if let Some(mut shard) = self.get_shard(cluster_name.clone(), shard_name.clone()) {
+            match shard.segments.binary_search(&segment_seq) {
+                Ok(index) => {
+                    shard.segments.remove(index);
+                    self.add_shard(shard);
+                }
+                Err(_) => {}
+            }
+        }
+    }
+
     pub fn heart_time(&mut self, node_id: u64, time: u128) {
         self.node_heartbeat.insert(node_id, time);
     }

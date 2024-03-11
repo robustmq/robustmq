@@ -3,7 +3,8 @@ use crate::{
     cache::engine_cluster::EngineClusterCache,
     raft::storage::PlacementCenterStorage,
     rocksdb::{
-        cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
+        cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine,
+        segment::SegmentStorage, shard::ShardStorage,
     },
 };
 use common::{config::placement_center::placement_center_conf, log::info_meta};
@@ -62,11 +63,13 @@ impl StorageEngineController {
             // load shard cache
             let shard_list = shard_handler.shard_list(cluster_name.clone());
             for shard in shard_list {
-                engine.add_shard(shard);
+                engine.add_shard(shard.clone());
+                let segment_list =
+                    shard_handler.segment_list(cluster_name.clone(), shard.shard_name);
+                for segment in segment_list {
+                    engine.add_segment(segment);
+                }
             }
-
-            // load segment cache
-            
         }
     }
 
