@@ -1,10 +1,12 @@
+use super::storage::{StorageData, StorageDataType};
 use crate::{
     cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
     rocksdb::{
-        cluster::{ClusterInfo, ClusterStorage},
+        cluster::{self, ClusterInfo, ClusterStorage},
         node::{NodeInfo, NodeStorage},
         rocksdb::RocksDBEngine,
-        shard::{ShardInfo, ShardStatus, ShardStorage},
+        segment::{SegmentInfo, SegmentStatus, SegmentStorage},
+        shard::{ShardInfo, ShardStorage},
     },
 };
 use bincode::deserialize;
@@ -14,12 +16,11 @@ use common::{
 };
 use prost::Message as _;
 use protocol::placement_center::placement::{
-    ClusterType, CreateShardRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+    ClusterType, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
+    RegisterNodeRequest, UnRegisterNodeRequest,
 };
 use std::sync::{Arc, RwLock};
 use tonic::Status;
-
-use super::storage::{StorageData, StorageDataType};
 
 pub struct DataRoute {
     engine_cache: Arc<RwLock<EngineClusterCache>>,
@@ -27,6 +28,7 @@ pub struct DataRoute {
     node_storage: NodeStorage,
     cluster_storage: ClusterStorage,
     shard_storage: ShardStorage,
+    segment_storage: SegmentStorage,
 }
 
 impl DataRoute {
@@ -38,12 +40,14 @@ impl DataRoute {
         let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
         let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
+        let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
         return DataRoute {
             engine_cache,
             broker_cache,
             node_storage,
             cluster_storage,
             shard_storage,
+            segment_storage,
         };
     }
 
@@ -61,7 +65,14 @@ impl DataRoute {
                 return self.create_shard(storage_data.value);
             }
             StorageDataType::DeleteShard => {
-                return self.create_shard(storage_data.value);
+                return self.delete_shard(storage_data.value);
+            }
+
+            StorageDataType::CreateSegment => {
+                return self.create_segment(storage_data.value);
+            }
+            StorageDataType::DeleteSegment => {
+                return self.delete_segment(storage_data.value);
             }
         }
     }
@@ -122,7 +133,8 @@ impl DataRoute {
         return Ok(());
     }
 
-    // If a node is removed from the cluster, the client may leave the cluster voluntarily or the node is removed because the heartbeat detection fails.
+    // If a node is removed from the cluster,
+    // the client may leave the cluster voluntarily or the node is removed because the heartbeat detection fails.
     pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
@@ -152,32 +164,94 @@ impl DataRoute {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
 
-        // save shard info
-        let mut shard_info = ShardInfo::default();
-        shard_info.shard_id = unique_id();
-        shard_info.shard_name = req.shard_name;
-        shard_info.replica = req.replica;
-        shard_info.replicas = Vec::new(); //todo Computing replica distribution
-        shard_info.status = ShardStatus::Idle;
-        self.shard_storage
-            .save_shard(req.cluster_name, shard_info.clone());
+        let cluster_name = req.cluster_name;
 
+        let shard_info = ShardInfo {
+            shard_uid: unique_id(),
+            cluster_name: cluster_name.clone(),
+            shard_name: req.shard_name.clone(),
+            replica: req.replica,
+            last_segment_seq: 0,
+            segments: Vec::new(),
+            create_time: now_mills(),
+        };
+
+        // persist
+        self.shard_storage.save_shard(shard_info.clone());
+        self.shard_storage
+            .save_all_shard(cluster_name.clone(), shard_info.shard_name.clone());
+
+        // upate cache
         let mut sc = self.engine_cache.write().unwrap();
         sc.add_shard(shard_info);
-        // create next segment
 
+        // Create segments according to the built-in pre-created segment strategy.
+        // Between 0 and N segments may be created.
+        self.pre_create_segment().unwrap();
+
+        // todo maybe update storage engine node cache
         return Ok(());
     }
 
     pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        // delete all segment
-
-        // delete shard info
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
+        let cluster_name = req.cluster_name.clone();
+        let shard_name = req.shard_name.clone();
+        // todo delete all segment
+
+        // delete shard info
         self.shard_storage
-            .delete_shard(req.cluster_name, req.shard_name);
+            .delete_shard(cluster_name.clone(), shard_name.clone());
+        let mut sc = self.engine_cache.write().unwrap();
+        sc.remove_shard(cluster_name.clone(), shard_name.clone());
+        return Ok(());
+    }
+
+    pub fn create_segment(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req: CreateSegmentRequest = CreateSegmentRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+
+        let cluster_name = req.cluster_name;
+        let shard_name = req.shard_name;
+
+        let ec = self.engine_cache.read().unwrap();
+        let segment_seq = ec.next_segment_seq(&cluster_name, &shard_name);
+        drop(ec);
+
+        let segment_info = SegmentInfo {
+            cluster_name: cluster_name.clone(),
+            shard_name: shard_name.clone(),
+            replicas: Vec::new(),
+            replica_leader: 0,
+            segment_seq: segment_seq,
+            status: SegmentStatus::Idle,
+        };
+
+        // Updating cache information
+        let mut ec = self.engine_cache.write().unwrap();
+        ec.add_segment(segment_info.clone());
+
+        // Update persistence information
+        self.segment_storage.save_segment(segment_info);
+        self.shard_storage
+            .add_segment(cluster_name, shard_name, segment_seq);
+
+        // todo call storage engine create segment
+        return Ok(());
+    }
+
+    pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+
+        return Ok(());
+    }
+
+    pub fn pre_create_segment(&self) -> Result<(), RobustMQError> {
         return Ok(());
     }
 }

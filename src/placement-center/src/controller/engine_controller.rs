@@ -3,17 +3,11 @@ use crate::{
     cache::engine_cluster::EngineClusterCache,
     raft::storage::PlacementCenterStorage,
     rocksdb::{
-        cluster::{ClusterInfo, ClusterStorage},
-        node::{NodeInfo, NodeStorage},
-        rocksdb::RocksDBEngine,
-        shard::ShardInfo,
+        cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
     },
 };
-use common::log::info_meta;
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use common::{config::placement_center::placement_center_conf, log::info_meta};
+use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 
 pub struct StorageEngineController {
@@ -51,6 +45,8 @@ impl StorageEngineController {
 
         let mut engine = self.engine_cache.write().unwrap();
         let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        let shard_handler = ShardStorage::new(self.rocksdb_engine_handler.clone());
+
         for cluster in cluster_list {
             let cluster_name = cluster.cluster_name.clone();
 
@@ -60,21 +56,27 @@ impl StorageEngineController {
             // load node cache
             let node_list = node_handler.node_list(cluster_name.clone());
             for node in node_list {
-                engine.add_node(node.clone());
+                engine.add_node(node);
             }
 
             // load shard cache
+            let shard_list = shard_handler.shard_list(cluster_name.clone());
+            for shard in shard_list {
+                engine.add_shard(shard);
+            }
 
             // load segment cache
+            
         }
     }
 
     // Start the heartbeat detection thread of the Storage Engine node
     pub fn start_node_heartbeat_check(&self) {
         let stop_recv = self.stop_send.subscribe();
+        let config = placement_center_conf();
         let mut heartbeat = StorageEngineNodeHeartBeat::new(
-            30000,
-            1000,
+            config.heartbeat_timeout_ms.into(),
+            config.heartbeat_check_time_ms,
             self.engine_cache.clone(),
             self.placement_center_storage.clone(),
             stop_recv,

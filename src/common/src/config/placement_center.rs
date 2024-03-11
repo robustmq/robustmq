@@ -34,6 +34,8 @@ pub struct PlacementCenterConfig {
     pub log_file_num: u32,
     pub nodes: Table,
     pub rocksdb: Rocksdb,
+    pub heartbeat_timeout_ms: u64,
+    pub heartbeat_check_time_ms: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -54,6 +56,8 @@ impl Default for PlacementCenterConfig {
             data_path: "/tmp/data".to_string(),
             log_path: "/tmp/logs".to_string(),
             nodes: Table::new(),
+            heartbeat_timeout_ms: 30000,
+            heartbeat_check_time_ms: 1000,
             rocksdb: Rocksdb {
                 max_open_files: Some(100),
             },

@@ -20,3 +20,4 @@ pub mod rocksdb;
 pub mod node;
 pub mod raft;
 pub mod cluster;
+pub mod segment;

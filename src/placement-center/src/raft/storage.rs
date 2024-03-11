@@ -4,7 +4,9 @@ use std::time::Duration;
 use bincode::serialize;
 use common::errors::RobustMQError;
 use prost::Message;
+use protocol::placement_center::placement::CreateSegmentRequest;
 use protocol::placement_center::placement::CreateShardRequest;
+use protocol::placement_center::placement::DeleteSegmentRequest;
 use protocol::placement_center::placement::DeleteShardRequest;
 use protocol::placement_center::placement::RegisterNodeRequest;
 use protocol::placement_center::placement::UnRegisterNodeRequest;
@@ -45,6 +47,8 @@ pub enum StorageDataType {
     UngisterNode,
     CreateShard,
     DeleteShard,
+    CreateSegment,
+    DeleteSegment,
 }
 
 impl fmt::Display for StorageDataType {
@@ -61,6 +65,12 @@ impl fmt::Display for StorageDataType {
             }
             StorageDataType::DeleteShard => {
                 write!(f, "DeleteShard")
+            }
+            StorageDataType::CreateSegment => {
+                write!(f, "CreateSegment")
+            }
+            StorageDataType::DeleteSegment => {
+                write!(f, "DeleteSegment")
             }
         }
     }
@@ -135,6 +145,26 @@ impl PlacementCenterStorage {
         );
         return self
             .apply_propose_message(data, "delete_shard".to_string())
+            .await;
+    }
+
+    pub async fn create_segment(&self, data: CreateSegmentRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::CreateSegment,
+            CreateSegmentRequest::encode_to_vec(&data),
+        );
+        return self
+            .apply_propose_message(data, "create_segment".to_string())
+            .await;
+    }
+
+    pub async fn delete_segment(&self, data: DeleteSegmentRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::DeleteSegment,
+            DeleteSegmentRequest::encode_to_vec(&data),
+        );
+        return self
+            .apply_propose_message(data, "delete_segment".to_string())
             .await;
     }
 

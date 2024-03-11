@@ -40,6 +40,12 @@ service PlacementCenterService {
   //
   rpc DeleteShard(DeleteShardRequest) returns(CommonReply){}
 
+  //
+  rpc CreateSegment(CreateSegmentRequest) returns(CommonReply){}
+
+  // 
+  rpc DeleteSegment(DeleteSegmentRequest) returns(CommonReply){}
+
   // Broker node reports a heartbeat, notifying Meta Server that the node is alive
   rpc heartbeat(HeartbeatRequest) returns(CommonReply){}
 
@@ -117,8 +123,15 @@ message DeleteShardRequest{
     string shard_name = 2;
 }
 
-message SegmentInfo{
+message CreateSegmentRequest{
+    string cluster_name = 1;
+    string shard_name = 2;
+}
 
+message DeleteSegmentRequest{
+    string cluster_name = 1;
+    string shard_name = 2;
+    uint32 segment_seq = 3;
 }
 
 message ReportMonitorRequest{

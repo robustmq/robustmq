@@ -1,4 +1,7 @@
-use super::cluster::{metrics, placement_center, storage_engine, test};
+use super::{
+    placement_center::{metrics, placement_center},
+    storage_engine::{shard_info, shard_list, storage_engine},
+};
 use crate::{
     cache::{engine_cluster::EngineClusterCache, placement_cluster::PlacementClusterCache},
     rocksdb::raft::RaftMachineStorage,
@@ -13,7 +16,8 @@ use std::{
 
 pub const ROUTE_ROOT: &str = "/";
 pub const STORAGE_ENGINE: &str = "/storage-engine";
-pub const ROUTE_TEST: &str = "/test";
+pub const STORAGE_ENGINE_SHARD_LIST: &str = "/storage-engine/shard-list";
+pub const STORAGE_ENGINE_SHARD_INFO: &str = "/storage-engine/shard-info";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
@@ -53,7 +57,8 @@ fn routes(state: HttpServerState) -> Router {
     let meta = Router::new()
         .route(ROUTE_ROOT, get(placement_center))
         .route(STORAGE_ENGINE, get(storage_engine))
-        .route(ROUTE_TEST, get(test))
+        .route(STORAGE_ENGINE_SHARD_LIST, get(shard_list))
+        .route(STORAGE_ENGINE_SHARD_INFO, get(shard_info))
         .route(ROUTE_METRICS, get(metrics));
     let app = Router::new().merge(meta);
     return app.with_state(state);
