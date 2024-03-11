@@ -1,6 +1,6 @@
 use super::storage::{StorageData, StorageDataType};
 use crate::{
-    cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
+    cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
     rocksdb::{
         cluster::{self, ClusterInfo, ClusterStorage},
         node::{NodeInfo, NodeStorage},
@@ -275,7 +275,7 @@ mod tests {
     use std::sync::{Arc, RwLock};
 
     use crate::{
-        cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
+        cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
         rocksdb::{
             cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
         },

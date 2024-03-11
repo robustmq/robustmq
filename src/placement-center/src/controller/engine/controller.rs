@@ -1,15 +1,15 @@
-use super::engine_heartbeat::StorageEngineNodeHeartBeat;
 use crate::{
-    cache::engine_cluster::EngineClusterCache,
+    cache::engine::EngineClusterCache,
     raft::storage::PlacementCenterStorage,
     rocksdb::{
-        cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine,
-        segment::SegmentStorage, shard::ShardStorage,
+        cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
     },
 };
 use common::{config::placement_center::placement_center_conf, log::info_meta};
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
+
+use super::heartbeat::StorageEngineNodeHeartBeat;
 
 pub struct StorageEngineController {
     engine_cache: Arc<RwLock<EngineClusterCache>>,
@@ -37,6 +37,7 @@ impl StorageEngineController {
 
     pub async fn start(&self) {
         self.start_node_heartbeat_check();
+        self.resource_manager_thread().await;
         info_meta("Storage Engine Controller started successfully");
     }
 
@@ -87,5 +88,9 @@ impl StorageEngineController {
         tokio::spawn(async move {
             heartbeat.start().await;
         });
+    }
+
+    pub async fn resource_manager_thread(&self) {
+        tokio::spawn(async move {});
     }
 }

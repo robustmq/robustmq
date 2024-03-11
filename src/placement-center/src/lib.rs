@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use self::server::peer::{PeerMessage, PeersManager};
-use cache::broker_cluster::BrokerClusterCache;
-use cache::engine_cluster::EngineClusterCache;
-use cache::placement_cluster::{Node, PlacementClusterCache};
+use cache::broker::BrokerClusterCache;
+use cache::engine::EngineClusterCache;
+use cache::placement::{Node, PlacementClusterCache};
 use clients::ClientPool;
 use common::config::placement_center::placement_center_conf;
 use common::log::info_meta;
 use common::runtime::create_runtime;
-use controller::broker_controller::BrokerServerController;
-use controller::engine_controller::StorageEngineController;
+use controller::broker::controller::BrokerServerController;
+use controller::engine::controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::data_route::DataRoute;

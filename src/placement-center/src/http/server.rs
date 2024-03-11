@@ -3,7 +3,7 @@ use super::{
     storage_engine::{shard_info, shard_list, storage_engine},
 };
 use crate::{
-    cache::{engine_cluster::EngineClusterCache, placement_cluster::PlacementClusterCache},
+    cache::{engine::EngineClusterCache, placement::PlacementClusterCache},
     rocksdb::raft::RaftMachineStorage,
 };
 use axum::routing::get;

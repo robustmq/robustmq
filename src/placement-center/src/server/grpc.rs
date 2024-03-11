@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::cache::engine_cluster::EngineClusterCache;
-use crate::cache::placement_cluster::PlacementClusterCache;
+use crate::cache::engine::EngineClusterCache;
+use crate::cache::placement::PlacementClusterCache;
 use crate::raft::storage::PlacementCenterStorage;
 use clients::placement_center::{
     create_segment, create_shard, delete_segment, delete_shard, register_node, unregister_node,
