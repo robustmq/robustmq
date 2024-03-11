@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
     use protocol::placement_center::placement::{
-        placement_center_service_client::PlacementCenterServiceClient, ClusterType, CreateShardRequest, DeleteShardRequest, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest
+        placement_center_service_client::PlacementCenterServiceClient, ClusterType,
+        CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
+        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 
     #[tokio::test]
@@ -90,6 +92,41 @@ mod tests {
         request.shard_name = shard_name();
         let response = client
             .delete_shard(tonic::Request::new(request))
+            .await
+            .unwrap();
+
+        println!("response={:?}", response);
+    }
+
+    #[tokio::test]
+    async fn test_create_segment() {
+        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+            .await
+            .unwrap();
+
+        let mut request = CreateSegmentRequest::default();
+        request.cluster_name = cluster_name();
+        request.shard_name = shard_name();
+        let response = client
+            .create_segment(tonic::Request::new(request))
+            .await
+            .unwrap();
+
+        println!("response={:?}", response);
+    }
+
+    #[tokio::test]
+    async fn test_delete_segment() {
+        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+            .await
+            .unwrap();
+
+        let mut request = DeleteSegmentRequest::default();
+        request.cluster_name = cluster_name();
+        request.shard_name = shard_name();
+        request.segment_seq = 1;
+        let response = client
+            .delete_segment(tonic::Request::new(request))
             .await
             .unwrap();
 
