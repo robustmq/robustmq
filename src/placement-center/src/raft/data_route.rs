@@ -1,6 +1,7 @@
 use super::storage::{StorageData, StorageDataType};
 use crate::{
-    cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
+    cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
+    controller::engine::segment_replica::SegmentReplicaAlgorithm,
     rocksdb::{
         cluster::{self, ClusterInfo, ClusterStorage},
         node::{NodeInfo, NodeStorage},
@@ -29,6 +30,7 @@ pub struct DataRoute {
     cluster_storage: ClusterStorage,
     shard_storage: ShardStorage,
     segment_storage: SegmentStorage,
+    repcli_algo: SegmentReplicaAlgorithm,
 }
 
 impl DataRoute {
@@ -41,6 +43,7 @@ impl DataRoute {
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
         let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
         let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
+        let repcli_algo = SegmentReplicaAlgorithm::new(engine_cache.clone());
         return DataRoute {
             engine_cache,
             broker_cache,
@@ -48,6 +51,7 @@ impl DataRoute {
             cluster_storage,
             shard_storage,
             segment_storage,
+            repcli_algo,
         };
     }
 
@@ -224,7 +228,7 @@ impl DataRoute {
         let segment_info = SegmentInfo {
             cluster_name: cluster_name.clone(),
             shard_name: shard_name.clone(),
-            replicas: Vec::new(),
+            replicas: self.repcli_algo.calc_replica_distribution(segment_seq),
             replica_leader: 0,
             segment_seq: segment_seq,
             status: SegmentStatus::Idle,
@@ -247,7 +251,21 @@ impl DataRoute {
         let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
+        let cluster_name = req.cluster_name;
+        let shard_name = req.shard_name;
+        let segment_seq = req.segment_seq;
 
+        // Updating cache information
+        let mut ec = self.engine_cache.write().unwrap();
+        ec.remove_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+
+        // Update persistence information
+        self.segment_storage
+            .delete_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+        self.shard_storage
+            .delete_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+
+        // todo call storage engine delete segment
         return Ok(());
     }
 
@@ -261,7 +279,7 @@ mod tests {
     use std::sync::{Arc, RwLock};
 
     use crate::{
-        cache::{broker_cluster::BrokerClusterCache, engine_cluster::EngineClusterCache},
+        cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
         rocksdb::{
             cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
         },

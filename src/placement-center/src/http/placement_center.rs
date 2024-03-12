@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use crate::cache::placement_cluster::Node;
+use crate::cache::placement::Node;
 use super::{
     response::success_response,
     server::HttpServerState,

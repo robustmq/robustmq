@@ -1,6 +1,7 @@
 use super::{
     keys::{key_all_shard, key_shard},
     rocksdb::RocksDBEngine,
+    segment::{SegmentInfo, SegmentStorage},
 };
 use common::log::error_meta;
 use serde::{Deserialize, Serialize};
@@ -122,7 +123,7 @@ impl ShardStorage {
         }
     }
 
-    pub fn remove_cluster_node(&self, cluster_name: String, shard_name: String, segment_seq: u64) {
+    pub fn delete_segment(&self, cluster_name: String, shard_name: String, segment_seq: u64) {
         if let Some(mut shard) = self.get_shard(cluster_name, shard_name) {
             match shard.segments.binary_search(&segment_seq) {
                 Ok(index) => {
@@ -132,5 +133,20 @@ impl ShardStorage {
                 Err(_) => {}
             }
         }
+    }
+
+    pub fn segment_list(&self, cluster_name: String, shard_name: String) -> Vec<SegmentInfo> {
+        let mut result = Vec::new();
+        let segment_handler = SegmentStorage::new(self.rocksdb_engine_handler.clone());
+        if let Some(shard) = self.get_shard(cluster_name.clone(), shard_name.clone()) {
+            for seq in shard.segments {
+                if let Some(segment) =
+                    segment_handler.get_segment(cluster_name.clone(), shard_name.clone(), seq)
+                {
+                    result.push(segment);
+                }
+            }
+        }
+        return result;
     }
 }

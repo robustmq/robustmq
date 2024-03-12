@@ -131,7 +131,7 @@ message CreateSegmentRequest{
 message DeleteSegmentRequest{
     string cluster_name = 1;
     string shard_name = 2;
-    uint32 segment_seq = 3;
+    uint64 segment_seq = 3;
 }
 
 message ReportMonitorRequest{

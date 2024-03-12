@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::{
-    cluster::{ClusterInfo, ClusterStorage},
+    cluster::ClusterStorage,
     keys::key_node,
     rocksdb::RocksDBEngine,
 };
