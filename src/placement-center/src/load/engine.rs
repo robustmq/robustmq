@@ -1,5 +1,5 @@
-pub struct StorageEngineClusterLoad {}
-
-impl StorageEngineClusterLoad {
+pub struct StorageEngineClusterLoad {
     
 }
+
+impl StorageEngineClusterLoad {}
