@@ -1,5 +1,8 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GenerateUniqueNodeIdRequest {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CommonReply {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -29,6 +32,12 @@ pub struct SendRaftConfChangeRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SendRaftConfChangeReply {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RaftTransferLeaderRequest {
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RegisterNodeRequest {
@@ -130,6 +139,12 @@ pub struct ReportMonitorRequest {
     pub disk_rate: f32,
     #[prost(float, tag = "6")]
     pub network_rate: f32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GenerateUniqueNodeIdReply {
+    #[prost(uint64, tag = "1")]
+    pub node_id: u64,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -534,6 +549,65 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        ///
+        pub async fn raft_transfer_leader(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RaftTransferLeaderRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/RaftTransferLeader",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "RaftTransferLeader",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn generate_unique_node_id(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GenerateUniqueNodeIdRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GenerateUniqueNodeIdReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/GenerateUniqueNodeId",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "GenerateUniqueNodeId",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -601,6 +675,19 @@ pub mod placement_center_service_server {
             request: tonic::Request<super::SendRaftConfChangeRequest>,
         ) -> std::result::Result<
             tonic::Response<super::SendRaftConfChangeReply>,
+            tonic::Status,
+        >;
+        ///
+        async fn raft_transfer_leader(
+            &self,
+            request: tonic::Request<super::RaftTransferLeaderRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn generate_unique_node_id(
+            &self,
+            request: tonic::Request<super::GenerateUniqueNodeIdRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GenerateUniqueNodeIdReply>,
             tonic::Status,
         >;
     }
@@ -1207,6 +1294,108 @@ pub mod placement_center_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = SendRaftConfChangeSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/RaftTransferLeader" => {
+                    #[allow(non_camel_case_types)]
+                    struct RaftTransferLeaderSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::RaftTransferLeaderRequest>
+                    for RaftTransferLeaderSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RaftTransferLeaderRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::raft_transfer_leader(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = RaftTransferLeaderSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/GenerateUniqueNodeId" => {
+                    #[allow(non_camel_case_types)]
+                    struct GenerateUniqueNodeIdSvc<T: PlacementCenterService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::GenerateUniqueNodeIdRequest>
+                    for GenerateUniqueNodeIdSvc<T> {
+                        type Response = super::GenerateUniqueNodeIdReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GenerateUniqueNodeIdRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::generate_unique_node_id(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GenerateUniqueNodeIdSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

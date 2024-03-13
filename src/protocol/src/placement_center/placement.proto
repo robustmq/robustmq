@@ -56,6 +56,12 @@ service PlacementCenterService {
 
   // Send ConfChange messages to Raft with other nodes
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
+
+  // 
+  rpc RaftTransferLeader(RaftTransferLeaderRequest) returns(CommonReply) {}
+
+  // 
+  rpc GenerateUniqueNodeId(GenerateUniqueNodeIdRequest) returns(GenerateUniqueNodeIdReply) {}
 }
 
 message CommonReply{
@@ -81,6 +87,10 @@ message SendRaftConfChangeRequest{
 }
 
 message SendRaftConfChangeReply{
+}
+
+message RaftTransferLeaderRequest{
+    uint64 node_id = 1;
 }
 
 message RegisterNodeRequest{
@@ -141,4 +151,12 @@ message ReportMonitorRequest{
     float memory_rate = 4;
     float disk_rate = 5;
     float network_rate = 6;
+}
+
+message GenerateUniqueNodeIdRequest{
+    
+}
+
+message GenerateUniqueNodeIdReply{
+    uint64 node_id = 1;
 }

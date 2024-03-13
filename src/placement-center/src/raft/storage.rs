@@ -34,6 +34,11 @@ pub enum RaftMessage {
         chan: Sender<RaftResponseMesage>,
     },
 
+    TransferLeader {
+        node_id: u64,
+        chan: Sender<RaftResponseMesage>,
+    },
+
     // The data sent by the client is received. Procedure
     Propose {
         data: Vec<u8>,
@@ -181,6 +186,25 @@ impl PlacementCenterStorage {
         return self
             .apply_conf_raft_message(change, "send_conf_raft_message".to_string())
             .await;
+    }
+
+    pub async fn transfer_leader(&self, node_id: u64) -> Result<(), RobustMQError> {
+        let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
+        return self
+            .apply_raft_status_machine_message(
+                RaftMessage::TransferLeader {
+                    node_id: node_id,
+                    chan: sx,
+                },
+                "transfer_leader".to_string(),
+                rx,
+            )
+            .await;
+    }
+
+    pub async fn generate_id(&self) -> Result<u64, RobustMQError> {
+        
+        return Ok(1);
     }
 
     pub fn get_raft_status_machine_sender(&self) -> tokio::sync::mpsc::Sender<RaftMessage> {

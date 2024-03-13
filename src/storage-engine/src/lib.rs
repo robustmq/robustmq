@@ -54,13 +54,11 @@ impl StorageEngine {
     }
 
     pub fn start(&self) {
-        // Register Node
+
         self.register_node();
 
-        // start GRPC && HTTP Server
         self.start_server();
 
-        // Threads that run the daemon thread
         self.start_daemon_thread();
 
         self.waiting_stop();

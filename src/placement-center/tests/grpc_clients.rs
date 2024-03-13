@@ -1,9 +1,7 @@
 #[cfg(test)]
 mod tests {
     use protocol::placement_center::placement::{
-        placement_center_service_client::PlacementCenterServiceClient, ClusterType,
-        CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
-        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+        placement_center_service_client::PlacementCenterServiceClient, ClusterType, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest, HeartbeatRequest, RaftTransferLeaderRequest, RegisterNodeRequest, UnRegisterNodeRequest
     };
 
     #[tokio::test]
@@ -127,6 +125,22 @@ mod tests {
         request.segment_seq = 1;
         let response = client
             .delete_segment(tonic::Request::new(request))
+            .await
+            .unwrap();
+
+        println!("response={:?}", response);
+    }
+
+    #[tokio::test]
+    async fn test_raft_transfer_leader() {
+        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+            .await
+            .unwrap();
+
+        let mut request = RaftTransferLeaderRequest::default();
+        request.node_id = 2;
+        let response = client
+            .raft_transfer_leader(tonic::Request::new(request))
             .await
             .unwrap();
 
