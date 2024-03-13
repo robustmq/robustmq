@@ -45,15 +45,6 @@ message WriteResponse{
     uint64 record_append_time_ms = 6;
 }
 
-message ReadRequest{
-    RequestHeader header = 1;
-
-}
-
-message ReadResponse{
-    ResponseHeader header = 1;
-}
-
 message CreateShardRequest{
 }
 
@@ -79,12 +70,6 @@ message ShardDetailResponse{
 }
 
 service StorageEngineService {
-
-  // 
-  rpc read(ReadRequest) returns(ReadResponse){}
-
-  //  
-  rpc write(WriteRequest) returns(WriteResponse){}
 
   rpc CreateShard(CreateShardRequest) returns(CreateShardResponse){}
 
