@@ -55,9 +55,9 @@ cargo run --package cmd --bin meta -- --conf=config/placement-center.toml
 
 - Run cluster by placement-center
 ```
-cargo run --package cmd --bin meta -- --conf=cluster/placement-center/node-1.toml
-cargo run --package cmd --bin meta -- --conf=cluster/placement-center/node-2.toml
-cargo run --package cmd --bin meta -- --conf=cluster/placement-center/node-3.toml
+cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-1.toml
+cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-2.toml
+cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-3.toml
 ```
 
 

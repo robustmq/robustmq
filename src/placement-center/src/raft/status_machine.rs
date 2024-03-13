@@ -115,6 +115,18 @@ impl RaftMachine {
                     }
                 }
 
+                Ok(Some(RaftMessage::TransferLeader { node_id, chan })) => {
+                    // Step advances the state machine using the given message.
+                    info_meta(&format!("transfer_leader {}", node_id));
+                    raft_node.transfer_leader(node_id);
+                    match chan.send(RaftResponseMesage::Success) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            error_meta("commit entry Fails to return data to chan. chan may have been closed");
+                        }
+                    }
+                }
+
                 Ok(Some(RaftMessage::Propose { data, chan })) => {
                     // Propose proposes data be appended to the raft log.
                     let seq = self
