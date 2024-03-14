@@ -2165,6 +2165,7 @@ dependencies = [
  "bytes",
  "clients",
  "common",
+ "flume",
  "protocol",
  "thiserror",
  "tokio",
