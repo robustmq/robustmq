@@ -14,3 +14,6 @@ tonic.workspace = true
 protocol.workspace = true
 tokio.workspace = true
 clients.workspace =true
+flume.workspace =true
+tokio-util.workspace =true
+futures.workspace =true

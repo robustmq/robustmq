@@ -1,4 +1,10 @@
-mod connection;
-pub mod network;
-mod package;
-pub mod tcp_server;
+pub mod tcp;
+pub mod quic;
+
+pub async fn start_tcp_server(){
+
+}
+
+pub async fn start_quic_server(){
+
+}

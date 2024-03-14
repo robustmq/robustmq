@@ -2165,9 +2165,12 @@ dependencies = [
  "bytes",
  "clients",
  "common",
+ "flume",
+ "futures",
  "protocol",
  "thiserror",
  "tokio",
+ "tokio-util",
  "tonic",
 ]
 

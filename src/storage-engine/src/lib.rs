@@ -1,26 +1,20 @@
 use std::sync::Arc;
-
 use clients::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common::{
     config::storage_engine::StorageEngineConfig, log::info_meta,
     metrics::register_prometheus_export, runtime::create_runtime,
 };
-use protocol::storage_engine::storage::storage_engine_service_server::StorageEngineServiceServer;
 use tokio::{
     runtime::Runtime,
     signal,
     sync::{broadcast, Mutex},
 };
-use tonic::transport::Server;
 
 mod cluster;
 mod index;
-mod metadata;
-mod raft_group;
+mod raft;
 mod record;
-mod segment;
-mod shard;
 mod storage;
 mod server;
 
@@ -36,7 +30,6 @@ impl StorageEngine {
     pub fn new(config: StorageEngineConfig, stop_send: broadcast::Sender<bool>) -> Self {
         let server_runtime =
             create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
-
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
         let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new()));
