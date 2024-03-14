@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     cache::{engine::EngineClusterCache, placement::PlacementClusterCache},
-    rocksdb::raft::RaftMachineStorage,
+    storage::raft::RaftMachineStorage,
 };
 use axum::routing::get;
 use axum::Router;

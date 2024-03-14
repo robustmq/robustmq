@@ -27,8 +27,8 @@ use protocol::placement_center::placement::placement_center_service_server::Plac
 use raft::data_route::DataRoute;
 use raft::status_machine::RaftMachine;
 use raft::storage::{PlacementCenterStorage, RaftMessage};
-use rocksdb::raft::RaftMachineStorage;
-use rocksdb::rocksdb::RocksDBEngine;
+use storage::raft::RaftMachineStorage;
+use storage::rocksdb::RocksDBEngine;
 use server::grpc::GrpcService;
 use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
@@ -40,7 +40,7 @@ mod cache;
 mod controller;
 mod http;
 mod raft;
-mod rocksdb;
+mod storage;
 mod server;
 
 pub struct PlacementCenter {

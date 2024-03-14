@@ -1,7 +1,7 @@
 use crate::{
     cache::engine::EngineClusterCache,
     raft::storage::PlacementCenterStorage,
-    rocksdb::{
+    storage::{
         cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
     },
 };
@@ -9,7 +9,7 @@ use common::{config::placement_center::placement_center_conf, log::info_meta};
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 
-use super::heartbeat::StorageEngineNodeHeartBeat;
+use super::{heartbeat::StorageEngineNodeHeartBeat, preferred_election::PreferredElection};
 
 pub struct StorageEngineController {
     engine_cache: Arc<RwLock<EngineClusterCache>>,
@@ -37,7 +37,8 @@ impl StorageEngineController {
 
     pub async fn start(&self) {
         self.start_node_heartbeat_check();
-        self.resource_manager_thread().await;
+        self.resource_manager_thread();
+        self.preferred_replica_election();
         info_meta("Storage Engine Controller started successfully");
     }
 
@@ -90,7 +91,14 @@ impl StorageEngineController {
         });
     }
 
-    pub async fn resource_manager_thread(&self) {
+    pub fn resource_manager_thread(&self) {
         tokio::spawn(async move {});
+    }
+
+    pub fn preferred_replica_election(&self) {
+        let election = PreferredElection::new(self.engine_cache.clone());
+        tokio::spawn(async move {
+            election.start().await;
+        });
     }
 }

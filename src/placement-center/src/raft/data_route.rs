@@ -2,7 +2,7 @@ use super::storage::{StorageData, StorageDataType};
 use crate::{
     cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
     controller::engine::segment_replica::SegmentReplicaAlgorithm,
-    rocksdb::{
+    storage::{
         cluster::{self, ClusterInfo, ClusterStorage},
         node::{NodeInfo, NodeStorage},
         rocksdb::RocksDBEngine,
@@ -280,7 +280,7 @@ mod tests {
 
     use crate::{
         cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
-        rocksdb::{
+        storage::{
             cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
         },
     };
