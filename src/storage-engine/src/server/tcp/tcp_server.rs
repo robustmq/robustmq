@@ -17,8 +17,8 @@ use protocol::{
     mqtt::{ConnAck, ConnectReturnCode},
     mqttv4::codec::Mqtt4Codec,
 };
-use std::{fmt::Error, net::SocketAddr, sync::Arc};
-use tokio::{net::TcpListener, sync::RwLock};
+use std::{fmt::Error, net::SocketAddr,sync::{Arc, RwLock}};
+use tokio::net::TcpListener;
 
 pub struct TcpServer {
     ip: SocketAddr,
@@ -92,47 +92,39 @@ impl TcpServer {
         tokio::spawn(async move {
             loop {
                 let request_queue_sx = request_queue_sx.clone();
-                let (stream, addr) = match listener.accept().await {
-                    Ok(data) => {
-                        return data;
-                    }
-                    Err(e) => {
-                        break;
-                    }
-                };
+                match listener.accept().await {
+                    Ok((stream, addr)) => {
+                        let mut socket: Framed<tokio::net::TcpStream, Mqtt4Codec> =
+                            Framed::new(stream, Mqtt4Codec::new());
 
-                let mut stream: Framed<tokio::net::TcpStream, Mqtt4Codec> =
-                    Framed::new(stream, Mqtt4Codec::new());
+                        // manager connection info
+                        let connection_manager = connection_manager.clone();
+                        let conn = Connection::new(addr, socket.clone());
+                        // let connection_id = conn.connection_id();
+                        // let mut cm = connection_manager.write().await;
+                        // _ = cm.add(conn);
 
-                // read connect package
-
-                // tls check
-
-                // user login check
-
-                // manager connection info
-                // let connection_manager = connection_manager.clone();
-                // let conn = Connection::new(addr, socket.clone());
-                // let connection_id = conn.connection_id();
-                // let mut cm = connection_manager.write().await;
-                // _ = cm.add(conn);
-
-                let connection_id = 1;
-                // request is processed by a separate thread, placing the request packet in the request queue.\
-                tokio::spawn(async move {
-                    while let Some(Ok(pkg)) = stream.next().await {
-                        let content = format!("{:?}", pkg);
-                        println!("receive package:{}", content);
-                        let package = RequestPackage::new(100, content, connection_id);
-                        match request_queue_sx.send(package) {
-                            Ok(_) => {}
-                            Err(err) => error(&format!(
+                        let connection_id = 1;
+                        // request is processed by a separate thread, placing the request packet in the request queue.\
+                        tokio::spawn(async move {
+                            while let Some(Ok(pkg)) = socket.next().await {
+                                let content = format!("{:?}", pkg);
+                                println!("receive package:{}", content);
+                                let package = RequestPackage::new(100, content, connection_id);
+                                match request_queue_sx.send(package) {
+                                    Ok(_) => {}
+                                    Err(err) => error(&format!(
                                 "Failed to write data to the request queue, error message: {:?}",
                                 err
                             )),
-                        }
+                                }
+                            }
+                        });
                     }
-                });
+                    Err(e) => {
+                        error(&e.to_string());
+                    }
+                };
             }
         });
 
