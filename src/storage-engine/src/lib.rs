@@ -1,10 +1,11 @@
-use std::sync::Arc;
 use clients::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common::{
     config::storage_engine::StorageEngineConfig, log::info_meta,
     metrics::register_prometheus_export, runtime::create_runtime,
 };
+use server::start_tcp_server;
+use std::sync::Arc;
 use tokio::{
     runtime::Runtime,
     signal,
@@ -15,8 +16,8 @@ mod cluster;
 mod index;
 mod raft;
 mod record;
-mod storage;
 mod server;
+mod storage;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,
@@ -55,8 +56,11 @@ impl StorageEngine {
 
     // start GRPC && HTTP Server
     fn start_server(&self) {
+        
         // start grpc server
-        let port = self.config.grpc_port;
+        self.server_runtime.spawn(async {
+            start_tcp_server().await;
+        });
 
         // start prometheus http server
         let prometheus_port = self.config.prometheus_port;

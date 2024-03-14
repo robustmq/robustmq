@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+use super::read_file;
+use crate::tools::create_fold;
 use serde::Deserialize;
+use std::sync::OnceLock;
 use toml::Table;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -32,6 +35,17 @@ pub struct StorageEngineConfig {
     pub placement_center: Vec<String>,
     pub nodes: Table,
     pub rocksdb: Rocksdb,
+    pub network: Network,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Network {
+    pub accept_thread_num: usize,
+    pub handler_thread_num: usize,
+    pub response_thread_num: usize,
+    pub max_connection_num: usize,
+    pub request_queue_size: usize,
+    pub response_queue_size: usize,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -57,21 +71,68 @@ impl Default for StorageEngineConfig {
             rocksdb: Rocksdb {
                 max_open_files: Some(100),
             },
+            network: Network {
+                accept_thread_num: 1,
+                handler_thread_num: 1,
+                response_thread_num: 1,
+                max_connection_num: 1,
+                request_queue_size: 100,
+                response_queue_size: 100,
+            },
+        }
+    }
+}
+
+static STORAGE_ENGINE_CONFIG: OnceLock<StorageEngineConfig> = OnceLock::new();
+
+pub fn init_storage_engine_conf_by_path(config_path: &String) -> &'static StorageEngineConfig {
+    // n.b. static items do not call [`Drop`] on program termination, so if
+    // [`DeepThought`] impls Drop, that will not be used for this instance.
+    STORAGE_ENGINE_CONFIG.get_or_init(|| {
+        let content = read_file(config_path);
+        let pc_config: StorageEngineConfig = toml::from_str(&content).unwrap();
+        for fold in pc_config.data_path.clone() {
+            create_fold(fold);
+        }
+        create_fold(pc_config.log_path.clone());
+        return pc_config;
+    })
+}
+
+pub fn init_storage_engine_conf_by_config(
+    config: StorageEngineConfig,
+) -> &'static StorageEngineConfig {
+    // n.b. static items do not call [`Drop`] on program termination, so if
+    // [`DeepThought`] impls Drop, that will not be used for this instance.
+    STORAGE_ENGINE_CONFIG.get_or_init(|| {
+        return config;
+    })
+}
+
+pub fn storage_engine_conf() -> &'static StorageEngineConfig {
+    match STORAGE_ENGINE_CONFIG.get() {
+        Some(config) => {
+            return config;
+        }
+        None => {
+            panic!(
+                "Placement center configuration is not initialized, check the configuration file."
+            );
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::config::parse_storage_engine;
+    use crate::config::storage_engine::storage_engine_conf;
 
-    use super::StorageEngineConfig;
-
+    use super::init_storage_engine_conf_by_path;
     #[test]
     fn meta_default() {
-        let conf: StorageEngineConfig =
-            parse_storage_engine(&"../../config/raft/node-1.toml".to_string());
-        StorageEngineConfig::default();
+        init_storage_engine_conf_by_path(&"../../config/storage-engine.toml".to_string());
+
+        let conf = storage_engine_conf();
+        assert_eq!(conf.grpc_port, 2228);
         //todo meta test case
     }
 }

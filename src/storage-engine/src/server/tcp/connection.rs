@@ -1,4 +1,8 @@
-use std::{collections::HashMap, net::SocketAddr, sync::{atomic::AtomicU64, Arc}};
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{atomic::AtomicU64, Arc},
+};
 
 use protocol::mqttv4::codec::Mqtt4Codec;
 use tokio::sync::RwLock;
@@ -48,11 +52,14 @@ static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 pub struct Connection {
     pub connection_id: u64,
     pub addr: SocketAddr,
-    pub socket: Arc<Framed<tokio::net::TcpStream, Mqtt4Codec>>,
+    pub socket: Arc<RwLock<Box<Framed<tokio::net::TcpStream, Mqtt4Codec>>>>,
 }
 
 impl Connection {
-    pub fn new(addr: SocketAddr, socket: Arc<Framed<tokio::net::TcpStream, Mqtt4Codec>>) -> Connection {
+    pub fn new(
+        addr: SocketAddr,
+        socket: Arc<RwLock<Box<Framed<tokio::net::TcpStream, Mqtt4Codec>>>>,
+    ) -> Connection {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Connection {
             connection_id,

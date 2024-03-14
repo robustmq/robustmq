@@ -11,17 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use self::placement_center::PlacementCenterConfig;
-use self::storage_engine::StorageEngineConfig;
-use crate::tools::create_fold;
 use broker_server::BrokerServerConfig;
 use std::fs;
 use std::path;
 use toml;
 
-pub mod placement_center;
 pub mod broker_server;
+pub mod placement_center;
 pub mod storage_engine;
 
 pub const DEFAULT_BROKER_SERVER_CONFIG: &str = "config/broker-server.toml";
@@ -34,18 +30,6 @@ pub fn parse_server(config_path: &String) -> BrokerServerConfig {
     let server_config: BrokerServerConfig = toml::from_str(&content).unwrap();
     return server_config;
 }
-
-/// Parsing reads the StorageEngine configuration
-pub fn parse_storage_engine(config_path: &String) -> StorageEngineConfig {
-    let content = read_file(config_path);
-    let pc_config: StorageEngineConfig = toml::from_str(&content).unwrap();
-    for fold in pc_config.data_path.clone() {
-        create_fold(fold);
-    }
-    create_fold(pc_config.log_path.clone());
-    return pc_config;
-}
-
 
 fn read_file(config_path: &String) -> String {
     if !path::Path::new(config_path).exists() {
