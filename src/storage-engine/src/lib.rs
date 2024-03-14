@@ -22,6 +22,7 @@ mod record;
 mod segment;
 mod shard;
 mod storage;
+mod network;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,
