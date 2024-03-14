@@ -1,11 +1,11 @@
-use crate::rocksdb::keys::key_name_by_conf_state;
-use crate::rocksdb::keys::key_name_by_entry;
-use crate::rocksdb::keys::key_name_by_first_index;
-use crate::rocksdb::keys::key_name_by_hard_state;
-use crate::rocksdb::keys::key_name_by_last_index;
-use crate::rocksdb::keys::key_name_snapshot;
-use crate::rocksdb::keys::key_name_uncommit;
-use crate::rocksdb::rocksdb::RocksDBEngine;
+use crate::storage::keys::key_name_by_conf_state;
+use crate::storage::keys::key_name_by_entry;
+use crate::storage::keys::key_name_by_first_index;
+use crate::storage::keys::key_name_by_hard_state;
+use crate::storage::keys::key_name_by_last_index;
+use crate::storage::keys::key_name_snapshot;
+use crate::storage::keys::key_name_uncommit;
+use crate::storage::rocksdb::RocksDBEngine;
 use bincode::{deserialize, serialize};
 use common::config::placement_center::placement_center_conf;
 use common::log::error_meta;
@@ -428,7 +428,7 @@ impl RaftMachineStorage {
 mod tests {
     use std::sync::Arc;
 
-    use crate::rocksdb::rocksdb::RocksDBEngine;
+    use crate::storage::rocksdb::RocksDBEngine;
 
     use super::RaftMachineStorage;
     use common::{

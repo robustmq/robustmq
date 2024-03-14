@@ -256,7 +256,7 @@ mod tests {
 
     use std::{fmt::format, sync::Arc, time::Duration};
 
-    use crate::rocksdb::keys::key_name_by_last_index;
+    use crate::storage::keys::key_name_by_last_index;
 
     use super::RocksDBEngine;
     use common::{config::placement_center::PlacementCenterConfig, log::info_meta};

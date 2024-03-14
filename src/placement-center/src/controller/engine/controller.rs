@@ -1,7 +1,7 @@
 use crate::{
     cache::engine::EngineClusterCache,
     raft::storage::PlacementCenterStorage,
-    rocksdb::{
+    storage::{
         cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
     },
 };

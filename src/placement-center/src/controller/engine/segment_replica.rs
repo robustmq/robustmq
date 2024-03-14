@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::{cache::engine::EngineClusterCache, rocksdb::segment::Replica};
+use crate::{cache::engine::EngineClusterCache, storage::segment::Replica};
 
 pub struct SegmentReplicaAlgorithm {
     engine_cache: Arc<RwLock<EngineClusterCache>>,
