@@ -3,6 +3,7 @@ package storage;
 
 enum ApiKey{
     produce = 0;
+    consume = 1;
 }
 
 enum ApiVersion{
@@ -22,61 +23,32 @@ message RequestHeader{
 }
 
 message ResponseHeader{
-     uint32 correlation_id = 1;
+    uint32 correlation_id = 1;
     bytes tagged_fields = 2;
 }
 
-message WriteRecords{
+
+message TopicData{
+    string name = 1;
+    PartitionData partition_data = 2;
+}
+
+message PartitionData{
 
 }
 
-message WriteRequest{
+message ProduceReuest{
     RequestHeader header = 1;
-    string shard_name = 2;
-    WriteRecords records = 3;
+    ProduceBody body = 2;
 }
 
-message WriteResponse{
-    ResponseHeader header = 1;
-    ErrorCode error_code = 2;
-    string error_message = 3;
-    string shard_name = 4;
-    uint64 base_offset = 5;
-    uint64 record_append_time_ms = 6;
+message ProduceBody{
+    uint32 transactional_id = 1;
+    uint32 acks = 2;
+    uint32 timeout_ms = 3;
+    TopicData topic_data =4;
 }
 
-message CreateShardRequest{
-}
-
-message CreateShardResponse{
-}
-
-message CreateSegmentRequest{
-}
-
-message CreateSegmentResponse{
-}
-
-message DeleteSegmentRequest{
-}
-
-message DeleteSegmentResponse{
-}
-
-message ShardDetailRequest{
-}
-
-message ShardDetailResponse{
-}
-
-service StorageEngineService {
-
-  rpc CreateShard(CreateShardRequest) returns(CreateShardResponse){}
-
-  rpc DescribeShard(ShardDetailRequest) returns(ShardDetailResponse){}
-
-  rpc CreateSegment(CreateSegmentRequest) returns(CreateSegmentResponse){}
-
-  rpc DeleteSegment(DeleteSegmentRequest) returns(DeleteSegmentResponse){}
+message ProduceResponse{
     
 }
