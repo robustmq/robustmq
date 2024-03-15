@@ -1,16 +1,9 @@
-use crate::server::tcp::package::RequestPackage;
-use tokio_util::codec::Framed;
-
-use futures::{SinkExt, StreamExt};
-
 use super::{
     connection::{Connection, ConnectionManager},
     package::ResponsePackage,
 };
-use common::{
-    log::{error, info},
-    metrics::broker::metrics_mqtt4_broker_running,
-};
+use crate::server::tcp::package::RequestPackage;
+use common::log::error;
 use flume::{Receiver, Sender};
 use protocol::{
     mqtt::{ConnAck, ConnectReturnCode, Packet},
@@ -18,6 +11,7 @@ use protocol::{
 };
 use std::{fmt::Error, sync::Arc};
 use tokio::{net::TcpListener, sync::RwLock};
+use tokio_util::codec::Framed;
 
 pub struct TcpServer {
     connection_manager: Arc<RwLock<ConnectionManager>>,
@@ -86,21 +80,15 @@ impl TcpServer {
                 match listener.accept().await {
                     Ok((stream, addr)) => {
                         let stream = Framed::new(stream, Mqtt4Codec::new());
-                        let socket = Arc::new(RwLock::new(Box::new(stream)));
 
                         // manager connection info
-                        let connection_manager = connection_manager.clone();
-                        let conn = Connection::new(addr, socket.clone());
-                        let connection_id = conn.connection_id();
-                        let mut cm = connection_manager.write().await;
-                        _ = cm.add(conn);
+                        let mut conn = Connection::new(addr, stream);
 
                         // request is processed by a separate thread, placing the request packet in the request queue.\
                         tokio::spawn(async move {
-                            let mut s = socket.write().await;
-                            while let Some(Ok(pkg)) = s.next().await {
+                            while let Some(pkg) = conn.read_frame().await {
                                 let content = format!("{:?}", pkg);
-                                let package = RequestPackage::new(100, content, connection_id);
+                                let package = RequestPackage::new(100, content, conn.connection_id);
                                 match request_queue_sx.send(package) {
                                     Ok(_) => {}
                                     Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
@@ -149,24 +137,8 @@ impl TcpServer {
 
                 // Write the data back to the client
                 let cm = connect_manager.write().await;
-                let connection = cm.get(response_package.connection_id).unwrap();
-                let mut stream = connection.socket.write().await;
-
-                // send response
-                let ack: ConnAck = ConnAck {
-                    session_present: true,
-                    code: ConnectReturnCode::Success,
-                };
-
-                let resp = Packet::ConnAck(ack, None);
-
-                match stream.send(resp).await {
-                    Ok(_) => {}
-                    Err(err) => error(&format!(
-                        "Failed to write data to the response queue, error message ff: {:?}",
-                        err
-                    )),
-                }
+                let mut connection = cm.remove(response_package.connection_id);
+                // connection.unwrap().write_frame();
             }
         });
         return Ok(());

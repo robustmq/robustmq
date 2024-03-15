@@ -6,14 +6,15 @@ license.workspace = true
 
 
 [dependencies]
-common.workspace =true
+common.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
 tonic.workspace = true
 protocol.workspace = true
 tokio.workspace = true
-clients.workspace =true
-flume.workspace =true
-tokio-util.workspace =true
-futures.workspace =true
+clients.workspace = true
+flume.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+dashmap.workspace = true

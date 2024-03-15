@@ -1,5 +1,5 @@
 [package]
-name = "mqtt-bridge"
+name = "mqtt-bridge-redis"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
