@@ -28,7 +28,10 @@ use log4rs::{
     Config,
 };
 
-use crate::config::placement_center::{placement_center_conf, PlacementCenterConfig};
+use crate::config::{
+    placement_center::{placement_center_conf, PlacementCenterConfig},
+    storage_engine::storage_engine_conf,
+};
 
 pub fn info(msg: &str) -> () {
     log::info!(target:"app::server", "{}",msg)
@@ -43,15 +46,27 @@ pub fn error(msg: &str) -> () {
 }
 
 pub fn info_meta(msg: &str) -> () {
-    log::info!(target:"app::meta", "{}",msg)
+    log::info!(target:"app::placement-center", "{}",msg)
 }
 
 pub fn debug_meta(msg: &str) -> () {
-    log::debug!(target:"app::meta", "{}",msg)
+    log::debug!(target:"app::placement-center", "{}",msg)
 }
 
 pub fn error_meta(msg: &str) -> () {
-    log::error!(target:"app::meta", "{}",msg)
+    log::error!(target:"app::placement-center", "{}",msg)
+}
+
+pub fn info_engine(msg: String) -> () {
+    log::info!(target:"storage-engine", "{}",msg)
+}
+
+pub fn debug_eninge(msg:String) -> () {
+    log::debug!(target:"storage-engine", "{}",msg)
+}
+
+pub fn error_engine(msg: String) -> () {
+    log::error!(target:"storage-engine", "{}",msg)
 }
 
 pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
@@ -80,13 +95,13 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
         )
         .unwrap();
 
-    let meta_log = RollingFileAppender::builder()
+    let placement_log = RollingFileAppender::builder()
         .encoder(Box::new(PatternEncoder::new(
             "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}",
         )))
         .append(true)
         .build(
-            format!("{}/meta.log", path),
+            format!("{}/placement-center.log", path),
             Box::new(CompoundPolicy::new(
                 Box::new(SizeTrigger::new(segment_log_size)),
                 Box::new(
@@ -99,10 +114,33 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
         )
         .unwrap();
 
+    let engine_log = RollingFileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new(
+            "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}",
+        )))
+        .append(true)
+        .build(
+            format!("{}/storage-engine.log", path),
+            Box::new(CompoundPolicy::new(
+                Box::new(SizeTrigger::new(segment_log_size)),
+                Box::new(
+                    FixedWindowRoller::builder()
+                        .base(0)
+                        .build(
+                            &format!("{}/storage-engine.{}.log", path, "{}"),
+                            log_fie_count,
+                        )
+                        .unwrap(),
+                ),
+            )),
+        )
+        .unwrap();
+
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .appender(Appender::builder().build("server", Box::new(server_log)))
-        .appender(Appender::builder().build("meta", Box::new(meta_log)))
+        .appender(Appender::builder().build("placement-center", Box::new(placement_log)))
+        .appender(Appender::builder().build("storage-engine", Box::new(engine_log)))
         .logger(
             Logger::builder()
                 .appender("server")
@@ -112,10 +150,17 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
         )
         .logger(
             Logger::builder()
-                .appender("meta")
+                .appender("placement-center")
                 .appender("stdout")
                 .additive(false)
-                .build("app::meta", LevelFilter::Info),
+                .build("app::placement-center", LevelFilter::Info),
+        )
+        .logger(
+            Logger::builder()
+                .appender("storage-engine")
+                .appender("stdout")
+                .additive(false)
+                .build("app::storage-engine", LevelFilter::Info),
         )
         .build(Root::builder().appender("stdout").build(LevelFilter::Info))
         .unwrap();
@@ -125,6 +170,15 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
 
 pub fn init_placement_center_log() {
     let conf = placement_center_conf();
+    init_log(
+        conf.log_path.clone(),
+        conf.log_segment_size,
+        conf.log_file_num,
+    );
+}
+
+pub fn init_storage_engine_log() {
+    let conf = storage_engine_conf();
     init_log(
         conf.log_path.clone(),
         conf.log_segment_size,

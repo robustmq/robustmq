@@ -10,11 +10,11 @@ use protocol::{
     mqttv4::codec::Mqtt4Codec,
 };
 use std::{fmt::Error, sync::Arc};
-use tokio::{net::TcpListener, sync::RwLock};
+use tokio::net::TcpListener;
 use tokio_util::codec::Framed;
 
 pub struct TcpServer {
-    connection_manager: Arc<RwLock<ConnectionManager>>,
+    connection_manager: Arc<ConnectionManager>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
@@ -32,14 +32,19 @@ impl TcpServer {
         handler_process_num: usize,
         response_queue_size: usize,
         response_process_num: usize,
+        max_try_mut_times: u64,
+        try_mut_sleep_time_ms: u64,
     ) -> Self {
         let (request_queue_sx, request_queue_rx) =
             flume::bounded::<RequestPackage>(request_queue_size);
         let (response_queue_sx, response_queue_rx) =
             flume::bounded::<ResponsePackage>(response_queue_size);
 
-        let connection_manager: Arc<RwLock<ConnectionManager>> =
-            Arc::new(RwLock::new(ConnectionManager::new(max_connection_num)));
+        let connection_manager = Arc::new(ConnectionManager::new(
+            max_connection_num,
+            max_try_mut_times,
+            try_mut_sleep_time_ms,
+        ));
 
         Self {
             connection_manager,
@@ -76,19 +81,26 @@ impl TcpServer {
 
         tokio::spawn(async move {
             loop {
+                let cm = connection_manager.clone();
                 let request_queue_sx = request_queue_sx.clone();
                 match listener.accept().await {
                     Ok((stream, addr)) => {
+                        match cm.connect_check() {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error(&format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
+                                continue;
+                            }
+                        }
+
                         let stream = Framed::new(stream, Mqtt4Codec::new());
+                        let connection_id = cm.add(Connection::new(addr, stream));
 
-                        // manager connection info
-                        let mut conn = Connection::new(addr, stream);
-
-                        // request is processed by a separate thread, placing the request packet in the request queue.\
+                        // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
-                            while let Some(pkg) = conn.read_frame().await {
+                            while let Some(pkg) = cm.read_frame(connection_id).await {
                                 let content = format!("{:?}", pkg);
-                                let package = RequestPackage::new(100, content, conn.connection_id);
+                                let package = RequestPackage::new(100, content, connection_id);
                                 match request_queue_sx.send(package) {
                                     Ok(_) => {}
                                     Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
@@ -136,9 +148,14 @@ impl TcpServer {
                 // Logical processing of data response
 
                 // Write the data back to the client
-                let cm = connect_manager.write().await;
-                let mut connection = cm.remove(response_package.connection_id);
-                // connection.unwrap().write_frame();
+                let ack: ConnAck = ConnAck {
+                    session_present: true,
+                    code: ConnectReturnCode::Success,
+                };
+                let resp = Packet::ConnAck(ack, None);
+                connect_manager
+                    .write_frame(response_package.connection_id, resp)
+                    .await;
             }
         });
         return Ok(());

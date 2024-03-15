@@ -1,9 +1,10 @@
-use common::log::error_meta;
+use common::log::{error_engine, error_meta};
+use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use protocol::{mqtt::Packet, mqttv4::codec::Mqtt4Codec};
-use std::{collections::HashMap, net::SocketAddr, sync::atomic::AtomicU64};
+use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
+use tokio::time::sleep;
 use tokio_util::codec::Framed;
-use dashmap::DashMap;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -12,37 +13,97 @@ pub enum Error {
 }
 
 pub struct ConnectionManager {
-    connections: HashMap<u64, Connection>,
+    connections: DashMap<u64, Connection>,
     max_connection_num: usize,
+    max_try_mut_times: u64,
+    try_mut_sleep_time_ms: u64,
 }
 
 impl ConnectionManager {
-    pub fn new(max_connection_num: usize) -> ConnectionManager {
+    pub fn new(
+        max_connection_num: usize,
+        max_try_mut_times: u64,
+        try_mut_sleep_time_ms: u64,
+    ) -> ConnectionManager {
+        let connections: DashMap<u64, Connection> =
+            DashMap::with_capacity_and_shard_amount(100, 50);
         ConnectionManager {
-            connections: HashMap::new(),
+            connections,
             max_connection_num,
+            max_try_mut_times,
+            try_mut_sleep_time_ms,
         }
     }
 
-    pub fn add(&mut self, connection: Connection) -> Result<(), Error> {
+    pub fn add(&self, connection: Connection) -> u64 {
+        let connection_id = connection.connection_id;
+        self.connections.insert(connection_id, connection);
+        return connection_id;
+    }
+
+    pub fn remove(&self, connection_id: u64) {
+        self.connections.remove(&connection_id);
+    }
+
+    pub async fn read_frame(&self, connection_id: u64) -> Option<Packet> {
+        let times = 0;
+        loop {
+            match self.connections.try_get_mut(&connection_id) {
+                dashmap::try_result::TryResult::Present(mut da) => {
+                    return da.read_frame().await;
+                }
+                dashmap::try_result::TryResult::Absent => {
+                    if times > self.max_try_mut_times {
+                        error_engine(format!("[read_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
+                        return None;
+                    }
+                }
+                dashmap::try_result::TryResult::Locked => {
+                    if times > self.max_try_mut_times {
+                        error_engine(format!("[read_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
+                        return None;
+                    }
+                }
+            }
+            sleep(Duration::from_millis(self.try_mut_sleep_time_ms)).await
+        }
+    }
+
+    pub async fn write_frame(&self, connection_id: u64, resp: Packet) {
+        let times = 0;
+        loop {
+            match self.connections.try_get_mut(&connection_id) {
+                dashmap::try_result::TryResult::Present(mut da) => {
+                    return da.write_frame(resp).await;
+                }
+                dashmap::try_result::TryResult::Absent => {
+                    if times > self.max_try_mut_times {
+                        error_engine(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
+                        break;
+                    }
+                }
+                dashmap::try_result::TryResult::Locked => {
+                    if times > self.max_try_mut_times {
+                        error_engine(format!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
+                        break;
+                    }
+                }
+            }
+            sleep(Duration::from_millis(self.try_mut_sleep_time_ms)).await
+        }
+    }
+
+    pub fn connect_check(&self) -> Result<(), Error> {
+        // Verify the connection limit
         if self.connections.capacity() >= self.max_connection_num {
             return Err(Error::ConnectionExceed {
                 total: self.max_connection_num,
             });
         }
-        self.connections
-            .insert(connection.connection_id, connection);
-        Ok(())
-    }
 
-    pub fn get(&self, connection_id: u64) -> Option<&Connection> {
-        return self.connections.get(&connection_id);
+        // authentication
+        return Ok(());
     }
-
-    pub fn remove(&mut self, connection_id: u64) {
-        self.connections.remove(&connection_id);
-    }
-
 }
 
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);

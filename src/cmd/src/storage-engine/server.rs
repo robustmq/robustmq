@@ -11,13 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 use clap::command;
 use clap::Parser;
-use common::config::parse_storage_engine;
-use common::config::storage_engine::StorageEngineConfig;
+use common::config::storage_engine::init_storage_engine_conf_by_path;
 use common::config::DEFAULT_STORAGE_ENGINE_CONFIG;
-use common::log;
+use common::log::init_storage_engine_log;
 use storage_engine::StorageEngine;
 use tokio::sync::broadcast;
 
@@ -26,15 +24,16 @@ use tokio::sync::broadcast;
 #[command(next_line_help = true)]
 
 struct ArgsParams {
-    /// MetaService Indicates the path of the configuration file
     #[arg(short, long, default_value_t=String::from(DEFAULT_STORAGE_ENGINE_CONFIG))]
     conf: String,
 }
 
 fn main() {
     let args = ArgsParams::parse();
-    let conf: StorageEngineConfig = parse_storage_engine(&args.conf);
+    init_storage_engine_conf_by_path(&args.conf);
+    init_storage_engine_log();
+    
     let (stop_send, _) = broadcast::channel(2);
-    let mt_s = StorageEngine::new(conf, stop_send);
-    mt_s.start();
+    let server = StorageEngine::new(stop_send);
+    server.start();
 }
