@@ -65,12 +65,12 @@ impl Default for PlacementCenterConfig {
     }
 }
 
-static COMPUTATION: OnceLock<PlacementCenterConfig> = OnceLock::new();
+static PLACEMENT_CENTER_CONF: OnceLock<PlacementCenterConfig> = OnceLock::new();
 
 pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
-    COMPUTATION.get_or_init(|| {
+    PLACEMENT_CENTER_CONF.get_or_init(|| {
         let content = read_file(config_path);
         let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
         create_fold(pc_config.data_path.clone());
@@ -84,13 +84,13 @@ pub fn init_placement_center_conf_by_config(
 ) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
-    COMPUTATION.get_or_init(|| {
+    PLACEMENT_CENTER_CONF.get_or_init(|| {
         return config;
     })
 }
 
 pub fn placement_center_conf() -> &'static PlacementCenterConfig {
-    match COMPUTATION.get() {
+    match PLACEMENT_CENTER_CONF.get() {
         Some(config) => {
             return config;
         }

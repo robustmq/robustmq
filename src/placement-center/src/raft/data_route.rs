@@ -91,7 +91,6 @@ impl DataRoute {
         let cluster_name = req.cluster_name;
 
         let node = NodeInfo {
-            node_uid: unique_id(),
             node_id: req.node_id,
             node_ip: req.node_ip,
             node_port: req.node_port,

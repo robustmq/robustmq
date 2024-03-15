@@ -1,10 +1,13 @@
-use std::sync::Arc;
 use clients::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common::{
-    config::storage_engine::StorageEngineConfig, log::info_meta,
-    metrics::register_prometheus_export, runtime::create_runtime,
+    config::storage_engine::{storage_engine_conf, StorageEngineConfig},
+    log::info_meta,
+    metrics::register_prometheus_export,
+    runtime::create_runtime,
 };
+use server::start_tcp_server;
+use std::sync::Arc;
 use tokio::{
     runtime::Runtime,
     signal,
@@ -15,8 +18,8 @@ mod cluster;
 mod index;
 mod raft;
 mod record;
-mod storage;
 mod server;
+mod storage;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,
@@ -27,7 +30,8 @@ pub struct StorageEngine {
 }
 
 impl StorageEngine {
-    pub fn new(config: StorageEngineConfig, stop_send: broadcast::Sender<bool>) -> Self {
+    pub fn new(stop_send: broadcast::Sender<bool>) -> Self {
+        let config = storage_engine_conf().clone();
         let server_runtime =
             create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
@@ -46,34 +50,35 @@ impl StorageEngine {
     pub fn start(&self) {
         self.register_node();
 
-        self.start_server();
+        self.start_prometheus_export();
+
+        self.start_tcp_server();
 
         self.start_daemon_thread();
 
         self.waiting_stop();
     }
 
-    // start GRPC && HTTP Server
-    fn start_server(&self) {
-        // start grpc server
-        let port = self.config.grpc_port;
+    fn start_tcp_server(&self) {
+        self.server_runtime.spawn(async {
+            start_tcp_server().await;
+        });
+    }
 
-        // start prometheus http server
+    fn start_prometheus_export(&self) {
         let prometheus_port = self.config.prometheus_port;
         self.server_runtime.spawn(async move {
             register_prometheus_export(prometheus_port).await;
         });
     }
 
-    // Start Daemon Thread
     fn start_daemon_thread(&self) {
         let config = self.config.clone();
         let client_poll = self.client_poll.clone();
         self.daemon_runtime
-            .spawn(async move { report_heartbeat(client_poll, config) });
+            .spawn(async move { report_heartbeat(client_poll, config).await });
     }
 
-    // Wait for the service process to stop
     fn waiting_stop(&self) {
         self.daemon_runtime.block_on(async move {
             loop {
@@ -95,6 +100,7 @@ impl StorageEngine {
             register_storage_engine_node(self.client_poll.clone(), self.config.clone()).await;
         });
     }
+
     async fn stop_server(&self) {
         // unregister node
         unregister_storage_engine_node(self.client_poll.clone(), self.config.clone()).await;

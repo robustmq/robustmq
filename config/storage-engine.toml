@@ -6,10 +6,21 @@ prometheus_port = 2229
 nodes = { 1 = "127.0.0.1:2228" }
 runtime_work_threads = 100
 placement_center = ["127.0.0.1:1228"]
-data_path = ["/tmp/storage-engine/storage/data1","/tmp/storage-engine/storage/data2"]
+data_path = [
+    "/tmp/storage-engine/storage/data1",
+    "/tmp/storage-engine/storage/data2",
+]
 log_path = "/tmp/storage-engine/storage/logs"
 log_segment_size = 1099511627776
 log_file_num = 50
 
 [rocksdb]
 max_open_files = 10000
+
+[network]
+accept_thread_num = 1
+handler_thread_num = 20
+response_thread_num = 2
+max_connection_num = 1000
+request_queue_size = 2000
+response_queue_size = 2000
