@@ -76,7 +76,7 @@ impl StorageEngine {
         let config = self.config.clone();
         let client_poll = self.client_poll.clone();
         self.daemon_runtime
-            .spawn(async move { report_heartbeat(client_poll, config) });
+            .spawn(async move { report_heartbeat(client_poll, config).await });
     }
 
     fn waiting_stop(&self) {

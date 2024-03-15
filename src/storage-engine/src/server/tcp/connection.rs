@@ -1,7 +1,7 @@
 use common::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
-use protocol::{mqtt::Packet, mqttv4::codec::Mqtt4Codec};
+use protocol::{mqtt::Packet, mqttv5::codec::Mqtt5Codec};
 use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
@@ -26,7 +26,7 @@ impl ConnectionManager {
         try_mut_sleep_time_ms: u64,
     ) -> ConnectionManager {
         let connections: DashMap<u64, Connection> =
-            DashMap::with_capacity_and_shard_amount(100, 50);
+            DashMap::with_capacity_and_shard_amount(1000, 64);
         ConnectionManager {
             connections,
             max_connection_num,
@@ -95,7 +95,7 @@ impl ConnectionManager {
 
     pub fn connect_check(&self) -> Result<(), Error> {
         // Verify the connection limit
-        if self.connections.capacity() >= self.max_connection_num {
+        if self.connections.len() >= self.max_connection_num {
             return Err(Error::ConnectionExceed {
                 total: self.max_connection_num,
             });
@@ -111,11 +111,11 @@ static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 pub struct Connection {
     pub connection_id: u64,
     pub addr: SocketAddr,
-    pub socket: Framed<tokio::net::TcpStream, Mqtt4Codec>,
+    pub socket: Framed<tokio::net::TcpStream, Mqtt5Codec>,
 }
 
 impl Connection {
-    pub fn new(addr: SocketAddr, socket: Framed<tokio::net::TcpStream, Mqtt4Codec>) -> Connection {
+    pub fn new(addr: SocketAddr, socket: Framed<tokio::net::TcpStream, Mqtt5Codec>) -> Connection {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Connection {
             connection_id,

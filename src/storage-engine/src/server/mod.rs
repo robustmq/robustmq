@@ -16,7 +16,7 @@ pub async fn start_tcp_server() {
         60,
         10,
     );
-    tcp.start().await;
+    tcp.start(conf.grpc_port).await;
 }
 
 pub async fn start_quic_server() {

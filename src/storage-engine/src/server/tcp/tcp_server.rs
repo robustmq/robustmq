@@ -3,11 +3,12 @@ use super::{
     package::ResponsePackage,
 };
 use crate::server::tcp::package::RequestPackage;
-use common::log::error;
+use common::log::{error, info_engine};
 use flume::{Receiver, Sender};
 use protocol::{
     mqtt::{ConnAck, ConnectReturnCode, Packet},
     mqttv4::codec::Mqtt4Codec,
+    mqttv5::codec::Mqtt5Codec,
 };
 use std::{fmt::Error, sync::Arc};
 use tokio::net::TcpListener;
@@ -58,8 +59,10 @@ impl TcpServer {
         }
     }
 
-    pub async fn start(&self) {
-        let listener = TcpListener::bind("0.0.0.0").await.unwrap();
+    pub async fn start(&self, port: u32) {
+        let listener = TcpListener::bind(format!("0.0.0.0:{}", port))
+            .await
+            .unwrap();
         let arc_listener = Arc::new(listener);
 
         for _ in 0..=self.accept_thread_num {
@@ -93,13 +96,14 @@ impl TcpServer {
                             }
                         }
 
-                        let stream = Framed::new(stream, Mqtt4Codec::new());
+                        let stream = Framed::new(stream, Mqtt5Codec::new());
                         let connection_id = cm.add(Connection::new(addr, stream));
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
                             while let Some(pkg) = cm.read_frame(connection_id).await {
                                 let content = format!("{:?}", pkg);
+                                info_engine(content.clone());
                                 let package = RequestPackage::new(100, content, connection_id);
                                 match request_queue_sx.send(package) {
                                     Ok(_) => {}
