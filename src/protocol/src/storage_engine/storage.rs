@@ -1,9 +1,9 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RequestCommon {
-    #[prost(uint32, tag = "3")]
+    #[prost(uint32, tag = "1")]
     pub correlation_id: u32,
-    #[prost(string, tag = "4")]
+    #[prost(string, tag = "2")]
     pub client_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
 
     use futures::{SinkExt, StreamExt};
     use prost::Message;
@@ -8,52 +7,23 @@ mod tests {
         codec::{StorageEngineCodec, StorageEnginePacket},
         storage::{
             ApiKey, ApiType, ApiVersion, Header, ProduceReq, ProduceReqBody, ProduceResp,
-            ProduceRespBody,
+            ProduceRespBody, RequestCommon,
         },
     };
     use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::Framed;
-    use tonic::IntoRequest;
 
-    #[tokio::test]
-    async fn storage_engine_frame_server() {
-        let ip = "127.0.0.1:1228";
-        let listener = TcpListener::bind(ip).await.unwrap();
-        loop {
-            let (stream, _) = listener.accept().await.unwrap();
-            let mut stream = Framed::new(stream, StorageEngineCodec::new());
-            tokio::spawn(async move {
-                while let Some(Ok(data)) = stream.next().await {
-                    println!("Got: {:?}", data);
 
-                    // 发送的消息也只需要发送消息主体，不需要提供长度
-                    // Framed/LengthDelimitedCodec 会自动计算并添加
-                    //    let response = &data[0..5];
-                    stream.send(build_produce_resp()).await.unwrap();
-                }
-            });
-        }
-    }
-
-    #[tokio::test]
-    async fn storage_engine_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1228").await.unwrap();
-        let mut stream: Framed<TcpStream, StorageEngineCodec> =
-            Framed::new(socket, StorageEngineCodec::new());
-
-        // send connect package
-        let _ = stream.send(build_produce_req()).await;
-
-        let data = stream.next().await;
-        println!("Got: {:?}", data);
-    }
 
     fn build_produce_req() -> StorageEnginePacket {
         let header = Header {
             api_key: ApiKey::Produce.into(),
             api_type: ApiType::Request.into(),
             api_version: ApiVersion::V0.into(),
-            request: None,
+            request: Some(RequestCommon {
+                correlation_id: 3,
+                client_id: "testsssss".to_string(),
+            }),
             response: None,
         };
 
@@ -93,12 +63,23 @@ mod tests {
             api_key: ApiKey::Produce.into(),
             api_type: ApiType::Request.into(),
             api_version: ApiVersion::V0.into(),
-            request: None,
+            request: Some(RequestCommon {
+                correlation_id: 3,
+                client_id: "testsssss".to_string(),
+            }),
             response: None,
         };
 
-        let da = Header::encode_to_vec(&header);
-        let body = da.as_slice();
-        println!("data = {:?}", Header::decode(body));
+        let req = ProduceReq {
+            header: Some(header.clone()),
+            body: None,
+        };
+        let body = ProduceReq::encode_to_vec(&req);
+        println!("ProduceReq size:{}", body.len());
+        println!("ProduceReq data:{:?}", ProduceReq::decode(body.as_slice()));
+
+        let h_body = Header::encode_to_vec(&header);
+        println!("Header size:{}", h_body.len());
+        println!("Header data:{:?}", Header::decode(h_body.as_slice()));
     }
 }
