@@ -89,7 +89,7 @@ impl codec::Decoder for StorageEngineCodec {
             return Ok(None);
         }
 
-        // 从 position=0 开始，向后取4位，得到包的总长度
+        // Starting at position=0, go back 4 bits to get the total length of the package
         let mut position = 0;
         let mut data_len_bytes = BytesMut::with_capacity(4);
         data_len_bytes.extend_from_slice(&src[..4]);
@@ -103,20 +103,20 @@ impl codec::Decoder for StorageEngineCodec {
             return Err(Error::PayloadSizeLimitExceeded(data_len));
         }
 
-        // 帧的总长度 = 包的总长度(data_len) + 总长度(4) + 头长度(4) + body长度(4)
+        // Total frame length = total packet length (data_len) + Total length (4) + header length (4) + body length (4)
         let frame_len = data_len + 4 + 4 + 4;
         if src_len < frame_len {
             src.reserve(frame_len - src_len);
             return Ok(None);
         }
 
-        // 得到帧的byte数据
+        // byte data of the frame is obtained
         // frame = data len(4) + header len(4) + header body(N) + body len(4) + body(N)
-        // 数据量足够了，从buf中取出数据转编成帧，并转换为指定类型后返回
-        // 需同时将buf截断(split_to会截断)
+        // If the amount of data is sufficient, the data is taken from the buf and converted into frames.
+        // Also truncate buf (split_to will truncate)
         let frame_bytes = src.split_to(frame_len);
 
-        // 解析得到 header 的长度
+        // length of the header is parsed
         position = position + 4;
         let mut header_len_bytes = BytesMut::with_capacity(4);
         header_len_bytes.extend_from_slice(&frame_bytes[position..(position + 4)]);
@@ -130,12 +130,12 @@ impl codec::Decoder for StorageEngineCodec {
             return Err(Error::HeaderLengthIsZero);
         }
 
-        // 解析得到 header 的内容
+        // Parse the contents of the header
         position = position + 4;
         let mut header_body_bytes = BytesMut::with_capacity(header_len);
         header_body_bytes.extend_from_slice(&frame_bytes[position..(position + header_len)]);
 
-        // 解析得到 body 的长度
+        // Parse to get the length of the body
         position = position + header_len;
         let mut body_len_bytes = BytesMut::with_capacity(4);
         body_len_bytes.extend_from_slice(&frame_bytes[position..(position + 4)]);
@@ -146,12 +146,12 @@ impl codec::Decoder for StorageEngineCodec {
             body_len_bytes[3],
         ]) as usize;
 
-        // 解析得到 body 的内容
+        // Parse the contents of the body
         position = position + 4;
         let mut body_bytes = BytesMut::with_capacity(body_len);
         body_bytes.extend_from_slice(&frame_bytes[position..(position + body_len)]);
 
-        // 根据body和header的内容构建结构化数据
+        // Build structured data from the contents of the body and header
         match Header::decode(header_body_bytes.as_ref()) {
             Ok(header) => match header.api_key() {
                 ApiKey::Produce => match header.api_type() {
@@ -315,9 +315,7 @@ mod tests {
             api_type: ApiType::Response.into(),
             api_version: ApiVersion::V0.into(),
             request: None,
-            response: Some(ResponseCommon {
-                correlation_id: 333,
-            }),
+            response: Some(ResponseCommon { correlation_id: 33 }),
         };
 
         let body = ProduceRespBody {};

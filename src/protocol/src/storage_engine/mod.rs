@@ -12,8 +12,6 @@ pub enum Error {
     PayloadSizeLimitExceeded(usize),
     #[error("Length of the request header is 0")]
     HeaderLengthIsZero,
-    #[error("Length of the request body is 0")]
-    BodyLengthIsZero,
     #[error("Error parsing request header, error message {0}")]
     DecodeHeaderError(String),
     #[error("Parsing request body error, request body identification: {0}, error message {1}")]
