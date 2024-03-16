@@ -3,7 +3,10 @@ mod tests {
     use bytes::{Bytes, BytesMut};
     use futures::{SinkExt, StreamExt};
     use protocol::{
-        mqtt::{ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login, Packet},
+        mqtt::{
+            ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
+            Login, Packet,
+        },
         mqttv4::{self, codec::Mqtt4Codec},
         mqttv5::codec::Mqtt5Codec,
     };

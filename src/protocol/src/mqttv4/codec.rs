@@ -17,7 +17,7 @@ impl Mqtt4Codec {
 impl codec::Encoder<Packet> for Mqtt4Codec {
     type Error = super::Error;
     fn encode(&mut self, packet: Packet, buffer: &mut BytesMut) -> Result<(), Self::Error> {
-        let size = match packet {
+        match packet {
             Packet::Connect(connect, None, last_will, None, login) => {
                 connect::write(&connect, &login, &last_will, buffer)?
             }
