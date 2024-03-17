@@ -1,7 +1,7 @@
 use common::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
-use protocol::{mqtt::Packet, mqttv5::codec::Mqtt5Codec};
+use protocol::storage_engine::codec::{StorageEngineCodec, StorageEnginePacket};
 use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
@@ -45,7 +45,7 @@ impl ConnectionManager {
         self.connections.remove(&connection_id);
     }
 
-    pub async fn read_frame(&self, connection_id: u64) -> Option<Packet> {
+    pub async fn read_frame(&self, connection_id: u64) -> Option<StorageEnginePacket> {
         let times = 0;
         loop {
             match self.connections.try_get_mut(&connection_id) {
@@ -69,7 +69,7 @@ impl ConnectionManager {
         }
     }
 
-    pub async fn write_frame(&self, connection_id: u64, resp: Packet) {
+    pub async fn write_frame(&self, connection_id: u64, resp: StorageEnginePacket) {
         let times = 0;
         loop {
             match self.connections.try_get_mut(&connection_id) {
@@ -111,11 +111,14 @@ static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 pub struct Connection {
     pub connection_id: u64,
     pub addr: SocketAddr,
-    pub socket: Framed<tokio::net::TcpStream, Mqtt5Codec>,
+    pub socket: Framed<tokio::net::TcpStream, StorageEngineCodec>,
 }
 
 impl Connection {
-    pub fn new(addr: SocketAddr, socket: Framed<tokio::net::TcpStream, Mqtt5Codec>) -> Connection {
+    pub fn new(
+        addr: SocketAddr,
+        socket: Framed<tokio::net::TcpStream, StorageEngineCodec>,
+    ) -> Connection {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Connection {
             connection_id,
@@ -128,7 +131,7 @@ impl Connection {
         return self.connection_id;
     }
 
-    pub async fn read_frame(&mut self) -> Option<Packet> {
+    pub async fn read_frame(&mut self) -> Option<StorageEnginePacket> {
         if let Some(pkg) = self.socket.next().await {
             match pkg {
                 Ok(pkg) => {
@@ -143,7 +146,7 @@ impl Connection {
         return None;
     }
 
-    pub async fn write_frame(&mut self, resp: Packet) {
+    pub async fn write_frame(&mut self, resp: StorageEnginePacket) {
         match self.socket.send(resp).await {
             Ok(_) => {}
             Err(err) => error_meta(&format!(

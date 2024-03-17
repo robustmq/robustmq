@@ -21,13 +21,27 @@ mod tests {
             .unwrap();
 
         tonic_build::configure()
-            .build_server(true)
-            .out_dir("src/storage_engine") // you can change the generated code's location
+            .build_server(false)
+            .out_dir("src/storage_engine/generate/protocol") // you can change the generated code's location
             .compile(
-                &["src/storage_engine/storage.proto"],
-                &["src/storage_engine/"], // specify the root location to search proto dependencies
+                &[
+                    "src/storage_engine/proto/protocol/header.proto",
+                    "src/storage_engine/proto/protocol/fetch.proto",
+                    "src/storage_engine/proto/protocol/produce.proto",
+                ],
+                &["src/storage_engine/proto/protocol/"], // specify the root location to search proto dependencies
             )
             .unwrap();
 
+        tonic_build::configure()
+            .build_server(false)
+            .out_dir("src/storage_engine/generate/record") // you can change the generated code's location
+            .compile(
+                &[
+                    "src/storage_engine/proto/record/record.proto",
+                ],
+                &["src/storage_engine/proto/record"], // specify the root location to search proto dependencies
+            )
+            .unwrap();
     }
 }
