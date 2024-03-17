@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use std::{thread, time::Duration};
-    use common::runtime::create_runtime;
+    use common_base::runtime::create_runtime;
     use protocol::broker_server::broker::{broker_service_client::BrokerServiceClient, StopBrokerRequest};
 
     #[test]

@@ -1,4 +1,4 @@
-use common::log::info_meta;
+use common_base::log::info_meta;
 use raft::StateRole;
 use serde::{Deserialize, Serialize};
 use std::{

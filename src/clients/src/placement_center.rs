@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 use crate::{retry_times, ClientPool};
-use common::{errors::RobustMQError, log::error_meta};
+use common_base::{errors::RobustMQError, log::error_meta};
 use mobc::Manager;
 use protocol::placement_center::placement::{
     placement_center_service_client::PlacementCenterServiceClient, CommonReply, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest, HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest

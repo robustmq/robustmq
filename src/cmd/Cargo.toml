@@ -23,7 +23,7 @@ path = "src/robust/robust.rs"
 
 [dependencies]
 clap = {version="4.4.7",features = [ "derive" ]}
-common.workspace = true
+common-base.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
 mqtt-broker.workspace = true

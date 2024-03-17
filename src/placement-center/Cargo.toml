@@ -7,7 +7,7 @@ license.workspace = true
 [dependencies]
 tokio.workspace = true
 tonic.workspace = true
-common.workspace = true
+common-base.workspace = true
 protocol.workspace = true
 thiserror.workspace = true
 serde.workspace = true

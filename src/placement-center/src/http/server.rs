@@ -8,7 +8,7 @@ use crate::{
 };
 use axum::routing::get;
 use axum::Router;
-use common::{config::placement_center::placement_center_conf, log::info};
+use common_base::{config::placement_center::placement_center_conf, log::info};
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},

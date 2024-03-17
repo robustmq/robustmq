@@ -5,7 +5,7 @@ use crate::{
         cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
     },
 };
-use common::{config::placement_center::placement_center_conf, log::info_meta};
+use common_base::{config::placement_center::placement_center_conf, log::info_meta};
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 

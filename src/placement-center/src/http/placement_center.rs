@@ -20,7 +20,7 @@ use super::{
     server::HttpServerState,
 };
 use axum::extract::State;
-use common::metrics::dump_metrics;
+use common_base::metrics::dump_metrics;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 

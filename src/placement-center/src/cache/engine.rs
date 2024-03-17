@@ -1,7 +1,7 @@
 use crate::storage::{
     cluster::ClusterInfo, node::NodeInfo, segment::SegmentInfo, shard::ShardInfo,
 };
-use common::tools::now_mills;
+use common_base::tools::now_mills;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

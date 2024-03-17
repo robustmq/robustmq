@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::config::placement_center::PlacementCenterConfig;
-use common::log::error_meta;
+use common_base::config::placement_center::PlacementCenterConfig;
+use common_base::log::error_meta;
 use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
@@ -253,13 +253,10 @@ impl RocksDBEngine {
 
 #[cfg(test)]
 mod tests {
-
-    use std::{fmt::format, sync::Arc, time::Duration};
-
+    use std::{sync::Arc, time::Duration};
     use crate::storage::keys::key_name_by_last_index;
-
     use super::RocksDBEngine;
-    use common::{config::placement_center::PlacementCenterConfig, log::info_meta};
+    use common_base::config::placement_center::PlacementCenterConfig;
     use serde::{Deserialize, Serialize};
     use tokio::{fs::remove_dir, time::sleep};
 

@@ -1,5 +1,5 @@
 use crate::{cache::engine::EngineClusterCache, raft::storage::PlacementCenterStorage};
-use common::log::{error_meta, info_meta};
+use common_base::log::{error_meta, info_meta};
 use protocol::placement_center::placement::{ClusterType, UnRegisterNodeRequest};
 use std::{
     sync::{Arc, RwLock},

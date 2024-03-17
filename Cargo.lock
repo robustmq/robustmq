@@ -300,6 +300,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "base-raft-rocksdb"
+version = "0.0.1"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -474,7 +481,7 @@ version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
  "bytes",
- "common",
+ "common-base",
  "lazy_static",
  "mobc",
  "protocol",
@@ -488,7 +495,7 @@ name = "cmd"
 version = "0.0.1"
 dependencies = [
  "clap",
- "common",
+ "common-base",
  "lazy_static",
  "mqtt-broker",
  "placement-center",
@@ -503,7 +510,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
-name = "common"
+name = "common-base"
 version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
@@ -1396,7 +1403,7 @@ version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
  "bytes",
- "common",
+ "common-base",
  "flume",
  "futures",
  "protocol",
@@ -1587,7 +1594,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "clients",
- "common",
+ "common-base",
  "futures",
  "futures-util",
  "lazy_static",
@@ -1831,7 +1838,7 @@ dependencies = [
  "axum 0.7.4",
  "bincode",
  "bytes",
- "common",
+ "common-base",
  "futures",
  "prost 0.12.3",
  "thiserror",
@@ -2196,7 +2203,7 @@ dependencies = [
  "axum 0.7.4",
  "bytes",
  "clients",
- "common",
+ "common-base",
  "dashmap",
  "flume",
  "futures",

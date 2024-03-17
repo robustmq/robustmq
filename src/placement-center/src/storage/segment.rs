@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use common::log::error_meta;
+use common_base::log::error_meta;
 use serde::{Deserialize, Serialize};
 
 use super::{keys::key_segment, rocksdb::RocksDBEngine};

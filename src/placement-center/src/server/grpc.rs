@@ -20,7 +20,7 @@ use clients::placement_center::{
     create_segment, create_shard, delete_segment, delete_shard, register_node, unregister_node,
 };
 use clients::ClientPool;
-use common::errors::RobustMQError;
+use common_base::errors::RobustMQError;
 use prost::Message;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement::{

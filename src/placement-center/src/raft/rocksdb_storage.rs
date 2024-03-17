@@ -1,4 +1,4 @@
-use common::log::info_meta;
+use common_base::log::info_meta;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
@@ -96,11 +96,6 @@ impl RaftRocksDBStorage {
         let mut store = self.core.write().unwrap();
         let _ = store.create_snapshot();
         return Ok(());
-    }
-
-    pub fn is_init_snapshot(&self) -> bool {
-        let store = self.core.write().unwrap();
-        return store.is_need_init_snapshot();
     }
 }
 

@@ -1,6 +1,6 @@
 use clients::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
-use common::{
+use common_base::{
     config::storage_engine::{storage_engine_conf, StorageEngineConfig},
     log::info_meta,
     metrics::register_prometheus_export,

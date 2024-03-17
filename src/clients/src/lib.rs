@@ -15,7 +15,7 @@
  */
 
 use std::{collections::HashMap, future::Future};
-use common::errors::RobustMQError;
+use common_base::errors::RobustMQError;
 use mobc::Pool;
 use placement_center::PlacementCenterConnectionManager;
 use protocol::placement_center::placement::placement_center_service_client::PlacementCenterServiceClient;
