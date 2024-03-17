@@ -20,6 +20,7 @@ mod raft;
 mod record;
 mod server;
 mod storage;
+mod network;
 
 pub struct StorageEngine {
     config: StorageEngineConfig,

@@ -1,7 +1,7 @@
 use std::io;
 
 pub mod codec;
-pub mod storage;
+pub mod generate;
 
 /// Error during serialization and deserialization
 #[derive(Debug, thiserror::Error)]

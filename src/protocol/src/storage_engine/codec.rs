@@ -1,7 +1,8 @@
 use super::{
-    storage::{
-        ApiKey, ApiType, FetchReq, FetchReqBody, FetchResp, FetchRespBody, Header, ProduceReq,
-        ProduceReqBody, ProduceResp, ProduceRespBody,
+    generate::protocol::{
+        fetch::{FetchReq, FetchReqBody, FetchResp, FetchRespBody},
+        header::{ApiKey, ApiType, Header},
+        produce::{ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody},
     },
     Error,
 };
@@ -248,13 +249,14 @@ fn fetch_resp(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEngi
 
 #[cfg(test)]
 mod tests {
-    use crate::storage_engine::storage::{
-        ApiKey, ApiType, ApiVersion, Header, ProduceReq, ProduceReqBody, ProduceResp,
-        ProduceRespBody, RequestCommon, ResponseCommon,
-    };
     use futures::{SinkExt, StreamExt};
     use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::{Decoder, Encoder, Framed};
+
+    use crate::storage_engine::generate::protocol::{
+        header::{ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon},
+        produce::{ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody},
+    };
 
     use super::{StorageEngineCodec, StorageEnginePacket};
 

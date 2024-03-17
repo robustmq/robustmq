@@ -2,14 +2,10 @@ use super::{
     connection::{Connection, ConnectionManager},
     package::ResponsePackage,
 };
-use crate::server::tcp::package::RequestPackage;
+use crate::{network::response::build_produce_resp, server::tcp::package::RequestPackage};
 use common::log::{error, info_engine};
 use flume::{Receiver, Sender};
-use protocol::{
-    mqtt::{ConnAck, ConnectReturnCode, Packet},
-    mqttv4::codec::Mqtt4Codec,
-    mqttv5::codec::Mqtt5Codec,
-};
+use protocol::storage_engine::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
 use tokio::net::TcpListener;
 use tokio_util::codec::Framed;
@@ -96,7 +92,7 @@ impl TcpServer {
                             }
                         }
 
-                        let stream = Framed::new(stream, Mqtt5Codec::new());
+                        let stream = Framed::new(stream, StorageEngineCodec::new());
                         let connection_id = cm.add(Connection::new(addr, stream));
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
@@ -152,13 +148,9 @@ impl TcpServer {
                 // Logical processing of data response
 
                 // Write the data back to the client
-                let ack: ConnAck = ConnAck {
-                    session_present: true,
-                    code: ConnectReturnCode::Success,
-                };
-                let resp = Packet::ConnAck(ack, None);
+
                 connect_manager
-                    .write_frame(response_package.connection_id, resp)
+                    .write_frame(response_package.connection_id, build_produce_resp())
                     .await;
             }
         });
