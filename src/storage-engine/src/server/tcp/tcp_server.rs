@@ -2,7 +2,10 @@ use super::{
     connection::{Connection, ConnectionManager},
     package::ResponsePackage,
 };
-use crate::{network::response::build_produce_resp, server::tcp::package::RequestPackage};
+use crate::{
+    network::{command::Command, response::build_produce_resp},
+    server::tcp::package::RequestPackage,
+};
 use common_base::log::{error, info_engine};
 use flume::{Receiver, Sender};
 use protocol::storage_engine::codec::StorageEngineCodec;
@@ -98,6 +101,8 @@ impl TcpServer {
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
                             while let Some(pkg) = cm.read_frame(connection_id).await {
+                                let cmd = Command::new(pkg.clone());
+                                cmd.apply();
                                 let content = format!("{:?}", pkg);
                                 info_engine(content.clone());
                                 let package = RequestPackage::new(100, content, connection_id);
