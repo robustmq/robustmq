@@ -5,7 +5,7 @@ use super::{
     keys::key_node,
     rocksdb::RocksDBEngine,
 };
-use common::{config::placement_center::placement_center_conf, log::error_meta};
+use common_base::{config::placement_center::placement_center_conf, log::error_meta};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]

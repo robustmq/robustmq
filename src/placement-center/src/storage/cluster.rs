@@ -2,7 +2,7 @@ use super::{
     keys::{key_all_cluster, key_cluster},
     rocksdb::RocksDBEngine,
 };
-use common::log::error_meta;
+use common_base::log::error_meta;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

@@ -6,7 +6,7 @@ license.workspace = true
 
 
 [dependencies]
-common.workspace = true
+common-base.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true

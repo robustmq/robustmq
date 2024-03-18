@@ -17,11 +17,11 @@ use std::sync::Arc;
 use mqtt_broker::broker::Broker;
 use clap::command;
 use clap::Parser;
-use common::config::placement_center::PlacementCenterConfig;
-use common::config::parse_server;
-use common::config::broker_server::BrokerServerConfig;
-use common::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
-use common::config::DEFAULT_BROKER_SERVER_CONFIG;
+use common_base::config::placement_center::PlacementCenterConfig;
+use common_base::config::parse_server;
+use common_base::config::broker_server::BrokerServerConfig;
+use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
+use common_base::config::DEFAULT_BROKER_SERVER_CONFIG;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]

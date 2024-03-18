@@ -3,7 +3,7 @@ use super::{
     rocksdb::RocksDBEngine,
     segment::{SegmentInfo, SegmentStorage},
 };
-use common::log::error_meta;
+use common_base::log::error_meta;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

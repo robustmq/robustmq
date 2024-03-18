@@ -11,7 +11,7 @@ use crate::{
     },
 };
 use bincode::deserialize;
-use common::{
+use common_base::{
     errors::RobustMQError,
     tools::{now_mills, unique_id},
 };
@@ -283,7 +283,7 @@ mod tests {
             cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
         },
     };
-    use common::config::placement_center::PlacementCenterConfig;
+    use common_base::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
     use protocol::placement_center::placement::{ClusterType, RegisterNodeRequest};
 

@@ -8,7 +8,7 @@ use super::{
 };
 use axum::error_handling;
 use bytes::{buf, Buf, BufMut, BytesMut};
-use common::log::{error_engine, error_meta};
+use common_base::log::{error_engine, error_meta};
 use prost::Message as _;
 use tokio_util::codec;
 
@@ -293,7 +293,7 @@ mod tests {
 
     #[tokio::test]
     async fn storage_engine_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1228").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:2228").await.unwrap();
         let mut stream: Framed<TcpStream, StorageEngineCodec> =
             Framed::new(socket, StorageEngineCodec::new());
 

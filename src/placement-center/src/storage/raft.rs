@@ -7,9 +7,9 @@ use crate::storage::keys::key_name_snapshot;
 use crate::storage::keys::key_name_uncommit;
 use crate::storage::rocksdb::RocksDBEngine;
 use bincode::{deserialize, serialize};
-use common::config::placement_center::placement_center_conf;
-use common::log::error_meta;
-use common::log::info_meta;
+use common_base::config::placement_center::placement_center_conf;
+use common_base::log::error_meta;
+use common_base::log::info_meta;
 use prost::Message as _;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -45,15 +45,6 @@ impl RaftMachineStorage {
         rc.uncommit_index = rc.uncommit_index();
         rc.snapshot_metadata = rc.create_snapshot_metadata();
         return rc;
-    }
-
-    pub fn is_need_init_snapshot(&self) -> bool {
-        let cf = self.conf_state();
-        let hs = self.hard_state();
-        if cf == ConfState::default() && hs == HardState::default() {
-            return true;
-        }
-        return false;
     }
 
     /// Save HardState information to RocksDB
@@ -431,7 +422,7 @@ mod tests {
     use crate::storage::rocksdb::RocksDBEngine;
 
     use super::RaftMachineStorage;
-    use common::{
+    use common_base::{
         config::placement_center::{init_placement_center_conf_by_config, PlacementCenterConfig},
         log::init_placement_center_log,
     };

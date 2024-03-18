@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use byteorder::{BigEndian, ReadBytesExt};
-    use common::config::placement_center::init_placement_center_conf_by_config;
-    use common::log::{self, init_placement_center_log};
-    use common::{config::placement_center::PlacementCenterConfig, tools::create_fold};
+    use common_base::config::placement_center::init_placement_center_conf_by_config;
+    use common_base::log::{self, init_placement_center_log};
+    use common_base::{config::placement_center::PlacementCenterConfig, tools::create_fold};
     use placement_center::PlacementCenter;
     use prost::Message;
     use raft::eraftpb::Entry;

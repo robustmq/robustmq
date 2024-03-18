@@ -7,7 +7,8 @@ members = [
     "src/placement-center",
     "src/clients",
     "src/cmd",
-    "src/common",
+    "src/common/base",
+    "src/common/raft-rocksdb",
     "src/protocol",
     "src/storage-engine",
     "src/storage-adapter",
@@ -59,6 +60,7 @@ storage-engine = { path = "src/storage-engine" }
 storage-adapter = { path = "src/storage-adapter" }
 storage-object = { path = "src/storage-remote" }
 cmd = { path = "src/cmd" }
-common = { path = "src/common" }
+common-base = { path = "src/common/base" }
+raft-rocksdb = { path = "src/common/raft-rocksdb" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }

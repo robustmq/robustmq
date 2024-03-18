@@ -1,4 +1,4 @@
-use common::log::{error_engine, error_meta};
+use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use protocol::storage_engine::codec::{StorageEngineCodec, StorageEnginePacket};
@@ -46,7 +46,7 @@ impl ConnectionManager {
     }
 
     pub async fn read_frame(&self, connection_id: u64) -> Option<StorageEnginePacket> {
-        let times = 0;
+        let mut times = 0;
         loop {
             match self.connections.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
@@ -65,12 +65,13 @@ impl ConnectionManager {
                     }
                 }
             }
+            times = times + 1;
             sleep(Duration::from_millis(self.try_mut_sleep_time_ms)).await
         }
     }
 
     pub async fn write_frame(&self, connection_id: u64, resp: StorageEnginePacket) {
-        let times = 0;
+        let mut times = 0;
         loop {
             match self.connections.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
@@ -89,6 +90,7 @@ impl ConnectionManager {
                     }
                 }
             }
+            times = times + 1;
             sleep(Duration::from_millis(self.try_mut_sleep_time_ms)).await
         }
     }

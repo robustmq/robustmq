@@ -2,7 +2,7 @@ use std::fmt;
 use std::time::Duration;
 
 use bincode::serialize;
-use common::errors::RobustMQError;
+use common_base::errors::RobustMQError;
 use prost::Message;
 use protocol::placement_center::placement::CreateSegmentRequest;
 use protocol::placement_center::placement::CreateShardRequest;
