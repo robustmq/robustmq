@@ -285,7 +285,10 @@ mod tests {
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
                     let resp = build_produce_resp();
-                    stream.send(resp).await.unwrap();
+                    stream.send(resp.clone()).await.unwrap();
+                    stream.send(resp.clone()).await.unwrap();
+                    stream.send(resp.clone()).await.unwrap();
+                    stream.send(resp.clone()).await.unwrap();
                 }
             });
         }
@@ -293,13 +296,13 @@ mod tests {
 
     #[tokio::test]
     async fn storage_engine_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:2228").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:1228").await.unwrap();
         let mut stream: Framed<TcpStream, StorageEngineCodec> =
             Framed::new(socket, StorageEngineCodec::new());
 
         let _ = stream.send(build_produce_req()).await;
 
-        if let Some(res) = stream.next().await {
+        while let Some(res) = stream.next().await {
             match res {
                 Ok(da) => {
                     println!("{:?}", da);
