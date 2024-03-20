@@ -1,5 +1,5 @@
 [package]
-name = "raft-rocksdb"
+name = "rocksdb-engine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

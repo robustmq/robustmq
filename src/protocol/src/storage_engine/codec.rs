@@ -10,8 +10,10 @@ use axum::error_handling;
 use bytes::{buf, Buf, BufMut, BytesMut};
 use common_base::log::{error_engine, error_meta};
 use prost::Message as _;
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec;
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct StorageEngineCodec {}
 
 #[derive(Debug, PartialEq, Clone)]
@@ -249,14 +251,14 @@ fn fetch_resp(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEngi
 
 #[cfg(test)]
 mod tests {
-    use futures::{SinkExt, StreamExt};
-    use tokio::net::{TcpListener, TcpStream};
-    use tokio_util::codec::{Decoder, Encoder, Framed};
-
     use crate::storage_engine::generate::protocol::{
         header::{ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon},
         produce::{ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody},
     };
+    use futures::{SinkExt, StreamExt};
+    use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
 
     use super::{StorageEngineCodec, StorageEnginePacket};
 
@@ -276,19 +278,21 @@ mod tests {
         let listener = TcpListener::bind(ip).await.unwrap();
         loop {
             let (stream, _) = listener.accept().await.unwrap();
-            let mut stream = Framed::new(stream, StorageEngineCodec::new());
+            let (r_stream, w_stream) = io::split(stream);
+            let mut read_frame_stream = FramedRead::new(r_stream, StorageEngineCodec::new());
+            let mut write_frame_stream = FramedWrite::new(w_stream, StorageEngineCodec::new());
             tokio::spawn(async move {
-                while let Some(Ok(data)) = stream.next().await {
+                while let Some(Ok(data)) = read_frame_stream.next().await {
                     println!("Server Receive: {:?}", data);
 
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
                     let resp = build_produce_resp();
-                    stream.send(resp.clone()).await.unwrap();
-                    stream.send(resp.clone()).await.unwrap();
-                    stream.send(resp.clone()).await.unwrap();
-                    stream.send(resp.clone()).await.unwrap();
+                    write_frame_stream.send(resp.clone()).await.unwrap();
+                    write_frame_stream.send(resp.clone()).await.unwrap();
+                    write_frame_stream.send(resp.clone()).await.unwrap();
+                    write_frame_stream.send(resp.clone()).await.unwrap();
                 }
             });
         }
@@ -296,13 +300,13 @@ mod tests {
 
     #[tokio::test]
     async fn storage_engine_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1228").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:2228").await.unwrap();
         let mut stream: Framed<TcpStream, StorageEngineCodec> =
             Framed::new(socket, StorageEngineCodec::new());
 
         let _ = stream.send(build_produce_req()).await;
 
-        while let Some(res) = stream.next().await {
+        if let Some(res) = stream.next().await {
             match res {
                 Ok(da) => {
                     println!("{:?}", da);

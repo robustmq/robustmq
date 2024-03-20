@@ -300,13 +300,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "base-raft-rocksdb"
-version = "0.0.1"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
 name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1883,6 +1876,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "raft-rocksdb"
+version = "0.0.1"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1969,6 +1969,13 @@ checksum = "6bd13e55d6d7b8cd0ea569161127567cd587676c99f4472f779a0279aa60a7a7"
 dependencies = [
  "libc",
  "librocksdb-sys",
+]
+
+[[package]]
+name = "rocksdb-engine"
+version = "0.0.1"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]

@@ -9,10 +9,11 @@ members = [
     "src/cmd",
     "src/common/base",
     "src/common/raft-rocksdb",
+    "src/common/rocksdb-engine",
     "src/protocol",
     "src/storage-engine",
     "src/storage-adapter",
-    "src/storage-remote"
+    "src/storage-remote",
 ]
 
 resolver = "2"
@@ -45,7 +46,7 @@ prost = "0.12.3"
 ahash = "0.8.7"
 byteorder = "1.5.0"
 toml = "0.8.8"
-uuid = {version = "1.7.0",features = ["v4"]}
+uuid = { version = "1.7.0", features = ["v4"] }
 mobc = "0.8.3"
 dashmap = "5.5.3"
 
@@ -62,5 +63,6 @@ storage-object = { path = "src/storage-remote" }
 cmd = { path = "src/cmd" }
 common-base = { path = "src/common/base" }
 raft-rocksdb = { path = "src/common/raft-rocksdb" }
+rocksdb-engine = { path = "src/common/rocksdb-engine" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }

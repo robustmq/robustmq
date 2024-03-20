@@ -1,10 +1,10 @@
 use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
-use futures::{SinkExt, StreamExt};
+use futures::SinkExt;
 use protocol::storage_engine::codec::{StorageEngineCodec, StorageEnginePacket};
 use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
 use tokio::time::sleep;
-use tokio_util::codec::Framed;
+use tokio_util::codec::FramedWrite;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -43,31 +43,6 @@ impl ConnectionManager {
 
     pub fn remove(&self, connection_id: u64) {
         self.connections.remove(&connection_id);
-    }
-
-    pub async fn read_frame(&self, connection_id: u64) -> Option<StorageEnginePacket> {
-        let mut times = 0;
-        loop {
-            match self.connections.try_get_mut(&connection_id) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    return da.read_frame().await;
-                }
-                dashmap::try_result::TryResult::Absent => {
-                    if times > self.max_try_mut_times {
-                        error_engine(format!("[read_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
-                        return None;
-                    }
-                }
-                dashmap::try_result::TryResult::Locked => {
-                    if times > self.max_try_mut_times {
-                        error_engine(format!("[read_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
-                        return None;
-                    }
-                }
-            }
-            times = times + 1;
-            sleep(Duration::from_millis(self.try_mut_sleep_time_ms)).await
-        }
     }
 
     pub async fn write_frame(&self, connection_id: u64, resp: StorageEnginePacket) {
@@ -113,19 +88,19 @@ static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 pub struct Connection {
     pub connection_id: u64,
     pub addr: SocketAddr,
-    pub socket: Framed<tokio::net::TcpStream, StorageEngineCodec>,
+    pub write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, StorageEngineCodec>,
 }
 
 impl Connection {
     pub fn new(
         addr: SocketAddr,
-        socket: Framed<tokio::net::TcpStream, StorageEngineCodec>,
+        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, StorageEngineCodec>,
     ) -> Connection {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Connection {
             connection_id,
             addr,
-            socket,
+            write,
         }
     }
 
@@ -133,23 +108,8 @@ impl Connection {
         return self.connection_id;
     }
 
-    pub async fn read_frame(&mut self) -> Option<StorageEnginePacket> {
-        if let Some(pkg) = self.socket.next().await {
-            match pkg {
-                Ok(pkg) => {
-                    return Some(pkg);
-                }
-                Err(e) => {
-                    error_meta(&e.to_string());
-                }
-            }
-        }
-
-        return None;
-    }
-
     pub async fn write_frame(&mut self, resp: StorageEnginePacket) {
-        match self.socket.send(resp).await {
+        match self.write.send(resp).await {
             Ok(_) => {}
             Err(err) => error_meta(&format!(
                 "Failed to write data to the response queue, error message ff: {:?}",

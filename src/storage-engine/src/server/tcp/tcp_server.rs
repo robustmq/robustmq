@@ -1,17 +1,19 @@
 use super::{
     connection::{Connection, ConnectionManager},
-    package::ResponsePackage,
+    packet::ResponsePackage,
 };
 use crate::{
-    network::{command::Command, response::build_produce_resp},
-    server::tcp::package::RequestPackage,
+    network::{command::Command, services::Services},
+    server::tcp::packet::RequestPackage,
 };
-use common_base::log::{error, info_engine};
+use common_base::log::{error, error_engine};
 use flume::{Receiver, Sender};
+use futures::StreamExt;
 use protocol::storage_engine::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
+use tokio::io;
 use tokio::net::TcpListener;
-use tokio_util::codec::Framed;
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub struct TcpServer {
     connection_manager: Arc<ConnectionManager>,
@@ -22,6 +24,7 @@ pub struct TcpServer {
     request_queue_rx: Receiver<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
     response_queue_rx: Receiver<ResponsePackage>,
+    codec: StorageEngineCodec,
 }
 
 impl TcpServer {
@@ -45,6 +48,7 @@ impl TcpServer {
             max_try_mut_times,
             try_mut_sleep_time_ms,
         ));
+        let codec = StorageEngineCodec::new();
 
         Self {
             connection_manager,
@@ -55,6 +59,7 @@ impl TcpServer {
             request_queue_rx,
             response_queue_sx,
             response_queue_rx,
+            codec,
         }
     }
 
@@ -80,7 +85,7 @@ impl TcpServer {
     async fn acceptor(&self, listener: Arc<TcpListener>) -> Result<(), Error> {
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
-
+        let codec = self.codec.clone();
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
@@ -95,20 +100,30 @@ impl TcpServer {
                             }
                         }
 
-                        let stream = Framed::new(stream, StorageEngineCodec::new());
-                        let connection_id = cm.add(Connection::new(addr, stream));
+                        // split stream
+                        let (r_stream, w_stream) = io::split(stream);
+                        let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
+                        let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+
+                        // connection manager
+                        let connection_id = cm.add(Connection::new(addr, write_frame_stream));
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
-                            while let Some(pkg) = cm.read_frame(connection_id).await {
-                                let cmd = Command::new(pkg.clone());
-                                cmd.apply();
-                                let content = format!("{:?}", pkg);
-                                info_engine(content.clone());
-                                let package = RequestPackage::new(100, content, connection_id);
-                                match request_queue_sx.send(package) {
-                                    Ok(_) => {}
-                                    Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
+                            loop {
+                                if let Some(pkg) = read_frame_stream.next().await {
+                                    match pkg {
+                                        Ok(data) => {
+                                            let package = RequestPackage::new(connection_id, data);
+                                            match request_queue_sx.send(package) {
+                                                Ok(_) => {}
+                                                Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                            }
+                                        }
+                                        Err(e) => {
+                                            error_engine(e.to_string());
+                                        }
+                                    }
                                 }
                             }
                         });
@@ -128,11 +143,13 @@ impl TcpServer {
         let response_queue_sx = self.response_queue_sx.clone();
         tokio::spawn(async move {
             while let Ok(resquest_package) = request_queue_rx.recv() {
-                // todo Business logic processing
+                //Business logic processing
+                let services = Services::new();
+                let command = Command::new(resquest_package.packet, services);
+                let resp = command.apply();
 
                 // Writes the result of the business logic processing to the return queue
-                let resp = format!("robustmq response:{:?}", resquest_package);
-                let response_package = ResponsePackage::new(resp, resquest_package.connection_id);
+                let response_package = ResponsePackage::new(resquest_package.connection_id, resp);
                 match response_queue_sx.send(response_package) {
                     Ok(_) => {}
                     Err(err) => error(&format!(
@@ -150,12 +167,8 @@ impl TcpServer {
         let connect_manager = self.connection_manager.clone();
         tokio::spawn(async move {
             while let Ok(response_package) = response_queue_rx.recv() {
-                // Logical processing of data response
-
-                // Write the data back to the client
-
                 connect_manager
-                    .write_frame(response_package.connection_id, build_produce_resp())
+                    .write_frame(response_package.connection_id, response_package.packet)
                     .await;
             }
         });
