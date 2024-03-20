@@ -1,19 +1,19 @@
 use super::{
     connection::{Connection, ConnectionManager},
-    package::ResponsePackage,
+    packet::ResponsePackage,
 };
 use crate::{
-    network::{command::Command, response::build_produce_resp},
-    server::tcp::package::RequestPackage,
+    network::{command::Command, services::Services},
+    server::tcp::packet::RequestPackage,
 };
-use common_base::log::{error, error_engine, info_engine};
+use common_base::log::{error, error_engine};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::storage_engine::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::io;
 use tokio::net::TcpListener;
-use tokio_util::codec::{Framed, FramedRead, FramedWrite};
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub struct TcpServer {
     connection_manager: Arc<ConnectionManager>,
@@ -112,10 +112,7 @@ impl TcpServer {
                             while let Some(pkg) = read_frame_stream.next().await {
                                 match pkg {
                                     Ok(data) => {
-                                        let content = format!("{:?}", data);
-                                        info_engine(content.clone());
-                                        let package =
-                                            RequestPackage::new(100, content, connection_id);
+                                        let package = RequestPackage::new(connection_id, data);
                                         match request_queue_sx.send(package) {
                                             Ok(_) => {}
                                             Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
@@ -143,11 +140,13 @@ impl TcpServer {
         let response_queue_sx = self.response_queue_sx.clone();
         tokio::spawn(async move {
             while let Ok(resquest_package) = request_queue_rx.recv() {
-                // todo Business logic processing
+                //Business logic processing
+                let services = Services::new();
+                let command = Command::new(resquest_package.packet, services);
+                let resp = command.apply();
 
                 // Writes the result of the business logic processing to the return queue
-                let resp = format!("robustmq response:{:?}", resquest_package);
-                let response_package = ResponsePackage::new(resp, resquest_package.connection_id);
+                let response_package = ResponsePackage::new(resquest_package.connection_id, resp);
                 match response_queue_sx.send(response_package) {
                     Ok(_) => {}
                     Err(err) => error(&format!(
@@ -165,12 +164,8 @@ impl TcpServer {
         let connect_manager = self.connection_manager.clone();
         tokio::spawn(async move {
             while let Ok(response_package) = response_queue_rx.recv() {
-                // Logical processing of data response
-
-                // Write the data back to the client
-
                 connect_manager
-                    .write_frame(response_package.connection_id, build_produce_resp())
+                    .write_frame(response_package.connection_id, response_package.packet)
                     .await;
             }
         });

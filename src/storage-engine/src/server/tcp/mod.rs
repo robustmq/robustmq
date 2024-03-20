@@ -1,3 +1,3 @@
 mod connection;
-mod package;
+mod packet;
 pub mod tcp_server;
