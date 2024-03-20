@@ -6,12 +6,14 @@ use crate::{
     network::{command::Command, response::build_produce_resp},
     server::tcp::package::RequestPackage,
 };
-use common_base::log::{error, info_engine};
+use common_base::log::{error, error_engine, info_engine};
 use flume::{Receiver, Sender};
+use futures::StreamExt;
 use protocol::storage_engine::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tokio_util::codec::Framed;
+use tokio_util::codec::{Framed, FramedRead, FramedWrite};
 
 pub struct TcpServer {
     connection_manager: Arc<ConnectionManager>,
@@ -95,20 +97,33 @@ impl TcpServer {
                             }
                         }
 
-                        let stream = Framed::new(stream, StorageEngineCodec::new());
-                        let connection_id = cm.add(Connection::new(addr, stream));
+                        // split stream
+                        let (r_stream, w_stream) = io::split(stream);
+                        let mut read_frame_stream =
+                            FramedRead::new(r_stream, StorageEngineCodec::new());
+                        let write_frame_stream =
+                            FramedWrite::new(w_stream, StorageEngineCodec::new());
+
+                        // connection manager
+                        let connection_id = cm.add(Connection::new(addr, write_frame_stream));
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
-                            while let Some(pkg) = cm.read_frame(connection_id).await {
-                                let cmd = Command::new(pkg.clone());
-                                cmd.apply();
-                                let content = format!("{:?}", pkg);
-                                info_engine(content.clone());
-                                let package = RequestPackage::new(100, content, connection_id);
-                                match request_queue_sx.send(package) {
-                                    Ok(_) => {}
-                                    Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
+                            while let Some(pkg) = read_frame_stream.next().await {
+                                match pkg {
+                                    Ok(data) => {
+                                        let content = format!("{:?}", data);
+                                        info_engine(content.clone());
+                                        let package =
+                                            RequestPackage::new(100, content, connection_id);
+                                        match request_queue_sx.send(package) {
+                                            Ok(_) => {}
+                                            Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error_engine(e.to_string());
+                                    }
                                 }
                             }
                         });
