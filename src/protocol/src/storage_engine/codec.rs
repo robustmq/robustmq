@@ -13,6 +13,7 @@ use prost::Message as _;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec;
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct StorageEngineCodec {}
 
 #[derive(Debug, PartialEq, Clone)]
