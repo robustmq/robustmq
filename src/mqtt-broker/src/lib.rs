@@ -12,9 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker;
-
-pub mod network;
-mod bridge;
 mod grpc;
 mod package;
+pub mod server;
+
+pub struct MqttBroker {}
+
+impl MqttBroker {
+    pub fn new() -> Self {
+        return MqttBroker {};
+    }
+
+    pub fn start(&self) {}
+
+    fn start_tcp_server(&self) {}
+
+    fn start_websocket_server(&self) {}
+}
