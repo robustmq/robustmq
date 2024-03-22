@@ -1,4 +1,4 @@
-pub trait storage {
-    fn write();
-    fn read();
+pub trait StorageAdapter {
+    fn kv_write();
+    fn kv_read();
 }

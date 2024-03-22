@@ -1,42 +1,13 @@
 #[cfg(test)]
 mod tests {
-    use mqtt_broker::network::network::Network;
     use bytes::{Bytes, BytesMut};
 
     use protocol::{
         mqtt::{Connect, LastWill, Login},
-        mqttv4::{self, MqttV4},
-    };    
-    use std::sync::Arc;
-    use tokio::{io::AsyncWriteExt, net::TcpStream, sync::RwLock};
-
+        mqttv4,
+    };
     #[test]
     fn mqtt4_broker() {}
-
-    #[tokio::test]
-    async fn client() {
-        let stream = TcpStream::connect("127.0.0.1:9989").await.unwrap();
-        let socket = Arc::new(RwLock::new(Box::new(stream)));
-
-        // send connect package
-        let write_buf = build_pg_connect();
-        let _ = socket.write().await.write_all(&write_buf).await;
-
-        // read connack recv
-        let prot = MqttV4::new();
-        let mut network = Network::new(socket, 2000, 2000, 2000, 3000, prot);
-        println!("{}", 2);
-        loop {
-            match network.read().await {
-                Ok(pkg) => {
-                    println!("receive pkg: {:?}", pkg);
-                }
-                Err(e) => {
-                    println!("receive pkg err: {:?}", e);
-                }
-            }
-        }
-    }
 
     /// Build the connect content package for the mqtt4 protocol
     fn build_pg_connect() -> BytesMut {

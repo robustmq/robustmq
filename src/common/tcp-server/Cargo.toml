@@ -1,0 +1,13 @@
+[package]
+name = "tcp-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+tokio.workspace =true
+common-base.workspace = true
+dashmap.workspace = true
+futures.workspace = true
+tokio-util.workspace =true

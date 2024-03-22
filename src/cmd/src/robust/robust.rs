@@ -14,14 +14,12 @@
 
 use std::sync::Arc;
 
-use mqtt_broker::broker::Broker;
 use clap::command;
 use clap::Parser;
-use common_base::config::placement_center::PlacementCenterConfig;
-use common_base::config::parse_server;
 use common_base::config::broker_server::BrokerServerConfig;
-use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
+use common_base::config::parse_server;
 use common_base::config::DEFAULT_BROKER_SERVER_CONFIG;
+use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -44,7 +42,6 @@ fn main() {
     // let meta_conf: PlacementCenterConfig = parse_placement_center(&args.meta_conf);
     // let (stop_send, _) = broadcast::channel(2);
 
-
     // Start Placement Center
     // let mut mt_s = PlacementCenter::new(meta_conf);
     // mt_s.run(stop_send);
@@ -52,7 +49,6 @@ fn main() {
     // Start Storage Engine
 
     // Start Broker Server
-    let app: Broker = Broker::new(Arc::new(server_conf));
-    app.start().unwrap();
-
+    // let app: Broker = Broker::new(Arc::new(server_conf));
+    // app.start().unwrap();
 }

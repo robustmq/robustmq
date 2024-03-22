@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use mqtt_broker::broker::Broker;
 use clap::{command, Parser};
-use common_base::config::parse_server;
 use common_base::config::broker_server::BrokerServerConfig;
+use common_base::config::parse_server;
 use common_base::config::DEFAULT_BROKER_SERVER_CONFIG;
-use common_base::log;
 
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
@@ -35,6 +32,4 @@ fn main() {
     let server_conf: BrokerServerConfig = parse_server(&args.server_conf);
 
     // Start Broker
-    let app: Broker = Broker::new(Arc::new(server_conf));
-    app.start().unwrap();
 }

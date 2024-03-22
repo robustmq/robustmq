@@ -6,8 +6,8 @@ license.workspace = true
 default-run = "robustmq"
 
 [[bin]]
-name = "broker-server"
-path = "src/broker-server/server.rs"
+name = "mqtt-server"
+path = "src/mqtt-server/server.rs"
 
 [[bin]]
 name = "storage-engine"
@@ -22,10 +22,10 @@ name = "robustmq"
 path = "src/robust/robust.rs"
 
 [dependencies]
-clap = {version="4.4.7",features = [ "derive" ]}
+clap = { version = "4.4.7", features = ["derive"] }
 common-base.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
 mqtt-broker.workspace = true
 placement-center.workspace = true
-storage-engine.workspace =true
+storage-engine.workspace = true
