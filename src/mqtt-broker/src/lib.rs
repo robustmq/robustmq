@@ -13,7 +13,7 @@
 // limitations under the License.
 
 mod grpc;
-mod package;
+pub mod network;
 pub mod server;
 
 pub struct MqttBroker {}
