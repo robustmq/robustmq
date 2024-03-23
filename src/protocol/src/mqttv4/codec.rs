@@ -6,6 +6,7 @@ use super::{
     subscribe, unsuback, unsubscribe, Error, Packet, PacketType,
 };
 
+#[derive(Clone)]
 pub struct Mqtt4Codec {}
 
 impl Mqtt4Codec {
