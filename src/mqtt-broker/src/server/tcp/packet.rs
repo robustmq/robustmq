@@ -1,5 +1,11 @@
 use protocol::mqtt::Packet;
 
+#[derive(Clone,PartialEq)]
+pub enum MqttProtocol {
+    Mqtt4,
+    Mqtt5,
+}
+
 #[derive(Debug)]
 pub struct RequestPackage {
     pub connection_id: u64,
