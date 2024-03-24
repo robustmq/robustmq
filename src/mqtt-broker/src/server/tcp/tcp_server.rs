@@ -1,19 +1,20 @@
-use super::{
-    connection::{Connection, ConnectionManager},
-    packet::ResponsePackage,
-};
-use crate::{network::services::MqttService, server::tcp::packet::RequestPackage};
+use super::connection_manager::ConnectionManager;
+use super::packet::MqttProtocol;
+use super::{connection::Mqtt4Connection, packet::ResponsePackage};
 use crate::network::command::Command;
+use crate::{network::services::MqttService, server::tcp::packet::RequestPackage};
 use common_base::log::{error, error_engine};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::mqttv4::codec::Mqtt4Codec;
+use protocol::mqttv5::codec::Mqtt5Codec;
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub struct TcpServer {
+    protocol: MqttProtocol,
     connection_manager: Arc<ConnectionManager>,
     accept_thread_num: usize,
     handler_process_num: usize,
@@ -22,11 +23,11 @@ pub struct TcpServer {
     request_queue_rx: Receiver<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
     response_queue_rx: Receiver<ResponsePackage>,
-    mqtt4_codec: Mqtt4Codec,
 }
 
 impl TcpServer {
     pub fn new(
+        protocol: MqttProtocol,
         accept_thread_num: usize,
         max_connection_num: usize,
         request_queue_size: usize,
@@ -46,9 +47,9 @@ impl TcpServer {
             max_try_mut_times,
             try_mut_sleep_time_ms,
         ));
-        let codec = Mqtt4Codec::new();
 
         Self {
+            protocol,
             connection_manager,
             accept_thread_num,
             handler_process_num,
@@ -57,7 +58,6 @@ impl TcpServer {
             request_queue_rx,
             response_queue_sx,
             response_queue_rx,
-            mqtt4_codec: codec,
         }
     }
 
@@ -83,7 +83,8 @@ impl TcpServer {
     async fn acceptor(&self, listener: Arc<TcpListener>) -> Result<(), Error> {
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
-        let codec = self.mqtt4_codec.clone();
+        let protocol = self.protocol.clone();
+
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
@@ -100,11 +101,13 @@ impl TcpServer {
 
                         // split stream
                         let (r_stream, w_stream) = io::split(stream);
-                        let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                        let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+                        let codec = Mqtt4Codec::new();
+                        let mut read_frame_stream = FramedRead::new(r_stream, codec);
+                        let write_frame_stream = FramedWrite::new(w_stream, codec);
 
                         // connection manager
-                        let connection_id = cm.add(Connection::new(addr, write_frame_stream));
+
+                        let connection_id = cm.add(Mqtt4Connection::new(addr, write_frame_stream));
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
