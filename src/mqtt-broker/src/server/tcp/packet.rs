@@ -1,19 +1,17 @@
-use protocol::mqtt::Packet;
-
-#[derive(Clone,PartialEq)]
-pub enum MqttProtocol {
+#[derive(Clone, PartialEq)]
+pub enum Protocol {
     Mqtt4,
     Mqtt5,
 }
 
 #[derive(Debug)]
-pub struct RequestPackage {
+pub struct RequestPackage<T> {
     pub connection_id: u64,
-    pub packet: Packet,
+    pub packet: T,
 }
 
-impl RequestPackage {
-    pub fn new(connection_id: u64, packet: Packet) -> Self {
+impl<T> RequestPackage<T> {
+    pub fn new(connection_id: u64, packet: T) -> Self {
         Self {
             connection_id,
             packet,
@@ -22,13 +20,13 @@ impl RequestPackage {
 }
 
 #[derive(Debug)]
-pub struct ResponsePackage {
+pub struct ResponsePackage<T> {
     pub connection_id: u64,
-    pub packet: Packet,
+    pub packet: T,
 }
 
-impl ResponsePackage {
-    pub fn new(connection_id: u64, packet: Packet) -> Self {
+impl<T> ResponsePackage<T> {
+    pub fn new(connection_id: u64, packet: T) -> Self {
         Self {
             connection_id,
             packet,
