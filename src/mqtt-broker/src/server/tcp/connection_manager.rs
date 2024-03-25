@@ -1,9 +1,12 @@
-use super::connection::Connection;
-use common_base::log::error_engine;
+use super::{connection::Connection, packet::Protocol};
+use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
-use protocol::mqtt::Packet;
+use futures::{Sink, SinkExt};
+use protocol::{mqtt::Packet, mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
 use std::time::Duration;
 use tokio::time::sleep;
+use tokio_util::codec::FramedWrite;
+use tonic::codec::Codec;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -11,44 +14,65 @@ pub enum Error {
     ConnectionExceed { total: usize },
 }
 
-pub struct ConnectionManager {
-    connections: DashMap<u64, Box<dyn Connection>>,
+pub struct ConnectionManager<T> {
+    connections: DashMap<u64, Connection>,
+    write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>>,
     max_connection_num: usize,
     max_try_mut_times: u64,
     try_mut_sleep_time_ms: u64,
 }
 
-impl ConnectionManager {
+impl<T> ConnectionManager<T>
+where
+    T: Codec,
+{
     pub fn new(
         max_connection_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-    ) -> ConnectionManager {
+    ) -> ConnectionManager<T> {
         let connections = DashMap::with_capacity_and_shard_amount(1000, 64);
+        let write_list = DashMap::with_capacity_and_shard_amount(1000, 64);
         ConnectionManager {
             connections,
+            write_list,
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,
         }
     }
 
-    pub fn add(&self, connection: impl Connection) -> u64 {
+    pub fn add(&self, connection: Connection) -> u64 {
         let connection_id = connection.connection_id();
-        self.connections.insert(connection_id, Box::new(connection));
+        self.connections.insert(connection_id, connection);
         return connection_id;
     }
 
-    pub fn remove(&self, connection_id: u64) {
+    pub fn add_write(
+        &self,
+        connection_id: u64,
+        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>,
+    ) {
+        self.write_list.insert(connection_id, write);
+    }
+
+    pub fn remove(&self, connection_id: u64, protocol: Protocol) {
         self.connections.remove(&connection_id);
+        self.write_list.remove(&connection_id);
     }
 
     pub async fn write_frame(&self, connection_id: u64, resp: Packet) {
         let mut times = 0;
         loop {
-            match self.connections.try_get_mut(&connection_id) {
+            match self.write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    return da.write_frame(resp).await;
+                    // match da.send(resp.clone()).await {
+                    //     Ok(_) => {}
+                    //     Err(err) => error_meta(&format!(
+                    //         "Failed to write data to the response queue, error message ff: {:?}",
+                    //         err
+                    //     )),
+                    // }
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.max_try_mut_times {

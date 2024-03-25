@@ -1,33 +1,40 @@
-use super::connection_manager::ConnectionManager;
-use super::packet::MqttProtocol;
-use super::{connection::Mqtt4Connection, packet::ResponsePackage};
-use crate::network::command::Command;
-use crate::{network::services::MqttService, server::tcp::packet::RequestPackage};
+use crate::{
+    network::{command::Command, services::MqttService},
+    server::tcp::packet::RequestPackage,
+};
 use common_base::log::{error, error_engine};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
-use protocol::mqttv4::codec::Mqtt4Codec;
-use protocol::mqttv5::codec::Mqtt5Codec;
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
-use tokio_util::codec::{FramedRead, FramedWrite};
+use tokio_util::codec::{Decoder, FramedRead, FramedWrite};
 
-pub struct TcpServer {
-    protocol: MqttProtocol,
-    connection_manager: Arc<ConnectionManager>,
+use super::{
+    connection::Connection,
+    connection_manager::ConnectionManager,
+    packet::{Protocol, ResponsePackage},
+};
+
+pub struct TcpServer<T, U> {
+    protocol: Protocol,
+    connection_manager: Arc<ConnectionManager<U>>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
-    request_queue_sx: Sender<RequestPackage>,
-    request_queue_rx: Receiver<RequestPackage>,
-    response_queue_sx: Sender<ResponsePackage>,
-    response_queue_rx: Receiver<ResponsePackage>,
+    request_queue_sx: Sender<RequestPackage<T>>,
+    request_queue_rx: Receiver<RequestPackage<T>>,
+    response_queue_sx: Sender<ResponsePackage<T>>,
+    response_queue_rx: Receiver<ResponsePackage<T>>,
+    codec: U,
 }
 
-impl TcpServer {
+impl<T, U> TcpServer<T, U>
+where
+    U: Clone + Decoder,
+{
     pub fn new(
-        protocol: MqttProtocol,
+        protocol: Protocol,
         accept_thread_num: usize,
         max_connection_num: usize,
         request_queue_size: usize,
@@ -36,18 +43,18 @@ impl TcpServer {
         response_process_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
+        codec: U,
     ) -> Self {
         let (request_queue_sx, request_queue_rx) =
-            flume::bounded::<RequestPackage>(request_queue_size);
+            flume::bounded::<RequestPackage<T>>(request_queue_size);
         let (response_queue_sx, response_queue_rx) =
-            flume::bounded::<ResponsePackage>(response_queue_size);
+            flume::bounded::<ResponsePackage<T>>(response_queue_size);
 
         let connection_manager = Arc::new(ConnectionManager::new(
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,
         ));
-
         Self {
             protocol,
             connection_manager,
@@ -58,6 +65,7 @@ impl TcpServer {
             request_queue_rx,
             response_queue_sx,
             response_queue_rx,
+            codec,
         }
     }
 
@@ -83,8 +91,8 @@ impl TcpServer {
     async fn acceptor(&self, listener: Arc<TcpListener>) -> Result<(), Error> {
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
+        let codec = self.codec.clone();
         let protocol = self.protocol.clone();
-
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
@@ -101,13 +109,12 @@ impl TcpServer {
 
                         // split stream
                         let (r_stream, w_stream) = io::split(stream);
-                        let codec = Mqtt4Codec::new();
-                        let mut read_frame_stream = FramedRead::new(r_stream, codec);
-                        let write_frame_stream = FramedWrite::new(w_stream, codec);
+                        let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
+                        let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
                         // connection manager
-
-                        let connection_id = cm.add(Mqtt4Connection::new(addr, write_frame_stream));
+                        let connection_id = cm.add(Connection::new(addr));
+                        cm.add_mqtt4_write(connection_id, write_frame_stream);
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
