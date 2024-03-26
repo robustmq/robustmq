@@ -5,10 +5,11 @@ use crate::{
 use common_base::log::{error, error_engine};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
+use protocol::mqtt::Packet;
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
-use tokio_util::codec::{Decoder, FramedRead, FramedWrite};
+use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
 
 use super::{
     connection::Connection,
@@ -16,9 +17,11 @@ use super::{
     packet::{Protocol, ResponsePackage},
 };
 
+// T: Packet
+// U: codec: encoder + decoder
 pub struct TcpServer<T, U> {
     protocol: Protocol,
-    connection_manager: Arc<ConnectionManager<U>>,
+    connection_manager: Arc<ConnectionManager<T,U>>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
@@ -31,7 +34,7 @@ pub struct TcpServer<T, U> {
 
 impl<T, U> TcpServer<T, U>
 where
-    U: Clone + Decoder,
+    U: Clone + Decoder + Encoder<T>,
 {
     pub fn new(
         protocol: Protocol,
@@ -50,7 +53,7 @@ where
         let (response_queue_sx, response_queue_rx) =
             flume::bounded::<ResponsePackage<T>>(response_queue_size);
 
-        let connection_manager = Arc::new(ConnectionManager::new(
+        let connection_manager = Arc::new(ConnectionManager::<U>::new(
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,
@@ -114,7 +117,7 @@ where
 
                         // connection manager
                         let connection_id = cm.add(Connection::new(addr));
-                        cm.add_mqtt4_write(connection_id, write_frame_stream);
+                        cm.add_write(connection_id, write_frame_stream);
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
@@ -129,7 +132,7 @@ where
                                             }
                                         }
                                         Err(e) => {
-                                            error_engine(e.to_string());
+                                            error_engine("".to_string());
                                         }
                                     }
                                 }

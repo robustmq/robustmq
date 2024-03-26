@@ -1,12 +1,11 @@
 use super::{connection::Connection, packet::Protocol};
 use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
-use futures::{Sink, SinkExt};
-use protocol::{mqtt::Packet, mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
+use futures::SinkExt;
+use protocol::mqtt::Packet;
 use std::time::Duration;
 use tokio::time::sleep;
-use tokio_util::codec::FramedWrite;
-use tonic::codec::Codec;
+use tokio_util::codec::{Decoder, Encoder, FramedWrite};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -14,23 +13,25 @@ pub enum Error {
     ConnectionExceed { total: usize },
 }
 
-pub struct ConnectionManager<T> {
+// T: Packet
+// U: codec: encoder + decoder
+pub struct ConnectionManager<T, U> {
     connections: DashMap<u64, Connection>,
-    write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>>,
+    write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, U>>,
     max_connection_num: usize,
     max_try_mut_times: u64,
     try_mut_sleep_time_ms: u64,
 }
 
-impl<T> ConnectionManager<T>
+impl<T, U> ConnectionManager<T, U>
 where
-    T: Codec,
+    U: Decoder + Encoder<T>,
 {
     pub fn new(
         max_connection_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-    ) -> ConnectionManager<T> {
+    ) -> ConnectionManager<T, U> {
         let connections = DashMap::with_capacity_and_shard_amount(1000, 64);
         let write_list = DashMap::with_capacity_and_shard_amount(1000, 64);
         ConnectionManager {
@@ -66,13 +67,13 @@ where
         loop {
             match self.write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    // match da.send(resp.clone()).await {
-                    //     Ok(_) => {}
-                    //     Err(err) => error_meta(&format!(
-                    //         "Failed to write data to the response queue, error message ff: {:?}",
-                    //         err
-                    //     )),
-                    // }
+                    match da.send(resp.clone()).await {
+                        Ok(_) => {}
+                        Err(err) => error_meta(&format!(
+                            "Failed to write data to the response queue, error message ff: {:?}",
+                            "".to_string()
+                        )),
+                    }
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.max_try_mut_times {
