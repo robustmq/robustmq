@@ -51,6 +51,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "amqp-broker"
+version = "0.0.1"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "thiserror",
+]
+
+[[package]]
+name = "amqp-plugins"
+version = "0.0.1"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "thiserror",
+]
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

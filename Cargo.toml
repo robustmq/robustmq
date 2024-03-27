@@ -4,6 +4,8 @@ members = [
     "src/mqtt-bridge/elasticsearch",
     "src/mqtt-bridge/redis",
     "src/mqtt-broker",
+    "src/amqp-plugins",
+    "src/amqp-broker",
     "src/placement-center",
     "src/clients",
     "src/cmd",
@@ -55,6 +57,8 @@ mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }
 mqtt-bridge-elasticsearch = { path = "src/mqtt-bridge/elasticsearch" }
 mqtt-bridge-redis = { path = "src/mqtt-bridge/redis" }
 mqtt-broker = { path = "src/mqtt-broker" }
+amqp-broker = { path = "src/amqp-broker" }
+amqp-plugins = { path = "src/amqp-plugins" }
 placement-center = { path = "src/placement-center" }
 clients = { path = "src/clients" }
 storage-engine = { path = "src/storage-engine" }

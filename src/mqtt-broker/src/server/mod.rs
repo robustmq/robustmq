@@ -23,6 +23,7 @@ pub async fn start_server() {
 }
 
 async fn start_mqtt4_server(conf: &BrokerMQTTConfig) {
+    let port = conf.mqtt.mqtt4_port;
     let codec = Mqtt4Codec::new();
     let server = TcpServer::<Mqtt4Codec>::new(
         conf.network_tcp.accept_thread_num,
@@ -35,12 +36,16 @@ async fn start_mqtt4_server(conf: &BrokerMQTTConfig) {
         conf.network_tcp.lock_try_mut_sleep_time_ms,
         codec,
     );
-    server.start(conf.mqtt.mqtt4_port).await;
-    info("".to_string());
+    server.start(port).await;
+    info(format!(
+        "MQTT4 TCP Server started successfully, listening port: {}",
+        port
+    ));
 }
 
 async fn start_mqtt5_server(conf: &BrokerMQTTConfig) {
     let codec = Mqtt5Codec::new();
+    let port = conf.mqtt.mqtt5_port;
     let server = TcpServer::<Mqtt5Codec>::new(
         conf.network_tcp.accept_thread_num,
         conf.network_tcp.max_connection_num,
@@ -52,8 +57,11 @@ async fn start_mqtt5_server(conf: &BrokerMQTTConfig) {
         conf.network_tcp.lock_try_mut_sleep_time_ms,
         codec,
     );
-    server.start(conf.mqtt.mqtt5_port).await;
-    info("".to_string());
+    server.start(port).await;
+    info(format!(
+        "MQTT5 TCP Server started successfully, listening port: {}",
+        port
+    ));
 }
 
 async fn start_quic_server() {}
