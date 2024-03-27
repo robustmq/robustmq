@@ -96,6 +96,12 @@ where
                 let request_queue_sx = request_queue_sx.clone();
                 match listener.accept().await {
                     Ok((stream, addr)) => {
+                        // split stream
+                        let (r_stream, w_stream) = io::split(stream);
+                        let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
+                        let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+
+                        // connect check
                         match cm.connect_check() {
                             Ok(_) => {}
                             Err(e) => {
@@ -104,10 +110,8 @@ where
                             }
                         }
 
-                        // split stream
-                        let (r_stream, w_stream) = io::split(stream);
-                        let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                        let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+                        // connect login(plain)
+                        
 
                         // connection manager
                         let connection_id = cm.add(Connection::new(addr));

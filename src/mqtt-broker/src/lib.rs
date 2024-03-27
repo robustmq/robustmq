@@ -19,15 +19,12 @@ use common_base::{
     runtime::create_runtime,
 };
 use server::start_server;
-use tokio::{
-    runtime::Runtime,
-    signal::{self, unix::signal},
-    sync::broadcast,
-};
-
+use tokio::{runtime::Runtime, signal, sync::broadcast};
+mod auth;
 mod grpc;
-pub mod network;
-pub mod server;
+mod network;
+mod server;
+mod storage;
 
 pub struct MqttBroker<'a> {
     conf: &'a BrokerMQTTConfig,
@@ -37,10 +34,7 @@ pub struct MqttBroker<'a> {
 impl<'a> MqttBroker<'a> {
     pub fn new() -> Self {
         let conf = broker_mqtt_conf();
-        let runtime = create_runtime(
-            "storage-engine-server-runtime",
-            conf.runtime.worker_threads,
-        );
+        let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
         return MqttBroker { conf, runtime };
     }
 
