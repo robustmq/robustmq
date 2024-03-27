@@ -15,23 +15,23 @@ pub enum Error {
 
 // T: Packet
 // U: codec: encoder + decoder
-pub struct ConnectionManager<T, U> {
+pub struct ConnectionManager<T> {
     connections: DashMap<u64, Connection>,
-    write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, U>>,
+    write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>>,
     max_connection_num: usize,
     max_try_mut_times: u64,
     try_mut_sleep_time_ms: u64,
 }
 
-impl<T, U> ConnectionManager<T, U>
+impl<T> ConnectionManager<T>
 where
-    U: Decoder + Encoder<T>,
+    T: Decoder + Encoder<Packet>,
 {
     pub fn new(
         max_connection_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-    ) -> ConnectionManager<T, U> {
+    ) -> ConnectionManager<T> {
         let connections = DashMap::with_capacity_and_shard_amount(1000, 64);
         let write_list = DashMap::with_capacity_and_shard_amount(1000, 64);
         ConnectionManager {

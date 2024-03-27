@@ -17,24 +17,23 @@ use super::{
     packet::{Protocol, ResponsePackage},
 };
 
-// T: Packet
 // U: codec: encoder + decoder
-pub struct TcpServer<T, U> {
+pub struct TcpServer<T> {
     protocol: Protocol,
-    connection_manager: Arc<ConnectionManager<T,U>>,
+    connection_manager: Arc<ConnectionManager<T>>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
-    request_queue_sx: Sender<RequestPackage<T>>,
-    request_queue_rx: Receiver<RequestPackage<T>>,
-    response_queue_sx: Sender<ResponsePackage<T>>,
-    response_queue_rx: Receiver<ResponsePackage<T>>,
-    codec: U,
+    request_queue_sx: Sender<RequestPackage>,
+    request_queue_rx: Receiver<RequestPackage>,
+    response_queue_sx: Sender<ResponsePackage>,
+    response_queue_rx: Receiver<ResponsePackage>,
+    codec: T,
 }
 
-impl<T, U> TcpServer<T, U>
+impl<T> TcpServer<T>
 where
-    U: Clone + Decoder + Encoder<T>,
+    T: Clone + Decoder + Encoder<Packet>,
 {
     pub fn new(
         protocol: Protocol,
@@ -46,14 +45,14 @@ where
         response_process_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-        codec: U,
+        codec: T,
     ) -> Self {
         let (request_queue_sx, request_queue_rx) =
-            flume::bounded::<RequestPackage<T>>(request_queue_size);
+            flume::bounded::<RequestPackage>(request_queue_size);
         let (response_queue_sx, response_queue_rx) =
-            flume::bounded::<ResponsePackage<T>>(response_queue_size);
+            flume::bounded::<ResponsePackage>(response_queue_size);
 
-        let connection_manager = Arc::new(ConnectionManager::<U>::new(
+        let connection_manager = Arc::new(ConnectionManager::<T>::new(
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,
