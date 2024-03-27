@@ -1,9 +1,9 @@
-use protocol::mqtt::{ConnAck, ConnectReturnCode, Packet};
+use protocol::mqtt::{ConnAck, ConnectReturnCode, MQTTPacket};
 
-pub fn conn_ack() -> Packet {
+pub fn conn_ack() -> MQTTPacket {
     let conn_ack = ConnAck {
         session_present: true,
         code: ConnectReturnCode::Success,
     };
-    return Packet::ConnAck(conn_ack, None);
+    return MQTTPacket::ConnAck(conn_ack, None);
 }

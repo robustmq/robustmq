@@ -1,4 +1,4 @@
-use protocol::mqtt::Packet;
+use protocol::mqtt::MQTTPacket;
 
 use super::packet::conn_ack;
 
@@ -9,7 +9,7 @@ impl Command {
         return Command {};
     }
 
-    pub fn apply(&self) ->Packet{
+    pub fn apply(&self) ->MQTTPacket{
         return conn_ack();
     }
 }

@@ -1,18 +1,18 @@
 use super::{connection::Connection, packet::Protocol};
 use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
-use futures::{Sink, SinkExt};
-use protocol::{mqtt::Packet, mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
+use futures::SinkExt;
+use protocol::mqtt::MQTTPacket;
 use std::time::Duration;
 use tokio::time::sleep;
-use tokio_util::codec::FramedWrite;
-use tonic::codec::Codec;
+use tokio_util::codec::{Decoder, Encoder, FramedWrite};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Description The number of TCP connections on a node exceeded the upper limit. The maximum number of TCP connections was {total:?}")]
     ConnectionExceed { total: usize },
 }
+
 
 pub struct ConnectionManager<T> {
     connections: DashMap<u64, Connection>,
@@ -24,7 +24,7 @@ pub struct ConnectionManager<T> {
 
 impl<T> ConnectionManager<T>
 where
-    T: Codec,
+    T: Decoder + Encoder<MQTTPacket>,
 {
     pub fn new(
         max_connection_num: usize,
@@ -61,18 +61,18 @@ where
         self.write_list.remove(&connection_id);
     }
 
-    pub async fn write_frame(&self, connection_id: u64, resp: Packet) {
+    pub async fn write_frame(&self, connection_id: u64, resp: MQTTPacket) {
         let mut times = 0;
         loop {
             match self.write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
-                    // match da.send(resp.clone()).await {
-                    //     Ok(_) => {}
-                    //     Err(err) => error_meta(&format!(
-                    //         "Failed to write data to the response queue, error message ff: {:?}",
-                    //         err
-                    //     )),
-                    // }
+                    match da.send(resp.clone()).await {
+                        Ok(_) => {}
+                        Err(err) => error_meta(&format!(
+                            "Failed to write data to the response queue, error message ff: {:?}",
+                            "".to_string()
+                        )),
+                    }
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.max_try_mut_times {

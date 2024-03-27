@@ -5,10 +5,11 @@ use crate::{
 use common_base::log::{error, error_engine};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
+use protocol::mqtt::MQTTPacket;
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
-use tokio_util::codec::{Decoder, FramedRead, FramedWrite};
+use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
 
 use super::{
     connection::Connection,
@@ -16,25 +17,25 @@ use super::{
     packet::{Protocol, ResponsePackage},
 };
 
-pub struct TcpServer<T, U> {
-    protocol: Protocol,
-    connection_manager: Arc<ConnectionManager<U>>,
+// U: codec: encoder + decoder
+pub struct TcpServer<T> {
+    connection_manager: Arc<ConnectionManager<T>>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
-    request_queue_sx: Sender<RequestPackage<T>>,
-    request_queue_rx: Receiver<RequestPackage<T>>,
-    response_queue_sx: Sender<ResponsePackage<T>>,
-    response_queue_rx: Receiver<ResponsePackage<T>>,
-    codec: U,
+    request_queue_sx: Sender<RequestPackage>,
+    request_queue_rx: Receiver<RequestPackage>,
+    response_queue_sx: Sender<ResponsePackage>,
+    response_queue_rx: Receiver<ResponsePackage>,
+    codec: T,
 }
 
-impl<T, U> TcpServer<T, U>
+impl<T> TcpServer<T>
 where
-    U: Clone + Decoder,
+    T: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static,
+    MQTTPacket: From<<T as tokio_util::codec::Decoder>::Item>,
 {
     pub fn new(
-        protocol: Protocol,
         accept_thread_num: usize,
         max_connection_num: usize,
         request_queue_size: usize,
@@ -43,20 +44,19 @@ where
         response_process_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-        codec: U,
+        codec: T,
     ) -> Self {
         let (request_queue_sx, request_queue_rx) =
-            flume::bounded::<RequestPackage<T>>(request_queue_size);
+            flume::bounded::<RequestPackage>(request_queue_size);
         let (response_queue_sx, response_queue_rx) =
-            flume::bounded::<ResponsePackage<T>>(response_queue_size);
+            flume::bounded::<ResponsePackage>(response_queue_size);
 
-        let connection_manager = Arc::new(ConnectionManager::new(
+        let connection_manager = Arc::new(ConnectionManager::<T>::new(
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,
         ));
         Self {
-            protocol,
             connection_manager,
             accept_thread_num,
             handler_process_num,
@@ -92,7 +92,6 @@ where
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
         let codec = self.codec.clone();
-        let protocol = self.protocol.clone();
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
@@ -114,7 +113,7 @@ where
 
                         // connection manager
                         let connection_id = cm.add(Connection::new(addr));
-                        cm.add_mqtt4_write(connection_id, write_frame_stream);
+                        cm.add_write(connection_id, write_frame_stream);
 
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
@@ -122,14 +121,15 @@ where
                                 if let Some(pkg) = read_frame_stream.next().await {
                                     match pkg {
                                         Ok(data) => {
-                                            let package = RequestPackage::new(connection_id, data);
+                                            let pack: MQTTPacket = data.try_into().unwrap();
+                                            let package = RequestPackage::new(connection_id, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
                                                 Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
                                             }
                                         }
                                         Err(e) => {
-                                            error_engine(e.to_string());
+                                            error_engine("".to_string());
                                         }
                                     }
                                 }
