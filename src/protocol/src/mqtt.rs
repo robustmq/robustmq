@@ -46,7 +46,7 @@ pub enum PacketType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Packet {
+pub enum MQTTPacket {
     Connect(
         Connect,
         Option<ConnectProperties>,
@@ -1066,6 +1066,6 @@ pub enum Error {
 }
 
 pub trait Protocol {
-    fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<Packet, Error>;
-    fn write(&self, packet: Packet, write: &mut BytesMut) -> Result<usize, Error>;
+    fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<MQTTPacket, Error>;
+    fn write(&self, packet: MQTTPacket, write: &mut BytesMut) -> Result<usize, Error>;
 }

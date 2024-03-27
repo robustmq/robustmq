@@ -5,7 +5,7 @@ use crate::mqtt::LastWillProperties;
 
 use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
-    subscribe, unsuback, unsubscribe, Error, Packet, PacketType,
+    subscribe, unsuback, unsubscribe, Error, MQTTPacket, PacketType,
 };
 
 pub struct Mqtt5Codec {}
@@ -16,26 +16,26 @@ impl Mqtt5Codec {
     }
 }
 
-impl codec::Encoder<Packet> for Mqtt5Codec {
+impl codec::Encoder<MQTTPacket> for Mqtt5Codec {
     type Error = super::Error;
-    fn encode(&mut self, packet: Packet, buffer: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, packet: MQTTPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         let size = match packet {
-            Packet::Connect(connect, properties, last_will, last_will_peoperties, login) => {
+            MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
                 connect::write(&connect, &properties, &last_will,  &last_will_peoperties, &login, buffer)?
             }
-            Packet::ConnAck(connack, conn_ack_properties) => connack::write(&connack,&conn_ack_properties, buffer)?,
-            Packet::Publish(publish, publish_properties ) => publish::write(&publish, &publish_properties,buffer)?,
-            Packet::PubAck(puback, pub_ack_properties) => puback::write(&puback, &pub_ack_properties,buffer)?,
-            Packet::PubRec(pubrec, pub_rec_properties) => pubrec::write(&pubrec, &pub_rec_properties,buffer)?,
-            Packet::PubRel(pubrel, pub_rel_properties) => pubrel::write(&pubrel, &pub_rel_properties,buffer)?,
-            Packet::PubComp(pubcomp, pub_comp_properties) => pubcomp::write(&pubcomp, &pub_comp_properties,buffer)?,
-            Packet::Subscribe(subscribe, subscribe_properties) => subscribe::write(&subscribe,&subscribe_properties, buffer)?,
-            Packet::SubAck(suback, suback_properties) => suback::write(&suback, &suback_properties,buffer)?,
-            Packet::Unsubscribe(unsubscribe, unsubscribe_properties) => unsubscribe::write(&unsubscribe, &unsubscribe_properties,buffer)?,
-            Packet::UnsubAck(unsuback, unsuback_properties) => unsuback::write(&unsuback, &unsuback_properties,buffer)?,
-            Packet::PingReq(pingreq) => ping::pingreq::write(buffer)?,
-            Packet::PingResp(pingresp) => ping::pingresp::write(buffer)?,
-            Packet::Disconnect(disconnect, disconnect_properties) => disconnect::write(&disconnect, &disconnect_properties,buffer)?,
+            MQTTPacket::ConnAck(connack, conn_ack_properties) => connack::write(&connack,&conn_ack_properties, buffer)?,
+            MQTTPacket::Publish(publish, publish_properties ) => publish::write(&publish, &publish_properties,buffer)?,
+            MQTTPacket::PubAck(puback, pub_ack_properties) => puback::write(&puback, &pub_ack_properties,buffer)?,
+            MQTTPacket::PubRec(pubrec, pub_rec_properties) => pubrec::write(&pubrec, &pub_rec_properties,buffer)?,
+            MQTTPacket::PubRel(pubrel, pub_rel_properties) => pubrel::write(&pubrel, &pub_rel_properties,buffer)?,
+            MQTTPacket::PubComp(pubcomp, pub_comp_properties) => pubcomp::write(&pubcomp, &pub_comp_properties,buffer)?,
+            MQTTPacket::Subscribe(subscribe, subscribe_properties) => subscribe::write(&subscribe,&subscribe_properties, buffer)?,
+            MQTTPacket::SubAck(suback, suback_properties) => suback::write(&suback, &suback_properties,buffer)?,
+            MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => unsubscribe::write(&unsubscribe, &unsubscribe_properties,buffer)?,
+            MQTTPacket::UnsubAck(unsuback, unsuback_properties) => unsuback::write(&unsuback, &unsuback_properties,buffer)?,
+            MQTTPacket::PingReq(pingreq) => ping::pingreq::write(buffer)?,
+            MQTTPacket::PingResp(pingresp) => ping::pingresp::write(buffer)?,
+            MQTTPacket::Disconnect(disconnect, disconnect_properties) => disconnect::write(&disconnect, &disconnect_properties,buffer)?,
 
             //Packet::
             _=> unreachable!(
@@ -47,7 +47,7 @@ impl codec::Encoder<Packet> for Mqtt5Codec {
 }
 
 impl codec::Decoder for Mqtt5Codec {
-    type Item = Packet;
+    type Item = MQTTPacket;
     type Error = super::Error;
     fn decode(&mut self, stream: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let fixed_header = check(stream.iter(), 1000000)?;
@@ -59,50 +59,50 @@ impl codec::Decoder for Mqtt5Codec {
             PacketType::Connect => {
                 let (connect, properties, last_will, last_will_properties, login) =
                     connect::read(fixed_header, packet)?;
-                Packet::Connect(connect, properties, last_will, last_will_properties, login)
+                MQTTPacket::Connect(connect, properties, last_will, last_will_properties, login)
             }
             PacketType::ConnAck => {
                 let (conn_ack, conn_ack_properties) = connack::read(fixed_header, packet)?;
-                Packet::ConnAck(conn_ack, conn_ack_properties)
+                MQTTPacket::ConnAck(conn_ack, conn_ack_properties)
             }
             PacketType::Publish => {
                 let (publish, publish_properties) = publish::read(fixed_header, packet)?;
-                Packet::Publish(publish, publish_properties)
+                MQTTPacket::Publish(publish, publish_properties)
             }
             PacketType::PubAck => {
                 let (puback, puback_properties) = puback::read(fixed_header, packet)?;
-                Packet::PubAck(puback, puback_properties)
+                MQTTPacket::PubAck(puback, puback_properties)
             }
             PacketType::PubRec => {
                 let (pubrec, pubrec_properties) = pubrec::read(fixed_header, packet)?;
-                Packet::PubRec(pubrec, pubrec_properties)
+                MQTTPacket::PubRec(pubrec, pubrec_properties)
             }
             PacketType::PubRel => {
                 let (pubrel, pubrel_properteis) = pubrel::read(fixed_header, packet)?;
-                Packet::PubRel(pubrel, pubrel_properteis)
+                MQTTPacket::PubRel(pubrel, pubrel_properteis)
             }
             PacketType::PubComp => {
                 let (pubcomp, pubcomp_properties) = pubcomp::read(fixed_header, packet)?;
-                Packet::PubComp(pubcomp, pubcomp_properties)
+                MQTTPacket::PubComp(pubcomp, pubcomp_properties)
             }
             PacketType::Subscribe => {
                 let (subscribe, subscribe_properties) = subscribe::read(fixed_header, packet)?;
-                Packet::Subscribe(subscribe, subscribe_properties)
+                MQTTPacket::Subscribe(subscribe, subscribe_properties)
             }
             PacketType::SubAck => {
                 let (suback, suback_properties) = suback::read(fixed_header, packet)?;
-                Packet::SubAck(suback, suback_properties)
+                MQTTPacket::SubAck(suback, suback_properties)
             },
             PacketType::Unsubscribe => {
                 let (unsubscribe, unsubscribe_properties) = unsubscribe::read(fixed_header, packet)?;
-                Packet::Unsubscribe(unsubscribe, unsubscribe_properties)
+                MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties)
             }
             PacketType::UnsubAck => {
                 let (unsuback, unsuback_properties) = unsuback::read(fixed_header, packet)?;
-                Packet::UnsubAck(unsuback, unsuback_properties)
+                MQTTPacket::UnsubAck(unsuback, unsuback_properties)
             },
-            PacketType::PingReq => Packet::PingReq(super::PingReq),
-            PacketType::PingResp => Packet::PingResp(super::PingResp),
+            PacketType::PingReq => MQTTPacket::PingReq(super::PingReq),
+            PacketType::PingResp => MQTTPacket::PingResp(super::PingResp),
             // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
             // hit when Disconnect packet has properties which are only valid for MQTT V5
             PacketType::Disconnect => return Err(Error::InvalidProtocol),

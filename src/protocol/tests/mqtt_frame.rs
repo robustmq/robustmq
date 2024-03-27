@@ -5,7 +5,7 @@ mod tests {
     use protocol::{
         mqtt::{
             ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
-            Login, Packet,
+            Login, MQTTPacket,
         },
         mqttv4::{self, codec::Mqtt4Codec},
         mqttv5::codec::Mqtt5Codec,
@@ -48,7 +48,7 @@ mod tests {
     }
 
     /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect() -> Packet {
+    fn build_mqtt4_pg_connect() -> MQTTPacket {
         let client_id = String::from("test_client_id");
         let login = Some(Login {
             username: "lobo".to_string(),
@@ -66,16 +66,16 @@ mod tests {
             client_id: client_id,
             clean_session: true,
         };
-        return Packet::Connect(connect, None, lastwill, None, login);
+        return MQTTPacket::Connect(connect, None, lastwill, None, login);
     }
 
     /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect_ack() -> Packet {
+    fn build_mqtt4_pg_connect_ack() -> MQTTPacket {
         let ack: ConnAck = ConnAck {
             session_present: true,
             code: ConnectReturnCode::Success,
         };
-        return Packet::ConnAck(ack, None);
+        return MQTTPacket::ConnAck(ack, None);
     }
 
     #[tokio::test]
@@ -113,7 +113,7 @@ mod tests {
     }
 
     /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect() -> Packet {
+    fn build_mqtt5_pg_connect() -> MQTTPacket {
         let client_id = String::from("test_client_id");
         let login = Some(Login {
             username: "lobo".to_string(),
@@ -134,17 +134,17 @@ mod tests {
 
         let mut properties = ConnectProperties::default();
         properties.session_expiry_interval = Some(30);
-        return Packet::Connect(connect, Some(properties), lastwill, None, login);
+        return MQTTPacket::Connect(connect, Some(properties), lastwill, None, login);
     }
 
     /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect_ack() -> Packet {
+    fn build_mqtt5_pg_connect_ack() -> MQTTPacket {
         let ack: ConnAck = ConnAck {
             session_present: true,
             code: ConnectReturnCode::Success,
         };
         let mut properties = ConnAckProperties::default();
         properties.max_qos = Some(10u8);
-        return Packet::ConnAck(ack, Some(properties));
+        return MQTTPacket::ConnAck(ack, Some(properties));
     }
 }

@@ -2,7 +2,7 @@ use super::{connection::Connection, packet::Protocol};
 use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::SinkExt;
-use protocol::mqtt::Packet;
+use protocol::mqtt::MQTTPacket;
 use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::{Decoder, Encoder, FramedWrite};
@@ -13,8 +13,7 @@ pub enum Error {
     ConnectionExceed { total: usize },
 }
 
-// T: Packet
-// U: codec: encoder + decoder
+
 pub struct ConnectionManager<T> {
     connections: DashMap<u64, Connection>,
     write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>>,
@@ -25,7 +24,7 @@ pub struct ConnectionManager<T> {
 
 impl<T> ConnectionManager<T>
 where
-    T: Decoder + Encoder<Packet>,
+    T: Decoder + Encoder<MQTTPacket>,
 {
     pub fn new(
         max_connection_num: usize,
@@ -62,7 +61,7 @@ where
         self.write_list.remove(&connection_id);
     }
 
-    pub async fn write_frame(&self, connection_id: u64, resp: Packet) {
+    pub async fn write_frame(&self, connection_id: u64, resp: MQTTPacket) {
         let mut times = 0;
         loop {
             match self.write_list.try_get_mut(&connection_id) {

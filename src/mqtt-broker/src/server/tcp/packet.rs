@@ -1,4 +1,4 @@
-use protocol::mqtt::Packet;
+use protocol::mqtt::MQTTPacket;
 #[derive(Clone, PartialEq)]
 pub enum Protocol {
     Mqtt4,
@@ -8,11 +8,11 @@ pub enum Protocol {
 #[derive(Debug)]
 pub struct RequestPackage {
     pub connection_id: u64,
-    pub packet: Packet,
+    pub packet: MQTTPacket,
 }
 
 impl RequestPackage {
-    pub fn new(connection_id: u64, packet: Packet) -> Self {
+    pub fn new(connection_id: u64, packet: MQTTPacket) -> Self {
         Self {
             connection_id,
             packet,
@@ -23,11 +23,11 @@ impl RequestPackage {
 #[derive(Debug)]
 pub struct ResponsePackage {
     pub connection_id: u64,
-    pub packet: Packet,
+    pub packet: MQTTPacket,
 }
 
 impl ResponsePackage {
-    pub fn new(connection_id: u64, packet: Packet) -> Self {
+    pub fn new(connection_id: u64, packet: MQTTPacket) -> Self {
         Self {
             connection_id,
             packet,

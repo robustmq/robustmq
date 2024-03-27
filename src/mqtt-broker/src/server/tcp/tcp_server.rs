@@ -5,7 +5,7 @@ use crate::{
 use common_base::log::{error, error_engine};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
-use protocol::mqtt::Packet;
+use protocol::mqtt::MQTTPacket;
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
@@ -19,7 +19,6 @@ use super::{
 
 // U: codec: encoder + decoder
 pub struct TcpServer<T> {
-    protocol: Protocol,
     connection_manager: Arc<ConnectionManager<T>>,
     accept_thread_num: usize,
     handler_process_num: usize,
@@ -33,10 +32,9 @@ pub struct TcpServer<T> {
 
 impl<T> TcpServer<T>
 where
-    T: Clone + Decoder + Encoder<Packet>,
+    T: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static,
 {
     pub fn new(
-        protocol: Protocol,
         accept_thread_num: usize,
         max_connection_num: usize,
         request_queue_size: usize,
@@ -58,7 +56,6 @@ where
             try_mut_sleep_time_ms,
         ));
         Self {
-            protocol,
             connection_manager,
             accept_thread_num,
             handler_process_num,
@@ -94,7 +91,6 @@ where
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
         let codec = self.codec.clone();
-        let protocol = self.protocol.clone();
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
