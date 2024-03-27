@@ -33,6 +33,7 @@ pub struct TcpServer<T> {
 impl<T> TcpServer<T>
 where
     T: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static,
+    MQTTPacket: From<<T as tokio_util::codec::Decoder>::Item>,
 {
     pub fn new(
         accept_thread_num: usize,
@@ -120,7 +121,8 @@ where
                                 if let Some(pkg) = read_frame_stream.next().await {
                                     match pkg {
                                         Ok(data) => {
-                                            let package = RequestPackage::new(connection_id, data);
+                                            let pack: MQTTPacket = data.try_into().unwrap();
+                                            let package = RequestPackage::new(connection_id, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
                                                 Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
