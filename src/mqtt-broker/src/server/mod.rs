@@ -1,4 +1,7 @@
-use common_base::config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig};
+use common_base::{
+    config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
+    log::info,
+};
 use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
 
 use self::tcp::tcp_server::TcpServer;
@@ -33,6 +36,7 @@ async fn start_mqtt4_server(conf: &BrokerMQTTConfig) {
         codec,
     );
     server.start(conf.mqtt.mqtt4_port).await;
+    info("".to_string());
 }
 
 async fn start_mqtt5_server(conf: &BrokerMQTTConfig) {
@@ -49,6 +53,7 @@ async fn start_mqtt5_server(conf: &BrokerMQTTConfig) {
         codec,
     );
     server.start(conf.mqtt.mqtt5_port).await;
+    info("".to_string());
 }
 
 async fn start_quic_server() {}

@@ -13,7 +13,7 @@ impl GrpcServer {
         return Self { addr };
     }
     pub async fn start(&self) {
-        info(&format!(
+        info(format!(
             "RobustMQ Broker Grpc Server start success. bind addr:{}",
             self.addr
         ));

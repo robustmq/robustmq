@@ -1,9 +1,5 @@
 use protocol::mqtt::MQTTPacket;
 #[derive(Clone, PartialEq)]
-pub enum Protocol {
-    Mqtt4,
-    Mqtt5,
-}
 
 #[derive(Debug)]
 pub struct RequestPackage {

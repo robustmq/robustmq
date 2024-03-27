@@ -1,4 +1,4 @@
-use super::{connection::Connection, packet::Protocol};
+use super::connection::Connection;
 use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::SinkExt;
@@ -12,7 +12,6 @@ pub enum Error {
     #[error("Description The number of TCP connections on a node exceeded the upper limit. The maximum number of TCP connections was {total:?}")]
     ConnectionExceed { total: usize },
 }
-
 
 pub struct ConnectionManager<T> {
     connections: DashMap<u64, Connection>,
@@ -56,7 +55,7 @@ where
         self.write_list.insert(connection_id, write);
     }
 
-    pub fn remove(&self, connection_id: u64, protocol: Protocol) {
+    pub fn remove(&self, connection_id: u64) {
         self.connections.remove(&connection_id);
         self.write_list.remove(&connection_id);
     }

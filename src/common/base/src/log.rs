@@ -34,15 +34,15 @@ use crate::config::{
     storage_engine::storage_engine_conf,
 };
 
-pub fn info(msg: &str) -> () {
+pub fn info(msg: String) -> () {
     log::info!(target:"app::server", "{}",msg)
 }
 
-pub fn debug(msg: &str) -> () {
+pub fn debug(msg: String) -> () {
     log::debug!(target:"app::server", "{}",msg)
 }
 
-pub fn error(msg: &str) -> () {
+pub fn error(msg: String) -> () {
     log::error!(target:"app::server", "{}",msg)
 }
 
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn log_print() {
         init_log("".to_string(), 1024 * 1024 * 1024, 50);
-        info("lobo");
+        info("lobo".to_string());
         info_meta("server lobo");
     }
 }

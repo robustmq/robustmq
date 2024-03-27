@@ -8,7 +8,7 @@ use crate::{
 };
 use axum::routing::get;
 use axum::Router;
-use common_base::{config::placement_center::placement_center_conf, log::info};
+use common_base::{config::placement_center::placement_center_conf, log::{info, info_meta}};
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
@@ -46,7 +46,7 @@ pub async fn start_http_server(state: HttpServerState) {
     let ip: SocketAddr = format!("0.0.0.0:{}", config.http_port).parse().unwrap();
     let app = routes(state);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
-    info(&format!(
+    info_meta(&format!(
         "RobustMQ Meta HTTP Server start success. bind addr:{}",
         ip
     ));
