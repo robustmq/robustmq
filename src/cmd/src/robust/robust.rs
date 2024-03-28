@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use clap::command;
 use clap::Parser;
-use common_base::config::broker_server::BrokerServerConfig;
+use common_base::config::broker_mqtt::BrokerMQTTConfig;
 use common_base::config::parse_server;
 use common_base::config::DEFAULT_BROKER_SERVER_CONFIG;
 use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
@@ -38,7 +38,7 @@ struct ArgsParams {
 fn main() {
     let args = ArgsParams::parse();
 
-    let server_conf: BrokerServerConfig = parse_server(&args.server_conf);
+    let server_conf: BrokerMQTTConfig = parse_server(&args.server_conf);
     // let meta_conf: PlacementCenterConfig = parse_placement_center(&args.meta_conf);
     // let (stop_send, _) = broadcast::channel(2);
 

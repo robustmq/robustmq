@@ -6,7 +6,7 @@ use crate::{
     network::{command::Command, services::Services},
     server::tcp::packet::RequestPackage,
 };
-use common_base::log::{error, error_engine};
+use common_base::log::error_engine;
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::storage_engine::codec::StorageEngineCodec;
@@ -95,7 +95,7 @@ impl TcpServer {
                         match cm.connect_check() {
                             Ok(_) => {}
                             Err(e) => {
-                                error(&format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
+                                error_engine(format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
                                 continue;
                             }
                         }
@@ -117,7 +117,7 @@ impl TcpServer {
                                             let package = RequestPackage::new(connection_id, data);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
-                                                Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                                Err(err) => error_engine(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                             }
                                         }
                                         Err(e) => {
@@ -129,7 +129,7 @@ impl TcpServer {
                         });
                     }
                     Err(e) => {
-                        error(&e.to_string());
+                        error_engine(e.to_string());
                     }
                 };
             }
@@ -152,7 +152,7 @@ impl TcpServer {
                 let response_package = ResponsePackage::new(resquest_package.connection_id, resp);
                 match response_queue_sx.send(response_package) {
                     Ok(_) => {}
-                    Err(err) => error(&format!(
+                    Err(err) => error_engine(format!(
                         "Failed to write data to the response queue, error message: {:?}",
                         err
                     )),

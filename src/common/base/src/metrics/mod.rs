@@ -42,7 +42,7 @@ pub async fn register_prometheus_export(port: u16) {
     let ip = format!("0.0.0.0:{}", port);
     let route = Router::new().route("/metrics", get(route_metrics));
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
-    info(&format!(
+    info(format!(
         "Prometheus HTTP Server started successfully, listening port: {}",
         port
     ));

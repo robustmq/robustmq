@@ -11,23 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use broker_server::BrokerServerConfig;
+use broker_mqtt::BrokerMQTTConfig;
 use std::fs;
 use std::path;
 use toml;
 
-pub mod broker_server;
+pub mod broker_mqtt;
 pub mod placement_center;
 pub mod storage_engine;
 
-pub const DEFAULT_BROKER_SERVER_CONFIG: &str = "config/broker-server.toml";
+pub const DEFAULT_BROKER_SERVER_CONFIG: &str = "config/broker-mqtt.toml";
 pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "config/placement-center.toml";
 pub const DEFAULT_STORAGE_ENGINE_CONFIG: &str = "config/storage-engine.toml";
 
 /// Parsing reads the RobustMQ Server configuration
-pub fn parse_server(config_path: &String) -> BrokerServerConfig {
+pub fn parse_server(config_path: &String) -> BrokerMQTTConfig {
     let content = read_file(config_path);
-    let server_config: BrokerServerConfig = toml::from_str(&content).unwrap();
+    let server_config: BrokerMQTTConfig = toml::from_str(&content).unwrap();
     return server_config;
 }
 

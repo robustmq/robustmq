@@ -1,15 +1,21 @@
-use std::{sync::Arc, time::Duration};
-use clients::{placement_center::{heartbeat, register_node, unregister_node}, ClientPool};
+use clients::{
+    placement_center::{heartbeat, register_node, unregister_node},
+    ClientPool,
+};
 use common_base::{
     config::storage_engine::StorageEngineConfig,
-    log::{debug, debug_eninge, error, info, info_meta},
+    log::{debug_eninge, error_engine, info_meta},
 };
 use protocol::placement_center::placement::{
     ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
-use tokio::{sync::Mutex, time::{self, sleep}};
+use std::{sync::Arc, time::Duration};
+use tokio::{sync::Mutex, time};
 
-pub async fn register_storage_engine_node(client_poll: Arc<Mutex<ClientPool>>,config: StorageEngineConfig) {
+pub async fn register_storage_engine_node(
+    client_poll: Arc<Mutex<ClientPool>>,
+    config: StorageEngineConfig,
+) {
     let mut req = RegisterNodeRequest::default();
     req.cluster_type = ClusterType::StorageEngine.into();
     req.cluster_name = config.cluster_name;
@@ -39,7 +45,10 @@ pub async fn register_storage_engine_node(client_poll: Arc<Mutex<ClientPool>>,co
     }
 }
 
-pub async fn unregister_storage_engine_node(client_poll: Arc<Mutex<ClientPool>>,config: StorageEngineConfig) {
+pub async fn unregister_storage_engine_node(
+    client_poll: Arc<Mutex<ClientPool>>,
+    config: StorageEngineConfig,
+) {
     let mut req = UnRegisterNodeRequest::default();
     req.cluster_type = ClusterType::StorageEngine.into();
     req.cluster_name = config.cluster_name;
@@ -47,7 +56,7 @@ pub async fn unregister_storage_engine_node(client_poll: Arc<Mutex<ClientPool>>,
 
     let mut res_err = None;
     for addr in config.placement_center {
-        match unregister_node(client_poll.clone(),  addr, req.clone()).await {
+        match unregister_node(client_poll.clone(), addr, req.clone()).await {
             Ok(_) => {
                 info_meta(&format!("Node {} exits successfully", config.node_id));
                 break;
@@ -85,7 +94,7 @@ pub async fn report_heartbeat(client_poll: Arc<Mutex<ClientPool>>, config: Stora
             }
         }
         if !res_err.is_none() {
-            error(&res_err.unwrap().to_string());
+            error_engine(res_err.unwrap().to_string());
         }
         time::sleep(Duration::from_millis(1000)).await;
     }

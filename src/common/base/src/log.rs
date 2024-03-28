@@ -29,19 +29,20 @@ use log4rs::{
 };
 
 use crate::config::{
+    broker_mqtt::broker_mqtt_conf,
     placement_center::{placement_center_conf, PlacementCenterConfig},
     storage_engine::storage_engine_conf,
 };
 
-pub fn info(msg: &str) -> () {
+pub fn info(msg: String) -> () {
     log::info!(target:"app::server", "{}",msg)
 }
 
-pub fn debug(msg: &str) -> () {
+pub fn debug(msg: String) -> () {
     log::debug!(target:"app::server", "{}",msg)
 }
 
-pub fn error(msg: &str) -> () {
+pub fn error(msg: String) -> () {
     log::error!(target:"app::server", "{}",msg)
 }
 
@@ -61,7 +62,7 @@ pub fn info_engine(msg: String) -> () {
     log::info!(target:"storage-engine", "{}",msg)
 }
 
-pub fn debug_eninge(msg:String) -> () {
+pub fn debug_eninge(msg: String) -> () {
     log::debug!(target:"storage-engine", "{}",msg)
 }
 
@@ -186,6 +187,15 @@ pub fn init_storage_engine_log() {
     );
 }
 
+pub fn init_broker_mqtt_log() {
+    let conf = broker_mqtt_conf();
+    init_log(
+        conf.log.log_path.clone(),
+        conf.log.log_segment_size,
+        conf.log.log_file_num,
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,7 +203,7 @@ mod tests {
     #[test]
     fn log_print() {
         init_log("".to_string(), 1024 * 1024 * 1024, 50);
-        info("lobo");
+        info("lobo".to_string());
         info_meta("server lobo");
     }
 }

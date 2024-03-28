@@ -1,8 +1,5 @@
-use std::fmt::format;
-
 use common_base::log::error_engine;
 use protocol::storage_engine::codec::StorageEnginePacket;
-
 use super::{response::build_produce_resp, services::Services};
 
 pub struct Command {

@@ -12,9 +12,7 @@ use tokio::net::TcpListener;
 use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
 
 use super::{
-    connection::Connection,
-    connection_manager::ConnectionManager,
-    packet::{Protocol, ResponsePackage},
+    connection::Connection, connection_manager::ConnectionManager, packet::ResponsePackage,
 };
 
 // U: codec: encoder + decoder
@@ -98,18 +96,22 @@ where
                 let request_queue_sx = request_queue_sx.clone();
                 match listener.accept().await {
                     Ok((stream, addr)) => {
-                        match cm.connect_check() {
-                            Ok(_) => {}
-                            Err(e) => {
-                                error(&format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
-                                continue;
-                            }
-                        }
-
                         // split stream
                         let (r_stream, w_stream) = io::split(stream);
                         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
                         let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+
+                        // connect check
+                        match cm.connect_check() {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error(format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
+                                continue;
+                            }
+                        }
+
+                        // connect login(plain)
+                        
 
                         // connection manager
                         let connection_id = cm.add(Connection::new(addr));
@@ -125,7 +127,7 @@ where
                                             let package = RequestPackage::new(connection_id, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
-                                                Err(err) => error(&format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                                Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                             }
                                         }
                                         Err(e) => {
@@ -137,7 +139,7 @@ where
                         });
                     }
                     Err(e) => {
-                        error(&e.to_string());
+                        error(e.to_string());
                     }
                 };
             }
@@ -160,7 +162,7 @@ where
                 let response_package = ResponsePackage::new(resquest_package.connection_id, resp);
                 match response_queue_sx.send(response_package) {
                     Ok(_) => {}
-                    Err(err) => error(&format!(
+                    Err(err) => error(format!(
                         "Failed to write data to the response queue, error message: {:?}",
                         err
                     )),

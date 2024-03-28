@@ -1,13 +1,10 @@
-[inner.service]
 port = 9981
-
-[placement.center]
-addrs = ["127.0.0.1:1228"]
+placement_center = ["127.0.0.1:1228"]
 
 [mqtt]
 mqtt4_enable = true
 mqtt5_enable = true
-websocket = true
+websocket_enable = true
 mqtt4_port = 1883
 mqtts4_port = 8883
 mqtt5_port = 1884
@@ -16,19 +13,21 @@ websocket_port = 8083
 websockets_port = 8084
 
 [prometheus]
-export_port = 8081
+enable = true
+port = 8081
 
 [runtime]
-data_worker_threads = 8
-inner_worker_threads = 8
+worker_threads = 8
 
-[tcp_server]
+[network_tcp]
 accept_thread_num = 1
 handler_thread_num = 20
 response_thread_num = 2
 max_connection_num = 1000
 request_queue_size = 2000
 response_queue_size = 2000
+lock_max_try_mut_times = 30
+lock_try_mut_sleep_time_ms = 1
 
 [log]
 log_path = "/tmp/logs"
