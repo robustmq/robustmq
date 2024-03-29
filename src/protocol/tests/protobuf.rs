@@ -4,10 +4,10 @@ mod tests {
     fn create_rust_pb() {
         tonic_build::configure()
             .build_server(true)
-            .out_dir("src/broker_server") // you can change the generated code's location
+            .out_dir("src/mqtt_server") // you can change the generated code's location
             .compile(
-                &["src/broker_server/broker.proto"],
-                &["src/broker_server/"], // specify the root location to search proto dependencies
+                &["src/mqtt_server/broker.proto"],
+                &["src/mqtt_server/"], // specify the root location to search proto dependencies
             )
             .unwrap();
 
