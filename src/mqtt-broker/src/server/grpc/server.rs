@@ -1,6 +1,6 @@
 use super::services::GrpcBrokerServices;
 use common_base::{log::info, metrics::broker::metrics_grpc_broker_running};
-use protocol::broker_server::broker::broker_service_server::BrokerServiceServer;
+use protocol::mqtt_server::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
 use std::net::SocketAddr;
 use tonic::transport::Server;
 
@@ -20,7 +20,7 @@ impl GrpcServer {
         metrics_grpc_broker_running();
         let service_handler = GrpcBrokerServices::new();
         Server::builder()
-            .add_service(BrokerServiceServer::new(service_handler))
+            .add_service(MqttBrokerServiceServer::new(service_handler))
             .serve(self.addr)
             .await
             .unwrap();

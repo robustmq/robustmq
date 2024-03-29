@@ -12,6 +12,7 @@ members = [
     "src/common/base",
     "src/common/raft-rocksdb",
     "src/common/rocksdb-engine",
+    "src/common/metadata-struct",
     "src/protocol",
     "src/storage-engine",
     "src/storage-adapter",
@@ -68,5 +69,6 @@ cmd = { path = "src/cmd" }
 common-base = { path = "src/common/base" }
 raft-rocksdb = { path = "src/common/raft-rocksdb" }
 rocksdb-engine = { path = "src/common/rocksdb-engine" }
+metadata-struct = { path = "src/common/metadata-struct" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }

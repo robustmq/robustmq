@@ -9,6 +9,7 @@ use self::tcp::tcp_server::TcpServer;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
+pub mod grpc;
 
 pub async fn start_server() {
     let conf = broker_mqtt_conf();

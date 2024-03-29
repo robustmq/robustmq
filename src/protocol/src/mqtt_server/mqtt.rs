@@ -1,19 +1,13 @@
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StopBrokerRequest {}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StopBrokerReply {}
 /// Generated client implementations.
-pub mod broker_service_client {
+pub mod mqtt_broker_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct BrokerServiceClient<T> {
+    pub struct MqttBrokerServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl BrokerServiceClient<tonic::transport::Channel> {
+    impl MqttBrokerServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -24,7 +18,7 @@ pub mod broker_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> BrokerServiceClient<T>
+    impl<T> MqttBrokerServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -42,7 +36,7 @@ pub mod broker_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> BrokerServiceClient<InterceptedService<T, F>>
+        ) -> MqttBrokerServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -56,7 +50,7 @@ pub mod broker_service_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            BrokerServiceClient::new(InterceptedService::new(inner, interceptor))
+            MqttBrokerServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -89,49 +83,17 @@ pub mod broker_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        /// Obtain information about the Leader node in the cluster
-        pub async fn stop_broker(
-            &mut self,
-            request: impl tonic::IntoRequest<super::StopBrokerRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::StopBrokerReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/broker.BrokerService/StopBroker",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("broker.BrokerService", "StopBroker"));
-            self.inner.unary(req, path, codec).await
-        }
     }
 }
 /// Generated server implementations.
-pub mod broker_service_server {
+pub mod mqtt_broker_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with BrokerServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with MqttBrokerServiceServer.
     #[async_trait]
-    pub trait BrokerService: Send + Sync + 'static {
-        /// Obtain information about the Leader node in the cluster
-        async fn stop_broker(
-            &self,
-            request: tonic::Request<super::StopBrokerRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopBrokerReply>, tonic::Status>;
-    }
+    pub trait MqttBrokerService: Send + Sync + 'static {}
     #[derive(Debug)]
-    pub struct BrokerServiceServer<T: BrokerService> {
+    pub struct MqttBrokerServiceServer<T: MqttBrokerService> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
@@ -139,7 +101,7 @@ pub mod broker_service_server {
         max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: BrokerService> BrokerServiceServer<T> {
+    impl<T: MqttBrokerService> MqttBrokerServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -191,9 +153,9 @@ pub mod broker_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for BrokerServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for MqttBrokerServiceServer<T>
     where
-        T: BrokerService,
+        T: MqttBrokerService,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -209,52 +171,6 @@ pub mod broker_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/broker.BrokerService/StopBroker" => {
-                    #[allow(non_camel_case_types)]
-                    struct StopBrokerSvc<T: BrokerService>(pub Arc<T>);
-                    impl<
-                        T: BrokerService,
-                    > tonic::server::UnaryService<super::StopBrokerRequest>
-                    for StopBrokerSvc<T> {
-                        type Response = super::StopBrokerReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::StopBrokerRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as BrokerService>::stop_broker(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = StopBrokerSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
                 _ => {
                     Box::pin(async move {
                         Ok(
@@ -270,7 +186,7 @@ pub mod broker_service_server {
             }
         }
     }
-    impl<T: BrokerService> Clone for BrokerServiceServer<T> {
+    impl<T: MqttBrokerService> Clone for MqttBrokerServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -282,7 +198,7 @@ pub mod broker_service_server {
             }
         }
     }
-    impl<T: BrokerService> Clone for _Inner<T> {
+    impl<T: MqttBrokerService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(Arc::clone(&self.0))
         }
@@ -292,7 +208,8 @@ pub mod broker_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: BrokerService> tonic::server::NamedService for BrokerServiceServer<T> {
-        const NAME: &'static str = "broker.BrokerService";
+    impl<T: MqttBrokerService> tonic::server::NamedService
+    for MqttBrokerServiceServer<T> {
+        const NAME: &'static str = "mqtt.MqttBrokerService";
     }
 }
