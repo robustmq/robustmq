@@ -146,6 +146,44 @@ pub struct GenerateUniqueNodeIdReply {
     #[prost(uint64, tag = "1")]
     pub node_id: u64,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SetRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub value: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetReply {
+    #[prost(string, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteRequest {
+    #[prost(string, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsRequest {
+    #[prost(string, tag = "1")]
+    pub key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsReply {
+    #[prost(bool, tag = "1")]
+    pub flag: bool,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ClusterType {
@@ -608,6 +646,98 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        ///
+        pub async fn set(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SetRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/set",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("placement.PlacementCenterService", "set"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn delete(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/delete",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("placement.PlacementCenterService", "delete"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn get(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetRequest>,
+        ) -> std::result::Result<tonic::Response<super::GetReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/get",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("placement.PlacementCenterService", "get"));
+            self.inner.unary(req, path, codec).await
+        }
+        ///
+        pub async fn exists(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ExistsRequest>,
+        ) -> std::result::Result<tonic::Response<super::ExistsReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/exists",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("placement.PlacementCenterService", "exists"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -690,6 +820,26 @@ pub mod placement_center_service_server {
             tonic::Response<super::GenerateUniqueNodeIdReply>,
             tonic::Status,
         >;
+        ///
+        async fn set(
+            &self,
+            request: tonic::Request<super::SetRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn delete(
+            &self,
+            request: tonic::Request<super::DeleteRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        ///
+        async fn get(
+            &self,
+            request: tonic::Request<super::GetRequest>,
+        ) -> std::result::Result<tonic::Response<super::GetReply>, tonic::Status>;
+        ///
+        async fn exists(
+            &self,
+            request: tonic::Request<super::ExistsRequest>,
+        ) -> std::result::Result<tonic::Response<super::ExistsReply>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct PlacementCenterServiceServer<T: PlacementCenterService> {
@@ -1396,6 +1546,188 @@ pub mod placement_center_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GenerateUniqueNodeIdSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/set" => {
+                    #[allow(non_camel_case_types)]
+                    struct setSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::SetRequest> for setSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SetRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::set(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = setSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/delete" => {
+                    #[allow(non_camel_case_types)]
+                    struct deleteSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::DeleteRequest>
+                    for deleteSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::delete(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = deleteSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/get" => {
+                    #[allow(non_camel_case_types)]
+                    struct getSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::GetRequest> for getSvc<T> {
+                        type Response = super::GetReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::get(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = getSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/exists" => {
+                    #[allow(non_camel_case_types)]
+                    struct existsSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::ExistsRequest>
+                    for existsSvc<T> {
+                        type Response = super::ExistsReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ExistsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::exists(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = existsSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

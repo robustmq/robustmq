@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 use crate::{retry_times, ClientPool};
+use axum::async_trait;
 use common_base::{errors::RobustMQError, log::error_meta};
 use mobc::Manager;
 use protocol::placement_center::placement::{
-    placement_center_service_client::PlacementCenterServiceClient, CommonReply, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest, HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest
+    placement_center_service_client::PlacementCenterServiceClient, CommonReply,
+    CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
+    HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+    SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest,
 };
-use std::{mem, sync::Arc, time::Duration};
+use std::{future::Future, mem, sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time::sleep};
 use tonic::transport::Channel;
 
@@ -274,7 +278,10 @@ pub async fn delete_segment(
         Ok(mut client) => {
             let mut times = 0;
             loop {
-                match client.delete_segment(tonic::Request::new(request.clone())).await {
+                match client
+                    .delete_segment(tonic::Request::new(request.clone()))
+                    .await
+                {
                     Ok(reply) => return Ok(reply.into_inner()),
                     Err(status) => {
                         error_meta(&format!(
