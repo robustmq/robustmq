@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 use std::{collections::HashMap, future::Future};
 use common_base::errors::RobustMQError;
 use mobc::Pool;
@@ -23,6 +22,7 @@ use tonic::transport::Channel;
 pub mod broker_server;
 pub mod placement_center;
 pub mod storage_engine;
+// mod grpc;
 
 pub struct ClientPool {
     placement_center_pools: HashMap<String, Pool<PlacementCenterConnectionManager>>,

@@ -24,7 +24,12 @@ use common_base::errors::RobustMQError;
 use prost::Message;
 use protocol::placement_center::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement::{
-    ClusterType, CommonReply, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest, GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest, GetShardReply, GetShardRequest, HeartbeatRequest, RaftTransferLeaderRequest, RegisterNodeRequest, ReportMonitorRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, UnRegisterNodeRequest
+    ClusterType, CommonReply, CreateSegmentRequest, CreateShardRequest, DeleteRequest,
+    DeleteSegmentRequest, DeleteShardRequest, ExistsReply, ExistsRequest,
+    GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest, GetReply, GetRequest, GetShardReply,
+    GetShardRequest, HeartbeatRequest, RaftTransferLeaderRequest, RegisterNodeRequest,
+    ReportMonitorRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SetRequest,
+    UnRegisterNodeRequest,
 };
 use protocol::placement_center::placement::{SendRaftMessageReply, SendRaftMessageRequest};
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
@@ -322,7 +327,6 @@ impl PlacementCenterService for GrpcService {
         &self,
         request: Request<RaftTransferLeaderRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-
         match self
             .placement_center_storage
             .transfer_leader(request.into_inner().node_id)
@@ -341,9 +345,34 @@ impl PlacementCenterService for GrpcService {
         &self,
         request: Request<GenerateUniqueNodeIdRequest>,
     ) -> Result<Response<GenerateUniqueNodeIdReply>, Status> {
-
         let resp = GenerateUniqueNodeIdReply::default();
         return Ok(Response::new(resp));
     }
 
+    async fn set(&self, request: Request<SetRequest>) -> Result<Response<CommonReply>, Status> {
+        let resp = CommonReply::default();
+        
+        return Ok(Response::new(resp));
+    }
+
+    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
+        let resp = GetReply::default();
+        return Ok(Response::new(resp));
+    }
+
+    async fn delete(
+        &self,
+        request: Request<DeleteRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let resp = CommonReply::default();
+        return Ok(Response::new(resp));
+    }
+
+    async fn exists(
+        &self,
+        request: Request<ExistsRequest>,
+    ) -> Result<Response<ExistsReply>, Status> {
+        let resp = ExistsReply::default();
+        return Ok(Response::new(resp));
+    }
 }
