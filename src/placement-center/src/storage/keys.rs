@@ -49,3 +49,7 @@ pub fn key_all_cluster() -> String {
 pub fn key_all_shard(cluster_name: &String) -> String {
     return format!("all_shard_{}", cluster_name);
 }
+
+pub fn uniq_key_id() -> String {
+    return "generage_uniq_int_id".to_string();
+}

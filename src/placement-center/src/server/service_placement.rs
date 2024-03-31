@@ -16,11 +16,13 @@
 use crate::cache::engine::EngineClusterCache;
 use crate::cache::placement::PlacementClusterCache;
 use crate::raft::storage::PlacementCenterStorage;
+use crate::storage::global_id::GlobalId;
+use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement_center::placement::{register_node, unregister_node};
 use clients::ClientPool;
 use common_base::errors::RobustMQError;
 use prost::Message;
-use protocol::placement_center::generate::common::{ClusterType, CommonReply};
+use protocol::placement_center::generate::common::{ClusterType, CommonReply, GenerageIdType};
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::generate::placement::{
     GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest, HeartbeatRequest, RegisterNodeRequest,
@@ -37,6 +39,7 @@ pub struct GrpcPlacementService {
     placement_center_storage: Arc<PlacementCenterStorage>,
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     engine_cache: Arc<RwLock<EngineClusterCache>>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
@@ -45,12 +48,14 @@ impl GrpcPlacementService {
         placement_center_storage: Arc<PlacementCenterStorage>,
         placement_cache: Arc<RwLock<PlacementClusterCache>>,
         engine_cache: Arc<RwLock<EngineClusterCache>>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_poll: Arc<Mutex<ClientPool>>,
     ) -> Self {
         GrpcPlacementService {
             placement_center_storage,
             placement_cache,
             engine_cache,
+            rocksdb_engine_handler,
             client_poll,
         }
     }
@@ -58,7 +63,6 @@ impl GrpcPlacementService {
     fn rewrite_leader(&self) -> bool {
         return !self.placement_cache.read().unwrap().is_leader();
     }
-    
 }
 
 #[tonic::async_trait]
@@ -191,11 +195,30 @@ impl PlacementCenterService for GrpcPlacementService {
         }
     }
 
-    async fn generate_unique_node_id(
+    async fn generate_unique_id(
         &self,
         request: Request<GenerateUniqueNodeIdRequest>,
     ) -> Result<Response<GenerateUniqueNodeIdReply>, Status> {
-        let resp = GenerateUniqueNodeIdReply::default();
+        let req = request.into_inner();
+        let mut resp = GenerateUniqueNodeIdReply::default();
+        let generate = GlobalId::new(self.rocksdb_engine_handler.clone());
+        
+        if req.generage_type() == GenerageIdType::UniqStr {
+            resp.id_str = generate.generate_uniq_str();
+            return Ok(Response::new(resp));
+        }
+
+        if req.generage_type() == GenerageIdType::UniqInt {
+            match generate.generate_uniq_id().await {
+                Ok(da) => {
+                    resp.id_int = da;
+                    return Ok(Response::new(resp));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        }
         return Ok(Response::new(resp));
     }
 }

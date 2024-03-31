@@ -18,7 +18,6 @@ use clients::{
     placement_center::engine::{create_segment, create_shard, delete_segment, delete_shard},
     ClientPool,
 };
-use common_base::errors::RobustMQError;
 use protocol::placement_center::generate::{
     common::CommonReply,
     engine::{

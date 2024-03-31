@@ -4,6 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use snowflake::ProcessUniqueId;
 use uuid::Uuid;
 
 pub fn create_fold(fold: String) {
@@ -22,4 +23,10 @@ pub fn now_mills() -> u128 {
 pub fn unique_id() -> String {
     let uuid = Uuid::new_v4();
     return uuid.to_string();
+}
+
+pub fn unique_id_string() -> String {
+    let res = ProcessUniqueId::new();
+
+    return res.to_string();
 }

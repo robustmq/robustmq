@@ -52,6 +52,7 @@ toml = "0.8.8"
 uuid = { version = "1.7.0", features = ["v4"] }
 mobc = "0.8.3"
 dashmap = "5.5.3"
+snowflake = "1.3.0"
 
 ## workspaces members
 mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }

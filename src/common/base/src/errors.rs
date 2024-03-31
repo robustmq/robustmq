@@ -19,6 +19,10 @@ use tonic::Status;
 
 #[derive(Error, Debug)]
 pub enum RobustMQError {
+
+    #[error("{0}")]
+    CommmonError(String),
+
     #[error("Operation cannot be initiated because the Leader exists in the cluster")]
     LeaderExistsNotAllowElection,
 

@@ -52,7 +52,7 @@ impl RaftMachineStorage {
         let key = key_name_by_conf_state();
         let value = ConfState::encode_to_vec(&cs);
         self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_meta(), &key, &value)
+            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &value)
     }
 
     // Return RaftState
@@ -70,7 +70,7 @@ impl RaftMachineStorage {
         let key = key_name_by_hard_state();
         let value = self
             .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_meta(), &key)
+            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
             .unwrap();
         if value == None {
             HardState::default()
@@ -86,7 +86,7 @@ impl RaftMachineStorage {
         let key = key_name_by_conf_state();
         let value = self
             .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_meta(), &key)
+            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
             .unwrap();
         if value.is_none() {
             ConfState::default()
@@ -146,7 +146,7 @@ impl RaftMachineStorage {
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
             self.rocksdb_engine_handler
-                .write(self.rocksdb_engine_handler.cf_meta(), &key, &data)
+                .write(self.rocksdb_engine_handler.cf_cluster(), &key, &data)
                 .unwrap();
             self.uncommit_index.insert(entry.index, 1);
             self.save_last_index(entry.index).unwrap();
@@ -174,7 +174,7 @@ impl RaftMachineStorage {
         let key = key_name_by_first_index();
         match self
             .rocksdb_engine_handler
-            .read::<u64>(self.rocksdb_engine_handler.cf_meta(), &key)
+            .read::<u64>(self.rocksdb_engine_handler.cf_cluster(), &key)
         {
             Ok(value) => {
                 if let Some(fi) = value {
@@ -195,7 +195,7 @@ impl RaftMachineStorage {
         let key = key_name_by_last_index();
         match self
             .rocksdb_engine_handler
-            .read::<u64>(self.rocksdb_engine_handler.cf_meta(), &key)
+            .read::<u64>(self.rocksdb_engine_handler.cf_cluster(), &key)
         {
             Ok(value) => {
                 if let Some(li) = value {
@@ -216,7 +216,7 @@ impl RaftMachineStorage {
         let key = key_name_by_entry(idx);
         match self
             .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_meta(), &key)
+            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
         {
             Ok(value) => {
                 if let Some(vl) = value {
@@ -237,13 +237,13 @@ impl RaftMachineStorage {
     pub fn save_last_index(&self, index: u64) -> Result<(), String> {
         let key = key_name_by_last_index();
         self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_meta(), &key, &index)
+            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &index)
     }
 
     pub fn save_first_index(&self, index: u64) -> Result<(), String> {
         let key = key_name_by_first_index();
         self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_meta(), &key, &index)
+            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &index)
     }
 
     /// Save HardState information to RocksDB
@@ -251,7 +251,7 @@ impl RaftMachineStorage {
         let key = key_name_by_hard_state();
         let val = HardState::encode_to_vec(&hs);
         self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_meta(), &key, &val)
+            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &val)
     }
 
     pub fn set_hard_state_commit(&self, commit: u64) -> Result<(), String> {
@@ -266,7 +266,7 @@ impl RaftMachineStorage {
         let key = key_name_uncommit();
         let _ =
             self.rocksdb_engine_handler
-                .write(self.rocksdb_engine_handler.cf_meta(), &key, &val);
+                .write(self.rocksdb_engine_handler.cf_cluster(), &key, &val);
     }
 
     pub fn save_snapshot_data(&self, snapshot: Snapshot) {
@@ -274,14 +274,14 @@ impl RaftMachineStorage {
         let key = key_name_snapshot();
         let _ =
             self.rocksdb_engine_handler
-                .write(self.rocksdb_engine_handler.cf_meta(), &key, &val);
+                .write(self.rocksdb_engine_handler.cf_cluster(), &key, &val);
     }
 
     pub fn uncommit_index(&self) -> HashMap<u64, i8> {
         let key = key_name_uncommit();
         match self
             .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_meta(), &key)
+            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
         {
             Ok(data) => {
                 if let Some(value) = data {
@@ -370,7 +370,7 @@ impl RaftMachineStorage {
         let key = key_name_snapshot();
         let value = self
             .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_meta(), &key)
+            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
             .unwrap();
         if value.is_none() {
             Snapshot::default()

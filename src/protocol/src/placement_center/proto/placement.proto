@@ -39,7 +39,7 @@ service PlacementCenterService {
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
 
   // 
-  rpc GenerateUniqueNodeId(GenerateUniqueNodeIdRequest) returns(GenerateUniqueNodeIdReply) {}
+  rpc GenerateUniqueId(GenerateUniqueNodeIdRequest) returns(GenerateUniqueNodeIdReply) {}
 
 }
 
@@ -90,9 +90,10 @@ message ReportMonitorRequest{
 }
 
 message GenerateUniqueNodeIdRequest{
-    
+    common.GenerageIdType generage_type = 1;
 }
 
 message GenerateUniqueNodeIdReply{
-    uint64 node_id = 1;
+     uint64 id_int = 1;
+     string id_str = 2;
 }

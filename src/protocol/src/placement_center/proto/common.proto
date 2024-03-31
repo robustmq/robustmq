@@ -7,6 +7,10 @@ enum ClusterType{
     PlacementCenter = 2;
 }
 
+enum GenerageIdType{
+    UniqInt = 0;
+    UniqStr = 1;
+}
 message CommonReply{
     
 }

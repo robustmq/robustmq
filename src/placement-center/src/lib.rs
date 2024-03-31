@@ -143,6 +143,7 @@ impl PlacementCenter {
             placement_center_storage.clone(),
             self.placement_cache.clone(),
             self.engine_cache.clone(),
+            self.rocksdb_engine_handler.clone(),
             self.client_poll.clone(),
         );
 
