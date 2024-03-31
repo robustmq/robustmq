@@ -1,12 +1,12 @@
 use crate::{cache::engine::EngineClusterCache, raft::storage::PlacementCenterStorage};
 use common_base::log::{error_meta, info_meta};
-use protocol::placement_center::placement::{ClusterType, UnRegisterNodeRequest};
+use protocol::placement_center::generate::{common::ClusterType, placement::UnRegisterNodeRequest};
 use std::{
     sync::{Arc, RwLock},
     thread::sleep,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::{broadcast, oneshot};
+use tokio::sync::broadcast;
 
 pub struct StorageEngineNodeHeartBeat {
     timeout_ms: u128,

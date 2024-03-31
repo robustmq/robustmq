@@ -4,19 +4,26 @@ mod tests {
     fn create_rust_pb() {
         tonic_build::configure()
             .build_server(true)
-            .out_dir("src/mqtt_server") // you can change the generated code's location
+            .out_dir("src/broker_server/generate") // you can change the generated code's location
             .compile(
-                &["src/mqtt_server/broker.proto"],
-                &["src/mqtt_server/"], // specify the root location to search proto dependencies
+                &[
+                    "src/broker_server/proto/mqtt.proto",
+                    ],
+                &["src/broker_server/proto"], // specify the root location to search proto dependencies
             )
             .unwrap();
 
         tonic_build::configure()
             .build_server(true)
-            .out_dir("src/placement_center") // you can change the generated code's location
+            .out_dir("src/placement_center/generate") // you can change the generated code's location
             .compile(
-                &["src/placement_center/placement.proto"],
-                &["src/placement_center/"], // specify the root location to search proto dependencies
+                &[
+                    "src/placement_center/proto/common.proto",
+                    "src/placement_center/proto/engine.proto",
+                    "src/placement_center/proto/kv.proto",
+                    "src/placement_center/proto/placement.proto",
+                    ],
+                &["src/placement_center/proto"], // specify the root location to search proto dependencies
             )
             .unwrap();
 

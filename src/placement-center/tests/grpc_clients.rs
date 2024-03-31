@@ -1,7 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use protocol::placement_center::placement::{
-        placement_center_service_client::PlacementCenterServiceClient, ClusterType, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest, HeartbeatRequest, RaftTransferLeaderRequest, RegisterNodeRequest, UnRegisterNodeRequest
+    use protocol::placement_center::generate::{
+        common::ClusterType,
+        engine::{
+            engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest,
+            DeleteSegmentRequest, DeleteShardRequest,
+        },
+        placement::{
+            placement_center_service_client::PlacementCenterServiceClient, HeartbeatRequest,
+            RegisterNodeRequest, UnRegisterNodeRequest,
+        },
     };
 
     #[tokio::test]
@@ -63,7 +71,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_shard() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
             .await
             .unwrap();
 
@@ -81,7 +89,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_shard() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
             .await
             .unwrap();
 
@@ -98,7 +106,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_segment() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
             .await
             .unwrap();
 
@@ -115,7 +123,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_segment() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
             .await
             .unwrap();
 
@@ -125,22 +133,6 @@ mod tests {
         request.segment_seq = 1;
         let response = client
             .delete_segment(tonic::Request::new(request))
-            .await
-            .unwrap();
-
-        println!("response={:?}", response);
-    }
-
-    #[tokio::test]
-    async fn test_raft_transfer_leader() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
-            .await
-            .unwrap();
-
-        let mut request = RaftTransferLeaderRequest::default();
-        request.node_id = 2;
-        let response = client
-            .raft_transfer_leader(tonic::Request::new(request))
             .await
             .unwrap();
 

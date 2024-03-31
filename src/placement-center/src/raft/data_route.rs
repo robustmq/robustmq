@@ -3,7 +3,8 @@ use crate::{
     cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
     controller::engine::segment_replica::SegmentReplicaAlgorithm,
     storage::{
-        cluster::{self, ClusterInfo, ClusterStorage},
+        cluster::{ClusterInfo, ClusterStorage},
+        kv::KvStorage,
         node::{NodeInfo, NodeStorage},
         rocksdb::RocksDBEngine,
         segment::{SegmentInfo, SegmentStatus, SegmentStorage},
@@ -16,10 +17,7 @@ use common_base::{
     tools::{now_mills, unique_id},
 };
 use prost::Message as _;
-use protocol::placement_center::placement::{
-    ClusterType, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
-    RegisterNodeRequest, UnRegisterNodeRequest,
-};
+use protocol::placement_center::generate::{common::ClusterType, engine::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, placement::{RegisterNodeRequest, UnRegisterNodeRequest}};
 use std::sync::{Arc, RwLock};
 use tonic::Status;
 
@@ -30,6 +28,7 @@ pub struct DataRoute {
     cluster_storage: ClusterStorage,
     shard_storage: ShardStorage,
     segment_storage: SegmentStorage,
+    kv_storage: KvStorage,
     repcli_algo: SegmentReplicaAlgorithm,
 }
 
@@ -43,6 +42,7 @@ impl DataRoute {
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
         let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
         let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
+        let kv_storage = KvStorage::new(rocksdb_engine_handler);
         let repcli_algo = SegmentReplicaAlgorithm::new(engine_cache.clone());
         return DataRoute {
             engine_cache,
@@ -51,6 +51,7 @@ impl DataRoute {
             cluster_storage,
             shard_storage,
             segment_storage,
+            kv_storage,
             repcli_algo,
         };
     }
@@ -77,6 +78,12 @@ impl DataRoute {
             }
             StorageDataType::DeleteSegment => {
                 return self.delete_segment(storage_data.value);
+            }
+            StorageDataType::Set => {
+                return self.set(storage_data.value);
+            }
+            StorageDataType::Delete => {
+                return self.delete(storage_data.value);
             }
         }
     }
@@ -268,6 +275,22 @@ impl DataRoute {
         return Ok(());
     }
 
+    pub fn set(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req: SetRequest = SetRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        self.kv_storage.set(req.key, req.value);
+        return Ok(());
+    }
+
+    pub fn delete(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req: DeleteRequest = DeleteRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        self.kv_storage.delete(req.key);
+        return Ok(());
+    }
+
     pub fn pre_create_segment(&self) -> Result<(), RobustMQError> {
         return Ok(());
     }
@@ -285,8 +308,7 @@ mod tests {
     };
     use common_base::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
-    use protocol::placement_center::placement::{ClusterType, RegisterNodeRequest};
-
+    use protocol::placement_center::generate::{common::ClusterType, placement::RegisterNodeRequest};
     use super::DataRoute;
 
     #[test]

@@ -1,14 +1,9 @@
-use clients::{
-    placement_center::{heartbeat, register_node, unregister_node},
-    ClientPool,
-};
+use clients::{placement_center::placement::{heartbeat, register_node, unregister_node}, ClientPool};
 use common_base::{
     config::storage_engine::StorageEngineConfig,
     log::{debug_eninge, error_engine, info_meta},
 };
-use protocol::placement_center::placement::{
-    ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
-};
+use protocol::placement_center::generate::{common::ClusterType, placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest}};
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time};
 

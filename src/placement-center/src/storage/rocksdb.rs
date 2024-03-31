@@ -210,7 +210,7 @@ impl RocksDBEngine {
         return self.db.cf_handle(&DB_COLUMN_FAMILY_CLUSTER).unwrap();
     }
 
-    pub fn cf_mqtt(&self) -> &ColumnFamily {
+    pub fn cf_data(&self) -> &ColumnFamily {
         return self.db.cf_handle(&DB_COLUMN_FAMILY_MQTT).unwrap();
     }
 
@@ -245,7 +245,7 @@ impl RocksDBEngine {
         } else if family == DB_COLUMN_FAMILY_CLUSTER {
             self.cf_cluster()
         } else {
-            self.cf_mqtt()
+            self.cf_data()
         };
         return cf;
     }

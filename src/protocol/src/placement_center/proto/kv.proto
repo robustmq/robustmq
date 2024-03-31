@@ -14,12 +14,45 @@
  * limitations under the License.
  */
 
-pub mod shard;
-pub mod keys;
-pub mod rocksdb;
-pub mod node;
-pub mod raft;
-pub mod cluster;
-pub mod segment;
-pub mod kv;
-pub mod global_id;
+syntax = "proto3";
+package kv;
+import "common.proto";
+
+service KvService {
+  //
+  rpc set(SetRequest) returns(common.CommonReply){}
+
+  // 
+  rpc delete(DeleteRequest) returns(common.CommonReply){}
+
+  // 
+  rpc get(GetRequest) returns(GetReply){}
+
+  // 
+  rpc exists(ExistsRequest) returns(ExistsReply){} 
+}
+
+message SetRequest{
+    string key = 1;
+    string value = 2;
+}
+
+message GetRequest{
+    string key = 1;
+}
+
+message GetReply{
+    string value = 1;
+}
+
+message DeleteRequest{
+    string key = 1;
+}
+
+message ExistsRequest{
+    string key = 1;
+}
+
+message ExistsReply{
+    bool flag = 1;
+}

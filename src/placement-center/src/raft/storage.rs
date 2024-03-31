@@ -4,12 +4,15 @@ use std::time::Duration;
 use bincode::serialize;
 use common_base::errors::RobustMQError;
 use prost::Message;
-use protocol::placement_center::placement::CreateSegmentRequest;
-use protocol::placement_center::placement::CreateShardRequest;
-use protocol::placement_center::placement::DeleteSegmentRequest;
-use protocol::placement_center::placement::DeleteShardRequest;
-use protocol::placement_center::placement::RegisterNodeRequest;
-use protocol::placement_center::placement::UnRegisterNodeRequest;
+
+use protocol::placement_center::generate::engine::CreateSegmentRequest;
+use protocol::placement_center::generate::engine::CreateShardRequest;
+use protocol::placement_center::generate::engine::DeleteSegmentRequest;
+use protocol::placement_center::generate::engine::DeleteShardRequest;
+use protocol::placement_center::generate::kv::DeleteRequest;
+use protocol::placement_center::generate::kv::SetRequest;
+use protocol::placement_center::generate::placement::RegisterNodeRequest;
+use protocol::placement_center::generate::placement::UnRegisterNodeRequest;
 use raft::eraftpb::ConfChange;
 use raft::eraftpb::Message as raftPreludeMessage;
 use serde::Deserialize;
@@ -54,6 +57,8 @@ pub enum StorageDataType {
     DeleteShard,
     CreateSegment,
     DeleteSegment,
+    Set,
+    Delete,
 }
 
 impl fmt::Display for StorageDataType {
@@ -76,6 +81,12 @@ impl fmt::Display for StorageDataType {
             }
             StorageDataType::DeleteSegment => {
                 write!(f, "DeleteSegment")
+            }
+            StorageDataType::Set => {
+                write!(f, "Set")
+            }
+            StorageDataType::Delete => {
+                write!(f, "Delete")
             }
         }
     }
@@ -173,6 +184,16 @@ impl PlacementCenterStorage {
             .await;
     }
 
+    pub async fn set(&self, data: SetRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(StorageDataType::Set, SetRequest::encode_to_vec(&data));
+        return self.apply_propose_message(data, "set".to_string()).await;
+    }
+
+    pub async fn delete(&self, data: DeleteRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(StorageDataType::Delete, DeleteRequest::encode_to_vec(&data));
+        return self.apply_propose_message(data, "set".to_string()).await;
+    }
+
     pub async fn save_raft_message(
         &self,
         message: raftPreludeMessage,
@@ -203,7 +224,6 @@ impl PlacementCenterStorage {
     }
 
     pub async fn generate_id(&self) -> Result<u64, RobustMQError> {
-        
         return Ok(1);
     }
 
