@@ -22,15 +22,13 @@ use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 
-pub const DB_COLUMN_FAMILY_META: &str = "meta";
-pub const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
-pub const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
+pub const DB_COLUMN_FAMILY_CLUSTER: &str = "meta";
+pub const DB_COLUMN_FAMILY_DATA: &str = "mqtt";
 
 fn column_family_list() -> Vec<String> {
     let mut list = Vec::new();
-    list.push(DB_COLUMN_FAMILY_META.to_string());
     list.push(DB_COLUMN_FAMILY_CLUSTER.to_string());
-    list.push(DB_COLUMN_FAMILY_MQTT.to_string());
+    list.push(DB_COLUMN_FAMILY_DATA.to_string());
     return list;
 }
 
@@ -202,16 +200,12 @@ impl RocksDBEngine {
         self.db.key_may_exist_cf(cf, key)
     }
 
-    pub fn cf_meta(&self) -> &ColumnFamily {
-        return self.db.cf_handle(&DB_COLUMN_FAMILY_META).unwrap();
-    }
-
     pub fn cf_cluster(&self) -> &ColumnFamily {
         return self.db.cf_handle(&DB_COLUMN_FAMILY_CLUSTER).unwrap();
     }
 
     pub fn cf_data(&self) -> &ColumnFamily {
-        return self.db.cf_handle(&DB_COLUMN_FAMILY_MQTT).unwrap();
+        return self.db.cf_handle(&DB_COLUMN_FAMILY_DATA).unwrap();
     }
 
     fn open_db_opts(config: &PlacementCenterConfig) -> Options {
@@ -240,11 +234,9 @@ impl RocksDBEngine {
     }
 
     pub fn get_column_family(&self, family: String) -> &ColumnFamily {
-        let cf = if family == DB_COLUMN_FAMILY_META {
-            self.cf_meta()
-        } else if family == DB_COLUMN_FAMILY_CLUSTER {
+        let cf = if family == DB_COLUMN_FAMILY_CLUSTER {
             self.cf_cluster()
-        } else {
+        }  else {
             self.cf_data()
         };
         return cf;
@@ -282,10 +274,10 @@ mod tests {
                     name: name.clone(),
                     age: 18,
                 };
-                let res4 = rs.write(rs.cf_meta(), &key, &user);
+                let res4 = rs.write(rs.cf_cluster(), &key, &user);
                 assert!(res4.is_ok());
 
-                let res1 = rs.read::<User>(rs.cf_meta(), &key);
+                let res1 = rs.read::<User>(rs.cf_cluster(), &key);
                 let r = res1.unwrap();
                 assert!(!r.is_none());
                 assert_eq!(r.unwrap().name, name);
@@ -304,22 +296,22 @@ mod tests {
         config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBEngine::new(&config);
         let key = "name2";
-        let res1 = rs.read::<User>(rs.cf_meta(), key);
+        let res1 = rs.read::<User>(rs.cf_cluster(), key);
         assert!(res1.unwrap().is_none());
 
         let user = User {
             name: "lobo".to_string(),
             age: 18,
         };
-        let res4 = rs.write(rs.cf_meta(), key, &user);
+        let res4 = rs.write(rs.cf_cluster(), key, &user);
         assert!(res4.is_ok());
 
-        let res5 = rs.read::<User>(rs.cf_meta(), key);
+        let res5 = rs.read::<User>(rs.cf_cluster(), key);
         let res5_rs = res5.unwrap().unwrap();
         assert!(res5_rs.name == user.name);
         assert!(res5_rs.age == user.age);
 
-        let res6 = rs.delete(rs.cf_meta(), key);
+        let res6 = rs.delete(rs.cf_cluster(), key);
         assert!(res6.is_ok());
 
         match remove_dir(config.data_path).await {
@@ -338,14 +330,14 @@ mod tests {
         let rs = RocksDBEngine::new(&config);
 
         let index = 66u64;
-        let cf = rs.cf_meta();
+        let cf = rs.cf_cluster();
 
         let key = key_name_by_last_index();
         let _ = rs.write(cf, &key, &index);
         let res1 = rs.read::<u64>(cf, &key).unwrap().unwrap();
         assert_eq!(index, res1);
 
-        let result = rs.read_all_by_cf(rs.cf_meta());
+        let result = rs.read_all_by_cf(rs.cf_cluster());
         assert!(result.len() > 0);
         for raw in result.clone() {
             assert!(raw.contains_key(&key));
@@ -364,7 +356,7 @@ mod tests {
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBEngine::new(&config);
-        let result = rs.read_prefix(rs.cf_meta(), "metasrv_conf");
+        let result = rs.read_prefix(rs.cf_cluster(), "metasrv_conf");
         for raw in result.clone() {
             println!("{:?}", raw);
         }

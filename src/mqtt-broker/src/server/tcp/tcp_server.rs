@@ -111,7 +111,6 @@ where
                         }
 
                         // connect login(plain)
-                        
 
                         // connection manager
                         let connection_id = cm.add(Connection::new(addr));
@@ -124,6 +123,7 @@ where
                                     match pkg {
                                         Ok(data) => {
                                             let pack: MQTTPacket = data.try_into().unwrap();
+                                            println!("{:?}", pack);
                                             let package = RequestPackage::new(connection_id, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}

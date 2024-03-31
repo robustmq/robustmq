@@ -21,8 +21,9 @@ use common_base::{
 use server::start_server;
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 
-mod server;
+mod metadata;
 mod packet;
+mod server;
 mod storage;
 
 pub struct MqttBroker<'a> {

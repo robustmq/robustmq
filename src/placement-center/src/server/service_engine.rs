@@ -18,7 +18,6 @@ use clients::{
     placement_center::engine::{create_segment, create_shard, delete_segment, delete_shard},
     ClientPool,
 };
-use common_base::errors::RobustMQError;
 use protocol::placement_center::generate::{
     common::CommonReply,
     engine::{
@@ -52,16 +51,7 @@ impl GrpcEngineService {
     fn rewrite_leader(&self) -> bool {
         return !self.placement_cache.read().unwrap().is_leader();
     }
-
-    fn verify(&self) -> Result<(), RobustMQError> {
-        let cluster = self.placement_cache.read().unwrap();
-
-        if cluster.leader_alive() {
-            return Err(RobustMQError::MetaClusterNotLeaderNode);
-        }
-
-        return Ok(());
-    }
+    
 }
 
 #[tonic::async_trait]

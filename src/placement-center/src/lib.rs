@@ -143,10 +143,14 @@ impl PlacementCenter {
             placement_center_storage.clone(),
             self.placement_cache.clone(),
             self.engine_cache.clone(),
+            self.rocksdb_engine_handler.clone(),
             self.client_poll.clone(),
         );
 
-        let kv_handler = GrpcKvService::new(placement_center_storage.clone());
+        let kv_handler = GrpcKvService::new(
+            placement_center_storage.clone(),
+            self.rocksdb_engine_handler.clone(),
+        );
 
         let engine_handler = GrpcEngineService::new(
             placement_center_storage.clone(),

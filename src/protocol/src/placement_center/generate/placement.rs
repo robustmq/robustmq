@@ -70,12 +70,17 @@ pub struct ReportMonitorRequest {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GenerateUniqueNodeIdRequest {}
+pub struct GenerateUniqueNodeIdRequest {
+    #[prost(enumeration = "super::common::GenerageIdType", tag = "1")]
+    pub generage_type: i32,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenerateUniqueNodeIdReply {
     #[prost(uint64, tag = "1")]
-    pub node_id: u64,
+    pub id_int: u64,
+    #[prost(string, tag = "2")]
+    pub id_str: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 pub mod placement_center_service_client {
@@ -339,7 +344,7 @@ pub mod placement_center_service_client {
             self.inner.unary(req, path, codec).await
         }
         ///
-        pub async fn generate_unique_node_id(
+        pub async fn generate_unique_id(
             &mut self,
             request: impl tonic::IntoRequest<super::GenerateUniqueNodeIdRequest>,
         ) -> std::result::Result<
@@ -357,14 +362,14 @@ pub mod placement_center_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/placement.PlacementCenterService/GenerateUniqueNodeId",
+                "/placement.PlacementCenterService/GenerateUniqueId",
             );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(
                     GrpcMethod::new(
                         "placement.PlacementCenterService",
-                        "GenerateUniqueNodeId",
+                        "GenerateUniqueId",
                     ),
                 );
             self.inner.unary(req, path, codec).await
@@ -427,7 +432,7 @@ pub mod placement_center_service_server {
             tonic::Status,
         >;
         ///
-        async fn generate_unique_node_id(
+        async fn generate_unique_id(
             &self,
             request: tonic::Request<super::GenerateUniqueNodeIdRequest>,
         ) -> std::result::Result<
@@ -812,15 +817,13 @@ pub mod placement_center_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/placement.PlacementCenterService/GenerateUniqueNodeId" => {
+                "/placement.PlacementCenterService/GenerateUniqueId" => {
                     #[allow(non_camel_case_types)]
-                    struct GenerateUniqueNodeIdSvc<T: PlacementCenterService>(
-                        pub Arc<T>,
-                    );
+                    struct GenerateUniqueIdSvc<T: PlacementCenterService>(pub Arc<T>);
                     impl<
                         T: PlacementCenterService,
                     > tonic::server::UnaryService<super::GenerateUniqueNodeIdRequest>
-                    for GenerateUniqueNodeIdSvc<T> {
+                    for GenerateUniqueIdSvc<T> {
                         type Response = super::GenerateUniqueNodeIdReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
@@ -832,7 +835,7 @@ pub mod placement_center_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::generate_unique_node_id(
+                                <T as PlacementCenterService>::generate_unique_id(
                                         &inner,
                                         request,
                                     )
@@ -848,7 +851,7 @@ pub mod placement_center_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = GenerateUniqueNodeIdSvc(inner);
+                        let method = GenerateUniqueIdSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

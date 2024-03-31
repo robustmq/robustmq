@@ -15,7 +15,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt4_frame_server() {
-        let ip = "127.0.0.1:1228";
+        let ip = "127.0.0.1:1884";
         let listener = TcpListener::bind(ip).await.unwrap();
         loop {
             let (stream, _) = listener.accept().await.unwrap();
