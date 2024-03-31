@@ -1,4 +1,4 @@
-use clients::{placement_center::send_raft_message, ClientPool};
+use clients::{placement_center::placement::send_raft_message, ClientPool};
 use common_base::log::{debug_meta, error_meta, info_meta};
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
@@ -25,7 +25,7 @@ impl PeersManager {
         };
         return pm;
     }
-    
+
     pub async fn start(&mut self) {
         info_meta(&format!(
             "Starts the thread that sends Raft messages to other nodes"

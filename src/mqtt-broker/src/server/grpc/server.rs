@@ -1,6 +1,6 @@
 use super::services::GrpcBrokerServices;
 use common_base::{log::info, metrics::broker::metrics_grpc_broker_running};
-use protocol::mqtt_server::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
+use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
 use std::net::SocketAddr;
 use tonic::transport::Server;
 

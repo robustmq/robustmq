@@ -1,4 +1,5 @@
-use protocol::mqtt_server::mqtt::mqtt_broker_service_server::MqttBrokerService;
+use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerService;
+
 pub struct GrpcBrokerServices {}
 
 impl GrpcBrokerServices {

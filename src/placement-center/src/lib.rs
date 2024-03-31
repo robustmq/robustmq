@@ -23,14 +23,18 @@ use common_base::runtime::create_runtime;
 use controller::broker::controller::BrokerServerController;
 use controller::engine::controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
-use protocol::placement_center::placement::placement_center_service_server::PlacementCenterServiceServer;
+use protocol::placement_center::generate::engine::engine_service_server::EngineServiceServer;
+use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
+use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::data_route::DataRoute;
 use raft::status_machine::RaftMachine;
 use raft::storage::{PlacementCenterStorage, RaftMessage};
+use server::service_engine::GrpcEngineService;
+use server::service_kv::GrpcKvService;
+use server::service_placement::GrpcPlacementService;
+use std::sync::{Arc, RwLock};
 use storage::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
-use server::grpc::GrpcService;
-use std::sync::{Arc, RwLock};
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -40,8 +44,8 @@ mod cache;
 mod controller;
 mod http;
 mod raft;
-mod storage;
 mod server;
+mod storage;
 
 pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,
@@ -135,19 +139,30 @@ impl PlacementCenter {
     pub fn start_grpc_server(&self, placement_center_storage: Arc<PlacementCenterStorage>) {
         let config = placement_center_conf();
         let ip = format!("0.0.0.0:{}", config.grpc_port).parse().unwrap();
-        let service_handler = GrpcService::new(
-            placement_center_storage,
+        let placement_handler = GrpcPlacementService::new(
+            placement_center_storage.clone(),
             self.placement_cache.clone(),
             self.engine_cache.clone(),
             self.client_poll.clone(),
         );
+
+        let kv_handler = GrpcKvService::new(placement_center_storage.clone());
+
+        let engine_handler = GrpcEngineService::new(
+            placement_center_storage.clone(),
+            self.placement_cache.clone(),
+            self.client_poll.clone(),
+        );
+
         self.server_runtime.spawn(async move {
             info_meta(&format!(
                 "RobustMQ Meta Grpc Server start success. bind addr:{}",
                 ip
             ));
             Server::builder()
-                .add_service(PlacementCenterServiceServer::new(service_handler))
+                .add_service(PlacementCenterServiceServer::new(placement_handler))
+                .add_service(KvServiceServer::new(kv_handler))
+                .add_service(EngineServiceServer::new(engine_handler))
                 .serve(ip)
                 .await
                 .unwrap();

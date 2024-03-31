@@ -1,0 +1,12 @@
+syntax = "proto3";
+package common;
+
+enum ClusterType{
+    BrokerServer = 0;
+    StorageEngine = 1;
+    PlacementCenter = 2;
+}
+
+message CommonReply{
+    
+}
