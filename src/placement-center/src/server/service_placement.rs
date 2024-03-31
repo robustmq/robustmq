@@ -58,16 +58,7 @@ impl GrpcPlacementService {
     fn rewrite_leader(&self) -> bool {
         return !self.placement_cache.read().unwrap().is_leader();
     }
-
-    fn verify(&self) -> Result<(), RobustMQError> {
-        let cluster = self.placement_cache.read().unwrap();
-
-        if cluster.leader_alive() {
-            return Err(RobustMQError::MetaClusterNotLeaderNode);
-        }
-
-        return Ok(());
-    }
+    
 }
 
 #[tonic::async_trait]

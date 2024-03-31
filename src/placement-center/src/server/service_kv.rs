@@ -13,7 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::raft::storage::PlacementCenterStorage;
+use crate::{
+    raft::storage::PlacementCenterStorage,
+    storage::{kv::KvStorage, rocksdb::RocksDBEngine},
+};
+use common_base::errors::RobustMQError;
 use protocol::placement_center::generate::{
     common::CommonReply,
     kv::{
@@ -26,12 +30,17 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcKvService {
     placement_center_storage: Arc<PlacementCenterStorage>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcKvService {
-    pub fn new(placement_center_storage: Arc<PlacementCenterStorage>) -> Self {
+    pub fn new(
+        placement_center_storage: Arc<PlacementCenterStorage>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
+    ) -> Self {
         GrpcKvService {
             placement_center_storage,
+            rocksdb_engine_handler,
         }
     }
 }
@@ -40,7 +49,12 @@ impl GrpcKvService {
 impl KvService for GrpcKvService {
     async fn set(&self, request: Request<SetRequest>) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        // Params validate
+
+        if req.key.is_empty() || req.value.is_empty() {
+            return Err(Status::cancelled(
+                RobustMQError::ParameterCannotBeNull("key or value".to_string()).to_string(),
+            ));
+        }
 
         // Raft state machine is used to store Node data
         match self.placement_center_storage.set(req).await {
@@ -52,8 +66,22 @@ impl KvService for GrpcKvService {
     }
 
     async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetReply>, Status> {
-        let resp = GetReply::default();
-        return Ok(Response::new(resp));
+        let req = request.into_inner();
+
+        if req.key.is_empty() {
+            return Err(Status::cancelled(
+                RobustMQError::ParameterCannotBeNull("key".to_string()).to_string(),
+            ));
+        }
+
+        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
+        let mut reply = GetReply::default();
+        if let Some(data) = kv_storage.get(req.key) {
+            reply.value = data;
+            return Ok(Response::new(reply));
+        }
+
+        return Ok(Response::new(reply));
     }
 
     async fn delete(
@@ -61,7 +89,12 @@ impl KvService for GrpcKvService {
         request: Request<DeleteRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        // Params validate
+
+        if req.key.is_empty() {
+            return Err(Status::cancelled(
+                RobustMQError::ParameterCannotBeNull("key".to_string()).to_string(),
+            ));
+        }
 
         // Raft state machine is used to store Node data
         match self.placement_center_storage.delete(req).await {
@@ -76,7 +109,18 @@ impl KvService for GrpcKvService {
         &self,
         request: Request<ExistsRequest>,
     ) -> Result<Response<ExistsReply>, Status> {
-        let resp = ExistsReply::default();
-        return Ok(Response::new(resp));
+        let req = request.into_inner();
+
+        if req.key.is_empty() {
+            return Err(Status::cancelled(
+                RobustMQError::ParameterCannotBeNull("key".to_string()).to_string(),
+            ));
+        }
+
+        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
+        let mut rep = ExistsReply::default();
+        rep.flag = kv_storage.exists(req.key);
+
+        return Ok(Response::new(rep));
     }
 }

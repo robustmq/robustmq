@@ -17,30 +17,30 @@
 use thiserror::Error;
 use tonic::Status;
 
-#[derive(Error,Debug)]
+#[derive(Error, Debug)]
 pub enum RobustMQError {
     #[error("Operation cannot be initiated because the Leader exists in the cluster")]
     LeaderExistsNotAllowElection,
-    
-    #[error("Node is currently in the voting state. The target node ID is : {node_id:?}")]
-    NodeBeingVotedOn{
-        node_id: u64
-    },
 
-    #[error("Node ID is unavailable. The data format may be incorrect. The node id is : {node_id:?}")]
-    UnavailableNodeId{
-        node_id: u64
-    },
+    #[error("Node is currently in the voting state. The target node ID is : {node_id:?}")]
+    NodeBeingVotedOn { node_id: u64 },
+
+    #[error(
+        "Node ID is unavailable. The data format may be incorrect. The node id is : {node_id:?}"
+    )]
+    UnavailableNodeId { node_id: u64 },
 
     #[error("Multiple leaders exist in a cluster, Node:{0} diff {1}")]
-    MultipleLeaders(String,String),
+    MultipleLeaders(String, String),
 
-    #[error("The service connection is incorrect, possibly because the service port is not started")]
+    #[error(
+        "The service connection is incorrect, possibly because the service port is not started"
+    )]
     TonicTransport(#[from] tonic::transport::Error),
 
     #[error("Grpc call of the Meta node failed,Grpc status was {0}")]
     MetaGrpcStatus(Status),
-    
+
     #[error("Leader node does not exist in the Meta cluster, which may be due to the election process or the election failure.")]
     MetaClusterNotLeaderNode,
 
@@ -58,20 +58,27 @@ pub enum RobustMQError {
 
     #[error("Connection pool connecting to IP {0} is missing connections")]
     MissingConnectionAvailable(String),
-    
+
     #[error("No connection information available, {0}")]
-    NoAvailableConnection(String)
+    NoAvailableConnection(String),
+
+    #[error("Parameter cannot be empty, parameter name: {0}")]
+    ParameterCannotBeNull(String),
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use crate::errors::RobustMQError;
 
-
     #[test]
-    fn thiserror_to_string(){
-        println!("{}",RobustMQError::LeaderExistsNotAllowElection.to_string());
-        println!("{}",RobustMQError::NodeBeingVotedOn { node_id: 18 }.to_string());
+    fn thiserror_to_string() {
+        println!(
+            "{}",
+            RobustMQError::LeaderExistsNotAllowElection.to_string()
+        );
+        println!(
+            "{}",
+            RobustMQError::NodeBeingVotedOn { node_id: 18 }.to_string()
+        );
     }
 }
