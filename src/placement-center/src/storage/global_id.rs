@@ -4,9 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::time::sleep;
-
 use crate::server::lock::Lock;
-
 use super::rocksdb::RocksDBEngine;
 
 pub struct GlobalId {
