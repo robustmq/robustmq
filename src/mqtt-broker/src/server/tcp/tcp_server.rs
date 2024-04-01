@@ -2,7 +2,7 @@ use crate::{
     packet::{command::Command, services::MqttService},
     server::tcp::packet::RequestPackage,
 };
-use common_base::log::{error, error_engine};
+use common_base::log::{error, error_engine, info};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::mqtt::MQTTPacket;
@@ -96,6 +96,7 @@ where
                 let request_queue_sx = request_queue_sx.clone();
                 match listener.accept().await {
                     Ok((stream, addr)) => {
+                        info("dddd".to_string());
                         // split stream
                         let (r_stream, w_stream) = io::split(stream);
                         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());

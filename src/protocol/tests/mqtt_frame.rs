@@ -35,8 +35,8 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt4_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1228").await.unwrap();
-        let mut stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
+        let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
+        let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
 
         // send connect package
         let packet = build_mqtt4_pg_connect();

@@ -45,7 +45,8 @@ impl<'a> MqttBroker<'a> {
     }
 
     fn start_tcp_server(&self) {
-        self.runtime.spawn(async move { start_server().await });
+        self.runtime
+            .spawn(async move { start_server().await });
     }
 
     fn start_prometheus_export(&self) {

@@ -6,10 +6,10 @@ use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
 
 use self::tcp::tcp_server::TcpServer;
 
+pub mod grpc;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
-pub mod grpc;
 
 pub async fn start_server() {
     let conf = broker_mqtt_conf();

@@ -21,8 +21,8 @@ worker_threads = 8
 
 [network_tcp]
 accept_thread_num = 1
-handler_thread_num = 20
-response_thread_num = 2
+handler_thread_num = 1
+response_thread_num = 1
 max_connection_num = 1000
 request_queue_size = 2000
 response_queue_size = 2000
