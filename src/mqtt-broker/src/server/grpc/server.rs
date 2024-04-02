@@ -1,27 +1,34 @@
+use std::sync::{Arc, RwLock};
+
+use crate::metadata::cache::MetadataCache;
+
 use super::services::GrpcBrokerServices;
-use common_base::{log::info, metrics::broker::metrics_grpc_broker_running};
+use common_base::log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
-use std::net::SocketAddr;
 use tonic::transport::Server;
 
 pub struct GrpcServer {
-    addr: SocketAddr,
+    port: usize,
+    metadata_cache: Arc<RwLock<MetadataCache>>,
 }
 
 impl GrpcServer {
-    pub fn new(addr: SocketAddr) -> Self {
-        return Self { addr };
+    pub fn new(port: usize, metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
+        return Self {
+            port,
+            metadata_cache,
+        };
     }
     pub async fn start(&self) {
+        let addr = format!("0.0.0.0:{}", self.port).parse().unwrap();
         info(format!(
-            "RobustMQ Broker Grpc Server start success. bind addr:{}",
-            self.addr
+            "Broker Grpc Server start success. bind addr:{}",
+            addr
         ));
-        metrics_grpc_broker_running();
-        let service_handler = GrpcBrokerServices::new();
+        let service_handler = GrpcBrokerServices::new(self.metadata_cache.clone());
         Server::builder()
             .add_service(MqttBrokerServiceServer::new(service_handler))
-            .serve(self.addr)
+            .serve(addr)
             .await
             .unwrap();
     }

@@ -12,22 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::{Arc, RwLock};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info_meta,
     metrics::register_prometheus_export,
     runtime::create_runtime,
 };
-use server::start_server;
+use metadata::cache::MetadataCache;
+use server::{grpc::server::GrpcServer, start_mqtt_server};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 
 mod metadata;
 mod packet;
 mod server;
 mod storage;
+mod metrics;
 
 pub struct MqttBroker<'a> {
     conf: &'a BrokerMQTTConfig,
+    metadata_cache: Arc<RwLock<MetadataCache>>,
     runtime: Runtime,
 }
 
@@ -35,17 +39,32 @@ impl<'a> MqttBroker<'a> {
     pub fn new() -> Self {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
-        return MqttBroker { conf, runtime };
+        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new()));
+        return MqttBroker {
+            conf,
+            runtime,
+            metadata_cache,
+        };
     }
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
-        self.start_tcp_server();
+        self.start_grpc_server();
+        self.start_mqtt_server();
         self.start_prometheus_export();
         self.awaiting_stop(stop_send);
     }
 
-    fn start_tcp_server(&self) {
-        self.runtime.spawn(async move { start_server().await });
+    fn start_mqtt_server(&self) {
+        self.runtime.spawn(async move { start_mqtt_server().await });
+    }
+
+    fn start_grpc_server(&self) {
+        let port = self.conf.port.clone();
+        let cache = self.metadata_cache.clone();
+        self.runtime.spawn(async move {
+            let server = GrpcServer::new(port, cache);
+            server.start().await;
+        });
     }
 
     fn start_prometheus_export(&self) {

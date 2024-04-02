@@ -17,3 +17,6 @@ futures.workspace = true
 serde_json.workspace = true
 tonic.workspace = true
 dashmap.workspace = true
+serde.workspace = true
+lazy_static.workspace = true
+prometheus.workspace = true
