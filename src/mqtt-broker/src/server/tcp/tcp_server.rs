@@ -6,10 +6,10 @@ use crate::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
         metrics_response_queue,
     },
-    packet::{command::Command, services::MqttService},
+    packet::command::Command,
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
-use common_base::log::{error, info};
+use common_base::log::error;
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::mqtt::MQTTPacket;
@@ -21,6 +21,7 @@ use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
 // U: codec: encoder + decoder
 pub struct TcpServer<T> {
     protocol: MQTTProtocol,
+    command: Command,
     connection_manager: Arc<ConnectionManager<T>>,
     accept_thread_num: usize,
     handler_process_num: usize,
@@ -39,6 +40,7 @@ where
 {
     pub fn new(
         protocol: MQTTProtocol,
+        command: Command,
         accept_thread_num: usize,
         max_connection_num: usize,
         request_queue_size: usize,
@@ -61,6 +63,7 @@ where
         ));
         Self {
             protocol,
+            command,
             connection_manager,
             accept_thread_num,
             handler_process_num,
@@ -97,6 +100,7 @@ where
         let connection_manager = self.connection_manager.clone();
         let codec = self.codec.clone();
         let protocol: String = self.protocol.clone().into();
+        let response_queue_sx = self.response_queue_sx.clone();
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
@@ -117,21 +121,21 @@ where
                             }
                         }
 
-                        // connect login(plain)
-
                         // connection manager
                         let connection_id = cm.add(Connection::new(addr));
                         cm.add_write(connection_id, write_frame_stream);
                         let protocol_lable = protocol.clone();
+
+                        let cm_clone = cm.clone();
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
+                            let mut login_flag = false;
                             loop {
                                 if let Some(pkg) = read_frame_stream.next().await {
                                     match pkg {
                                         Ok(data) => {
                                             metrics_request_packet_incr(&protocol_lable);
                                             let pack: MQTTPacket = data.try_into().unwrap();
-                                            info(format!("{:?}", pack));
                                             let package = RequestPackage::new(connection_id, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
@@ -160,17 +164,15 @@ where
         let request_queue_rx = self.request_queue_rx.clone();
         let response_queue_sx = self.response_queue_sx.clone();
         let protocol_lable: String = self.protocol.clone().into();
+        let mut command = self.command.clone();
         tokio::spawn(async move {
-            while let Ok(resquest_package) = request_queue_rx.recv() {
+            while let Ok(packet) = request_queue_rx.recv() {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
 
-                //Business logic processing
-                let services = MqttService::new();
-                let command = Command::new();
-                let resp = command.apply();
-
+                // MQTT 4/5 business logic processing
+                let resp = command.apply(packet.packet);
                 // Writes the result of the business logic processing to the return queue
-                let response_package = ResponsePackage::new(resquest_package.connection_id, resp);
+                let response_package = ResponsePackage::new(packet.connection_id, resp);
                 match response_queue_sx.send(response_package) {
                     Ok(_) => {}
                     Err(err) => error(format!(
@@ -187,6 +189,7 @@ where
         let response_queue_rx = self.response_queue_rx.clone();
         let connect_manager = self.connection_manager.clone();
         let protocol_lable: String = self.protocol.clone().into();
+
         tokio::spawn(async move {
             while let Ok(response_package) = response_queue_rx.recv() {
                 metrics_response_queue(&protocol_lable, response_queue_rx.len() as i64);

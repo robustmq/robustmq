@@ -1,19 +1,21 @@
-use std::default;
-
+use self::tcp::tcp_server::TcpServer;
+use crate::{metadata::cache::MetadataCache, packet::{command::Command, packet::MQTTAckBuild}};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
 };
 use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
-
-use self::tcp::tcp_server::TcpServer;
+use std::{
+    default,
+    sync::{Arc, RwLock},
+};
 
 pub mod grpc;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default,PartialEq)]
 pub enum MQTTProtocol {
     #[default]
     MQTT4,
@@ -29,23 +31,25 @@ impl From<MQTTProtocol> for String {
     }
 }
 
-pub async fn start_mqtt_server() {
+pub async fn start_mqtt_server(cache: Arc<RwLock<MetadataCache>>) {
     let conf = broker_mqtt_conf();
-
     if conf.mqtt.mqtt4_enable {
-        start_mqtt4_server(conf).await;
+        let command = Command::new(MQTTProtocol::MQTT4, cache.clone());
+        start_mqtt4_server(conf, command.clone()).await;
     }
 
     if conf.mqtt.mqtt5_enable {
-        start_mqtt5_server(conf).await;
+        let command = Command::new(MQTTProtocol::MQTT5, cache.clone());
+        start_mqtt5_server(conf, command.clone()).await;
     }
 }
 
-async fn start_mqtt4_server(conf: &BrokerMQTTConfig) {
+async fn start_mqtt4_server(conf: &BrokerMQTTConfig, command: Command) {
     let port = conf.mqtt.mqtt4_port;
     let codec = Mqtt4Codec::new();
     let server = TcpServer::<Mqtt4Codec>::new(
         MQTTProtocol::MQTT4,
+        command,
         conf.network_tcp.accept_thread_num,
         conf.network_tcp.max_connection_num,
         conf.network_tcp.request_queue_size,
@@ -63,11 +67,12 @@ async fn start_mqtt4_server(conf: &BrokerMQTTConfig) {
     ));
 }
 
-async fn start_mqtt5_server(conf: &BrokerMQTTConfig) {
+async fn start_mqtt5_server(conf: &BrokerMQTTConfig, command: Command) {
     let codec = Mqtt5Codec::new();
     let port = conf.mqtt.mqtt5_port;
     let server = TcpServer::<Mqtt5Codec>::new(
         MQTTProtocol::MQTT5,
+        command,
         conf.network_tcp.accept_thread_num,
         conf.network_tcp.max_connection_num,
         conf.network_tcp.request_queue_size,

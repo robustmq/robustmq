@@ -55,7 +55,8 @@ impl<'a> MqttBroker<'a> {
     }
 
     fn start_mqtt_server(&self) {
-        self.runtime.spawn(async move { start_mqtt_server().await });
+        let cache = self.metadata_cache.clone();
+        self.runtime.spawn(async move { start_mqtt_server(cache).await });
     }
 
     fn start_grpc_server(&self) {
