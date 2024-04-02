@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::sync::{Arc, RwLock};
-
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info_meta,
