@@ -1426,6 +1426,8 @@ dependencies = [
  "dashmap",
  "flume",
  "futures",
+ "lazy_static",
+ "prometheus",
  "protocol",
  "serde",
  "serde_json",

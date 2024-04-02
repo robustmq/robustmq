@@ -1,3 +1,5 @@
+use std::default;
+
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
@@ -10,6 +12,22 @@ pub mod grpc;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
+
+#[derive(Clone, Default)]
+pub enum MQTTProtocol {
+    #[default]
+    MQTT4,
+    MQTT5,
+}
+
+impl From<MQTTProtocol> for String {
+    fn from(protocol: MQTTProtocol) -> Self {
+        match protocol {
+            MQTTProtocol::MQTT4 => "MQTT4".into(),
+            MQTTProtocol::MQTT5 => "MQTT5".into(),
+        }
+    }
+}
 
 pub async fn start_mqtt_server() {
     let conf = broker_mqtt_conf();
@@ -27,6 +45,7 @@ async fn start_mqtt4_server(conf: &BrokerMQTTConfig) {
     let port = conf.mqtt.mqtt4_port;
     let codec = Mqtt4Codec::new();
     let server = TcpServer::<Mqtt4Codec>::new(
+        MQTTProtocol::MQTT4,
         conf.network_tcp.accept_thread_num,
         conf.network_tcp.max_connection_num,
         conf.network_tcp.request_queue_size,
@@ -48,6 +67,7 @@ async fn start_mqtt5_server(conf: &BrokerMQTTConfig) {
     let codec = Mqtt5Codec::new();
     let port = conf.mqtt.mqtt5_port;
     let server = TcpServer::<Mqtt5Codec>::new(
+        MQTTProtocol::MQTT5,
         conf.network_tcp.accept_thread_num,
         conf.network_tcp.max_connection_num,
         conf.network_tcp.request_queue_size,

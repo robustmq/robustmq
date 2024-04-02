@@ -27,6 +27,7 @@ mod metadata;
 mod packet;
 mod server;
 mod storage;
+mod metrics;
 
 pub struct MqttBroker<'a> {
     conf: &'a BrokerMQTTConfig,
