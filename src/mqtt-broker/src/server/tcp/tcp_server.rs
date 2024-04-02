@@ -1,8 +1,11 @@
+use super::{
+    connection::Connection, connection_manager::ConnectionManager, packet::ResponsePackage,
+};
 use crate::{
     packet::{command::Command, services::MqttService},
     server::tcp::packet::RequestPackage,
 };
-use common_base::log::{error, error_engine, info};
+use common_base::log::{error, info};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::mqtt::MQTTPacket;
@@ -10,10 +13,6 @@ use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
-
-use super::{
-    connection::Connection, connection_manager::ConnectionManager, packet::ResponsePackage,
-};
 
 // U: codec: encoder + decoder
 pub struct TcpServer<T> {
@@ -96,7 +95,6 @@ where
                 let request_queue_sx = request_queue_sx.clone();
                 match listener.accept().await {
                     Ok((stream, addr)) => {
-                        info("dddd".to_string());
                         // split stream
                         let (r_stream, w_stream) = io::split(stream);
                         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
@@ -124,15 +122,15 @@ where
                                     match pkg {
                                         Ok(data) => {
                                             let pack: MQTTPacket = data.try_into().unwrap();
-                                            println!("{:?}", pack);
+                                            info(format!("{:?}", pack));
                                             let package = RequestPackage::new(connection_id, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
                                                 Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                             }
                                         }
-                                        Err(e) => {
-                                            error_engine("".to_string());
+                                        Err(_) => {
+                                            // error("read_frame_stream decode:".to_string());
                                         }
                                     }
                                 }

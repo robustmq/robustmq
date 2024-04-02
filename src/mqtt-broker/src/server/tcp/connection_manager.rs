@@ -1,5 +1,5 @@
 use super::connection::Connection;
-use common_base::log::{error_engine, error_meta};
+use common_base::log::error;
 use dashmap::DashMap;
 use futures::SinkExt;
 use protocol::mqtt::MQTTPacket;
@@ -67,21 +67,23 @@ where
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {}
-                        Err(err) => error_meta(&format!(
-                            "Failed to write data to the response queue, error message ff: {:?}",
-                            "".to_string()
-                        )),
+                        Err(_) => {
+                            // error_meta(&format!(
+                            //     "Failed to write data to the response queue, error message: {:?}",
+                            //     "".to_string()
+                            // ));
+                        }
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.max_try_mut_times {
-                        error_engine(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
+                        error(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
                         break;
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > self.max_try_mut_times {
-                        error_engine(format!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
+                        error(format!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
                         break;
                     }
                 }

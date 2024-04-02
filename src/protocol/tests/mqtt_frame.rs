@@ -36,15 +36,22 @@ mod tests {
     #[tokio::test]
     async fn mqtt4_frame_client() {
         let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
-        let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
+        let mut stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
 
         // send connect package
         let packet = build_mqtt4_pg_connect();
         let _ = stream.send(packet).await;
 
-        let data = stream.next().await;
-
-        println!("Got: {:?}", data.unwrap().unwrap());
+        if let Some(data) = stream.next().await {
+            match data {
+                Ok(da) => {
+                    println!("{:?}", da);
+                }
+                Err(e) => {
+                    println!("{}",e.to_string());
+                }
+            }
+        }
     }
 
     /// Build the connect content package for the mqtt4 protocol
@@ -80,7 +87,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt5_frame_server() {
-        let ip = "127.0.0.1:1228";
+        let ip = "127.0.0.1:1884";
         let listener = TcpListener::bind(ip).await.unwrap();
         loop {
             let (stream, _) = listener.accept().await.unwrap();
@@ -100,7 +107,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt5_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:2228").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
         let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
 
         // send connect package
