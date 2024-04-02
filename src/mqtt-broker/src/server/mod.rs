@@ -11,7 +11,7 @@ pub mod quic;
 pub mod tcp;
 pub mod websocket;
 
-pub async fn start_server() {
+pub async fn start_mqtt_server() {
     let conf = broker_mqtt_conf();
 
     if conf.mqtt.mqtt4_enable {

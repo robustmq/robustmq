@@ -17,5 +17,13 @@
 syntax = "proto3";
 package mqtt;
 service MqttBrokerService {
+    rpc updateCache(UpdateCacheRequest) returns(UpdateCacheReply){}
+}
+
+message UpdateCacheRequest{
+    string data = 1;
+}
+
+message UpdateCacheReply{
     
 }

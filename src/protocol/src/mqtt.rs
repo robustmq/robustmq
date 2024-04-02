@@ -15,6 +15,7 @@
  */
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use serde::{Deserialize, Serialize};
 use std::{fmt, io, slice::Iter, str::Utf8Error, string::FromUtf8Error};
 
 /// This module is the place where all the protocal specifics gets abstracted
@@ -347,7 +348,7 @@ pub struct ConnectProperties {
 }
 
 /// LastWill that broker forwards on behalf of the client
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LastWill {
     pub topic: Bytes,
     pub message: Bytes,
@@ -356,7 +357,7 @@ pub struct LastWill {
 }
 
 /// LastWillProperties can be used in MQTT Version 5
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LastWillProperties {
     pub delay_interval: Option<u32>,
     pub payload_format_indicator: Option<u8>,
@@ -369,7 +370,7 @@ pub struct LastWillProperties {
 
 /// Quality of service
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq, Default, Copy, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Copy, PartialOrd, Serialize, Deserialize)]
 #[allow(clippy::enum_variant_names)]
 pub enum QoS {
     #[default]
