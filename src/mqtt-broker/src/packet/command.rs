@@ -27,7 +27,7 @@ impl Command {
         };
     }
 
-    pub fn apply(&self, packet: MQTTPacket) -> MQTTPacket {
+    pub fn apply(&mut self, packet: MQTTPacket) -> MQTTPacket {
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
                 if self.protocol == MQTTProtocol::MQTT4 {

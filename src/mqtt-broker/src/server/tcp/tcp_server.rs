@@ -12,7 +12,7 @@ use crate::{
 use common_base::log::error;
 use flume::{Receiver, Sender};
 use futures::StreamExt;
-use protocol::mqtt::{Disconnect, MQTTPacket};
+use protocol::mqtt::MQTTPacket;
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
@@ -100,6 +100,7 @@ where
         let connection_manager = self.connection_manager.clone();
         let codec = self.codec.clone();
         let protocol: String = self.protocol.clone().into();
+        let response_queue_sx = self.response_queue_sx.clone();
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
@@ -135,35 +136,6 @@ where
                                         Ok(data) => {
                                             metrics_request_packet_incr(&protocol_lable);
                                             let pack: MQTTPacket = data.try_into().unwrap();
-
-                                            if login_flag == false {
-                                                match pack.clone() {
-                                                    MQTTPacket::Connect(
-                                                        connect,
-                                                        properties,
-                                                        last_will,
-                                                        last_will_peoperties,
-                                                        login,
-                                                    ) => {
-                                                        login_flag = true;
-                                                    }
-                                                    _ => {
-                                                        let disconnect = Disconnect{
-                                                            reason_code:protocol::mqtt::DisconnectReasonCode::ConnectionRateExceeded
-                                                        };
-
-                                                        // cm_clone
-                                                        //     .write_frame(
-                                                        //         connection_id,
-                                                        //         MQTTPacket::Disconnect(
-                                                        //             disconnect, None,
-                                                        //         ),
-                                                        //     )
-                                                        //     .await;
-                                                        continue;
-                                                    }
-                                                }
-                                            }
                                             let package = RequestPackage::new(connection_id, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
@@ -192,10 +164,11 @@ where
         let request_queue_rx = self.request_queue_rx.clone();
         let response_queue_sx = self.response_queue_sx.clone();
         let protocol_lable: String = self.protocol.clone().into();
-        let command = self.command.clone();
+        let mut command = self.command.clone();
         tokio::spawn(async move {
             while let Ok(packet) = request_queue_rx.recv() {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
+
                 // MQTT 4/5 business logic processing
                 let resp = command.apply(packet.packet);
                 // Writes the result of the business logic processing to the return queue
@@ -216,6 +189,7 @@ where
         let response_queue_rx = self.response_queue_rx.clone();
         let connect_manager = self.connection_manager.clone();
         let protocol_lable: String = self.protocol.clone().into();
+
         tokio::spawn(async move {
             while let Ok(response_package) = response_queue_rx.recv() {
                 metrics_response_queue(&protocol_lable, response_queue_rx.len() as i64);
