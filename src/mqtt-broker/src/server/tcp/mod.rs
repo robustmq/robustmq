@@ -1,4 +1,4 @@
 mod connection;
-mod packet;
+pub mod packet;
 mod connection_manager;
 pub mod tcp_server;
