@@ -12,7 +12,7 @@ use crate::{
 use common_base::log::error;
 use flume::{Receiver, Sender};
 use futures::StreamExt;
-use protocol::mqtt::MQTTPacket;
+use protocol::mqtt::{Disconnect, MQTTPacket};
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
@@ -124,6 +124,8 @@ where
                         let connection_id = cm.add(Connection::new(addr));
                         cm.add_write(connection_id, write_frame_stream);
                         let protocol_lable = protocol.clone();
+
+                        let cm_clone = cm.clone();
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
                             let mut login_flag = false;
@@ -145,7 +147,21 @@ where
                                                     ) => {
                                                         login_flag = true;
                                                     }
-                                                    _ => {}
+                                                    _ => {
+                                                        let disconnect = Disconnect{
+                                                            reason_code:protocol::mqtt::DisconnectReasonCode::ConnectionRateExceeded
+                                                        };
+
+                                                        // cm_clone
+                                                        //     .write_frame(
+                                                        //         connection_id,
+                                                        //         MQTTPacket::Disconnect(
+                                                        //             disconnect, None,
+                                                        //         ),
+                                                        //     )
+                                                        //     .await;
+                                                        continue;
+                                                    }
                                                 }
                                             }
                                             let package = RequestPackage::new(connection_id, pack);
