@@ -1,5 +1,5 @@
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
-use protocol::mqtt::{ConnAck, ConnectReturnCode, MQTTPacket};
+use protocol::mqtt::{ConnAck, ConnectReturnCode, Disconnect, DisconnectReasonCode, MQTTPacket};
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
@@ -79,11 +79,8 @@ impl MQTTAckBuild {
         return MQTTPacket::ConnAck(conn_ack, None);
     }
 
-    pub fn distinct(&self) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
-        };
-        return MQTTPacket::ConnAck(conn_ack, None);
+    pub fn distinct(&self, reason_code: DisconnectReasonCode) -> MQTTPacket {
+        let disconnect = Disconnect { reason_code };
+        return MQTTPacket::Disconnect(disconnect, None);
     }
 }

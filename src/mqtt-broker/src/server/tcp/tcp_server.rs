@@ -180,8 +180,8 @@ where
         tokio::spawn(async move {
             while let Ok(packet) = request_queue_rx.recv() {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
-                //
-                let resp = command.apply(packet.clone());
+                // MQTT 4/5 business logic processing
+                let resp = command.apply(packet.packet);
                 // Writes the result of the business logic processing to the return queue
                 let response_package = ResponsePackage::new(packet.connection_id, resp);
                 match response_queue_sx.send(response_package) {
