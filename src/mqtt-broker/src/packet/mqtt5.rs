@@ -1,5 +1,6 @@
 use std::sync::{Arc, RwLock};
 
+use common_base::tools::unique_id_string;
 use protocol::mqtt::{
     Connect, ConnectProperties, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, Publish,
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
@@ -32,10 +33,24 @@ impl Mqtt5Service {
         last_will_properties: Option<LastWillProperties>,
         login: Option<Login>,
     ) -> MQTTPacket {
+        
         if !self.un_login {
             return self.un_login_err();
         }
-        return self.ack_build.conn_ack();
+        let client_id = unique_id_string();
+        let auto_client_id = true;
+        let reason_string = Some("".to_string());
+        let user_properties = Vec::new();
+        let response_information = Some("".to_string());
+        let server_reference = Some("".to_string());
+        return self.ack_build.conn_ack(
+            client_id,
+            auto_client_id,
+            reason_string,
+            user_properties,
+            response_information,
+            server_reference,
+        );
     }
 
     pub fn publish(

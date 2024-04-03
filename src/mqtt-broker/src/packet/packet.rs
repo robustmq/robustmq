@@ -1,5 +1,7 @@
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
-use protocol::mqtt::{ConnAck, ConnectReturnCode, Disconnect, DisconnectReasonCode, MQTTPacket};
+use protocol::mqtt::{
+    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectReasonCode, MQTTPacket,
+};
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
@@ -15,12 +17,53 @@ impl MQTTAckBuild {
             metadata_cache,
         };
     }
-    pub fn conn_ack(&self) -> MQTTPacket {
+
+    pub fn conn_ack(
+        &self,
+        client_id: String,
+        auto_client_id: bool,
+        reason_string: Option<String>,
+        user_properties: Vec<(String, String)>,
+        response_information: Option<String>,
+        server_reference: Option<String>,
+    ) -> MQTTPacket {
         let conn_ack = ConnAck {
-            session_present: true,
+            session_present: false,
             code: ConnectReturnCode::Success,
         };
-        return MQTTPacket::ConnAck(conn_ack, None);
+        let cache = self.metadata_cache.read().unwrap();
+        let cluster = cache.cluster_info.clone();
+        if let Some(session) = cache.session_info.get(&client_id) {
+            let ack_properties = ConnAckProperties {
+                session_expiry_interval: Some(session.session_expiry_interval),
+                receive_max: cluster.receive_max(),
+                max_qos: cluster.max_qos(),
+                retain_available: Some(cluster.retain_available as u8),
+                max_packet_size: cluster.max_packet_size,
+                assigned_client_identifier: if auto_client_id {
+                    None
+                } else {
+                    Some(client_id)
+                },
+                topic_alias_max: cluster.topic_alias_max,
+                reason_string: reason_string,
+                user_properties: user_properties,
+                wildcard_subscription_available: Some(
+                    cluster.wildcard_subscription_available as u8,
+                ),
+                subscription_identifiers_available: Some(
+                    cluster.subscription_identifiers_available as u8,
+                ),
+                shared_subscription_available: Some(cluster.shared_subscription_available as u8),
+                server_keep_alive: Some(cluster.server_keep_alive),
+                response_information: response_information,
+                server_reference: server_reference,
+                authentication_method: None,
+                authentication_data: None,
+            };
+            return MQTTPacket::ConnAck(conn_ack, Some(ack_properties));
+        }
+        return self.distinct(DisconnectReasonCode::UnspecifiedError);
     }
 
     pub fn pub_ack(&self) -> MQTTPacket {

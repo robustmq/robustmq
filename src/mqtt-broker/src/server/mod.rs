@@ -15,7 +15,7 @@ pub mod quic;
 pub mod tcp;
 pub mod websocket;
 
-#[derive(Clone, Default,PartialEq)]
+#[derive(Clone, Default,PartialEq,Debug)]
 pub enum MQTTProtocol {
     #[default]
     MQTT4,

@@ -1,4 +1,5 @@
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
+use common_base::log::info;
 use protocol::mqtt::MQTTPacket;
 use std::sync::{Arc, RwLock};
 
@@ -28,6 +29,7 @@ impl Command {
     }
 
     pub fn apply(&mut self, packet: MQTTPacket) -> MQTTPacket {
+        info(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
                 if self.protocol == MQTTProtocol::MQTT4 {
