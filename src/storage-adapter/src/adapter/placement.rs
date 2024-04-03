@@ -1,5 +1,8 @@
+use common_base::{errors::RobustMQError, log::info};
+
 use crate::storage::StorageAdapter;
 
+#[derive(Clone)]
 pub struct PlacementStorageAdapter {}
 
 impl PlacementStorageAdapter {
@@ -9,10 +12,29 @@ impl PlacementStorageAdapter {
 }
 
 impl StorageAdapter for PlacementStorageAdapter {
-    fn kv_write(&self, key: String, value: String) {
-        
+    fn kv_set(&self, key: String, value: String) -> Result<(), RobustMQError> {
+        info(format!("kv_set:{},{}", key, value));
+        return Ok(());
     }
-    fn kv_read(&self, key: String) {}
-    fn kv_delete(&self, key: String) {}
-    fn kv_exists(&self, key: String) {}
+    fn kv_get(&self, key: String) -> Result<String, RobustMQError> {
+        info(format!("kv_get:{}", key));
+        return Ok("".to_string());
+    }
+    fn kv_delete(&self, key: String) -> Result<(), RobustMQError> {
+        info(format!("kv_delete:{}", key));
+        return Ok(());
+    }
+    fn kv_exists(&self, key: String) -> Result<bool, RobustMQError> {
+        info(format!("kv_exists:{}", key));
+        return Ok(true);
+    }
+
+    fn stream_write(&self) -> Result<(), RobustMQError> {
+        info(format!("stream_write:"));
+        return Ok(());
+    }
+    fn stream_read(&self) -> Result<String, RobustMQError> {
+        info(format!("stream_read"));
+        return Ok("".to_string());
+    }
 }

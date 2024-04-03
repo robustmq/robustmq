@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use super::{cluster::Cluster, session::Session, user::User};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -63,5 +63,13 @@ impl MetadataCache {
     pub fn del_user(&mut self, value: String) {
         let data: User = serde_json::from_str(&value).unwrap();
         self.user_info.remove(&data.username);
+    }
+
+    pub fn set_session(&mut self, client_id: String, session: Session) {
+        self.session_info.insert(client_id, session);
+    }
+
+    pub fn remove_session(&mut self, client_id: String) {
+        self.session_info.remove(&client_id);
     }
 }

@@ -9,7 +9,7 @@ use crate::{
     packet::command::Command,
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
-use common_base::log::error;
+use common_base::log::{error, info};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::mqtt::MQTTPacket;
@@ -126,10 +126,8 @@ where
                         cm.add_write(connection_id, write_frame_stream);
                         let protocol_lable = protocol.clone();
 
-                        let cm_clone = cm.clone();
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
-                            let mut login_flag = false;
                             loop {
                                 if let Some(pkg) = read_frame_stream.next().await {
                                     match pkg {
@@ -143,7 +141,7 @@ where
                                             }
                                         }
                                         Err(_) => {
-                                            error("read_frame_stream decode:".to_string());
+                                            // error("read_frame_stream decode:".to_string());
                                         }
                                     }
                                 }
@@ -194,6 +192,8 @@ where
             while let Ok(response_package) = response_queue_rx.recv() {
                 metrics_response_queue(&protocol_lable, response_queue_rx.len() as i64);
                 metrics_response_packet_incr(&protocol_lable);
+
+                info(format!("revc packet:{:?}", response_package.packet.clone()));
                 connect_manager
                     .write_frame(response_package.connection_id, response_package.packet)
                     .await;

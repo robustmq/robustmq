@@ -20,3 +20,4 @@ dashmap.workspace = true
 serde.workspace = true
 lazy_static.workspace = true
 prometheus.workspace = true
+storage-adapter.workspace = true
