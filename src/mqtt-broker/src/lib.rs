@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::{Arc, RwLock};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info_meta,
@@ -21,13 +20,15 @@ use common_base::{
 };
 use metadata::cache::MetadataCache;
 use server::{grpc::server::GrpcServer, start_mqtt_server};
+use std::sync::{Arc, RwLock};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 
 mod metadata;
+mod metrics;
 mod packet;
+mod security;
 mod server;
 mod storage;
-mod metrics;
 
 pub struct MqttBroker<'a> {
     conf: &'a BrokerMQTTConfig,
@@ -56,7 +57,8 @@ impl<'a> MqttBroker<'a> {
 
     fn start_mqtt_server(&self) {
         let cache = self.metadata_cache.clone();
-        self.runtime.spawn(async move { start_mqtt_server(cache).await });
+        self.runtime
+            .spawn(async move { start_mqtt_server(cache).await });
     }
 
     fn start_grpc_server(&self) {

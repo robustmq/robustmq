@@ -9,3 +9,4 @@ license.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
+common-base.workspace = true

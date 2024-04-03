@@ -1431,6 +1431,7 @@ dependencies = [
  "protocol",
  "serde",
  "serde_json",
+ "storage-adapter",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -2237,6 +2238,7 @@ version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
  "bytes",
+ "common-base",
  "thiserror",
 ]
 
