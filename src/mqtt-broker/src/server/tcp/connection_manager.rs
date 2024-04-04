@@ -66,12 +66,17 @@ where
             match self.write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
-                        Ok(_) => {}
-                        Err(_) => {
-                            // error_meta(&format!(
-                            //     "Failed to write data to the response queue, error message: {:?}",
-                            //     "".to_string()
-                            // ));
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(e) => {
+                            if times > self.max_try_mut_times {
+                                error(format!(
+                                    "Failed to write data to the response queue, error message: {:?}",
+                                    "".to_string()
+                                ));
+                                break;
+                            }
                         }
                     }
                 }

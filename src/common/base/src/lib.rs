@@ -6,3 +6,4 @@ pub mod config;
 pub mod tools;
 pub mod http_error;
 pub mod errors;
+pub mod http_response;

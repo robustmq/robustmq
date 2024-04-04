@@ -168,7 +168,7 @@ where
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
 
                 // MQTT 4/5 business logic processing
-                let resp = command.apply(packet.packet);
+                let resp = command.apply(packet.connection_id,packet.packet);
                 // Writes the result of the business logic processing to the return queue
                 let response_package = ResponsePackage::new(packet.connection_id, resp);
                 match response_queue_sx.send(response_package) {
@@ -193,7 +193,7 @@ where
                 metrics_response_queue(&protocol_lable, response_queue_rx.len() as i64);
                 metrics_response_packet_incr(&protocol_lable);
 
-                info(format!("revc packet:{:?}", response_package.packet.clone()));
+                info(format!("response packet:{:?}", response_package.packet.clone()));
                 connect_manager
                     .write_frame(response_package.connection_id, response_package.packet)
                     .await;

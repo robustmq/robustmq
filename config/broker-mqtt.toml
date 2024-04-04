@@ -1,4 +1,5 @@
-port = 9981
+grpc_port = 9981
+http_port = 8081
 placement_center = ["127.0.0.1:1228"]
 
 [mqtt]
@@ -11,10 +12,6 @@ mqtt5_port = 1884
 mqtts5_port = 8884
 websocket_port = 8083
 websockets_port = 8084
-
-[prometheus]
-enable = true
-port = 8081
 
 [runtime]
 worker_threads = 16

@@ -15,11 +15,14 @@
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info_meta,
-    metrics::register_prometheus_export,
     runtime::create_runtime,
 };
-use metadata::cache::MetadataCache;
-use server::{grpc::server::GrpcServer, start_mqtt_server};
+use metadata::{cache::MetadataCache, hearbeat::HeartbeatManager};
+use server::{
+    grpc::server::GrpcServer,
+    http::server::{start_http_server, HttpServerState},
+    start_mqtt_server,
+};
 use std::sync::{Arc, RwLock};
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 
@@ -33,6 +36,7 @@ mod storage;
 pub struct MqttBroker<'a> {
     conf: &'a BrokerMQTTConfig,
     metadata_cache: Arc<RwLock<MetadataCache>>,
+    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     runtime: Runtime,
 }
 
@@ -41,10 +45,12 @@ impl<'a> MqttBroker<'a> {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
         let metadata_cache = Arc::new(RwLock::new(MetadataCache::new()));
+        let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new()));
         return MqttBroker {
             conf,
             runtime,
             metadata_cache,
+            heartbeat_manager,
         };
     }
 
@@ -57,12 +63,13 @@ impl<'a> MqttBroker<'a> {
 
     fn start_mqtt_server(&self) {
         let cache = self.metadata_cache.clone();
+        let heartbeat_manager = self.heartbeat_manager.clone();
         self.runtime
-            .spawn(async move { start_mqtt_server(cache).await });
+            .spawn(async move { start_mqtt_server(cache, heartbeat_manager).await });
     }
 
     fn start_grpc_server(&self) {
-        let port = self.conf.port.clone();
+        let port = self.conf.grpc_port.clone();
         let cache = self.metadata_cache.clone();
         self.runtime.spawn(async move {
             let server = GrpcServer::new(port, cache);
@@ -71,11 +78,10 @@ impl<'a> MqttBroker<'a> {
     }
 
     fn start_prometheus_export(&self) {
-        if self.conf.prometheus.enable {
-            let port = self.conf.prometheus.port.clone();
-            self.runtime
-                .spawn(async move { register_prometheus_export(port).await });
-        }
+        let http_state =
+            HttpServerState::new(self.metadata_cache.clone(), self.heartbeat_manager.clone());
+        self.runtime
+            .spawn(async move { start_http_server(http_state).await });
     }
 
     fn start_websocket_server(&self) {}

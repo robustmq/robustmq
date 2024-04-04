@@ -81,4 +81,8 @@ impl StorageLayer {
             }
         }
     }
+
+    pub fn save_retain_message(&self) {}
+
+    pub fn get_retain_message(&self) {}
 }

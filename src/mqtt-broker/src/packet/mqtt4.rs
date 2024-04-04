@@ -1,9 +1,10 @@
 use common_base::tools::unique_id_string;
 use protocol::mqtt::{
-    Connect, LastWill, Login, MQTTPacket, PingReq, Publish, Subscribe, Unsubscribe,
+    Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, Publish,
+    Subscribe, Unsubscribe,
 };
 
-use crate::metadata::{cache::MetadataCache, user};
+use crate::metadata::{cache::MetadataCache, hearbeat::HeartbeatManager, user};
 use std::sync::{Arc, RwLock};
 
 use super::packet::MQTTAckBuild;
@@ -12,14 +13,20 @@ pub struct Mqtt4Service {
     metadata_cache: Arc<RwLock<MetadataCache>>,
     ack_build: MQTTAckBuild,
     login: bool,
+    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
 }
 
 impl Mqtt4Service {
-    pub fn new(metadata_cache: Arc<RwLock<MetadataCache>>, ack_build: MQTTAckBuild) -> Self {
+    pub fn new(
+        metadata_cache: Arc<RwLock<MetadataCache>>,
+        ack_build: MQTTAckBuild,
+        heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+    ) -> Self {
         return Mqtt4Service {
             metadata_cache,
             ack_build,
             login: false,
+            heartbeat_manager,
         };
     }
 
@@ -72,6 +79,15 @@ impl Mqtt4Service {
             return self.un_login_err();
         }
         return self.ack_build.unsub_ack();
+    }
+
+    pub fn disconnect(&self, disconnect: Disconnect) -> MQTTPacket {
+        if self.login {
+            return self.un_login_err();
+        }
+        return self
+            .ack_build
+            .distinct(DisconnectReasonCode::NormalDisconnection);
     }
 
     fn un_login_err(&self) -> MQTTPacket {
