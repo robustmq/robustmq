@@ -11,8 +11,8 @@ use crate::{
 };
 use common_base::log::{error, info};
 use flume::{Receiver, Sender};
-use futures::StreamExt;
-use protocol::mqtt::MQTTPacket;
+use futures::{SinkExt, StreamExt};
+use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;
@@ -100,7 +100,6 @@ where
         let connection_manager = self.connection_manager.clone();
         let codec = self.codec.clone();
         let protocol: String = self.protocol.clone().into();
-        let response_queue_sx = self.response_queue_sx.clone();
         tokio::spawn(async move {
             loop {
                 let cm = connection_manager.clone();
@@ -108,6 +107,7 @@ where
                 match listener.accept().await {
                     Ok((stream, addr)) => {
                         // split stream
+
                         let (r_stream, w_stream) = io::split(stream);
                         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
                         let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
@@ -163,12 +163,22 @@ where
         let response_queue_sx = self.response_queue_sx.clone();
         let protocol_lable: String = self.protocol.clone().into();
         let mut command = self.command.clone();
+        let connect_manager = self.connection_manager.clone();
         tokio::spawn(async move {
             while let Ok(packet) = request_queue_rx.recv() {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
 
                 // MQTT 4/5 business logic processing
-                let resp = command.apply(packet.connection_id,packet.packet);
+                let resp = command.apply(packet.connection_id, packet.packet);
+
+                // Close the client connection
+                if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
+                    if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
+                        connect_manager.clonse_connect(packet.connection_id).await;
+                        continue;
+                    }
+                }
+
                 // Writes the result of the business logic processing to the return queue
                 let response_package = ResponsePackage::new(packet.connection_id, resp);
                 match response_queue_sx.send(response_package) {
@@ -193,7 +203,10 @@ where
                 metrics_response_queue(&protocol_lable, response_queue_rx.len() as i64);
                 metrics_response_packet_incr(&protocol_lable);
 
-                info(format!("response packet:{:?}", response_package.packet.clone()));
+                info(format!(
+                    "response packet:{:?}",
+                    response_package.packet.clone()
+                ));
                 connect_manager
                     .write_frame(response_package.connection_id, response_package.packet)
                     .await;

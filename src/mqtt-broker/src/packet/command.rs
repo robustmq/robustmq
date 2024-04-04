@@ -14,7 +14,7 @@ pub struct Command {
     ack_build: MQTTAckBuild,
     mqtt4_service: Mqtt4Service,
     mqtt5_service: Mqtt5Service,
-    un_login: bool,
+    metadata_cache: Arc<RwLock<MetadataCache>>,
 }
 
 impl Command {
@@ -39,7 +39,7 @@ impl Command {
             ack_build,
             mqtt4_service,
             mqtt5_service,
-            un_login: true,
+            metadata_cache,
         };
     }
 
@@ -72,19 +72,17 @@ impl Command {
 
                 if let MQTTPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
-                        self.un_login = false;
+                        let mut cache = self.metadata_cache.write().unwrap();
+                        cache.login_success(connect_id);
+                        info(format!("connect [{}] login success", connect_id));
                     }
                 }
-                info(format!(
-                    "connect [{}] login status:{}",
-                    connect_id, !self.un_login
-                ));
                 return ack_pkg;
             }
 
             MQTTPacket::Publish(publish, publish_properties) => {
-                if self.un_login {
-                    return self.un_login_err();
+                if !self.auth_login(connect_id) {
+                    return self.un_login_err(connect_id);
                 }
 
                 if self.protocol == MQTTProtocol::MQTT4 {
@@ -97,8 +95,8 @@ impl Command {
             }
 
             MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
-                if self.un_login {
-                    return self.un_login_err();
+                if !self.auth_login(connect_id) {
+                    return self.un_login_err(connect_id);
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
                     return self.mqtt4_service.subscribe(subscribe);
@@ -112,8 +110,8 @@ impl Command {
             }
 
             MQTTPacket::PingReq(ping) => {
-                if self.un_login {
-                    return self.un_login_err();
+                if !self.auth_login(connect_id) {
+                    return self.un_login_err(connect_id);
                 }
 
                 if self.protocol == MQTTProtocol::MQTT4 {
@@ -126,8 +124,8 @@ impl Command {
             }
 
             MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
-                if self.un_login {
-                    return self.un_login_err();
+                if !self.auth_login(connect_id) {
+                    return self.un_login_err(connect_id);
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
                     return self.mqtt4_service.un_subscribe(unsubscribe);
@@ -141,8 +139,8 @@ impl Command {
             }
 
             MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
-                if self.un_login {
-                    return self.un_login_err();
+                if !self.auth_login(connect_id) {
+                    return self.un_login_err(connect_id);
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
                     return self.mqtt4_service.disconnect(disconnect);
@@ -166,9 +164,15 @@ impl Command {
             .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError);
     }
 
-    fn un_login_err(&self) -> MQTTPacket {
+    fn un_login_err(&self, connect_id: u64) -> MQTTPacket {
+        info(format!("connect id [{}] Not logged in", connect_id));
         return self
             .ack_build
             .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized);
+    }
+
+    pub fn auth_login(&self, connect_id: u64) -> bool {
+        let cache = self.metadata_cache.write().unwrap();
+        return cache.is_login(connect_id);
     }
 }

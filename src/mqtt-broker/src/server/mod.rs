@@ -1,7 +1,7 @@
 use self::tcp::tcp_server::TcpServer;
 use crate::{
     metadata::{cache::MetadataCache, hearbeat::HeartbeatManager},
-    packet::{command::Command, packet::MQTTAckBuild},
+    packet::command::Command,
 };
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
