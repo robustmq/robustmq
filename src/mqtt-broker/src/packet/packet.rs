@@ -1,6 +1,7 @@
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectReasonCode, MQTTPacket,
+    PingResp,
 };
 use std::sync::{Arc, RwLock};
 
@@ -99,11 +100,7 @@ impl MQTTAckBuild {
     }
 
     pub fn ping_resp(&self) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
-        };
-        return MQTTPacket::ConnAck(conn_ack, None);
+        return MQTTPacket::PingResp(PingResp {});
     }
 
     pub fn sub_ack(&self) -> MQTTPacket {

@@ -1,4 +1,4 @@
-use crate::storage::storage::StorageLayer;
+use crate::metadata::hearbeat::HeartbeatManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
@@ -15,26 +15,35 @@ pub struct Command {
     mqtt4_service: Mqtt4Service,
     mqtt5_service: Mqtt5Service,
     un_login: bool,
-    storage_layer: StorageLayer,
 }
 
 impl Command {
-    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
+    pub fn new(
+        protocol: MQTTProtocol,
+        metadata_cache: Arc<RwLock<MetadataCache>>,
+        heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+    ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
-        let mqtt4_service = Mqtt4Service::new(metadata_cache.clone(), ack_build.clone());
-        let mqtt5_service = Mqtt5Service::new(metadata_cache.clone(), ack_build.clone());
-        let storage_layer = StorageLayer::new();
+        let mqtt4_service = Mqtt4Service::new(
+            metadata_cache.clone(),
+            ack_build.clone(),
+            heartbeat_manager.clone(),
+        );
+        let mqtt5_service = Mqtt5Service::new(
+            metadata_cache.clone(),
+            ack_build.clone(),
+            heartbeat_manager.clone(),
+        );
         return Command {
             protocol,
             ack_build,
             mqtt4_service,
             mqtt5_service,
             un_login: true,
-            storage_layer,
         };
     }
 
-    pub fn apply(&mut self, packet: MQTTPacket) -> MQTTPacket {
+    pub fn apply(&mut self, connect_id: u64, packet: MQTTPacket) -> MQTTPacket {
         info(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
@@ -52,6 +61,7 @@ impl Command {
 
                 if self.protocol == MQTTProtocol::MQTT5 {
                     ack_pkg = self.mqtt5_service.connect(
+                        connect_id,
                         connect,
                         properties,
                         last_will,
@@ -65,7 +75,10 @@ impl Command {
                         self.un_login = false;
                     }
                 }
-
+                info(format!(
+                    "connect [{}] login status:{}",
+                    connect_id, !self.un_login
+                ));
                 return ack_pkg;
             }
 
@@ -102,12 +115,13 @@ impl Command {
                 if self.un_login {
                     return self.un_login_err();
                 }
+
                 if self.protocol == MQTTProtocol::MQTT4 {
                     return self.mqtt4_service.ping(ping);
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt4_service.ping(ping);
+                    return self.mqtt5_service.ping(connect_id, ping);
                 }
             }
 
@@ -123,6 +137,21 @@ impl Command {
                     return self
                         .mqtt5_service
                         .un_subscribe(unsubscribe, unsubscribe_properties);
+                }
+            }
+
+            MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
+                if self.un_login {
+                    return self.un_login_err();
+                }
+                if self.protocol == MQTTProtocol::MQTT4 {
+                    return self.mqtt4_service.disconnect(disconnect);
+                }
+
+                if self.protocol == MQTTProtocol::MQTT5 {
+                    return self
+                        .mqtt5_service
+                        .disconnect(disconnect, disconnect_properties);
                 }
             }
 

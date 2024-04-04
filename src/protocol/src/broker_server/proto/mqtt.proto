@@ -18,6 +18,7 @@ syntax = "proto3";
 package mqtt;
 service MqttBrokerService {
     rpc updateCache(UpdateCacheRequest) returns(UpdateCacheReply){}
+    rpc createUser(CreateUserRequest) returns(CreateUserReply){}
 }
 
 message UpdateCacheRequest{
@@ -25,5 +26,14 @@ message UpdateCacheRequest{
 }
 
 message UpdateCacheReply{
+    
+}
+
+message CreateUserRequest{
+    string username = 1;
+    string password = 2;
+}
+
+message CreateUserReply{
     
 }

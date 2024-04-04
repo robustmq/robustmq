@@ -6,6 +6,9 @@ pub mod cache;
 pub mod cluster;
 pub mod session;
 pub mod user;
+pub mod topic;
+pub mod subscriber;
+pub mod hearbeat;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AvailableFlag {

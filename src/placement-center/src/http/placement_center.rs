@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
+use super::server::HttpServerState;
 use crate::cache::placement::Node;
-use super::{
-    response::success_response,
-    server::HttpServerState,
-};
 use axum::extract::State;
-use common_base::metrics::dump_metrics;
-use std::collections::HashMap;
+use common_base::{http_response::success_response, metrics::dump_metrics};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct IndexResponse {
@@ -44,7 +41,7 @@ pub struct RaftInfo {
     pub voters_outgoing: Vec<u64>,
     pub learners_next: Vec<u64>,
     pub auto_leave: bool,
-    pub uncommit_index:HashMap<u64, i8>,
+    pub uncommit_index: HashMap<u64, i8>,
 }
 
 pub async fn placement_center(State(state): State<HttpServerState>) -> String {

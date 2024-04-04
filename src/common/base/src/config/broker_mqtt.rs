@@ -16,21 +16,21 @@
 
 use super::read_file;
 use crate::tools::create_fold;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BrokerMQTTConfig {
-    pub port: usize,
+    pub grpc_port: usize,
+    pub http_port: usize,
     pub placement_center: Vec<String>,
     pub mqtt: MQTT,
-    pub prometheus: Prometheus,
     pub runtime: Runtime,
     pub network_tcp: NetworkTcp,
     pub log: Log,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MQTT {
     pub mqtt4_enable: bool,
     pub mqtt5_enable: bool,
@@ -43,7 +43,7 @@ pub struct MQTT {
     pub websockets_port: u32,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct NetworkTcp {
     pub accept_thread_num: usize,
     pub handler_thread_num: usize,
@@ -55,18 +55,12 @@ pub struct NetworkTcp {
     pub lock_try_mut_sleep_time_ms: u64,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Runtime {
     pub worker_threads: usize,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Prometheus {
-    pub enable: bool,
-    pub port: u16,
-}
-
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Log {
     pub log_path: String,
     pub log_segment_size: u64,

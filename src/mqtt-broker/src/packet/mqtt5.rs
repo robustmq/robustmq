@@ -1,41 +1,49 @@
 use super::packet::MQTTAckBuild;
 use crate::{
     metadata::{
-        cache::{self, MetadataCache},
+        cache::MetadataCache,
+        hearbeat::HeartbeatManager,
         session::{LastWillData, Session},
     },
     storage::storage::StorageLayer,
 };
 use common_base::{log::error, tools::unique_id_string};
-use protocol::mqtt::{
-    Connect, ConnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login,
-    MQTTPacket, PingReq, Publish, PublishProperties, Subscribe, SubscribeProperties, Unsubscribe,
-    UnsubscribeProperties,
+use protocol::{
+    mqtt::{
+        Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode,
+        LastWill, LastWillProperties, Login, MQTTPacket, PingReq, Publish, PublishProperties,
+        Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    },
+    mqttv4::disconnect,
 };
-use std::{
-    cmp::{self, max},
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub struct Mqtt5Service {
     metadata_cache: Arc<RwLock<MetadataCache>>,
     storage_layer: StorageLayer,
     ack_build: MQTTAckBuild,
+    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
 }
 
 impl Mqtt5Service {
-    pub fn new(metadata_cache: Arc<RwLock<MetadataCache>>, ack_build: MQTTAckBuild) -> Self {
+    pub fn new(
+        metadata_cache: Arc<RwLock<MetadataCache>>,
+        ack_build: MQTTAckBuild,
+        heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+    ) -> Self {
         let storage_layer = StorageLayer::new();
         return Mqtt5Service {
             metadata_cache,
             ack_build,
             storage_layer,
+            heartbeat_manager,
         };
     }
 
     pub fn connect(
         &mut self,
+        connect_id: u64,
         connnect: Connect,
         connect_properties: Option<ConnectProperties>,
         last_will: Option<LastWill>,
@@ -98,9 +106,14 @@ impl Mqtt5Service {
         }
 
         // update cache
+        // When working with locks, the default is to release them as soon as possible
         let mut cache = self.metadata_cache.write().unwrap();
         cache.set_session(client_id.clone(), session);
+        cache.set_client_id(connect_id, client_id.clone());
         drop(cache);
+        let mut heartbeat = self.heartbeat_manager.write().unwrap();
+        heartbeat.report_hearbeat(connect_id);
+        drop(heartbeat);
 
         let mut user_properties = Vec::new();
         if let Some(connect_properties) = connect_properties {
@@ -136,7 +149,9 @@ impl Mqtt5Service {
         return self.ack_build.sub_ack();
     }
 
-    pub fn ping(&self, ping: PingReq) -> MQTTPacket {
+    pub fn ping(&self, connect_id: u64, ping: PingReq) -> MQTTPacket {
+        let mut heartbeat = self.heartbeat_manager.write().unwrap();
+        heartbeat.report_hearbeat(connect_id);
         return self.ack_build.ping_resp();
     }
 
@@ -146,6 +161,16 @@ impl Mqtt5Service {
         un_subscribe_properties: Option<UnsubscribeProperties>,
     ) -> MQTTPacket {
         return self.ack_build.unsub_ack();
+    }
+
+    pub fn disconnect(
+        &self,
+        disconnect: Disconnect,
+        disconnect_properties: Option<DisconnectProperties>,
+    ) -> MQTTPacket {
+        return self
+            .ack_build
+            .distinct(DisconnectReasonCode::NormalDisconnection);
     }
 
     fn authentication(&self, login: Option<Login>) -> bool {

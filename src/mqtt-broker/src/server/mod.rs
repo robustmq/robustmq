@@ -1,21 +1,22 @@
 use self::tcp::tcp_server::TcpServer;
-use crate::{metadata::cache::MetadataCache, packet::{command::Command, packet::MQTTAckBuild}};
+use crate::{
+    metadata::{cache::MetadataCache, hearbeat::HeartbeatManager},
+    packet::{command::Command, packet::MQTTAckBuild},
+};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
 };
 use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
-use std::{
-    default,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 pub mod grpc;
+pub mod http;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
 
-#[derive(Clone, Default,PartialEq,Debug)]
+#[derive(Clone, Default, PartialEq, Debug)]
 pub enum MQTTProtocol {
     #[default]
     MQTT4,
@@ -31,15 +32,26 @@ impl From<MQTTProtocol> for String {
     }
 }
 
-pub async fn start_mqtt_server(cache: Arc<RwLock<MetadataCache>>) {
+pub async fn start_mqtt_server(
+    cache: Arc<RwLock<MetadataCache>>,
+    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+) {
     let conf = broker_mqtt_conf();
     if conf.mqtt.mqtt4_enable {
-        let command = Command::new(MQTTProtocol::MQTT4, cache.clone());
+        let command = Command::new(
+            MQTTProtocol::MQTT4,
+            cache.clone(),
+            heartbeat_manager.clone(),
+        );
         start_mqtt4_server(conf, command.clone()).await;
     }
 
     if conf.mqtt.mqtt5_enable {
-        let command = Command::new(MQTTProtocol::MQTT5, cache.clone());
+        let command = Command::new(
+            MQTTProtocol::MQTT5,
+            cache.clone(),
+            heartbeat_manager.clone(),
+        );
         start_mqtt5_server(conf, command.clone()).await;
     }
 }
