@@ -1,7 +1,8 @@
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectReasonCode, MQTTPacket,
-    PingResp,
+    PingResp, PubAck, PubAckProperties, PubAckReason, SubAck, SubAckProperties,
+    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 use std::sync::{Arc, RwLock};
 
@@ -67,12 +68,21 @@ impl MQTTAckBuild {
         return self.distinct(DisconnectReasonCode::UnspecifiedError);
     }
 
-    pub fn pub_ack(&self) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
+    pub fn pub_ack(
+        &self,
+        pkid: u16,
+        reason_string: Option<String>,
+        user_properties: Vec<(String, String)>,
+    ) -> MQTTPacket {
+        let pub_ack = PubAck {
+            pkid: pkid,
+            reason: PubAckReason::Success,
         };
-        return MQTTPacket::ConnAck(conn_ack, None);
+        let properties = Some(PubAckProperties {
+            reason_string: reason_string,
+            user_properties: user_properties,
+        });
+        return MQTTPacket::PubAck(pub_ack, properties);
     }
 
     pub fn pub_rec(&self) -> MQTTPacket {
@@ -103,20 +113,39 @@ impl MQTTAckBuild {
         return MQTTPacket::PingResp(PingResp {});
     }
 
-    pub fn sub_ack(&self) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
+    pub fn sub_ack(
+        &self,
+        pkid: u16,
+        reason_string: Option<String>,
+        user_properties: Vec<(String, String)>,
+    ) -> MQTTPacket {
+        let sub_ack = SubAck {
+            pkid: pkid,
+            return_codes: vec![SubscribeReasonCode::QoS0],
         };
-        return MQTTPacket::ConnAck(conn_ack, None);
+
+        let sub_properties = Some(SubAckProperties {
+            reason_string,
+            user_properties,
+        });
+        return MQTTPacket::SubAck(sub_ack, sub_properties);
     }
 
-    pub fn unsub_ack(&self) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
+    pub fn unsub_ack(
+        &self,
+        pkid: u16,
+        reason_string: Option<String>,
+        user_properties: Vec<(String, String)>,
+    ) -> MQTTPacket {
+        let unsub_ack = UnsubAck {
+            pkid: pkid,
+            reasons: vec![UnsubAckReason::Success],
         };
-        return MQTTPacket::ConnAck(conn_ack, None);
+        let properties = Some(UnsubAckProperties {
+            reason_string,
+            user_properties,
+        });
+        return MQTTPacket::UnsubAck(unsub_ack, None);
     }
 
     pub fn distinct(&self, reason_code: DisconnectReasonCode) -> MQTTPacket {

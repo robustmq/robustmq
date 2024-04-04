@@ -1,7 +1,6 @@
 use super::connection::Connection;
 use common_base::log::{error, info};
 use dashmap::DashMap;
-use flume::r#async;
 use futures::SinkExt;
 use protocol::mqtt::MQTTPacket;
 use std::time::Duration;

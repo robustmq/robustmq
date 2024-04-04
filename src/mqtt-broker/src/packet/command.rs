@@ -90,7 +90,9 @@ impl Command {
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.publish(publish, publish_properties);
+                    return self
+                        .mqtt5_service
+                        .publish(connect_id, publish, publish_properties);
                 }
             }
 
@@ -103,9 +105,11 @@ impl Command {
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self
-                        .mqtt5_service
-                        .subscribe(subscribe, subscribe_properties);
+                    return self.mqtt5_service.subscribe(
+                        connect_id,
+                        subscribe,
+                        subscribe_properties,
+                    );
                 }
             }
 
@@ -132,9 +136,11 @@ impl Command {
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self
-                        .mqtt5_service
-                        .un_subscribe(unsubscribe, unsubscribe_properties);
+                    return self.mqtt5_service.un_subscribe(
+                        connect_id,
+                        unsubscribe,
+                        unsubscribe_properties,
+                    );
                 }
             }
 
@@ -147,9 +153,11 @@ impl Command {
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self
-                        .mqtt5_service
-                        .disconnect(disconnect, disconnect_properties);
+                    return self.mqtt5_service.disconnect(
+                        connect_id,
+                        disconnect,
+                        disconnect_properties,
+                    );
                 }
             }
 

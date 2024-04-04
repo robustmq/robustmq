@@ -4,19 +4,20 @@ use crate::{
         cache::MetadataCache,
         hearbeat::HeartbeatManager,
         session::{LastWillData, Session},
+        user,
     },
     storage::storage::StorageLayer,
 };
 use common_base::{log::error, tools::unique_id_string};
-use protocol::{
-    mqtt::{
-        Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode,
-        LastWill, LastWillProperties, Login, MQTTPacket, PingReq, Publish, PublishProperties,
-        Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
-    },
-    mqttv4::disconnect,
+use protocol::mqtt::{
+    Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
+    LastWillProperties, Login, MQTTPacket, PingReq, Publish, PublishProperties, Subscribe,
+    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 #[derive(Clone)]
 pub struct Mqtt5Service {
@@ -135,18 +136,30 @@ impl Mqtt5Service {
 
     pub fn publish(
         &self,
+        connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> MQTTPacket {
-        return self.ack_build.pub_ack();
+        let pkid = publish.pkid;
+        let mut user_properties = Vec::new();
+        if let Some(properties) = publish_properties {
+            user_properties = properties.user_properties;
+        }
+        return self.ack_build.pub_ack(pkid, None, user_properties);
     }
 
     pub fn subscribe(
         &self,
+        connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) -> MQTTPacket {
-        return self.ack_build.sub_ack();
+        let pkid = subscribe.pkid;
+        let mut user_properties = Vec::new();
+        if let Some(properties) = subscribe_properties {
+            user_properties = properties.user_properties;
+        }
+        return self.ack_build.sub_ack(pkid, None, user_properties);
     }
 
     pub fn ping(&self, connect_id: u64, ping: PingReq) -> MQTTPacket {
@@ -157,17 +170,31 @@ impl Mqtt5Service {
 
     pub fn un_subscribe(
         &self,
+        connect_id: u64,
         un_subscribe: Unsubscribe,
         un_subscribe_properties: Option<UnsubscribeProperties>,
     ) -> MQTTPacket {
-        return self.ack_build.unsub_ack();
+        let pkid = un_subscribe.pkid;
+        let mut user_properties = Vec::new();
+        if let Some(properties) = un_subscribe_properties {
+            user_properties = properties.user_properties;
+        }
+        return self.ack_build.unsub_ack(pkid, None, user_properties);
     }
 
     pub fn disconnect(
         &self,
+        connect_id: u64,
         disconnect: Disconnect,
         disconnect_properties: Option<DisconnectProperties>,
     ) -> MQTTPacket {
+        let mut cache = self.metadata_cache.write().unwrap();
+        cache.remove_connect_id(connect_id);
+        drop(cache);
+
+        let mut heartbeat = self.heartbeat_manager.write().unwrap();
+        heartbeat.remove_connect(connect_id);
+
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection);

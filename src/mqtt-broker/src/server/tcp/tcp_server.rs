@@ -11,7 +11,7 @@ use crate::{
 };
 use common_base::log::{error, info};
 use flume::{Receiver, Sender};
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
 use std::{fmt::Error, sync::Arc};
 use tokio::io;

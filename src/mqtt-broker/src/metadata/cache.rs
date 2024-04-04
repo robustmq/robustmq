@@ -85,10 +85,6 @@ impl MetadataCache {
         self.connect_id_info.insert(connect_id, client_id);
     }
 
-    pub fn remove_client_id(&mut self, connect_id: u64) {
-        self.connect_id_info.remove(&connect_id);
-    }
-
     pub fn login_success(&mut self, connect_id: u64) {
         self.login_info.insert(connect_id, true);
     }
@@ -96,8 +92,12 @@ impl MetadataCache {
     pub fn is_login(&self, connect_id: u64) -> bool {
         return self.login_info.contains_key(&connect_id);
     }
-    
-    pub fn remove_login(&mut self, connect_id: u64) {
-        self.login_info.remove(&connect_id);
+
+    pub fn remove_connect_id(&mut self, connect_id: u64) {
+        if let Some(client_id) = self.connect_id_info.get(&connect_id) {
+            self.session_info.remove(client_id);
+            self.login_info.remove(&connect_id);
+            self.connect_id_info.remove(&connect_id);
+        }
     }
 }
