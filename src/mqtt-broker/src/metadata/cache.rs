@@ -1,4 +1,5 @@
 use super::{cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User};
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 #[derive(Clone, Serialize, Deserialize)]
@@ -77,12 +78,12 @@ impl MetadataCache {
         self.session_info.insert(client_id, session);
     }
 
-    pub fn remove_session(&mut self, client_id: String) {
-        self.session_info.remove(&client_id);
-    }
-
     pub fn set_client_id(&mut self, connect_id: u64, client_id: String) {
         self.connect_id_info.insert(connect_id, client_id);
+    }
+
+    pub fn set_topic(&mut self, topic_name: &String, topic: &Topic) {
+        self.topic_info.insert(topic_name.clone(), topic.clone());
     }
 
     pub fn login_success(&mut self, connect_id: u64) {
@@ -91,6 +92,10 @@ impl MetadataCache {
 
     pub fn is_login(&self, connect_id: u64) -> bool {
         return self.login_info.contains_key(&connect_id);
+    }
+
+    pub fn topic_exists(&self, topic: &String) -> bool {
+        return self.topic_info.contains_key(topic);
     }
 
     pub fn remove_connect_id(&mut self, connect_id: u64) {

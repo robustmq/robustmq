@@ -3,10 +3,11 @@ use crate::{
     metadata::{
         cache::MetadataCache,
         hearbeat::HeartbeatManager,
+        message::Message,
         session::{LastWillData, Session},
-        user,
+        topic::Topic,
     },
-    storage::storage::StorageLayer,
+    storage::{message::MessageStorage, metadata::MetadataStorage},
 };
 use common_base::{log::error, tools::unique_id_string};
 use protocol::mqtt::{
@@ -14,15 +15,13 @@ use protocol::mqtt::{
     LastWillProperties, Login, MQTTPacket, PingReq, Publish, PublishProperties, Subscribe,
     SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub struct Mqtt5Service {
     metadata_cache: Arc<RwLock<MetadataCache>>,
-    storage_layer: StorageLayer,
+    metadata_storage: MetadataStorage,
+    message_storage: MessageStorage,
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
 }
@@ -33,11 +32,13 @@ impl Mqtt5Service {
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     ) -> Self {
-        let storage_layer = StorageLayer::new();
+        let metadata_storage = MetadataStorage::new();
+        let message_storage = MessageStorage::new();
         return Mqtt5Service {
             metadata_cache,
+            message_storage,
             ack_build,
-            storage_layer,
+            metadata_storage,
             heartbeat_manager,
         };
     }
@@ -78,7 +79,7 @@ impl Mqtt5Service {
                 last_will_properties,
             };
             match self
-                .storage_layer
+                .message_storage
                 .save_lastwill(client_id.clone(), last_will)
             {
                 Ok(_) => {}
@@ -94,7 +95,7 @@ impl Mqtt5Service {
 
         // save client session
         match self
-            .storage_layer
+            .metadata_storage
             .save_session(client_id.clone(), session.clone())
         {
             Ok(_) => {}
@@ -140,11 +141,50 @@ impl Mqtt5Service {
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> MQTTPacket {
+        let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
+        let topic = Topic::new(&topic_name);
+
+        // Update the cache if the Topic doesn't exist and persist the Topic information
+        let mut cache = self.metadata_cache.write().unwrap();
+        if !cache.topic_exists(&topic_name) {
+            cache.set_topic(&topic_name, &topic);
+            match self.metadata_storage.save_topic(&topic_name, &topic) {
+                Ok(_) => {}
+                Err(e) => {
+                    error(e.to_string());
+                    return self
+                        .ack_build
+                        .distinct(DisconnectReasonCode::UnspecifiedError);
+                }
+            }
+        }
+
+        // Persisting stores message data
+        let message = Message::build_message(publish.clone(), publish_properties.clone());
+        let message_id;
+        match self
+            .message_storage
+            .append_topic_message(topic.topic_id, message)
+        {
+            Ok(da) => {
+                message_id = da;
+            }
+            Err(e) => {
+                error(e.to_string());
+                return self
+                    .ack_build
+                    .distinct(DisconnectReasonCode::UnspecifiedError);
+            }
+        }
+
+        // Pub Ack information is built
         let pkid = publish.pkid;
         let mut user_properties = Vec::new();
         if let Some(properties) = publish_properties {
             user_properties = properties.user_properties;
         }
+        user_properties.push(("message_id".to_string(), message_id.to_string()));
+
         return self.ack_build.pub_ack(pkid, None, user_properties);
     }
 
