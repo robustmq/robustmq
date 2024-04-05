@@ -1,4 +1,5 @@
 use crate::metadata::hearbeat::HeartbeatManager;
+use crate::subscribe::subscribe_manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
@@ -22,6 +23,7 @@ impl Command {
         protocol: MQTTProtocol,
         metadata_cache: Arc<RwLock<MetadataCache>>,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+        subscribe_manager: Arc<RwLock<SubScribeManager>>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
         let mqtt4_service = Mqtt4Service::new(
@@ -31,6 +33,7 @@ impl Command {
         );
         let mqtt5_service = Mqtt5Service::new(
             metadata_cache.clone(),
+            subscribe_manager,
             ack_build.clone(),
             heartbeat_manager.clone(),
         );
@@ -90,9 +93,7 @@ impl Command {
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self
-                        .mqtt5_service
-                        .publish(connect_id, publish, publish_properties);
+                    return self.mqtt5_service.publish(publish, publish_properties);
                 }
             }
 

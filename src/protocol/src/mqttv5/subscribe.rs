@@ -73,7 +73,7 @@ pub fn read(
 
     match filters.len() {
         0 => Err(Error::EmptySubscription),
-        _ => Ok((Subscribe{pkid, filters}, properties)),
+        _ => Ok((Subscribe{packet_identifier: pkid, filters}, properties)),
     }
 }
 
@@ -90,7 +90,7 @@ pub fn write(
     let remaining_len_bytes = write_remaining_length(buffer, remaining_len)?;
 
     // write packet id
-    buffer.put_u16(subscribe.pkid);
+    buffer.put_u16(subscribe.packet_identifier);
 
     if let Some(p) = properties {
         properties::write(p, buffer)?;
@@ -178,7 +178,7 @@ mod properties {
     pub fn len(properties: &SubscribeProperties) -> usize {
         let mut len = 0;
 
-        if let Some(id) = &properties.id {
+        if let Some(id) = &properties.subscription_identifier {
             len += 1 + len_len(*id);
         }
 
@@ -225,7 +225,7 @@ mod properties {
         }
 
         Ok(Some(SubscribeProperties {
-            id,
+            subscription_identifier: id,
             user_properties,
         }))
     }
@@ -234,7 +234,7 @@ mod properties {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
-        if let Some(id) = &properties.id {
+        if let Some(id) = &properties.subscription_identifier {
             buffer.put_u8(PropertyType::SubscriptionIdentifier as u8);
             write_remaining_length(buffer, *id)?;
         }

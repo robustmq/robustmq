@@ -813,12 +813,12 @@ impl fmt::Display for PubCompProperties {
 /// Subscription packet
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subscribe {
-    pub pkid: u16,
+    pub packet_identifier: u16,
     pub filters: Vec<Filter>,
 }
 
 /// Subscription filter
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Filter {
     //  in mqtt v4, there are only path and qos valid
     pub path: String,
@@ -830,7 +830,7 @@ pub struct Filter {
     pub retain_forward_rule: RetainForwardRule,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RetainForwardRule {
     OnEverySubscribe,
     OnNewSubscribe,
@@ -839,7 +839,7 @@ pub enum RetainForwardRule {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubscribeProperties {
-    pub id: Option<usize>,
+    pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,
 }
 

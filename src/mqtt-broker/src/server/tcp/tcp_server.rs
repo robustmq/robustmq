@@ -45,22 +45,22 @@ where
         max_connection_num: usize,
         request_queue_size: usize,
         handler_process_num: usize,
-        response_queue_size: usize,
         response_process_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
         codec: T,
+        response_queue_sx: Sender<ResponsePackage>,
+        response_queue_rx: Receiver<ResponsePackage>,
     ) -> Self {
         let (request_queue_sx, request_queue_rx) =
             flume::bounded::<RequestPackage>(request_queue_size);
-        let (response_queue_sx, response_queue_rx) =
-            flume::bounded::<ResponsePackage>(response_queue_size);
 
         let connection_manager = Arc::new(ConnectionManager::<T>::new(
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,
         ));
+
         Self {
             protocol,
             command,

@@ -17,13 +17,16 @@ use common_base::{
     log::info_meta,
     runtime::create_runtime,
 };
+use flume::{Receiver, Sender};
 use metadata::{cache::MetadataCache, hearbeat::HeartbeatManager};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
     start_mqtt_server,
+    tcp::packet::ResponsePackage,
 };
 use std::sync::{Arc, RwLock};
+use subscribe::subscribe_manager::SubScribeManager;
 use tokio::{runtime::Runtime, signal, sync::broadcast};
 
 mod metadata;
@@ -38,6 +41,9 @@ pub struct MqttBroker<'a> {
     conf: &'a BrokerMQTTConfig,
     metadata_cache: Arc<RwLock<MetadataCache>>,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+    subscribe_manager: Arc<RwLock<SubScribeManager>>,
+    response_queue_sx: Sender<ResponsePackage>,
+    response_queue_rx: Receiver<ResponsePackage>,
     runtime: Runtime,
 }
 
@@ -47,11 +53,20 @@ impl<'a> MqttBroker<'a> {
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
         let metadata_cache = Arc::new(RwLock::new(MetadataCache::new()));
         let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new()));
+        let (response_queue_sx, response_queue_rx) = flume::bounded::<ResponsePackage>(1000);
+
+        let subscribe_manager = Arc::new(RwLock::new(SubScribeManager::new(
+            response_queue_sx.clone(),
+        )));
+
         return MqttBroker {
             conf,
             runtime,
             metadata_cache,
             heartbeat_manager,
+            subscribe_manager,
+            response_queue_sx,
+            response_queue_rx,
         };
     }
 
@@ -65,8 +80,19 @@ impl<'a> MqttBroker<'a> {
     fn start_mqtt_server(&self) {
         let cache = self.metadata_cache.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
-        self.runtime
-            .spawn(async move { start_mqtt_server(cache, heartbeat_manager).await });
+        let subscribe_manager = self.subscribe_manager.clone();
+        let response_queue_sx = self.response_queue_sx.clone();
+        let response_queue_rx = self.response_queue_rx.clone();
+        self.runtime.spawn(async move {
+            start_mqtt_server(
+                cache,
+                heartbeat_manager,
+                subscribe_manager,
+                response_queue_sx,
+                response_queue_rx,
+            )
+            .await
+        });
     }
 
     fn start_grpc_server(&self) {
@@ -79,8 +105,12 @@ impl<'a> MqttBroker<'a> {
     }
 
     fn start_prometheus_export(&self) {
-        let http_state =
-            HttpServerState::new(self.metadata_cache.clone(), self.heartbeat_manager.clone());
+        let http_state = HttpServerState::new(
+            self.metadata_cache.clone(),
+            self.heartbeat_manager.clone(),
+            self.subscribe_manager.clone(),
+            self.response_queue_sx.clone(),
+        );
         self.runtime
             .spawn(async move { start_http_server(http_state).await });
     }
