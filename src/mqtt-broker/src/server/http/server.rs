@@ -1,7 +1,6 @@
 use axum::routing::get;
 use axum::Router;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
-use flume::Sender;
 use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
@@ -9,19 +8,16 @@ use std::{
 
 use crate::{
     metadata::{cache::MetadataCache, hearbeat::HeartbeatManager},
-    server::tcp::packet::ResponsePackage,
     subscribe::subscribe_manager::SubScribeManager,
 };
 
-use super::node::{
-    hearbeat_info, index, metadata_info, metrics, subscribe_info, test_subscribe_pub,
-};
+use super::node::{hearbeat_info, index, metadata_info, metrics, subscribe_info};
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_HEARTBEAT_INFO: &str = "/heartbeat-info";
 pub const ROUTE_METADATA_INFO: &str = "/metadata-info";
 pub const ROUTE_SUBSCRIBE_INFO: &str = "/subscribe-info";
-pub const ROUTE_TEST_SUBSCRIBE_PUB: &str = "/test-subscribe-pub";
+// pub const ROUTE_TEST_SUBSCRIBE_PUB: &str = "/test-subscribe-pub";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
@@ -29,7 +25,6 @@ pub struct HttpServerState {
     pub metadata_cache: Arc<RwLock<MetadataCache>>,
     pub heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     pub subscribe_manager: Arc<RwLock<SubScribeManager>>,
-    pub response_queue_sx: Sender<ResponsePackage>,
 }
 
 impl HttpServerState {
@@ -37,13 +32,11 @@ impl HttpServerState {
         metadata_cache: Arc<RwLock<MetadataCache>>,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
         subscribe_manager: Arc<RwLock<SubScribeManager>>,
-        response_queue_sx: Sender<ResponsePackage>,
     ) -> Self {
         return Self {
             metadata_cache,
             heartbeat_manager,
             subscribe_manager,
-            response_queue_sx,
         };
     }
 }
@@ -66,7 +59,6 @@ fn routes(state: HttpServerState) -> Router {
         .route(ROUTE_HEARTBEAT_INFO, get(hearbeat_info))
         .route(ROUTE_METADATA_INFO, get(metadata_info))
         .route(ROUTE_SUBSCRIBE_INFO, get(subscribe_info))
-        .route(ROUTE_TEST_SUBSCRIBE_PUB, get(test_subscribe_pub))
         .route(ROUTE_METRICS, get(metrics));
     let app = Router::new().merge(meta);
     return app.with_state(state);

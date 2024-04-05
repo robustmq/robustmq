@@ -1,19 +1,17 @@
-use crate::{metadata::subscriber::Subscriber, server::tcp::packet::ResponsePackage};
-use flume::Sender;
+use crate::metadata::subscriber::Subscriber;
 use protocol::mqtt::Unsubscribe;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SubScribeManager {
     pub subscribe_list: HashMap<u64, Subscriber>,
-    response_queue_sx: Sender<ResponsePackage>,
 }
 
 impl SubScribeManager {
-    pub fn new(response_queue_sx: Sender<ResponsePackage>) -> Self {
+    pub fn new() -> Self {
         return SubScribeManager {
             subscribe_list: HashMap::new(),
-            response_queue_sx,
         };
     }
 
@@ -23,11 +21,5 @@ impl SubScribeManager {
 
     pub fn remove_subscribe(&mut self, connect_id: u64, un_subscribe: Option<Unsubscribe>) {
         self.subscribe_list.remove(&connect_id);
-    }
-
-    pub fn start_connect_id_subscribe(&self) {
-        loop {
-            
-        }
     }
 }

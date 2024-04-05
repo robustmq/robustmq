@@ -254,9 +254,11 @@ impl Mqtt5Service {
 
         let mut heartbeat = self.heartbeat_manager.write().unwrap();
         heartbeat.remove_connect(connect_id);
+        drop(heartbeat);
 
         let mut sub_manager = self.subscribe_manager.write().unwrap();
         sub_manager.remove_subscribe(connect_id, None);
+        drop(sub_manager);
 
         return self
             .ack_build
