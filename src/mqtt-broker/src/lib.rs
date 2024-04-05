@@ -43,6 +43,10 @@ pub struct MqttBroker<'a> {
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
     runtime: Runtime,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_rx4: Receiver<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+    response_queue_rx5: Receiver<ResponsePackage>,
 }
 
 impl<'a> MqttBroker<'a> {
@@ -51,7 +55,9 @@ impl<'a> MqttBroker<'a> {
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
         let metadata_cache = Arc::new(RwLock::new(MetadataCache::new()));
         let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new()));
+        let (response_queue_sx4, response_queue_rx4) = flume::bounded::<ResponsePackage>(1000);
 
+        let (response_queue_sx5, response_queue_rx5) = flume::bounded::<ResponsePackage>(1000);
         let subscribe_manager = Arc::new(RwLock::new(SubScribeManager::new()));
 
         return MqttBroker {
@@ -60,6 +66,10 @@ impl<'a> MqttBroker<'a> {
             metadata_cache,
             heartbeat_manager,
             subscribe_manager,
+            response_queue_sx4,
+            response_queue_rx4,
+            response_queue_sx5,
+            response_queue_rx5,
         };
     }
 
@@ -74,8 +84,21 @@ impl<'a> MqttBroker<'a> {
         let cache = self.metadata_cache.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
+        let response_queue_sx4 = self.response_queue_sx4.clone();
+        let response_queue_rx4 = self.response_queue_rx4.clone();
+        let response_queue_sx5 = self.response_queue_sx5.clone();
+        let response_queue_rx5 = self.response_queue_rx5.clone();
         self.runtime.spawn(async move {
-            start_mqtt_server(cache, heartbeat_manager, subscribe_manager).await
+            start_mqtt_server(
+                cache,
+                heartbeat_manager,
+                subscribe_manager,
+                response_queue_sx4,
+                response_queue_rx4,
+                response_queue_sx5,
+                response_queue_rx5,
+            )
+            .await
         });
     }
 
@@ -93,6 +116,8 @@ impl<'a> MqttBroker<'a> {
             self.metadata_cache.clone(),
             self.heartbeat_manager.clone(),
             self.subscribe_manager.clone(),
+            self.response_queue_sx4.clone(),
+            self.response_queue_sx5.clone(),
         );
         self.runtime
             .spawn(async move { start_http_server(http_state).await });

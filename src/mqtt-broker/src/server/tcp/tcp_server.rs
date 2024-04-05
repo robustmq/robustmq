@@ -13,7 +13,10 @@ use common_base::log::{error, info};
 use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
-use std::{fmt::Error, sync::Arc};
+use std::{
+    fmt::{Debug, Error},
+    sync::Arc,
+};
 use tokio::io;
 use tokio::net::TcpListener;
 use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
@@ -35,8 +38,10 @@ pub struct TcpServer<T> {
 
 impl<T> TcpServer<T>
 where
-    T: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static,
+    T: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static + Debug,
     MQTTPacket: From<<T as tokio_util::codec::Decoder>::Item>,
+    <T as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
+    <T as tokio_util::codec::Decoder>::Error: Debug,
 {
     pub fn new(
         protocol: MQTTProtocol,
@@ -50,13 +55,12 @@ where
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
         codec: T,
-        // response_queue_sx: Sender<ResponsePackage>,
-        // response_queue_rx: Receiver<ResponsePackage>,
+        response_queue_sx: Sender<ResponsePackage>,
+        response_queue_rx: Receiver<ResponsePackage>,
     ) -> Self {
         let (request_queue_sx, request_queue_rx) =
             flume::bounded::<RequestPackage>(request_queue_size);
-        let (response_queue_sx, response_queue_rx) = flume::bounded::<ResponsePackage>(response_queue_size);
-        
+
         let connection_manager = Arc::new(ConnectionManager::<T>::new(
             max_connection_num,
             max_try_mut_times,
@@ -143,7 +147,10 @@ where
                                             }
                                         }
                                         Err(_) => {
-                                            // error("read_frame_stream decode:".to_string());
+                                            // error(format!(
+                                            //     "read_frame_stream decode error,error info: {:?}",
+                                            //     e
+                                            // ));
                                         }
                                     }
                                 }

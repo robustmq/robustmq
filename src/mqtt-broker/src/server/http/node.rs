@@ -1,7 +1,11 @@
 use axum::extract::State;
+use bytes::Bytes;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf, http_response::success_response, metrics::dump_metrics,
 };
+use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
+
+use crate::server::tcp::packet::ResponsePackage;
 
 use super::server::HttpServerState;
 
@@ -27,4 +31,27 @@ pub async fn subscribe_info(State(state): State<HttpServerState>) -> String {
 pub async fn index(State(state): State<HttpServerState>) -> String {
     let conf = broker_mqtt_conf();
     return success_response(conf.clone());
+}
+
+pub async fn test_subscribe_pub(State(state): State<HttpServerState>) -> String {
+    let sub_manager = state.subscribe_manager.read().unwrap();
+    for (connect_id, sub) in sub_manager.subscribe_list.clone() {
+        let publish = Publish {
+            dup: false,
+            qos: protocol::mqtt::QoS::AtLeastOnce,
+            pkid: sub.packet_identifier,
+            retain: false,
+            topic: Bytes::from("loboxu/test".to_string()),
+            payload: Bytes::from("subscribe loboxu success".to_string()),
+        };
+
+        let properties = PublishProperties::default();
+        let resp = ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish, Some(properties)),
+        };
+        state.response_queue_sx5.send(resp).unwrap();
+    }
+
+    return success_response("");
 }
