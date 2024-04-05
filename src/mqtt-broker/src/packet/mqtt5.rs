@@ -5,9 +5,11 @@ use crate::{
         hearbeat::HeartbeatManager,
         message::Message,
         session::{LastWillData, Session},
+        subscriber::Subscriber,
         topic::Topic,
     },
     storage::{message::MessageStorage, metadata::MetadataStorage},
+    subscribe::subscribe_manager::SubScribeManager,
 };
 use common_base::{log::error, tools::unique_id_string};
 use protocol::mqtt::{
@@ -20,6 +22,7 @@ use std::sync::{Arc, RwLock};
 #[derive(Clone)]
 pub struct Mqtt5Service {
     metadata_cache: Arc<RwLock<MetadataCache>>,
+    subscribe_manager: Arc<RwLock<SubScribeManager>>,
     metadata_storage: MetadataStorage,
     message_storage: MessageStorage,
     ack_build: MQTTAckBuild,
@@ -29,6 +32,7 @@ pub struct Mqtt5Service {
 impl Mqtt5Service {
     pub fn new(
         metadata_cache: Arc<RwLock<MetadataCache>>,
+        subscribe_manager: Arc<RwLock<SubScribeManager>>,
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     ) -> Self {
@@ -36,6 +40,7 @@ impl Mqtt5Service {
         let message_storage = MessageStorage::new();
         return Mqtt5Service {
             metadata_cache,
+            subscribe_manager,
             message_storage,
             ack_build,
             metadata_storage,
@@ -137,7 +142,6 @@ impl Mqtt5Service {
 
     pub fn publish(
         &self,
-        connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> MQTTPacket {
@@ -194,7 +198,18 @@ impl Mqtt5Service {
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) -> MQTTPacket {
-        let pkid = subscribe.pkid;
+        let subscriber = Subscriber::build_subscriber(
+            connect_id,
+            subscribe.clone(),
+            subscribe_properties.clone(),
+        );
+
+        // Saving subscriptions
+        let mut sub_manager = self.subscribe_manager.write().unwrap();
+        sub_manager.add_subscribe(connect_id, subscriber);
+        drop(sub_manager);
+
+        let pkid = subscribe.packet_identifier;
         let mut user_properties = Vec::new();
         if let Some(properties) = subscribe_properties {
             user_properties = properties.user_properties;
@@ -202,7 +217,7 @@ impl Mqtt5Service {
         return self.ack_build.sub_ack(pkid, None, user_properties);
     }
 
-    pub fn ping(&self, connect_id: u64, ping: PingReq) -> MQTTPacket {
+    pub fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
         let mut heartbeat = self.heartbeat_manager.write().unwrap();
         heartbeat.report_hearbeat(connect_id);
         return self.ack_build.ping_resp();
@@ -214,6 +229,11 @@ impl Mqtt5Service {
         un_subscribe: Unsubscribe,
         un_subscribe_properties: Option<UnsubscribeProperties>,
     ) -> MQTTPacket {
+        // Remove subscription information
+        let mut sub_manager = self.subscribe_manager.write().unwrap();
+        sub_manager.remove_subscribe(connect_id, Some(un_subscribe.clone()));
+        drop(sub_manager);
+
         let pkid = un_subscribe.pkid;
         let mut user_properties = Vec::new();
         if let Some(properties) = un_subscribe_properties {
@@ -234,6 +254,11 @@ impl Mqtt5Service {
 
         let mut heartbeat = self.heartbeat_manager.write().unwrap();
         heartbeat.remove_connect(connect_id);
+        drop(heartbeat);
+
+        let mut sub_manager = self.subscribe_manager.write().unwrap();
+        sub_manager.remove_subscribe(connect_id, None);
+        drop(sub_manager);
 
         return self
             .ack_build

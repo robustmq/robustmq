@@ -3,7 +3,7 @@ use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
 use protocol::mqtt::MQTTPacket;
-use std::time::Duration;
+use std::{fmt::Debug, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::{Decoder, Encoder, FramedWrite};
 
@@ -24,6 +24,7 @@ pub struct ConnectionManager<T> {
 impl<T> ConnectionManager<T>
 where
     T: Decoder + Encoder<MQTTPacket>,
+    <T as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
 {
     pub fn new(
         max_connection_num: usize,
@@ -83,7 +84,7 @@ where
                             if times > self.max_try_mut_times {
                                 error(format!(
                                     "Failed to write data to the response queue, error message: {:?}",
-                                    "".to_string()
+                                    e
                                 ));
                                 break;
                             }

@@ -8,7 +8,7 @@ use super::{
     subscribe, unsuback, unsubscribe, Error, MQTTPacket, PacketType,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Mqtt5Codec {}
 
 impl Mqtt5Codec {

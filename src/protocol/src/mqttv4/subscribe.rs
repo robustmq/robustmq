@@ -30,7 +30,7 @@ pub fn write(subscribe: &Subscribe, buffer: &mut BytesMut) -> Result<usize, Erro
     let remaining_length_bytes = write_remaining_length(buffer, remaining_length)?;
 
     // write packet id
-    buffer.put_u16(subscribe.pkid);
+    buffer.put_u16(subscribe.packet_identifier);
 
     // write filters
     for f in subscribe.filters.iter() {
@@ -50,7 +50,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Subscribe, Er
 
     match filters.len() {
         0 => Err(Error::EmptySubscription),
-        _ => Ok(Subscribe {pkid, filters }),
+        _ => Ok(Subscribe {packet_identifier: pkid, filters }),
     }
 }
 
@@ -144,7 +144,7 @@ mod tests {
 
         // build subscribe
         let subscribe: Subscribe = Subscribe { 
-            pkid: 5u16,
+            packet_identifier: 5u16,
             filters: vec,
         };
 
@@ -157,7 +157,7 @@ mod tests {
         assert_eq!(fixed_header.fixed_header_len, 2);
         assert_eq!(fixed_header.remaining_len, 19);
         let subscribe_read:Subscribe = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(subscribe_read.pkid, 5u16);
+        assert_eq!(subscribe_read.packet_identifier, 5u16);
         assert_eq!(subscribe_read.filters.len(),1);
 
     }
