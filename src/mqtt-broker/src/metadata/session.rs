@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use protocol::mqtt::{Connect, ConnectProperties, LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default,Clone)]
+#[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Session {
     pub client_id: String,
     pub keep_alive: u16,
@@ -14,6 +16,7 @@ pub struct Session {
     pub request_response_info: Option<u8>,
     pub request_problem_info: Option<u8>,
     pub user_properties: Vec<(String, String)>,
+    pub topic_alias: HashMap<u16, String>,
 }
 
 impl Session {

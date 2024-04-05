@@ -93,20 +93,24 @@ impl codec::Decoder for Mqtt5Codec {
             PacketType::SubAck => {
                 let (suback, suback_properties) = suback::read(fixed_header, packet)?;
                 MQTTPacket::SubAck(suback, suback_properties)
-            },
+            }
             PacketType::Unsubscribe => {
-                let (unsubscribe, unsubscribe_properties) = unsubscribe::read(fixed_header, packet)?;
+                let (unsubscribe, unsubscribe_properties) =
+                    unsubscribe::read(fixed_header, packet)?;
                 MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties)
             }
             PacketType::UnsubAck => {
                 let (unsuback, unsuback_properties) = unsuback::read(fixed_header, packet)?;
                 MQTTPacket::UnsubAck(unsuback, unsuback_properties)
-            },
+            }
             PacketType::PingReq => MQTTPacket::PingReq(super::PingReq),
             PacketType::PingResp => MQTTPacket::PingResp(super::PingResp),
             // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
             // hit when Disconnect packet has properties which are only valid for MQTT V5
-            PacketType::Disconnect => return Err(Error::InvalidProtocol),
+            PacketType::Disconnect => {
+                let (disconnect, disconnect_properties) = disconnect::read(fixed_header, packet)?;
+                MQTTPacket::Disconnect(disconnect, disconnect_properties)
+            }
             _ => unreachable!(),
         };
         return Ok(Some(packet));

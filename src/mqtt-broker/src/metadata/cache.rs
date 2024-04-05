@@ -1,4 +1,5 @@
 use super::{cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User};
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 #[derive(Clone, Serialize, Deserialize)]
@@ -28,7 +29,8 @@ pub struct MetadataCache {
     pub session_info: HashMap<String, Session>,
     pub topic_info: HashMap<String, Topic>,
     pub subscriber_info: HashMap<String, Subscriber>,
-    pub client_id_info: HashMap<u64, String>,
+    pub connect_id_info: HashMap<u64, String>,
+    pub login_info: HashMap<u64, bool>,
 }
 
 impl MetadataCache {
@@ -39,7 +41,8 @@ impl MetadataCache {
             cluster_info: Cluster::default(),
             topic_info: HashMap::new(),
             subscriber_info: HashMap::new(),
-            client_id_info: HashMap::new(),
+            connect_id_info: HashMap::new(),
+            login_info: HashMap::new(),
         };
     }
 
@@ -75,15 +78,31 @@ impl MetadataCache {
         self.session_info.insert(client_id, session);
     }
 
-    pub fn remove_session(&mut self, client_id: String) {
-        self.session_info.remove(&client_id);
-    }
-
     pub fn set_client_id(&mut self, connect_id: u64, client_id: String) {
-        self.client_id_info.insert(connect_id, client_id);
+        self.connect_id_info.insert(connect_id, client_id);
     }
 
-    pub fn remove_client_id(&mut self, connect_id: u64) {
-        self.client_id_info.remove(&connect_id);
+    pub fn set_topic(&mut self, topic_name: &String, topic: &Topic) {
+        self.topic_info.insert(topic_name.clone(), topic.clone());
+    }
+
+    pub fn login_success(&mut self, connect_id: u64) {
+        self.login_info.insert(connect_id, true);
+    }
+
+    pub fn is_login(&self, connect_id: u64) -> bool {
+        return self.login_info.contains_key(&connect_id);
+    }
+
+    pub fn topic_exists(&self, topic: &String) -> bool {
+        return self.topic_info.contains_key(topic);
+    }
+
+    pub fn remove_connect_id(&mut self, connect_id: u64) {
+        if let Some(client_id) = self.connect_id_info.get(&connect_id) {
+            self.session_info.remove(client_id);
+            self.login_info.remove(&connect_id);
+            self.connect_id_info.remove(&connect_id);
+        }
     }
 }

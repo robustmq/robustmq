@@ -32,6 +32,7 @@ mod packet;
 mod security;
 mod server;
 mod storage;
+mod subscribe;
 
 pub struct MqttBroker<'a> {
     conf: &'a BrokerMQTTConfig,

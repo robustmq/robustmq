@@ -1,3 +1,3 @@
-pub mod storage;
-pub mod stream;
 pub mod keys;
+pub mod message;
+pub mod metadata;

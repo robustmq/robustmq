@@ -566,9 +566,9 @@ pub struct PingResp;
 /// Publish packet
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Publish {
-    pub(crate) dup: bool,
-    pub(crate) qos: QoS,
-    pub(crate) pkid: u16,
+    pub dup: bool,
+    pub qos: QoS,
+    pub pkid: u16,
     pub retain: bool,
     pub topic: Bytes,
     pub payload: Bytes,

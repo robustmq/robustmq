@@ -1,5 +1,5 @@
 use super::connection::Connection;
-use common_base::log::error;
+use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
 use protocol::mqtt::MQTTPacket;
@@ -55,9 +55,19 @@ where
         self.write_list.insert(connection_id, write);
     }
 
-    pub fn remove(&self, connection_id: u64) {
+    pub async fn clonse_connect(&self, connection_id: u64) {
         self.connections.remove(&connection_id);
-        self.write_list.remove(&connection_id);
+        if let Some((id, mut stream)) = self.write_list.remove(&connection_id) {
+            match stream.close().await {
+                Ok(_) => {
+                    info(format!(
+                        "server closes the connection actively, connection id [{}]",
+                        id
+                    ));
+                }
+                Err(_) => {}
+            }
+        }
     }
 
     pub async fn write_frame(&self, connection_id: u64, resp: MQTTPacket) {

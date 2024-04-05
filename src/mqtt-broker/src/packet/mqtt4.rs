@@ -4,7 +4,7 @@ use protocol::mqtt::{
     Subscribe, Unsubscribe,
 };
 
-use crate::metadata::{cache::MetadataCache, hearbeat::HeartbeatManager, user};
+use crate::metadata::{cache::MetadataCache, hearbeat::HeartbeatManager};
 use std::sync::{Arc, RwLock};
 
 use super::packet::MQTTAckBuild;
@@ -57,14 +57,14 @@ impl Mqtt4Service {
         if self.login {
             return self.un_login_err();
         }
-        return self.ack_build.pub_ack();
+        return self.ack_build.pub_ack(0, None, Vec::new());
     }
 
     pub fn subscribe(&self, subscribe: Subscribe) -> MQTTPacket {
         if self.login {
             return self.un_login_err();
         }
-        return self.ack_build.sub_ack();
+        return self.ack_build.sub_ack(0, None, Vec::new());
     }
 
     pub fn ping(&self, ping: PingReq) -> MQTTPacket {
@@ -78,7 +78,7 @@ impl Mqtt4Service {
         if self.login {
             return self.un_login_err();
         }
-        return self.ack_build.unsub_ack();
+        return self.ack_build.unsub_ack(0, None, Vec::new());
     }
 
     pub fn disconnect(&self, disconnect: Disconnect) -> MQTTPacket {
