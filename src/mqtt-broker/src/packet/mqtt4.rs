@@ -1,7 +1,7 @@
 use common_base::tools::unique_id_string;
 use protocol::mqtt::{
-    Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, Publish,
-    Subscribe, Unsubscribe,
+    Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
+    Publish, Subscribe, Unsubscribe,
 };
 
 use crate::metadata::{cache::MetadataCache, hearbeat::HeartbeatManager};
@@ -59,6 +59,8 @@ impl Mqtt4Service {
         }
         return self.ack_build.pub_ack(0, None, Vec::new());
     }
+
+    pub fn publish_ack(&self, pub_ack: PubAck) {}
 
     pub fn subscribe(&self, subscribe: Subscribe) -> MQTTPacket {
         if self.login {

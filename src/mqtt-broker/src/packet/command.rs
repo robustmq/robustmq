@@ -46,7 +46,7 @@ impl Command {
         };
     }
 
-    pub fn apply(&mut self, connect_id: u64, packet: MQTTPacket) -> MQTTPacket {
+    pub fn apply(&mut self, connect_id: u64, packet: MQTTPacket) -> Option<MQTTPacket> {
         info(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
@@ -80,97 +80,114 @@ impl Command {
                         info(format!("connect [{}] login success", connect_id));
                     }
                 }
-                return ack_pkg;
+                return Some(ack_pkg);
             }
 
             MQTTPacket::Publish(publish, publish_properties) => {
                 if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                    return Some(self.un_login_err(connect_id));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.publish(publish);
+                    return Some(self.mqtt4_service.publish(publish));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.publish(publish, publish_properties);
+                    return Some(self.mqtt5_service.publish(publish, publish_properties));
                 }
+            }
+
+            MQTTPacket::PubAck(pub_ack, pub_ack_properties) => {
+                if !self.auth_login(connect_id) {
+                    return Some(self.un_login_err(connect_id));
+                }
+                if self.protocol == MQTTProtocol::MQTT4 {
+                    self.mqtt4_service.publish_ack(pub_ack.clone());
+                }
+
+                if self.protocol == MQTTProtocol::MQTT5 {
+                    self.mqtt5_service.publish_ack(pub_ack, pub_ack_properties);
+                }
+                return None;
             }
 
             MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
                 if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                    return Some(self.un_login_err(connect_id));
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.subscribe(subscribe);
+                    return Some(self.mqtt4_service.subscribe(subscribe));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.subscribe(
+                    return Some(self.mqtt5_service.subscribe(
                         connect_id,
                         subscribe,
                         subscribe_properties,
-                    );
+                    ));
                 }
             }
 
             MQTTPacket::PingReq(ping) => {
                 if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                    return Some(self.un_login_err(connect_id));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.ping(ping);
+                    return Some(self.mqtt4_service.ping(ping));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.ping(connect_id, ping);
+                    return Some(self.mqtt5_service.ping(connect_id, ping));
                 }
             }
 
             MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
                 if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                    return Some(self.un_login_err(connect_id));
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.un_subscribe(unsubscribe);
+                    return Some(self.mqtt4_service.un_subscribe(unsubscribe));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.un_subscribe(
+                    return Some(self.mqtt5_service.un_subscribe(
                         connect_id,
                         unsubscribe,
                         unsubscribe_properties,
-                    );
+                    ));
                 }
             }
 
             MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
                 if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                    return Some(self.un_login_err(connect_id));
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.disconnect(disconnect);
+                    return Some(self.mqtt4_service.disconnect(disconnect));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.disconnect(
+                    return Some(self.mqtt5_service.disconnect(
                         connect_id,
                         disconnect,
                         disconnect_properties,
-                    );
+                    ));
                 }
             }
 
             _ => {
-                return self
-                    .ack_build
-                    .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError);
+                return Some(
+                    self.ack_build.distinct(
+                        protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError,
+                    ),
+                );
             }
         }
-        return self
-            .ack_build
-            .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError);
+        return Some(
+            self.ack_build
+                .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError),
+        );
     }
 
     fn un_login_err(&self, connect_id: u64) -> MQTTPacket {

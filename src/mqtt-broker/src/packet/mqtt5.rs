@@ -14,8 +14,8 @@ use crate::{
 use common_base::{log::error, tools::unique_id_string};
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MQTTPacket, PingReq, Publish, PublishProperties, Subscribe,
-    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, Publish,
+    PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::{Arc, RwLock};
 
@@ -192,6 +192,10 @@ impl Mqtt5Service {
         return self.ack_build.pub_ack(pkid, None, user_properties);
     }
 
+    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {
+
+    }
+    
     pub fn subscribe(
         &self,
         connect_id: u64,

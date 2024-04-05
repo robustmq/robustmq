@@ -177,25 +177,26 @@ where
             while let Ok(packet) = request_queue_rx.recv() {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
 
-                // MQTT 4/5 business logic processing
-                let resp = command.apply(packet.connection_id, packet.packet);
+                // MQTT 4/5 business logic processin
 
-                // Close the client connection
-                if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
-                    if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
-                        connect_manager.clonse_connect(packet.connection_id).await;
-                        continue;
+                if let Some(resp) = command.apply(packet.connection_id, packet.packet) {
+                    // Close the client connection
+                    if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
+                        if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
+                            connect_manager.clonse_connect(packet.connection_id).await;
+                            continue;
+                        }
                     }
-                }
 
-                // Writes the result of the business logic processing to the return queue
-                let response_package = ResponsePackage::new(packet.connection_id, resp);
-                match response_queue_sx.send(response_package) {
-                    Ok(_) => {}
-                    Err(err) => error(format!(
-                        "Failed to write data to the response queue, error message: {:?}",
-                        err
-                    )),
+                    // Writes the result of the business logic processing to the return queue
+                    let response_package = ResponsePackage::new(packet.connection_id, resp);
+                    match response_queue_sx.send(response_package) {
+                        Ok(_) => {}
+                        Err(err) => error(format!(
+                            "Failed to write data to the response queue, error message: {:?}",
+                            err
+                        )),
+                    }
                 }
             }
         });
