@@ -5,7 +5,7 @@ use crate::{
 };
 use common_base::{
     log::{debug, error, info},
-    tools::now_mills,
+    tools::{now_mills, now_second},
 };
 use flume::Sender;
 use protocol::mqtt::{Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket};
@@ -61,7 +61,9 @@ impl KeepAlive {
                     }
                     if let Some(da) = data {
                         for (connect_id, time) in da.heartbeat_data {
-                            if (now_mills() - time.heartbeat) > (time.keep_live as u128) {
+                            // The server will decide that the connection has failed twice as long as the client-set expiration time.
+                            let max_timeout = (time.keep_live * 2) as u64;
+                            if (now_second() - time.heartbeat) > max_timeout {
                                 let disconnect = Disconnect {
                                     reason_code: DisconnectReasonCode::AdministrativeAction,
                                 };

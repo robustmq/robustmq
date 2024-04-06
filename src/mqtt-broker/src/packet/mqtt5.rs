@@ -13,7 +13,7 @@ use crate::{
 };
 use common_base::{
     log::error,
-    tools::{now_mills, unique_id_string},
+    tools::{now_mills, now_second, unique_id_string},
 };
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
@@ -132,7 +132,7 @@ impl Mqtt5Service {
         let live_time = ConnectionLiveTime {
             protobol: crate::server::MQTTProtocol::MQTT5,
             keep_live: session_keep_alive,
-            heartbeat: now_mills(),
+            heartbeat: now_second(),
         };
         heartbeat.report_hearbeat(connect_id, live_time);
         drop(heartbeat);
@@ -245,7 +245,7 @@ impl Mqtt5Service {
                 let live_time = ConnectionLiveTime {
                     protobol: crate::server::MQTTProtocol::MQTT5,
                     keep_live: session_info.keep_alive,
-                    heartbeat: now_mills(),
+                    heartbeat: now_second(),
                 };
                 let mut heartbeat = self.heartbeat_manager.write().await;
                 heartbeat.report_hearbeat(connect_id, live_time);

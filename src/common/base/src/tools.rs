@@ -20,6 +20,13 @@ pub fn now_mills() -> u128 {
         .as_millis();
 }
 
+pub fn now_second() -> u64 {
+    return SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+}
+
 pub fn unique_id() -> String {
     let uuid = Uuid::new_v4();
     return uuid.to_string();
