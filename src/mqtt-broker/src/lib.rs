@@ -18,12 +18,9 @@ use common_base::{
     runtime::create_runtime,
 };
 use flume::{Receiver, Sender};
-use metadata::{cache::MetadataCache, hearbeat::HeartbeatManager};
+use metadata::cache::MetadataCache;
 use server::{
-    grpc::server::GrpcServer,
-    http::server::{start_http_server, HttpServerState},
-    start_mqtt_server,
-    tcp::packet::ResponsePackage,
+    grpc::server::GrpcServer, hearbeat::HeartbeatManager, http::server::{start_http_server, HttpServerState}, start_mqtt_server, tcp::packet::ResponsePackage
 };
 use std::sync::{Arc, RwLock};
 use subscribe::subscribe_manager::SubScribeManager;
@@ -54,7 +51,7 @@ impl<'a> MqttBroker<'a> {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
         let metadata_cache = Arc::new(RwLock::new(MetadataCache::new()));
-        let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new()));
+        let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new(20)));
         let (response_queue_sx4, response_queue_rx4) = flume::bounded::<ResponsePackage>(1000);
 
         let (response_queue_sx5, response_queue_rx5) = flume::bounded::<ResponsePackage>(1000);

@@ -62,6 +62,7 @@ where
             flume::bounded::<RequestPackage>(request_queue_size);
 
         let connection_manager = Arc::new(ConnectionManager::<T>::new(
+            protocol.clone(),
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,

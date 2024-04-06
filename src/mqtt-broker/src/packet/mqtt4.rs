@@ -4,7 +4,7 @@ use protocol::mqtt::{
     Publish, Subscribe, Unsubscribe,
 };
 
-use crate::metadata::{cache::MetadataCache, hearbeat::HeartbeatManager};
+use crate::{metadata::cache::MetadataCache, server::hearbeat::HeartbeatManager};
 use std::sync::{Arc, RwLock};
 
 use super::packet::MQTTAckBuild;
@@ -50,6 +50,7 @@ impl Mqtt4Service {
             user_properties,
             response_information,
             server_reference,
+            1,
         );
     }
 

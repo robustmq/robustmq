@@ -26,6 +26,16 @@ lazy_static! {
         ]
     )
     .unwrap();
+
+    static ref BROKER_TCP_CONNECTION_NUM: IntGaugeVec = register_int_gauge_vec!(
+        "broker_connection_num",
+        "broker connection num",
+        &[
+            METRICS_KEY_MODULE_NAME,
+            METRICS_KEY_PROTOCOL_NAME,
+        ]
+    )
+    .unwrap();
 }
 
 pub fn metrics_request_packet_incr(lable: &str) {
@@ -51,3 +61,11 @@ pub fn metrics_response_queue(lable: &str, len: i64) {
         .with_label_values(&["broker", lable, "response"])
         .set(len);
 }
+
+pub fn metrics_connection_num(lable: &str, len: i64) {
+    BROKER_TCP_CONNECTION_NUM
+        .with_label_values(&["broker", lable])
+        .set(len);
+}
+
+

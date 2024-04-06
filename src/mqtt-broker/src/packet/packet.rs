@@ -28,6 +28,7 @@ impl MQTTAckBuild {
         user_properties: Vec<(String, String)>,
         response_information: Option<String>,
         server_reference: Option<String>,
+        server_keep_alive: u16,
     ) -> MQTTPacket {
         let conn_ack = ConnAck {
             session_present: false,
@@ -57,7 +58,7 @@ impl MQTTAckBuild {
                     cluster.subscription_identifiers_available(),
                 ),
                 shared_subscription_available: Some(cluster.shared_subscription_available()),
-                server_keep_alive: Some(cluster.server_keep_alive()),
+                server_keep_alive: Some(server_keep_alive),
                 response_information: response_information,
                 server_reference: server_reference,
                 authentication_method: None,

@@ -2,16 +2,19 @@ use super::packet::MQTTAckBuild;
 use crate::{
     metadata::{
         cache::MetadataCache,
-        hearbeat::HeartbeatManager,
         message::Message,
         session::{LastWillData, Session},
         subscriber::Subscriber,
         topic::Topic,
     },
+    server::hearbeat::{ConnectionLiveTime, HeartbeatManager},
     storage::{message::MessageStorage, metadata::MetadataStorage},
     subscribe::subscribe_manager::SubScribeManager,
 };
-use common_base::{log::error, tools::unique_id_string};
+use common_base::{
+    log::error,
+    tools::{now_mills, unique_id_string},
+};
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
     LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, Publish,
@@ -71,10 +74,14 @@ impl Mqtt5Service {
         }
         let mut session = Session::default();
 
+        let mut cache = self.metadata_cache.read().unwrap();
+        let cluster = cache.cluster_info.clone();
+        drop(cache);
         session = session.build_session(
             client_id.clone(),
             connnect.clone(),
             connect_properties.clone(),
+            cluster.server_keep_alive(),
         );
 
         // save last will data
@@ -115,11 +122,17 @@ impl Mqtt5Service {
         // update cache
         // When working with locks, the default is to release them as soon as possible
         let mut cache = self.metadata_cache.write().unwrap();
-        cache.set_session(client_id.clone(), session);
+        cache.set_session(client_id.clone(), session.clone());
         cache.set_client_id(connect_id, client_id.clone());
         drop(cache);
+
         let mut heartbeat = self.heartbeat_manager.write().unwrap();
-        heartbeat.report_hearbeat(connect_id);
+        let session_keep_alive = session.keep_alive;
+        let live_time = ConnectionLiveTime {
+            keep_live: session_keep_alive,
+            heartbeat: now_mills(),
+        };
+        heartbeat.report_hearbeat(connect_id, live_time);
         drop(heartbeat);
 
         let mut user_properties = Vec::new();
@@ -137,6 +150,7 @@ impl Mqtt5Service {
             user_properties,
             response_information,
             server_reference,
+            session_keep_alive,
         );
     }
 
@@ -192,10 +206,8 @@ impl Mqtt5Service {
         return self.ack_build.pub_ack(pkid, None, user_properties);
     }
 
-    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {
+    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
 
-    }
-    
     pub fn subscribe(
         &self,
         connect_id: u64,
@@ -222,9 +234,21 @@ impl Mqtt5Service {
     }
 
     pub fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
-        let mut heartbeat = self.heartbeat_manager.write().unwrap();
-        heartbeat.report_hearbeat(connect_id);
-        return self.ack_build.ping_resp();
+        let mut cache = self.metadata_cache.read().unwrap();
+        if let Some(client_id) = cache.connect_id_info.get(&connect_id) {
+            if let Some(session_info) = cache.session_info.get(client_id) {
+                let live_time = ConnectionLiveTime {
+                    keep_live: session_info.keep_alive,
+                    heartbeat: now_mills(),
+                };
+                let mut heartbeat = self.heartbeat_manager.write().unwrap();
+                heartbeat.report_hearbeat(connect_id, live_time);
+                return self.ack_build.ping_resp();
+            }
+        }
+        return self
+            .ack_build
+            .distinct(DisconnectReasonCode::UseAnotherServer);
     }
 
     pub fn un_subscribe(

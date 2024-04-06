@@ -1,6 +1,6 @@
-use self::tcp::{packet::ResponsePackage, tcp_server::TcpServer};
+use self::{hearbeat::HeartbeatManager, tcp::{packet::ResponsePackage, tcp_server::TcpServer}};
 use crate::{
-    metadata::{cache::MetadataCache, hearbeat::HeartbeatManager},
+    metadata::cache::MetadataCache,
     packet::command::Command,
     subscribe::subscribe_manager::SubScribeManager,
 };
@@ -17,7 +17,7 @@ pub mod http;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
-
+pub mod hearbeat;
 #[derive(Clone, Default, PartialEq, Debug)]
 pub enum MQTTProtocol {
     #[default]

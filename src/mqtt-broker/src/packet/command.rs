@@ -1,4 +1,4 @@
-use crate::metadata::hearbeat::HeartbeatManager;
+use crate::server::hearbeat::HeartbeatManager;
 use crate::subscribe::subscribe_manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;

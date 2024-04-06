@@ -25,10 +25,11 @@ impl Session {
         client_id: String,
         connnect: Connect,
         connect_properties: Option<ConnectProperties>,
+        server_client_alive: u16,
     ) -> Session {
         let mut session = Session::default();
         session.client_id = client_id;
-        session.keep_alive = connnect.keep_alive;
+        session.keep_alive = self.keep_alive(server_client_alive, connnect.keep_alive);
         session.clean_session = connnect.clean_session;
 
         if let Some(properties) = connect_properties {
@@ -43,6 +44,10 @@ impl Session {
         }
 
         return session;
+    }
+
+    pub fn keep_alive(&self, server_keep_alive: u16, client_keep_alive: u16) -> u16 {
+        return std::cmp::min(server_keep_alive, client_keep_alive);
     }
 }
 

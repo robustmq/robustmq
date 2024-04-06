@@ -45,7 +45,8 @@ pub async fn test_subscribe_pub(State(state): State<HttpServerState>) -> String 
             payload: Bytes::from("subscribe loboxu success".to_string()),
         };
 
-        let properties = PublishProperties::default();
+        let mut properties = PublishProperties::default();
+        properties.user_properties = vec![("key1".to_string(), "val1".to_string())];
         let resp = ResponsePackage {
             connection_id: connect_id,
             packet: MQTTPacket::Publish(publish, Some(properties)),

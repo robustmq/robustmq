@@ -1,3 +1,5 @@
+use crate::{metrics::metrics_connection_num, server::MQTTProtocol};
+
 use super::connection::Connection;
 use common_base::log::{error, info};
 use dashmap::DashMap;
@@ -14,6 +16,7 @@ pub enum Error {
 }
 
 pub struct ConnectionManager<T> {
+    protocol: MQTTProtocol,
     connections: DashMap<u64, Connection>,
     write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>>,
     max_connection_num: usize,
@@ -27,6 +30,7 @@ where
     <T as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
 {
     pub fn new(
+        protocol: MQTTProtocol,
         max_connection_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
@@ -34,6 +38,7 @@ where
         let connections = DashMap::with_capacity_and_shard_amount(1000, 64);
         let write_list = DashMap::with_capacity_and_shard_amount(1000, 64);
         ConnectionManager {
+            protocol,
             connections,
             write_list,
             max_connection_num,
@@ -45,6 +50,8 @@ where
     pub fn add(&self, connection: Connection) -> u64 {
         let connection_id = connection.connection_id();
         self.connections.insert(connection_id, connection);
+        let lable: String = self.protocol.clone().into();
+        metrics_connection_num(&lable, self.connections.len() as i64);
         return connection_id;
     }
 
@@ -58,6 +65,8 @@ where
 
     pub async fn clonse_connect(&self, connection_id: u64) {
         self.connections.remove(&connection_id);
+        let lable: String = self.protocol.clone().into();
+        metrics_connection_num(&lable, self.connections.len() as i64);
         if let Some((id, mut stream)) = self.write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
