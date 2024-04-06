@@ -1,9 +1,10 @@
-use crate::metadata::hearbeat::HeartbeatManager;
+use crate::heartbeat::heartbeat_manager::HeartbeatManager;
 use crate::subscribe::subscribe_manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
@@ -46,7 +47,7 @@ impl Command {
         };
     }
 
-    pub fn apply(&mut self, connect_id: u64, packet: MQTTPacket) -> MQTTPacket {
+    pub async fn apply(&mut self, connect_id: u64, packet: MQTTPacket) -> Option<MQTTPacket> {
         info(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
@@ -55,122 +56,145 @@ impl Command {
                     .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized);
 
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    ack_pkg = self.mqtt4_service.connect(
-                        connect.clone(),
-                        last_will.clone(),
-                        login.clone(),
-                    );
+                    ack_pkg = self
+                        .mqtt4_service
+                        .connect(connect.clone(), last_will.clone(), login.clone())
+                        .await;
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    ack_pkg = self.mqtt5_service.connect(
-                        connect_id,
-                        connect,
-                        properties,
-                        last_will,
-                        last_will_peoperties,
-                        login,
-                    );
+                    ack_pkg = self
+                        .mqtt5_service
+                        .connect(
+                            connect_id,
+                            connect,
+                            properties,
+                            last_will,
+                            last_will_peoperties,
+                            login,
+                        )
+                        .await;
                 }
 
                 if let MQTTPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
-                        let mut cache = self.metadata_cache.write().unwrap();
+                        let mut cache = self.metadata_cache.write().await;
                         cache.login_success(connect_id);
                         info(format!("connect [{}] login success", connect_id));
                     }
                 }
-                return ack_pkg;
+                return Some(ack_pkg);
             }
 
             MQTTPacket::Publish(publish, publish_properties) => {
-                if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.publish(publish);
+                    return Some(self.mqtt4_service.publish(publish));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.publish(publish, publish_properties);
+                    return Some(
+                        self.mqtt5_service
+                            .publish(publish, publish_properties)
+                            .await,
+                    );
                 }
             }
 
-            MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
-                if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+            MQTTPacket::PubAck(pub_ack, pub_ack_properties) => {
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.subscribe(subscribe);
+                    self.mqtt4_service.publish_ack(pub_ack.clone());
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.subscribe(
-                        connect_id,
-                        subscribe,
-                        subscribe_properties,
+                    self.mqtt5_service.publish_ack(pub_ack, pub_ack_properties);
+                }
+                return None;
+            }
+
+            MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
+                }
+                if self.protocol == MQTTProtocol::MQTT4 {
+                    return Some(self.mqtt4_service.subscribe(subscribe));
+                }
+
+                if self.protocol == MQTTProtocol::MQTT5 {
+                    return Some(
+                        self.mqtt5_service
+                            .subscribe(connect_id, subscribe, subscribe_properties)
+                            .await,
                     );
                 }
             }
 
             MQTTPacket::PingReq(ping) => {
-                if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.ping(ping);
+                    return Some(self.mqtt4_service.ping(ping));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.ping(connect_id, ping);
+                    return Some(self.mqtt5_service.ping(connect_id, ping).await);
                 }
             }
 
             MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
-                if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.un_subscribe(unsubscribe);
+                    return Some(self.mqtt4_service.un_subscribe(unsubscribe));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.un_subscribe(
-                        connect_id,
-                        unsubscribe,
-                        unsubscribe_properties,
+                    return Some(
+                        self.mqtt5_service
+                            .un_subscribe(connect_id, unsubscribe, unsubscribe_properties)
+                            .await,
                     );
                 }
             }
 
             MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
-                if !self.auth_login(connect_id) {
-                    return self.un_login_err(connect_id);
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
                 }
                 if self.protocol == MQTTProtocol::MQTT4 {
-                    return self.mqtt4_service.disconnect(disconnect);
+                    return Some(self.mqtt4_service.disconnect(disconnect));
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return self.mqtt5_service.disconnect(
-                        connect_id,
-                        disconnect,
-                        disconnect_properties,
+                    return Some(
+                        self.mqtt5_service
+                            .disconnect(connect_id, disconnect, disconnect_properties)
+                            .await,
                     );
                 }
             }
 
             _ => {
-                return self
-                    .ack_build
-                    .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError);
+                return Some(
+                    self.ack_build.distinct(
+                        protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError,
+                    ),
+                );
             }
         }
-        return self
-            .ack_build
-            .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError);
+        return Some(
+            self.ack_build
+                .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError),
+        );
     }
 
     fn un_login_err(&self, connect_id: u64) -> MQTTPacket {
@@ -180,8 +204,8 @@ impl Command {
             .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized);
     }
 
-    pub fn auth_login(&self, connect_id: u64) -> bool {
-        let cache = self.metadata_cache.write().unwrap();
+    pub async fn auth_login(&self, connect_id: u64) -> bool {
+        let cache = self.metadata_cache.write().await;
         return cache.is_login(connect_id);
     }
 }

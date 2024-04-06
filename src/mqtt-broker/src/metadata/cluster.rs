@@ -41,15 +41,15 @@ impl Cluster {
         return self.topic_alias_max;
     }
 
-    pub fn wildcard_subscription_available(&self) -> u8{
+    pub fn wildcard_subscription_available(&self) -> u8 {
         return self.wildcard_subscription_available.clone() as u8;
     }
 
-    pub fn subscription_identifiers_available(&self) -> u8{
+    pub fn subscription_identifiers_available(&self) -> u8 {
         return self.subscription_identifiers_available.clone() as u8;
     }
 
-    pub fn shared_subscription_available(&self) -> u8{
+    pub fn shared_subscription_available(&self) -> u8 {
         return self.shared_subscription_available.clone() as u8;
     }
 }

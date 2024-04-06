@@ -1,8 +1,10 @@
-use self::tcp::{packet::ResponsePackage, tcp_server::TcpServer};
+use self::tcp::{
+    packet::{RequestPackage, ResponsePackage},
+    tcp_server::TcpServer,
+};
 use crate::{
-    metadata::{cache::MetadataCache, hearbeat::HeartbeatManager},
-    packet::command::Command,
-    subscribe::subscribe_manager::SubScribeManager,
+    heartbeat::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
+    packet::command::Command, subscribe::subscribe_manager::SubScribeManager,
 };
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
@@ -10,15 +12,16 @@ use common_base::{
 };
 use flume::{Receiver, Sender};
 use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
-use std::sync::{Arc, RwLock};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub mod grpc;
 pub mod http;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
-
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MQTTProtocol {
     #[default]
     MQTT4,
@@ -38,6 +41,10 @@ pub async fn start_mqtt_server(
     cache: Arc<RwLock<MetadataCache>>,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
+    request_queue_sx4: Sender<RequestPackage>,
+    request_queue_rx4: Receiver<RequestPackage>,
+    request_queue_sx5: Sender<RequestPackage>,
+    request_queue_rx5: Receiver<RequestPackage>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_rx4: Receiver<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
@@ -54,6 +61,8 @@ pub async fn start_mqtt_server(
         start_mqtt4_server(
             conf,
             command.clone(),
+            request_queue_sx4,
+            request_queue_rx4,
             response_queue_sx4,
             response_queue_rx4,
         )
@@ -70,6 +79,8 @@ pub async fn start_mqtt_server(
         start_mqtt5_server(
             conf,
             command.clone(),
+            request_queue_sx5,
+            request_queue_rx5,
             response_queue_sx5,
             response_queue_rx5,
         )
@@ -80,6 +91,8 @@ pub async fn start_mqtt_server(
 async fn start_mqtt4_server(
     conf: &BrokerMQTTConfig,
     command: Command,
+    request_queue_sx: Sender<RequestPackage>,
+    request_queue_rx: Receiver<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
     response_queue_rx: Receiver<ResponsePackage>,
 ) {
@@ -97,6 +110,8 @@ async fn start_mqtt4_server(
         conf.network_tcp.lock_max_try_mut_times,
         conf.network_tcp.lock_try_mut_sleep_time_ms,
         codec,
+        request_queue_sx,
+        request_queue_rx,
         response_queue_sx,
         response_queue_rx,
     );
@@ -110,6 +125,8 @@ async fn start_mqtt4_server(
 async fn start_mqtt5_server(
     conf: &BrokerMQTTConfig,
     command: Command,
+    request_queue_sx: Sender<RequestPackage>,
+    request_queue_rx: Receiver<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
     response_queue_rx: Receiver<ResponsePackage>,
 ) {
@@ -127,6 +144,8 @@ async fn start_mqtt5_server(
         conf.network_tcp.lock_max_try_mut_times,
         conf.network_tcp.lock_try_mut_sleep_time_ms,
         codec,
+        request_queue_sx,
+        request_queue_rx,
         response_queue_sx,
         response_queue_rx,
     );

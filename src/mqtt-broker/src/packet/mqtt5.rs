@@ -1,8 +1,8 @@
 use super::packet::MQTTAckBuild;
 use crate::{
+    heartbeat::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
         cache::MetadataCache,
-        hearbeat::HeartbeatManager,
         message::Message,
         session::{LastWillData, Session},
         subscriber::Subscriber,
@@ -11,13 +11,17 @@ use crate::{
     storage::{message::MessageStorage, metadata::MetadataStorage},
     subscribe::subscribe_manager::SubScribeManager,
 };
-use common_base::{log::error, tools::unique_id_string};
+use common_base::{
+    log::error,
+    tools::{now_mills, unique_id_string},
+};
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MQTTPacket, PingReq, Publish, PublishProperties, Subscribe,
-    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, Publish,
+    PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Mqtt5Service {
@@ -48,7 +52,7 @@ impl Mqtt5Service {
         };
     }
 
-    pub fn connect(
+    pub async fn connect(
         &mut self,
         connect_id: u64,
         connnect: Connect,
@@ -58,7 +62,7 @@ impl Mqtt5Service {
         login: Option<Login>,
     ) -> MQTTPacket {
         // connect for authentication
-        if self.authentication(login) {
+        if self.authentication(login).await {
             return self.ack_build.distinct(DisconnectReasonCode::NotAuthorized);
         }
 
@@ -71,10 +75,14 @@ impl Mqtt5Service {
         }
         let mut session = Session::default();
 
+        let cache = self.metadata_cache.read().await;
+        let cluster = cache.cluster_info.clone();
+        drop(cache);
         session = session.build_session(
             client_id.clone(),
             connnect.clone(),
             connect_properties.clone(),
+            cluster.server_keep_alive(),
         );
 
         // save last will data
@@ -114,12 +122,19 @@ impl Mqtt5Service {
 
         // update cache
         // When working with locks, the default is to release them as soon as possible
-        let mut cache = self.metadata_cache.write().unwrap();
-        cache.set_session(client_id.clone(), session);
+        let mut cache = self.metadata_cache.write().await;
+        cache.set_session(client_id.clone(), session.clone());
         cache.set_client_id(connect_id, client_id.clone());
         drop(cache);
-        let mut heartbeat = self.heartbeat_manager.write().unwrap();
-        heartbeat.report_hearbeat(connect_id);
+
+        let mut heartbeat = self.heartbeat_manager.write().await;
+        let session_keep_alive = session.keep_alive;
+        let live_time = ConnectionLiveTime {
+            protobol: crate::server::MQTTProtocol::MQTT5,
+            keep_live: session_keep_alive,
+            heartbeat: now_mills(),
+        };
+        heartbeat.report_hearbeat(connect_id, live_time);
         drop(heartbeat);
 
         let mut user_properties = Vec::new();
@@ -130,17 +145,21 @@ impl Mqtt5Service {
         let reason_string = Some("".to_string());
         let response_information = Some("".to_string());
         let server_reference = Some("".to_string());
-        return self.ack_build.conn_ack(
-            client_id,
-            auto_client_id,
-            reason_string,
-            user_properties,
-            response_information,
-            server_reference,
-        );
+        return self
+            .ack_build
+            .conn_ack(
+                client_id,
+                auto_client_id,
+                reason_string,
+                user_properties,
+                response_information,
+                server_reference,
+                session_keep_alive,
+            )
+            .await;
     }
 
-    pub fn publish(
+    pub async fn publish(
         &self,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
@@ -149,7 +168,7 @@ impl Mqtt5Service {
         let topic = Topic::new(&topic_name);
 
         // Update the cache if the Topic doesn't exist and persist the Topic information
-        let mut cache = self.metadata_cache.write().unwrap();
+        let mut cache = self.metadata_cache.write().await;
         if !cache.topic_exists(&topic_name) {
             cache.set_topic(&topic_name, &topic);
             match self.metadata_storage.save_topic(&topic_name, &topic) {
@@ -192,7 +211,9 @@ impl Mqtt5Service {
         return self.ack_build.pub_ack(pkid, None, user_properties);
     }
 
-    pub fn subscribe(
+    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
+
+    pub async fn subscribe(
         &self,
         connect_id: u64,
         subscribe: Subscribe,
@@ -205,7 +226,7 @@ impl Mqtt5Service {
         );
 
         // Saving subscriptions
-        let mut sub_manager = self.subscribe_manager.write().unwrap();
+        let mut sub_manager = self.subscribe_manager.write().await;
         sub_manager.add_subscribe(connect_id, subscriber);
         drop(sub_manager);
 
@@ -217,20 +238,33 @@ impl Mqtt5Service {
         return self.ack_build.sub_ack(pkid, None, user_properties);
     }
 
-    pub fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
-        let mut heartbeat = self.heartbeat_manager.write().unwrap();
-        heartbeat.report_hearbeat(connect_id);
-        return self.ack_build.ping_resp();
+    pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
+        let cache = self.metadata_cache.read().await;
+        if let Some(client_id) = cache.connect_id_info.get(&connect_id) {
+            if let Some(session_info) = cache.session_info.get(client_id) {
+                let live_time = ConnectionLiveTime {
+                    protobol: crate::server::MQTTProtocol::MQTT5,
+                    keep_live: session_info.keep_alive,
+                    heartbeat: now_mills(),
+                };
+                let mut heartbeat = self.heartbeat_manager.write().await;
+                heartbeat.report_hearbeat(connect_id, live_time);
+                return self.ack_build.ping_resp();
+            }
+        }
+        return self
+            .ack_build
+            .distinct(DisconnectReasonCode::UseAnotherServer);
     }
 
-    pub fn un_subscribe(
+    pub async fn un_subscribe(
         &self,
         connect_id: u64,
         un_subscribe: Unsubscribe,
         un_subscribe_properties: Option<UnsubscribeProperties>,
     ) -> MQTTPacket {
         // Remove subscription information
-        let mut sub_manager = self.subscribe_manager.write().unwrap();
+        let mut sub_manager = self.subscribe_manager.write().await;
         sub_manager.remove_subscribe(connect_id, Some(un_subscribe.clone()));
         drop(sub_manager);
 
@@ -242,21 +276,21 @@ impl Mqtt5Service {
         return self.ack_build.unsub_ack(pkid, None, user_properties);
     }
 
-    pub fn disconnect(
+    pub async fn disconnect(
         &self,
         connect_id: u64,
         disconnect: Disconnect,
         disconnect_properties: Option<DisconnectProperties>,
     ) -> MQTTPacket {
-        let mut cache = self.metadata_cache.write().unwrap();
+        let mut cache = self.metadata_cache.write().await;
         cache.remove_connect_id(connect_id);
         drop(cache);
 
-        let mut heartbeat = self.heartbeat_manager.write().unwrap();
+        let mut heartbeat = self.heartbeat_manager.write().await;
         heartbeat.remove_connect(connect_id);
         drop(heartbeat);
 
-        let mut sub_manager = self.subscribe_manager.write().unwrap();
+        let mut sub_manager = self.subscribe_manager.write().await;
         sub_manager.remove_subscribe(connect_id, None);
         drop(sub_manager);
 
@@ -265,12 +299,12 @@ impl Mqtt5Service {
             .distinct(DisconnectReasonCode::NormalDisconnection);
     }
 
-    fn authentication(&self, login: Option<Login>) -> bool {
+    async fn authentication(&self, login: Option<Login>) -> bool {
         if login == None {
             return false;
         }
         let login_info = login.unwrap();
-        let cache = self.metadata_cache.read().unwrap();
+        let cache = self.metadata_cache.read().await;
         if let Some(user) = cache.user_info.get(&login_info.username) {
             return user.password == login_info.password;
         }

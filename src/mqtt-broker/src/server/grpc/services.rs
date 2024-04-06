@@ -1,9 +1,10 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use common_base::errors::RobustMQError;
 use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, UpdateCacheReply, UpdateCacheRequest,
 };
+use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 
 use crate::metadata::cache::MetadataCache;
@@ -31,7 +32,7 @@ impl MqttBrokerService for GrpcBrokerServices {
                 RobustMQError::ParameterCannotBeNull("data".to_string()).to_string(),
             ));
         }
-        let mut handler = self.metadata_cache.write().unwrap();
+        let mut handler = self.metadata_cache.write().await;
         handler.apply(req.data);
         return Ok(Response::new(UpdateCacheReply::default()));
     }

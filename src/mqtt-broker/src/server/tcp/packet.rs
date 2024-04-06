@@ -1,7 +1,6 @@
 use protocol::mqtt::MQTTPacket;
-#[derive(Clone, PartialEq)]
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RequestPackage {
     pub connection_id: u64,
     pub packet: MQTTPacket,
@@ -16,7 +15,7 @@ impl RequestPackage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ResponsePackage {
     pub connection_id: u64,
     pub packet: MQTTPacket,

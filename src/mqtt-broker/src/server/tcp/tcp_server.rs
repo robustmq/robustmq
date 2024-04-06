@@ -55,13 +55,13 @@ where
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
         codec: T,
+        request_queue_sx: Sender<RequestPackage>,
+        request_queue_rx: Receiver<RequestPackage>,
         response_queue_sx: Sender<ResponsePackage>,
         response_queue_rx: Receiver<ResponsePackage>,
     ) -> Self {
-        let (request_queue_sx, request_queue_rx) =
-            flume::bounded::<RequestPackage>(request_queue_size);
-
         let connection_manager = Arc::new(ConnectionManager::<T>::new(
+            protocol.clone(),
             max_connection_num,
             max_try_mut_times,
             try_mut_sleep_time_ms,
@@ -177,25 +177,26 @@ where
             while let Ok(packet) = request_queue_rx.recv() {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
 
-                // MQTT 4/5 business logic processing
-                let resp = command.apply(packet.connection_id, packet.packet);
+                // MQTT 4/5 business logic processin
 
-                // Close the client connection
-                if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
-                    if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
-                        connect_manager.clonse_connect(packet.connection_id).await;
-                        continue;
+                if let Some(resp) = command.apply(packet.connection_id, packet.packet).await {
+                    // Close the client connection
+                    if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
+                        if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
+                            connect_manager.clonse_connect(packet.connection_id).await;
+                            continue;
+                        }
                     }
-                }
 
-                // Writes the result of the business logic processing to the return queue
-                let response_package = ResponsePackage::new(packet.connection_id, resp);
-                match response_queue_sx.send(response_package) {
-                    Ok(_) => {}
-                    Err(err) => error(format!(
-                        "Failed to write data to the response queue, error message: {:?}",
-                        err
-                    )),
+                    // Writes the result of the business logic processing to the return queue
+                    let response_package = ResponsePackage::new(packet.connection_id, resp);
+                    match response_queue_sx.send(response_package) {
+                        Ok(_) => {}
+                        Err(err) => error(format!(
+                            "Failed to write data to the response queue, error message: {:?}",
+                            err
+                        )),
+                    }
                 }
             }
         });

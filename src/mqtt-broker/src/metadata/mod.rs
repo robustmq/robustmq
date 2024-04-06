@@ -8,7 +8,6 @@ pub mod session;
 pub mod user;
 pub mod topic;
 pub mod subscriber;
-pub mod hearbeat;
 pub mod message;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
