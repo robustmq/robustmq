@@ -4,7 +4,8 @@ use protocol::mqtt::{
     PingResp, PubAck, PubAckProperties, PubAckReason, SubAck, SubAckProperties,
     SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
-use std::sync::{Arc, RwLock};
+use tokio::sync::RwLock;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MQTTAckBuild {
@@ -20,7 +21,7 @@ impl MQTTAckBuild {
         };
     }
 
-    pub fn conn_ack(
+    pub async fn conn_ack(
         &self,
         client_id: String,
         auto_client_id: bool,
@@ -34,7 +35,7 @@ impl MQTTAckBuild {
             session_present: false,
             code: ConnectReturnCode::Success,
         };
-        let cache = self.metadata_cache.read().unwrap();
+        let cache = self.metadata_cache.read().await;
         let cluster = cache.cluster_info.clone();
         if let Some(session) = cache.session_info.get(&client_id) {
             let assigned_client_identifier = if auto_client_id {

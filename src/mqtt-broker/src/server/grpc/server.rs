@@ -1,10 +1,11 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use crate::metadata::cache::MetadataCache;
 
 use super::services::GrpcBrokerServices;
 use common_base::log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
+use tokio::sync::RwLock;
 use tonic::transport::Server;
 
 pub struct GrpcServer {

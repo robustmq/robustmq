@@ -1,5 +1,4 @@
 use crate::{metrics::metrics_connection_num, server::MQTTProtocol};
-
 use super::connection::Connection;
 use common_base::log::{error, info};
 use dashmap::DashMap;

@@ -3,9 +3,9 @@ use protocol::mqtt::{
     Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
     Publish, Subscribe, Unsubscribe,
 };
-
-use crate::{metadata::cache::MetadataCache, server::hearbeat::HeartbeatManager};
-use std::sync::{Arc, RwLock};
+use tokio::sync::RwLock;
+use crate::{heartbeat::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache};
+use std::sync::Arc;
 
 use super::packet::MQTTAckBuild;
 #[derive(Clone)]
@@ -30,7 +30,7 @@ impl Mqtt4Service {
         };
     }
 
-    pub fn connect(
+    pub  async fn connect(
         &mut self,
         connnect: Connect,
         last_will: Option<LastWill>,
@@ -51,7 +51,7 @@ impl Mqtt4Service {
             response_information,
             server_reference,
             1,
-        );
+        ).await;
     }
 
     pub fn publish(&self, publish: Publish) -> MQTTPacket {

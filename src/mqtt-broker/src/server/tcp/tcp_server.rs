@@ -55,12 +55,11 @@ where
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
         codec: T,
+        request_queue_sx: Sender<RequestPackage>,
+        request_queue_rx: Receiver<RequestPackage>,
         response_queue_sx: Sender<ResponsePackage>,
         response_queue_rx: Receiver<ResponsePackage>,
     ) -> Self {
-        let (request_queue_sx, request_queue_rx) =
-            flume::bounded::<RequestPackage>(request_queue_size);
-
         let connection_manager = Arc::new(ConnectionManager::<T>::new(
             protocol.clone(),
             max_connection_num,
@@ -180,7 +179,7 @@ where
 
                 // MQTT 4/5 business logic processin
 
-                if let Some(resp) = command.apply(packet.connection_id, packet.packet) {
+                if let Some(resp) = command.apply(packet.connection_id, packet.packet).await {
                     // Close the client connection
                     if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
                         if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
