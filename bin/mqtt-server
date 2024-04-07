@@ -1,0 +1,2 @@
+#!/bin/sh
+../libs/mqtt-server --conf=../config/broker-mqtt.toml

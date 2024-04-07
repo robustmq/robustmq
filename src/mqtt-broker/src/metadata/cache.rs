@@ -39,7 +39,7 @@ pub struct MetadataCache {
 impl MetadataCache {
     pub fn new() -> Self {
         let mut cache = MetadataCache::default();
-        cache.load_cache();
+        // cache.load_cache();
         return cache;
     }
 

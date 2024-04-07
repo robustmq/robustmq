@@ -1,7 +1,7 @@
 use clients::{placement_center::placement::{heartbeat, register_node, unregister_node}, ClientPool};
 use common_base::{
     config::storage_engine::StorageEngineConfig,
-    log::{debug_eninge, error_engine, info_meta},
+    log::{debug_eninge, error_engine, info_meta}, tools::get_local_ip,
 };
 use protocol::placement_center::generate::{common::ClusterType, placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest}};
 use std::{sync::Arc, time::Duration};
@@ -15,7 +15,7 @@ pub async fn register_storage_engine_node(
     req.cluster_type = ClusterType::StorageEngine.into();
     req.cluster_name = config.cluster_name;
     req.node_id = config.node_id;
-    req.node_ip = config.addr;
+    req.node_ip = get_local_ip();
     req.node_port = config.grpc_port;
     req.extend_info = "".to_string();
 

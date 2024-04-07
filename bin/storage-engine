@@ -1,0 +1,2 @@
+#!/bin/sh
+../libs/storage-engine --conf=../config/storage-engine.toml
