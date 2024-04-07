@@ -132,7 +132,7 @@ impl PlacementCenterService for GrpcPlacementService {
             .as_millis();
         let cluster_type = req.cluster_type();
 
-        if cluster_type.eq(&ClusterType::BrokerServer) {
+        if cluster_type.eq(&ClusterType::MqttBrokerServer) {
             //todo
         }
 
@@ -202,7 +202,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let mut resp = GenerateUniqueNodeIdReply::default();
         let generate = GlobalId::new(self.rocksdb_engine_handler.clone());
-        
+
         if req.generage_type() == GenerageIdType::UniqStr {
             resp.id_str = generate.generate_uniq_str();
             return Ok(Response::new(resp));

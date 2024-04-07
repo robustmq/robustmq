@@ -4,9 +4,10 @@ pub struct CommonReply {}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ClusterType {
-    BrokerServer = 0,
+    PlacementCenter = 0,
     StorageEngine = 1,
-    PlacementCenter = 2,
+    MqttBrokerServer = 2,
+    AmqpBrokerServer = 3,
 }
 impl ClusterType {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -15,17 +16,19 @@ impl ClusterType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            ClusterType::BrokerServer => "BrokerServer",
-            ClusterType::StorageEngine => "StorageEngine",
             ClusterType::PlacementCenter => "PlacementCenter",
+            ClusterType::StorageEngine => "StorageEngine",
+            ClusterType::MqttBrokerServer => "MQTTBrokerServer",
+            ClusterType::AmqpBrokerServer => "AMQPBrokerServer",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "BrokerServer" => Some(Self::BrokerServer),
-            "StorageEngine" => Some(Self::StorageEngine),
             "PlacementCenter" => Some(Self::PlacementCenter),
+            "StorageEngine" => Some(Self::StorageEngine),
+            "MQTTBrokerServer" => Some(Self::MqttBrokerServer),
+            "AMQPBrokerServer" => Some(Self::AmqpBrokerServer),
             _ => None,
         }
     }

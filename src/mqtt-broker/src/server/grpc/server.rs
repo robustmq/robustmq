@@ -9,12 +9,12 @@ use tokio::sync::RwLock;
 use tonic::transport::Server;
 
 pub struct GrpcServer {
-    port: usize,
+    port: u32,
     metadata_cache: Arc<RwLock<MetadataCache>>,
 }
 
 impl GrpcServer {
-    pub fn new(port: usize, metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
+    pub fn new(port: u32, metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
         return Self {
             port,
             metadata_cache,

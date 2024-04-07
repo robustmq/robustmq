@@ -1,5 +1,8 @@
-use super::{cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User};
-use bytes::Bytes;
+use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
+
+use super::{
+    cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 #[derive(Clone, Serialize, Deserialize)]
@@ -22,7 +25,7 @@ pub struct MetadataChangeData {
     pub value: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct MetadataCache {
     pub cluster_info: Cluster,
     pub user_info: HashMap<String, User>,
@@ -35,15 +38,58 @@ pub struct MetadataCache {
 
 impl MetadataCache {
     pub fn new() -> Self {
-        return MetadataCache {
-            user_info: HashMap::new(),
-            session_info: HashMap::new(),
-            cluster_info: Cluster::default(),
-            topic_info: HashMap::new(),
-            subscriber_info: HashMap::new(),
-            connect_id_info: HashMap::new(),
-            login_info: HashMap::new(),
+        let mut cache = MetadataCache::default();
+        cache.load_cache();
+        return cache;
+    }
+
+    pub fn load_cache(&mut self) {
+        
+        // load cluster config
+        let cluster_storage = ClusterStorage::new();
+        self.cluster_info = match cluster_storage.get_cluster_config() {
+            Ok(cluster) => cluster,
+            Err(e) => {
+                panic!(
+                    "Failed to load the cluster configuration with error message:{}",
+                    e.to_string()
+                );
+            }
         };
+
+        // load all user 
+        let user_storage = UserStorage::new();
+        self.user_info = match user_storage.user_list() {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the user list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+
+        // Not all session information is loaded at startup, only when the client is connected, 
+        // if the clean session is set, it will check whether the session exists and then update the local cache.
+        self.session_info = HashMap::new();
+
+        // load user config
+        let topic_storage = TopicStorage::new();
+        self.topic_info = match topic_storage.topic_list(){
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the topic list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+        
+        // subscriber, connect, and login are connection-related and don't need to be persisted, so they don't need to be loaded.
+        self.subscriber_info = HashMap::new();
+        self.connect_id_info = HashMap::new();
+        self.login_info = HashMap::new();
+
     }
 
     pub fn apply(&mut self, data: String) {

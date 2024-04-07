@@ -66,5 +66,5 @@ impl HeartbeatShard {
 pub struct ConnectionLiveTime {
     pub protobol: MQTTProtocol,
     pub keep_live: u16,
-    pub heartbeat: u128,
+    pub heartbeat: u64,
 }
