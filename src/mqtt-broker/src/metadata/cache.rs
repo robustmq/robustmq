@@ -1,10 +1,8 @@
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
 
 use super::{
-    cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User,
-    AvailableFlag,
+    cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User
 };
-use common_base::log::error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 #[derive(Clone, Serialize, Deserialize)]
@@ -46,6 +44,8 @@ impl MetadataCache {
     }
 
     pub fn load_cache(&mut self) {
+        
+        // load cluster config
         let cluster_storage = ClusterStorage::new();
         self.cluster_info = match cluster_storage.get_cluster_config() {
             Ok(cluster) => cluster,
@@ -57,6 +57,7 @@ impl MetadataCache {
             }
         };
 
+        // load all user 
         let user_storage = UserStorage::new();
         self.user_info = match user_storage.user_list() {
             Ok(list) => list,
@@ -68,29 +69,29 @@ impl MetadataCache {
             }
         };
 
-        //todo session
+        // Not all session information is loaded at startup, only when the client is connected, 
+        // if the clean session is set, it will check whether the session exists and then update the local cache.
         self.session_info = HashMap::new();
 
+        // load user config
         let topic_storage = TopicStorage::new();
-        
-
-        // self.cluster_info = Cluster::ne
-    }
-
-    pub fn default_config(&self) -> Cluster {
-        return Cluster {
-            session_expiry_interval: 60,
-            topic_alias_max: 256,
-            max_qos: Some(2),
-            retain_available: AvailableFlag::Disable,
-            wildcard_subscription_available: AvailableFlag::Disable,
-            max_packet_size: 10485760,
-            subscription_identifiers_available: AvailableFlag::Disable,
-            shared_subscription_available: AvailableFlag::Disable,
-            server_keep_alive: 120,
-            receive_max: Some(65535),
+        self.topic_info = match topic_storage.topic_list(){
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the topic list with error message:{}",
+                    e.to_string()
+                );
+            }
         };
+        
+        // subscriber, connect, and login are connection-related and don't need to be persisted, so they don't need to be loaded.
+        self.subscriber_info = HashMap::new();
+        self.connect_id_info = HashMap::new();
+        self.login_info = HashMap::new();
+
     }
+
     pub fn apply(&mut self, data: String) {
         let data: MetadataChangeData = serde_json::from_str(&data).unwrap();
         match data.data_type {

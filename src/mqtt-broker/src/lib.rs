@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clients::ClientPool;
+use cluster::{register_broker_node, report_heartbeat, unregister_broker_node};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info_meta,
@@ -33,9 +35,10 @@ use subscribe::subscribe_manager::SubScribeManager;
 use tokio::{
     runtime::Runtime,
     signal,
-    sync::{broadcast, RwLock},
+    sync::{broadcast, Mutex, RwLock},
 };
 
+mod cluster;
 mod heartbeat;
 mod metadata;
 mod metrics;
@@ -59,6 +62,7 @@ pub struct MqttBroker<'a> {
     response_queue_rx4: Receiver<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
     response_queue_rx5: Receiver<ResponsePackage>,
+    client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl<'a> MqttBroker<'a> {
@@ -77,6 +81,8 @@ impl<'a> MqttBroker<'a> {
             HEART_CONNECT_SHARD_HASH_NUM,
         )));
 
+        let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new()));
+
         return MqttBroker {
             conf,
             runtime,
@@ -91,14 +97,18 @@ impl<'a> MqttBroker<'a> {
             response_queue_rx4,
             response_queue_sx5,
             response_queue_rx5,
+            client_poll,
         };
     }
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
+        self.register_node();
         self.start_grpc_server();
         self.start_mqtt_server();
         self.start_prometheus_export();
         self.start_keep_alive_thread();
+        self.start_cluster_heartbeat_report();
+        self.start_cluster_heartbeat_report();
         self.awaiting_stop(stop_send);
     }
 
@@ -155,7 +165,11 @@ impl<'a> MqttBroker<'a> {
             .spawn(async move { start_http_server(http_state).await });
     }
 
-    // fn start_websocket_server(&self) {}
+    fn start_cluster_heartbeat_report(&self) {
+        let client_poll = self.client_poll.clone();
+        self.runtime
+            .spawn(async move { report_heartbeat(client_poll).await });
+    }
 
     fn start_keep_alive_thread(&self) {
         let keep_alive = KeepAlive::new(
@@ -177,6 +191,7 @@ impl<'a> MqttBroker<'a> {
                 match stop_send.send(true) {
                     Ok(_) => {
                         info_meta("When ctrl + c is received, the service starts to stop");
+                        self.stop_server().await;
                         break;
                     }
                     Err(_) => {}
@@ -185,5 +200,16 @@ impl<'a> MqttBroker<'a> {
         });
 
         // todo tokio runtime shutdown
+    }
+
+    fn register_node(&self) {
+        self.runtime.block_on(async move {
+            register_broker_node(self.client_poll.clone()).await;
+        });
+    }
+
+    async fn stop_server(&self) {
+        // unregister node
+        unregister_broker_node(self.client_poll.clone()).await;
     }
 }

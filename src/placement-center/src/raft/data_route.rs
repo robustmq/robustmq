@@ -105,7 +105,7 @@ impl DataRoute {
             create_time: now_mills(),
         };
 
-        if cluster_type == ClusterType::BrokerServer {
+        if cluster_type == ClusterType::MqttBrokerServer {
             // todo
         }
 
@@ -153,7 +153,7 @@ impl DataRoute {
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
 
-        if cluster_type.eq(&ClusterType::BrokerServer) {
+        if cluster_type.eq(&ClusterType::MqttBrokerServer) {
             // todo
         }
 
@@ -322,7 +322,7 @@ mod tests {
         req.node_id = node_id;
         req.node_ip = node_ip.clone();
         req.node_port = node_port;
-        req.cluster_type = ClusterType::BrokerServer.into();
+        req.cluster_type = ClusterType::MqttBrokerServer.into();
         req.cluster_name = cluster_name.clone();
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);

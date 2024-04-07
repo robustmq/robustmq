@@ -21,7 +21,9 @@ use std::sync::OnceLock;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct BrokerMQTTConfig {
-    pub grpc_port: usize,
+    pub cluster_name: String,
+    pub broker_id: u64,
+    pub grpc_port: u32,
     pub http_port: usize,
     pub placement_center: Vec<String>,
     pub mqtt: MQTT,

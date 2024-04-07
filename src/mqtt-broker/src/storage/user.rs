@@ -1,4 +1,7 @@
-use super::keys::{all_user_key, user_key};
+use super::{
+    all::AllInfoStorage,
+    keys::{all_user_key, user_key},
+};
 use crate::metadata::user::User;
 use common_base::errors::RobustMQError;
 use std::collections::HashMap;
@@ -6,19 +9,29 @@ use storage_adapter::{adapter::placement::PlacementStorageAdapter, storage::Stor
 
 pub struct UserStorage {
     storage_adapter: PlacementStorageAdapter,
+    all_info_storage: AllInfoStorage,
 }
 
 impl UserStorage {
     pub fn new() -> UserStorage {
         let storage_adapter = PlacementStorageAdapter::new();
-        return UserStorage { storage_adapter };
+        let all_info_storage = AllInfoStorage::new(all_user_key());
+        return UserStorage {
+            storage_adapter,
+            all_info_storage,
+        };
     }
 
     // Saving user information
     pub fn save_user(&self, user_info: User) -> Result<(), RobustMQError> {
-        let key = user_key(user_info.username.clone());
+        let username = user_info.username.clone();
+        let key = user_key(username.clone());
         match serde_json::to_string(&user_info) {
             Ok(data) => {
+                match self.all_info_storage.add_info_for_all(username) {
+                    Ok(_) => {}
+                    Err(e) => return Err(e),
+                }
                 return self.storage_adapter.kv_set(key, data);
             }
             Err(e) => {
@@ -51,7 +64,7 @@ impl UserStorage {
 
     // Getting a list of users
     pub fn user_list(&self) -> Result<HashMap<String, User>, RobustMQError> {
-        match self.get_all_username() {
+        match self.all_info_storage.get_all() {
             Ok(data) => {
                 let mut list = HashMap::new();
                 for username in data {
@@ -67,26 +80,6 @@ impl UserStorage {
                 return Ok(list);
             }
             Err(e) => return Err(e),
-        }
-    }
-
-    // Get all the usernames
-    pub fn get_all_username(&self) -> Result<Vec<String>, RobustMQError> {
-        let key = all_user_key();
-        match self.storage_adapter.kv_get(key) {
-            Ok(data) => match serde_json::from_str(&data) {
-                Ok(da) => {
-                    return Ok(da);
-                }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
-            Err(e) => {
-                return Err(e);
-            }
         }
     }
 }

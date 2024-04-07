@@ -1,6 +1,6 @@
 use super::keys::cluster_config_key;
 use crate::metadata::cluster::Cluster;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::errors::RobustMQError;
 use storage_adapter::{adapter::placement::PlacementStorageAdapter, storage::StorageAdapter};
 
 pub struct ClusterStorage {
@@ -12,16 +12,6 @@ impl ClusterStorage {
         let storage_adapter = PlacementStorageAdapter::new();
         return ClusterStorage { storage_adapter };
     }
-
-    pub fn register_cluster_info(&self) {
-        let conf = broker_mqtt_conf();
-    }
-
-    pub fn unregister_cluster_info(&self) {}
-
-    pub fn cluster_node_list(&self) {}
-
-    fn init_node_id(&self) {}
 
     // Get session information for the connection dimension
     pub fn get_cluster_config(&self) -> Result<Cluster, RobustMQError> {

@@ -4,6 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use local_ip_address::local_ip;
 use snowflake::ProcessUniqueId;
 use uuid::Uuid;
 
@@ -36,4 +37,28 @@ pub fn unique_id_string() -> String {
     let res = ProcessUniqueId::new();
 
     return res.to_string();
+}
+
+pub fn get_local_ip() -> String {
+    match local_ip() {
+        Ok(data) => {
+            return data.to_string();
+        }
+        Err(e) => {
+            panic!(
+                "If the local IP fails, stop the process.error message:{}",
+                e.to_string()
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tools::get_local_ip;
+
+    #[test]
+    fn get_local_ip_test() {
+        println!("{}", get_local_ip());
+    }
 }
