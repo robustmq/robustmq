@@ -24,7 +24,6 @@ use toml::Table;
 pub struct StorageEngineConfig {
     pub cluster_name: String,
     pub node_id: u64,
-    pub addr: String,
     pub grpc_port: u32,
     pub prometheus_port: u16,
     pub runtime_work_threads: usize,
@@ -58,7 +57,6 @@ impl Default for StorageEngineConfig {
         StorageEngineConfig {
             cluster_name: "default".to_string(),
             node_id: 1,
-            addr: "127.0.0.1".to_string(),
             grpc_port: 1227,
             placement_center: Vec::new(),
             prometheus_port: 1226,

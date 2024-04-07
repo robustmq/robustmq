@@ -2,7 +2,7 @@ cluster_name = "mqtt-broker"
 broker_id = 1
 grpc_port = 9981
 http_port = 8081
-placement_center = ["127.0.0.1:1228"]
+placement_center = ["14.103.42.35:1228"]
 
 [mqtt]
 mqtt4_enable = true
