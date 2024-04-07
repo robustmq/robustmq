@@ -8,12 +8,12 @@ use crate::{
         subscriber::Subscriber,
         topic::Topic,
     },
-    storage::{message::MessageStorage, metadata::MetadataStorage},
+    storage::{message::MessageStorage, session::SessionStorage, topic::TopicStorage},
     subscribe::subscribe_manager::SubScribeManager,
 };
 use common_base::{
     log::error,
-    tools::{now_mills, now_second, unique_id_string},
+    tools::{now_second, unique_id_string},
 };
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
@@ -27,7 +27,6 @@ use tokio::sync::RwLock;
 pub struct Mqtt5Service {
     metadata_cache: Arc<RwLock<MetadataCache>>,
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
-    metadata_storage: MetadataStorage,
     message_storage: MessageStorage,
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
@@ -40,14 +39,12 @@ impl Mqtt5Service {
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     ) -> Self {
-        let metadata_storage = MetadataStorage::new();
         let message_storage = MessageStorage::new();
         return Mqtt5Service {
             metadata_cache,
             subscribe_manager,
             message_storage,
             ack_build,
-            metadata_storage,
             heartbeat_manager,
         };
     }
@@ -107,10 +104,8 @@ impl Mqtt5Service {
         }
 
         // save client session
-        match self
-            .metadata_storage
-            .save_session(client_id.clone(), session.clone())
-        {
+        let session_storage = SessionStorage::new();
+        match session_storage.save_session(client_id.clone(), session.clone()) {
             Ok(_) => {}
             Err(e) => {
                 error(e.to_string());
@@ -171,7 +166,9 @@ impl Mqtt5Service {
         let mut cache = self.metadata_cache.write().await;
         if !cache.topic_exists(&topic_name) {
             cache.set_topic(&topic_name, &topic);
-            match self.metadata_storage.save_topic(&topic_name, &topic) {
+
+            let topic_storage = TopicStorage::new();
+            match topic_storage.save_topic(&topic_name, &topic) {
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());

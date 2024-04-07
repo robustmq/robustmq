@@ -1,5 +1,10 @@
-use super::{cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User};
-use bytes::Bytes;
+use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
+
+use super::{
+    cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User,
+    AvailableFlag,
+};
+use common_base::log::error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 #[derive(Clone, Serialize, Deserialize)]
@@ -22,7 +27,7 @@ pub struct MetadataChangeData {
     pub value: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct MetadataCache {
     pub cluster_info: Cluster,
     pub user_info: HashMap<String, User>,
@@ -35,17 +40,57 @@ pub struct MetadataCache {
 
 impl MetadataCache {
     pub fn new() -> Self {
-        return MetadataCache {
-            user_info: HashMap::new(),
-            session_info: HashMap::new(),
-            cluster_info: Cluster::default(),
-            topic_info: HashMap::new(),
-            subscriber_info: HashMap::new(),
-            connect_id_info: HashMap::new(),
-            login_info: HashMap::new(),
-        };
+        let mut cache = MetadataCache::default();
+        cache.load_cache();
+        return cache;
     }
 
+    pub fn load_cache(&mut self) {
+        let cluster_storage = ClusterStorage::new();
+        self.cluster_info = match cluster_storage.get_cluster_config() {
+            Ok(cluster) => cluster,
+            Err(e) => {
+                panic!(
+                    "Failed to load the cluster configuration with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+
+        let user_storage = UserStorage::new();
+        self.user_info = match user_storage.user_list() {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the user list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+
+        //todo session
+        self.session_info = HashMap::new();
+
+        let topic_storage = TopicStorage::new();
+        
+
+        // self.cluster_info = Cluster::ne
+    }
+
+    pub fn default_config(&self) -> Cluster {
+        return Cluster {
+            session_expiry_interval: 60,
+            topic_alias_max: 256,
+            max_qos: Some(2),
+            retain_available: AvailableFlag::Disable,
+            wildcard_subscription_available: AvailableFlag::Disable,
+            max_packet_size: 10485760,
+            subscription_identifiers_available: AvailableFlag::Disable,
+            shared_subscription_available: AvailableFlag::Disable,
+            server_keep_alive: 120,
+            receive_max: Some(65535),
+        };
+    }
     pub fn apply(&mut self, data: String) {
         let data: MetadataChangeData = serde_json::from_str(&data).unwrap();
         match data.data_type {
