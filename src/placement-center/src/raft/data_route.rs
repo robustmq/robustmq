@@ -1,6 +1,6 @@
 use super::storage::{StorageData, StorageDataType};
 use crate::{
-    cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
+    cache::{cluster::ClusterCache, engine::EngineCache},
     controller::engine::segment_replica::SegmentReplicaAlgorithm,
     storage::{
         cluster::{ClusterInfo, ClusterStorage},
@@ -17,13 +17,17 @@ use common_base::{
     tools::{now_mills, unique_id},
 };
 use prost::Message as _;
-use protocol::placement_center::generate::{common::ClusterType, engine::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, placement::{RegisterNodeRequest, UnRegisterNodeRequest}};
+use protocol::placement_center::generate::{
+    engine::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest},
+    kv::{DeleteRequest, SetRequest},
+    placement::{RegisterNodeRequest, UnRegisterNodeRequest},
+};
 use std::sync::{Arc, RwLock};
 use tonic::Status;
 
 pub struct DataRoute {
-    engine_cache: Arc<RwLock<EngineClusterCache>>,
-    broker_cache: Arc<RwLock<BrokerClusterCache>>,
+    cluster_cache: Arc<RwLock<ClusterCache>>,
+    engine_cache: Arc<RwLock<EngineCache>>,
     node_storage: NodeStorage,
     cluster_storage: ClusterStorage,
     shard_storage: ShardStorage,
@@ -35,18 +39,18 @@ pub struct DataRoute {
 impl DataRoute {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        engine_cache: Arc<RwLock<EngineClusterCache>>,
-        broker_cache: Arc<RwLock<BrokerClusterCache>>,
+        cluster_cache: Arc<RwLock<ClusterCache>>,
+        engine_cache: Arc<RwLock<EngineCache>>,
     ) -> DataRoute {
         let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
         let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
         let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
         let kv_storage = KvStorage::new(rocksdb_engine_handler);
-        let repcli_algo = SegmentReplicaAlgorithm::new(engine_cache.clone());
+        let repcli_algo = SegmentReplicaAlgorithm::new(cluster_cache.clone(), engine_cache.clone());
         return DataRoute {
+            cluster_cache,
             engine_cache,
-            broker_cache,
             node_storage,
             cluster_storage,
             shard_storage,
@@ -102,37 +106,31 @@ impl DataRoute {
             node_ip: req.node_ip,
             node_port: req.node_port,
             cluster_name: cluster_name.clone(),
+            cluster_type: cluster_type.as_str_name().to_string(),
             create_time: now_mills(),
         };
 
-        if cluster_type == ClusterType::MqttBrokerServer {
-            // todo
+        // update cluster
+        let mut sc = self.cluster_cache.write().unwrap();
+        if !sc.cluster_list.contains_key(&cluster_name) {
+            let cluster_info = ClusterInfo {
+                cluster_uid: unique_id(),
+                cluster_name: cluster_name.clone(),
+                cluster_type: cluster_type.as_str_name().to_string(),
+                nodes: vec![req.node_id],
+                create_time: now_mills(),
+            };
+            sc.add_cluster(cluster_info.clone());
+            self.cluster_storage.save_cluster(cluster_info);
+            self.cluster_storage.save_all_cluster(cluster_name.clone());
+        } else {
+            sc.add_cluster_node(cluster_name.clone(), node.node_id);
+            self.cluster_storage
+                .add_cluster_node(&cluster_name, node.node_id);
         }
 
-        // Update the information in the StorageEngine cache
-        if cluster_type == ClusterType::StorageEngine {
-            // update cluster
-            let mut sc = self.engine_cache.write().unwrap();
-            if !sc.cluster_list.contains_key(&cluster_name) {
-                let cluster_info = ClusterInfo {
-                    cluster_uid: unique_id(),
-                    cluster_name: cluster_name.clone(),
-                    cluster_type: cluster_type.as_str_name().to_string(),
-                    nodes: vec![req.node_id],
-                    create_time: now_mills(),
-                };
-                sc.add_cluster(cluster_info.clone());
-                self.cluster_storage.save_cluster(cluster_info);
-                self.cluster_storage.save_all_cluster(cluster_name.clone());
-            } else {
-                sc.add_cluster_node(cluster_name.clone(), node.node_id);
-                self.cluster_storage
-                    .add_cluster_node(&cluster_name, node.node_id);
-            }
-
-            // update node
-            sc.add_node(node.clone());
-        }
+        // update node
+        sc.add_node(node.clone());
 
         self.node_storage.save_node(
             cluster_name.clone(),
@@ -152,16 +150,9 @@ impl DataRoute {
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
-
-        if cluster_type.eq(&ClusterType::MqttBrokerServer) {
-            // todo
-        }
-
-        if cluster_type.eq(&ClusterType::StorageEngine) {
-            let mut sc = self.engine_cache.write().unwrap();
-            sc.remove_cluster_node(cluster_name.clone(), node_id);
-            sc.remove_node(cluster_name.clone(), node_id);
-        }
+        let mut sc = self.cluster_cache.write().unwrap();
+        sc.remove_cluster_node(cluster_name.clone(), node_id);
+        sc.remove_node(cluster_name.clone(), node_id);
 
         self.node_storage.delete_node(&cluster_name, node_id);
         self.cluster_storage
@@ -300,16 +291,18 @@ impl DataRoute {
 mod tests {
     use std::sync::{Arc, RwLock};
 
+    use super::DataRoute;
     use crate::{
-        cache::{broker::BrokerClusterCache, engine::EngineClusterCache},
+        cache::{cluster::ClusterCache, engine::EngineCache},
         storage::{
             cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
         },
     };
     use common_base::config::placement_center::PlacementCenterConfig;
     use prost::Message as _;
-    use protocol::placement_center::generate::{common::ClusterType, placement::RegisterNodeRequest};
-    use super::DataRoute;
+    use protocol::placement_center::generate::{
+        common::ClusterType, placement::RegisterNodeRequest,
+    };
 
     #[test]
     fn register_unregister_node() {
@@ -329,10 +322,10 @@ mod tests {
 
         let rocksdb_engine = Arc::new(RocksDBEngine::new(&PlacementCenterConfig::default()));
 
-        let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
-        let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
+        let cluster_cache = Arc::new(RwLock::new(ClusterCache::new()));
+        let engine_cache = Arc::new(RwLock::new(EngineCache::new()));
 
-        let mut route = DataRoute::new(rocksdb_engine.clone(), engine_cache, broker_cache);
+        let mut route = DataRoute::new(rocksdb_engine.clone(), cluster_cache, engine_cache);
         let _ = route.register_node(data);
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());

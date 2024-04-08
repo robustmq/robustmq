@@ -1,16 +1,14 @@
-use crate::cache::broker::BrokerClusterCache;
+use crate::cache::cluster::ClusterCache;
 use std::sync::{Arc, RwLock};
 
 #[derive(Default, Clone)]
 pub struct BrokerServerController {
-    pub broker_cache: Arc<RwLock<BrokerClusterCache>>,
+    pub cluster_cache: Arc<RwLock<ClusterCache>>,
 }
 
 impl BrokerServerController {
-    pub fn new(broker_cache: Arc<RwLock<BrokerClusterCache>>) -> BrokerServerController {
-        let mut bsc = BrokerServerController::default();
-        bsc.broker_cache = broker_cache;
-        return bsc;
+    pub fn new(cluster_cache: Arc<RwLock<ClusterCache>>) -> BrokerServerController {
+        return BrokerServerController { cluster_cache };
     }
 
     pub async fn start(&self) {}

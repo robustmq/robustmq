@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::cache::engine::EngineClusterCache;
+use crate::cache::cluster::ClusterCache;
 use crate::cache::placement::PlacementClusterCache;
 use crate::raft::storage::PlacementCenterStorage;
 use crate::storage::global_id::GlobalId;
@@ -22,7 +22,7 @@ use clients::placement_center::placement::{register_node, unregister_node};
 use clients::ClientPool;
 use common_base::errors::RobustMQError;
 use prost::Message;
-use protocol::placement_center::generate::common::{ClusterType, CommonReply, GenerageIdType};
+use protocol::placement_center::generate::common::{CommonReply, GenerageIdType};
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::generate::placement::{
     GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest, HeartbeatRequest, RegisterNodeRequest,
@@ -38,7 +38,7 @@ use tonic::{Request, Response, Status};
 pub struct GrpcPlacementService {
     placement_center_storage: Arc<PlacementCenterStorage>,
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
-    engine_cache: Arc<RwLock<EngineClusterCache>>,
+    cluster_cache: Arc<RwLock<ClusterCache>>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
@@ -47,14 +47,14 @@ impl GrpcPlacementService {
     pub fn new(
         placement_center_storage: Arc<PlacementCenterStorage>,
         placement_cache: Arc<RwLock<PlacementClusterCache>>,
-        engine_cache: Arc<RwLock<EngineClusterCache>>,
+        cluster_cache: Arc<RwLock<ClusterCache>>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_poll: Arc<Mutex<ClientPool>>,
     ) -> Self {
         GrpcPlacementService {
             placement_center_storage,
             placement_cache,
-            engine_cache,
+            cluster_cache,
             rocksdb_engine_handler,
             client_poll,
         }
@@ -132,14 +132,8 @@ impl PlacementCenterService for GrpcPlacementService {
             .as_millis();
         let cluster_type = req.cluster_type();
 
-        if cluster_type.eq(&ClusterType::MqttBrokerServer) {
-            //todo
-        }
-
-        if cluster_type.eq(&ClusterType::StorageEngine) {
-            let mut sc = self.engine_cache.write().unwrap();
-            sc.heart_time(req.node_id, time);
-        }
+        let mut sc = self.cluster_cache.write().unwrap();
+        sc.heart_time(req.node_id, time);
 
         return Ok(Response::new(CommonReply::default()));
     }
