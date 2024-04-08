@@ -1,2 +1,42 @@
 #!/bin/sh
-../libs/placement-center --conf=../config/placement-center.toml
+workdir=$(cd $(dirname $0); pwd)
+mkdir -p ${workdir}/../logs
+action=$1
+conf=$2
+if [[ -z $action ]]
+then
+ echo "Pleasemake sure the positon variable is start or stop."
+ exit
+fi
+
+if [ $action = "start" ]
+  then
+    if [[ -z $conf ]]
+    then
+        conf=${workdir}/../config/placement-center.toml
+    fi
+    echo "config:$conf"
+    echo "placement center is starting...."
+    nohup ${workdir}/../libs/placement-center --conf=$conf >> ${workdir}/../logs/placement-center-nohub.log 2>&1 &
+    num=` ps -ef | grep placement-center | grep -v grep | wc -l`
+    if [ $num -gt 1 ]
+    then
+        echo "placement center started successfully."
+    fi
+  elif [ $action = "stop" ]
+  then
+
+    no=`ps -ef | grep placement-center  | grep conf | grep -v grep | awk '{print $2}'`
+    if [[ -n $no ]]
+    then
+        echo "Currently running process number: $no"
+        kill $no
+        num=`ps -ef | grep placement-center | grep conf | grep -v grep | wc -l`
+        if [ $num -eq 0 ]
+        then
+            echo "placement center stop successfully."
+        fi
+    fi
+  else
+    echo "Pleasemake sure the positon variable is start or stop."
+fi

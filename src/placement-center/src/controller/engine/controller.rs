@@ -1,5 +1,6 @@
+use super::{heartbeat::StorageEngineNodeHeartBeat, preferred_election::PreferredElection};
 use crate::{
-    cache::engine::EngineClusterCache,
+    cache::{cluster::ClusterCache, engine::EngineCache},
     raft::storage::PlacementCenterStorage,
     storage::{
         cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
@@ -9,10 +10,9 @@ use common_base::{config::placement_center::placement_center_conf, log::info_met
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 
-use super::{heartbeat::StorageEngineNodeHeartBeat, preferred_election::PreferredElection};
-
 pub struct StorageEngineController {
-    engine_cache: Arc<RwLock<EngineClusterCache>>,
+    cluster_cache: Arc<RwLock<ClusterCache>>,
+    engine_cache: Arc<RwLock<EngineCache>>,
     placement_center_storage: Arc<PlacementCenterStorage>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
@@ -20,12 +20,14 @@ pub struct StorageEngineController {
 
 impl StorageEngineController {
     pub fn new(
-        engine_cache: Arc<RwLock<EngineClusterCache>>,
+        cluster_cache: Arc<RwLock<ClusterCache>>,
+        engine_cache: Arc<RwLock<EngineCache>>,
         placement_center_storage: Arc<PlacementCenterStorage>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_send: broadcast::Sender<bool>,
     ) -> StorageEngineController {
         let controller = StorageEngineController {
+            cluster_cache,
             engine_cache,
             placement_center_storage,
             rocksdb_engine_handler,
@@ -46,7 +48,8 @@ impl StorageEngineController {
         let cluster_handler = ClusterStorage::new(self.rocksdb_engine_handler.clone());
         let cluster_list = cluster_handler.all_cluster();
 
-        let mut engine = self.engine_cache.write().unwrap();
+        let mut engine_cache = self.engine_cache.write().unwrap();
+        let mut cluster_cache = self.cluster_cache.write().unwrap();
         let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
         let shard_handler = ShardStorage::new(self.rocksdb_engine_handler.clone());
 
@@ -54,22 +57,22 @@ impl StorageEngineController {
             let cluster_name = cluster.cluster_name.clone();
 
             // load cluster cache
-            engine.add_cluster(cluster.clone());
+            cluster_cache.add_cluster(cluster.clone());
 
             // load node cache
             let node_list = node_handler.node_list(cluster_name.clone());
             for node in node_list {
-                engine.add_node(node);
+                cluster_cache.add_node(node);
             }
 
             // load shard cache
             let shard_list = shard_handler.shard_list(cluster_name.clone());
             for shard in shard_list {
-                engine.add_shard(shard.clone());
+                engine_cache.add_shard(shard.clone());
                 let segment_list =
                     shard_handler.segment_list(cluster_name.clone(), shard.shard_name);
                 for segment in segment_list {
-                    engine.add_segment(segment);
+                    engine_cache.add_segment(segment);
                 }
             }
         }
@@ -82,7 +85,7 @@ impl StorageEngineController {
         let mut heartbeat = StorageEngineNodeHeartBeat::new(
             config.heartbeat_timeout_ms.into(),
             config.heartbeat_check_time_ms,
-            self.engine_cache.clone(),
+            self.cluster_cache.clone(),
             self.placement_center_storage.clone(),
             stop_recv,
         );

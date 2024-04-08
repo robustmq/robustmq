@@ -1,9 +1,9 @@
 use super::{
     placement_center::{metrics, placement_center},
-    storage_engine::{shard_info, shard_list, storage_engine},
+    storage_engine::{clusters, shard_info, shard_list, storage_engine},
 };
 use crate::{
-    cache::{engine::EngineClusterCache, placement::PlacementClusterCache},
+    cache::{cluster::ClusterCache, engine::EngineCache, placement::PlacementClusterCache},
     storage::raft::RaftMachineStorage,
 };
 use axum::routing::get;
@@ -15,6 +15,7 @@ use std::{
 };
 
 pub const ROUTE_ROOT: &str = "/";
+pub const CLUSTER: &str = "/clusters";
 pub const STORAGE_ENGINE: &str = "/storage-engine";
 pub const STORAGE_ENGINE_SHARD_LIST: &str = "/storage-engine/shard-list";
 pub const STORAGE_ENGINE_SHARD_INFO: &str = "/storage-engine/shard-info";
@@ -24,18 +25,21 @@ pub const ROUTE_METRICS: &str = "/metrics";
 pub struct HttpServerState {
     pub placement_cache: Arc<RwLock<PlacementClusterCache>>,
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
-    pub engine_cache: Arc<RwLock<EngineClusterCache>>,
+    pub cluster_cache: Arc<RwLock<ClusterCache>>,
+    pub engine_cache: Arc<RwLock<EngineCache>>,
 }
 
 impl HttpServerState {
     pub fn new(
         placement_cache: Arc<RwLock<PlacementClusterCache>>,
         raft_storage: Arc<RwLock<RaftMachineStorage>>,
-        engine_cache: Arc<RwLock<EngineClusterCache>>,
+        cluster_cache: Arc<RwLock<ClusterCache>>,
+        engine_cache: Arc<RwLock<EngineCache>>,
     ) -> Self {
         return Self {
             placement_cache,
             raft_storage,
+            cluster_cache,
             engine_cache,
         };
     }
@@ -56,6 +60,7 @@ pub async fn start_http_server(state: HttpServerState) {
 fn routes(state: HttpServerState) -> Router {
     let meta = Router::new()
         .route(ROUTE_ROOT, get(placement_center))
+        .route(CLUSTER, get(clusters))
         .route(STORAGE_ENGINE, get(storage_engine))
         .route(STORAGE_ENGINE_SHARD_LIST, get(shard_list))
         .route(STORAGE_ENGINE_SHARD_INFO, get(shard_info))

@@ -4,7 +4,8 @@ grpc_port = 2228
 prometheus_port = 2229
 nodes = { 1 = "127.0.0.1:2228" }
 runtime_work_threads = 100
-placement_center = ["14.103.42.35:1228"]
+# placement_center = ["14.103.42.35:1228"]
+placement_center = ["127.0.0.1:1228"]
 data_path = [
     "/tmp/robust/storage-engine/storage/data1",
     "/tmp/robust/storage-engine/storage/data2",

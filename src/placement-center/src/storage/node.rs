@@ -14,6 +14,7 @@ pub struct NodeInfo {
     pub node_ip: String,
     pub node_port: u32,
     pub cluster_name: String,
+    pub cluster_type: String,
     pub create_time: u128,
 }
 

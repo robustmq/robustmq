@@ -1,2 +1,42 @@
 #!/bin/sh
-../libs/storage-engine --conf=../config/storage-engine.toml
+workdir=$(cd $(dirname $0); pwd)
+mkdir -p ${workdir}/../logs
+action=$1
+conf=$2
+if [[ -z $action ]]
+then
+ echo "Pleasemake sure the positon variable is start or stop."
+ exit
+fi
+
+if [ $action = "start" ]
+  then
+    if [[ -z $conf ]]
+    then
+        conf=${workdir}/../config/storage-engine.toml
+    fi
+    echo "config:$conf"
+    echo "storage engine is starting...."
+    nohup ${workdir}/../libs/storage-engine --conf=$conf >> ${workdir}/../logs/storage-engine-nohub.log 2>&1 &
+    num=` ps -ef | grep storage-engine | grep -v grep | wc -l`
+    if [ $num -gt 1 ]
+    then
+        echo "storage engine started successfully."
+    fi
+  elif [ $action = "stop" ]
+  then
+
+    no=`ps -ef | grep storage-engine  | grep conf | grep -v grep | awk '{print $2}'`
+    if [[ -n $no ]]
+    then
+        echo "Currently running process number: $no"
+        kill $no
+        num=`ps -ef | grep storage-engine | grep conf | grep -v grep | wc -l`
+        if [ $num -eq 0 ]
+        then
+            echo "storage engine stop successfully."
+        fi
+    fi
+  else
+    echo "Pleasemake sure the positon variable is start or stop."
+fi

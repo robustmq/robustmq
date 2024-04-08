@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use self::server::peer::{PeerMessage, PeersManager};
-use cache::broker::BrokerClusterCache;
-use cache::engine::EngineClusterCache;
+use cache::cluster::ClusterCache;
+use cache::engine::EngineCache;
 use cache::placement::{Node, PlacementClusterCache};
 use clients::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
@@ -51,9 +51,9 @@ pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,
     daemon_runtime: Arc<Runtime>,
     // Cache metadata information for the Storage Engine cluster
-    engine_cache: Arc<RwLock<EngineClusterCache>>,
+    cluster_cache: Arc<RwLock<ClusterCache>>,
     // Cache metadata information for the Broker Server cluster
-    broker_cache: Arc<RwLock<BrokerClusterCache>>,
+    engine_cache: Arc<RwLock<EngineCache>>,
     // Cache metadata information for the Placement Cluster cluster
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     // Global implementation of Raft state machine data storage
@@ -76,8 +76,8 @@ impl PlacementCenter {
             config.runtime_work_threads,
         ));
 
-        let engine_cache = Arc::new(RwLock::new(EngineClusterCache::new()));
-        let broker_cache = Arc::new(RwLock::new(BrokerClusterCache::new()));
+        let engine_cache = Arc::new(RwLock::new(EngineCache::new()));
+        let cluster_cache = Arc::new(RwLock::new(ClusterCache::new()));
         let placement_cache = Arc::new(RwLock::new(PlacementClusterCache::new(
             Node::new(config.addr.clone(), config.node_id, config.grpc_port),
             config.nodes.clone(),
@@ -94,8 +94,8 @@ impl PlacementCenter {
         return PlacementCenter {
             server_runtime,
             daemon_runtime,
+            cluster_cache,
             engine_cache,
-            broker_cache,
             placement_cache,
             raft_machine_storage,
             rocksdb_engine_handler,
@@ -128,6 +128,7 @@ impl PlacementCenter {
         let state: HttpServerState = HttpServerState::new(
             self.placement_cache.clone(),
             self.raft_machine_storage.clone(),
+            self.cluster_cache.clone(),
             self.engine_cache.clone(),
         );
         self.server_runtime.spawn(async move {
@@ -142,7 +143,7 @@ impl PlacementCenter {
         let placement_handler = GrpcPlacementService::new(
             placement_center_storage.clone(),
             self.placement_cache.clone(),
-            self.engine_cache.clone(),
+            self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
             self.client_poll.clone(),
         );
@@ -180,6 +181,7 @@ impl PlacementCenter {
         stop_send: broadcast::Sender<bool>,
     ) {
         let ctrl = StorageEngineController::new(
+            self.cluster_cache.clone(),
             self.engine_cache.clone(),
             placement_center_storage,
             self.rocksdb_engine_handler.clone(),
@@ -192,7 +194,7 @@ impl PlacementCenter {
 
     // Start Broker Server Cluster Controller
     pub fn start_broker_controller(&self) {
-        let broker_cache = self.broker_cache.clone();
+        let broker_cache = self.cluster_cache.clone();
         self.daemon_runtime.spawn(async move {
             let ctrl = BrokerServerController::new(broker_cache);
             ctrl.start().await;
@@ -209,8 +211,8 @@ impl PlacementCenter {
     ) {
         let data_route = Arc::new(RwLock::new(DataRoute::new(
             self.rocksdb_engine_handler.clone(),
+            self.cluster_cache.clone(),
             self.engine_cache.clone(),
-            self.broker_cache.clone(),
         )));
 
         let mut raft: RaftMachine = RaftMachine::new(

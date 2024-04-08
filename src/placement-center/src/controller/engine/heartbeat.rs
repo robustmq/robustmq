@@ -1,4 +1,4 @@
-use crate::{cache::engine::EngineClusterCache, raft::storage::PlacementCenterStorage};
+use crate::{cache::cluster::ClusterCache, raft::storage::PlacementCenterStorage};
 use common_base::log::{error_meta, info_meta};
 use protocol::placement_center::generate::{common::ClusterType, placement::UnRegisterNodeRequest};
 use std::{
@@ -11,7 +11,7 @@ use tokio::sync::broadcast;
 pub struct StorageEngineNodeHeartBeat {
     timeout_ms: u128,
     check_time_ms: u64,
-    engine_cache: Arc<RwLock<EngineClusterCache>>,
+    cluster_cache: Arc<RwLock<ClusterCache>>,
     placement_center_storage: Arc<PlacementCenterStorage>,
     stop_recv: broadcast::Receiver<bool>,
 }
@@ -20,14 +20,14 @@ impl StorageEngineNodeHeartBeat {
     pub fn new(
         timeout_ms: u128,
         check_time_ms: u64,
-        engine_cache: Arc<RwLock<EngineClusterCache>>,
+        cluster_cache: Arc<RwLock<ClusterCache>>,
         placement_center_storage: Arc<PlacementCenterStorage>,
         stop_recv: broadcast::Receiver<bool>,
     ) -> Self {
         return StorageEngineNodeHeartBeat {
             timeout_ms,
             check_time_ms,
-            engine_cache,
+            cluster_cache,
             placement_center_storage,
             stop_recv,
         };
@@ -50,7 +50,7 @@ impl StorageEngineNodeHeartBeat {
                 .unwrap()
                 .as_millis();
 
-            let ec = self.engine_cache.read().unwrap();
+            let ec = self.cluster_cache.read().unwrap();
             let node_list = ec.node_list.clone();
             let node_heartbeat = ec.node_heartbeat.clone();
             let cluster_list = ec.cluster_list.clone();
@@ -89,7 +89,7 @@ impl StorageEngineNodeHeartBeat {
                         }
                     }
                 } else {
-                    let mut ec = self.engine_cache.write().unwrap();
+                    let mut ec = self.cluster_cache.write().unwrap();
                     ec.heart_time(node_id, time);
                 }
             }
