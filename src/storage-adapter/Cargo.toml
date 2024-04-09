@@ -10,3 +10,7 @@ bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
 common-base.workspace = true
+clients.workspace =true
+protocol.workspace =true
+tokio.workspace =true
+tokio-util.workspace =true

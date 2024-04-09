@@ -5,6 +5,7 @@ use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, CreateUserReply, CreateUserRequest,
     UpdateCacheReply, UpdateCacheRequest,
 };
+use storage_adapter::adapter::placement::PlacementStorageAdapter;
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 
@@ -15,11 +16,18 @@ use crate::{
 
 pub struct GrpcBrokerServices {
     metadata_cache: Arc<RwLock<MetadataCache>>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl GrpcBrokerServices {
-    pub fn new(metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
-        return GrpcBrokerServices { metadata_cache };
+    pub fn new(
+        metadata_cache: Arc<RwLock<MetadataCache>>,
+        storage_adapter: Arc<PlacementStorageAdapter>,
+    ) -> Self {
+        return GrpcBrokerServices {
+            metadata_cache,
+            storage_adapter,
+        };
     }
 }
 
@@ -56,8 +64,8 @@ impl MqttBrokerService for GrpcBrokerServices {
             username: req.username,
             password: req.password,
         };
-        let user_storage = UserStorage::new();
-        match user_storage.save_user(user_info) {
+        let user_storage = UserStorage::new(self.storage_adapter.clone());
+        match user_storage.save_user(user_info).await {
             Ok(_) => {
                 return Ok(Response::new(CreateUserReply::default()));
             }

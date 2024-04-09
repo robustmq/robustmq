@@ -21,15 +21,16 @@ use protocol::mqtt::{
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
+use storage_adapter::adapter::placement::PlacementStorageAdapter;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Mqtt5Service {
     metadata_cache: Arc<RwLock<MetadataCache>>,
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
-    message_storage: MessageStorage,
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl Mqtt5Service {
@@ -38,14 +39,14 @@ impl Mqtt5Service {
         subscribe_manager: Arc<RwLock<SubScribeManager>>,
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+        storage_adapter: Arc<PlacementStorageAdapter>,
     ) -> Self {
-        let message_storage = MessageStorage::new();
         return Mqtt5Service {
             metadata_cache,
             subscribe_manager,
-            message_storage,
             ack_build,
             heartbeat_manager,
+            storage_adapter,
         };
     }
 
@@ -88,9 +89,11 @@ impl Mqtt5Service {
                 last_will,
                 last_will_properties,
             };
-            match self
-                .message_storage
+
+            let message_storage = MessageStorage::new(self.storage_adapter.clone());
+            match message_storage
                 .save_lastwill(client_id.clone(), last_will)
+                .await
             {
                 Ok(_) => {}
                 Err(e) => {
@@ -104,8 +107,11 @@ impl Mqtt5Service {
         }
 
         // save client session
-        let session_storage = SessionStorage::new();
-        match session_storage.save_session(client_id.clone(), session.clone()) {
+        let session_storage = SessionStorage::new(self.storage_adapter.clone());
+        match session_storage
+            .save_session(client_id.clone(), session.clone())
+            .await
+        {
             Ok(_) => {}
             Err(e) => {
                 error(e.to_string());
@@ -167,8 +173,8 @@ impl Mqtt5Service {
         if !cache.topic_exists(&topic_name) {
             cache.set_topic(&topic_name, &topic);
 
-            let topic_storage = TopicStorage::new();
-            match topic_storage.save_topic(&topic_name, &topic) {
+            let topic_storage = TopicStorage::new(self.storage_adapter.clone());
+            match topic_storage.save_topic(&topic_name, &topic).await {
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
@@ -182,9 +188,10 @@ impl Mqtt5Service {
         // Persisting stores message data
         let message = Message::build_message(publish.clone(), publish_properties.clone());
         let message_id;
-        match self
-            .message_storage
+        let message_storage = MessageStorage::new(self.storage_adapter.clone());
+        match message_storage
             .append_topic_message(topic.topic_id, message)
+            .await
         {
             Ok(da) => {
                 message_id = da;

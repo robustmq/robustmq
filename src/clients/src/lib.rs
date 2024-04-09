@@ -26,7 +26,9 @@ pub mod broker_server;
 pub mod placement_center;
 pub mod storage_engine;
 
+const MAX_RETRY_TIMES: u64 = 16;
 pub struct ClientPool {
+    ip_max_num: u64,
     placement_service_pools: HashMap<String, Pool<PlacementServiceManager>>,
     engine_service_pools: HashMap<String, Pool<EngineServiceManager>>,
     kv_service_pools: HashMap<String, Pool<KvServiceManager>>,
@@ -35,6 +37,7 @@ pub struct ClientPool {
 impl Clone for ClientPool {
     fn clone(&self) -> Self {
         Self {
+            ip_max_num: self.ip_max_num,
             placement_service_pools: self.placement_service_pools.clone(),
             engine_service_pools: self.engine_service_pools.clone(),
             kv_service_pools: self.kv_service_pools.clone(),
@@ -43,11 +46,12 @@ impl Clone for ClientPool {
 }
 
 impl ClientPool {
-    pub fn new() -> Self {
+    pub fn new(ip_max_num: u64) -> Self {
         let placement_center_pools = HashMap::new();
         let engine_service_pools = HashMap::new();
         let kv_service_pools = HashMap::new();
         Self {
+            ip_max_num,
             placement_service_pools: placement_center_pools,
             engine_service_pools,
             kv_service_pools,
@@ -60,7 +64,7 @@ impl ClientPool {
     ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
         if !self.placement_service_pools.contains_key(&addr) {
             let manager = PlacementServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(3).build(manager);
+            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
             self.placement_service_pools
                 .insert(addr.clone(), pool.clone());
         }
@@ -83,7 +87,7 @@ impl ClientPool {
     ) -> Result<EngineServiceClient<Channel>, RobustMQError> {
         if !self.engine_service_pools.contains_key(&addr) {
             let manager = EngineServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(3).build(manager);
+            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
             self.engine_service_pools.insert(addr.clone(), pool.clone());
         }
         if let Some(client) = self.engine_service_pools.get(&addr) {
@@ -105,7 +109,7 @@ impl ClientPool {
     ) -> Result<KvServiceClient<Channel>, RobustMQError> {
         if !self.kv_service_pools.contains_key(&addr) {
             let manager = KvServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(3).build(manager);
+            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
             self.kv_service_pools.insert(addr.clone(), pool.clone());
         }
         if let Some(client) = self.kv_service_pools.get(&addr) {
@@ -123,7 +127,7 @@ impl ClientPool {
 }
 
 pub fn retry_times() -> u64 {
-    return 16;
+    return MAX_RETRY_TIMES;
 }
 
 pub fn retry_sleep_time(times: u64) -> u64 {
@@ -145,7 +149,7 @@ mod tests {
 
     #[tokio::test]
     async fn conects() {
-        let mut pool = ClientPool::new();
+        let mut pool = ClientPool::new(3);
         let addr = "127.0.0.1:2193".to_string();
         match pool.get_placement_services_client(addr).await {
             Ok(mut client) => {
