@@ -40,7 +40,7 @@ pub async fn engine_client(
     }
 }
 
-pub async fn client_client(
+pub async fn kv_client(
     client_poll: Arc<Mutex<ClientPool>>,
     addr: String,
 ) -> Result<KvServiceClient<Channel>, RobustMQError> {

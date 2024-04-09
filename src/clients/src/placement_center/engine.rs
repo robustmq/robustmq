@@ -1,14 +1,11 @@
 use std::{sync::Arc, time::Duration};
-
 use common_base::{errors::RobustMQError, log::error_meta};
 use protocol::placement_center::generate::{
     common::CommonReply,
     engine::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest},
 };
 use tokio::{sync::Mutex, time::sleep};
-
-use crate::{retry_times, ClientPool};
-
+use crate::{retry_sleep_time, retry_times, ClientPool};
 use super::manager::engine_client;
 
 pub async fn create_shard(
@@ -36,7 +33,7 @@ pub async fn create_shard(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }
@@ -108,7 +105,7 @@ pub async fn create_segment(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }
@@ -144,7 +141,7 @@ pub async fn delete_segment(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }

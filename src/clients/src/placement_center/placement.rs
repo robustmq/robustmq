@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::{retry_times, ClientPool};
+use crate::{retry_sleep_time, retry_times, ClientPool};
 use common_base::{errors::RobustMQError, log::error_meta};
 use protocol::placement_center::generate::{
     common::CommonReply,
@@ -52,7 +52,7 @@ pub async fn register_node(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }
@@ -88,7 +88,7 @@ pub async fn unregister_node(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }
@@ -121,7 +121,7 @@ pub async fn heartbeat(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }
@@ -158,7 +158,7 @@ pub async fn send_raft_message(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }
@@ -195,7 +195,7 @@ pub async fn send_raft_conf_change(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }

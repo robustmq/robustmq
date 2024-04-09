@@ -5,7 +5,7 @@ PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)-release
 
 release:
 	mkdir -p ${BUILD_FOLD}
-	# cargo build --release
+	cargo build --release
 	mkdir -p $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}
 	mkdir -p $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin
 	mkdir -p $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/libs

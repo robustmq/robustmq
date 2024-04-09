@@ -89,7 +89,7 @@ impl PlacementCenter {
             rocksdb_engine_handler.clone(),
         )));
 
-        let client_poll = Arc::new(Mutex::new(ClientPool::new()));
+        let client_poll = Arc::new(Mutex::new(ClientPool::new(3)));
 
         return PlacementCenter {
             server_runtime,

@@ -1,10 +1,9 @@
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
 
-use super::{
-    cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User
-};
+use super::{cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
+use storage_adapter::adapter::placement::PlacementStorageAdapter;
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
     Set,
@@ -25,7 +24,7 @@ pub struct MetadataChangeData {
     pub value: String,
 }
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct MetadataCache {
     pub cluster_info: Cluster,
     pub user_info: HashMap<String, User>,
@@ -34,20 +33,28 @@ pub struct MetadataCache {
     pub subscriber_info: HashMap<String, Subscriber>,
     pub connect_id_info: HashMap<u64, String>,
     pub login_info: HashMap<u64, bool>,
+    pub storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl MetadataCache {
-    pub fn new() -> Self {
-        let mut cache = MetadataCache::default();
-        // cache.load_cache();
+    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
+        let cache = MetadataCache {
+            cluster_info: Cluster::default(),
+            user_info: HashMap::new(),
+            session_info: HashMap::new(),
+            topic_info: HashMap::new(),
+            subscriber_info: HashMap::new(),
+            connect_id_info: HashMap::new(),
+            login_info: HashMap::new(),
+            storage_adapter,
+        };
         return cache;
     }
 
-    pub fn load_cache(&mut self) {
-        
+    pub async fn load_cache(&mut self) {
         // load cluster config
-        let cluster_storage = ClusterStorage::new();
-        self.cluster_info = match cluster_storage.get_cluster_config() {
+        let cluster_storage = ClusterStorage::new(self.storage_adapter.clone());
+        self.cluster_info = match cluster_storage.get_cluster_config().await {
             Ok(cluster) => cluster,
             Err(e) => {
                 panic!(
@@ -57,9 +64,9 @@ impl MetadataCache {
             }
         };
 
-        // load all user 
-        let user_storage = UserStorage::new();
-        self.user_info = match user_storage.user_list() {
+        // load all user
+        let user_storage = UserStorage::new(self.storage_adapter.clone());
+        self.user_info = match user_storage.user_list().await {
             Ok(list) => list,
             Err(e) => {
                 panic!(
@@ -69,13 +76,13 @@ impl MetadataCache {
             }
         };
 
-        // Not all session information is loaded at startup, only when the client is connected, 
+        // Not all session information is loaded at startup, only when the client is connected,
         // if the clean session is set, it will check whether the session exists and then update the local cache.
         self.session_info = HashMap::new();
 
         // load user config
-        let topic_storage = TopicStorage::new();
-        self.topic_info = match topic_storage.topic_list(){
+        let topic_storage = TopicStorage::new(self.storage_adapter.clone());
+        self.topic_info = match topic_storage.topic_list().await {
             Ok(list) => list,
             Err(e) => {
                 panic!(
@@ -84,12 +91,11 @@ impl MetadataCache {
                 );
             }
         };
-        
+
         // subscriber, connect, and login are connection-related and don't need to be persisted, so they don't need to be loaded.
         self.subscriber_info = HashMap::new();
         self.connect_id_info = HashMap::new();
         self.login_info = HashMap::new();
-
     }
 
     pub fn apply(&mut self, data: String) {

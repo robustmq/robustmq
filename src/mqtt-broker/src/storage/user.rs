@@ -4,18 +4,17 @@ use super::{
 };
 use crate::metadata::user::User;
 use common_base::errors::RobustMQError;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use storage_adapter::{adapter::placement::PlacementStorageAdapter, storage::StorageAdapter};
 
 pub struct UserStorage {
-    storage_adapter: PlacementStorageAdapter,
+    storage_adapter: Arc<PlacementStorageAdapter>,
     all_info_storage: AllInfoStorage,
 }
 
 impl UserStorage {
-    pub fn new() -> UserStorage {
-        let storage_adapter = PlacementStorageAdapter::new();
-        let all_info_storage = AllInfoStorage::new(all_user_key());
+    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> UserStorage {
+        let all_info_storage = AllInfoStorage::new(all_user_key(), storage_adapter.clone());
         return UserStorage {
             storage_adapter,
             all_info_storage,
@@ -23,16 +22,16 @@ impl UserStorage {
     }
 
     // Saving user information
-    pub fn save_user(&self, user_info: User) -> Result<(), RobustMQError> {
+    pub async fn save_user(&self, user_info: User) -> Result<(), RobustMQError> {
         let username = user_info.username.clone();
         let key = user_key(username.clone());
         match serde_json::to_string(&user_info) {
             Ok(data) => {
-                match self.all_info_storage.add_info_for_all(username) {
+                match self.all_info_storage.add_info_for_all(username).await {
                     Ok(_) => {}
                     Err(e) => return Err(e),
                 }
-                return self.storage_adapter.kv_set(key, data);
+                return self.storage_adapter.kv_set(key, data).await;
             }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
@@ -43,9 +42,9 @@ impl UserStorage {
     }
 
     // Getting user information
-    pub fn get_user(&self, username: String) -> Result<User, RobustMQError> {
+    pub async fn get_user(&self, username: String) -> Result<User, RobustMQError> {
         let key = user_key(username);
-        match self.storage_adapter.kv_get(key) {
+        match self.storage_adapter.kv_get(key).await {
             Ok(data) => match serde_json::from_str(&data) {
                 Ok(da) => {
                     return Ok(da);
@@ -63,12 +62,12 @@ impl UserStorage {
     }
 
     // Getting a list of users
-    pub fn user_list(&self) -> Result<HashMap<String, User>, RobustMQError> {
-        match self.all_info_storage.get_all() {
+    pub async fn user_list(&self) -> Result<HashMap<String, User>, RobustMQError> {
+        match self.all_info_storage.get_all().await {
             Ok(data) => {
                 let mut list = HashMap::new();
                 for username in data {
-                    match self.get_user(username.clone()) {
+                    match self.get_user(username.clone()).await {
                         Ok(user) => {
                             list.insert(username, user);
                         }

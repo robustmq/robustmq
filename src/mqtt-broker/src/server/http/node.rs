@@ -1,11 +1,11 @@
+use super::server::HttpServerState;
+use crate::server::tcp::packet::ResponsePackage;
 use axum::extract::State;
 use bytes::Bytes;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf, http_response::success_response, metrics::dump_metrics,
 };
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
-use crate::server::tcp::packet::ResponsePackage;
-use super::server::HttpServerState;
 
 pub async fn metrics() -> String {
     return dump_metrics();
@@ -18,7 +18,7 @@ pub async fn hearbeat_info(State(state): State<HttpServerState>) -> String {
 
 pub async fn metadata_info(State(state): State<HttpServerState>) -> String {
     let data = state.metadata_cache.read().await;
-    return success_response(data.clone());
+    return success_response(data.cluster_info.clone());
 }
 
 pub async fn subscribe_info(State(state): State<HttpServerState>) -> String {

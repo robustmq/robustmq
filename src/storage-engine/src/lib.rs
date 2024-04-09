@@ -37,7 +37,7 @@ impl StorageEngine {
             create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
-        let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new()));
+        let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(3)));
 
         return StorageEngine {
             config,
