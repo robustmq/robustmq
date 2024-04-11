@@ -13,7 +13,7 @@ use common_base::{
 use flume::{Receiver, Sender};
 use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
 use serde::{Deserialize, Serialize};
-use storage_adapter::adapter::memory::MemoryStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

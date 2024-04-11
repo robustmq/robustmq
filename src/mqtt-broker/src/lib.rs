@@ -31,7 +31,7 @@ use server::{
     tcp::packet::{RequestPackage, ResponsePackage},
 };
 use std::sync::Arc;
-use storage_adapter::adapter::memory::MemoryStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use subscribe::subscribe_manager::SubScribeManager;
 use tokio::{
     runtime::Runtime,

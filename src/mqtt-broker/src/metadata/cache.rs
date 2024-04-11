@@ -3,7 +3,7 @@ use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserSto
 use super::{cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::adapter::memory::MemoryStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
     Set,

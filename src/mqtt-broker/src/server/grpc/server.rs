@@ -5,7 +5,7 @@ use crate::metadata::cache::MetadataCache;
 use super::services::GrpcBrokerServices;
 use common_base::log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
-use storage_adapter::adapter::memory::MemoryStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use tokio::sync::RwLock;
 use tonic::transport::Server;
 

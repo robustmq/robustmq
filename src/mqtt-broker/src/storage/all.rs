@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use common_base::errors::RobustMQError;
-use storage_adapter::{adapter::memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
 
 pub struct AllInfoStorage {
     pub key: String,

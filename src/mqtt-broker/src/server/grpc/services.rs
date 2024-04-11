@@ -5,7 +5,7 @@ use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, CreateUserReply, CreateUserRequest,
     UpdateCacheReply, UpdateCacheRequest,
 };
-use storage_adapter::adapter::memory::MemoryStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 

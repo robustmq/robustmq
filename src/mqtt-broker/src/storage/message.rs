@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::keys::{lastwill_key, retain_message};
 use crate::metadata::{message::Message, session::LastWillData};
 use common_base::errors::RobustMQError;
-use storage_adapter::{adapter::memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
 
 #[derive(Clone)]
 pub struct MessageStorage {

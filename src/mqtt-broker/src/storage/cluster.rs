@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::keys::cluster_config_key;
 use crate::metadata::cluster::Cluster;
 use common_base::errors::RobustMQError;
-use storage_adapter::{adapter::memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
 
 pub struct ClusterStorage {
     storage_adapter: Arc<MemoryStorageAdapter>,

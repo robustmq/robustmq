@@ -21,7 +21,7 @@ use protocol::mqtt::{
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
-use storage_adapter::adapter::memory::MemoryStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]

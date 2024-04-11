@@ -3,7 +3,7 @@ use crate::subscribe::subscribe_manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
-use storage_adapter::adapter::memory::MemoryStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

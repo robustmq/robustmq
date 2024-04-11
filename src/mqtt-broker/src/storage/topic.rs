@@ -5,7 +5,7 @@ use super::{
 use crate::metadata::topic::Topic;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{adapter::memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
 
 pub struct TopicStorage {
     storage_adapter: Arc<MemoryStorageAdapter>,

@@ -42,6 +42,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         info(format!("stream_read"));
         return Ok("".to_string().into_bytes());
     }
+    
     async fn stream_read_next_batch(
         &self,
         shard_name: String,
