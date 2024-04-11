@@ -1,10 +1,7 @@
 use clients::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common_base::{
-    config::storage_engine::{storage_engine_conf, StorageEngineConfig},
-    log::info_meta,
-    metrics::register_prometheus_export,
-    runtime::create_runtime,
+    config::journal_server::{journal_server_conf, JournalServerConfig}, log::info_meta, metrics::register_prometheus_export, runtime::create_runtime
 };
 use server::start_tcp_server;
 use std::sync::Arc;
@@ -24,7 +21,7 @@ mod network;
 mod shard;
 
 pub struct StorageEngine {
-    config: StorageEngineConfig,
+    config: JournalServerConfig,
     stop_send: broadcast::Sender<bool>,
     server_runtime: Runtime,
     daemon_runtime: Runtime,
@@ -33,7 +30,7 @@ pub struct StorageEngine {
 
 impl StorageEngine {
     pub fn new(stop_send: broadcast::Sender<bool>) -> Self {
-        let config = storage_engine_conf().clone();
+        let config = journal_server_conf().clone();
         let server_runtime =
             create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);

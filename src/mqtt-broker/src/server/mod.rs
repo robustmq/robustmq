@@ -13,7 +13,7 @@ use common_base::{
 use flume::{Receiver, Sender};
 use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
 use serde::{Deserialize, Serialize};
-use storage_adapter::adapter::placement::PlacementStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -42,7 +42,7 @@ pub async fn start_mqtt_server(
     cache: Arc<RwLock<MetadataCache>>,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
-    storage_adapter: Arc<PlacementStorageAdapter>,
+    storage_adapter: Arc<MemoryStorageAdapter>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_rx4: Receiver<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,

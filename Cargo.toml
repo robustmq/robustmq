@@ -14,9 +14,9 @@ members = [
     "src/common/rocksdb-engine",
     "src/common/metadata-struct",
     "src/protocol",
-    "src/storage-engine",
+    "src/journal-server",
+    "src/journal-remote",
     "src/storage-adapter",
-    "src/storage-remote",
 ]
 
 resolver = "2"
@@ -63,9 +63,9 @@ amqp-broker = { path = "src/amqp-broker" }
 amqp-plugins = { path = "src/amqp-plugins" }
 placement-center = { path = "src/placement-center" }
 clients = { path = "src/clients" }
-storage-engine = { path = "src/storage-engine" }
+journal-server = { path = "src/journal-server" }
+journal-remote = { path = "src/journal-remote" }
 storage-adapter = { path = "src/storage-adapter" }
-storage-object = { path = "src/storage-remote" }
 cmd = { path = "src/cmd" }
 common-base = { path = "src/common/base" }
 raft-rocksdb = { path = "src/common/raft-rocksdb" }

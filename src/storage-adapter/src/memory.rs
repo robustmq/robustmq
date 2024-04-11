@@ -1,37 +1,19 @@
 use crate::storage::StorageAdapter;
 use axum::async_trait;
-use clients::{placement_center::kv::placement_set, ClientPool};
 use common_base::{errors::RobustMQError, log::info};
-use protocol::placement_center::generate::kv::SetRequest;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 #[derive(Clone)]
-pub struct PlacementStorageAdapter {
-    client_poll: Arc<Mutex<ClientPool>>,
-    addrs: Vec<String>,
-}
+pub struct MemoryStorageAdapter {}
 
-impl PlacementStorageAdapter {
-    pub fn new(client_poll: Arc<Mutex<ClientPool>>, addrs: Vec<String>) -> Self {
-        return PlacementStorageAdapter { client_poll, addrs };
+impl MemoryStorageAdapter {
+    pub fn new() -> Self {
+        return MemoryStorageAdapter {};
     }
 }
 
 #[async_trait]
-impl StorageAdapter for PlacementStorageAdapter {
+impl StorageAdapter for MemoryStorageAdapter {
     async fn kv_set(&self, key: String, value: String) -> Result<(), RobustMQError> {
-        let request = SetRequest { key, value };
-        match placement_set(
-            self.client_poll.clone(),
-            self.addrs.get(0).unwrap().clone(),
-            request,
-        )
-        .await
-        {
-            Ok(da) => {}
-            Err(e) => {}
-        }
         return Ok(());
     }
     async fn kv_get(&self, key: String) -> Result<String, RobustMQError> {
@@ -60,6 +42,7 @@ impl StorageAdapter for PlacementStorageAdapter {
         info(format!("stream_read"));
         return Ok("".to_string().into_bytes());
     }
+    
     async fn stream_read_next_batch(
         &self,
         shard_name: String,

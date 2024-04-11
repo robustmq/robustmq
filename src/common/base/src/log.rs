@@ -29,9 +29,7 @@ use log4rs::{
 };
 
 use crate::config::{
-    broker_mqtt::broker_mqtt_conf,
-    placement_center::{placement_center_conf, PlacementCenterConfig},
-    storage_engine::storage_engine_conf,
+    broker_mqtt::broker_mqtt_conf, journal_server::journal_server_conf, placement_center::placement_center_conf
 };
 
 pub fn info(msg: String) -> () {
@@ -178,8 +176,8 @@ pub fn init_placement_center_log() {
     );
 }
 
-pub fn init_storage_engine_log() {
-    let conf = storage_engine_conf();
+pub fn init_journal_server_log() {
+    let conf = journal_server_conf();
     init_log(
         conf.log_path.clone(),
         conf.log_segment_size,

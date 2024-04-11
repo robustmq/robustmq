@@ -144,8 +144,7 @@ impl TcpServer {
         tokio::spawn(async move {
             while let Ok(resquest_package) = request_queue_rx.recv() {
                 //Business logic processing
-                let services = Services::new();
-                let command = Command::new(resquest_package.packet, services);
+                let command = Command::new(resquest_package.packet);
                 let resp = command.apply();
 
                 // Writes the result of the business logic processing to the return queue

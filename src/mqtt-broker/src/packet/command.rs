@@ -3,7 +3,7 @@ use crate::subscribe::subscribe_manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
-use storage_adapter::adapter::placement::PlacementStorageAdapter;
+use storage_adapter::memory::MemoryStorageAdapter;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -26,7 +26,7 @@ impl Command {
         metadata_cache: Arc<RwLock<MetadataCache>>,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
         subscribe_manager: Arc<RwLock<SubScribeManager>>,
-        storage_adapter: Arc<PlacementStorageAdapter>,
+        storage_adapter: Arc<MemoryStorageAdapter>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
         let mqtt4_service = Mqtt4Service::new(
