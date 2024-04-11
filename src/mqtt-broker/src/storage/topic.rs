@@ -5,7 +5,7 @@ use super::{
 use crate::metadata::topic::Topic;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{memory::MemoryStorageAdapter, message::Message, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 pub struct TopicStorage {
     storage_adapter: Arc<MemoryStorageAdapter>,
@@ -39,7 +39,7 @@ impl TopicStorage {
                 }
                 return self
                     .storage_adapter
-                    .kv_set(key, Message::build_e(data))
+                    .kv_set(key, Record::build_e(data))
                     .await;
             }
             Err(e) => {

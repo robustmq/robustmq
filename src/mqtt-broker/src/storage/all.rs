@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use common_base::errors::RobustMQError;
-use storage_adapter::{memory::MemoryStorageAdapter, message::Message, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 pub struct AllInfoStorage {
     pub key: String,
@@ -25,7 +25,7 @@ impl AllInfoStorage {
             Ok(data) => {
                 return self
                     .storage_adapter
-                    .kv_set(self.key.clone(), Message::build_e(data))
+                    .kv_set(self.key.clone(), Record::build_e(data))
                     .await
             }
             Err(e) => {
@@ -47,7 +47,7 @@ impl AllInfoStorage {
             Ok(data) => {
                 return self
                     .storage_adapter
-                    .kv_set(self.key.clone(), Message::build_e(data))
+                    .kv_set(self.key.clone(), Record::build_e(data))
                     .await
             }
             Err(e) => {

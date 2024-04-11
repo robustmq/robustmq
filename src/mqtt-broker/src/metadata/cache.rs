@@ -86,7 +86,7 @@ impl MetadataCache {
         // if the clean session is set, it will check whether the session exists and then update the local cache.
         self.session_info = HashMap::new();
 
-        // load user config
+        // load topic info
         let topic_storage = TopicStorage::new(self.storage_adapter.clone());
         self.topic_info = match topic_storage.topic_list().await {
             Ok(list) => list,

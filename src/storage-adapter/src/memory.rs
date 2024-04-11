@@ -1,12 +1,12 @@
-use crate::{message::Message, storage::StorageAdapter};
+use crate::{record::Record, storage::StorageAdapter};
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use dashmap::DashMap;
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
-    pub memory_data: DashMap<String, Message>,
-    pub shard_data: DashMap<String, Vec<Message>>,
+    pub memory_data: DashMap<String, Record>,
+    pub shard_data: DashMap<String, Vec<Record>>,
     pub group_data: DashMap<String, usize>,
     pub key_index: DashMap<String, DashMap<String, u128>>,
 }
@@ -34,11 +34,11 @@ impl MemoryStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn kv_set(&self, key: String, value: Message) -> Result<(), RobustMQError> {
+    async fn kv_set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
         self.memory_data.insert(key, value);
         return Ok(());
     }
-    async fn kv_get(&self, key: String) -> Result<Option<Message>, RobustMQError>  {
+    async fn kv_get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
         if let Some(data) = self.memory_data.get(&key) {
             return Ok(Some(data.clone()));
         }
@@ -55,7 +55,7 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn stream_write(
         &self,
         shard_name: String,
-        message: Message,
+        message: Record,
     ) -> Result<usize, RobustMQError> {
         let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_name) {
             da
@@ -76,7 +76,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         group_id: String,
-    ) -> Result<Option<Message>, RobustMQError> {
+    ) -> Result<Option<Record>, RobustMQError> {
         let offset = if let Some(da) = self.group_data.get(&group_id) {
             *da
         } else {
@@ -97,7 +97,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard_name: String,
         group_id: String,
         record_num: usize,
-    ) -> Result<Option<Vec<Message>>, RobustMQError> {
+    ) -> Result<Option<Vec<Record>>, RobustMQError> {
         let offset = if let Some(da) = self.group_data.get(&group_id) {
             *da
         } else {
@@ -126,7 +126,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         offset: usize,
-    ) -> Result<Option<Message>, RobustMQError> {
+    ) -> Result<Option<Record>, RobustMQError> {
         if let Some(da) = self.shard_data.get(&shard_name) {
             if let Some(value) = da.get(offset) {
                 return Ok(Some(value.clone()));
@@ -140,7 +140,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard_name: String,
         start_timestamp: u128,
         end_timestamp: u128,
-    ) -> Result<Option<Vec<Message>>, RobustMQError> {
+    ) -> Result<Option<Vec<Record>>, RobustMQError> {
         return Ok(None);
     }
 
@@ -148,7 +148,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         key: String,
-    ) -> Result<Option<Message>, RobustMQError> {
+    ) -> Result<Option<Record>, RobustMQError> {
         return Ok(None);
     }
 }

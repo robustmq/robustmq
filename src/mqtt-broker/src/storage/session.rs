@@ -2,7 +2,7 @@ use super::keys::{lastwill_key, session_key};
 use crate::metadata::session::Session;
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
-use storage_adapter::{memory::MemoryStorageAdapter, message::Message, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 pub struct SessionStorage {
     storage_adapter: Arc<MemoryStorageAdapter>,
@@ -24,7 +24,7 @@ impl SessionStorage {
             Ok(data) => {
                 return self
                     .storage_adapter
-                    .kv_set(key, Message::build_b(data.as_bytes().to_vec()))
+                    .kv_set(key, Record::build_b(data.as_bytes().to_vec()))
                     .await
             }
             Err(e) => {

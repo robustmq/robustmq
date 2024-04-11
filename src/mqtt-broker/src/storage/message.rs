@@ -2,7 +2,7 @@ use super::keys::{lastwill_key, retain_message};
 use crate::metadata::{message::Message as RetainMessage, session::LastWillData};
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
-use storage_adapter::{memory::MemoryStorageAdapter, message::Message, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 #[derive(Clone)]
 pub struct MessageStorage {
@@ -18,10 +18,10 @@ impl MessageStorage {
     pub async fn append_topic_message(
         &self,
         topic_id: String,
-        message: Message,
+        record: Record,
     ) -> Result<usize, RobustMQError> {
         let shard_name = topic_id;
-        match self.storage_adapter.stream_write(shard_name, message).await {
+        match self.storage_adapter.stream_write(shard_name, record).await {
             Ok(id) => {
                 return Ok(id);
             }
@@ -37,7 +37,7 @@ impl MessageStorage {
         topic_id: String,
         group_id: String,
         record_num: usize,
-    ) -> Result<Vec<Message>, RobustMQError> {
+    ) -> Result<Vec<Record>, RobustMQError> {
         let shard_name = topic_id;
         match self
             .storage_adapter
@@ -68,7 +68,7 @@ impl MessageStorage {
             Ok(data) => {
                 return self
                     .storage_adapter
-                    .kv_set(key, Message::build_e(data))
+                    .kv_set(key, Record::build_e(data))
                     .await
             }
             Err(e) => {
@@ -118,7 +118,7 @@ impl MessageStorage {
             Ok(data) => {
                 return self
                     .storage_adapter
-                    .kv_set(key, Message::build_e(data))
+                    .kv_set(key, Record::build_e(data))
                     .await
             }
             Err(e) => {

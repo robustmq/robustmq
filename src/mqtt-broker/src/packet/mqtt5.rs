@@ -186,21 +186,22 @@ impl Mqtt5Service {
         }
 
         // Persisting stores message data
-        let message = Message::build_message(publish.clone(), publish_properties.clone());
-        let offset;
-        let message_storage = MessageStorage::new(self.storage_adapter.clone());
-        match message_storage
-            .append_topic_message(topic.topic_id, message)
-            .await
-        {
-            Ok(da) => {
-                offset = da;
-            }
-            Err(e) => {
-                error(e.to_string());
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::UnspecifiedError);
+        let mut offset = 0;
+        if let Some(record) = Message::build_record(publish.clone(), publish_properties.clone()) {
+            let message_storage = MessageStorage::new(self.storage_adapter.clone());
+            match message_storage
+                .append_topic_message(topic.topic_id, record)
+                .await
+            {
+                Ok(da) => {
+                    offset = da;
+                }
+                Err(e) => {
+                    error(e.to_string());
+                    return self
+                        .ack_build
+                        .distinct(DisconnectReasonCode::UnspecifiedError);
+                }
             }
         }
 
@@ -210,7 +211,9 @@ impl Mqtt5Service {
         if let Some(properties) = publish_properties {
             user_properties = properties.user_properties;
         }
-        user_properties.push(("offset".to_string(), offset.to_string()));
+        if offset > 0 {
+            user_properties.push(("offset".to_string(), offset.to_string()));
+        }
 
         return self.ack_build.pub_ack(pkid, None, user_properties);
     }
