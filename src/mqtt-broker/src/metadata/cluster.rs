@@ -17,6 +17,10 @@ pub struct Cluster {
 }
 
 impl Cluster {
+
+    pub fn new() ->Self{
+        return Cluster::default();
+    }
     pub fn receive_max(&self) -> Option<u16> {
         return self.receive_max;
     }

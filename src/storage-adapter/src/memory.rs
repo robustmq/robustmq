@@ -1,4 +1,4 @@
-use crate::{message::{self, Message}, storage::StorageAdapter};
+use crate::{message::Message, storage::StorageAdapter};
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use dashmap::DashMap;
@@ -6,8 +6,9 @@ use dashmap::DashMap;
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
     pub memory_data: DashMap<String, Message>,
-    pub shard_data: DashMap<String, Vec<Vec<u8>>>,
+    pub shard_data: DashMap<String, Vec<Message>>,
     pub group_data: DashMap<String, usize>,
+    pub key_index: DashMap<String, DashMap<String, u128>>,
 }
 
 impl MemoryStorageAdapter {
@@ -16,8 +17,19 @@ impl MemoryStorageAdapter {
             memory_data: DashMap::with_capacity(256),
             shard_data: DashMap::with_capacity(256),
             group_data: DashMap::with_capacity(256),
+            key_index: DashMap::with_capacity(256),
         };
     }
+}
+
+impl MemoryStorageAdapter {
+    pub fn create_key_index(&self, shard_name: String, key: String, offset: usize) {}
+
+    pub fn delete_value_index(&self, shard_name: String, key: String) {}
+
+    pub fn create_timestamp_index(&self, shard_name: String, key: String, create_time: u128) {}
+
+    pub fn delete_timestamp_index(&self, shard_name: String, key: String) {}
 }
 
 #[async_trait]
@@ -26,11 +38,11 @@ impl StorageAdapter for MemoryStorageAdapter {
         self.memory_data.insert(key, value);
         return Ok(());
     }
-    async fn kv_get(&self, key: String) -> Option<Message> {
+    async fn kv_get(&self, key: String) -> Result<Option<Message>, RobustMQError>  {
         if let Some(data) = self.memory_data.get(&key) {
-            return Some(*data);
+            return Ok(Some(data.clone()));
         }
-        return None;
+        return Ok(None);
     }
     async fn kv_delete(&self, key: String) -> Result<(), RobustMQError> {
         self.memory_data.remove(&key);
@@ -43,14 +55,14 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn stream_write(
         &self,
         shard_name: String,
-        message:  Message,
+        message: Message,
     ) -> Result<usize, RobustMQError> {
         let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_name) {
             da
         } else {
             Vec::new()
         };
-        shard.push(bytes);
+        shard.push(message);
         let offset = shard.len() - 1;
         self.shard_data.insert(shard_name, shard);
 
@@ -64,7 +76,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         group_id: String,
-    ) -> Result<Option<Vec<u8>>, RobustMQError> {
+    ) -> Result<Option<Message>, RobustMQError> {
         let offset = if let Some(da) = self.group_data.get(&group_id) {
             *da
         } else {
@@ -85,7 +97,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard_name: String,
         group_id: String,
         record_num: usize,
-    ) -> Result<Option<Vec<Vec<u8>>>, RobustMQError> {
+    ) -> Result<Option<Vec<Message>>, RobustMQError> {
         let offset = if let Some(da) = self.group_data.get(&group_id) {
             *da
         } else {
@@ -114,7 +126,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         offset: usize,
-    ) -> Result<Option<Vec<u8>>, RobustMQError> {
+    ) -> Result<Option<Message>, RobustMQError> {
         if let Some(da) = self.shard_data.get(&shard_name) {
             if let Some(value) = da.get(offset) {
                 return Ok(Some(value.clone()));
@@ -128,7 +140,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard_name: String,
         start_timestamp: u128,
         end_timestamp: u128,
-    ) -> Result<Option<Vec<Vec<u8>>>, RobustMQError> {
+    ) -> Result<Option<Vec<Message>>, RobustMQError> {
         return Ok(None);
     }
 
@@ -136,7 +148,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         key: String,
-    ) -> Result<Option<Vec<u8>>, RobustMQError> {
+    ) -> Result<Option<Message>, RobustMQError> {
         return Ok(None);
     }
 }

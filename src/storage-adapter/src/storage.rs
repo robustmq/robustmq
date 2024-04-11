@@ -8,7 +8,7 @@ pub trait StorageAdapter {
     async fn kv_set(&self, key: String, value: Message) -> Result<(), RobustMQError>;
 
     // kv storage model: Get data
-    async fn kv_get(&self, key: String) -> Option<Message>;
+    async fn kv_get(&self, key: String) -> Result<Option<Message>, RobustMQError>;
 
     // kv storage model: Delete data
     async fn kv_delete(&self, key: String) -> Result<(), RobustMQError>;

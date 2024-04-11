@@ -45,4 +45,11 @@ impl Message {
         message.create_time = now_mills();
         return message;
     }
+
+    pub fn build_record(
+        publish: Publish,
+        publish_properties: Option<PublishProperties>){
+        let msg = Message::build_message(publish, publish_properties);
+            
+    }
 }

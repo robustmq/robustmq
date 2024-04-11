@@ -1,7 +1,6 @@
 use std::sync::Arc;
-
 use common_base::errors::RobustMQError;
-use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, message::Message, storage::StorageAdapter};
 
 pub struct AllInfoStorage {
     pub key: String,
@@ -23,7 +22,12 @@ impl AllInfoStorage {
         };
         all.push(item);
         match serde_json::to_string(&all) {
-            Ok(data) => return self.storage_adapter.kv_set(self.key.clone(), data).await,
+            Ok(data) => {
+                return self
+                    .storage_adapter
+                    .kv_set(self.key.clone(), Message::build_e(data))
+                    .await
+            }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
                     e.to_string(),
@@ -40,7 +44,12 @@ impl AllInfoStorage {
         all_topic.push(topic_name);
 
         match serde_json::to_string(&all_topic) {
-            Ok(data) => return self.storage_adapter.kv_set(self.key.clone(), data).await,
+            Ok(data) => {
+                return self
+                    .storage_adapter
+                    .kv_set(self.key.clone(), Message::build_e(data))
+                    .await
+            }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
                     e.to_string(),
@@ -51,16 +60,21 @@ impl AllInfoStorage {
 
     pub async fn get_all(&self) -> Result<Vec<String>, RobustMQError> {
         match self.storage_adapter.kv_get(self.key.clone()).await {
-            Ok(data) => match serde_json::from_str(&data) {
-                Ok(da) => {
-                    return Ok(da);
+            Ok(data) => {
+                if let Some(da) = data {
+                    match serde_json::from_slice(&da.data) {
+                        Ok(da) => {
+                            return Ok(da);
+                        }
+                        Err(e) => {
+                            return Err(common_base::errors::RobustMQError::CommmonError(
+                                e.to_string(),
+                            ))
+                        }
+                    }
                 }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
+                return Ok(Vec::new());
+            }
             Err(e) => {
                 return Err(e);
             }
