@@ -5,7 +5,7 @@ use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, CreateUserReply, CreateUserRequest,
     UpdateCacheReply, UpdateCacheRequest,
 };
-use storage_adapter::adapter::placement::PlacementStorageAdapter;
+use storage_adapter::adapter::memory::MemoryStorageAdapter;
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 
@@ -16,13 +16,13 @@ use crate::{
 
 pub struct GrpcBrokerServices {
     metadata_cache: Arc<RwLock<MetadataCache>>,
-    storage_adapter: Arc<PlacementStorageAdapter>,
+    storage_adapter: Arc<MemoryStorageAdapter>,
 }
 
 impl GrpcBrokerServices {
     pub fn new(
         metadata_cache: Arc<RwLock<MetadataCache>>,
-        storage_adapter: Arc<PlacementStorageAdapter>,
+        storage_adapter: Arc<MemoryStorageAdapter>,
     ) -> Self {
         return GrpcBrokerServices {
             metadata_cache,

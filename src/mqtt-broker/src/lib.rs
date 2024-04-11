@@ -31,7 +31,7 @@ use server::{
     tcp::packet::{RequestPackage, ResponsePackage},
 };
 use std::sync::Arc;
-use storage_adapter::adapter::placement::PlacementStorageAdapter;
+use storage_adapter::adapter::memory::MemoryStorageAdapter;
 use subscribe::subscribe_manager::SubScribeManager;
 use tokio::{
     runtime::Runtime,
@@ -64,7 +64,7 @@ pub struct MqttBroker<'a> {
     response_queue_sx5: Sender<ResponsePackage>,
     response_queue_rx5: Receiver<ResponsePackage>,
     client_poll: Arc<Mutex<ClientPool>>,
-    storage_adapter: Arc<PlacementStorageAdapter>,
+    storage_adapter: Arc<MemoryStorageAdapter>,
 }
 
 impl<'a> MqttBroker<'a> {
@@ -83,10 +83,7 @@ impl<'a> MqttBroker<'a> {
         )));
 
         let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(1)));
-        let storage_adapter = Arc::new(PlacementStorageAdapter::new(
-            client_poll.clone(),
-            conf.placement_center.clone(),
-        ));
+        let storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
 
         return MqttBroker {

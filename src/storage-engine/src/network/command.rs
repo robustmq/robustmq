@@ -1,6 +1,6 @@
+use super::{response::build_produce_resp, services::Services};
 use common_base::log::error_engine;
 use protocol::storage_engine::codec::StorageEnginePacket;
-use super::{response::build_produce_resp, services::Services};
 
 pub struct Command {
     packet: StorageEnginePacket,
@@ -8,7 +8,8 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn new(packet: StorageEnginePacket, services: Services) -> Self {
+    pub fn new(packet: StorageEnginePacket) -> Self {
+        let services = Services::new();
         return Command { packet, services };
     }
 
