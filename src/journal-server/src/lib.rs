@@ -20,7 +20,7 @@ mod storage;
 mod network;
 mod shard;
 
-pub struct StorageEngine {
+pub struct JournalServer {
     config: JournalServerConfig,
     stop_send: broadcast::Sender<bool>,
     server_runtime: Runtime,
@@ -28,7 +28,7 @@ pub struct StorageEngine {
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
-impl StorageEngine {
+impl JournalServer {
     pub fn new(stop_send: broadcast::Sender<bool>) -> Self {
         let config = journal_server_conf().clone();
         let server_runtime =
@@ -37,7 +37,7 @@ impl StorageEngine {
 
         let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(3)));
 
-        return StorageEngine {
+        return JournalServer {
             config,
             stop_send,
             server_runtime,

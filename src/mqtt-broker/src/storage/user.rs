@@ -5,7 +5,7 @@ use super::{
 use crate::metadata::user::User;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 pub struct UserStorage {
     storage_adapter: Arc<MemoryStorageAdapter>,
@@ -31,7 +31,10 @@ impl UserStorage {
                     Ok(_) => {}
                     Err(e) => return Err(e),
                 }
-                return self.storage_adapter.kv_set(key, data).await;
+                return self
+                    .storage_adapter
+                    .kv_set(key, Record::build_e(data))
+                    .await;
             }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
@@ -42,19 +45,24 @@ impl UserStorage {
     }
 
     // Getting user information
-    pub async fn get_user(&self, username: String) -> Result<User, RobustMQError> {
+    pub async fn get_user(&self, username: String) -> Result<Option<User>, RobustMQError> {
         let key = user_key(username);
         match self.storage_adapter.kv_get(key).await {
-            Ok(data) => match serde_json::from_str(&data) {
-                Ok(da) => {
-                    return Ok(da);
+            Ok(data) => {
+                if let Some(da) = data {
+                    match serde_json::from_slice(&da.data) {
+                        Ok(da) => {
+                            return Ok(da);
+                        }
+                        Err(e) => {
+                            return Err(common_base::errors::RobustMQError::CommmonError(
+                                e.to_string(),
+                            ))
+                        }
+                    }
                 }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
+                return Ok(None);
+            }
             Err(e) => {
                 return Err(e);
             }
@@ -69,7 +77,9 @@ impl UserStorage {
                 for username in data {
                     match self.get_user(username.clone()).await {
                         Ok(user) => {
-                            list.insert(username, user);
+                            if let Some(t) = user {
+                                list.insert(username, t);
+                            }
                         }
                         Err(e) => {
                             return Err(e);

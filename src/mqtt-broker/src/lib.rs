@@ -211,7 +211,10 @@ impl<'a> MqttBroker<'a> {
     }
 
     fn register_node(&self) {
+        let metadata_cache = self.metadata_cache.clone();
         self.runtime.block_on(async move {
+            let mut cache = metadata_cache.write().await;
+            cache.load_cache().await;
             register_broker_node(self.client_poll.clone()).await;
         });
     }

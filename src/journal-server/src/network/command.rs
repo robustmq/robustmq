@@ -1,6 +1,6 @@
 use super::{response::build_produce_resp, services::Services};
 use common_base::log::error_engine;
-use protocol::storage_engine::codec::StorageEnginePacket;
+use protocol::journal_server::codec::StorageEnginePacket;
 
 pub struct Command {
     packet: StorageEnginePacket,

@@ -9,7 +9,7 @@ use crate::{
 use common_base::log::error_engine;
 use flume::{Receiver, Sender};
 use futures::StreamExt;
-use protocol::storage_engine::codec::StorageEngineCodec;
+use protocol::journal_server::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
 use tokio::io;
 use tokio::net::TcpListener;

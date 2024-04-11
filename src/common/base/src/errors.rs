@@ -68,6 +68,8 @@ pub enum RobustMQError {
 
     #[error("Parameter cannot be empty, parameter name: {0}")]
     ParameterCannotBeNull(String),
+
+    
 }
 
 #[cfg(test)]

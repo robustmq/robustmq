@@ -2,6 +2,7 @@ use bytes::Bytes;
 use common_base::tools::now_mills;
 use protocol::mqtt::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
+use storage_adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Message {
@@ -44,5 +45,20 @@ impl Message {
         }
         message.create_time = now_mills();
         return message;
+    }
+
+    pub fn build_record(
+        publish: Publish,
+        publish_properties: Option<PublishProperties>,
+    ) -> Option<Record> {
+        let msg = Message::build_message(publish, publish_properties);
+        match serde_json::to_string(&msg) {
+            Ok(data) => {
+                return Some(Record::build_e(data));
+            }
+            Err(e) => {
+                return None;
+            }
+        }
     }
 }

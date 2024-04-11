@@ -5,7 +5,7 @@ use super::{
 use crate::metadata::topic::Topic;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 pub struct TopicStorage {
     storage_adapter: Arc<MemoryStorageAdapter>,
@@ -37,7 +37,10 @@ impl TopicStorage {
                     Ok(_) => {}
                     Err(e) => return Err(e),
                 }
-                return self.storage_adapter.kv_set(key, data).await;
+                return self
+                    .storage_adapter
+                    .kv_set(key, Record::build_e(data))
+                    .await;
             }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
@@ -55,7 +58,9 @@ impl TopicStorage {
                 for username in data {
                     match self.get_topic(username.clone()).await {
                         Ok(user) => {
-                            list.insert(username, user);
+                            if let Some(t) = user {
+                                list.insert(username, t);
+                            }
                         }
                         Err(e) => {
                             return Err(e);
@@ -69,19 +74,24 @@ impl TopicStorage {
     }
 
     // Get session information for the connection dimension
-    pub async fn get_topic(&self, client_id: String) -> Result<Topic, RobustMQError> {
+    pub async fn get_topic(&self, client_id: String) -> Result<Option<Topic>, RobustMQError> {
         let key = topic_key(client_id);
         match self.storage_adapter.kv_get(key).await {
-            Ok(data) => match serde_json::from_str(&data) {
-                Ok(da) => {
-                    return Ok(da);
+            Ok(data) => {
+                if let Some(da) = data {
+                    match serde_json::from_slice(&da.data) {
+                        Ok(da) => {
+                            return Ok(Some(da));
+                        }
+                        Err(e) => {
+                            return Err(common_base::errors::RobustMQError::CommmonError(
+                                e.to_string(),
+                            ))
+                        }
+                    }
                 }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
+                return Ok(None);
+            }
             Err(e) => {
                 return Err(e);
             }

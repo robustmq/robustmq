@@ -55,7 +55,13 @@ impl MetadataCache {
         // load cluster config
         let cluster_storage = ClusterStorage::new(self.storage_adapter.clone());
         self.cluster_info = match cluster_storage.get_cluster_config().await {
-            Ok(cluster) => cluster,
+            Ok(cluster) => {
+                if let Some(data) = cluster {
+                    data
+                } else {
+                    Cluster::new()
+                }
+            }
             Err(e) => {
                 panic!(
                     "Failed to load the cluster configuration with error message:{}",
@@ -80,7 +86,7 @@ impl MetadataCache {
         // if the clean session is set, it will check whether the session exists and then update the local cache.
         self.session_info = HashMap::new();
 
-        // load user config
+        // load topic info
         let topic_storage = TopicStorage::new(self.storage_adapter.clone());
         self.topic_info = match topic_storage.topic_list().await {
             Ok(list) => list,

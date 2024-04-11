@@ -1,7 +1,7 @@
 use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::SinkExt;
-use protocol::storage_engine::codec::{StorageEngineCodec, StorageEnginePacket};
+use protocol::journal_server::codec::{StorageEngineCodec, StorageEnginePacket};
 use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;

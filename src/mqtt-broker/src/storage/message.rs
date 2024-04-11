@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
 use super::keys::{lastwill_key, retain_message};
-use crate::metadata::{message::Message, session::LastWillData};
+use crate::metadata::{message::Message as RetainMessage, session::LastWillData};
 use common_base::errors::RobustMQError;
-use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+use std::sync::Arc;
+use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 #[derive(Clone)]
 pub struct MessageStorage {
@@ -19,27 +18,15 @@ impl MessageStorage {
     pub async fn append_topic_message(
         &self,
         topic_id: String,
-        message: Message,
-    ) -> Result<u128, RobustMQError> {
-        match serde_json::to_string(&message) {
-            Ok(data) => {
-                let shard_name = topic_id;
-                match self
-                    .storage_adapter
-                    .stream_write(shard_name, data.into_bytes()).await
-                {
-                    Ok(id) => {
-                        return Ok(id);
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
+        record: Record,
+    ) -> Result<usize, RobustMQError> {
+        let shard_name = topic_id;
+        match self.storage_adapter.stream_write(shard_name, record).await {
+            Ok(id) => {
+                return Ok(id);
             }
             Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(
-                    e.to_string(),
-                ))
+                return Err(e);
             }
         }
     }
@@ -48,35 +35,42 @@ impl MessageStorage {
     pub async fn read_topic_message(
         &self,
         topic_id: String,
-        record_num: u16,
-    ) -> Result<Vec<Vec<u8>>, RobustMQError> {
+        group_id: String,
+        record_num: usize,
+    ) -> Result<Vec<Record>, RobustMQError> {
         let shard_name = topic_id;
-        return self
+        match self
             .storage_adapter
-            .stream_read_next_batch(shard_name, record_num).await;
-    }
-
-    // Read the data according to the message ID
-    pub async fn read_topic_message_by_id(
-        &self,
-        topic_id: String,
-        record_id: u128,
-    ) -> Result<Vec<u8>, RobustMQError> {
-        let shard_name = topic_id;
-        return self
-            .storage_adapter
-            .stream_read_by_id(shard_name, record_id).await;
+            .stream_read_next_batch(shard_name, group_id, record_num)
+            .await
+        {
+            Ok(data) => {
+                if let Some(result) = data {
+                    return Ok(result);
+                } else {
+                    return Ok(Vec::new());
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
     }
 
     // Saves the most recent reserved message for the Topic dimension
     pub async fn save_retain_message(
         &self,
         topic_id: String,
-        message: Message,
+        retail_message: RetainMessage,
     ) -> Result<(), RobustMQError> {
         let key = retain_message(topic_id);
-        match serde_json::to_string(&message) {
-            Ok(data) => return self.storage_adapter.kv_set(key, data).await,
+        match serde_json::to_string(&retail_message) {
+            Ok(data) => {
+                return self
+                    .storage_adapter
+                    .kv_set(key, Record::build_e(data))
+                    .await
+            }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
                     e.to_string(),
@@ -86,19 +80,27 @@ impl MessageStorage {
     }
 
     // Get the latest reserved message for the Topic dimension
-    pub async fn get_retain_message(&self, topic_id: String) -> Result<Message, RobustMQError> {
+    pub async fn get_retain_message(
+        &self,
+        topic_id: String,
+    ) -> Result<Option<RetainMessage>, RobustMQError> {
         let key = retain_message(topic_id);
         match self.storage_adapter.kv_get(key).await {
-            Ok(data) => match serde_json::from_str(&data) {
-                Ok(da) => {
-                    return Ok(da);
+            Ok(data) => {
+                if let Some(da) = data {
+                    match serde_json::from_slice(&da.data) {
+                        Ok(da) => {
+                            return Ok(da);
+                        }
+                        Err(e) => {
+                            return Err(common_base::errors::RobustMQError::CommmonError(
+                                e.to_string(),
+                            ))
+                        }
+                    }
                 }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
+                return Ok(None);
+            }
             Err(e) => {
                 return Err(e);
             }
@@ -113,7 +115,12 @@ impl MessageStorage {
     ) -> Result<(), RobustMQError> {
         let key = lastwill_key(client_id);
         match serde_json::to_string(&last_will_data) {
-            Ok(data) => return self.storage_adapter.kv_set(key, data).await,
+            Ok(data) => {
+                return self
+                    .storage_adapter
+                    .kv_set(key, Record::build_e(data))
+                    .await
+            }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
                     e.to_string(),
@@ -123,19 +130,27 @@ impl MessageStorage {
     }
 
     // Get the will message of the connection dimension
-    pub async fn get_lastwill(&self, client_id: String) -> Result<LastWillData, RobustMQError> {
+    pub async fn get_lastwill(
+        &self,
+        client_id: String,
+    ) -> Result<Option<LastWillData>, RobustMQError> {
         let key = lastwill_key(client_id);
         match self.storage_adapter.kv_get(key).await {
-            Ok(data) => match serde_json::from_str(&data) {
-                Ok(da) => {
-                    return Ok(da);
+            Ok(data) => {
+                if let Some(da) = data {
+                    match serde_json::from_slice(&da.data) {
+                        Ok(da) => {
+                            return Ok(da);
+                        }
+                        Err(e) => {
+                            return Err(common_base::errors::RobustMQError::CommmonError(
+                                e.to_string(),
+                            ))
+                        }
+                    }
                 }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
+                return Ok(None);
+            }
             Err(e) => {
                 return Err(e);
             }
