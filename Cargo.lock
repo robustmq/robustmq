@@ -2297,6 +2297,7 @@ dependencies = [
  "bytes",
  "clients",
  "common-base",
+ "dashmap",
  "protocol",
  "thiserror",
  "tokio",
