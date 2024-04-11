@@ -20,4 +20,4 @@ pub mod mqtt;
 pub mod mqttv4;
 pub mod mqttv5;
 pub mod placement_center;
-pub mod storage_engine;
+pub mod journal_server;

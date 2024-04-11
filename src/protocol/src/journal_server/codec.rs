@@ -251,7 +251,7 @@ fn fetch_resp(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEngi
 
 #[cfg(test)]
 mod tests {
-    use crate::storage_engine::generate::protocol::{
+    use crate::journal_server::generate::protocol::{
         header::{ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon},
         produce::{ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody},
     };

@@ -1,11 +1,11 @@
-use crate::storage::StorageAdapter;
+use crate::{message::{self, Message}, storage::StorageAdapter};
 use axum::async_trait;
-use common_base::{errors::RobustMQError, log::info};
+use common_base::errors::RobustMQError;
 use dashmap::DashMap;
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
-    pub memory_data: DashMap<String, String>,
+    pub memory_data: DashMap<String, Message>,
     pub shard_data: DashMap<String, Vec<Vec<u8>>>,
     pub group_data: DashMap<String, usize>,
 }
@@ -22,13 +22,13 @@ impl MemoryStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn kv_set(&self, key: String, value: String) -> Result<(), RobustMQError> {
+    async fn kv_set(&self, key: String, value: Message) -> Result<(), RobustMQError> {
         self.memory_data.insert(key, value);
         return Ok(());
     }
-    async fn kv_get(&self, key: String) -> Option<String> {
+    async fn kv_get(&self, key: String) -> Option<Message> {
         if let Some(data) = self.memory_data.get(&key) {
-            return Some(data.to_string());
+            return Some(*data);
         }
         return None;
     }
@@ -43,7 +43,7 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn stream_write(
         &self,
         shard_name: String,
-        bytes: Vec<u8>,
+        message:  Message,
     ) -> Result<usize, RobustMQError> {
         let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_name) {
             da
@@ -54,9 +54,9 @@ impl StorageAdapter for MemoryStorageAdapter {
         let offset = shard.len() - 1;
         self.shard_data.insert(shard_name, shard);
 
-        // build timestamp index
+        // todo build timestamp index
 
-        // build key index
+        // todo build key index
         return Ok(offset);
     }
 

@@ -1,4 +1,4 @@
-use protocol::storage_engine::codec::StorageEnginePacket;
+use protocol::journal_server::codec::StorageEnginePacket;
 
 #[derive(Debug)]
 pub struct RequestPackage {

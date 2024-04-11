@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use super::keys::{lastwill_key, session_key};
 use crate::metadata::session::Session;
 use common_base::errors::RobustMQError;

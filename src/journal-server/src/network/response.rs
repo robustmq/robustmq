@@ -1,4 +1,4 @@
-use protocol::storage_engine::{
+use protocol::journal_server::{
     codec::StorageEnginePacket,
     generate::protocol::{
         header::{ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon},
