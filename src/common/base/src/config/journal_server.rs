@@ -21,7 +21,7 @@ use std::sync::OnceLock;
 use toml::Table;
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct StorageEngineConfig {
+pub struct JournalServerConfig {
     pub cluster_name: String,
     pub node_id: u64,
     pub grpc_port: u32,
@@ -52,9 +52,9 @@ pub struct Rocksdb {
     pub max_open_files: Option<i32>,
 }
 
-impl Default for StorageEngineConfig {
+impl Default for JournalServerConfig {
     fn default() -> Self {
-        StorageEngineConfig {
+        JournalServerConfig {
             cluster_name: "default".to_string(),
             node_id: 1,
             grpc_port: 1227,
@@ -81,14 +81,14 @@ impl Default for StorageEngineConfig {
     }
 }
 
-static STORAGE_ENGINE_CONFIG: OnceLock<StorageEngineConfig> = OnceLock::new();
+static STORAGE_ENGINE_CONFIG: OnceLock<JournalServerConfig> = OnceLock::new();
 
-pub fn init_storage_engine_conf_by_path(config_path: &String) -> &'static StorageEngineConfig {
+pub fn init_journal_server_conf_by_path(config_path: &String) -> &'static JournalServerConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     STORAGE_ENGINE_CONFIG.get_or_init(|| {
         let content = read_file(config_path);
-        let pc_config: StorageEngineConfig = toml::from_str(&content).unwrap();
+        let pc_config: JournalServerConfig = toml::from_str(&content).unwrap();
         for fold in pc_config.data_path.clone() {
             create_fold(fold);
         }
@@ -97,9 +97,9 @@ pub fn init_storage_engine_conf_by_path(config_path: &String) -> &'static Storag
     })
 }
 
-pub fn init_storage_engine_conf_by_config(
-    config: StorageEngineConfig,
-) -> &'static StorageEngineConfig {
+pub fn init_journal_server_conf_by_config(
+    config: JournalServerConfig,
+) -> &'static JournalServerConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     STORAGE_ENGINE_CONFIG.get_or_init(|| {
@@ -107,7 +107,7 @@ pub fn init_storage_engine_conf_by_config(
     })
 }
 
-pub fn storage_engine_conf() -> &'static StorageEngineConfig {
+pub fn journal_server_conf() -> &'static JournalServerConfig {
     match STORAGE_ENGINE_CONFIG.get() {
         Some(config) => {
             return config;
@@ -122,14 +122,14 @@ pub fn storage_engine_conf() -> &'static StorageEngineConfig {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::storage_engine::storage_engine_conf;
+    use crate::config::journal_server::journal_server_conf;
 
-    use super::init_storage_engine_conf_by_path;
+    use super::init_journal_server_conf_by_path;
     #[test]
     fn meta_default() {
-        init_storage_engine_conf_by_path(&"../../config/storage-engine.toml".to_string());
+        init_journal_server_conf_by_path(&"../../config/storage-engine.toml".to_string());
 
-        let conf = storage_engine_conf();
+        let conf = journal_server_conf();
         assert_eq!(conf.grpc_port, 2228);
         //todo meta test case
     }

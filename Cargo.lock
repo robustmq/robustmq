@@ -507,10 +507,10 @@ version = "0.0.1"
 dependencies = [
  "clap",
  "common-base",
+ "journal-server",
  "lazy_static",
  "mqtt-broker",
  "placement-center",
- "storage-engine",
  "tokio",
 ]
 
@@ -1149,6 +1149,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c37f63953c4c63420ed5fd3d6d398c719489b9f872b9fa683262f8edd363c7d"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "journal-server"
+version = "0.0.1"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "clients",
+ "common-base",
+ "dashmap",
+ "flume",
+ "futures",
+ "protocol",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tonic",
 ]
 
 [[package]]
@@ -2283,24 +2301,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "storage-engine"
-version = "0.0.1"
-dependencies = [
- "axum 0.7.4",
- "bytes",
- "clients",
- "common-base",
- "dashmap",
- "flume",
- "futures",
- "protocol",
- "thiserror",
- "tokio",
- "tokio-util",
- "tonic",
 ]
 
 [[package]]

@@ -10,8 +10,8 @@ name = "mqtt-server"
 path = "src/mqtt-server/server.rs"
 
 [[bin]]
-name = "storage-engine"
-path = "src/storage-engine/server.rs"
+name = "journal-server"
+path = "src/journal-server/server.rs"
 
 [[bin]]
 name = "placement-center"
@@ -28,4 +28,4 @@ lazy_static.workspace = true
 tokio.workspace = true
 mqtt-broker.workspace = true
 placement-center.workspace = true
-storage-engine.workspace = true
+journal-server.workspace = true

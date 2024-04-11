@@ -1,7 +1,6 @@
 use clients::{placement_center::placement::{heartbeat, register_node, unregister_node}, ClientPool};
 use common_base::{
-    config::storage_engine::StorageEngineConfig,
-    log::{debug_eninge, error_engine, info_meta}, tools::get_local_ip,
+    config::journal_server::JournalServerConfig, log::{debug_eninge, error_engine, info_meta}, tools::get_local_ip
 };
 use protocol::placement_center::generate::{common::ClusterType, placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest}};
 use std::{sync::Arc, time::Duration};
@@ -9,7 +8,7 @@ use tokio::{sync::Mutex, time};
 
 pub async fn register_storage_engine_node(
     client_poll: Arc<Mutex<ClientPool>>,
-    config: StorageEngineConfig,
+    config: JournalServerConfig,
 ) {
     let mut req = RegisterNodeRequest::default();
     req.cluster_type = ClusterType::StorageEngine.into();
@@ -42,7 +41,7 @@ pub async fn register_storage_engine_node(
 
 pub async fn unregister_storage_engine_node(
     client_poll: Arc<Mutex<ClientPool>>,
-    config: StorageEngineConfig,
+    config: JournalServerConfig,
 ) {
     let mut req = UnRegisterNodeRequest::default();
     req.cluster_type = ClusterType::StorageEngine.into();
@@ -67,7 +66,7 @@ pub async fn unregister_storage_engine_node(
     }
 }
 
-pub async fn report_heartbeat(client_poll: Arc<Mutex<ClientPool>>, config: StorageEngineConfig) {
+pub async fn report_heartbeat(client_poll: Arc<Mutex<ClientPool>>, config: JournalServerConfig) {
     loop {
         let mut req = HeartbeatRequest::default();
         req.cluster_name = config.cluster_name.clone();

@@ -13,10 +13,10 @@
 // limitations under the License.
 use clap::command;
 use clap::Parser;
-use common_base::config::storage_engine::init_storage_engine_conf_by_path;
-use common_base::config::DEFAULT_STORAGE_ENGINE_CONFIG;
-use common_base::log::init_storage_engine_log;
-use storage_engine::StorageEngine;
+use common_base::config::journal_server::init_journal_server_conf_by_path;
+use common_base::config::DEFAULT_JOURNAL_SERVER_CONFIG;
+use common_base::log::init_journal_server_log;
+use journal_server::StorageEngine;
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]
@@ -24,14 +24,14 @@ use tokio::sync::broadcast;
 #[command(next_line_help = true)]
 
 struct ArgsParams {
-    #[arg(short, long, default_value_t=String::from(DEFAULT_STORAGE_ENGINE_CONFIG))]
+    #[arg(short, long, default_value_t=String::from(DEFAULT_JOURNAL_SERVER_CONFIG))]
     conf: String,
 }
 
 fn main() {
     let args = ArgsParams::parse();
-    init_storage_engine_conf_by_path(&args.conf);
-    init_storage_engine_log();
+    init_journal_server_conf_by_path(&args.conf);
+    init_journal_server_log();
     
     let (stop_send, _) = broadcast::channel(2);
     let server = StorageEngine::new(stop_send);

@@ -1,11 +1,12 @@
+use common_base::config::journal_server::journal_server_conf;
+
 use self::tcp::tcp_server::TcpServer;
-use common_base::config::storage_engine::storage_engine_conf;
 
 pub mod quic;
 pub mod tcp;
 
 pub async fn start_tcp_server() {
-    let conf = storage_engine_conf();
+    let conf = journal_server_conf();
     let tcp = TcpServer::new(
         conf.network.accept_thread_num,
         conf.network.max_connection_num,
@@ -20,5 +21,5 @@ pub async fn start_tcp_server() {
 }
 
 pub async fn start_quic_server() {
-    let conf = storage_engine_conf();
+    let conf = journal_server_conf();
 }
