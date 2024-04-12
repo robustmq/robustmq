@@ -16,6 +16,10 @@ use std::{sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time};
 
 pub mod report;
+pub mod heartbeat_manager;
+pub mod keep_alive;
+
+pub const HEART_CONNECT_SHARD_HASH_NUM: u64 = 20;
 
 pub async fn register_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
     let config = broker_mqtt_conf();

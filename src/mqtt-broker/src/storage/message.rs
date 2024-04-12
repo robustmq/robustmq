@@ -41,15 +41,14 @@ impl MessageStorage {
         let shard_name = topic_id;
         match self
             .storage_adapter
-            .stream_read_next_batch(shard_name, group_id, record_num)
+            .stream_read(shard_name, group_id, Some(record_num), None)
             .await
         {
-            Ok(data) => {
-                if let Some(result) = data {
-                    return Ok(result);
-                } else {
-                    return Ok(Vec::new());
-                }
+            Ok(Some(data)) => {
+                return Ok(data);
+            }
+            Ok(None) => {
+                return Ok(Vec::new());
             }
             Err(e) => {
                 return Err(e);
@@ -64,13 +63,8 @@ impl MessageStorage {
         retail_message: RetainMessage,
     ) -> Result<(), RobustMQError> {
         let key = retain_message(topic_id);
-        match serde_json::to_string(&retail_message) {
-            Ok(data) => {
-                return self
-                    .storage_adapter
-                    .kv_set(key, Record::build_e(data))
-                    .await
-            }
+        match serde_json::to_vec(&retail_message) {
+            Ok(data) => return self.storage_adapter.set(key, Record::build_b(data)).await,
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
                     e.to_string(),
@@ -85,20 +79,18 @@ impl MessageStorage {
         topic_id: String,
     ) -> Result<Option<RetainMessage>, RobustMQError> {
         let key = retain_message(topic_id);
-        match self.storage_adapter.kv_get(key).await {
-            Ok(data) => {
-                if let Some(da) = data {
-                    match serde_json::from_slice(&da.data) {
-                        Ok(da) => {
-                            return Ok(da);
-                        }
-                        Err(e) => {
-                            return Err(common_base::errors::RobustMQError::CommmonError(
-                                e.to_string(),
-                            ))
-                        }
-                    }
+        match self.storage_adapter.get(key).await {
+            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
+                Ok(da) => {
+                    return Ok(da);
                 }
+                Err(e) => {
+                    return Err(common_base::errors::RobustMQError::CommmonError(
+                        e.to_string(),
+                    ))
+                }
+            },
+            Ok(None) => {
                 return Ok(None);
             }
             Err(e) => {
@@ -114,13 +106,8 @@ impl MessageStorage {
         last_will_data: LastWillData,
     ) -> Result<(), RobustMQError> {
         let key = lastwill_key(client_id);
-        match serde_json::to_string(&last_will_data) {
-            Ok(data) => {
-                return self
-                    .storage_adapter
-                    .kv_set(key, Record::build_e(data))
-                    .await
-            }
+        match serde_json::to_vec(&last_will_data) {
+            Ok(data) => return self.storage_adapter.set(key, Record::build_b(data)).await,
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
                     e.to_string(),
@@ -135,20 +122,18 @@ impl MessageStorage {
         client_id: String,
     ) -> Result<Option<LastWillData>, RobustMQError> {
         let key = lastwill_key(client_id);
-        match self.storage_adapter.kv_get(key).await {
-            Ok(data) => {
-                if let Some(da) = data {
-                    match serde_json::from_slice(&da.data) {
-                        Ok(da) => {
-                            return Ok(da);
-                        }
-                        Err(e) => {
-                            return Err(common_base::errors::RobustMQError::CommmonError(
-                                e.to_string(),
-                            ))
-                        }
-                    }
+        match self.storage_adapter.get(key).await {
+            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
+                Ok(da) => {
+                    return Ok(da);
                 }
+                Err(e) => {
+                    return Err(common_base::errors::RobustMQError::CommmonError(
+                        e.to_string(),
+                    ))
+                }
+            },
+            Ok(None) => {
                 return Ok(None);
             }
             Err(e) => {

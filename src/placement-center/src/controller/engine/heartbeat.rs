@@ -1,4 +1,7 @@
-use crate::{cache::cluster::ClusterCache, raft::storage::PlacementCenterStorage};
+use crate::{
+    cache::cluster::{node_key, ClusterCache},
+    raft::storage::PlacementCenterStorage,
+};
 use common_base::log::{error_meta, info_meta};
 use protocol::placement_center::generate::{common::ClusterType, placement::UnRegisterNodeRequest};
 use std::{
@@ -60,15 +63,15 @@ impl StorageEngineNodeHeartBeat {
             drop(ec);
 
             for (_, node) in node_list {
-                let node_id = node.node_id;
-                if let Some(prev_time) = node_heartbeat.get(&node_id) {
+                let key = node_key(node.cluster_name.clone(), node.node_id);
+                if let Some(prev_time) = node_heartbeat.get(&key) {
                     // Detects whether the heartbeat rate of a node exceeds the unreported rate.
                     // If yes, remove the node
                     if time - *prev_time >= self.timeout_ms {
                         let cluster_name = node.cluster_name.clone();
                         if let Some(_) = cluster_list.get(&cluster_name) {
                             let mut req = UnRegisterNodeRequest::default();
-                            req.node_id = node_id;
+                            req.node_id = node.node_id;
                             req.cluster_name = node.cluster_name.clone();
                             req.cluster_type = ClusterType::StorageEngine.into();
                             let pcs = self.placement_center_storage.clone();
@@ -78,7 +81,7 @@ impl StorageEngineNodeHeartBeat {
                                     Ok(_) => {
                                         info_meta(
                                             &format!("The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
-                                            node_id,
+                                            node.node_id,
                                             node.node_ip));
                                     }
                                     Err(e) => {
@@ -90,7 +93,7 @@ impl StorageEngineNodeHeartBeat {
                     }
                 } else {
                     let mut ec = self.cluster_cache.write().unwrap();
-                    ec.heart_time(node_id, time);
+                    ec.heart_time(key, time);
                 }
             }
             sleep(Duration::from_millis(self.check_time_ms));

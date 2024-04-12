@@ -3,8 +3,8 @@ use self::tcp::{
     tcp_server::TcpServer,
 };
 use crate::{
-    heartbeat::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
-    packet::command::Command, subscribe::subscribe_manager::SubScribeManager,
+    cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
+    handler::command::Command, subscribe::subscribe_manager::SubScribeManager,
 };
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},

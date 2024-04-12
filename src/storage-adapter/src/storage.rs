@@ -1,38 +1,31 @@
+use crate::record::Record;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
-use crate::record::Record;
 
 #[async_trait]
 pub trait StorageAdapter {
     // kv storage model: Set data
-    async fn kv_set(&self, key: String, value: Record) -> Result<(), RobustMQError>;
+    async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError>;
 
     // kv storage model: Get data
-    async fn kv_get(&self, key: String) -> Result<Option<Record>, RobustMQError>;
+    async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError>;
 
     // kv storage model: Delete data
-    async fn kv_delete(&self, key: String) -> Result<(), RobustMQError>;
+    async fn delete(&self, key: String) -> Result<(), RobustMQError>;
 
     // kv storage model: Determines whether the key exists
-    async fn kv_exists(&self, key: String) -> Result<bool, RobustMQError>;
+    async fn exists(&self, key: String) -> Result<bool, RobustMQError>;
 
     // Streaming storage model: Append data in a Shard dimension, returning a unique self-incrementing ID for the Shard dimension
-    async fn stream_write(&self, shard_name: String, data: Record)
-        -> Result<usize, RobustMQError>;
-
-    // Streaming storage model: Read the next item in the dimension of the Shard + subscription name tuple
-    async fn stream_read_next(
-        &self,
-        shard_name: String,
-        group_id: String,
-    ) -> Result<Option<Record>, RobustMQError>;
+    async fn stream_write(&self, shard_name: String, data: Record) -> Result<usize, RobustMQError>;
 
     // Streaming storage model: Read the next batch of data in the dimension of the Shard + subscription name tuple
-    async fn stream_read_next_batch(
+    async fn stream_read(
         &self,
         shard_name: String,
         group_id: String,
-        record_num: usize,
+        record_num: Option<usize>,
+        record_size: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError>;
 
     // Streaming storage model: A piece of data is uniquely read based on the shard name and a unique auto-incrementing ID.
@@ -48,6 +41,8 @@ pub trait StorageAdapter {
         shard_name: String,
         start_timestamp: u128,
         end_timestamp: u128,
+        record_num: Option<usize>,
+        record_size: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError>;
 
     // Streaming storage model: A batch of data is read based on the shard name and the last time it expires

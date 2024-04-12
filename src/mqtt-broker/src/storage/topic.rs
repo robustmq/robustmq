@@ -27,7 +27,7 @@ impl TopicStorage {
         topic: &Topic,
     ) -> Result<(), RobustMQError> {
         let key = topic_key(topic_name.clone());
-        match serde_json::to_string(topic) {
+        match serde_json::to_vec(topic) {
             Ok(data) => {
                 match self
                     .all_info_storage
@@ -37,10 +37,7 @@ impl TopicStorage {
                     Ok(_) => {}
                     Err(e) => return Err(e),
                 }
-                return self
-                    .storage_adapter
-                    .kv_set(key, Record::build_e(data))
-                    .await;
+                return self.storage_adapter.set(key, Record::build_b(data)).await;
             }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
@@ -76,20 +73,18 @@ impl TopicStorage {
     // Get session information for the connection dimension
     pub async fn get_topic(&self, client_id: String) -> Result<Option<Topic>, RobustMQError> {
         let key = topic_key(client_id);
-        match self.storage_adapter.kv_get(key).await {
-            Ok(data) => {
-                if let Some(da) = data {
-                    match serde_json::from_slice(&da.data) {
-                        Ok(da) => {
-                            return Ok(Some(da));
-                        }
-                        Err(e) => {
-                            return Err(common_base::errors::RobustMQError::CommmonError(
-                                e.to_string(),
-                            ))
-                        }
-                    }
+        match self.storage_adapter.get(key).await {
+            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
+                Ok(da) => {
+                    return Ok(Some(da));
                 }
+                Err(e) => {
+                    return Err(common_base::errors::RobustMQError::CommmonError(
+                        e.to_string(),
+                    ))
+                }
+            },
+            Ok(None) => {
                 return Ok(None);
             }
             Err(e) => {

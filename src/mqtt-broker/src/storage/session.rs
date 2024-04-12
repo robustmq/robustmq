@@ -20,13 +20,8 @@ impl SessionStorage {
         session: Session,
     ) -> Result<(), RobustMQError> {
         let key = session_key(client_id);
-        match serde_json::to_string(&session) {
-            Ok(data) => {
-                return self
-                    .storage_adapter
-                    .kv_set(key, Record::build_b(data.as_bytes().to_vec()))
-                    .await
-            }
+        match serde_json::to_vec(&session) {
+            Ok(data) => return self.storage_adapter.set(key, Record::build_b(data)).await,
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
                     e.to_string(),
@@ -36,22 +31,20 @@ impl SessionStorage {
     }
 
     // Get session information for the connection dimension
-    pub async fn get_session(&self, client_id: String) -> Result<Option<Session>, RobustMQError> {
-        let key = lastwill_key(client_id);
-        match self.storage_adapter.kv_get(key).await {
-            Ok(data) => {
-                if let Some(message) = data {
-                    match serde_json::from_str(&String::from_utf8(message.data).unwrap()) {
-                        Ok(da) => {
-                            return Ok(da);
-                        }
-                        Err(e) => {
-                            return Err(common_base::errors::RobustMQError::CommmonError(
-                                e.to_string(),
-                            ))
-                        }
-                    }
+    pub async fn get_session(&self, client_id: &String) -> Result<Option<Session>, RobustMQError> {
+        let key = lastwill_key(client_id.clone());
+        match self.storage_adapter.get(key).await {
+            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
+                Ok(da) => {
+                    return Ok(da);
                 }
+                Err(e) => {
+                    return Err(common_base::errors::RobustMQError::CommmonError(
+                        e.to_string(),
+                    ))
+                }
+            },
+            Ok(None) => {
                 return Ok(None);
             }
             Err(e) => {

@@ -14,6 +14,7 @@ pub struct Cluster {
     pub shared_subscription_available: AvailableFlag,
     pub server_keep_alive: u16,
     pub receive_max: Option<u16>,
+    pub secret_free_login: bool,
 }
 
 impl Cluster {
@@ -55,5 +56,9 @@ impl Cluster {
 
     pub fn shared_subscription_available(&self) -> u8 {
         return self.shared_subscription_available.clone() as u8;
+    }
+
+    pub fn secret_free_login(&self) -> bool{
+        return self.secret_free_login;
     }
 }

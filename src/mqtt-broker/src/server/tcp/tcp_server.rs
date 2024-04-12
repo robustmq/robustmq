@@ -6,7 +6,7 @@ use crate::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
         metrics_response_queue,
     },
-    packet::command::Command,
+    handler::command::Command,
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
 use common_base::log::{error, info};

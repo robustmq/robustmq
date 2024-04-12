@@ -130,10 +130,9 @@ impl PlacementCenterService for GrpcPlacementService {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
-        let cluster_type = req.cluster_type();
-
+        let key = format!("{}_{}",req.cluster_name, req.node_id);
         let mut sc = self.cluster_cache.write().unwrap();
-        sc.heart_time(req.node_id, time);
+        sc.heart_time(key, time);
 
         return Ok(Response::new(CommonReply::default()));
     }

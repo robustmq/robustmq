@@ -9,7 +9,7 @@ use std::collections::HashMap;
 pub struct ClusterCache {
     pub cluster_list: HashMap<String, ClusterInfo>,
     pub node_list: HashMap<String, NodeInfo>,
-    pub node_heartbeat: HashMap<u64, u128>,
+    pub node_heartbeat: HashMap<String, u128>,
 }
 
 impl ClusterCache {
@@ -51,25 +51,28 @@ impl ClusterCache {
     }
 
     pub fn add_node(&mut self, node: NodeInfo) {
+        let key = node_key(node.cluster_name.clone(), node.node_id);
         self.node_list.insert(
-            self.node_key(node.cluster_name.clone(), node.node_id),
+            key.clone(),
             node.clone(),
         );
 
-        self.heart_time(node.node_id, now_mills());
+        self.heart_time(key, now_mills());
     }
 
     pub fn remove_node(&mut self, cluster_name: String, node_id: u64) {
-        self.node_list.remove(&self.node_key(cluster_name, node_id));
-        self.node_heartbeat.remove(&node_id);
+        let key = node_key(cluster_name, node_id);
+        self.node_list.remove(&key);
+        self.node_heartbeat.remove(&key);
     }
 
-    pub fn heart_time(&mut self, node_id: u64, time: u128) {
+    pub fn heart_time(&mut self, node_id: String, time: u128) {
         self.node_heartbeat.insert(node_id, time);
     }
 
-    fn node_key(&self, cluster_name: String, node_id: u64) -> String {
-        return format!("{}_{}", cluster_name, node_id);
-    }
     
+}
+
+pub fn node_key(cluster_name: String, node_id: u64) -> String {
+    return format!("{}_{}", cluster_name, node_id);
 }

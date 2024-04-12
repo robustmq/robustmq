@@ -13,16 +13,13 @@
 // limitations under the License.
 
 use clients::ClientPool;
-use cluster::{register_broker_node, report_heartbeat, unregister_broker_node};
+use cluster::{heartbeat_manager::HeartbeatManager, keep_alive::KeepAlive, register_broker_node, report_heartbeat, unregister_broker_node, HEART_CONNECT_SHARD_HASH_NUM};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info_meta,
     runtime::create_runtime,
 };
 use flume::{Receiver, Sender};
-use heartbeat::{
-    heartbeat_manager::HeartbeatManager, keep_alive::KeepAlive, HEART_CONNECT_SHARD_HASH_NUM,
-};
 use metadata::cache::MetadataCache;
 use server::{
     grpc::server::GrpcServer,
@@ -40,10 +37,9 @@ use tokio::{
 };
 
 mod cluster;
-mod heartbeat;
 mod metadata;
 mod metrics;
-mod packet;
+mod handler;
 mod security;
 mod server;
 mod storage;

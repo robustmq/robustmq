@@ -14,23 +14,20 @@ impl ClusterStorage {
         return ClusterStorage { storage_adapter };
     }
 
-    // Get session information for the connection dimension
     pub async fn get_cluster_config(&self) -> Result<Option<Cluster>, RobustMQError> {
         let key = cluster_config_key();
-        match self.storage_adapter.kv_get(key).await {
-            Ok(data) => {
-                if let Some(message) = data {
-                    match serde_json::from_slice(&message.data) {
-                        Ok(da) => {
-                            return Ok(da);
-                        }
-                        Err(e) => {
-                            return Err(common_base::errors::RobustMQError::CommmonError(
-                                e.to_string(),
-                            ))
-                        }
-                    }
+        match self.storage_adapter.get(key).await {
+            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
+                Ok(da) => {
+                    return Ok(da);
                 }
+                Err(e) => {
+                    return Err(common_base::errors::RobustMQError::CommmonError(
+                        e.to_string(),
+                    ))
+                }
+            },
+            Ok(None) => {
                 return Ok(None);
             }
             Err(e) => {

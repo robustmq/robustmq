@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use common_base::errors::RobustMQError;
+use std::sync::Arc;
 use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
 
 pub struct AllInfoStorage {
@@ -21,11 +21,11 @@ impl AllInfoStorage {
             Err(_) => Vec::new(),
         };
         all.push(item);
-        match serde_json::to_string(&all) {
+        match serde_json::to_vec(&all) {
             Ok(data) => {
                 return self
                     .storage_adapter
-                    .kv_set(self.key.clone(), Record::build_e(data))
+                    .set(self.key.clone(), Record::build_b(data))
                     .await
             }
             Err(e) => {
@@ -43,11 +43,11 @@ impl AllInfoStorage {
         };
         all_topic.push(topic_name);
 
-        match serde_json::to_string(&all_topic) {
+        match serde_json::to_vec(&all_topic) {
             Ok(data) => {
                 return self
                     .storage_adapter
-                    .kv_set(self.key.clone(), Record::build_e(data))
+                    .set(self.key.clone(), Record::build_b(data))
                     .await
             }
             Err(e) => {
@@ -59,20 +59,18 @@ impl AllInfoStorage {
     }
 
     pub async fn get_all(&self) -> Result<Vec<String>, RobustMQError> {
-        match self.storage_adapter.kv_get(self.key.clone()).await {
-            Ok(data) => {
-                if let Some(da) = data {
-                    match serde_json::from_slice(&da.data) {
-                        Ok(da) => {
-                            return Ok(da);
-                        }
-                        Err(e) => {
-                            return Err(common_base::errors::RobustMQError::CommmonError(
-                                e.to_string(),
-                            ))
-                        }
-                    }
+        match self.storage_adapter.get(self.key.clone()).await {
+            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
+                Ok(da) => {
+                    return Ok(da);
                 }
+                Err(e) => {
+                    return Err(common_base::errors::RobustMQError::CommmonError(
+                        e.to_string(),
+                    ))
+                }
+            },
+            Ok(None) => {
                 return Ok(Vec::new());
             }
             Err(e) => {
