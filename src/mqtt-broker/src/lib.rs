@@ -43,7 +43,7 @@ mod cluster;
 mod heartbeat;
 mod metadata;
 mod metrics;
-mod packet;
+mod handler;
 mod security;
 mod server;
 mod storage;

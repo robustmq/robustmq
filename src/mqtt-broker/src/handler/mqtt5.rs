@@ -1,4 +1,4 @@
-use super::packet::MQTTAckBuild;
+use super::{packet::MQTTAckBuild, session::save_connect_session};
 use crate::{
     heartbeat::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
@@ -78,7 +78,26 @@ impl Mqtt5Service {
         }
 
         // save session data
-
+        let client_session = match save_connect_session(
+            auto_client_id,
+            client_id.clone(),
+            !last_will.is_none(),
+            cluster.clone(),
+            connnect.clone(),
+            self.metadata_cache.clone(),
+            connect_properties.clone(),
+            self.storage_adapter.clone(),
+        )
+        .await
+        {
+            Ok(session) => session,
+            Err(e) => {
+                error(e.to_string());
+                return self
+                    .ack_build
+                    .distinct(DisconnectReasonCode::AdministrativeAction);
+            }
+        };
 
         // save last will data
         if !last_will.is_none() {
@@ -109,6 +128,7 @@ impl Mqtt5Service {
         cache.set_client_id(connect_id, client_id.clone());
         drop(cache);
 
+        // Record heartbeat information
         let mut heartbeat = self.heartbeat_manager.write().await;
         let session_keep_alive = client_session.keep_alive;
         let live_time = ConnectionLiveTime {
