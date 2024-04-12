@@ -34,21 +34,21 @@ impl MemoryStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn kv_set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
+    async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
         self.memory_data.insert(key, value);
         return Ok(());
     }
-    async fn kv_get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
+    async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
         if let Some(data) = self.memory_data.get(&key) {
             return Ok(Some(data.clone()));
         }
         return Ok(None);
     }
-    async fn kv_delete(&self, key: String) -> Result<(), RobustMQError> {
+    async fn delete(&self, key: String) -> Result<(), RobustMQError> {
         self.memory_data.remove(&key);
         return Ok(());
     }
-    async fn kv_exists(&self, key: String) -> Result<bool, RobustMQError> {
+    async fn exists(&self, key: String) -> Result<bool, RobustMQError> {
         return Ok(self.memory_data.contains_key(&key));
     }
 
@@ -72,41 +72,24 @@ impl StorageAdapter for MemoryStorageAdapter {
         return Ok(offset);
     }
 
-    async fn stream_read_next(
+    async fn stream_read(
         &self,
         shard_name: String,
         group_id: String,
-    ) -> Result<Option<Record>, RobustMQError> {
-        let offset = if let Some(da) = self.group_data.get(&group_id) {
-            *da
-        } else {
-            0
-        };
-
-        if let Some(da) = self.shard_data.get(&shard_name) {
-            if let Some(value) = da.get(offset) {
-                self.group_data.insert(shard_name, offset + 1);
-                return Ok(Some(value.clone()));
-            }
-        }
-        return Ok(None);
-    }
-
-    async fn stream_read_next_batch(
-        &self,
-        shard_name: String,
-        group_id: String,
-        record_num: usize,
+        record_num: Option<usize>,
+        record_size: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError> {
         let offset = if let Some(da) = self.group_data.get(&group_id) {
             *da
         } else {
             0
         };
+
+        let num = if let Some(num) = record_num { num } else { 10 };
         if let Some(da) = self.shard_data.get(&shard_name) {
             let mut cur_offset = 0;
             let mut result = Vec::new();
-            for i in offset..(offset + record_num) {
+            for i in offset..(offset + num) {
                 if let Some(value) = da.get(i) {
                     result.push(value.clone());
                     cur_offset += 1;
@@ -140,6 +123,8 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard_name: String,
         start_timestamp: u128,
         end_timestamp: u128,
+        record_num: Option<usize>,
+        record_size: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError> {
         return Ok(None);
     }

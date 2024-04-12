@@ -3,6 +3,7 @@ use crate::{
     heartbeat::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
         cache::MetadataCache,
+        cluster::Cluster,
         message::Message,
         session::{LastWillData, Session},
         subscriber::Subscriber,
@@ -59,29 +60,25 @@ impl Mqtt5Service {
         last_will_properties: Option<LastWillProperties>,
         login: Option<Login>,
     ) -> MQTTPacket {
+        let cache = self.metadata_cache.read().await;
+        let cluster = cache.cluster_info.clone();
+        drop(cache);
+
         // connect for authentication
-        if self.authentication(login).await {
+        if self.authentication(login, &cluster).await {
             return self.ack_build.distinct(DisconnectReasonCode::NotAuthorized);
         }
 
-        // build session data
+        // auto create client id
         let mut auto_client_id = false;
         let mut client_id = connnect.client_id.clone();
         if client_id.is_empty() {
             client_id = unique_id_string();
             auto_client_id = true;
         }
-        let mut session = Session::default();
 
-        let cache = self.metadata_cache.read().await;
-        let cluster = cache.cluster_info.clone();
-        drop(cache);
-        session = session.build_session(
-            client_id.clone(),
-            connnect.clone(),
-            connect_properties.clone(),
-            cluster.server_keep_alive(),
-        );
+        // save session data
+
 
         // save last will data
         if !last_will.is_none() {
@@ -103,33 +100,17 @@ impl Mqtt5Service {
                         .distinct(DisconnectReasonCode::UnspecifiedError);
                 }
             }
-            session.last_will = true;
-        }
-
-        // save client session
-        let session_storage = SessionStorage::new(self.storage_adapter.clone());
-        match session_storage
-            .save_session(client_id.clone(), session.clone())
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                error(e.to_string());
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::UnspecifiedError);
-            }
         }
 
         // update cache
         // When working with locks, the default is to release them as soon as possible
         let mut cache = self.metadata_cache.write().await;
-        cache.set_session(client_id.clone(), session.clone());
+        cache.set_session(client_id.clone(), client_session.clone());
         cache.set_client_id(connect_id, client_id.clone());
         drop(cache);
 
         let mut heartbeat = self.heartbeat_manager.write().await;
-        let session_keep_alive = session.keep_alive;
+        let session_keep_alive = client_session.keep_alive;
         let live_time = ConnectionLiveTime {
             protobol: crate::server::MQTTProtocol::MQTT5,
             keep_live: session_keep_alive,
@@ -306,7 +287,10 @@ impl Mqtt5Service {
             .distinct(DisconnectReasonCode::NormalDisconnection);
     }
 
-    async fn authentication(&self, login: Option<Login>) -> bool {
+    async fn authentication(&self, login: Option<Login>, cluster: &Cluster) -> bool {
+        if cluster.secret_free_login() {
+            return true;
+        }
         if login == None {
             return false;
         }

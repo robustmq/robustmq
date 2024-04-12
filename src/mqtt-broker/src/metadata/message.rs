@@ -52,11 +52,11 @@ impl Message {
         publish_properties: Option<PublishProperties>,
     ) -> Option<Record> {
         let msg = Message::build_message(publish, publish_properties);
-        match serde_json::to_string(&msg) {
+        match serde_json::to_vec(&msg) {
             Ok(data) => {
-                return Some(Record::build_e(data));
+                return Some(Record::build_b(data));
             }
-            Err(e) => {
+            Err(_) => {
                 return None;
             }
         }

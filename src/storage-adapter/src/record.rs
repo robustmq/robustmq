@@ -54,12 +54,4 @@ impl Record {
         };
     }
 
-    pub fn build_e(data: String) -> Self {
-        return Record {
-            key: None,
-            data: data.as_bytes().to_vec(),
-            create_time: None,
-            header: None,
-        };
-    }
 }

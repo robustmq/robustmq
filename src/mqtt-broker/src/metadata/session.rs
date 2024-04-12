@@ -26,12 +26,13 @@ impl Session {
         connnect: Connect,
         connect_properties: Option<ConnectProperties>,
         server_keep_alive: u16,
+        last_will: bool,
     ) -> Session {
         let mut session = Session::default();
         session.client_id = client_id;
         session.keep_alive = self.keep_alive(server_keep_alive, connnect.keep_alive);
         session.clean_session = connnect.clean_session;
-
+        session.last_will = last_will;
         if let Some(properties) = connect_properties {
             session.session_expiry_interval = properties.session_expiry_interval;
             session.receive_maximum = properties.receive_maximum;
