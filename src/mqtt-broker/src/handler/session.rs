@@ -1,12 +1,11 @@
 use crate::{
-    metadata::{cache::MetadataCache, cluster::Cluster, session::Session},
+    metadata::{cluster::Cluster, session::Session},
     storage::session::SessionStorage,
 };
 use common_base::errors::RobustMQError;
 use protocol::mqtt::{Connect, ConnectProperties};
 use std::sync::Arc;
 use storage_adapter::memory::MemoryStorageAdapter;
-use tokio::sync::RwLock;
 
 pub async fn save_connect_session(
     auto_client_id: bool,
@@ -14,7 +13,6 @@ pub async fn save_connect_session(
     contail_last_will: bool,
     cluster: Cluster,
     connnect: Connect,
-    metadata_cache: Arc<RwLock<MetadataCache>>,
     connect_properties: Option<ConnectProperties>,
     storage_adapter: Arc<MemoryStorageAdapter>,
 ) -> Result<Session, RobustMQError> {

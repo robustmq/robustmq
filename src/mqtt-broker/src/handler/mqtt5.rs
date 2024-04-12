@@ -5,11 +5,11 @@ use crate::{
         cache::MetadataCache,
         cluster::Cluster,
         message::Message,
-        session::{LastWillData, Session},
+        session::LastWillData,
         subscriber::Subscriber,
         topic::Topic,
     },
-    storage::{message::MessageStorage, session::SessionStorage, topic::TopicStorage},
+    storage::{message::MessageStorage, topic::TopicStorage},
     subscribe::subscribe_manager::SubScribeManager,
 };
 use common_base::{
@@ -84,7 +84,6 @@ impl Mqtt5Service {
             !last_will.is_none(),
             cluster.clone(),
             connnect.clone(),
-            self.metadata_cache.clone(),
             connect_properties.clone(),
             self.storage_adapter.clone(),
         )
@@ -219,7 +218,9 @@ impl Mqtt5Service {
         return self.ack_build.pub_ack(pkid, None, user_properties);
     }
 
-    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
+    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {
+        
+    }
 
     pub async fn subscribe(
         &self,
