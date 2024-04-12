@@ -4,7 +4,7 @@ use protocol::mqtt::{
     Publish, Subscribe, Unsubscribe,
 };
 use tokio::sync::RwLock;
-use crate::{heartbeat::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache};
+use crate::{cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache};
 use std::sync::Arc;
 
 use super::packet::MQTTAckBuild;

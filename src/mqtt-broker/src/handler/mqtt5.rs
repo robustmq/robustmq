@@ -1,6 +1,6 @@
 use super::{packet::MQTTAckBuild, session::save_connect_session};
 use crate::{
-    heartbeat::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
+    cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
         cache::MetadataCache,
         cluster::Cluster,

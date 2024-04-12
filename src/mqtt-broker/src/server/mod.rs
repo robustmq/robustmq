@@ -3,7 +3,7 @@ use self::tcp::{
     tcp_server::TcpServer,
 };
 use crate::{
-    heartbeat::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
+    cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
     handler::command::Command, subscribe::subscribe_manager::SubScribeManager,
 };
 use common_base::{
