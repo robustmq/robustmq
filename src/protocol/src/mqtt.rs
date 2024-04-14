@@ -837,7 +837,7 @@ pub enum RetainForwardRule {
     Never,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq,Default)]
 pub struct SubscribeProperties {
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,

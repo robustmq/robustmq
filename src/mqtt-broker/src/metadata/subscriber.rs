@@ -8,7 +8,6 @@ use tokio::sync::RwLock;
 pub struct Subscriber {
     pub connect_id: u64,
     pub packet_identifier: u16,
-    pub topic_list: Vec<String>,
     pub filters: Vec<Filter>,
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,

@@ -6,20 +6,20 @@ use storage_adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Message {
-    dup: bool,
-    qos: QoS,
-    pkid: u16,
-    retain: bool,
-    topic: Bytes,
-    payload: Bytes,
-    format_indicator: Option<u8>,
-    expiry_interval: Option<u32>,
-    response_topic: Option<String>,
-    correlation_data: Option<Bytes>,
-    user_properties: Vec<(String, String)>,
-    subscription_identifiers: Vec<usize>,
-    content_type: Option<String>,
-    create_time: u128,
+    pub dup: bool,
+    pub qos: QoS,
+    pub pkid: u16,
+    pub retain: bool,
+    pub topic: Bytes,
+    pub payload: Bytes,
+    pub format_indicator: Option<u8>,
+    pub expiry_interval: Option<u32>,
+    pub response_topic: Option<String>,
+    pub correlation_data: Option<Bytes>,
+    pub user_properties: Vec<(String, String)>,
+    pub subscription_identifiers: Vec<usize>,
+    pub content_type: Option<String>,
+    pub create_time: u128,
 }
 
 impl Message {

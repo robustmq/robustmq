@@ -1,7 +1,9 @@
 use crate::cluster::heartbeat_manager::HeartbeatManager;
+use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
+use flume::Sender;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
 use std::sync::Arc;
 use storage_adapter::memory::MemoryStorageAdapter;
@@ -18,6 +20,7 @@ pub struct Command {
     mqtt4_service: Mqtt4Service,
     mqtt5_service: Mqtt5Service,
     metadata_cache: Arc<RwLock<MetadataCache>>,
+    response_queue_sx: Sender<ResponsePackage>,
 }
 
 impl Command {
@@ -27,6 +30,7 @@ impl Command {
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
         subscribe_manager: Arc<RwLock<SubScribeManager>>,
         storage_adapter: Arc<MemoryStorageAdapter>,
+        response_queue_sx: Sender<ResponsePackage>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
         let mqtt4_service = Mqtt4Service::new(
@@ -47,6 +51,7 @@ impl Command {
             mqtt4_service,
             mqtt5_service,
             metadata_cache,
+            response_queue_sx,
         };
     }
 
@@ -132,7 +137,12 @@ impl Command {
                 if self.protocol == MQTTProtocol::MQTT5 {
                     return Some(
                         self.mqtt5_service
-                            .subscribe(connect_id, subscribe, subscribe_properties)
+                            .subscribe(
+                                connect_id,
+                                subscribe,
+                                subscribe_properties,
+                                self.response_queue_sx.clone(),
+                            )
                             .await,
                     );
                 }

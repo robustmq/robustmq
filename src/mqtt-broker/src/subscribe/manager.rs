@@ -5,19 +5,26 @@ use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct SubScribeManager {
-    pub subscribe_list: HashMap<String, Vec<Subscriber>>,
+    pub topic_subscribe: HashMap<String, Vec<Subscriber>>,
+    pub all_subscribe: Vec<Subscriber>,
     pub metadata_cache: Arc<RwLock<MetadataCache>>,
 }
 
 impl SubScribeManager {
     pub fn new(metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
         return SubScribeManager {
-            subscribe_list: HashMap::new(),
+            topic_subscribe: HashMap::new(),
+            all_subscribe: Vec::new(),
             metadata_cache,
         };
     }
 
+    pub fn refresh_subscription_relationships(){
+
+    }
+
     pub fn add_subscribe(&mut self, connect_id: u64, subscriber: Subscriber) {
+        // subscriber.
         // self.subscribe_list.insert(connect_id, subscriber);
     }
 

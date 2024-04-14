@@ -30,6 +30,7 @@ pub struct MetadataCache {
     pub user_info: HashMap<String, User>,
     pub session_info: HashMap<String, Session>,
     pub topic_info: HashMap<String, Topic>,
+    pub topic_id_name: HashMap<String, String>,
     pub subscriber_info: HashMap<String, Subscriber>,
     pub connect_id_info: HashMap<u64, String>,
     pub login_info: HashMap<u64, bool>,
@@ -43,6 +44,7 @@ impl MetadataCache {
             user_info: HashMap::new(),
             session_info: HashMap::new(),
             topic_info: HashMap::new(),
+            topic_id_name: HashMap::new(),
             subscriber_info: HashMap::new(),
             connect_id_info: HashMap::new(),
             login_info: HashMap::new(),
@@ -141,7 +143,9 @@ impl MetadataCache {
     }
 
     pub fn set_topic(&mut self, topic_name: &String, topic: &Topic) {
-        self.topic_info.insert(topic_name.clone(), topic.clone());
+        let t = topic.clone();
+        self.topic_info.insert(topic_name.clone(), t.clone());
+        self.topic_id_name.insert(t.topic_id, topic_name.clone());
     }
 
     pub fn login_success(&mut self, connect_id: u64) {
@@ -154,6 +158,13 @@ impl MetadataCache {
 
     pub fn topic_exists(&self, topic: &String) -> bool {
         return self.topic_info.contains_key(topic);
+    }
+
+    pub fn topic_name_by_id(&self, topic_id: String) -> Option<String> {
+        if let Some(data) = self.topic_id_name.get(&topic_id) {
+            return Some(data.clone());
+        }
+        return None;
     }
 
     pub fn remove_connect_id(&mut self, connect_id: u64) {

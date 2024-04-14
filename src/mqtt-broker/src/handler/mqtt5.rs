@@ -1,10 +1,11 @@
-use super::{packet::MQTTAckBuild, session::save_connect_session};
+use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send_retain_message};
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
         cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
         subscriber::Subscriber, topic::Topic,
     },
+    server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
     subscribe::manager::SubScribeManager,
 };
@@ -12,6 +13,7 @@ use common_base::{
     log::error,
     tools::{now_second, unique_id_string},
 };
+use flume::Sender;
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
     LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, Publish,
@@ -242,12 +244,36 @@ impl Mqtt5Service {
         connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
+        response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
         let subscriber = Subscriber::build_subscriber(
             connect_id,
             subscribe.clone(),
             subscribe_properties.clone(),
         );
+
+        // Reservation messages are processed when a subscription is created
+        let message_storage = MessageStorage::new(self.storage_adapter.clone());
+        match send_retain_message(
+            connect_id,
+            subscribe.clone(),
+            subscribe_properties.clone(),
+            message_storage,
+            self.metadata_cache.clone(),
+            response_queue_sx.clone(),
+            true,
+            false,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                error(e.to_string());
+                return self
+                    .ack_build
+                    .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+            }
+        }
 
         // Saving subscriptions
         let mut sub_manager = self.subscribe_manager.write().await;
@@ -318,10 +344,9 @@ impl Mqtt5Service {
         sub_manager.remove_subscribe(connect_id, None);
         drop(sub_manager);
 
-        return self.ack_build.distinct(
-            DisconnectReasonCode::NormalDisconnection,
-            None,
-        );
+        return self
+            .ack_build
+            .distinct(DisconnectReasonCode::NormalDisconnection, None);
     }
 
     async fn authentication(&self, login: Option<Login>, cluster: &Cluster) -> bool {

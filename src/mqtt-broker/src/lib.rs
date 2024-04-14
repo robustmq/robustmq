@@ -30,9 +30,9 @@ use server::{
     start_mqtt_server,
     tcp::packet::{RequestPackage, ResponsePackage},
 };
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use storage_adapter::memory::MemoryStorageAdapter;
-use subscribe::manager::SubScribeManager;
+use subscribe::{manager::SubScribeManager, push::PushServer};
 use tokio::{
     runtime::Runtime,
     signal,
@@ -112,6 +112,7 @@ impl<'a> MqttBroker<'a> {
         self.start_http_server();
         self.start_keep_alive_thread(stop_send.subscribe());
         self.start_cluster_heartbeat_report(stop_send.subscribe());
+        self.start_push_server(stop_send.subscribe());
         self.awaiting_stop(stop_send);
     }
 
@@ -176,6 +177,13 @@ impl<'a> MqttBroker<'a> {
         let client_poll = self.client_poll.clone();
         self.runtime
             .spawn(async move { report_heartbeat(client_poll, stop_send).await });
+    }
+
+    fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
+        let push_server = PushServer::new();
+        self.runtime.spawn(async move {
+            push_server.start().await;
+        });
     }
 
     fn start_keep_alive_thread(&self, stop_send: broadcast::Receiver<bool>) {
