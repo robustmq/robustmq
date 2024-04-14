@@ -45,10 +45,8 @@ where
         command: Command,
         accept_thread_num: usize,
         max_connection_num: usize,
-        request_queue_size: usize,
         handler_process_num: usize,
         response_process_num: usize,
-        response_queue_size: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
         codec: T,
@@ -81,15 +79,15 @@ where
             .unwrap();
         let arc_listener = Arc::new(listener);
 
-        for _ in 0..=self.accept_thread_num {
+        for _ in 1..=self.accept_thread_num {
             _ = self.acceptor(arc_listener.clone()).await;
         }
 
-        for _ in 0..=self.handler_process_num {
+        for _ in 1..=self.handler_process_num {
             _ = self.handler_process().await;
         }
 
-        for _ in 0..=self.response_process_num {
+        for _ in 1..=self.response_process_num {
             _ = self.response_process().await;
         }
     }
