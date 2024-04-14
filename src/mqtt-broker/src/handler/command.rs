@@ -3,12 +3,11 @@ use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
-use flume::Sender;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
+use tokio::sync::broadcast::Sender;
 use std::sync::Arc;
 use storage_adapter::memory::MemoryStorageAdapter;
 use tokio::sync::RwLock;
-
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::MQTTAckBuild;

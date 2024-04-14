@@ -1860,7 +1860,6 @@ dependencies = [
  "clients",
  "common-base",
  "dashmap",
- "flume",
  "futures",
  "lazy_static",
  "prometheus",

@@ -2,12 +2,8 @@ use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
-        cache::MetadataCache,
-        cluster::Cluster,
-        message::Message,
-        session::LastWillData,
-        subscriber::Subscriber,
-        topic::{self, Topic},
+        cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
+        subscriber::Subscriber, topic::Topic,
     },
     server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
@@ -17,7 +13,6 @@ use common_base::{
     log::error,
     tools::{now_second, unique_id_string},
 };
-use flume::Sender;
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
     LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, Publish,
@@ -25,7 +20,7 @@ use protocol::mqtt::{
 };
 use std::sync::Arc;
 use storage_adapter::memory::MemoryStorageAdapter;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast::Sender, RwLock};
 
 #[derive(Clone)]
 pub struct Mqtt5Service {
@@ -192,7 +187,7 @@ impl Mqtt5Service {
         };
 
         drop(cache);
-        
+
         // Persisting retain message data
         let message_storage = MessageStorage::new(self.storage_adapter.clone());
         if publish.retain {
