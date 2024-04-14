@@ -5,7 +5,7 @@ use clients::{
 };
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    log::{debug_eninge, error_engine, info_meta},
+    log::{debug_eninge, error, error_engine, info},
     tools::get_local_ip,
 };
 use protocol::placement_center::generate::{
@@ -13,11 +13,14 @@ use protocol::placement_center::generate::{
     placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},
 };
 use std::{sync::Arc, time::Duration};
-use tokio::{sync::Mutex, time};
+use tokio::{
+    sync::{broadcast, Mutex},
+    time,
+};
 
-pub mod report;
 pub mod heartbeat_manager;
 pub mod keep_alive;
+pub mod report;
 
 pub const HEART_CONNECT_SHARD_HASH_NUM: u64 = 20;
 
@@ -41,7 +44,7 @@ pub async fn register_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
     for addr in config.placement_center.clone() {
         match register_node(client_poll.clone(), addr, req.clone()).await {
             Ok(_) => {
-                info_meta(&format!(
+                info(format!(
                     "Node {} has been successfully registered",
                     config.broker_id
                 ));
@@ -69,7 +72,7 @@ pub async fn unregister_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
     for addr in config.placement_center.clone() {
         match unregister_node(client_poll.clone(), addr, req.clone()).await {
             Ok(_) => {
-                info_meta(&format!("Node {} exits successfully", config.broker_id));
+                info(format!("Node {} exits successfully", config.broker_id));
                 break;
             }
             Err(e) => {
@@ -83,10 +86,21 @@ pub async fn unregister_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
     }
 }
 
-pub async fn report_heartbeat(client_poll: Arc<Mutex<ClientPool>>) {
-    
+pub async fn report_heartbeat(
+    client_poll: Arc<Mutex<ClientPool>>,
+    mut stop_send: broadcast::Receiver<bool>,
+) {
     time::sleep(Duration::from_millis(5000)).await;
     loop {
+        match stop_send.try_recv() {
+            Ok(flag) => {
+                if flag {
+                    info("ReportClusterHeartbeat thread stopped successfully".to_string());
+                    break;
+                }
+            }
+            Err(_) => {}
+        }
         let config = broker_mqtt_conf();
         let mut req = HeartbeatRequest::default();
         req.cluster_name = config.cluster_name.clone();

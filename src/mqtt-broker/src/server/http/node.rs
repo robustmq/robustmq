@@ -23,7 +23,7 @@ pub async fn metadata_info(State(state): State<HttpServerState>) -> String {
 
 pub async fn subscribe_info(State(state): State<HttpServerState>) -> String {
     let data = state.subscribe_manager.read().await;
-    return success_response(data.clone());
+    return success_response(data.subscribe_list.clone());
 }
 
 pub async fn index(State(state): State<HttpServerState>) -> String {
@@ -33,24 +33,24 @@ pub async fn index(State(state): State<HttpServerState>) -> String {
 
 pub async fn test_subscribe_pub(State(state): State<HttpServerState>) -> String {
     let sub_manager = state.subscribe_manager.read().await;
-    for (connect_id, sub) in sub_manager.subscribe_list.clone() {
-        let publish = Publish {
-            dup: false,
-            qos: protocol::mqtt::QoS::AtLeastOnce,
-            pkid: sub.packet_identifier,
-            retain: false,
-            topic: Bytes::from("loboxu/test".to_string()),
-            payload: Bytes::from("subscribe loboxu success".to_string()),
-        };
+    // for (connect_id, sub) in sub_manager.subscribe_list.clone() {
+    //     let publish = Publish {
+    //         dup: false,
+    //         qos: protocol::mqtt::QoS::AtLeastOnce,
+    //         pkid: sub.packet_identifier,
+    //         retain: false,
+    //         topic: Bytes::from("loboxu/test".to_string()),
+    //         payload: Bytes::from("subscribe loboxu success".to_string()),
+    //     };
 
-        let mut properties = PublishProperties::default();
-        properties.user_properties = vec![("key1".to_string(), "val1".to_string())];
-        let resp = ResponsePackage {
-            connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish, Some(properties)),
-        };
-        state.response_queue_sx5.send(resp).unwrap();
-    }
+    //     let mut properties = PublishProperties::default();
+    //     properties.user_properties = vec![("key1".to_string(), "val1".to_string())];
+    //     let resp = ResponsePackage {
+    //         connection_id: connect_id,
+    //         packet: MQTTPacket::Publish(publish, Some(properties)),
+    //     };
+    //     state.response_queue_sx5.send(resp).unwrap();
+    // }
 
     return success_response("");
 }

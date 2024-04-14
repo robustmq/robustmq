@@ -4,7 +4,7 @@ use self::tcp::{
 };
 use crate::{
     cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
-    handler::command::Command, subscribe::subscribe_manager::SubScribeManager,
+    handler::command::Command, subscribe::manager::SubScribeManager,
 };
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},

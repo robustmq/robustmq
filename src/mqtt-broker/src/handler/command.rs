@@ -1,10 +1,10 @@
 use crate::cluster::heartbeat_manager::HeartbeatManager;
-use crate::subscribe::subscribe_manager::SubScribeManager;
+use crate::subscribe::manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
-use storage_adapter::memory::MemoryStorageAdapter;
 use std::sync::Arc;
+use storage_adapter::memory::MemoryStorageAdapter;
 use tokio::sync::RwLock;
 
 use super::mqtt4::Mqtt4Service;
@@ -56,7 +56,7 @@ impl Command {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
                 let mut ack_pkg = self
                     .ack_build
-                    .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized);
+                    .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized, None);
 
                 if self.protocol == MQTTProtocol::MQTT4 {
                     ack_pkg = self
@@ -187,24 +187,23 @@ impl Command {
             }
 
             _ => {
-                return Some(
-                    self.ack_build.distinct(
-                        protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError,
-                    ),
-                );
+                return Some(self.ack_build.distinct(
+                    protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError,
+                    None,
+                ));
             }
         }
-        return Some(
-            self.ack_build
-                .distinct(protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError),
-        );
+        return Some(self.ack_build.distinct(
+            protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError,
+            None,
+        ));
     }
 
     fn un_login_err(&self, connect_id: u64) -> MQTTPacket {
         info(format!("connect id [{}] Not logged in", connect_id));
         return self
             .ack_build
-            .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized);
+            .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized, None);
     }
 
     pub async fn auth_login(&self, connect_id: u64) -> bool {

@@ -9,7 +9,7 @@ use std::{
 };
 use crate::{
     cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
-    server::tcp::packet::ResponsePackage, subscribe::subscribe_manager::SubScribeManager,
+    server::tcp::packet::ResponsePackage, subscribe::manager::SubScribeManager,
 };
 use super::node::{
     hearbeat_info, index, metadata_info, metrics, subscribe_info, test_subscribe_pub,

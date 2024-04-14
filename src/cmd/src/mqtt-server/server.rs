@@ -14,7 +14,7 @@
 
 use clap::{command, Parser};
 use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-use common_base::config::DEFAULT_BROKER_SERVER_CONFIG;
+use common_base::config::DEFAULT_MQTT_SERVER_CONFIG;
 use common_base::log::init_broker_mqtt_log;
 use mqtt_broker::MqttBroker;
 use tokio::sync::broadcast;
@@ -25,7 +25,7 @@ use tokio::sync::broadcast;
 
 struct ArgsParams {
     /// broker server configuration file path
-    #[arg(short, long, default_value_t=String::from(DEFAULT_BROKER_SERVER_CONFIG))]
+    #[arg(short, long, default_value_t=String::from(DEFAULT_MQTT_SERVER_CONFIG))]
     conf: String,
 }
 
