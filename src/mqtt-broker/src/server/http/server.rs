@@ -1,8 +1,7 @@
 use axum::routing::get;
 use axum::Router;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
-use flume::Sender;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast::Sender, RwLock};
 use std::{
     net::SocketAddr,
     sync::Arc,

@@ -4,12 +4,11 @@ use crate::{
 };
 use bytes::Bytes;
 use common_base::errors::RobustMQError;
-use flume::Sender;
 use protocol::mqtt::{
     MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast::Sender, RwLock};
 
 pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
     // Path perfect matching
@@ -123,7 +122,7 @@ mod tests {
     use bytes::Bytes;
     use protocol::mqtt::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
     use storage_adapter::memory::MemoryStorageAdapter;
-    use tokio::sync::RwLock;
+    use tokio::sync::{broadcast, RwLock};
 
     use crate::{
         handler::subscribe::{get_sub_topic_list, max_qos, path_regex_match, send_retain_message},
@@ -170,8 +169,7 @@ mod tests {
     async fn send_retain_message_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
-        let (response_queue_sx, response_queue_rx) = flume::bounded::<ResponsePackage>(1000);
-
+        let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;
         let mut filters = Vec::new();
         let flt = Filter {
@@ -238,7 +236,7 @@ mod tests {
         }
 
         loop {
-            match response_queue_rx.recv() {
+            match response_queue_rx.recv().await {
                 Ok(packet) => {
                     if let MQTTPacket::Publish(publish, _) = packet.packet {
                         assert_eq!(publish.topic, retain_message.topic);

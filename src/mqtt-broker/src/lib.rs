@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 use clients::ClientPool;
 use cluster::{
     heartbeat_manager::HeartbeatManager, keep_alive::KeepAlive, register_broker_node,
@@ -22,7 +21,6 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
-use flume::{Receiver, Sender};
 use metadata::cache::MetadataCache;
 use server::{
     grpc::server::GrpcServer,
@@ -36,7 +34,10 @@ use subscribe::{manager::SubScribeManager, push::PushServer};
 use tokio::{
     runtime::Runtime,
     signal,
-    sync::{broadcast, Mutex, RwLock},
+    sync::{
+        broadcast::{self, Sender},
+        Mutex, RwLock,
+    },
 };
 
 mod cluster;
@@ -55,13 +56,9 @@ pub struct MqttBroker<'a> {
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
-    request_queue_rx4: Receiver<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
-    request_queue_rx5: Receiver<RequestPackage>,
     response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_rx4: Receiver<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
-    response_queue_rx5: Receiver<ResponsePackage>,
     client_poll: Arc<Mutex<ClientPool>>,
     storage_adapter: Arc<MemoryStorageAdapter>,
 }
@@ -71,10 +68,10 @@ impl<'a> MqttBroker<'a> {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
 
-        let (request_queue_sx4, request_queue_rx4) = flume::bounded::<RequestPackage>(1000);
-        let (request_queue_sx5, request_queue_rx5) = flume::bounded::<RequestPackage>(1000);
-        let (response_queue_sx4, response_queue_rx4) = flume::bounded::<ResponsePackage>(1000);
-        let (response_queue_sx5, response_queue_rx5) = flume::bounded::<ResponsePackage>(1000);
+        let (request_queue_sx4, _) = broadcast::channel(1000);
+        let (request_queue_sx5, _) = broadcast::channel(1000);
+        let (response_queue_sx4, _) = broadcast::channel(1000);
+        let (response_queue_sx5, _) = broadcast::channel(1000);
 
         let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new(
             HEART_CONNECT_SHARD_HASH_NUM,
@@ -93,13 +90,9 @@ impl<'a> MqttBroker<'a> {
             heartbeat_manager,
             subscribe_manager,
             request_queue_sx4,
-            request_queue_rx4,
             request_queue_sx5,
-            request_queue_rx5,
             response_queue_sx4,
-            response_queue_rx4,
             response_queue_sx5,
-            response_queue_rx5,
             client_poll,
             storage_adapter,
         };
@@ -123,14 +116,10 @@ impl<'a> MqttBroker<'a> {
         let storage_adapter = self.storage_adapter.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
-        let request_queue_rx4 = self.request_queue_rx4.clone();
         let request_queue_sx5 = self.request_queue_sx5.clone();
-        let request_queue_rx5 = self.request_queue_rx5.clone();
 
         let response_queue_sx4 = self.response_queue_sx4.clone();
-        let response_queue_rx4 = self.response_queue_rx4.clone();
         let response_queue_sx5 = self.response_queue_sx5.clone();
-        let response_queue_rx5 = self.response_queue_rx5.clone();
         self.runtime.spawn(async move {
             start_mqtt_server(
                 cache,
@@ -138,13 +127,9 @@ impl<'a> MqttBroker<'a> {
                 subscribe_manager,
                 storage_adapter,
                 request_queue_sx4,
-                request_queue_rx4,
                 request_queue_sx5,
-                request_queue_rx5,
                 response_queue_sx4,
-                response_queue_rx4,
                 response_queue_sx5,
-                response_queue_rx5,
             )
             .await
         });

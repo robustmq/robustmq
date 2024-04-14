@@ -6,8 +6,8 @@ use protocol::mqtt::{
 use tokio::sync::RwLock;
 use crate::{cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache};
 use std::sync::Arc;
-
 use super::packet::MQTTAckBuild;
+
 #[derive(Clone)]
 pub struct Mqtt4Service {
     metadata_cache: Arc<RwLock<MetadataCache>>,
