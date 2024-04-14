@@ -2,15 +2,11 @@ use super::{packet::MQTTAckBuild, session::save_connect_session};
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
-        cache::MetadataCache,
-        cluster::Cluster,
-        message::Message,
-        session::LastWillData,
-        subscriber::Subscriber,
-        topic::Topic,
+        cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
+        subscriber::Subscriber, topic::Topic,
     },
     storage::{message::MessageStorage, topic::TopicStorage},
-    subscribe::subscribe_manager::SubScribeManager,
+    subscribe::manager::SubScribeManager,
 };
 use common_base::{
     log::error,
@@ -66,7 +62,9 @@ impl Mqtt5Service {
 
         // connect for authentication
         if self.authentication(login, &cluster).await {
-            return self.ack_build.distinct(DisconnectReasonCode::NotAuthorized);
+            return self
+                .ack_build
+                .distinct(DisconnectReasonCode::NotAuthorized, None);
         }
 
         // auto create client id
@@ -92,9 +90,10 @@ impl Mqtt5Service {
             Ok(session) => session,
             Err(e) => {
                 error(e.to_string());
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::AdministrativeAction);
+                return self.ack_build.distinct(
+                    DisconnectReasonCode::AdministrativeAction,
+                    Some(e.to_string()),
+                );
             }
         };
 
@@ -115,7 +114,7 @@ impl Mqtt5Service {
                     error(e.to_string());
                     return self
                         .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError);
+                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
                 }
             }
         }
@@ -128,13 +127,13 @@ impl Mqtt5Service {
         drop(cache);
 
         // Record heartbeat information
-        let mut heartbeat = self.heartbeat_manager.write().await;
         let session_keep_alive = client_session.keep_alive;
         let live_time = ConnectionLiveTime {
             protobol: crate::server::MQTTProtocol::MQTT5,
             keep_live: session_keep_alive,
             heartbeat: now_second(),
         };
+        let mut heartbeat = self.heartbeat_manager.write().await;
         heartbeat.report_hearbeat(connect_id, live_time);
         drop(heartbeat);
 
@@ -180,7 +179,26 @@ impl Mqtt5Service {
                     error(e.to_string());
                     return self
                         .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError);
+                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                }
+            }
+        }
+
+        // Persisting retain message data
+        let message_storage = MessageStorage::new(self.storage_adapter.clone());
+        if publish.retain {
+            let retain_message =
+                Message::build_message(publish.clone(), publish_properties.clone());
+            match message_storage
+                .save_retain_message(topic.topic_id.clone(), retain_message)
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => {
+                    error(e.to_string());
+                    return self
+                        .ack_build
+                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
                 }
             }
         }
@@ -188,7 +206,6 @@ impl Mqtt5Service {
         // Persisting stores message data
         let mut offset = 0;
         if let Some(record) = Message::build_record(publish.clone(), publish_properties.clone()) {
-            let message_storage = MessageStorage::new(self.storage_adapter.clone());
             match message_storage
                 .append_topic_message(topic.topic_id, record)
                 .await
@@ -200,7 +217,7 @@ impl Mqtt5Service {
                     error(e.to_string());
                     return self
                         .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError);
+                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
                 }
             }
         }
@@ -218,9 +235,7 @@ impl Mqtt5Service {
         return self.ack_build.pub_ack(pkid, None, user_properties);
     }
 
-    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {
-        
-    }
+    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
 
     pub async fn subscribe(
         &self,
@@ -263,7 +278,7 @@ impl Mqtt5Service {
         }
         return self
             .ack_build
-            .distinct(DisconnectReasonCode::UseAnotherServer);
+            .distinct(DisconnectReasonCode::UseAnotherServer, None);
     }
 
     pub async fn un_subscribe(
@@ -303,9 +318,10 @@ impl Mqtt5Service {
         sub_manager.remove_subscribe(connect_id, None);
         drop(sub_manager);
 
-        return self
-            .ack_build
-            .distinct(DisconnectReasonCode::NormalDisconnection);
+        return self.ack_build.distinct(
+            DisconnectReasonCode::NormalDisconnection,
+            None,
+        );
     }
 
     async fn authentication(&self, login: Option<Login>, cluster: &Cluster) -> bool {

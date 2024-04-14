@@ -13,10 +13,13 @@
 // limitations under the License.
 
 use clients::ClientPool;
-use cluster::{heartbeat_manager::HeartbeatManager, keep_alive::KeepAlive, register_broker_node, report_heartbeat, unregister_broker_node, HEART_CONNECT_SHARD_HASH_NUM};
+use cluster::{
+    heartbeat_manager::HeartbeatManager, keep_alive::KeepAlive, register_broker_node,
+    report_heartbeat, unregister_broker_node, HEART_CONNECT_SHARD_HASH_NUM,
+};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
-    log::info_meta,
+    log::info,
     runtime::create_runtime,
 };
 use flume::{Receiver, Sender};
@@ -27,9 +30,9 @@ use server::{
     start_mqtt_server,
     tcp::packet::{RequestPackage, ResponsePackage},
 };
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use storage_adapter::memory::MemoryStorageAdapter;
-use subscribe::subscribe_manager::SubScribeManager;
+use subscribe::manager::SubScribeManager;
 use tokio::{
     runtime::Runtime,
     signal,
@@ -37,9 +40,9 @@ use tokio::{
 };
 
 mod cluster;
+mod handler;
 mod metadata;
 mod metrics;
-mod handler;
 mod security;
 mod server;
 mod storage;
@@ -73,7 +76,6 @@ impl<'a> MqttBroker<'a> {
         let (response_queue_sx4, response_queue_rx4) = flume::bounded::<ResponsePackage>(1000);
         let (response_queue_sx5, response_queue_rx5) = flume::bounded::<ResponsePackage>(1000);
 
-        let subscribe_manager = Arc::new(RwLock::new(SubScribeManager::new()));
         let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new(
             HEART_CONNECT_SHARD_HASH_NUM,
         )));
@@ -81,6 +83,8 @@ impl<'a> MqttBroker<'a> {
         let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(1)));
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
+        let subscribe_manager =
+            Arc::new(RwLock::new(SubScribeManager::new(metadata_cache.clone())));
 
         return MqttBroker {
             conf,
@@ -105,10 +109,9 @@ impl<'a> MqttBroker<'a> {
         self.register_node();
         self.start_grpc_server();
         self.start_mqtt_server();
-        self.start_prometheus_export();
-        self.start_keep_alive_thread();
-        self.start_cluster_heartbeat_report();
-        self.start_cluster_heartbeat_report();
+        self.start_http_server();
+        self.start_keep_alive_thread(stop_send.subscribe());
+        self.start_cluster_heartbeat_report(stop_send.subscribe());
         self.awaiting_stop(stop_send);
     }
 
@@ -157,7 +160,7 @@ impl<'a> MqttBroker<'a> {
         });
     }
 
-    fn start_prometheus_export(&self) {
+    fn start_http_server(&self) {
         let http_state = HttpServerState::new(
             self.metadata_cache.clone(),
             self.heartbeat_manager.clone(),
@@ -169,18 +172,19 @@ impl<'a> MqttBroker<'a> {
             .spawn(async move { start_http_server(http_state).await });
     }
 
-    fn start_cluster_heartbeat_report(&self) {
+    fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Receiver<bool>) {
         let client_poll = self.client_poll.clone();
         self.runtime
-            .spawn(async move { report_heartbeat(client_poll).await });
+            .spawn(async move { report_heartbeat(client_poll, stop_send).await });
     }
 
-    fn start_keep_alive_thread(&self) {
-        let keep_alive = KeepAlive::new(
+    fn start_keep_alive_thread(&self, stop_send: broadcast::Receiver<bool>) {
+        let mut keep_alive = KeepAlive::new(
             HEART_CONNECT_SHARD_HASH_NUM,
             self.heartbeat_manager.clone(),
             self.request_queue_sx4.clone(),
             self.request_queue_sx5.clone(),
+            stop_send,
         );
         self.runtime.spawn(async move {
             keep_alive.start_heartbeat_check().await;
@@ -194,11 +198,13 @@ impl<'a> MqttBroker<'a> {
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match stop_send.send(true) {
                     Ok(_) => {
-                        info_meta("When ctrl + c is received, the service starts to stop");
+                        info("When ctrl + c is received, the service starts to stop".to_string());
                         self.stop_server().await;
                         break;
                     }
-                    Err(_) => {}
+                    Err(_) => {
+                        break;
+                    }
                 }
             }
         });

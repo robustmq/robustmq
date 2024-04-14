@@ -90,12 +90,12 @@ impl Mqtt4Service {
         }
         return self
             .ack_build
-            .distinct(DisconnectReasonCode::NormalDisconnection);
+            .distinct(DisconnectReasonCode::NormalDisconnection,None);
     }
 
     fn un_login_err(&self) -> MQTTPacket {
         return self
             .ack_build
-            .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized);
+            .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized, None);
     }
 }

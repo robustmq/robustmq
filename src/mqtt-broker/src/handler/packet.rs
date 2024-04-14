@@ -1,11 +1,11 @@
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use protocol::mqtt::{
-    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectReasonCode, MQTTPacket,
-    PingResp, PubAck, PubAckProperties, PubAckReason, SubAck, SubAckProperties,
-    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
+    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, SubAck,
+    SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
-use tokio::sync::RwLock;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct MQTTAckBuild {
@@ -67,7 +67,7 @@ impl MQTTAckBuild {
             };
             return MQTTPacket::ConnAck(conn_ack, Some(ack_properties));
         }
-        return self.distinct(DisconnectReasonCode::UnspecifiedError);
+        return self.distinct(DisconnectReasonCode::UnspecifiedError, None);
     }
 
     pub fn pub_ack(
@@ -150,8 +150,21 @@ impl MQTTAckBuild {
         return MQTTPacket::UnsubAck(unsub_ack, None);
     }
 
-    pub fn distinct(&self, reason_code: DisconnectReasonCode) -> MQTTPacket {
+    pub fn distinct(
+        &self,
+        reason_code: DisconnectReasonCode,
+        reason_string: Option<String>,
+    ) -> MQTTPacket {
         let disconnect = Disconnect { reason_code };
+        if !reason_string.is_none() {
+            let properties = DisconnectProperties {
+                session_expiry_interval: None,
+                reason_string: reason_string,
+                user_properties: Vec::new(),
+                server_reference: None,
+            };
+            return MQTTPacket::Disconnect(disconnect, Some(properties));
+        }
         return MQTTPacket::Disconnect(disconnect, None);
     }
 }

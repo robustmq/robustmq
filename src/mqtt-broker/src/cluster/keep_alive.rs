@@ -4,7 +4,7 @@ use crate::{
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
 use common_base::{
-    log::{debug, error},
+    log::{debug, error, info},
     tools::{now_mills, now_second},
 };
 use flume::Sender;
@@ -12,7 +12,7 @@ use protocol::mqtt::{Disconnect, DisconnectProperties, DisconnectReasonCode, MQT
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{
-    sync::{RwLock, Semaphore},
+    sync::{broadcast, RwLock, Semaphore},
     time::sleep,
 };
 
@@ -21,6 +21,7 @@ pub struct KeepAlive {
     connection_keep_live_data: Arc<RwLock<HeartbeatManager>>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
+    stop_send: broadcast::Receiver<bool>,
 }
 
 impl KeepAlive {
@@ -29,22 +30,34 @@ impl KeepAlive {
         connection_keep_live_data: Arc<RwLock<HeartbeatManager>>,
         request_queue_sx4: Sender<RequestPackage>,
         request_queue_sx5: Sender<RequestPackage>,
+        stop_send: broadcast::Receiver<bool>,
     ) -> Self {
         return KeepAlive {
             shard_num,
             connection_keep_live_data,
             request_queue_sx4,
             request_queue_sx5,
+            stop_send,
         };
     }
 
     // TCP connection heartbeat detection is performed in parallel, and subsequent processing is carried out
-    pub async fn start_heartbeat_check(&self) {
+    pub async fn start_heartbeat_check(&mut self) {
         loop {
+            match self.stop_send.try_recv() {
+                Ok(flag) => {
+                    if flag {
+                        info("KeepAlive thread stopped successfully".to_string());
+                        break;
+                    }
+                }
+                Err(_) => {}
+            }
             let lock = self.connection_keep_live_data.read().await;
             let mut heartbeat_data = lock.heartbeat_data.clone();
             drop(lock);
 
+            sleep(Duration::from_secs(5)).await;
             //
             let semaphore = Arc::new(Semaphore::new(self.shard_num as usize));
             for i in 0..self.shard_num {
@@ -120,8 +133,7 @@ impl KeepAlive {
                 use_time,
             };
             metrics_heartbeat_keep_alive_run_info(use_time);
-            debug(format!("{:?}", run_info));
-            sleep(Duration::from_secs(5)).await;
+            // info(format!("{:?}", run_info));
         }
     }
 }

@@ -18,7 +18,7 @@ use clap::command;
 use clap::Parser;
 use common_base::config::broker_mqtt::BrokerMQTTConfig;
 use common_base::config::parse_server;
-use common_base::config::DEFAULT_BROKER_SERVER_CONFIG;
+use common_base::config::DEFAULT_MQTT_SERVER_CONFIG;
 use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 
 #[derive(Parser, Debug)]
@@ -27,7 +27,7 @@ use common_base::config::DEFAULT_PLACEMENT_CENTER_CONFIG;
 
 struct ArgsParams {
     /// broker server configuration file path
-    #[arg(short, long, default_value_t=String::from(DEFAULT_BROKER_SERVER_CONFIG))]
+    #[arg(short, long, default_value_t=String::from(DEFAULT_MQTT_SERVER_CONFIG))]
     server_conf: String,
 
     /// MetaService Indicates the path of the configuration file
