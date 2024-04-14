@@ -23,7 +23,7 @@ pub async fn metadata_info(State(state): State<HttpServerState>) -> String {
 
 pub async fn subscribe_info(State(state): State<HttpServerState>) -> String {
     let data = state.subscribe_manager.read().await;
-    return success_response(data.subscribe_list.clone());
+    return success_response(data.all_subscribe.clone());
 }
 
 pub async fn index(State(state): State<HttpServerState>) -> String {
