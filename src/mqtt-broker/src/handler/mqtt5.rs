@@ -2,8 +2,12 @@ use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
-        cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
-        subscriber::Subscriber, topic::Topic,
+        cache::MetadataCache,
+        cluster::Cluster,
+        message::Message,
+        session::LastWillData,
+        subscriber::Subscriber,
+        topic::{self, Topic},
     },
     server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
@@ -167,13 +171,13 @@ impl Mqtt5Service {
         publish_properties: Option<PublishProperties>,
     ) -> MQTTPacket {
         let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
-        let topic = Topic::new(&topic_name);
-
-        // Update the cache if the Topic doesn't exist and persist the Topic information
         let mut cache = self.metadata_cache.write().await;
-        if !cache.topic_exists(&topic_name) {
-            cache.set_topic(&topic_name, &topic);
 
+        let topic = if let Some(tp) = cache.get_topic_by_name(topic_name.clone()) {
+            tp
+        } else {
+            let topic = Topic::new(&topic_name);
+            cache.set_topic(&topic_name, &topic);
             let topic_storage = TopicStorage::new(self.storage_adapter.clone());
             match topic_storage.save_topic(&topic_name, &topic).await {
                 Ok(_) => {}
@@ -184,8 +188,11 @@ impl Mqtt5Service {
                         .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
                 }
             }
-        }
+            topic
+        };
 
+        drop(cache);
+        
         // Persisting retain message data
         let message_storage = MessageStorage::new(self.storage_adapter.clone());
         if publish.retain {

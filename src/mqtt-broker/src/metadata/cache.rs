@@ -167,6 +167,13 @@ impl MetadataCache {
         return None;
     }
 
+    pub fn get_topic_by_name(&self, topic_name: String) -> Option<Topic> {
+        if let Some(topic) = self.topic_info.get(&topic_name) {
+            return Some(topic.clone());
+        }
+        return None;
+    }
+
     pub fn remove_connect_id(&mut self, connect_id: u64) {
         if let Some(client_id) = self.connect_id_info.get(&connect_id) {
             self.session_info.remove(client_id);
