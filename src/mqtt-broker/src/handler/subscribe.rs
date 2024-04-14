@@ -85,9 +85,7 @@ pub async fn send_retain_message(
                         response_queue_sx.send(resp).unwrap();
                     }
                 }
-                Ok(None) => {
-                    println!("topic_name None");
-                }
+                Ok(None) => {}
                 Err(e) => return Err(e),
             }
         }
