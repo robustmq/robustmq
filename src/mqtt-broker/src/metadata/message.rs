@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use common_base::tools::now_mills;
+use common_base::{errors::RobustMQError, tools::now_mills};
 use protocol::mqtt::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use storage_adapter::record::Record;
@@ -56,9 +56,20 @@ impl Message {
             Ok(data) => {
                 return Some(Record::build_b(data));
             }
+
             Err(_) => {
                 return None;
             }
         }
+    }
+
+    pub fn decode_record(record: Record) -> Result<Message, RobustMQError> {
+        let data: Message = match serde_json::from_slice(record.data.as_slice()) {
+            Ok(da) => da,
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        };
+        return Ok(data);
     }
 }
