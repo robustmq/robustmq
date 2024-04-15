@@ -4,7 +4,7 @@ use crate::{
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
-use common_base::log::error;
+use common_base::log::{error, info};
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use storage_adapter::memory::MemoryStorageAdapter;
@@ -38,6 +38,7 @@ impl PushServer {
     }
 
     pub async fn start(&mut self) {
+        info("Subscription push thread is started successfully.".to_string());
         loop {
             let sub_manager = self.subscribe_manager.read().await;
             let topic_subscribe = sub_manager.topic_subscribe.clone();
@@ -170,6 +171,96 @@ pub async fn topic_sub_push_thread(
                 Err(e) => {
                     error(e.to_string());
                     sleep(Duration::from_millis(max_wait_ms)).await;
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::metadata::message::Message;
+    use crate::subscribe::push::topic_sub_push_thread;
+    use crate::{
+        metadata::{cache::MetadataCache, topic::Topic},
+        storage::message::MessageStorage,
+        subscribe::manager::SubScribeManager,
+    };
+    use bytes::Bytes;
+    use protocol::mqtt::{Filter, MQTTPacket, Subscribe};
+    use std::sync::Arc;
+    use storage_adapter::memory::MemoryStorageAdapter;
+    use storage_adapter::record::Record;
+    use tokio::sync::{broadcast, RwLock};
+
+    #[tokio::test]
+    async fn topic_sub_push_thread_test() {
+        let storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
+
+        // Create topic
+        let topic_name = "/test/topic".to_string();
+        let topic = Topic::new(&topic_name);
+        let mut cache = metadata_cache.write().await;
+        cache.set_topic(&topic_name, &topic);
+        drop(cache);
+
+        let sub_manager = Arc::new(RwLock::new(SubScribeManager::new(metadata_cache)));
+
+        // Subscription topic
+        let mut sub_m = sub_manager.write().await;
+        let connect_id = 1;
+        let packet_identifier = 2;
+        let mut filters = Vec::new();
+        let filter = Filter {
+            path: "/test/topic".to_string(),
+            qos: protocol::mqtt::QoS::AtLeastOnce,
+            nolocal: true,
+            preserve_retain: true,
+            retain_forward_rule: protocol::mqtt::RetainForwardRule::Never,
+        };
+        filters.push(filter);
+        let subscribe = Subscribe {
+            packet_identifier,
+            filters,
+        };
+        sub_m.parse_subscribe(connect_id, subscribe, None).await;
+        drop(sub_m);
+
+        // Start push thread
+        let message_storage = MessageStorage::new(storage_adapter.clone());
+        let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
+        let ms = message_storage.clone();
+        let topic_id: String = topic.topic_id.clone();
+        tokio::spawn(async move {
+            topic_sub_push_thread(sub_manager, ms, topic_id, response_queue_sx).await;
+        });
+
+        // Send data
+        let mut msg = Message::default();
+        msg.payload = Bytes::from("testtest".to_string());
+
+        let record = Record::build_b(serde_json::to_vec(&msg).unwrap());
+        message_storage
+            .append_topic_message(topic.topic_id.clone(), record)
+            .await
+            .unwrap();
+
+        // Receive subscription data
+        loop {
+            match response_queue_rx.recv().await {
+                Ok(packet) => {
+                    if let MQTTPacket::Publish(publish, _) = packet.packet {
+                        assert_eq!(publish.topic, topic.topic_id);
+                        assert_eq!(publish.payload, msg.payload);
+                    } else {
+                        println!("Package does not exist");
+                        assert!(false);
+                    }
+                    break;
+                }
+                Err(e) => {
+                    println!("{}", e)
                 }
             }
         }
