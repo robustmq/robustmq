@@ -126,7 +126,6 @@ where
                         // request is processed by a separate thread, placing the request packet in the request queue.
                         tokio::spawn(async move {
                             loop {
-                                println!("read_frame_stream");
                                 if let Some(pkg) = read_frame_stream.next().await {
                                     match pkg {
                                         Ok(data) => {
@@ -167,7 +166,6 @@ where
         let connect_manager = self.connection_manager.clone();
         tokio::spawn(async move {
             while let Ok(packet) = request_queue_rx.recv().await {
-                println!("handler_process");
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
 
                 // MQTT 4/5 business logic processin
@@ -203,7 +201,6 @@ where
 
         tokio::spawn(async move {
             while let Ok(response_package) = response_queue_rx.recv().await {
-                println!("response_process");
                 metrics_response_queue(&protocol_lable, response_queue_rx.len() as i64);
                 metrics_response_packet_incr(&protocol_lable);
 

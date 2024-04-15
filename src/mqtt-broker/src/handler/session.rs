@@ -50,3 +50,11 @@ pub async fn save_connect_session(
     }
     return Ok(client_session);
 }
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn send_retain_message_test() {
+        
+    }
+}

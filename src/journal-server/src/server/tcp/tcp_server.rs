@@ -2,17 +2,16 @@ use super::{
     connection::{Connection, ConnectionManager},
     packet::ResponsePackage,
 };
-use crate::{
-    network::{command::Command, services::Services},
-    server::tcp::packet::RequestPackage,
-};
+use crate::{network::command::Command, server::tcp::packet::RequestPackage};
 use common_base::log::error_engine;
-use flume::{Receiver, Sender};
 use futures::StreamExt;
 use protocol::journal_server::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
-use tokio::io;
-use tokio::net::TcpListener;
+use tokio::{io, sync::broadcast};
+use tokio::{
+    net::TcpListener,
+    sync::broadcast::{Receiver, Sender},
+};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub struct TcpServer {
@@ -38,10 +37,8 @@ impl TcpServer {
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
     ) -> Self {
-        let (request_queue_sx, request_queue_rx) =
-            flume::bounded::<RequestPackage>(request_queue_size);
-        let (response_queue_sx, response_queue_rx) =
-            flume::bounded::<ResponsePackage>(response_queue_size);
+        let (request_queue_sx, request_queue_rx) = broadcast::channel(request_queue_size);
+        let (response_queue_sx, response_queue_rx) = broadcast::channel(response_queue_size);
 
         let connection_manager = Arc::new(ConnectionManager::new(
             max_connection_num,
@@ -139,10 +136,10 @@ impl TcpServer {
     }
 
     async fn handler_process(&self) -> Result<(), Error> {
-        let request_queue_rx = self.request_queue_rx.clone();
+        let mut request_queue_rx = self.request_queue_sx.subscribe();
         let response_queue_sx = self.response_queue_sx.clone();
         tokio::spawn(async move {
-            while let Ok(resquest_package) = request_queue_rx.recv() {
+            while let Ok(resquest_package) = request_queue_rx.recv().await {
                 //Business logic processing
                 let command = Command::new(resquest_package.packet);
                 let resp = command.apply();
@@ -162,10 +159,10 @@ impl TcpServer {
     }
 
     async fn response_process(&self) -> Result<(), Error> {
-        let response_queue_rx = self.response_queue_rx.clone();
+        let mut response_queue_rx = self.response_queue_sx.subscribe();
         let connect_manager = self.connection_manager.clone();
         tokio::spawn(async move {
-            while let Ok(response_package) = response_queue_rx.recv() {
+            while let Ok(response_package) = response_queue_rx.recv().await {
                 connect_manager
                     .write_frame(response_package.connection_id, response_package.packet)
                     .await;

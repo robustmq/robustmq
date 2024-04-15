@@ -1,5 +1,5 @@
 use super::cache::MetadataCache;
-use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
+use protocol::mqtt::{QoS, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -8,7 +8,9 @@ use tokio::sync::RwLock;
 pub struct Subscriber {
     pub connect_id: u64,
     pub packet_identifier: u16,
-    pub filters: Vec<Filter>,
+    pub qos: QoS,
+    pub nolocal: bool,
+    pub preserve_retain: bool,
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,
 }
@@ -22,7 +24,7 @@ impl Subscriber {
         let mut subscriber = Subscriber::default();
         subscriber.connect_id = connect_id;
         subscriber.packet_identifier = subscribe.packet_identifier;
-        subscriber.filters = subscribe.filters;
+        // subscriber.filters = subscribe.filters;
         if let Some(properties) = subscribe_properties {
             subscriber.subscription_identifier = properties.subscription_identifier;
             subscriber.user_properties = properties.user_properties;
@@ -33,8 +35,6 @@ impl Subscriber {
     pub async fn build_topic_list(&self, metadata_cache: Arc<RwLock<MetadataCache>>) {
         let cache = metadata_cache.read().await;
         let topic_info = cache.topic_info.clone();
-        for (topic_id, topic) in topic_info {
-            
-        }
+        for (topic_id, topic) in topic_info {}
     }
 }

@@ -3,7 +3,7 @@ use crate::{
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
-use common_base::errors::RobustMQError;
+use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
     MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
@@ -52,7 +52,7 @@ pub async fn send_retain_message(
             continue;
         }
 
-        let topic_id_list = get_sub_topic_list(metadata_cache.clone(), filter.path).await;
+        let topic_id_list = get_sub_topic_id_list(metadata_cache.clone(), filter.path).await;
         for topic_id in topic_id_list {
             match message_storage.get_retain_message(topic_id.clone()).await {
                 Ok(Some(msg)) => {
@@ -81,7 +81,10 @@ pub async fn send_retain_message(
                             connection_id: connect_id,
                             packet: MQTTPacket::Publish(publish, Some(properties)),
                         };
-                        response_queue_sx.send(resp).unwrap();
+                        match response_queue_sx.send(resp) {
+                            Ok(_) => {}
+                            Err(e) => error(format!("{}", e.to_string())),
+                        }
                     }
                 }
                 Ok(None) => {}
@@ -99,7 +102,7 @@ pub fn max_qos(msg_qos: QoS, sub_max_qos: QoS) -> QoS {
     return sub_max_qos;
 }
 
-pub async fn get_sub_topic_list(
+pub async fn get_sub_topic_id_list(
     metadata_cache: Arc<RwLock<MetadataCache>>,
     sub_path: String,
 ) -> Vec<String> {
@@ -125,9 +128,8 @@ mod tests {
     use tokio::sync::{broadcast, RwLock};
 
     use crate::{
-        handler::subscribe::{get_sub_topic_list, max_qos, path_regex_match, send_retain_message},
+        handler::subscribe::{get_sub_topic_id_list, max_qos, path_regex_match, send_retain_message},
         metadata::{cache::MetadataCache, message::Message, topic::Topic},
-        server::tcp::packet::ResponsePackage,
         storage::message::MessageStorage,
     };
 
@@ -160,9 +162,9 @@ mod tests {
         drop(cache);
 
         let sub_path = "/test/topic".to_string();
-        let result = get_sub_topic_list(metadata_cache.clone(), sub_path).await;
+        let result = get_sub_topic_id_list(metadata_cache.clone(), sub_path).await;
         assert!(result.len() == 1);
-        assert_eq!(result.get(0).unwrap().clone(), topic_name);
+        assert_eq!(result.get(0).unwrap().clone(), topic.topic_id);
     }
 
     #[tokio::test]

@@ -1,6 +1,6 @@
 use protocol::journal_server::codec::StorageEnginePacket;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RequestPackage {
     pub connection_id: u64,
     pub packet: StorageEnginePacket,
@@ -15,7 +15,7 @@ impl RequestPackage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ResponsePackage {
     pub connection_id: u64,
     pub packet: StorageEnginePacket,
