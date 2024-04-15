@@ -248,11 +248,12 @@ impl Mqtt5Service {
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
-        let subscriber = Subscriber::build_subscriber(
-            connect_id,
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
+        // Saving subscriptions
+        let mut sub_manager = self.subscribe_manager.write().await;
+        sub_manager
+            .parse_subscribe(connect_id, subscribe.clone(), subscribe_properties.clone())
+            .await;
+        drop(sub_manager);
 
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.storage_adapter.clone());
@@ -276,11 +277,6 @@ impl Mqtt5Service {
                     .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
             }
         }
-
-        // Saving subscriptions
-        let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager.add_subscribe(connect_id, subscriber);
-        drop(sub_manager);
 
         let pkid = subscribe.packet_identifier;
         let mut user_properties = Vec::new();
@@ -317,7 +313,11 @@ impl Mqtt5Service {
     ) -> MQTTPacket {
         // Remove subscription information
         let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager.remove_subscribe(connect_id, Some(un_subscribe.clone()));
+        sub_manager.remove_subscribe(
+            connect_id,
+            un_subscribe.clone(),
+            un_subscribe_properties.clone(),
+        );
         drop(sub_manager);
 
         let pkid = un_subscribe.pkid;
@@ -343,9 +343,8 @@ impl Mqtt5Service {
         drop(heartbeat);
 
         let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager.remove_subscribe(connect_id, None);
+        sub_manager.remove_connect_subscribe(connect_id);
         drop(sub_manager);
-
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection, None);

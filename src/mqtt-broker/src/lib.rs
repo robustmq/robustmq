@@ -168,7 +168,6 @@ impl<'a> MqttBroker<'a> {
         let mut push_server = PushServer::new(
             self.subscribe_manager.clone(),
             self.storage_adapter.clone(),
-            self.metadata_cache.clone(),
             self.response_queue_sx4.clone(),
         );
         self.runtime.spawn(async move {

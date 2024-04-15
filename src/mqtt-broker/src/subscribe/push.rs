@@ -1,8 +1,6 @@
 use super::manager::SubScribeManager;
 use crate::{
-    handler::subscribe::max_qos,
-    metadata::{cache::MetadataCache, message::Message},
-    server::tcp::packet::ResponsePackage,
+    handler::subscribe::max_qos, metadata::message::Message, server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
@@ -22,7 +20,6 @@ pub struct PushServer {
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
     topic_push_thread: HashMap<String, Sender<bool>>,
     storage_adapter: Arc<MemoryStorageAdapter>,
-    metadata_cache: Arc<RwLock<MetadataCache>>,
     response_queue_sx: Sender<ResponsePackage>,
 }
 
@@ -30,14 +27,12 @@ impl PushServer {
     pub fn new(
         subscribe_manager: Arc<RwLock<SubScribeManager>>,
         storage_adapter: Arc<MemoryStorageAdapter>,
-        metadata_cache: Arc<RwLock<MetadataCache>>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> Self {
         return PushServer {
             subscribe_manager,
             topic_push_thread: HashMap::new(),
             storage_adapter,
-            metadata_cache,
             response_queue_sx,
         };
     }
@@ -45,13 +40,13 @@ impl PushServer {
     pub async fn start(&mut self) {
         loop {
             let sub_manager = self.subscribe_manager.read().await;
-            let topic_subscribe_num = sub_manager.topic_subscribe_num.clone();
+            let topic_subscribe = sub_manager.topic_subscribe.clone();
             drop(sub_manager);
 
-            for (topic_id, sub_num) in topic_subscribe_num {
+            for (topic_id, list) in topic_subscribe {
                 // If the topic has no subscribers,
                 // remove the topic information from the subscription relationship cache and stop the topic push management thread.
-                if sub_num == 0 {
+                if list.len() == 0 {
                     if let Some(sx) = self.topic_push_thread.get(&topic_id) {
                         match sx.send(true) {
                             Ok(_) => {}
@@ -128,7 +123,7 @@ pub async fn topic_sub_push_thread(
                         sleep(Duration::from_millis(max_wait_ms)).await;
                         continue;
                     }
-                    for subscribe in sub_list {
+                    for (_, subscribe) in sub_list {
                         let mut sub_id = Vec::new();
                         if let Some(id) = subscribe.subscription_identifier {
                             sub_id.push(id);
