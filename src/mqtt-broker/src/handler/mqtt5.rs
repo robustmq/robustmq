@@ -3,7 +3,7 @@ use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     metadata::{
         cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
-        subscriber::Subscriber, topic::Topic,
+        topic::Topic,
     },
     server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
@@ -248,11 +248,12 @@ impl Mqtt5Service {
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
-        let subscriber = Subscriber::build_subscriber(
-            connect_id,
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
+        // Saving subscriptions
+        let mut sub_manager = self.subscribe_manager.write().await;
+        sub_manager
+            .parse_subscribe(connect_id, subscribe.clone(), subscribe_properties.clone())
+            .await;
+        drop(sub_manager);
 
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.storage_adapter.clone());
@@ -276,11 +277,6 @@ impl Mqtt5Service {
                     .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
             }
         }
-
-        // Saving subscriptions
-        let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager.add_subscribe(connect_id, subscriber);
-        drop(sub_manager);
 
         let pkid = subscribe.packet_identifier;
         let mut user_properties = Vec::new();
@@ -313,19 +309,26 @@ impl Mqtt5Service {
         &self,
         connect_id: u64,
         un_subscribe: Unsubscribe,
-        un_subscribe_properties: Option<UnsubscribeProperties>,
+        _: Option<UnsubscribeProperties>,
     ) -> MQTTPacket {
         // Remove subscription information
-        let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager.remove_subscribe(connect_id, Some(un_subscribe.clone()));
-        drop(sub_manager);
+        if un_subscribe.filters.len() > 0 {
+            let cache = self.metadata_cache.read().await;
+            let mut topic_ids = Vec::new();
+            for topic_name in un_subscribe.filters {
+                if let Some(topic) = cache.get_topic_by_name(topic_name) {
+                    topic_ids.push(topic.topic_id);
+                }
+            }
 
-        let pkid = un_subscribe.pkid;
-        let mut user_properties = Vec::new();
-        if let Some(properties) = un_subscribe_properties {
-            user_properties = properties.user_properties;
+            let mut sub_manager = self.subscribe_manager.write().await;
+            sub_manager.remove_subscribe(connect_id, topic_ids);
+            drop(sub_manager);
         }
-        return self.ack_build.unsub_ack(pkid, None, user_properties);
+
+        return self
+            .ack_build
+            .unsub_ack(un_subscribe.pkid, None, Vec::new());
     }
 
     pub async fn disconnect(
@@ -343,9 +346,8 @@ impl Mqtt5Service {
         drop(heartbeat);
 
         let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager.remove_subscribe(connect_id, None);
+        sub_manager.remove_connect_subscribe(connect_id);
         drop(sub_manager);
-
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection, None);
