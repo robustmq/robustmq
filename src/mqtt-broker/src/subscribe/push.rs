@@ -124,6 +124,10 @@ pub async fn topic_sub_push_thread(
                         sleep(Duration::from_millis(max_wait_ms)).await;
                         continue;
                     }
+                    //commit offset
+                    if let Some(last_res) = result.last(){
+                        message_storage.commit_group_offset(topic_id.clone(),group_id.clone(),last_res.)
+                    }
                     for (_, subscribe) in sub_list {
                         let mut sub_id = Vec::new();
                         if let Some(id) = subscribe.subscription_identifier {

@@ -24,9 +24,17 @@ pub trait StorageAdapter {
         &self,
         shard_name: String,
         group_id: String,
-        record_num: Option<usize>,
+        record_num: Option<u128>,
         record_size: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError>;
+
+    // Streaming storage model: Read the next batch of data in the dimension of the Shard + subscription name tuple
+    async fn stream_commit_offset(
+        &self,
+        shard_name: String,
+        group_id: String,
+        offset: u128,
+    ) -> Result<bool, RobustMQError>;
 
     // Streaming storage model: A piece of data is uniquely read based on the shard name and a unique auto-incrementing ID.
     async fn stream_read_by_offset(

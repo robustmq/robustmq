@@ -7,7 +7,7 @@ use dashmap::DashMap;
 pub struct MemoryStorageAdapter {
     pub memory_data: DashMap<String, Record>,
     pub shard_data: DashMap<String, Vec<Record>>,
-    pub group_data: DashMap<String, usize>,
+    pub group_data: DashMap<String, u128>,
     pub key_index: DashMap<String, DashMap<String, u128>>,
 }
 
@@ -19,6 +19,18 @@ impl MemoryStorageAdapter {
             group_data: DashMap::with_capacity(256),
             key_index: DashMap::with_capacity(256),
         };
+    }
+
+    pub fn offset_key(&self, group_id: String, shard_name: String) -> String {
+        return format!("{}_{}", group_id, shard_name);
+    }
+
+    pub fn get_offset(&self, group_id: String, shard_name: String) -> Option<u128> {
+        let key = self.offset_key(group_id, shard_name);
+        if let Some(offset) = self.group_data.get(&key) {
+            return Some(*offset);
+        }
+        return None;
     }
 }
 
@@ -55,15 +67,16 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn stream_write(
         &self,
         shard_name: String,
-        message: Record,
+        mut message: Record,
     ) -> Result<usize, RobustMQError> {
         let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_name) {
             da
         } else {
             Vec::new()
         };
+        let offset = shard.len();
+        message.offset = offset as u128;
         shard.push(message);
-        let offset = shard.len() - 1;
         self.shard_data.insert(shard_name, shard);
 
         // todo build timestamp index
@@ -76,11 +89,11 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         group_id: String,
-        record_num: Option<usize>,
-        record_size: Option<usize>,
+        record_num: Option<u128>,
+        _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError> {
-        let offset = if let Some(da) = self.group_data.get(&group_id) {
-            *da
+        let offset = if let Some(da) = self.get_offset(group_id, shard_name.clone()) {
+            da
         } else {
             0
         };
@@ -90,7 +103,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             let mut cur_offset = 0;
             let mut result = Vec::new();
             for i in offset..(offset + num) {
-                if let Some(value) = da.get(i) {
+                if let Some(value) = da.get(i as usize) {
                     result.push(value.clone());
                     cur_offset += 1;
                 } else {
@@ -103,6 +116,17 @@ impl StorageAdapter for MemoryStorageAdapter {
             return Ok(Some(result));
         }
         return Ok(None);
+    }
+
+    async fn stream_commit_offset(
+        &self,
+        shard_name: String,
+        group_id: String,
+        offset: u128,
+    ) -> Result<bool, RobustMQError> {
+        let key = self.offset_key(group_id, shard_name);
+        self.group_data.insert(key, offset);
+        return Ok(true);
     }
 
     async fn stream_read_by_offset(
@@ -136,4 +160,10 @@ impl StorageAdapter for MemoryStorageAdapter {
     ) -> Result<Option<Record>, RobustMQError> {
         return Ok(None);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn memory_storage_adaptter_test() {}
 }
