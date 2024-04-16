@@ -208,14 +208,14 @@ impl Mqtt5Service {
         }
 
         // Persisting stores message data
-        let mut offset = 0;
+        let mut offset = "".to_string();
         if let Some(record) = Message::build_record(publish.clone(), publish_properties.clone()) {
             match message_storage
-                .append_topic_message(topic.topic_id, record)
+                .append_topic_message(topic.topic_id, vec![record])
                 .await
             {
                 Ok(da) => {
-                    offset = da;
+                    offset = format!("{:?}", da);
                 }
                 Err(e) => {
                     error(e.to_string());
@@ -232,8 +232,8 @@ impl Mqtt5Service {
         if let Some(properties) = publish_properties {
             user_properties = properties.user_properties;
         }
-        if offset > 0 {
-            user_properties.push(("offset".to_string(), offset.to_string()));
+        if !offset.is_empty() {
+            user_properties.push(("offset".to_string(), offset));
         }
 
         return self.ack_build.pub_ack(pkid, None, user_properties);

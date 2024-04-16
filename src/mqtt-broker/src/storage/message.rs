@@ -18,8 +18,8 @@ impl MessageStorage {
     pub async fn append_topic_message(
         &self,
         topic_id: String,
-        record: Record,
-    ) -> Result<usize, RobustMQError> {
+        record: Vec<Record>,
+    ) -> Result<Vec<usize>, RobustMQError> {
         let shard_name = topic_id;
         match self.storage_adapter.stream_write(shard_name, record).await {
             Ok(id) => {

@@ -50,7 +50,12 @@ impl PushServer {
                 if list.len() == 0 {
                     if let Some(sx) = self.topic_push_thread.get(&topic_id) {
                         match sx.send(true) {
-                            Ok(_) => {}
+                            Ok(_) => {
+                                info(format!(
+                                    "Push thread for Topic [{}] was stopped successfully",
+                                    topic_id
+                                ));
+                            }
                             Err(e) => {
                                 error(e.to_string());
                             }
@@ -70,8 +75,12 @@ impl PushServer {
                     self.topic_push_thread.insert(topic_id.clone(), sx);
 
                     tokio::spawn(async move {
+                        info(format!(
+                            "Push thread for Topic [{}] was started successfully",
+                            topic_id
+                        ));
                         loop {
-                            match rx.recv().await {
+                            match rx.try_recv() {
                                 Ok(flag) => {
                                     if flag {
                                         break;
@@ -124,10 +133,25 @@ pub async fn topic_sub_push_thread(
                         sleep(Duration::from_millis(max_wait_ms)).await;
                         continue;
                     }
-                    //commit offset
-                    if let Some(last_res) = result.last(){
-                        message_storage.commit_group_offset(topic_id.clone(),group_id.clone(),last_res.)
+                    // commit offset
+                    if let Some(last_res) = result.last() {
+                        match message_storage
+                            .commit_group_offset(
+                                topic_id.clone(),
+                                group_id.clone(),
+                                last_res.offset,
+                            )
+                            .await
+                        {
+                            Ok(_) => {}
+                            Err(e) => {
+                                error(e.to_string());
+                                continue;
+                            }
+                        }
                     }
+
+                    // Push data to subscribers
                     for (_, subscribe) in sub_list {
                         let mut sub_id = Vec::new();
                         if let Some(id) = subscribe.subscription_identifier {
@@ -246,7 +270,7 @@ mod tests {
 
         let record = Record::build_b(serde_json::to_vec(&msg).unwrap());
         message_storage
-            .append_topic_message(topic.topic_id.clone(), record)
+            .append_topic_message(topic.topic_id.clone(), vec![record])
             .await
             .unwrap();
 
