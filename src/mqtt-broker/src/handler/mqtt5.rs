@@ -11,7 +11,7 @@ use crate::{
 };
 use common_base::{
     log::error,
-    tools::{now_second, unique_id_string},
+    tools::{now_second, unique_id},
 };
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
@@ -72,7 +72,7 @@ impl Mqtt5Service {
         let mut auto_client_id = false;
         let mut client_id = connnect.client_id.clone();
         if client_id.is_empty() {
-            client_id = unique_id_string();
+            client_id = unique_id();
             auto_client_id = true;
         }
 

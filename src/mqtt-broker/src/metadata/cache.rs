@@ -1,6 +1,6 @@
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
 
-use super::{cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User};
+use super::{cluster::Cluster, session::Session, topic::Topic, user::User};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::memory::MemoryStorageAdapter;
@@ -31,7 +31,6 @@ pub struct MetadataCache {
     pub session_info: HashMap<String, Session>,
     pub topic_info: HashMap<String, Topic>,
     pub topic_id_name: HashMap<String, String>,
-    pub subscriber_info: HashMap<String, Subscriber>,
     pub connect_id_info: HashMap<u64, String>,
     pub login_info: HashMap<u64, bool>,
     pub storage_adapter: Arc<MemoryStorageAdapter>,
@@ -45,7 +44,6 @@ impl MetadataCache {
             session_info: HashMap::new(),
             topic_info: HashMap::new(),
             topic_id_name: HashMap::new(),
-            subscriber_info: HashMap::new(),
             connect_id_info: HashMap::new(),
             login_info: HashMap::new(),
             storage_adapter,
@@ -100,8 +98,6 @@ impl MetadataCache {
             }
         };
 
-        // subscriber, connect, and login are connection-related and don't need to be persisted, so they don't need to be loaded.
-        self.subscriber_info = HashMap::new();
         self.connect_id_info = HashMap::new();
         self.login_info = HashMap::new();
     }
