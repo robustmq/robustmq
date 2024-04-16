@@ -17,7 +17,7 @@ pub trait StorageAdapter {
     async fn exists(&self, key: String) -> Result<bool, RobustMQError>;
 
     // Streaming storage model: Append data in a Shard dimension, returning a unique self-incrementing ID for the Shard dimension
-    async fn stream_write(&self, shard_name: String, data: Record) -> Result<usize, RobustMQError>;
+    async fn stream_write(&self, shard_name: String, data: Vec<Record>) -> Result<Vec<usize>, RobustMQError>;
 
     // Streaming storage model: Read the next batch of data in the dimension of the Shard + subscription name tuple
     async fn stream_read(

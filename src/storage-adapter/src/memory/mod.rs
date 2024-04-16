@@ -67,22 +67,28 @@ impl StorageAdapter for MemoryStorageAdapter {
     async fn stream_write(
         &self,
         shard_name: String,
-        mut message: Record,
-    ) -> Result<usize, RobustMQError> {
+        message: Vec<Record>,
+    ) -> Result<Vec<usize>, RobustMQError> {
         let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_name) {
             da
         } else {
             Vec::new()
         };
-        let offset = shard.len();
-        message.offset = offset as u128;
-        shard.push(message);
+        let mut start_offset = shard.len();
+        let mut record_list = Vec::new();
+        let mut offset_res = Vec::new();
+        for mut msg in message {
+            offset_res.push(start_offset);
+            msg.offset = start_offset as u128;
+            start_offset += 1;
+            record_list.push(msg);
+            // todo build timestamp index
+            // todo build key index
+        }
+
+        shard.append(&mut record_list);
         self.shard_data.insert(shard_name, shard);
-
-        // todo build timestamp index
-
-        // todo build key index
-        return Ok(offset);
+        return Ok(offset_res);
     }
 
     async fn stream_read(
@@ -93,7 +99,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError> {
         let offset = if let Some(da) = self.get_offset(group_id, shard_name.clone()) {
-            da
+            da + 1
         } else {
             0
         };
@@ -164,6 +170,144 @@ impl StorageAdapter for MemoryStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn memory_storage_adaptter_test() {}
+    use super::MemoryStorageAdapter;
+    use crate::{record::Record, storage::StorageAdapter};
+
+    #[tokio::test]
+    async fn stream_read_write() {
+        let storage_adapter = MemoryStorageAdapter::new();
+        let shard_name = "test-11".to_string();
+        let ms1 = "test1".to_string();
+        let ms2 = "test2".to_string();
+        let data = vec![
+            Record::build_b(ms1.clone().as_bytes().to_vec()),
+            Record::build_b(ms2.clone().as_bytes().to_vec()),
+        ];
+
+        let result = storage_adapter
+            .stream_write(shard_name.clone(), data)
+            .await
+            .unwrap();
+        assert_eq!(result.get(0).unwrap().clone(), 0);
+        assert_eq!(result.get(1).unwrap().clone(), 1);
+        assert!(storage_adapter.shard_data.contains_key(&shard_name));
+        assert_eq!(
+            storage_adapter.shard_data.get(&shard_name).unwrap().len(),
+            2
+        );
+
+        let ms3 = "test3".to_string();
+        let ms4 = "test4".to_string();
+        let data = vec![
+            Record::build_b(ms3.clone().as_bytes().to_vec()),
+            Record::build_b(ms4.clone().as_bytes().to_vec()),
+        ];
+
+        let result = storage_adapter
+            .stream_write(shard_name.clone(), data)
+            .await
+            .unwrap();
+        assert_eq!(result.get(0).unwrap().clone(), 2);
+        assert_eq!(result.get(1).unwrap().clone(), 3);
+        assert!(storage_adapter.shard_data.contains_key(&shard_name));
+        assert_eq!(
+            storage_adapter.shard_data.get(&shard_name).unwrap().len(),
+            4
+        );
+
+        let group_id = "test_group_id".to_string();
+        let record_num = Some(1);
+        let record_size = None;
+        let res = storage_adapter
+            .stream_read(
+                shard_name.clone(),
+                group_id.clone(),
+                record_num,
+                record_size,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            ms1
+        );
+        storage_adapter
+            .stream_commit_offset(
+                shard_name.clone(),
+                group_id.clone(),
+                res.get(0).unwrap().clone().offset,
+            )
+            .await
+            .unwrap();
+
+        let res = storage_adapter
+            .stream_read(
+                shard_name.clone(),
+                group_id.clone(),
+                record_num,
+                record_size,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            ms2
+        );
+        storage_adapter
+            .stream_commit_offset(
+                shard_name.clone(),
+                group_id.clone(),
+                res.get(0).unwrap().clone().offset,
+            )
+            .await
+            .unwrap();
+
+        let res = storage_adapter
+            .stream_read(
+                shard_name.clone(),
+                group_id.clone(),
+                record_num,
+                record_size,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            ms3
+        );
+        storage_adapter
+            .stream_commit_offset(
+                shard_name.clone(),
+                group_id.clone(),
+                res.get(0).unwrap().clone().offset,
+            )
+            .await
+            .unwrap();
+
+        let res = storage_adapter
+            .stream_read(
+                shard_name.clone(),
+                group_id.clone(),
+                record_num,
+                record_size,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            ms4
+        );
+        storage_adapter
+            .stream_commit_offset(
+                shard_name.clone(),
+                group_id.clone(),
+                res.get(0).unwrap().clone().offset,
+            )
+            .await
+            .unwrap();
+    }
 }
