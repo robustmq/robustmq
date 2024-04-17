@@ -4,14 +4,17 @@ use crate::{
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
 use common_base::{
-    log::{error, info},
+    log::{debug, error, info},
     tools::{now_mills, now_second},
 };
 use protocol::mqtt::{Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{
-    sync::{broadcast::{self, Sender}, RwLock, Semaphore},
+    sync::{
+        broadcast::{self, Sender},
+        RwLock, Semaphore,
+    },
     time::sleep,
 };
 
@@ -132,7 +135,7 @@ impl KeepAlive {
                 use_time,
             };
             metrics_heartbeat_keep_alive_run_info(use_time);
-            // info(format!("{:?}", run_info));
+            debug(format!("{:?}", run_info));
         }
     }
 }

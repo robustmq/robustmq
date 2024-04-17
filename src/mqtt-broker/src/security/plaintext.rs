@@ -1,11 +1,11 @@
+use bytes::Bytes;
+use protocol::mqtt::Login;
 use super::security::Authentication;
 
-pub struct PlaintextData {
-    pub username: String,
-    pub password: String,
-}
 pub struct Plaintext {}
 
 impl Authentication for Plaintext {
-    fn apply() {}
+    fn apply(login: Option<Login>, _: Option<Bytes>) {
+
+    }
 }
