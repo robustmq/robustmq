@@ -1,6 +1,8 @@
 use super::manager::SubScribeManager;
 use crate::{
-    handler::subscribe::max_qos, metadata::message::Message, server::tcp::packet::ResponsePackage,
+    handler::subscribe::max_qos,
+    metadata::message::Message,
+    server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
@@ -20,20 +22,23 @@ pub struct PushServer {
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
     topic_push_thread: HashMap<String, Sender<bool>>,
     storage_adapter: Arc<MemoryStorageAdapter>,
-    response_queue_sx: Sender<ResponsePackage>,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
 }
 
 impl PushServer {
     pub fn new(
         subscribe_manager: Arc<RwLock<SubScribeManager>>,
         storage_adapter: Arc<MemoryStorageAdapter>,
-        response_queue_sx: Sender<ResponsePackage>,
+        response_queue_sx4: Sender<ResponsePackage>,
+        response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {
         return PushServer {
             subscribe_manager,
             topic_push_thread: HashMap::new(),
             storage_adapter,
-            response_queue_sx,
+            response_queue_sx4,
+            response_queue_sx5,
         };
     }
 
@@ -69,7 +74,8 @@ impl PushServer {
                 // 1. If no push thread is detected for topic, the corresponding thread is created for topic dimension push management.
                 if !self.topic_push_thread.contains_key(&topic_id) {
                     let (sx, mut rx) = broadcast::channel(1000);
-                    let response_queue_sx = self.response_queue_sx.clone();
+                    let response_queue_sx4 = self.response_queue_sx4.clone();
+                    let response_queue_sx5 = self.response_queue_sx5.clone();
                     let storage_adapter = self.storage_adapter.clone();
                     let subscribe_manager = self.subscribe_manager.clone();
                     self.topic_push_thread.insert(topic_id.clone(), sx);
@@ -94,7 +100,8 @@ impl PushServer {
                                 subscribe_manager.clone(),
                                 message_storage,
                                 topic_id.clone(),
-                                response_queue_sx.clone(),
+                                response_queue_sx4.clone(),
+                                response_queue_sx5.clone(),
                             )
                             .await;
                         }
@@ -110,7 +117,8 @@ pub async fn topic_sub_push_thread(
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
     message_storage: MessageStorage,
     topic_id: String,
-    response_queue_sx: Sender<ResponsePackage>,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
 ) {
     let group_id = format!("system_sub_{}", topic_id);
     let record_num = 5;
@@ -189,9 +197,17 @@ pub async fn topic_sub_push_thread(
                                 connection_id: subscribe.connect_id,
                                 packet: MQTTPacket::Publish(publish, Some(properties)),
                             };
-                            match response_queue_sx.send(resp) {
-                                Ok(_) => {}
-                                Err(e) => error(format!("{}", e.to_string())),
+
+                            if subscribe.protocol == MQTTProtocol::MQTT4 {
+                                match response_queue_sx4.send(resp) {
+                                    Ok(_) => {}
+                                    Err(e) => error(format!("{}", e.to_string())),
+                                }
+                            } else if subscribe.protocol == MQTTProtocol::MQTT5 {
+                                match response_queue_sx5.send(resp) {
+                                    Ok(_) => {}
+                                    Err(e) => error(format!("{}", e.to_string())),
+                                }
                             }
                         }
                     }
@@ -252,16 +268,31 @@ mod tests {
             packet_identifier,
             filters,
         };
-        sub_m.parse_subscribe(connect_id, subscribe, None).await;
+        sub_m
+            .parse_subscribe(
+                crate::server::MQTTProtocol::MQTT5,
+                connect_id,
+                subscribe,
+                None,
+            )
+            .await;
         drop(sub_m);
 
         // Start push thread
         let message_storage = MessageStorage::new(storage_adapter.clone());
-        let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
+        let (response_queue_sx4, mut response_queue_rx4) = broadcast::channel(1000);
+        let (response_queue_sx5, mut response_queue_rx5) = broadcast::channel(1000);
         let ms = message_storage.clone();
         let topic_id: String = topic.topic_id.clone();
         tokio::spawn(async move {
-            topic_sub_push_thread(sub_manager, ms, topic_id, response_queue_sx).await;
+            topic_sub_push_thread(
+                sub_manager,
+                ms,
+                topic_id,
+                response_queue_sx4,
+                response_queue_sx5,
+            )
+            .await;
         });
 
         // Send data
@@ -276,7 +307,7 @@ mod tests {
 
         // Receive subscription data
         loop {
-            match response_queue_rx.recv().await {
+            match response_queue_rx5.recv().await {
                 Ok(packet) => {
                     if let MQTTPacket::Publish(publish, _) = packet.packet {
                         assert_eq!(publish.topic, topic.topic_id);

@@ -251,7 +251,12 @@ impl Mqtt5Service {
         // Saving subscriptions
         let mut sub_manager = self.subscribe_manager.write().await;
         sub_manager
-            .parse_subscribe(connect_id, subscribe.clone(), subscribe_properties.clone())
+            .parse_subscribe(
+                crate::server::MQTTProtocol::MQTT5,
+                connect_id,
+                subscribe.clone(),
+                subscribe_properties.clone(),
+            )
             .await;
         drop(sub_manager);
 

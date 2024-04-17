@@ -1,6 +1,7 @@
 use crate::{
     handler::subscribe::path_regex_match,
     metadata::{cache::MetadataCache, subscriber::Subscriber},
+    server::MQTTProtocol,
 };
 use protocol::mqtt::{Subscribe, SubscribeProperties};
 use std::{collections::HashMap, sync::Arc};
@@ -22,6 +23,7 @@ impl SubScribeManager {
 
     pub async fn parse_subscribe(
         &mut self,
+        protocol: MQTTProtocol,
         connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
@@ -45,6 +47,7 @@ impl SubScribeManager {
             for filter in subscribe.filters.clone() {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
                     let sub = Subscriber {
+                        protocol: protocol.clone(),
                         connect_id,
                         packet_identifier: subscribe.packet_identifier,
                         qos: filter.qos,
@@ -119,7 +122,12 @@ mod tests {
             filters,
         };
         sub_manager
-            .parse_subscribe(connect_id, subscribe, None)
+            .parse_subscribe(
+                crate::server::MQTTProtocol::MQTT5,
+                connect_id,
+                subscribe,
+                None,
+            )
             .await;
         assert!(sub_manager.topic_subscribe.len() == 1);
         assert!(sub_manager.topic_subscribe.contains_key(&topic.topic_id));
@@ -156,7 +164,12 @@ mod tests {
             filters,
         };
         sub_manager
-            .parse_subscribe(connect_id, subscribe.clone(), None)
+            .parse_subscribe(
+                crate::server::MQTTProtocol::MQTT5,
+                connect_id,
+                subscribe.clone(),
+                None,
+            )
             .await;
         assert!(sub_manager.topic_subscribe.len() == 1);
         assert!(sub_manager.topic_subscribe.contains_key(&topic.topic_id));
@@ -173,7 +186,12 @@ mod tests {
         );
 
         sub_manager
-            .parse_subscribe(connect_id, subscribe, None)
+            .parse_subscribe(
+                crate::server::MQTTProtocol::MQTT5,
+                connect_id,
+                subscribe,
+                None,
+            )
             .await;
         assert!(
             sub_manager
