@@ -18,8 +18,8 @@ impl MessageStorage {
     pub async fn append_topic_message(
         &self,
         topic_id: String,
-        record: Record,
-    ) -> Result<usize, RobustMQError> {
+        record: Vec<Record>,
+    ) -> Result<Vec<usize>, RobustMQError> {
         let shard_name = topic_id;
         match self.storage_adapter.stream_write(shard_name, record).await {
             Ok(id) => {
@@ -36,7 +36,7 @@ impl MessageStorage {
         &self,
         topic_id: String,
         group_id: String,
-        record_num: usize,
+        record_num: u128,
     ) -> Result<Vec<Record>, RobustMQError> {
         let shard_name = topic_id;
         match self
@@ -49,6 +49,28 @@ impl MessageStorage {
             }
             Ok(None) => {
                 return Ok(Vec::new());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    // Submits the offset information for consumption
+    pub async fn commit_group_offset(
+        &self,
+        topic_id: String,
+        group_id: String,
+        offset: u128,
+    ) -> Result<bool, RobustMQError> {
+        let shard_name = topic_id;
+        match self
+            .storage_adapter
+            .stream_commit_offset(shard_name, group_id, offset)
+            .await
+        {
+            Ok(flag) => {
+                return Ok(flag);
             }
             Err(e) => {
                 return Err(e);

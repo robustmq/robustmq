@@ -11,15 +11,13 @@ use crate::{
     server::tcp::packet::ResponsePackage, subscribe::manager::SubScribeManager,
 };
 use super::node::{
-    hearbeat_info, index, metadata_info, metrics, subscribe_info, test_subscribe_pub,
+    hearbeat_info, index, metadata_info, metrics, subscribe_info,
 };
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_HEARTBEAT_INFO: &str = "/heartbeat-info";
 pub const ROUTE_METADATA_INFO: &str = "/metadata-info";
 pub const ROUTE_SUBSCRIBE_INFO: &str = "/subscribe-info";
-pub const ROUTE_TEST_SUBSCRIBE_PUB: &str = "/test-subscribe-pub";
-// pub const ROUTE_TEST_SUBSCRIBE_PUB: &str = "/test-subscribe-pub";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
@@ -67,7 +65,6 @@ fn routes(state: HttpServerState) -> Router {
         .route(ROUTE_HEARTBEAT_INFO, get(hearbeat_info))
         .route(ROUTE_METADATA_INFO, get(metadata_info))
         .route(ROUTE_SUBSCRIBE_INFO, get(subscribe_info))
-        .route(ROUTE_TEST_SUBSCRIBE_PUB, get(test_subscribe_pub))
         .route(ROUTE_METRICS, get(metrics));
     let app = Router::new().merge(meta);
     return app.with_state(state);

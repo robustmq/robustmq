@@ -6,6 +6,7 @@ pub struct Header {
 
 #[derive(Clone)]
 pub struct Record {
+    pub offset: u128,
     pub header: Option<Vec<Header>>,
     pub key: Option<String>,
     pub data: Vec<u8>,
@@ -20,6 +21,7 @@ impl Record {
         create_time: Option<u128>,
     ) -> Self {
         return Record {
+            offset: 0,
             key,
             data,
             create_time,
@@ -29,6 +31,7 @@ impl Record {
 
     pub fn build_b(data: Vec<u8>) -> Self {
         return Record {
+            offset: 0,
             key: None,
             data,
             create_time: None,
@@ -38,6 +41,7 @@ impl Record {
 
     pub fn build_c(key: String, data: Vec<u8>) -> Self {
         return Record {
+            offset: 0,
             key: Some(key),
             data,
             create_time: None,
@@ -47,11 +51,11 @@ impl Record {
 
     pub fn build_d(key: String, header: Vec<Header>, data: Vec<u8>) -> Self {
         return Record {
+            offset: 0,
             key: Some(key),
             data,
             create_time: None,
             header: Some(header),
         };
     }
-
 }

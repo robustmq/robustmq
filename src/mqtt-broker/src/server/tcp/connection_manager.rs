@@ -1,5 +1,5 @@
-use crate::{metrics::metrics_connection_num, server::MQTTProtocol};
 use super::connection::Connection;
+use crate::{metrics::metrics_connection_num, server::MQTTProtocol};
 use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
@@ -101,7 +101,7 @@ where
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.max_try_mut_times {
-                        error(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
+                        error(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {},len:{}",connection_id,self.write_list.len()));
                         break;
                     }
                 }

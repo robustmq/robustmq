@@ -169,6 +169,7 @@ impl<'a> MqttBroker<'a> {
             self.subscribe_manager.clone(),
             self.storage_adapter.clone(),
             self.response_queue_sx4.clone(),
+            self.response_queue_sx5.clone(),
         );
         self.runtime.spawn(async move {
             push_server.start().await;

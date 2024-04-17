@@ -33,12 +33,6 @@ pub fn unique_id() -> String {
     return uuid.to_string();
 }
 
-pub fn unique_id_string() -> String {
-    let res = ProcessUniqueId::new();
-
-    return res.to_string();
-}
-
 pub fn get_local_ip() -> String {
     match local_ip() {
         Ok(data) => {
@@ -55,10 +49,15 @@ pub fn get_local_ip() -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::tools::get_local_ip;
+    use crate::tools::{get_local_ip, unique_id};
 
     #[test]
     fn get_local_ip_test() {
         println!("{}", get_local_ip());
+    }
+
+    #[test]
+    fn unique_id_test() {
+        println!("{}", unique_id());
     }
 }

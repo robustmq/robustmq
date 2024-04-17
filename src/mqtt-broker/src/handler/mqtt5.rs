@@ -11,7 +11,7 @@ use crate::{
 };
 use common_base::{
     log::error,
-    tools::{now_second, unique_id_string},
+    tools::{now_second, unique_id},
 };
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
@@ -72,7 +72,7 @@ impl Mqtt5Service {
         let mut auto_client_id = false;
         let mut client_id = connnect.client_id.clone();
         if client_id.is_empty() {
-            client_id = unique_id_string();
+            client_id = unique_id();
             auto_client_id = true;
         }
 
@@ -208,14 +208,14 @@ impl Mqtt5Service {
         }
 
         // Persisting stores message data
-        let mut offset = 0;
+        let mut offset = "".to_string();
         if let Some(record) = Message::build_record(publish.clone(), publish_properties.clone()) {
             match message_storage
-                .append_topic_message(topic.topic_id, record)
+                .append_topic_message(topic.topic_id, vec![record])
                 .await
             {
                 Ok(da) => {
-                    offset = da;
+                    offset = format!("{:?}", da);
                 }
                 Err(e) => {
                     error(e.to_string());
@@ -232,8 +232,8 @@ impl Mqtt5Service {
         if let Some(properties) = publish_properties {
             user_properties = properties.user_properties;
         }
-        if offset > 0 {
-            user_properties.push(("offset".to_string(), offset.to_string()));
+        if !offset.is_empty() {
+            user_properties.push(("offset".to_string(), offset));
         }
 
         return self.ack_build.pub_ack(pkid, None, user_properties);
@@ -251,7 +251,12 @@ impl Mqtt5Service {
         // Saving subscriptions
         let mut sub_manager = self.subscribe_manager.write().await;
         sub_manager
-            .parse_subscribe(connect_id, subscribe.clone(), subscribe_properties.clone())
+            .parse_subscribe(
+                crate::server::MQTTProtocol::MQTT5,
+                connect_id,
+                subscribe.clone(),
+                subscribe_properties.clone(),
+            )
             .await;
         drop(sub_manager);
 

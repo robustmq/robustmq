@@ -1,4 +1,4 @@
-use common_base::tools::unique_id_string;
+use common_base::tools::unique_id;
 use protocol::mqtt::{
     Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
     Publish, Subscribe, Unsubscribe,
@@ -37,7 +37,7 @@ impl Mqtt4Service {
         login: Option<Login>,
     ) -> MQTTPacket {
         self.login = true;
-        let client_id = unique_id_string();
+        let client_id = unique_id();
         let auto_client_id = true;
         let reason_string = Some("".to_string());
         let user_properties = Vec::new();
