@@ -1,11 +1,12 @@
 use super::security::Authentication;
+use bytes::Bytes;
+use common_base::errors::RobustMQError;
+use protocol::mqtt::Login;
 
-pub struct PlaintextData {
-    pub username: String,
-    pub password: String,
-}
 pub struct Plaintext {}
 
 impl Authentication for Plaintext {
-    fn apply() {}
+    fn apply(login: Option<Login>, _: Option<Bytes>) -> Result<bool, RobustMQError> {
+        return Ok(false);
+    }
 }
