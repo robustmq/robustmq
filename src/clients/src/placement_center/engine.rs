@@ -69,7 +69,7 @@ pub async fn delete_shard(
                             return Err(RobustMQError::MetaGrpcStatus(status));
                         }
                         times = times + 1;
-                        sleep(Duration::from_secs(times)).await;
+                        sleep(Duration::from_secs(retry_sleep_time(times))).await;
                     }
                 };
             }

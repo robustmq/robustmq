@@ -4,7 +4,14 @@ use serde::{Deserialize, Serialize};
 pub struct User {
     pub username: String,
     pub password: String,
-    pub salt: u16,
+    pub salt: UserSalt,
     pub is_superuser: bool,
     pub create_time: u128,
+}
+
+
+#[derive(Clone, Serialize, Deserialize)]
+pub enum UserSalt {
+    Md5,
+    Sha256,
 }

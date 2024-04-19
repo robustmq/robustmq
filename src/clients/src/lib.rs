@@ -26,7 +26,7 @@ pub mod broker_server;
 pub mod placement_center;
 pub mod storage_engine;
 
-const MAX_RETRY_TIMES: u64 = 16;
+const MAX_RETRY_TIMES: usize = 16;
 pub struct ClientPool {
     ip_max_num: u64,
     placement_service_pools: HashMap<String, Pool<PlacementServiceManager>>,
@@ -126,12 +126,12 @@ impl ClientPool {
     }
 }
 
-pub fn retry_times() -> u64 {
+pub fn retry_times() -> usize {
     return MAX_RETRY_TIMES;
 }
 
-pub fn retry_sleep_time(times: u64) -> u64 {
-    return times * 3;
+pub fn retry_sleep_time(times: usize) -> u64 {
+    return (times * 3) as u64;
 }
 
 pub async fn retry_call<T>(

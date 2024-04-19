@@ -1,14 +1,16 @@
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
-use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
+use storage_adapter::{
+    placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter,
+};
 
 pub struct AllInfoStorage {
     pub key: String,
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl AllInfoStorage {
-    pub fn new(key: String, storage_adapter: Arc<MemoryStorageAdapter>) -> AllInfoStorage {
+    pub fn new(key: String, storage_adapter: Arc<PlacementStorageAdapter>) -> AllInfoStorage {
         return AllInfoStorage {
             key,
             storage_adapter,
