@@ -15,17 +15,18 @@
  */
 use crate::{retry_sleep_time, retry_times, ClientPool};
 use common_base::{errors::RobustMQError, log::error_meta};
+use mobc::Manager;
 use protocol::placement_center::generate::{
     common::CommonReply,
     placement::{
-        HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+        placement_center_service_client::PlacementCenterServiceClient, HeartbeatRequest,
+        RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
         SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest,
     },
 };
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time::sleep};
-
-use super::manager::placement_client;
+use tonic::transport::Channel;
 
 pub async fn register_node(
     client_poll: Arc<Mutex<ClientPool>>,
@@ -203,5 +204,34 @@ pub async fn send_raft_conf_change(
         Err(e) => {
             return Err(e);
         }
+    }
+}
+
+struct PlacementServiceManager {
+    pub addr: String,
+}
+
+impl PlacementServiceManager {
+    pub fn new(addr: String) -> Self {
+        Self { addr }
+    }
+}
+
+#[tonic::async_trait]
+impl Manager for PlacementServiceManager {
+    type Connection = PlacementCenterServiceClient<Channel>;
+    type Error = RobustMQError;
+
+    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
+        match PlacementCenterServiceClient::connect(format!("http://{}", self.addr.clone())).await {
+            Ok(client) => {
+                return Ok(client);
+            }
+            Err(err) => return Err(RobustMQError::TonicTransport(err)),
+        };
+    }
+
+    async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
+        Ok(conn)
     }
 }

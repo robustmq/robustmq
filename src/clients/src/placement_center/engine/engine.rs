@@ -1,10 +1,12 @@
 use std::{sync::Arc, time::Duration};
 use common_base::{errors::RobustMQError, log::error_meta};
+use mobc::Manager;
 use protocol::placement_center::generate::{
     common::CommonReply,
-    engine::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest},
+    engine::{engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest},
 };
 use tokio::{sync::Mutex, time::sleep};
+use tonic::transport::Channel;
 use crate::{retry_sleep_time, retry_times, ClientPool};
 use super::manager::engine_client;
 
@@ -151,3 +153,34 @@ pub async fn delete_segment(
         }
     }
 }
+
+#[derive(Clone)]
+pub struct EngineServiceManager {
+    pub addr: String,
+}
+
+impl EngineServiceManager {
+    pub fn new(addr: String) -> Self {
+        Self { addr }
+    }
+}
+
+#[tonic::async_trait]
+impl Manager for EngineServiceManager {
+    type Connection = EngineServiceClient<Channel>;
+    type Error = RobustMQError;
+
+    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
+        match EngineServiceClient::connect(format!("http://{}", self.addr.clone())).await {
+            Ok(client) => {
+                return Ok(client);
+            }
+            Err(err) => return Err(RobustMQError::TonicTransport(err)),
+        };
+    }
+
+    async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
+        Ok(conn)
+    }
+}
+

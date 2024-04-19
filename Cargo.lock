@@ -614,6 +614,7 @@ dependencies = [
  "common-base",
  "lazy_static",
  "mobc",
+ "prost 0.12.3",
  "protocol",
  "thiserror",
  "tokio",
