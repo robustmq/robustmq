@@ -29,7 +29,7 @@ use server::{
     tcp::packet::{RequestPackage, ResponsePackage},
 };
 use std::sync::Arc;
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::{memory::MemoryStorageAdapter, placement::PlacementStorageAdapter};
 use subscribe::{manager::SubScribeManager, push::PushServer};
 use tokio::{
     runtime::Runtime,
@@ -60,7 +60,8 @@ pub struct MqttBroker<'a> {
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
     client_poll: Arc<Mutex<ClientPool>>,
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    message_storage_adapter: Arc<MemoryStorageAdapter>,
+    metadata_storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl<'a> MqttBroker<'a> {
@@ -78,8 +79,15 @@ impl<'a> MqttBroker<'a> {
         )));
 
         let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(1)));
-        let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
+        let metadata_storage_adapter = Arc::new(PlacementStorageAdapter::new(
+            client_poll.clone(),
+            conf.placement_center,
+        ));
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+
+        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(
+            metadata_storage_adapter.clone(),
+        )));
         let subscribe_manager =
             Arc::new(RwLock::new(SubScribeManager::new(metadata_cache.clone())));
 
@@ -94,7 +102,8 @@ impl<'a> MqttBroker<'a> {
             response_queue_sx4,
             response_queue_sx5,
             client_poll,
-            storage_adapter,
+            message_storage_adapter,
+            metadata_storage_adapter,
         };
     }
 

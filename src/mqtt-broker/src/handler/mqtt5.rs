@@ -19,7 +19,7 @@ use protocol::mqtt::{
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::{memory::MemoryStorageAdapter, placement::PlacementStorageAdapter};
 use tokio::sync::{broadcast::Sender, RwLock};
 
 #[derive(Clone)]
@@ -28,7 +28,7 @@ pub struct Mqtt5Service {
     subscribe_manager: Arc<RwLock<SubScribeManager>>,
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl Mqtt5Service {
@@ -37,7 +37,7 @@ impl Mqtt5Service {
         subscribe_manager: Arc<RwLock<SubScribeManager>>,
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-        storage_adapter: Arc<MemoryStorageAdapter>,
+        storage_adapter: Arc<PlacementStorageAdapter>,
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,

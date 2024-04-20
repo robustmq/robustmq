@@ -5,21 +5,21 @@ use crate::metadata::cache::MetadataCache;
 use super::services::GrpcBrokerServices;
 use common_base::log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::placement::PlacementStorageAdapter;
 use tokio::sync::RwLock;
 use tonic::transport::Server;
 
 pub struct GrpcServer {
     port: u32,
     metadata_cache: Arc<RwLock<MetadataCache>>,
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl GrpcServer {
     pub fn new(
         port: u32,
         metadata_cache: Arc<RwLock<MetadataCache>>,
-        storage_adapter: Arc<MemoryStorageAdapter>,
+        storage_adapter: Arc<PlacementStorageAdapter>,
     ) -> Self {
         return Self {
             port,

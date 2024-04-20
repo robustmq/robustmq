@@ -3,14 +3,14 @@ use std::sync::Arc;
 use super::keys::cluster_config_key;
 use crate::metadata::cluster::Cluster;
 use common_base::errors::RobustMQError;
-use storage_adapter::{memory::MemoryStorageAdapter, storage::StorageAdapter};
+use storage_adapter::{placement::PlacementStorageAdapter, storage::StorageAdapter};
 
 pub struct ClusterStorage {
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl ClusterStorage {
-    pub fn new(storage_adapter: Arc<MemoryStorageAdapter>) -> Self {
+    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
         return ClusterStorage { storage_adapter };
     }
 

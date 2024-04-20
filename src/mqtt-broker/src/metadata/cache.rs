@@ -3,7 +3,7 @@ use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserSto
 use super::{cluster::Cluster, session::Session, topic::Topic, user::User};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::placement::PlacementStorageAdapter;
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
     Set,
@@ -33,11 +33,11 @@ pub struct MetadataCache {
     pub topic_id_name: HashMap<String, String>,
     pub connect_id_info: HashMap<u64, String>,
     pub login_info: HashMap<u64, bool>,
-    pub storage_adapter: Arc<MemoryStorageAdapter>,
+    pub metadata_storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl MetadataCache {
-    pub fn new(storage_adapter: Arc<MemoryStorageAdapter>) -> Self {
+    pub fn new(metadata_storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
         let cache = MetadataCache {
             cluster_info: Cluster::default(),
             user_info: HashMap::new(),
@@ -46,14 +46,14 @@ impl MetadataCache {
             topic_id_name: HashMap::new(),
             connect_id_info: HashMap::new(),
             login_info: HashMap::new(),
-            storage_adapter,
+            metadata_storage_adapter,
         };
         return cache;
     }
 
     pub async fn load_cache(&mut self) {
         // load cluster config
-        let cluster_storage = ClusterStorage::new(self.storage_adapter.clone());
+        let cluster_storage = ClusterStorage::new(self.metadata_storage_adapter.clone());
         self.cluster_info = match cluster_storage.get_cluster_config().await {
             Ok(cluster) => {
                 if let Some(data) = cluster {
@@ -71,7 +71,7 @@ impl MetadataCache {
         };
 
         // load all user
-        let user_storage = UserStorage::new(self.storage_adapter.clone());
+        let user_storage = UserStorage::new(self.metadata_storage_adapter.clone());
         self.user_info = match user_storage.user_list().await {
             Ok(list) => list,
             Err(e) => {
@@ -87,7 +87,7 @@ impl MetadataCache {
         self.session_info = HashMap::new();
 
         // load topic info
-        let topic_storage = TopicStorage::new(self.storage_adapter.clone());
+        let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
         self.topic_info = match topic_storage.topic_list().await {
             Ok(list) => list,
             Err(e) => {

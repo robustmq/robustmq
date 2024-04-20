@@ -2,14 +2,14 @@ use super::keys::{lastwill_key, session_key};
 use crate::metadata::session::Session;
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
-use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
+use storage_adapter::{ placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter};
 
 pub struct SessionStorage {
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
 }
 
 impl SessionStorage {
-    pub fn new(storage_adapter: Arc<MemoryStorageAdapter>) -> Self {
+    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
         return SessionStorage { storage_adapter };
     }
 
