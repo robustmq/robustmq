@@ -1,8 +1,16 @@
-use clients::{placement_center::placement::{heartbeat, register_node, unregister_node}, ClientPool};
-use common_base::{
-    config::journal_server::JournalServerConfig, log::{debug_eninge, error_engine, info_meta}, tools::get_local_ip
+use clients::{
+    placement::placement::call::{heartbeat, register_node, un_register_node},
+    ClientPool,
 };
-use protocol::placement_center::generate::{common::ClusterType, placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest}};
+use common_base::{
+    config::journal_server::JournalServerConfig,
+    log::{debug_eninge, error_engine, info_meta},
+    tools::get_local_ip,
+};
+use protocol::placement_center::generate::{
+    common::ClusterType,
+    placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},
+};
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time};
 
@@ -17,25 +25,16 @@ pub async fn register_storage_engine_node(
     req.node_ip = get_local_ip();
     req.node_port = config.grpc_port;
     req.extend_info = "".to_string();
-
-    let mut res_err = None;
-    for addr in config.placement_center {
-        match register_node(client_poll.clone(), addr, req.clone()).await {
-            Ok(_) => {
-                info_meta(&format!(
-                    "Node {} has been successfully registered",
-                    config.node_id
-                ));
-                break;
-            }
-            Err(e) => {
-                res_err = Some(e);
-            }
+    match register_node(client_poll.clone(), config.placement_center, req.clone()).await {
+        Ok(_) => {
+            info_meta(&format!(
+                "Node {} has been successfully registered",
+                config.node_id
+            ));
         }
-    }
-    if !res_err.is_none() {
-        let info = res_err.unwrap().to_string();
-        panic!("{}", info);
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
     }
 }
 
@@ -48,21 +47,13 @@ pub async fn unregister_storage_engine_node(
     req.cluster_name = config.cluster_name;
     req.node_id = config.node_id;
 
-    let mut res_err = None;
-    for addr in config.placement_center {
-        match unregister_node(client_poll.clone(), addr, req.clone()).await {
-            Ok(_) => {
-                info_meta(&format!("Node {} exits successfully", config.node_id));
-                break;
-            }
-            Err(e) => {
-                res_err = Some(e);
-            }
+    match un_register_node(client_poll.clone(), config.placement_center, req.clone()).await {
+        Ok(_) => {
+            info_meta(&format!("Node {} exits successfully", config.node_id));
         }
-    }
-    if !res_err.is_none() {
-        let info = res_err.unwrap().to_string();
-        panic!("{}", info);
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
     }
 }
 
@@ -72,23 +63,23 @@ pub async fn report_heartbeat(client_poll: Arc<Mutex<ClientPool>>, config: Journ
         req.cluster_name = config.cluster_name.clone();
         req.cluster_type = ClusterType::StorageEngine.into();
         req.node_id = config.node_id;
-        let mut res_err = None;
-        for addr in config.placement_center.clone() {
-            match heartbeat(client_poll.clone(), addr, req.clone()).await {
-                Ok(_) => {
-                    debug_eninge(format!(
-                        "Node {} successfully reports the heartbeat communication",
-                        config.node_id
-                    ));
-                    break;
-                }
-                Err(e) => {
-                    res_err = Some(e);
-                }
+        match heartbeat(
+            client_poll.clone(),
+            config.placement_center.clone(),
+            req.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                debug_eninge(format!(
+                    "Node {} successfully reports the heartbeat communication",
+                    config.node_id
+                ));
+                break;
             }
-        }
-        if !res_err.is_none() {
-            error_engine(res_err.unwrap().to_string());
+            Err(e) => {
+                error_engine(e.to_string());
+            }
         }
         time::sleep(Duration::from_millis(1000)).await;
     }

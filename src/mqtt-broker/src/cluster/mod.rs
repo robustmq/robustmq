@@ -1,11 +1,11 @@
 use crate::metadata::node::Node;
 use clients::{
-    placement_center::placement::{heartbeat, register_node, unregister_node},
+    placement::placement::call::{heartbeat, register_node, un_register_node},
     ClientPool,
 };
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    log::{debug_eninge, error_engine, info},
+    log::{debug, info},
     tools::get_local_ip,
 };
 use protocol::placement_center::generate::{
@@ -40,24 +40,22 @@ pub async fn register_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
     };
     req.extend_info = serde_json::to_string(&node).unwrap();
 
-    let mut res_err = None;
-    for addr in config.placement_center.clone() {
-        match register_node(client_poll.clone(), addr, req.clone()).await {
-            Ok(_) => {
-                info(format!(
-                    "Node {} has been successfully registered",
-                    config.broker_id
-                ));
-                break;
-            }
-            Err(e) => {
-                res_err = Some(e);
-            }
+    match register_node(
+        client_poll.clone(),
+        config.placement_center.clone(),
+        req.clone(),
+    )
+    .await
+    {
+        Ok(_) => {
+            info(format!(
+                "Node {} has been successfully registered",
+                config.broker_id
+            ));
         }
-    }
-    if !res_err.is_none() {
-        let info = res_err.unwrap().to_string();
-        panic!("{}", info);
+        Err(e) => {
+            panic!("{}", e.to_string())
+        }
     }
 }
 
@@ -68,21 +66,19 @@ pub async fn unregister_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
     req.cluster_name = config.cluster_name.clone();
     req.node_id = config.broker_id;
 
-    let mut res_err = None;
-    for addr in config.placement_center.clone() {
-        match unregister_node(client_poll.clone(), addr, req.clone()).await {
-            Ok(_) => {
-                info(format!("Node {} exits successfully", config.broker_id));
-                break;
-            }
-            Err(e) => {
-                res_err = Some(e);
-            }
+    match un_register_node(
+        client_poll.clone(),
+        config.placement_center.clone(),
+        req.clone(),
+    )
+    .await
+    {
+        Ok(_) => {
+            info(format!("Node {} exits successfully", config.broker_id));
         }
-    }
-    if !res_err.is_none() {
-        let info = res_err.unwrap().to_string();
-        panic!("{}", info);
+        Err(e) => {
+            panic!("{}", e.to_string())
+        }
     }
 }
 
@@ -106,24 +102,23 @@ pub async fn report_heartbeat(
         req.cluster_name = config.cluster_name.clone();
         req.cluster_type = ClusterType::MqttBrokerServer.into();
         req.node_id = config.broker_id;
-        let mut res_err = None;
-        for addr in config.placement_center.clone() {
-            match heartbeat(client_poll.clone(), addr, req.clone()).await {
-                Ok(_) => {
-                    debug_eninge(format!(
-                        "Node {} successfully reports the heartbeat communication",
-                        config.broker_id
-                    ));
-                    break;
-                }
-                Err(e) => {
-                    res_err = Some(e);
-                }
+
+        match heartbeat(
+            client_poll.clone(),
+            config.placement_center.clone(),
+            req.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                debug(format!(
+                    "Node {} successfully reports the heartbeat communication",
+                    config.broker_id
+                ));
+            }
+            Err(e) => {
+                panic!("{}", e.to_string())
             }
         }
-        if !res_err.is_none() {
-            error_engine(res_err.unwrap().to_string());
-        }
-        time::sleep(Duration::from_millis(1000)).await;
     }
 }

@@ -18,7 +18,7 @@ use crate::cache::placement::PlacementClusterCache;
 use crate::raft::storage::PlacementCenterStorage;
 use crate::storage::global_id::GlobalId;
 use crate::storage::rocksdb::RocksDBEngine;
-use clients::placement_center::placement::{register_node, unregister_node};
+use clients::placement::placement::call::{register_node, un_register_node};
 use clients::ClientPool;
 use common_base::errors::RobustMQError;
 use prost::Message;
@@ -75,7 +75,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         if self.rewrite_leader() {
             let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match register_node(self.client_poll.clone(), leader_addr, req).await {
+            match register_node(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -100,7 +100,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         if self.rewrite_leader() {
             let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match unregister_node(self.client_poll.clone(), leader_addr, req).await {
+            match un_register_node(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -130,7 +130,7 @@ impl PlacementCenterService for GrpcPlacementService {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
-        let key = format!("{}_{}",req.cluster_name, req.node_id);
+        let key = format!("{}_{}", req.cluster_name, req.node_id);
         let mut sc = self.cluster_cache.write().unwrap();
         sc.heart_time(key, time);
 

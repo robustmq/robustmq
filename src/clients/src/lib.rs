@@ -15,22 +15,25 @@
  */
 use common_base::errors::RobustMQError;
 use mobc::Pool;
-use placement_center::manager::{EngineServiceManager, KvServiceManager, PlacementServiceManager};
+use placement::{
+    journal::JournalServiceManager, kv::KvServiceManager, placement::PlacementServiceManager,
+};
 use protocol::placement_center::generate::{
     engine::engine_service_client::EngineServiceClient, kv::kv_service_client::KvServiceClient,
     placement::placement_center_service_client::PlacementCenterServiceClient,
 };
-use std::{collections::HashMap, future::Future};
+use std::collections::HashMap;
 use tonic::transport::Channel;
-pub mod broker_server;
-pub mod placement_center;
-pub mod storage_engine;
+
+pub mod journal;
+pub mod mqtt;
+pub mod placement;
 
 const MAX_RETRY_TIMES: usize = 16;
 pub struct ClientPool {
     ip_max_num: u64,
     placement_service_pools: HashMap<String, Pool<PlacementServiceManager>>,
-    engine_service_pools: HashMap<String, Pool<EngineServiceManager>>,
+    engine_service_pools: HashMap<String, Pool<JournalServiceManager>>,
     kv_service_pools: HashMap<String, Pool<KvServiceManager>>,
 }
 
@@ -86,7 +89,7 @@ impl ClientPool {
         addr: String,
     ) -> Result<EngineServiceClient<Channel>, RobustMQError> {
         if !self.engine_service_pools.contains_key(&addr) {
-            let manager = EngineServiceManager::new(addr.clone());
+            let manager = JournalServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
             self.engine_service_pools.insert(addr.clone(), pool.clone());
         }
@@ -132,30 +135,4 @@ pub fn retry_times() -> usize {
 
 pub fn retry_sleep_time(times: usize) -> u64 {
     return (times * 3) as u64;
-}
-
-pub async fn retry_call<T>(
-    call: impl Future<Output = Result<T, RobustMQError>>,
-) -> Result<T, RobustMQError> {
-    return call.await;
-}
-
-#[cfg(test)]
-mod tests {
-
-    use protocol::placement_center::generate::placement::RegisterNodeRequest;
-
-    use crate::ClientPool;
-
-    #[tokio::test]
-    async fn conects() {
-        let mut pool = ClientPool::new(3);
-        let addr = "127.0.0.1:2193".to_string();
-        match pool.get_placement_services_client(addr).await {
-            Ok(mut client) => {
-                let r = client.register_node(RegisterNodeRequest::default()).await;
-            }
-            Err(e) => {}
-        }
-    }
 }

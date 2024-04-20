@@ -1,7 +1,7 @@
 use crate::{record::Record, storage::StorageAdapter};
 use axum::async_trait;
 use clients::{
-    placement_center::kv::{placement_delete, placement_exists, placement_get, placement_set},
+    placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
     ClientPool,
 };
 use common_base::errors::RobustMQError;
@@ -14,12 +14,12 @@ use tokio::sync::Mutex;
 #[derive(Clone)]
 pub struct PlacementStorageAdapter {
     client_poll: Arc<Mutex<ClientPool>>,
-    addr: String,
+    addrs: Vec<String>,
 }
 
 impl PlacementStorageAdapter {
-    pub fn new(client_poll: Arc<Mutex<ClientPool>>, addr: String) -> Self {
-        return PlacementStorageAdapter { client_poll, addr };
+    pub fn new(client_poll: Arc<Mutex<ClientPool>>, addrs: Vec<String>) -> Self {
+        return PlacementStorageAdapter { client_poll, addrs };
     }
 }
 
@@ -30,7 +30,7 @@ impl StorageAdapter for PlacementStorageAdapter {
             key,
             value: String::from_utf8(value.data).unwrap(),
         };
-        match placement_set(self.client_poll.clone(), self.addr.clone(), request).await {
+        match placement_set(self.client_poll.clone(), self.addrs.clone(), request).await {
             Ok(_) => {
                 return Ok(());
             }
@@ -42,7 +42,7 @@ impl StorageAdapter for PlacementStorageAdapter {
 
     async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
         let request = GetRequest { key };
-        match placement_get(self.client_poll.clone(), self.addr.clone(), request).await {
+        match placement_get(self.client_poll.clone(), self.addrs.clone(), request).await {
             Ok(reply) => return Ok(Some(Record::build_e(reply.value))),
             Err(e) => {
                 return Err(e);
@@ -51,7 +51,7 @@ impl StorageAdapter for PlacementStorageAdapter {
     }
     async fn delete(&self, key: String) -> Result<(), RobustMQError> {
         let request = DeleteRequest { key };
-        match placement_delete(self.client_poll.clone(), self.addr.clone(), request).await {
+        match placement_delete(self.client_poll.clone(), self.addrs.clone(), request).await {
             Ok(_) => return Ok(()),
             Err(e) => {
                 return Err(e);
@@ -60,7 +60,7 @@ impl StorageAdapter for PlacementStorageAdapter {
     }
     async fn exists(&self, key: String) -> Result<bool, RobustMQError> {
         let request = ExistsRequest { key };
-        match placement_exists(self.client_poll.clone(), self.addr.clone(), request).await {
+        match placement_exists(self.client_poll.clone(), self.addrs.clone(), request).await {
             Ok(reply) => return Ok(reply.flag),
             Err(e) => {
                 return Err(e);

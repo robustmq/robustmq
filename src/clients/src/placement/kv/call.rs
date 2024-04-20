@@ -1,18 +1,16 @@
-use super::{manager::kv_client, PlacementCenterInterface};
-use crate::{retry_sleep_time, retry_times, ClientPool};
+use super::PlacementCenterInterface;
+use crate::{
+    placement::{retry_call, PlacementCenterService},
+    ClientPool,
+};
 use common_base::errors::RobustMQError;
-use mobc::Manager;
 use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
-    kv::{
-        kv_service_client::KvServiceClient, DeleteRequest, ExistsReply, ExistsRequest, GetReply,
-        GetRequest, SetRequest,
-    },
+    kv::{DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest},
 };
-use std::{sync::Arc, time::Duration};
-use tokio::{sync::Mutex, time::sleep};
-use tonic::transport::Channel;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub async fn placement_set(
     client_poll: Arc<Mutex<ClientPool>>,
@@ -20,8 +18,9 @@ pub async fn placement_set(
     request: SetRequest,
 ) -> Result<CommonReply, RobustMQError> {
     let request_data = SetRequest::encode_to_vec(&request);
-    match kv_retry_call(
-        PlacementCenterInterface::Get,
+    match retry_call(
+        PlacementCenterService::Kv,
+        PlacementCenterInterface::Set,
         client_poll,
         addrs,
         request_data,
@@ -44,7 +43,8 @@ pub async fn placement_get(
     request: GetRequest,
 ) -> Result<GetReply, RobustMQError> {
     let request_data = GetRequest::encode_to_vec(&request);
-    match kv_retry_call(
+    match retry_call(
+        PlacementCenterService::Kv,
         PlacementCenterInterface::Get,
         client_poll,
         addrs,
@@ -68,8 +68,9 @@ pub async fn placement_delete(
     request: DeleteRequest,
 ) -> Result<CommonReply, RobustMQError> {
     let request_data = DeleteRequest::encode_to_vec(&request);
-    match kv_retry_call(
-        PlacementCenterInterface::Get,
+    match retry_call(
+        PlacementCenterService::Kv,
+        PlacementCenterInterface::Delete,
         client_poll,
         addrs,
         request_data,
@@ -92,8 +93,9 @@ pub async fn placement_exists(
     request: ExistsRequest,
 ) -> Result<ExistsReply, RobustMQError> {
     let request_data = ExistsRequest::encode_to_vec(&request);
-    match kv_retry_call(
-        PlacementCenterInterface::Get,
+    match retry_call(
+        PlacementCenterService::Kv,
+        PlacementCenterInterface::Exists,
         client_poll,
         addrs,
         request_data,
@@ -109,5 +111,3 @@ pub async fn placement_exists(
         }
     }
 }
-
-
