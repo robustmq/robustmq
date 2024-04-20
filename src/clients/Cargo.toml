@@ -15,3 +15,4 @@ tonic.workspace = true
 lazy_static.workspace =true
 tokio.workspace = true
 mobc.workspace = true
+prost.workspace = true

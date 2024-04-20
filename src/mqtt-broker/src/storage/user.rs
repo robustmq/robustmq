@@ -5,15 +5,17 @@ use super::{
 use crate::metadata::user::User;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
+use storage_adapter::{
+    placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter,
+};
 
 pub struct UserStorage {
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
     all_info_storage: AllInfoStorage,
 }
 
 impl UserStorage {
-    pub fn new(storage_adapter: Arc<MemoryStorageAdapter>) -> UserStorage {
+    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> UserStorage {
         let all_info_storage = AllInfoStorage::new(all_user_key(), storage_adapter.clone());
         return UserStorage {
             storage_adapter,

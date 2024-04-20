@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use common_base::errors::RobustMQError;
+use common_base::{errors::RobustMQError, tools::now_mills};
 use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, CreateUserReply, CreateUserRequest,
     UpdateCacheReply, UpdateCacheRequest,
@@ -63,6 +63,9 @@ impl MqttBrokerService for GrpcBrokerServices {
         let user_info = User {
             username: req.username,
             password: req.password,
+            salt: crate::metadata::user::UserSalt::Md5,
+            is_superuser: true,
+            create_time: now_mills(),
         };
         let user_storage = UserStorage::new(self.storage_adapter.clone());
         match user_storage.save_user(user_info).await {

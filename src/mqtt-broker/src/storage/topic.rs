@@ -5,15 +5,17 @@ use super::{
 use crate::metadata::topic::Topic;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
+use storage_adapter::{
+    placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter,
+};
 
 pub struct TopicStorage {
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<PlacementStorageAdapter>,
     all_info_storage: AllInfoStorage,
 }
 
 impl TopicStorage {
-    pub fn new(storage_adapter: Arc<MemoryStorageAdapter>) -> Self {
+    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
         let all_info_storage = AllInfoStorage::new(all_topic_key(), storage_adapter.clone());
         return TopicStorage {
             storage_adapter,

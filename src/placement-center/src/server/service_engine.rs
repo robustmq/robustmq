@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 use crate::{cache::placement::PlacementClusterCache, raft::storage::PlacementCenterStorage};
-use clients::{
-    placement_center::engine::{create_segment, create_shard, delete_segment, delete_shard},
-    ClientPool,
-};
+use clients::{placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard}, ClientPool};
 use protocol::placement_center::generate::{
     common::CommonReply,
     engine::{
@@ -51,7 +48,6 @@ impl GrpcEngineService {
     fn rewrite_leader(&self) -> bool {
         return !self.placement_cache.read().unwrap().is_leader();
     }
-    
 }
 
 #[tonic::async_trait]
@@ -64,7 +60,7 @@ impl EngineService for GrpcEngineService {
 
         if self.rewrite_leader() {
             let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match create_shard(self.client_poll.clone(), leader_addr, req).await {
+            match create_shard(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -88,7 +84,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match delete_shard(self.client_poll.clone(), leader_addr, req).await {
+            match delete_shard(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -133,7 +129,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match create_segment(self.client_poll.clone(), leader_addr, req).await {
+            match create_segment(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }
@@ -157,7 +153,7 @@ impl EngineService for GrpcEngineService {
         let req = request.into_inner();
         if self.rewrite_leader() {
             let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match delete_segment(self.client_poll.clone(), leader_addr, req).await {
+            match delete_segment(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
             }

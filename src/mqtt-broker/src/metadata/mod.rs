@@ -10,6 +10,7 @@ pub mod topic;
 pub mod subscriber;
 pub mod message;
 pub mod node;
+pub mod acl;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AvailableFlag {

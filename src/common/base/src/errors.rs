@@ -19,7 +19,6 @@ use tonic::Status;
 
 #[derive(Error, Debug)]
 pub enum RobustMQError {
-
     #[error("{0}")]
     CommmonError(String),
 
@@ -69,7 +68,8 @@ pub enum RobustMQError {
     #[error("Parameter cannot be empty, parameter name: {0}")]
     ParameterCannotBeNull(String),
 
-    
+    #[error("Module {0} does not support this feature {1}")]
+    NotSupportFeature(String, String),
 }
 
 #[cfg(test)]

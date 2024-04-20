@@ -1,5 +1,6 @@
-use clients::{placement_center::placement::send_raft_message, ClientPool};
+use clients::{placement::placement::call::send_raft_message, ClientPool};
 use common_base::log::{debug_meta, error_meta, info_meta};
+use protocol::placement_center::generate::placement::SendRaftMessageRequest;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 
@@ -33,8 +34,9 @@ impl PeersManager {
         loop {
             if let Some(data) = self.peer_message_recv.recv().await {
                 let addr = data.to;
-                let data = data.data;
-                match send_raft_message(self.client_poll.clone(), addr.clone(), data).await {
+                let request = SendRaftMessageRequest { message: data.data };
+                match send_raft_message(self.client_poll.clone(), vec![addr.clone()], request).await
+                {
                     Ok(_) => debug_meta(&format!("Send Raft message to node {} Successful.", addr)),
                     Err(e) => error_meta(&format!(
                         "Failed to send data to {}, error message: {}",
