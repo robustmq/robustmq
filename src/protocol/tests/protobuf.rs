@@ -29,25 +29,25 @@ mod tests {
 
         tonic_build::configure()
             .build_server(false)
-            .out_dir("src/storage_engine/generate/protocol") // you can change the generated code's location
+            .out_dir("src/journal_server/generate/protocol") // you can change the generated code's location
             .compile(
                 &[
-                    "src/storage_engine/proto/protocol/header.proto",
-                    "src/storage_engine/proto/protocol/fetch.proto",
-                    "src/storage_engine/proto/protocol/produce.proto",
+                    "src/journal_server/proto/protocol/header.proto",
+                    "src/journal_server/proto/protocol/fetch.proto",
+                    "src/journal_server/proto/protocol/produce.proto",
                 ],
-                &["src/storage_engine/proto/protocol/"], // specify the root location to search proto dependencies
+                &["src/journal_server/proto/protocol/"], // specify the root location to search proto dependencies
             )
             .unwrap();
 
         tonic_build::configure()
             .build_server(false)
-            .out_dir("src/storage_engine/generate/record") // you can change the generated code's location
+            .out_dir("src/journal_server/generate/record") // you can change the generated code's location
             .compile(
                 &[
-                    "src/storage_engine/proto/record/record.proto",
+                    "src/journal_server/proto/record/record.proto",
                 ],
-                &["src/storage_engine/proto/record"], // specify the root location to search proto dependencies
+                &["src/journal_server/proto/record"], // specify the root location to search proto dependencies
             )
             .unwrap();
     }

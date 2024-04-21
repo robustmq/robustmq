@@ -101,6 +101,10 @@ where
             }
         };
 
+        for (topic_name, topic) in self.topic_info.clone() {
+            self.topic_id_name.insert(topic.topic_id, topic_name);
+        }
+
         self.connect_id_info = HashMap::new();
         self.login_info = HashMap::new();
     }
@@ -109,7 +113,10 @@ where
         let data: MetadataChangeData = serde_json::from_str(&data).unwrap();
         match data.data_type {
             MetadataCacheType::User => match data.action {
-                MetadataCacheAction::Set => self.set_user(data.value),
+                MetadataCacheAction::Set => {
+                    let user: User = serde_json::from_str(&data.value).unwrap();
+                    self.set_user(user);
+                }
                 MetadataCacheAction::Del => self.del_user(data.value),
             },
             MetadataCacheType::Topic => match data.action {
@@ -123,9 +130,12 @@ where
         }
     }
 
-    pub fn set_user(&mut self, value: String) {
-        let data: User = serde_json::from_str(&value).unwrap();
-        self.user_info.insert(data.username.clone(), data);
+    pub fn set_cluster_info(&mut self, cluster: Cluster) {
+        self.cluster_info = cluster;
+    }
+
+    pub fn set_user(&mut self, user: User) {
+        self.user_info.insert(user.username.clone(), user);
     }
 
     pub fn del_user(&mut self, value: String) {

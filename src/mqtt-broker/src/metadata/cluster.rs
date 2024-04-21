@@ -1,3 +1,4 @@
+use protocol::mqtt::QoS;
 use serde::{Deserialize, Serialize};
 
 use super::AvailableFlag;
@@ -6,28 +7,27 @@ use super::AvailableFlag;
 pub struct Cluster {
     pub session_expiry_interval: u32,
     pub topic_alias_max: u16,
-    pub max_qos: Option<u8>,
+    pub max_qos: QoS,
     pub retain_available: AvailableFlag,
     pub wildcard_subscription_available: AvailableFlag,
     pub max_packet_size: u32,
     pub subscription_identifiers_available: AvailableFlag,
     pub shared_subscription_available: AvailableFlag,
     pub server_keep_alive: u16,
-    pub receive_max: Option<u16>,
+    pub receive_max: u16,
     pub secret_free_login: bool,
 }
 
 impl Cluster {
-
-    pub fn new() ->Self{
+    pub fn new() -> Self {
         return Cluster::default();
     }
     pub fn receive_max(&self) -> Option<u16> {
-        return self.receive_max;
+        return Some(self.receive_max);
     }
 
     pub fn max_qos(&self) -> Option<u8> {
-        return self.max_qos;
+        return Some(self.max_qos.into());
     }
 
     pub fn server_keep_alive(&self) -> u16 {
@@ -58,7 +58,7 @@ impl Cluster {
         return self.shared_subscription_available.clone() as u8;
     }
 
-    pub fn secret_free_login(&self) -> bool{
+    pub fn secret_free_login(&self) -> bool {
         return self.secret_free_login;
     }
 }
