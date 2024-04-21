@@ -99,14 +99,14 @@ where
                             }
                             let message_storage = MessageStorage::new(storage_adapter.clone());
 
-                            // topic_sub_push_thread(
-                            //     subscribe_manager.clone(),
-                            //     message_storage,
-                            //     topic_id.clone(),
-                            //     response_queue_sx4.clone(),
-                            //     response_queue_sx5.clone(),
-                            // )
-                            // .await;
+                            topic_sub_push_thread(
+                                subscribe_manager.clone(),
+                                message_storage,
+                                topic_id.clone(),
+                                response_queue_sx4.clone(),
+                                response_queue_sx5.clone(),
+                            )
+                            .await;
                         }
                     });
                 }
