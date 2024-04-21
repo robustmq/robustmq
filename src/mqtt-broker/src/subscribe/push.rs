@@ -18,28 +18,29 @@ use tokio::{
     time::sleep,
 };
 
-pub struct PushServer<T> {
+pub struct PushServer<T, S> {
     subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
     topic_push_thread: HashMap<String, Sender<bool>>,
-    storage_adapter: Arc<T>,
+    message_storage_adapter: Arc<S>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
 }
 
-impl<T> PushServer<T>
+impl<T, S> PushServer<T, S>
 where
     T: StorageAdapter + Send + Sync + 'static,
+    S: StorageAdapter + Send + Sync + 'static,
 {
     pub fn new(
         subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
-        storage_adapter: Arc<T>,
+        message_storage_adapter: Arc<S>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {
         return PushServer {
             subscribe_manager,
             topic_push_thread: HashMap::new(),
-            storage_adapter,
+            message_storage_adapter,
             response_queue_sx4,
             response_queue_sx5,
         };
@@ -79,7 +80,7 @@ where
                     let (sx, mut rx) = broadcast::channel(1000);
                     let response_queue_sx4 = self.response_queue_sx4.clone();
                     let response_queue_sx5 = self.response_queue_sx5.clone();
-                    let storage_adapter = self.storage_adapter.clone();
+                    let storage_adapter = self.message_storage_adapter.clone();
                     let subscribe_manager = self.subscribe_manager.clone();
                     self.topic_push_thread.insert(topic_id.clone(), sx);
 
@@ -116,14 +117,14 @@ where
     }
 }
 
-pub async fn topic_sub_push_thread<T>(
+pub async fn topic_sub_push_thread<T,S>(
     subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
-    message_storage: MessageStorage<T>,
+    message_storage: MessageStorage<S>,
     topic_id: String,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
 ) where
-    T: StorageAdapter + StorageAdapter + Send + Sync + 'static,
+    S: StorageAdapter + StorageAdapter + Send + Sync + 'static,
 {
     let group_id = format!("system_sub_{}", topic_id);
     let record_num = 5;
