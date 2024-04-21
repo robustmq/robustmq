@@ -8,13 +8,13 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
-pub struct MQTTAckBuild {
+pub struct MQTTAckBuild<T> {
     protocol: MQTTProtocol,
-    metadata_cache: Arc<RwLock<MetadataCache>>,
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
 }
 
-impl MQTTAckBuild {
-    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
+impl<T> MQTTAckBuild<T> {
+    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<RwLock<MetadataCache<T>>>) -> Self {
         return MQTTAckBuild {
             protocol,
             metadata_cache,

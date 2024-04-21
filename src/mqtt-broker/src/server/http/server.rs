@@ -1,18 +1,14 @@
-use axum::routing::get;
-use axum::Router;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
-use tokio::sync::{broadcast::Sender, RwLock};
-use std::{
-    net::SocketAddr,
-    sync::Arc,
-};
+use super::node::{hearbeat_info, index, metadata_info, metrics, subscribe_info};
 use crate::{
     cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
     server::tcp::packet::ResponsePackage, subscribe::manager::SubScribeManager,
 };
-use super::node::{
-    hearbeat_info, index, metadata_info, metrics, subscribe_info,
-};
+use axum::routing::get;
+use axum::Router;
+use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
+use std::{net::SocketAddr, sync::Arc};
+use storage_adapter::storage::StorageAdapter;
+use tokio::sync::{broadcast::Sender, RwLock};
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_HEARTBEAT_INFO: &str = "/heartbeat-info";
@@ -21,19 +17,22 @@ pub const ROUTE_SUBSCRIBE_INFO: &str = "/subscribe-info";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
-pub struct HttpServerState {
-    pub metadata_cache: Arc<RwLock<MetadataCache>>,
+pub struct HttpServerState<T> {
+    pub metadata_cache: Arc<RwLock<MetadataCache<T>>>,
     pub heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-    pub subscribe_manager: Arc<RwLock<SubScribeManager>>,
+    pub subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
     pub response_queue_sx4: Sender<ResponsePackage>,
     pub response_queue_sx5: Sender<ResponsePackage>,
 }
 
-impl HttpServerState {
+impl<T> HttpServerState<T>
+where
+    T: StorageAdapter,
+{
     pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache>>,
+        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-        subscribe_manager: Arc<RwLock<SubScribeManager>>,
+        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {
@@ -47,7 +46,10 @@ impl HttpServerState {
     }
 }
 
-pub async fn start_http_server(state: HttpServerState) {
+pub async fn start_http_server<T>(state: HttpServerState<T>)
+where
+    T: Clone + Send + Sync + 'static,
+{
     let config = broker_mqtt_conf();
     let ip: SocketAddr = format!("0.0.0.0:{}", config.http_port).parse().unwrap();
     let app = routes(state);
@@ -59,7 +61,10 @@ pub async fn start_http_server(state: HttpServerState) {
     axum::serve(listener, app).await.unwrap();
 }
 
-fn routes(state: HttpServerState) -> Router {
+fn routes<T>(state: HttpServerState<T>) -> Router
+where
+    T: Clone + Send + Sync + 'static,
+{
     let meta = Router::new()
         .route(ROUTE_ROOT, get(index))
         .route(ROUTE_HEARTBEAT_INFO, get(hearbeat_info))

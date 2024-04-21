@@ -16,7 +16,7 @@ use clap::{command, Parser};
 use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
 use common_base::config::DEFAULT_MQTT_SERVER_CONFIG;
 use common_base::log::init_broker_mqtt_log;
-use mqtt_broker::MqttBroker;
+use mqtt_broker::start_mqtt_broker_server;
 use tokio::sync::broadcast;
 
 #[derive(Parser, Debug)]
@@ -34,6 +34,5 @@ fn main() {
     init_broker_mqtt_conf_by_path(&args.conf);
     init_broker_mqtt_log();
     let (stop_send, _) = broadcast::channel(2);
-    let pc = MqttBroker::new();
-    pc.start(stop_send);
+    start_mqtt_broker_server(stop_send);
 }

@@ -1,34 +1,41 @@
+use super::mqtt4::Mqtt4Service;
+use super::mqtt5::Mqtt5Service;
+use super::packet::MQTTAckBuild;
 use crate::cluster::heartbeat_manager::HeartbeatManager;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::manager::SubScribeManager;
 use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
-use tokio::sync::broadcast::Sender;
 use std::sync::Arc;
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::storage::StorageAdapter;
+use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
-use super::mqtt4::Mqtt4Service;
-use super::mqtt5::Mqtt5Service;
-use super::packet::MQTTAckBuild;
 
+// T: metadata storage adapter
+// S: message storage adapter
 #[derive(Clone)]
-pub struct Command {
+pub struct Command<T, S> {
     protocol: MQTTProtocol,
-    ack_build: MQTTAckBuild,
-    mqtt4_service: Mqtt4Service,
-    mqtt5_service: Mqtt5Service,
-    metadata_cache: Arc<RwLock<MetadataCache>>,
+    ack_build: MQTTAckBuild<T>,
+    mqtt4_service: Mqtt4Service<T>,
+    mqtt5_service: Mqtt5Service<T, S>,
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
     response_queue_sx: Sender<ResponsePackage>,
 }
 
-impl Command {
+impl<T, S> Command<T, S>
+where
+    T: StorageAdapter + Sync + Send + 'static + Clone,
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
     pub fn new(
         protocol: MQTTProtocol,
-        metadata_cache: Arc<RwLock<MetadataCache>>,
+        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-        subscribe_manager: Arc<RwLock<SubScribeManager>>,
-        storage_adapter: Arc<MemoryStorageAdapter>,
+        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+        metadata_storage_adapter: Arc<T>,
+        message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
@@ -42,7 +49,8 @@ impl Command {
             subscribe_manager,
             ack_build.clone(),
             heartbeat_manager.clone(),
-            storage_adapter.clone(),
+            metadata_storage_adapter.clone(),
+            message_storage_adapter.clone(),
         );
         return Command {
             protocol,

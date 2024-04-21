@@ -43,7 +43,13 @@ impl StorageAdapter for PlacementStorageAdapter {
     async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
         let request = GetRequest { key };
         match placement_get(self.client_poll.clone(), self.addrs.clone(), request).await {
-            Ok(reply) => return Ok(Some(Record::build_e(reply.value))),
+            Ok(reply) => {
+                if reply.value.is_empty() {
+                    return Ok(None);
+                } else {
+                    return Ok(Some(Record::build_e(reply.value)));
+                }
+            }
             Err(e) => {
                 return Err(e);
             }

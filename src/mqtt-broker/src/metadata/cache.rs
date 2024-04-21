@@ -3,7 +3,7 @@ use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserSto
 use super::{cluster::Cluster, session::Session, topic::Topic, user::User};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::placement::PlacementStorageAdapter;
+use storage_adapter::storage::StorageAdapter;
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
     Set,
@@ -25,7 +25,7 @@ pub struct MetadataChangeData {
 }
 
 #[derive(Clone)]
-pub struct MetadataCache {
+pub struct MetadataCache<T> {
     pub cluster_info: Cluster,
     pub user_info: HashMap<String, User>,
     pub session_info: HashMap<String, Session>,
@@ -33,11 +33,14 @@ pub struct MetadataCache {
     pub topic_id_name: HashMap<String, String>,
     pub connect_id_info: HashMap<u64, String>,
     pub login_info: HashMap<u64, bool>,
-    pub metadata_storage_adapter: Arc<PlacementStorageAdapter>,
+    pub metadata_storage_adapter: Arc<T>,
 }
 
-impl MetadataCache {
-    pub fn new(metadata_storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
+impl<T> MetadataCache<T>
+where
+    T: StorageAdapter,
+{
+    pub fn new(metadata_storage_adapter: Arc<T>) -> Self {
         let cache = MetadataCache {
             cluster_info: Cluster::default(),
             user_info: HashMap::new(),

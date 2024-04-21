@@ -5,17 +5,20 @@ use crate::{
 use common_base::errors::RobustMQError;
 use protocol::mqtt::{Connect, ConnectProperties};
 use std::sync::Arc;
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::storage::StorageAdapter;
 
-pub async fn save_connect_session(
+pub async fn save_connect_session<T>(
     auto_client_id: bool,
     client_id: String,
     contail_last_will: bool,
     cluster: Cluster,
     connnect: Connect,
     connect_properties: Option<ConnectProperties>,
-    storage_adapter: Arc<MemoryStorageAdapter>,
-) -> Result<Session, RobustMQError> {
+    storage_adapter: Arc<T>,
+) -> Result<Session, RobustMQError>
+where
+    T: StorageAdapter,
+{
     let mut client_session = Session::default();
     if !auto_client_id && connnect.clean_session {
         let session_storage = SessionStorage::new(storage_adapter.clone());
@@ -54,7 +57,5 @@ pub async fn save_connect_session(
 #[cfg(test)]
 mod tests {
     #[tokio::test]
-    async fn send_retain_message_test() {
-        
-    }
+    async fn send_retain_message_test() {}
 }

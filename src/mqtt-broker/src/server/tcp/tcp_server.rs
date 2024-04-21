@@ -9,51 +9,56 @@ use crate::{
     },
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
-use common_base::log::{error, info};
+use common_base::log::{debug, error, info};
 use futures::StreamExt;
 use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
 use std::{
     fmt::{Debug, Error},
     sync::Arc,
 };
+use storage_adapter::storage::StorageAdapter;
 use tokio::net::TcpListener;
 use tokio::{io, sync::broadcast::Sender};
 use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
 
 // U: codec: encoder + decoder
-pub struct TcpServer<T> {
+// T: metadata storage adapter
+// S: message storage adapter
+pub struct TcpServer<U, T, S> {
     protocol: MQTTProtocol,
-    command: Command,
-    connection_manager: Arc<ConnectionManager<T>>,
+    command: Command<T, S>,
+    connection_manager: Arc<ConnectionManager<U>>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
-    codec: T,
+    codec: U,
 }
 
-impl<T> TcpServer<T>
+impl<U, T, S> TcpServer<U, T, S>
 where
-    T: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static + Debug,
-    MQTTPacket: From<<T as tokio_util::codec::Decoder>::Item>,
-    <T as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
-    <T as tokio_util::codec::Decoder>::Error: Debug,
+    U: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static + Debug,
+    MQTTPacket: From<<U as tokio_util::codec::Decoder>::Item>,
+    <U as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
+    <U as tokio_util::codec::Decoder>::Error: Debug,
+    T: StorageAdapter + Clone + Send + Sync + 'static,
+    S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     pub fn new(
         protocol: MQTTProtocol,
-        command: Command,
+        command: Command<T, S>,
         accept_thread_num: usize,
         max_connection_num: usize,
         handler_process_num: usize,
         response_process_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-        codec: T,
+        codec: U,
         request_queue_sx: Sender<RequestPackage>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> Self {
-        let connection_manager = Arc::new(ConnectionManager::<T>::new(
+        let connection_manager = Arc::new(ConnectionManager::<U>::new(
             protocol.clone(),
             max_connection_num,
             max_try_mut_times,
@@ -137,11 +142,11 @@ where
                                                 Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                             }
                                         }
-                                        Err(_) => {
-                                            // error(format!(
-                                            //     "read_frame_stream decode error,error info: {:?}",
-                                            //     e
-                                            // ));
+                                        Err(e) => {
+                                            debug(format!(
+                                                "read_frame_stream decode error,error info: {:?}",
+                                                e
+                                            ));
                                         }
                                     }
                                 }
@@ -167,8 +172,6 @@ where
         tokio::spawn(async move {
             while let Ok(packet) = request_queue_rx.recv().await {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
-
-                // MQTT 4/5 business logic processin
 
                 if let Some(resp) = command.apply(packet.connection_id, packet.packet).await {
                     // Close the client connection

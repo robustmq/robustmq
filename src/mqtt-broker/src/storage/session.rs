@@ -2,14 +2,17 @@ use super::keys::{lastwill_key, session_key};
 use crate::metadata::session::Session;
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
-use storage_adapter::{ placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter};
+use storage_adapter::{record::Record, storage::StorageAdapter};
 
-pub struct SessionStorage {
-    storage_adapter: Arc<PlacementStorageAdapter>,
+pub struct SessionStorage<T> {
+    storage_adapter: Arc<T>,
 }
 
-impl SessionStorage {
-    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
+impl<T> SessionStorage<T>
+where
+    T: StorageAdapter,
+{
+    pub fn new(storage_adapter: Arc<T>) -> Self {
         return SessionStorage { storage_adapter };
     }
 
@@ -23,9 +26,10 @@ impl SessionStorage {
         match serde_json::to_vec(&session) {
             Ok(data) => return self.storage_adapter.set(key, Record::build_b(data)).await,
             Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(
-                    e.to_string(),
-                ))
+                return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                    "save session error, error messsage:{}",
+                    e.to_string()
+                )))
             }
         }
     }
@@ -39,9 +43,10 @@ impl SessionStorage {
                     return Ok(da);
                 }
                 Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
+                    return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                        "get session error, error messsage:{}",
+                        e.to_string()
+                    )))
                 }
             },
             Ok(None) => {

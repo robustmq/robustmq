@@ -1,39 +1,42 @@
-use std::sync::Arc;
-
+use crate::{
+    metadata::{cache::MetadataCache, user::User},
+    storage::user::UserStorage,
+};
 use common_base::{errors::RobustMQError, tools::now_mills};
 use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, CreateUserReply, CreateUserRequest,
     UpdateCacheReply, UpdateCacheRequest,
 };
-use storage_adapter::placement::PlacementStorageAdapter;
+use std::sync::Arc;
+use storage_adapter::storage::StorageAdapter;
 use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 
-use crate::{
-    metadata::{cache::MetadataCache, user::User},
-    storage::user::UserStorage,
-};
-
-pub struct GrpcBrokerServices {
-    metadata_cache: Arc<RwLock<MetadataCache>>,
-    storage_adapter: Arc<PlacementStorageAdapter>,
+pub struct GrpcBrokerServices<T> {
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_storage_adapter: Arc<T>,
 }
 
-impl GrpcBrokerServices {
+impl<T> GrpcBrokerServices<T>
+where
+    T: StorageAdapter,
+{
     pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache>>,
-        storage_adapter: Arc<PlacementStorageAdapter>,
+        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+        metadata_storage_adapter: Arc<T>,
     ) -> Self {
         return GrpcBrokerServices {
             metadata_cache,
-            storage_adapter,
+            metadata_storage_adapter,
         };
     }
 }
 
 #[tonic::async_trait]
-
-impl MqttBrokerService for GrpcBrokerServices {
+impl<T> MqttBrokerService for GrpcBrokerServices<T>
+where
+    T: StorageAdapter + Send + Sync + 'static,
+{
     async fn update_cache(
         &self,
         request: Request<UpdateCacheRequest>,
@@ -67,7 +70,7 @@ impl MqttBrokerService for GrpcBrokerServices {
             is_superuser: true,
             create_time: now_mills(),
         };
-        let user_storage = UserStorage::new(self.storage_adapter.clone());
+        let user_storage = UserStorage::new(self.metadata_storage_adapter.clone());
         match user_storage.save_user(user_info).await {
             Ok(_) => {
                 return Ok(Response::new(CreateUserReply::default()));

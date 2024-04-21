@@ -8,6 +8,7 @@ use protocol::mqtt::{
     MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
+use storage_adapter::storage::StorageAdapter;
 use tokio::sync::{broadcast::Sender, RwLock};
 
 pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
@@ -26,16 +27,20 @@ pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
 }
 
 // Reservation messages are processed when a subscription is created
-pub async fn send_retain_message(
+pub async fn send_retain_message<T, S>(
     connect_id: u64,
     subscribe: Subscribe,
     subscribe_properties: Option<SubscribeProperties>,
-    message_storage: MessageStorage,
-    metadata_cache: Arc<RwLock<MetadataCache>>,
+    message_storage: MessageStorage<S>,
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
     response_queue_sx: Sender<ResponsePackage>,
     new_sub: bool,
     dup_msg: bool,
-) -> Result<(), RobustMQError> {
+) -> Result<(), RobustMQError>
+where
+    T: StorageAdapter + Send + Sync + 'static,
+    S: StorageAdapter + Send + Sync + 'static,
+{
     let mut sub_id = Vec::new();
     if let Some(properties) = subscribe_properties {
         if let Some(id) = properties.subscription_identifier {
@@ -102,8 +107,8 @@ pub fn max_qos(msg_qos: QoS, sub_max_qos: QoS) -> QoS {
     return sub_max_qos;
 }
 
-pub async fn get_sub_topic_id_list(
-    metadata_cache: Arc<RwLock<MetadataCache>>,
+pub async fn get_sub_topic_id_list<T>(
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
     sub_path: String,
 ) -> Vec<String> {
     let cache = metadata_cache.read().await;
@@ -128,7 +133,9 @@ mod tests {
     use tokio::sync::{broadcast, RwLock};
 
     use crate::{
-        handler::subscribe::{get_sub_topic_id_list, max_qos, path_regex_match, send_retain_message},
+        handler::subscribe::{
+            get_sub_topic_id_list, max_qos, path_regex_match, send_retain_message,
+        },
         metadata::{cache::MetadataCache, message::Message, topic::Topic},
         storage::message::MessageStorage,
     };

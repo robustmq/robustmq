@@ -5,16 +5,20 @@ use crate::{
 };
 use protocol::mqtt::{Subscribe, SubscribeProperties};
 use std::{collections::HashMap, sync::Arc};
+use storage_adapter::storage::StorageAdapter;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
-pub struct SubScribeManager {
+pub struct SubScribeManager<T> {
     pub topic_subscribe: HashMap<String, HashMap<u64, Subscriber>>,
-    pub metadata_cache: Arc<RwLock<MetadataCache>>,
+    pub metadata_cache: Arc<RwLock<MetadataCache<T>>>,
 }
 
-impl SubScribeManager {
-    pub fn new(metadata_cache: Arc<RwLock<MetadataCache>>) -> Self {
+impl<T> SubScribeManager<T>
+where
+    T: StorageAdapter,
+{
+    pub fn new(metadata_cache: Arc<RwLock<MetadataCache<T>>>) -> Self {
         return SubScribeManager {
             metadata_cache,
             topic_subscribe: HashMap::new(),

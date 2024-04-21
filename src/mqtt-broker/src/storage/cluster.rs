@@ -1,16 +1,18 @@
-use std::sync::Arc;
-
 use super::keys::cluster_config_key;
 use crate::metadata::cluster::Cluster;
 use common_base::errors::RobustMQError;
-use storage_adapter::{placement::PlacementStorageAdapter, storage::StorageAdapter};
+use std::sync::Arc;
+use storage_adapter::storage::StorageAdapter;
 
-pub struct ClusterStorage {
-    storage_adapter: Arc<PlacementStorageAdapter>,
+pub struct ClusterStorage<T> {
+    storage_adapter: Arc<T>,
 }
 
-impl ClusterStorage {
-    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
+impl<T> ClusterStorage<T>
+where
+    T: StorageAdapter,
+{
+    pub fn new(storage_adapter: Arc<T>) -> Self {
         return ClusterStorage { storage_adapter };
     }
 
@@ -22,9 +24,10 @@ impl ClusterStorage {
                     return Ok(da);
                 }
                 Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
+                    return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                        "get cluster config error, error messsage:{}",
+                        e.to_string()
+                    )))
                 }
             },
             Ok(None) => {

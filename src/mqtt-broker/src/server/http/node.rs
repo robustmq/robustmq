@@ -15,12 +15,12 @@ pub async fn metrics() -> String {
     return dump_metrics();
 }
 
-pub async fn hearbeat_info(State(state): State<HttpServerState>) -> String {
+pub async fn hearbeat_info<T>(State(state): State<HttpServerState<T>>) -> String {
     let data = state.heartbeat_manager.read().await;
     return success_response(data.heartbeat_data.clone());
 }
 
-pub async fn metadata_info(State(state): State<HttpServerState>) -> String {
+pub async fn metadata_info<T>(State(state): State<HttpServerState<T>>) -> String {
     let data = state.metadata_cache.read().await;
     let result = MetadataCacheResult {
         cluster_info: data.cluster_info.clone(),
@@ -35,12 +35,12 @@ pub async fn metadata_info(State(state): State<HttpServerState>) -> String {
     return success_response(result);
 }
 
-pub async fn subscribe_info(State(state): State<HttpServerState>) -> String {
+pub async fn subscribe_info<T>(State(state): State<HttpServerState<T>>) -> String {
     let data = state.subscribe_manager.read().await;
     return success_response(data.topic_subscribe.clone());
 }
 
-pub async fn index(State(state): State<HttpServerState>) -> String {
+pub async fn index<T>(State(state): State<HttpServerState<T>>) -> String {
     let conf = broker_mqtt_conf();
     return success_response(conf.clone());
 }

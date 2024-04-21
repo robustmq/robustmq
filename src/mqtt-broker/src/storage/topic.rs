@@ -5,17 +5,18 @@ use super::{
 use crate::metadata::topic::Topic;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{
-    placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter,
-};
+use storage_adapter::{record::Record, storage::StorageAdapter};
 
-pub struct TopicStorage {
-    storage_adapter: Arc<PlacementStorageAdapter>,
-    all_info_storage: AllInfoStorage,
+pub struct TopicStorage<T> {
+    storage_adapter: Arc<T>,
+    all_info_storage: AllInfoStorage<T>,
 }
 
-impl TopicStorage {
-    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> Self {
+impl<T> TopicStorage<T>
+where
+    T: StorageAdapter,
+{
+    pub fn new(storage_adapter: Arc<T>) -> Self {
         let all_info_storage = AllInfoStorage::new(all_topic_key(), storage_adapter.clone());
         return TopicStorage {
             storage_adapter,
@@ -42,9 +43,10 @@ impl TopicStorage {
                 return self.storage_adapter.set(key, Record::build_b(data)).await;
             }
             Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(
-                    e.to_string(),
-                ))
+                return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                    "save topic error, error messsage:{}",
+                    e.to_string()
+                )))
             }
         }
     }
@@ -81,9 +83,10 @@ impl TopicStorage {
                     return Ok(Some(da));
                 }
                 Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
+                    return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                        "get topic config error, error messsage:{}",
+                        e.to_string()
+                    )))
                 }
             },
             Ok(None) => {
