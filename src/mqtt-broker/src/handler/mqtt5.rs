@@ -19,32 +19,39 @@ use protocol::mqtt::{
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::storage::StorageAdapter;
 use tokio::sync::{broadcast::Sender, RwLock};
 
 #[derive(Clone)]
-pub struct Mqtt5Service {
-    metadata_cache: Arc<RwLock<MetadataCache>>,
-    subscribe_manager: Arc<RwLock<SubScribeManager>>,
-    ack_build: MQTTAckBuild,
+pub struct Mqtt5Service<T, S> {
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+    ack_build: MQTTAckBuild<T>,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    metadata_storage_adapter: Arc<T>,
+    message_storage_adapter: Arc<S>,
 }
 
-impl Mqtt5Service {
+impl<T, S> Mqtt5Service<T, S>
+where
+    T: StorageAdapter + Sync + Send + 'static + Clone,
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
     pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache>>,
-        subscribe_manager: Arc<RwLock<SubScribeManager>>,
-        ack_build: MQTTAckBuild,
+        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+        ack_build: MQTTAckBuild<T>,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-        storage_adapter: Arc<MemoryStorageAdapter>,
+        metadata_storage_adapter: Arc<T>,
+        message_storage_adapter: Arc<S>,
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,
             subscribe_manager,
             ack_build,
             heartbeat_manager,
-            storage_adapter,
+            metadata_storage_adapter,
+            message_storage_adapter,
         };
     }
 
@@ -84,7 +91,7 @@ impl Mqtt5Service {
             cluster.clone(),
             connnect.clone(),
             connect_properties.clone(),
-            self.storage_adapter.clone(),
+            self.metadata_storage_adapter.clone(),
         )
         .await
         {
@@ -105,7 +112,7 @@ impl Mqtt5Service {
                 last_will_properties,
             };
 
-            let message_storage = MessageStorage::new(self.storage_adapter.clone());
+            let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
             match message_storage
                 .save_lastwill(client_id.clone(), last_will)
                 .await
@@ -173,7 +180,7 @@ impl Mqtt5Service {
         } else {
             let topic = Topic::new(&topic_name);
             cache.set_topic(&topic_name, &topic);
-            let topic_storage = TopicStorage::new(self.storage_adapter.clone());
+            let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
             match topic_storage.save_topic(&topic_name, &topic).await {
                 Ok(_) => {}
                 Err(e) => {
@@ -189,7 +196,7 @@ impl Mqtt5Service {
         drop(cache);
 
         // Persisting retain message data
-        let message_storage = MessageStorage::new(self.storage_adapter.clone());
+        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         if publish.retain {
             let retain_message =
                 Message::build_message(publish.clone(), publish_properties.clone());
@@ -261,7 +268,7 @@ impl Mqtt5Service {
         drop(sub_manager);
 
         // Reservation messages are processed when a subscription is created
-        let message_storage = MessageStorage::new(self.storage_adapter.clone());
+        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         match send_retain_message(
             connect_id,
             subscribe.clone(),

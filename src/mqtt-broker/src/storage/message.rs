@@ -2,15 +2,18 @@ use super::keys::{lastwill_key, retain_message};
 use crate::metadata::{message::Message as RetainMessage, session::LastWillData};
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
-use storage_adapter::{memory::MemoryStorageAdapter, record::Record, storage::StorageAdapter};
+use storage_adapter::{record::Record, storage::StorageAdapter};
 
 #[derive(Clone)]
-pub struct MessageStorage {
-    storage_adapter: Arc<MemoryStorageAdapter>,
+pub struct MessageStorage<T> {
+    storage_adapter: Arc<T>,
 }
 
-impl MessageStorage {
-    pub fn new(storage_adapter: Arc<MemoryStorageAdapter>) -> Self {
+impl<T> MessageStorage<T>
+where
+    T: StorageAdapter + Send + Sync + 'static,
+{
+    pub fn new(storage_adapter: Arc<T>) -> Self {
         return MessageStorage { storage_adapter };
     }
 

@@ -1,25 +1,25 @@
+use super::packet::MQTTAckBuild;
+use crate::{cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache};
 use common_base::tools::unique_id;
 use protocol::mqtt::{
     Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
     Publish, Subscribe, Unsubscribe,
 };
-use tokio::sync::RwLock;
-use crate::{cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache};
 use std::sync::Arc;
-use super::packet::MQTTAckBuild;
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
-pub struct Mqtt4Service {
-    metadata_cache: Arc<RwLock<MetadataCache>>,
-    ack_build: MQTTAckBuild,
+pub struct Mqtt4Service<T> {
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    ack_build: MQTTAckBuild<T>,
     login: bool,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
 }
 
-impl Mqtt4Service {
+impl<T> Mqtt4Service<T> {
     pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache>>,
-        ack_build: MQTTAckBuild,
+        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+        ack_build: MQTTAckBuild<T>,
         heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
     ) -> Self {
         return Mqtt4Service {
@@ -30,7 +30,7 @@ impl Mqtt4Service {
         };
     }
 
-    pub  async fn connect(
+    pub async fn connect(
         &mut self,
         connnect: Connect,
         last_will: Option<LastWill>,
@@ -43,15 +43,18 @@ impl Mqtt4Service {
         let user_properties = Vec::new();
         let response_information = Some("".to_string());
         let server_reference = Some("".to_string());
-        return self.ack_build.conn_ack(
-            client_id,
-            auto_client_id,
-            reason_string,
-            user_properties,
-            response_information,
-            server_reference,
-            1,
-        ).await;
+        return self
+            .ack_build
+            .conn_ack(
+                client_id,
+                auto_client_id,
+                reason_string,
+                user_properties,
+                response_information,
+                server_reference,
+                1,
+            )
+            .await;
     }
 
     pub fn publish(&self, publish: Publish) -> MQTTPacket {
@@ -90,7 +93,7 @@ impl Mqtt4Service {
         }
         return self
             .ack_build
-            .distinct(DisconnectReasonCode::NormalDisconnection,None);
+            .distinct(DisconnectReasonCode::NormalDisconnection, None);
     }
 
     fn un_login_err(&self) -> MQTTPacket {

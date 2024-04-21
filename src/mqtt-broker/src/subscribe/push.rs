@@ -9,7 +9,7 @@ use bytes::Bytes;
 use common_base::log::{error, info};
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
 use std::{collections::HashMap, sync::Arc, time::Duration};
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::storage::StorageAdapter;
 use tokio::{
     sync::{
         broadcast::{self, Sender},
@@ -18,18 +18,21 @@ use tokio::{
     time::sleep,
 };
 
-pub struct PushServer {
-    subscribe_manager: Arc<RwLock<SubScribeManager>>,
+pub struct PushServer<T> {
+    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
     topic_push_thread: HashMap<String, Sender<bool>>,
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    storage_adapter: Arc<T>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
 }
 
-impl PushServer {
+impl<T> PushServer<T>
+where
+    T: StorageAdapter + Send + Sync + 'static,
+{
     pub fn new(
-        subscribe_manager: Arc<RwLock<SubScribeManager>>,
-        storage_adapter: Arc<MemoryStorageAdapter>,
+        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+        storage_adapter: Arc<T>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {
@@ -96,14 +99,14 @@ impl PushServer {
                             }
                             let message_storage = MessageStorage::new(storage_adapter.clone());
 
-                            topic_sub_push_thread(
-                                subscribe_manager.clone(),
-                                message_storage,
-                                topic_id.clone(),
-                                response_queue_sx4.clone(),
-                                response_queue_sx5.clone(),
-                            )
-                            .await;
+                            // topic_sub_push_thread(
+                            //     subscribe_manager.clone(),
+                            //     message_storage,
+                            //     topic_id.clone(),
+                            //     response_queue_sx4.clone(),
+                            //     response_queue_sx5.clone(),
+                            // )
+                            // .await;
                         }
                     });
                 }
@@ -113,13 +116,15 @@ impl PushServer {
     }
 }
 
-pub async fn topic_sub_push_thread(
-    subscribe_manager: Arc<RwLock<SubScribeManager>>,
-    message_storage: MessageStorage,
+pub async fn topic_sub_push_thread<T>(
+    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+    message_storage: MessageStorage<T>,
     topic_id: String,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
-) {
+) where
+    T: StorageAdapter + StorageAdapter + Send + Sync + 'static,
+{
     let group_id = format!("system_sub_{}", topic_id);
     let record_num = 5;
     let max_wait_ms = 500;

@@ -1,16 +1,17 @@
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
-use storage_adapter::{
-    placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter,
-};
+use storage_adapter::{record::Record, storage::StorageAdapter};
 
-pub struct AllInfoStorage {
+pub struct AllInfoStorage<T> {
     pub key: String,
-    storage_adapter: Arc<PlacementStorageAdapter>,
+    storage_adapter: Arc<T>,
 }
 
-impl AllInfoStorage {
-    pub fn new(key: String, storage_adapter: Arc<PlacementStorageAdapter>) -> AllInfoStorage {
+impl<T> AllInfoStorage<T>
+where
+    T: StorageAdapter,
+{
+    pub fn new(key: String, storage_adapter: Arc<T>) -> AllInfoStorage<T> {
         return AllInfoStorage {
             key,
             storage_adapter,
@@ -61,15 +62,26 @@ impl AllInfoStorage {
     }
 
     pub async fn get_all(&self) -> Result<Vec<String>, RobustMQError> {
+        match self.storage_adapter.exists(self.key.clone()).await {
+            Ok(flag) => {
+                if !flag {
+                    return Ok(Vec::new());
+                }
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
         match self.storage_adapter.get(self.key.clone()).await {
             Ok(Some(data)) => match serde_json::from_slice(&data.data) {
                 Ok(da) => {
                     return Ok(da);
                 }
                 Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
+                    return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                        "get call data error, error messsage:{}",
+                        e.to_string()
+                    )))
                 }
             },
             Ok(None) => {

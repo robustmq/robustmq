@@ -29,7 +29,9 @@ use server::{
     tcp::packet::{RequestPackage, ResponsePackage},
 };
 use std::sync::Arc;
-use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::{
+    memory::MemoryStorageAdapter, placement::PlacementStorageAdapter, storage::StorageAdapter,
+};
 use subscribe::{manager::SubScribeManager, push::PushServer};
 use tokio::{
     runtime::Runtime,
@@ -49,22 +51,49 @@ mod server;
 mod storage;
 mod subscribe;
 
-pub struct MqttBroker<'a> {
+pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
+    let conf = broker_mqtt_conf();
+    let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(1)));
+
+    let metadata_storage_adapter = Arc::new(PlacementStorageAdapter::new(
+        client_poll.clone(),
+        conf.placement_center.clone(),
+    ));
+    let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+
+    let server = MqttBroker::new(
+        client_poll,
+        metadata_storage_adapter,
+        message_storage_adapter,
+    );
+    server.start(stop_send)
+}
+
+pub struct MqttBroker<'a, T, S> {
     conf: &'a BrokerMQTTConfig,
-    metadata_cache: Arc<RwLock<MetadataCache>>,
+    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
     heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-    subscribe_manager: Arc<RwLock<SubScribeManager>>,
+    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
     client_poll: Arc<Mutex<ClientPool>>,
-    storage_adapter: Arc<MemoryStorageAdapter>,
+    metadata_storage_adapter: Arc<T>,
+    message_storage_adapter: Arc<S>,
 }
 
-impl<'a> MqttBroker<'a> {
-    pub fn new() -> Self {
+impl<'a, T, S> MqttBroker<'a, T, S>
+where
+    T: StorageAdapter + Sync + Send + 'static + Clone,
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    pub fn new(
+        client_poll: Arc<Mutex<ClientPool>>,
+        metadata_storage_adapter: Arc<T>,
+        message_storage_adapter: Arc<S>,
+    ) -> Self {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
 
@@ -77,9 +106,9 @@ impl<'a> MqttBroker<'a> {
             HEART_CONNECT_SHARD_HASH_NUM,
         )));
 
-        let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(1)));
-        let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
+        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(
+            metadata_storage_adapter.clone(),
+        )));
         let subscribe_manager =
             Arc::new(RwLock::new(SubScribeManager::new(metadata_cache.clone())));
 
@@ -94,7 +123,8 @@ impl<'a> MqttBroker<'a> {
             response_queue_sx4,
             response_queue_sx5,
             client_poll,
-            storage_adapter,
+            metadata_storage_adapter,
+            message_storage_adapter,
         };
     }
 
@@ -113,7 +143,8 @@ impl<'a> MqttBroker<'a> {
         let cache = self.metadata_cache.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
-        let storage_adapter = self.storage_adapter.clone();
+        let metadata_storage_adapter = self.metadata_storage_adapter.clone();
+        let message_storage_adapter = self.message_storage_adapter.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
         let request_queue_sx5 = self.request_queue_sx5.clone();
@@ -125,7 +156,8 @@ impl<'a> MqttBroker<'a> {
                 cache,
                 heartbeat_manager,
                 subscribe_manager,
-                storage_adapter,
+                metadata_storage_adapter,
+                message_storage_adapter,
                 request_queue_sx4,
                 request_queue_sx5,
                 response_queue_sx4,
@@ -139,7 +171,7 @@ impl<'a> MqttBroker<'a> {
         let server = GrpcServer::new(
             self.conf.grpc_port.clone(),
             self.metadata_cache.clone(),
-            self.storage_adapter.clone(),
+            self.metadata_storage_adapter.clone(),
         );
         self.runtime.spawn(async move {
             server.start().await;
@@ -167,7 +199,7 @@ impl<'a> MqttBroker<'a> {
     fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
         let mut push_server = PushServer::new(
             self.subscribe_manager.clone(),
-            self.storage_adapter.clone(),
+            self.metadata_storage_adapter.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
         );

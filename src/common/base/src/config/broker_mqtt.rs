@@ -30,6 +30,7 @@ pub struct BrokerMQTTConfig {
     pub runtime: Runtime,
     pub network_tcp: NetworkTcp,
     pub log: Log,
+    pub storage: StorageConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -60,6 +61,12 @@ pub struct NetworkTcp {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Runtime {
     pub worker_threads: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct StorageConfig {
+    pub metadata: String,
+    pub message: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

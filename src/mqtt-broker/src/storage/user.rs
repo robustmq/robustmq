@@ -5,17 +5,18 @@ use super::{
 use crate::metadata::user::User;
 use common_base::errors::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{
-    placement::PlacementStorageAdapter, record::Record, storage::StorageAdapter,
-};
+use storage_adapter::{record::Record, storage::StorageAdapter};
 
-pub struct UserStorage {
-    storage_adapter: Arc<PlacementStorageAdapter>,
-    all_info_storage: AllInfoStorage,
+pub struct UserStorage<T> {
+    storage_adapter: Arc<T>,
+    all_info_storage: AllInfoStorage<T>,
 }
 
-impl UserStorage {
-    pub fn new(storage_adapter: Arc<PlacementStorageAdapter>) -> UserStorage {
+impl<T> UserStorage<T>
+where
+    T: StorageAdapter,
+{
+    pub fn new(storage_adapter: Arc<T>) -> Self {
         let all_info_storage = AllInfoStorage::new(all_user_key(), storage_adapter.clone());
         return UserStorage {
             storage_adapter,
@@ -37,7 +38,10 @@ impl UserStorage {
             }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(
-                    e.to_string(),
+                    format!(
+                        "save user config error, error messsage:{}",
+                        e.to_string()
+                    )
                 ))
             }
         }
@@ -52,9 +56,10 @@ impl UserStorage {
                     return Ok(da);
                 }
                 Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
+                    return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                        "get user config error, error messsage:{}",
+                        e.to_string()
+                    )))
                 }
             },
             Ok(None) => {
