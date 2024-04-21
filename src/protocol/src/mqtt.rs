@@ -389,6 +389,16 @@ pub fn qos(num: u8) -> Option<QoS> {
     }
 }
 
+impl From<QoS> for u8{
+    fn from(value: QoS) -> Self {
+        match value {
+            QoS::AtMostOnce => 0,
+            QoS::AtLeastOnce => 1,
+            QoS::ExactlyOnce => 2,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Login {
     pub username: String,
@@ -837,7 +847,7 @@ pub enum RetainForwardRule {
     Never,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq,Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SubscribeProperties {
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,

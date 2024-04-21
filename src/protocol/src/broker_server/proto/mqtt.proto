@@ -17,23 +17,48 @@
 syntax = "proto3";
 package mqtt;
 service MqttBrokerService {
-    rpc updateCache(UpdateCacheRequest) returns(UpdateCacheReply){}
-    rpc createUser(CreateUserRequest) returns(CreateUserReply){}
+    rpc updateCache(UpdateCacheRequest) returns(CommonReply){}
+    rpc createUser(CreateUserRequest) returns(CommonReply){}
+    rpc SetClusterConfig(SetClusterConfigRequest) returns(CommonReply){}
 }
 
 message UpdateCacheRequest{
     string data = 1;
 }
 
-message UpdateCacheReply{
-    
+enum CreateUserSalt{
+    Default = 0;
+    Md5 = 1;
+    Sh256 = 2;
+}
+
+enum Available{
+    Disable = 0;
+    Enable = 1;
 }
 
 message CreateUserRequest{
     string username = 1;
     string password = 2;
+    bool isSuperUser = 3;
+    CreateUserSalt salt = 4;
 }
 
-message CreateUserReply{
-    
+message CommonReply{
+    bool flag = 1;
+    string data = 2;
+}
+
+message SetClusterConfigRequest{
+    uint32 sessionExpiryInterval = 1;
+    uint32 topicAliasMax = 2;
+    uint32 maxQos = 3;
+    Available retainAvailable = 4;
+    Available wildcardSubscriptionAvailable = 5;
+    uint32 maxPacketSize = 6;
+    Available subscriptionIdentifiersAvailable = 7;
+    Available sharedSubscriptionAvailable = 8;
+    uint32 serverKeepAlive = 9;
+    uint32 receiveMax = 10;
+    bool secretFreeLogin = 11;
 }

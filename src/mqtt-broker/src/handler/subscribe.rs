@@ -112,7 +112,7 @@ pub async fn get_sub_topic_id_list<T>(
     sub_path: String,
 ) -> Vec<String> {
     let cache = metadata_cache.read().await;
-    let topic_id_name = cache.topic_id_name.clone();
+    let topic_id_name: std::collections::HashMap<String, String> = cache.topic_id_name.clone();
 
     let mut result = Vec::new();
     for (topic_id, topic_name) in topic_id_name {
