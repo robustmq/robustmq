@@ -23,23 +23,22 @@ CREATE TABLE `t_mqtt_acl` (
 PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE `t_mqtt_msg` (
+CREATE TABLE `storage_stream_record` (
 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
 `msgid` varchar(64) DEFAULT NULL,
 `topic` varchar(255) NOT NULL,
-`qos` tinyint(1) NOT NULL DEFAULT '0',
 `payload` blob,
 `create_time` int(11) NOT NULL,
 PRIMARY KEY (`id`),
 INDEX topic_index(`id`, `topic`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
 
-CREATE TABLE `t_mqtt_config` (
+CREATE TABLE `storage_kv` (
 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-`key` varchar(64) DEFAULT NULL,
-`value` blob,
-
+`data_key` varchar(64) DEFAULT NULL,
+`data_value` text,
+`create_time` int(11) NOT NULL,
 PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
-
+ 
 

@@ -3,13 +3,12 @@ use crate::{
     storage::{ShardConfig, StorageAdapter},
 };
 use axum::async_trait;
-use common_base::{errors::RobustMQError, tools::now_mills};
-use mysql::{params, prelude::Queryable, Pool, PooledConn};
+use common_base::{errors::RobustMQError, tools::now_second};
+use mysql::{params, prelude::Queryable, Pool};
 
 use self::schema::TMqttKvMsg;
 pub mod schema;
 
-// addr: mysql://root:password@localhost:3307/db_name
 #[derive(Clone)]
 pub struct MySQLStorageAdapter {
     pool: Pool,
@@ -51,11 +50,10 @@ impl StorageAdapter for MySQLStorageAdapter {
                 let values = vec![TMqttKvMsg {
                     key,
                     value: String::from_utf8(value.data).unwrap(),
-                    create_time: now_mills(),
+                    create_time: now_second(),
                 }];
                 match conn.exec_batch(
-                    r"INSERT INTO t_mqtt_config (key, value, create_time)
-                      VALUES (:key, :value, :create_time)",
+                    r"INSERT INTO storage_kv(data_key,data_value,create_time) VALUES (:key,:value,:create_time)",
                     values.iter().map(|p| {
                         params! {
                             "key" => p.key.clone(),
@@ -79,10 +77,24 @@ impl StorageAdapter for MySQLStorageAdapter {
     }
 
     async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
-            "PlacementStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let sql = format!("select data_value from storage_kv where data_key='{}'", key);
+                match conn.query(sql) {
+                    Ok(data:Vec<String>) => {
+                        
+                    }
+                    Err(e) => {
+                        return Err(RobustMQError::CommmonError(e.to_string()));
+                    }
+                }
+                // let res: Vec<(String)> = .unwrap();
+                return Ok(None);
+            }
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        }
     }
     async fn delete(&self, key: String) -> Result<(), RobustMQError> {
         return Ok(());
@@ -178,16 +190,9 @@ impl StorageAdapter for MySQLStorageAdapter {
     }
 }
 
-fn build_mysql_conn_pool(addr: &str) -> Result<PooledConn, RobustMQError> {
+fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
     match Pool::new(addr) {
-        Ok(pool) => match pool.get_conn() {
-            Ok(conn) => {
-                return Ok(conn);
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
-            }
-        },
+        Ok(pool) => return Ok(pool),
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
         }
@@ -196,11 +201,20 @@ fn build_mysql_conn_pool(addr: &str) -> Result<PooledConn, RobustMQError> {
 
 #[cfg(test)]
 mod tests {
-    use super::build_mysql_conn_pool;
+    use crate::{record::Record, storage::StorageAdapter};
 
-    #[test]
-    fn mysql_set() {
-        let addr = "mysql://root:password@localhost:3307/db_name";
-        let pool = build_mysql_conn_pool(addr);
+    use super::{build_mysql_conn_pool, MySQLStorageAdapter};
+
+    #[tokio::test]
+    async fn mysql_set() {
+        let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
+        let pool = build_mysql_conn_pool(addr).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool);
+        let key = String::from("name");
+        let value = String::from("loboxu");
+        mysql_adapter
+            .set(key, Record::build_e(value))
+            .await
+            .unwrap();
     }
 }

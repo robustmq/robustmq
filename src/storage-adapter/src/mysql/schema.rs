@@ -12,5 +12,5 @@ pub struct TMqttStreamMsg {
 pub struct TMqttKvMsg {
     pub key: String,
     pub value: String,
-    pub create_time: u128,
+    pub create_time: u64,
 }
