@@ -1,4 +1,7 @@
-use crate::{record::Record, storage::StorageAdapter};
+use crate::{
+    record::Record,
+    storage::{ShardConfig, StorageAdapter},
+};
 use axum::async_trait;
 use common_base::{errors::RobustMQError, tools::now_mills};
 use mysql::{params, prelude::Queryable, Pool, PooledConn};
@@ -17,19 +20,31 @@ impl MySQLStorageAdapter {
         return MySQLStorageAdapter { pool };
     }
 
-    pub fn insert(&self) {
-        // conn.ex
+    pub fn shard_table_name(&self, shard_name: String) -> String {
+        return format!("t_mqtt_shard_{}", shard_name);
     }
-
-    pub fn drop(&self) {}
-
-    pub fn update(&self) {}
-
-    pub fn select(&self) {}
 }
 
 #[async_trait]
 impl StorageAdapter for MySQLStorageAdapter {
+    async fn create_shard(
+        &self,
+        shard_name: String,
+        shard_config: ShardConfig,
+    ) -> Result<(), RobustMQError> {
+        let table = self.shard_table_name(shard_name);
+        // Check whether the table exists
+
+        // Create a table if it does not exist
+        return return Ok(());
+    }
+
+    async fn delete_shard(&self, shard_name: String) -> Result<(), RobustMQError> {
+        // Check whether the table exists
+
+        // Delete a table if it exists
+        return Ok(());
+    }
     async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
@@ -39,7 +54,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     create_time: now_mills(),
                 }];
                 match conn.exec_batch(
-                    r"INSERT INTO payment (key, value, create_time)
+                    r"INSERT INTO t_mqtt_config (key, value, create_time)
                       VALUES (:key, :value, :create_time)",
                     values.iter().map(|p| {
                         params! {
@@ -73,10 +88,25 @@ impl StorageAdapter for MySQLStorageAdapter {
         return Ok(());
     }
     async fn exists(&self, key: String) -> Result<bool, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
-            "PlacementStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        return Ok(false);
+        // match self.pool.get_conn() {
+        //     Ok(mut conn) => {
+        //         match conn.query_first(
+        //             r"select count(*) as count from t_mqtt_config where key=?",
+        //             key,
+        //         ) {
+        //             Ok(_) => {
+        //                 return Ok(());
+        //             }
+        //             Err(e) => {
+        //                 return Err(RobustMQError::CommmonError(e.to_string()));
+        //             }
+        //         }
+        //     }
+        //     Err(e) => {
+        //         return Err(RobustMQError::CommmonError(e.to_string()));
+        //     }
+        // }
     }
 
     async fn stream_write(&self, _: String, _: Vec<Record>) -> Result<Vec<usize>, RobustMQError> {
@@ -165,4 +195,12 @@ fn build_mysql_conn_pool(addr: &str) -> Result<PooledConn, RobustMQError> {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::build_mysql_conn_pool;
+
+    #[test]
+    fn mysql_set() {
+        let addr = "mysql://root:password@localhost:3307/db_name";
+        let pool = build_mysql_conn_pool(addr);
+    }
+}

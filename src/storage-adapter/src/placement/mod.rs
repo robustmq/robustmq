@@ -1,4 +1,7 @@
-use crate::{record::Record, storage::StorageAdapter};
+use crate::{
+    record::Record,
+    storage::{ShardConfig, StorageAdapter},
+};
 use axum::async_trait;
 use clients::{
     placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
@@ -25,6 +28,21 @@ impl PlacementStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for PlacementStorageAdapter {
+    async fn create_shard(
+        &self,
+        shard_name: String,
+        shard_config: ShardConfig,
+    ) -> Result<(), RobustMQError> {
+        return Ok(());
+    }
+
+    async fn delete_shard(
+        &self,
+        shard_name: String,
+    ) -> Result<(), RobustMQError> {
+        return Ok(());
+    }
+
     async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
         let request = SetRequest {
             key,
