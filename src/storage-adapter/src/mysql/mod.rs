@@ -81,8 +81,11 @@ impl StorageAdapter for MySQLStorageAdapter {
             Ok(mut conn) => {
                 let sql = format!("select data_value from storage_kv where data_key='{}'", key);
                 match conn.query(sql) {
-                    Ok(data:Vec<String>) => {
-                        
+                    Ok(data) => {
+                        if data.len() > 0{
+                            return Ok(Some(Record::build_e(data.get(0).unwrap().try_into().unwrap())));
+                        }
+                        return Ok(None);
                     }
                     Err(e) => {
                         return Err(RobustMQError::CommmonError(e.to_string()));
