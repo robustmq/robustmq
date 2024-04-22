@@ -1,4 +1,7 @@
-use crate::{record::Record, storage::StorageAdapter};
+use crate::{
+    record::Record,
+    storage::{ShardConfig, StorageAdapter},
+};
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use dashmap::DashMap;
@@ -46,6 +49,18 @@ impl MemoryStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
+    async fn create_shard(
+        &self,
+        shard_name: String,
+        shard_config: ShardConfig,
+    ) -> Result<(), RobustMQError> {
+        return Ok(());
+    }
+
+    async fn delete_shard(&self, shard_name: String) -> Result<(), RobustMQError> {
+        return Ok(());
+    }
+
     async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
         self.memory_data.insert(key, value);
         return Ok(());

@@ -176,7 +176,7 @@ mod tests {
             subscription_identifiers_available: Available::Disable.into(),
             shared_subscription_available: Available::Disable.into(),
             receive_max: 1024,
-            secret_free_login: true,
+            secret_free_login: false,
             server_keep_alive: 10000,
         };
         let response = client

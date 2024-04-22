@@ -2,8 +2,21 @@ use crate::record::Record;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 
+pub struct ShardConfig {}
+
 #[async_trait]
 pub trait StorageAdapter {
+    async fn create_shard(
+        &self,
+        shard_name: String,
+        shard_config: ShardConfig,
+    ) -> Result<(), RobustMQError>;
+
+    async fn delete_shard(
+        &self,
+        shard_name: String,
+    ) -> Result<(), RobustMQError>;
+
     // kv storage model: Set data
     async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError>;
 
@@ -17,7 +30,11 @@ pub trait StorageAdapter {
     async fn exists(&self, key: String) -> Result<bool, RobustMQError>;
 
     // Streaming storage model: Append data in a Shard dimension, returning a unique self-incrementing ID for the Shard dimension
-    async fn stream_write(&self, shard_name: String, data: Vec<Record>) -> Result<Vec<usize>, RobustMQError>;
+    async fn stream_write(
+        &self,
+        shard_name: String,
+        data: Vec<Record>,
+    ) -> Result<Vec<usize>, RobustMQError>;
 
     // Streaming storage model: Read the next batch of data in the dimension of the Shard + subscription name tuple
     async fn stream_read(

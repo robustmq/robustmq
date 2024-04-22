@@ -369,7 +369,7 @@ where
         if cluster.secret_free_login() {
             return true;
         }
-        if login == None {
+        if login == None { 
             return false;
         }
         let login_info = login.unwrap();

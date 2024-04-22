@@ -199,7 +199,7 @@ where
     fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
         let mut push_server = PushServer::new(
             self.subscribe_manager.clone(),
-            self.metadata_storage_adapter.clone(),
+            self.message_storage_adapter.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
         );
