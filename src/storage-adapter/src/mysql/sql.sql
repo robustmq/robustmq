@@ -26,7 +26,6 @@ PRIMARY KEY (`id`)
 CREATE TABLE `storage_stream_record` (
 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
 `msgid` varchar(64) DEFAULT NULL,
-`topic` varchar(255) NOT NULL,
 `payload` blob,
 `create_time` int(11) NOT NULL,
 PRIMARY KEY (`id`),
@@ -36,7 +35,7 @@ INDEX topic_index(`id`, `topic`)
 CREATE TABLE `storage_kv` (
 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
 `data_key` varchar(64) DEFAULT NULL,
-`data_value` text,
+`data_value` blob,
 `create_time` int(11) NOT NULL,
 PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;

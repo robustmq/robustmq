@@ -2,6 +2,7 @@ use crate::record::Record;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 
+#[derive(Default)]
 pub struct ShardConfig {}
 
 #[async_trait]
