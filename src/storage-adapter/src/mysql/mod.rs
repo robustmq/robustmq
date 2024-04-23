@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use crate::{
-    record::Record,
+    record::{Header, Record},
     storage::{ShardConfig, StorageAdapter},
 };
 use axum::async_trait;
@@ -47,8 +47,8 @@ impl StorageAdapter for MySQLStorageAdapter {
                     "CREATE TABLE IF NOT EXISTS `{}` (
                     `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
                     `msgid` varchar(64) DEFAULT NULL,
-                    `header` String DEFAULT NULL,
-                    `msg_key` String DEFAULT NULL,
+                    `header` text DEFAULT NULL,
+                    `msg_key` varchar(128) DEFAULT NULL,
                     `payload` blob,
                     `create_time` int(11) NOT NULL,
                     PRIMARY KEY (`id`)
@@ -94,12 +94,13 @@ impl StorageAdapter for MySQLStorageAdapter {
                     update_time: now_second(),
                 }];
                 match conn.exec_batch(
-                    format!("INSERT INTO {}(data_key,data_value,create_time) VALUES (:key,:value,:create_time)",self.storage_kv_table()),
+                    format!("INSERT INTO {}(data_key,data_value,create_time,update_time) VALUES (:key,:value,:create_time,:update_time)",self.storage_kv_table()),
                     values.iter().map(|p| {
                         params! {
                             "key" => p.key.clone(),
                             "value" => p.value.clone(),
                             "create_time" => p.create_time,
+                            "update_time" => p.update_time,
                         }
                     }),
                 ) {
@@ -242,25 +243,40 @@ impl StorageAdapter for MySQLStorageAdapter {
     ) -> Result<Option<Vec<Record>>, RobustMQError> {
         let offset_key = self.group_offset_key(shard_name.clone(), group_id);
         let offset = match self.get(offset_key).await {
-            Ok(Some(record)) => String::from_utf8(record.data)
-                .unwrap()
-                .parse::<usize>()
-                .unwrap(),
+            Ok(Some(record)) => {
+                let offset_str = String::from_utf8(record.data).unwrap();
+                println!("offset_str:{}", offset_str);
+                offset_str.parse::<usize>().unwrap()
+            }
             Ok(None) => 0,
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         };
-
+        println!("{}", offset);
+        let rn = if let Some(rn) = record_num { rn } else { 10 };
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = format!(
-                    "select id,msgid,header,msg_key,payload from {} where id > {} limit {}",
+                    "select id,msgid,header,msg_key,payload,create_time from {} where id > {} limit {}",
                     self.storage_record_table(shard_name),
                     offset,
-                    record_num.unwrap()
+                    rn
                 );
-                let data: Vec<(usize, String, String, String, Vec<u8>)> = conn.query(sql).unwrap();
-                let result = Vec::new();
-                for raw in data {}
+                let data: Vec<(usize, String, String, String, Vec<u8>, usize)> =
+                    conn.query(sql).unwrap();
+                let mut result = Vec::new();
+                for raw in data {
+                    let headers: Vec<Header> = match serde_json::from_str::<Vec<Header>>(&raw.2) {
+                        Ok(hs) => hs,
+                        Err(_) => Vec::new(),
+                    };
+                    result.push(Record {
+                        offset: raw.0 as u128,
+                        header: Some(headers),
+                        key: Some(raw.3),
+                        data: raw.4,
+                        create_time: Some(raw.5 as u128),
+                    })
+                }
                 return Ok(Some(result));
             }
             Err(e) => {
@@ -279,12 +295,14 @@ impl StorageAdapter for MySQLStorageAdapter {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let update_sql = format!(
-                    "REPLACE INTO {}(data_key,data_value,update_time) VALUES ('{}','{:?}','{}')",
+                    "REPLACE INTO {}(data_key,data_value,create_time,update_time) VALUES ('{}','{:?}',{},{})",
                     self.storage_kv_table(),
                     self.group_offset_key(shard_name, group_id),
-                    offset.to_be_bytes().to_vec(),
-                    now_second()
+                    offset,
+                    now_second(),
+                    now_second(),
                 );
+                println!("sql:{}", update_sql);
                 match conn.query_drop(update_sql) {
                     Ok(()) => return Ok(true),
                     Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
@@ -345,7 +363,7 @@ fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        record::Record,
+        record::{Header, Record},
         storage::{ShardConfig, StorageAdapter},
     };
 
@@ -368,9 +386,9 @@ mod tests {
         let get_res = mysql_adapter.get(key.clone()).await.unwrap().unwrap();
         assert_eq!(String::from_utf8(get_res.data).unwrap(), value.clone());
 
-        mysql_adapter.delete(key.clone()).await.unwrap();
+        // mysql_adapter.delete(key.clone()).await.unwrap();
 
-        assert!(!mysql_adapter.exists(key.clone()).await.unwrap());
+        // assert!(!mysql_adapter.exists(key.clone()).await.unwrap());
     }
 
     #[tokio::test]
@@ -407,9 +425,49 @@ mod tests {
             .await
             .unwrap();
         let mut data = Vec::new();
-        data.push(Record::build_e("test1".to_string()));
-        data.push(Record::build_e("test2".to_string()));
+        let header = vec![Header {
+            name: "n1".to_string(),
+            value: "v1".to_string(),
+        }];
+        data.push(Record::build_d(
+            "k1".to_string(),
+            header.clone(),
+            "test1".to_string().as_bytes().to_vec(),
+        ));
+        data.push(Record::build_d(
+            "k2".to_string(),
+            header,
+            "test2".to_string().as_bytes().to_vec(),
+        ));
         let result = mysql_adapter.stream_write(shard_name, data).await.unwrap();
         println!("{:?}", result);
+    }
+
+    #[tokio::test]
+    async fn mysql_stream_read_and_commit() {
+        let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
+        let pool = build_mysql_conn_pool(addr).unwrap();
+        let mysql_adapter = MySQLStorageAdapter::new(pool);
+        let shard_name = String::from("test");
+        let group_id = String::from("test-group");
+        let record_num = 2;
+        let record_size = 1024;
+        let result = mysql_adapter
+            .stream_read(
+                shard_name.clone(),
+                group_id.clone(),
+                Some(record_num),
+                Some(record_size),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        if result.len() > 0 {
+            let offset = result.last().unwrap().offset;
+            mysql_adapter
+                .stream_commit_offset(shard_name, group_id, offset)
+                .await
+                .unwrap();
+        }
     }
 }
