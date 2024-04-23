@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use crate::{
     record::Record,
     storage::{ShardConfig, StorageAdapter},
@@ -26,6 +28,10 @@ impl MySQLStorageAdapter {
     pub fn storage_kv_table(&self) -> String {
         return format!("storage_kv");
     }
+
+    pub fn group_offset_key(&self, shard_name: String, group_name: String) -> String {
+        return format!("__group_offset_{}_{}", group_name, shard_name);
+    }
 }
 
 #[async_trait]
@@ -41,6 +47,8 @@ impl StorageAdapter for MySQLStorageAdapter {
                     "CREATE TABLE IF NOT EXISTS `{}` (
                     `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
                     `msgid` varchar(64) DEFAULT NULL,
+                    `header` String DEFAULT NULL,
+                    `msg_key` String DEFAULT NULL,
                     `payload` blob,
                     `create_time` int(11) NOT NULL,
                     PRIMARY KEY (`id`)
@@ -83,6 +91,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     key,
                     value: value.data,
                     create_time: now_second(),
+                    update_time: now_second(),
                 }];
                 match conn.exec_batch(
                     format!("INSERT INTO {}(data_key,data_value,create_time) VALUES (:key,:value,:create_time)",self.storage_kv_table()),
@@ -179,25 +188,30 @@ impl StorageAdapter for MySQLStorageAdapter {
             Ok(mut conn) => {
                 let mut values = Vec::new();
                 for raw in data {
-                    match serde_json::to_vec(&raw) {
-                        Ok(s) => {
-                            values.push(TMqttRecord {
-                                msgid: String::from(""),
-                                payload: s,
-                                create_time: now_second(),
-                            });
-                        }
-                        Err(e) => {
-                            return Err(RobustMQError::CommmonError(e.to_string()));
-                        }
-                    }
+                    values.push(TMqttRecord {
+                        msgid: String::from(""),
+                        header: if let Some(h) = raw.header {
+                            serde_json::to_string(&h).unwrap()
+                        } else {
+                            "".to_string()
+                        },
+                        msg_key: if let Some(k) = raw.key {
+                            k
+                        } else {
+                            "".to_string()
+                        },
+                        payload: raw.data,
+                        create_time: now_second(),
+                    });
                 }
 
                 match conn.exec_batch(
-                    format!("INSERT INTO {}(msgid,payload,create_time) VALUES (:msgid,:payload,:create_time)",self.storage_record_table(shard_name)),
+                    format!("INSERT INTO {}(msgid,header,msg_key,payload,create_time) VALUES (:msgid,:header,:msg_key,:payload,:create_time)",self.storage_record_table(shard_name)),
                     values.iter().map(|p| {
                         params! {
                             "msgid" => p.msgid.clone(),
+                            "header" => p.header.clone(),
+                            "msg_key" => p.msg_key.clone(),
                             "payload" => p.payload.clone(),
                             "create_time" => p.create_time,
                         }
@@ -221,27 +235,65 @@ impl StorageAdapter for MySQLStorageAdapter {
 
     async fn stream_read(
         &self,
-        _: String,
-        _: String,
-        _: Option<u128>,
+        shard_name: String,
+        group_id: String,
+        record_num: Option<u128>,
         _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
-            "PlacementStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        let offset_key = self.group_offset_key(shard_name.clone(), group_id);
+        let offset = match self.get(offset_key).await {
+            Ok(Some(record)) => String::from_utf8(record.data)
+                .unwrap()
+                .parse::<usize>()
+                .unwrap(),
+            Ok(None) => 0,
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        };
+
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let sql = format!(
+                    "select id,msgid,header,msg_key,payload from {} where id > {} limit {}",
+                    self.storage_record_table(shard_name),
+                    offset,
+                    record_num.unwrap()
+                );
+                let data: Vec<(usize, String, String, String, Vec<u8>)> = conn.query(sql).unwrap();
+                let result = Vec::new();
+                for raw in data {}
+                return Ok(Some(result));
+            }
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        }
     }
 
     async fn stream_commit_offset(
         &self,
-        _: String,
-        _: String,
-        _: u128,
+        shard_name: String,
+        group_id: String,
+        offset: u128,
     ) -> Result<bool, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
-            "PlacementStorageAdapter".to_string(),
-            "stream_write".to_string(),
-        ));
+        // batch update offset
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let update_sql = format!(
+                    "REPLACE INTO {}(data_key,data_value,update_time) VALUES ('{}','{:?}','{}')",
+                    self.storage_kv_table(),
+                    self.group_offset_key(shard_name, group_id),
+                    offset.to_be_bytes().to_vec(),
+                    now_second()
+                );
+                match conn.query_drop(update_sql) {
+                    Ok(()) => return Ok(true),
+                    Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                }
+            }
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        }
     }
 
     async fn stream_read_by_offset(
