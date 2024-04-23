@@ -351,7 +351,7 @@ impl StorageAdapter for MySQLStorageAdapter {
     }
 }
 
-fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
+pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
     match Pool::new(addr) {
         Ok(pool) => return Ok(pool),
         Err(e) => {

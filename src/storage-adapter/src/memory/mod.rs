@@ -49,15 +49,13 @@ impl MemoryStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn create_shard(
-        &self,
-        shard_name: String,
-        shard_config: ShardConfig,
-    ) -> Result<(), RobustMQError> {
+    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), RobustMQError> {
+        self.shard_data.insert(shard_name, Vec::new());
         return Ok(());
     }
 
     async fn delete_shard(&self, shard_name: String) -> Result<(), RobustMQError> {
+        self.shard_data.remove(&shard_name);
         return Ok(());
     }
 
