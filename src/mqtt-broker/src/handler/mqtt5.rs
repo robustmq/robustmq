@@ -5,6 +5,7 @@ use crate::{
         cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
         topic::Topic,
     },
+    security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
     subscribe::manager::SubScribeManager,
@@ -69,10 +70,26 @@ where
         drop(cache);
 
         // connect for authentication
-        if self.authentication(login, &cluster).await {
-            return self
-                .ack_build
-                .distinct(DisconnectReasonCode::NotAuthorized, None);
+        match authentication_login(
+            self.metadata_cache.clone(),
+            &cluster,
+            login,
+            &connect_properties,
+        )
+        .await
+        {
+            Ok(flag) => {
+                if !flag {
+                    return self
+                        .ack_build
+                        .distinct(DisconnectReasonCode::NotAuthorized, None);
+                }
+            }
+            Err(e) => {
+                return self
+                    .ack_build
+                    .distinct(DisconnectReasonCode::NotAuthorized, Some(e.to_string()));
+            }
         }
 
         // auto create client id
@@ -379,20 +396,5 @@ where
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection, None);
-    }
-
-    async fn authentication(&self, login: Option<Login>, cluster: &Cluster) -> bool {
-        if cluster.secret_free_login() {
-            return true;
-        }
-        if login == None {
-            return false;
-        }
-        let login_info = login.unwrap();
-        let cache = self.metadata_cache.read().await;
-        if let Some(user) = cache.user_info.get(&login_info.username) {
-            return user.password == login_info.password;
-        }
-        return false;
     }
 }
