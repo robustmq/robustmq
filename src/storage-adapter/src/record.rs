@@ -1,10 +1,12 @@
-#[derive(Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Header {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Record {
     pub offset: u128,
     pub header: Option<Vec<Header>>,
@@ -69,3 +71,5 @@ impl Record {
         };
     }
 }
+
+

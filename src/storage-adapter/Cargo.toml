@@ -16,3 +16,5 @@ tokio.workspace = true
 tokio-util.workspace = true
 dashmap.workspace = true
 mysql = "*"
+serde.workspace = true
+serde_json.workspace =true
