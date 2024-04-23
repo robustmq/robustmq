@@ -57,15 +57,15 @@ pub fn error_meta(msg: &str) -> () {
 }
 
 pub fn info_engine(msg: String) -> () {
-    log::info!(target:"storage-engine", "{}",msg)
+    log::info!(target:"journal-server", "{}",msg)
 }
 
 pub fn debug_eninge(msg: String) -> () {
-    log::debug!(target:"storage-engine", "{}",msg)
+    log::debug!(target:"journal-server", "{}",msg)
 }
 
 pub fn error_engine(msg: String) -> () {
-    log::error!(target:"storage-engine", "{}",msg)
+    log::error!(target:"journal-server", "{}",msg)
 }
 
 pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
@@ -119,14 +119,14 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
         )))
         .append(true)
         .build(
-            format!("{}/storage-engine.log", path),
+            format!("{}/journal-server.log", path),
             Box::new(CompoundPolicy::new(
                 Box::new(SizeTrigger::new(segment_log_size)),
                 Box::new(
                     FixedWindowRoller::builder()
                         .base(0)
                         .build(
-                            &format!("{}/storage-engine.{}.log", path, "{}"),
+                            &format!("{}/journal-server.{}.log", path, "{}"),
                             log_fie_count,
                         )
                         .unwrap(),
@@ -139,7 +139,7 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .appender(Appender::builder().build("server", Box::new(server_log)))
         .appender(Appender::builder().build("placement-center", Box::new(placement_log)))
-        .appender(Appender::builder().build("storage-engine", Box::new(engine_log)))
+        .appender(Appender::builder().build("journal-server", Box::new(engine_log)))
         .logger(
             Logger::builder()
                 .appender("server")
@@ -156,10 +156,10 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
         )
         .logger(
             Logger::builder()
-                .appender("storage-engine")
+                .appender("journal-server")
                 .appender("stdout")
                 .additive(false)
-                .build("app::storage-engine", LevelFilter::Info),
+                .build("app::journal-server", LevelFilter::Info),
         )
         .build(Root::builder().appender("stdout").build(LevelFilter::Info))
         .unwrap();

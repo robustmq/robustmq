@@ -2,12 +2,20 @@ cluster_name = "mqtt-broker"
 broker_id = 1
 grpc_port = 9981
 http_port = 9982
-placement_center = ["14.103.42.35:1228"]
-# placement_center = ["127.0.0.1:1228"]
 
 [storage]
 metadata = "memory"
 message = "memory"
+
+[mysql]
+server="mysql://root:123456@127.0.0.1:3306/mqtt"
+
+[journal]
+server=[]
+
+[placement]
+server = ["14.103.42.35:1228"]
+# server = ["127.0.0.1:1228"]
 
 [mqtt]
 mqtt4_enable = true

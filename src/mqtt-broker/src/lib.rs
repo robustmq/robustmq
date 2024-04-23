@@ -64,8 +64,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     // ));
 
     // let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
-    let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
-    let pool = build_mysql_conn_pool(addr).unwrap();
+    let pool = build_mysql_conn_pool(&conf.mysql.server).unwrap();
     let metadata_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
     let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
     let server = MqttBroker::new(

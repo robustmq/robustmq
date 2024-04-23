@@ -42,7 +42,7 @@ pub async fn register_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
 
     match register_node(
         client_poll.clone(),
-        config.placement_center.clone(),
+        config.placement.server.clone(),
         req.clone(),
     )
     .await
@@ -68,7 +68,7 @@ pub async fn unregister_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
 
     match un_register_node(
         client_poll.clone(),
-        config.placement_center.clone(),
+        config.placement.server.clone(),
         req.clone(),
     )
     .await
@@ -105,7 +105,7 @@ pub async fn report_heartbeat(
 
         match heartbeat(
             client_poll.clone(),
-            config.placement_center.clone(),
+            config.placement.server.clone(),
             req.clone(),
         )
         .await
