@@ -25,12 +25,14 @@ pub struct BrokerMQTTConfig {
     pub broker_id: u64,
     pub grpc_port: u32,
     pub http_port: usize,
-    pub placement_center: Vec<String>,
     pub mqtt: MQTT,
     pub runtime: Runtime,
     pub network_tcp: NetworkTcp,
     pub log: Log,
     pub storage: StorageConfig,
+    pub mysql: Mysql,
+    pub placement: Placement,
+    pub journal: Journal,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -61,6 +63,21 @@ pub struct NetworkTcp {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Runtime {
     pub worker_threads: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Mysql {
+    pub server: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Journal {
+    pub server: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Placement {
+    pub server: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -36,10 +36,7 @@ impl StorageAdapter for PlacementStorageAdapter {
         return Ok(());
     }
 
-    async fn delete_shard(
-        &self,
-        shard_name: String,
-    ) -> Result<(), RobustMQError> {
+    async fn delete_shard(&self, shard_name: String) -> Result<(), RobustMQError> {
         return Ok(());
     }
 
@@ -159,4 +156,5 @@ impl StorageAdapter for PlacementStorageAdapter {
             "stream_write".to_string(),
         ));
     }
+    
 }

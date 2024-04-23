@@ -1,7 +1,5 @@
 use std::{
-    fs,
-    path::Path,
-    time::{SystemTime, UNIX_EPOCH},
+    fs, mem::replace, path::Path, time::{SystemTime, UNIX_EPOCH}
 };
 
 use local_ip_address::local_ip;
@@ -30,7 +28,7 @@ pub fn now_second() -> u64 {
 
 pub fn unique_id() -> String {
     let uuid = Uuid::new_v4();
-    return uuid.to_string();
+    return uuid.to_string().replace("-", "");
 }
 
 pub fn get_local_ip() -> String {

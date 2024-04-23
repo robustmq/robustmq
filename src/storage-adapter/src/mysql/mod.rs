@@ -18,7 +18,14 @@ pub struct MySQLStorageAdapter {
 
 impl MySQLStorageAdapter {
     pub fn new(pool: Pool) -> Self {
-        return MySQLStorageAdapter { pool };
+        let adapter = MySQLStorageAdapter { pool };
+        match adapter.init_table() {
+            Ok(()) => {}
+            Err(e) => {
+                panic!("{}", e.to_string())
+            }
+        }
+        return adapter;
     }
 
     pub fn storage_record_table(&self, shard_name: String) -> String {
@@ -31,6 +38,31 @@ impl MySQLStorageAdapter {
 
     pub fn group_offset_key(&self, shard_name: String, group_name: String) -> String {
         return format!("__group_offset_{}_{}", group_name, shard_name);
+    }
+
+    pub fn init_table(&self) -> Result<(), RobustMQError> {
+        match self.pool.get_conn() {
+            Ok(mut conn) => {
+                let show_table_sql = "
+                CREATE TABLE IF NOT EXISTS `storage_kv` (
+                    `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+                    `data_key` varchar(128) DEFAULT NULL,
+                    `data_value` blob,
+                    `create_time` int(11) NOT NULL,
+                    `update_time` int(11) NOT NULL,
+                    PRIMARY KEY (`id`),
+                    unique index data_key(data_key)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
+                ";
+                match conn.query_drop(show_table_sql) {
+                    Ok(()) => return Ok(()),
+                    Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                }
+            }
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        }
     }
 }
 
@@ -94,7 +126,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     update_time: now_second(),
                 }];
                 match conn.exec_batch(
-                    format!("INSERT INTO {}(data_key,data_value,create_time,update_time) VALUES (:key,:value,:create_time,:update_time)",self.storage_kv_table()),
+                    format!("REPLACE INTO {}(data_key,data_value,create_time,update_time) VALUES (:key,:value,:create_time,:update_time)",self.storage_kv_table()),
                     values.iter().map(|p| {
                         params! {
                             "key" => p.key.clone(),
@@ -245,13 +277,11 @@ impl StorageAdapter for MySQLStorageAdapter {
         let offset = match self.get(offset_key).await {
             Ok(Some(record)) => {
                 let offset_str = String::from_utf8(record.data).unwrap();
-                println!("offset_str:{}", offset_str);
                 offset_str.parse::<usize>().unwrap()
             }
             Ok(None) => 0,
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         };
-        println!("{}", offset);
         let rn = if let Some(rn) = record_num { rn } else { 10 };
         match self.pool.get_conn() {
             Ok(mut conn) => {
@@ -351,7 +381,7 @@ impl StorageAdapter for MySQLStorageAdapter {
     }
 }
 
-fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
+pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
     match Pool::new(addr) {
         Ok(pool) => return Ok(pool),
         Err(e) => {

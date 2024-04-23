@@ -30,7 +30,10 @@ use server::{
 };
 use std::sync::Arc;
 use storage_adapter::{
-    memory::MemoryStorageAdapter, placement::PlacementStorageAdapter, storage::StorageAdapter,
+    memory::MemoryStorageAdapter,
+    mysql::{build_mysql_conn_pool, MySQLStorageAdapter},
+    placement::PlacementStorageAdapter,
+    storage::StorageAdapter,
 };
 use subscribe::{manager::SubScribeManager, push::PushServer};
 use tokio::{
@@ -55,12 +58,15 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
     let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(1)));
 
-    let metadata_storage_adapter = Arc::new(PlacementStorageAdapter::new(
-        client_poll.clone(),
-        conf.placement_center.clone(),
-    ));
-    let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+    // let metadata_storage_adapter = Arc::new(PlacementStorageAdapter::new(
+    //     client_poll.clone(),
+    //     conf.placement_center.clone(),
+    // ));
 
+    // let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+    let pool = build_mysql_conn_pool(&conf.mysql.server).unwrap();
+    let metadata_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
+    let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
     let server = MqttBroker::new(
         client_poll,
         metadata_storage_adapter,
