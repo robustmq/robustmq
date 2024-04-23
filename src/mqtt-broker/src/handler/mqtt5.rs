@@ -19,7 +19,7 @@ use protocol::mqtt::{
     PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::storage::{ShardConfig, StorageAdapter};
 use tokio::sync::{broadcast::Sender, RwLock};
 
 #[derive(Clone)]
@@ -182,6 +182,22 @@ where
             cache.set_topic(&topic_name, &topic);
             let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
             match topic_storage.save_topic(&topic_name, &topic).await {
+                Ok(_) => {}
+                Err(e) => {
+                    error(e.to_string());
+                    return self
+                        .ack_build
+                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                }
+            }
+            let shard_name = topic.topic_id.clone();
+            let shard_config = ShardConfig::default();
+
+            match self
+                .message_storage_adapter
+                .create_shard(shard_name, shard_config)
+                .await
+            {
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
@@ -369,7 +385,7 @@ where
         if cluster.secret_free_login() {
             return true;
         }
-        if login == None { 
+        if login == None {
             return false;
         }
         let login_info = login.unwrap();

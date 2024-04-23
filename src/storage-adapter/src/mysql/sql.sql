@@ -35,7 +35,7 @@ PRIMARY KEY (`id`)
 
 CREATE TABLE `storage_kv` (
 `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-`data_key` varchar(64) DEFAULT NULL,
+`data_key` varchar(128) DEFAULT NULL,
 `data_value` blob,
 `create_time` int(11) NOT NULL,
 `update_time` int(11) NOT NULL,
