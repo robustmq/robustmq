@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-
-use common_base::tools::{now_mills, now_second};
+use common_base::tools::now_second;
 use protocol::mqtt::{Connect, ConnectProperties, LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
@@ -20,13 +19,14 @@ pub struct Session {
     pub topic_alias: HashMap<u16, String>,
     pub create_time: u64,
     pub reconnect_time: Option<u64>,
+    pub session_present:bool,
 }
 
 impl Session {
     pub fn build_session(
         client_id: &String,
-        connnect: Connect,
-        connect_properties: Option<ConnectProperties>,
+        connnect: &Connect,
+        connect_properties: &Option<ConnectProperties>,
         server_max_keep_alive: u16,
         contain_last_will: bool,
     ) -> Session {
@@ -35,6 +35,7 @@ impl Session {
         session.keep_alive = Session::keep_alive(server_max_keep_alive, connnect.keep_alive);
         session.clean_session = connnect.clean_session;
         session.contain_last_will = contain_last_will;
+        session.session_present = false;
         session.create_time = now_second();
         session.reconnect_time = None;
         if let Some(properties) = connect_properties {
@@ -55,8 +56,9 @@ impl Session {
         return std::cmp::min(server_keep_alive, client_keep_alive);
     }
 
-    pub fn update_reconnect_time(&self){
+    pub fn update_reconnect_time(&self) {
         self.reconnect_time = Some(now_second());
+        self.session_present = true;
     }
 }
 

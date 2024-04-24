@@ -10,9 +10,9 @@ use storage_adapter::storage::StorageAdapter;
 pub async fn save_connect_session<T>(
     client_id: String,
     contain_last_will: bool,
-    cluster: Cluster,
-    connnect: Connect,
-    connect_properties: Option<ConnectProperties>,
+    cluster: &Cluster,
+    connnect: &Connect,
+    connect_properties: &Option<ConnectProperties>,
     storage_adapter: Arc<T>,
 ) -> Result<Session, RobustMQError>
 where
