@@ -66,8 +66,7 @@ where
         login: Option<Login>,
     ) -> MQTTPacket {
         let cache = self.metadata_cache.read().await;
-        let cluster = cache.cluster_info.clone();
-        drop(cache);
+        let cluster = &cache.cluster_info;
 
         // connect for authentication
         match authentication_login(
@@ -93,16 +92,16 @@ where
         }
 
         // auto create client id
-        let mut auto_client_id = false;
-        let mut client_id = connnect.client_id.clone();
-        if client_id.is_empty() {
+        let mut client_id;
+        if connnect.client_id.is_empty(){
             client_id = unique_id();
-            auto_client_id = true;
+        }else{
+            client_id = connnect.client_id;
         }
 
         // save session data
         let client_session = match save_connect_session(
-            auto_client_id,
+            connnect.client_id.is_empty(),
             client_id.clone(),
             !last_will.is_none(),
             cluster.clone(),

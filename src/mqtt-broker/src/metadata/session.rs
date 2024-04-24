@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use common_base::tools::{now_mills, now_second};
 use protocol::mqtt::{Connect, ConnectProperties, LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Session {
     pub client_id: String,
     pub keep_alive: u16,
-    pub last_will: bool,
+    pub contain_last_will: bool,
     pub clean_session: bool,
     pub session_expiry_interval: Option<u32>,
     pub receive_maximum: Option<u16>,
@@ -17,22 +18,25 @@ pub struct Session {
     pub request_problem_info: Option<u8>,
     pub user_properties: Vec<(String, String)>,
     pub topic_alias: HashMap<u16, String>,
+    pub create_time: u64,
+    pub reconnect_time: Option<u64>,
 }
 
 impl Session {
     pub fn build_session(
-        &self,
-        client_id: String,
+        client_id: &String,
         connnect: Connect,
         connect_properties: Option<ConnectProperties>,
-        server_keep_alive: u16,
-        last_will: bool,
+        server_max_keep_alive: u16,
+        contain_last_will: bool,
     ) -> Session {
         let mut session = Session::default();
-        session.client_id = client_id;
-        session.keep_alive = self.keep_alive(server_keep_alive, connnect.keep_alive);
+        session.client_id = *client_id;
+        session.keep_alive = Session::keep_alive(server_max_keep_alive, connnect.keep_alive);
         session.clean_session = connnect.clean_session;
-        session.last_will = last_will;
+        session.contain_last_will = contain_last_will;
+        session.create_time = now_second();
+        session.reconnect_time = None;
         if let Some(properties) = connect_properties {
             session.session_expiry_interval = properties.session_expiry_interval;
             session.receive_maximum = properties.receive_maximum;
@@ -47,9 +51,12 @@ impl Session {
         return session;
     }
 
-    pub fn keep_alive(&self, server_keep_alive: u16, client_keep_alive: u16) -> u16 {
-        //todo
-        return std::cmp::max(server_keep_alive, client_keep_alive);
+    pub fn keep_alive(server_keep_alive: u16, client_keep_alive: u16) -> u16 {
+        return std::cmp::min(server_keep_alive, client_keep_alive);
+    }
+
+    pub fn update_reconnect_time(&self){
+        self.reconnect_time = Some(now_second());
     }
 }
 

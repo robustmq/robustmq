@@ -20,10 +20,10 @@ where
     pub async fn save_session(
         &self,
         client_id: String,
-        session: Session,
+        session: &Session,
     ) -> Result<(), RobustMQError> {
         let key = session_key(client_id);
-        match serde_json::to_vec(&session) {
+        match serde_json::to_vec(session) {
             Ok(data) => return self.storage_adapter.set(key, Record::build_b(data)).await,
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(format!(
