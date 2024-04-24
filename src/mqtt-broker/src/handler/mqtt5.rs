@@ -5,6 +5,7 @@ use crate::{
         cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
         topic::Topic,
     },
+    security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
     subscribe::manager::SubScribeManager,
@@ -65,32 +66,46 @@ where
         login: Option<Login>,
     ) -> MQTTPacket {
         let cache = self.metadata_cache.read().await;
-        let cluster = cache.cluster_info.clone();
+        let cluster = &cache.cluster_info.clone();
         drop(cache);
 
         // connect for authentication
-        if self.authentication(login, &cluster).await {
-            return self
-                .ack_build
-                .distinct(DisconnectReasonCode::NotAuthorized, None);
+        match authentication_login(
+            self.metadata_cache.clone(),
+            &cluster,
+            login,
+            &connect_properties,
+        )
+        .await
+        {
+            Ok(flag) => {
+                if !flag {
+                    return self
+                        .ack_build
+                        .distinct(DisconnectReasonCode::NotAuthorized, None);
+                }
+            }
+            Err(e) => {
+                return self
+                    .ack_build
+                    .distinct(DisconnectReasonCode::NotAuthorized, Some(e.to_string()));
+            }
         }
 
         // auto create client id
-        let mut auto_client_id = false;
-        let mut client_id = connnect.client_id.clone();
-        if client_id.is_empty() {
-            client_id = unique_id();
-            auto_client_id = true;
-        }
+        let client_id = if connnect.client_id.is_empty() {
+            unique_id()
+        } else {
+            connnect.client_id.clone()
+        };
 
         // save session data
         let client_session = match save_connect_session(
-            auto_client_id,
             client_id.clone(),
             !last_will.is_none(),
-            cluster.clone(),
-            connnect.clone(),
-            connect_properties.clone(),
+            &cluster,
+            &connnect,
+            &connect_properties,
             self.metadata_storage_adapter.clone(),
         )
         .await
@@ -136,7 +151,7 @@ where
 
         // Record heartbeat information
         let session_keep_alive = client_session.keep_alive;
-        let live_time = ConnectionLiveTime {
+        let live_time: ConnectionLiveTime = ConnectionLiveTime {
             protobol: crate::server::MQTTProtocol::MQTT5,
             keep_live: session_keep_alive,
             heartbeat: now_second(),
@@ -145,24 +160,13 @@ where
         heartbeat.report_hearbeat(connect_id, live_time);
         drop(heartbeat);
 
-        let mut user_properties = Vec::new();
-        if let Some(connect_properties) = connect_properties {
-            user_properties = connect_properties.user_properties;
-        }
-
-        let reason_string = Some("".to_string());
-        let response_information = Some("".to_string());
-        let server_reference = Some("".to_string());
         return self
             .ack_build
             .conn_ack(
+                &cluster,
+                &client_session,
                 client_id,
-                auto_client_id,
-                reason_string,
-                user_properties,
-                response_information,
-                server_reference,
-                session_keep_alive,
+                connnect.client_id.is_empty(),
             )
             .await;
     }
@@ -178,6 +182,7 @@ where
         let topic = if let Some(tp) = cache.get_topic_by_name(topic_name.clone()) {
             tp
         } else {
+            // Persisting the topic information
             let topic = Topic::new(&topic_name);
             cache.set_topic(&topic_name, &topic);
             let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
@@ -190,9 +195,10 @@ where
                         .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
                 }
             }
+
+            // Create the resource object of the storage layer
             let shard_name = topic.topic_id.clone();
             let shard_config = ShardConfig::default();
-
             match self
                 .message_storage_adapter
                 .create_shard(shard_name, shard_config)
@@ -379,20 +385,5 @@ where
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection, None);
-    }
-
-    async fn authentication(&self, login: Option<Login>, cluster: &Cluster) -> bool {
-        if cluster.secret_free_login() {
-            return true;
-        }
-        if login == None {
-            return false;
-        }
-        let login_info = login.unwrap();
-        let cache = self.metadata_cache.read().await;
-        if let Some(user) = cache.user_info.get(&login_info.username) {
-            return user.password == login_info.password;
-        }
-        return false;
     }
 }

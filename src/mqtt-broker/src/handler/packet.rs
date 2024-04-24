@@ -1,4 +1,7 @@
-use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
+use crate::{
+    metadata::{cache::MetadataCache, cluster::Cluster, session::Session},
+    server::MQTTProtocol,
+};
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, SubAck,
@@ -23,51 +26,42 @@ impl<T> MQTTAckBuild<T> {
 
     pub async fn conn_ack(
         &self,
+        cluster: &Cluster,
+        session: &Session,
         client_id: String,
         auto_client_id: bool,
-        reason_string: Option<String>,
-        user_properties: Vec<(String, String)>,
-        response_information: Option<String>,
-        server_reference: Option<String>,
-        server_keep_alive: u16,
     ) -> MQTTPacket {
         let conn_ack = ConnAck {
-            session_present: false,
+            session_present: session.session_present,
             code: ConnectReturnCode::Success,
         };
-        let cache = self.metadata_cache.read().await;
-        let cluster = cache.cluster_info.clone();
-        if let Some(session) = cache.session_info.get(&client_id) {
-            let assigned_client_identifier = if auto_client_id {
-                None
-            } else {
-                Some(client_id)
-            };
 
-            let ack_properties = ConnAckProperties {
-                session_expiry_interval: session.session_expiry_interval,
-                receive_max: cluster.receive_max(),
-                max_qos: cluster.max_qos(),
-                retain_available: Some(cluster.retain_available()),
-                max_packet_size: Some(cluster.max_packet_size()),
-                assigned_client_identifier: assigned_client_identifier,
-                topic_alias_max: Some(cluster.topic_alias_max()),
-                reason_string: reason_string,
-                user_properties: user_properties,
-                wildcard_subscription_available: Some(cluster.wildcard_subscription_available()),
-                subscription_identifiers_available: Some(
-                    cluster.subscription_identifiers_available(),
-                ),
-                shared_subscription_available: Some(cluster.shared_subscription_available()),
-                server_keep_alive: Some(server_keep_alive),
-                response_information: response_information,
-                server_reference: server_reference,
-                authentication_method: None,
-                authentication_data: None,
-            };
-            return MQTTPacket::ConnAck(conn_ack, Some(ack_properties));
-        }
-        return self.distinct(DisconnectReasonCode::UnspecifiedError, None);
+        let assigned_client_identifier = if auto_client_id {
+            Some(client_id)
+        } else {
+            None
+        };
+
+        let ack_properties = ConnAckProperties {
+            session_expiry_interval: session.session_expiry_interval,
+            receive_max: cluster.receive_max(),
+            max_qos: cluster.max_qos(),
+            retain_available: Some(cluster.retain_available()),
+            max_packet_size: Some(cluster.max_packet_size()),
+            assigned_client_identifier: assigned_client_identifier,
+            topic_alias_max: Some(cluster.topic_alias_max()),
+            reason_string: None,
+            user_properties: Vec::new(),
+            wildcard_subscription_available: Some(cluster.wildcard_subscription_available()),
+            subscription_identifiers_available: Some(cluster.subscription_identifiers_available()),
+            shared_subscription_available: Some(cluster.shared_subscription_available()),
+            server_keep_alive: Some(cluster.server_keep_alive()),
+            response_information: None,
+            server_reference: None,
+            authentication_method: None,
+            authentication_data: None,
+        };
+        return MQTTPacket::ConnAck(conn_ack, Some(ack_properties));
     }
 
     pub fn pub_ack(
