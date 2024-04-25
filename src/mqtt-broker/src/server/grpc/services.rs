@@ -86,7 +86,7 @@ where
         &self,
         request: Request<SetClusterConfigRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        let mut cluster = self.metadata_cache.cluster_info;
+        let mut cluster = self.metadata_cache.get_cluster_info();
         let req_data = request.into_inner();
         cluster.session_expiry_interval = req_data.session_expiry_interval;
         cluster.topic_alias_max = req_data.topic_alias_max as u16;

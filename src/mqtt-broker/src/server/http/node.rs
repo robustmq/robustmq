@@ -41,7 +41,7 @@ pub async fn index<T>(State(state): State<HttpServerState<T>>) -> String {
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct MetadataCacheResult {
-    pub cluster_info: Cluster,
+    pub cluster_info: DashMap<String, Cluster>,
     pub user_info: DashMap<String, User>,
     pub session_info: DashMap<String, Session>,
     pub topic_info: DashMap<String, Topic>,

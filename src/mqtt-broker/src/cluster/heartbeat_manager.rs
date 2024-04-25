@@ -1,7 +1,6 @@
 use crate::server::MQTTProtocol;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct HeartbeatManager {
@@ -19,10 +18,10 @@ impl HeartbeatManager {
 
     pub fn report_hearbeat(&self, connect_id: u64, live_time: ConnectionLiveTime) {
         let hash_num = self.calc_shard_hash_num(connect_id);
-        if let Some(mut row) = self.shard_data.get(&hash_num) {
+        if let Some(row) = self.shard_data.get(&hash_num) {
             row.report_hearbeat(connect_id, live_time);
         } else {
-            let mut row = HeartbeatShard::new();
+            let row = HeartbeatShard::new();
             row.report_hearbeat(connect_id, live_time);
             self.shard_data.insert(connect_id, row);
         }
@@ -30,9 +29,16 @@ impl HeartbeatManager {
 
     pub fn remove_connect(&self, connect_id: u64) {
         let hash_num = self.calc_shard_hash_num(connect_id);
-        if let Some(mut row) = self.shard_data.get(&hash_num) {
+        if let Some(row) = self.shard_data.get(&hash_num) {
             row.remove_connect(connect_id);
         }
+    }
+
+    pub fn get_shard_data(&self, seq: u64) -> HeartbeatShard {
+        if let Some(data) = self.shard_data.get(&seq) {
+            return data.clone();
+        }
+        return HeartbeatShard::new();
     }
 
     pub fn calc_shard_hash_num(&self, connect_id: u64) -> u64 {
@@ -42,21 +48,21 @@ impl HeartbeatManager {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct HeartbeatShard {
-    pub heartbeat_data: HashMap<u64, ConnectionLiveTime>,
+    pub heartbeat_data: DashMap<u64, ConnectionLiveTime>,
 }
 
 impl HeartbeatShard {
     pub fn new() -> Self {
         return HeartbeatShard {
-            heartbeat_data: HashMap::new(),
+            heartbeat_data: DashMap::with_capacity(256),
         };
     }
 
-    pub fn report_hearbeat(&mut self, connect_id: u64, live_time: ConnectionLiveTime) {
+    pub fn report_hearbeat(&self, connect_id: u64, live_time: ConnectionLiveTime) {
         self.heartbeat_data.insert(connect_id, live_time);
     }
 
-    pub fn remove_connect(&mut self, connect_id: u64) {
+    pub fn remove_connect(&self, connect_id: u64) {
         self.heartbeat_data.remove(&connect_id);
     }
 }

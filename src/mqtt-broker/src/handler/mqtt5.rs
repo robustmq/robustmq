@@ -64,7 +64,7 @@ where
         last_will_properties: Option<LastWillProperties>,
         login: Option<Login>,
     ) -> MQTTPacket {
-        let cluster = self.metadata_cache.cluster_info.clone();
+        let cluster = self.metadata_cache.get_cluster_info();
         // connect for authentication
         match authentication_login(
             self.metadata_cache.clone(),

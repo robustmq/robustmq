@@ -1,5 +1,6 @@
 use super::{cluster::Cluster, session::Session, topic::Topic, user::User};
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -26,7 +27,8 @@ pub struct MetadataChangeData {
 
 #[derive(Clone)]
 pub struct MetadataCache<T> {
-    pub cluster_info: Cluster,
+    pub cluster_name: String,
+    pub cluster_info: DashMap<String, Cluster>,
     pub user_info: DashMap<String, User>,
     pub session_info: DashMap<String, Session>,
     pub topic_info: DashMap<String, Topic>,
@@ -41,8 +43,10 @@ where
     T: StorageAdapter,
 {
     pub fn new(metadata_storage_adapter: Arc<T>) -> Self {
+        let conf = broker_mqtt_conf();
         let cache = MetadataCache {
-            cluster_info: Cluster::default(),
+            cluster_name: conf.cluster_name.clone(),
+            cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(256),
             session_info: DashMap::with_capacity(256),
             topic_info: DashMap::with_capacity(256),
@@ -54,10 +58,10 @@ where
         return cache;
     }
 
-    pub async fn load_cache(&mut self) {
+    pub async fn load_cache(&self) {
         // load cluster config
         let cluster_storage = ClusterStorage::new(self.metadata_storage_adapter.clone());
-        self.cluster_info = match cluster_storage.get_cluster_config().await {
+        let cluster = match cluster_storage.get_cluster_config().await {
             Ok(Some(cluster)) => cluster,
             Ok(None) => Cluster::new(),
             Err(e) => {
@@ -67,10 +71,11 @@ where
                 );
             }
         };
+        self.cluster_info.insert(self.cluster_name.clone(), cluster);
 
         // load all user
         let user_storage = UserStorage::new(self.metadata_storage_adapter.clone());
-        self.user_info = match user_storage.user_list().await {
+        let user_list = match user_storage.user_list().await {
             Ok(list) => list,
             Err(e) => {
                 panic!(
@@ -79,10 +84,13 @@ where
                 );
             }
         };
+        for (username, user) in user_list {
+            self.user_info.insert(username, user);
+        }
 
         // load topic info
         let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
-        self.topic_info = match topic_storage.topic_list().await {
+        let topic_list = match topic_storage.topic_list().await {
             Ok(list) => list,
             Err(e) => {
                 panic!(
@@ -92,7 +100,8 @@ where
             }
         };
 
-        for (topic_name, topic) in self.topic_info.clone() {
+        for (topic_name, topic) in topic_list {
+            self.topic_info.insert(topic_name.clone(), topic.clone());
             self.topic_id_name.insert(topic.topic_id, topic_name);
         }
     }
@@ -119,7 +128,11 @@ where
     }
 
     pub fn set_cluster_info(&self, cluster: Cluster) {
-        self.cluster_info = cluster;
+        self.cluster_info.insert(self.cluster_name.clone(), cluster);
+    }
+
+    pub fn get_cluster_info(&self) -> Cluster {
+        return self.cluster_info.get(&self.cluster_name).unwrap().clone();
     }
 
     pub fn set_user(&self, user: User) {
@@ -178,5 +191,4 @@ where
             self.connect_id_info.remove(&connect_id);
         }
     }
-
 }

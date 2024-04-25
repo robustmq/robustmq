@@ -69,14 +69,14 @@ where
 
     pub fn remove_subscribe(&self, connect_id: u64, topic_ids: Vec<String>) {
         for topic_id in topic_ids {
-            if let Some(mut sub_list) = self.topic_subscribe.get(&topic_id) {
+            if let Some(sub_list) = self.topic_subscribe.get(&topic_id) {
                 sub_list.remove(&connect_id);
             }
         }
     }
 
     pub fn remove_connect_subscribe(&self, connect_id: u64) {
-        for (topic_id, sub_list) in self.topic_subscribe {
+        for (_, sub_list) in self.topic_subscribe.clone() {
             if sub_list.contains_key(&connect_id) {
                 sub_list.remove(&connect_id);
             }
