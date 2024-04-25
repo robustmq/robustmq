@@ -1,6 +1,5 @@
 use super::{cluster::Cluster, session::Session, topic::Topic, user::User};
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -42,10 +41,9 @@ impl<T> MetadataCache<T>
 where
     T: StorageAdapter,
 {
-    pub fn new(metadata_storage_adapter: Arc<T>) -> Self {
-        let conf = broker_mqtt_conf();
+    pub fn new(metadata_storage_adapter: Arc<T>, cluster_name: String) -> Self {
         let cache = MetadataCache {
-            cluster_name: conf.cluster_name.clone(),
+            cluster_name: cluster_name,
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(256),
             session_info: DashMap::with_capacity(256),

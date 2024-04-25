@@ -238,7 +238,10 @@ mod tests {
     #[tokio::test]
     async fn topic_sub_push_thread_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCache::new(
+            storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
 
         // Create topic
         let topic_name = "/test/topic".to_string();

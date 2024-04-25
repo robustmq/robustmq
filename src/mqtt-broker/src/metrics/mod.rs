@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use prometheus::{register_gauge_vec, register_int_gauge_vec, GaugeVec, IntGaugeVec};
+use prometheus::{register_int_gauge_vec, IntGaugeVec};
 
 const METRICS_KEY_MODULE_NAME: &str = "module";
 const METRICS_KEY_PROTOCOL_NAME: &str = "protocol";

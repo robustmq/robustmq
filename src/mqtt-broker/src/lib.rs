@@ -111,7 +111,10 @@ where
 
         let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
 
-        let metadata_cache = Arc::new(MetadataCache::new(metadata_storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCache::new(
+            metadata_storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
         let subscribe_manager = Arc::new(SubScribeManager::new(metadata_cache.clone()));
 
         return MqttBroker {
@@ -199,7 +202,7 @@ where
     }
 
     fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
-        let mut push_server = PushServer::new(
+        let push_server = PushServer::new(
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.response_queue_sx4.clone(),

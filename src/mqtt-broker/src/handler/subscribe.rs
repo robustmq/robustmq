@@ -159,7 +159,10 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCache::new(
+            storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
         metadata_cache.set_topic(&topic_name, &topic);
@@ -173,7 +176,10 @@ mod tests {
     #[tokio::test]
     async fn send_retain_message_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCache::new(
+            storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;
         let mut filters = Vec::new();
