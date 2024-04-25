@@ -1,5 +1,5 @@
 use super::packet::MQTTAckBuild;
-use crate::{cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache};
+use crate::{cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCacheManager};
 use common_base::tools::unique_id;
 use protocol::mqtt::{
     Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Mqtt4Service<T> {
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     ack_build: MQTTAckBuild<T>,
     login: bool,
     heartbeat_manager: Arc<HeartbeatManager>,
@@ -17,7 +17,7 @@ pub struct Mqtt4Service<T> {
 
 impl<T> Mqtt4Service<T> {
     pub fn new(
-        metadata_cache: Arc<MetadataCache<T>>,
+        metadata_cache: Arc<MetadataCacheManager<T>>,
         ack_build: MQTTAckBuild<T>,
         heartbeat_manager: Arc<HeartbeatManager>,
     ) -> Self {

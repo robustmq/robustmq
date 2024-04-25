@@ -21,7 +21,8 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
-use metadata::cache::MetadataCache;
+use idempotent::memory::IdempotentMemory;
+use metadata::cache::MetadataCacheManager;
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -78,9 +79,10 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 
 pub struct MqttBroker<'a, T, S> {
     conf: &'a BrokerMQTTConfig,
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache_manager: Arc<MetadataCacheManager<T>>,
     heartbeat_manager: Arc<HeartbeatManager>,
     subscribe_manager: Arc<SubScribeManager<T>>,
+    idempotent_manager: Arc<IdempotentMemory>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
@@ -111,18 +113,20 @@ where
 
         let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
 
-        let metadata_cache = Arc::new(MetadataCache::new(
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
             metadata_storage_adapter.clone(),
             "test-cluster".to_string(),
         ));
         let subscribe_manager = Arc::new(SubScribeManager::new(metadata_cache.clone()));
+        let idempotent_manager: Arc<IdempotentMemory> = Arc::new(IdempotentMemory::new());
 
         return MqttBroker {
             conf,
             runtime,
-            metadata_cache,
+            metadata_cache_manager: metadata_cache,
             heartbeat_manager,
             subscribe_manager,
+            idempotent_manager,
             request_queue_sx4,
             request_queue_sx5,
             response_queue_sx4,
@@ -145,11 +149,12 @@ where
     }
 
     fn start_mqtt_server(&self) {
-        let cache = self.metadata_cache.clone();
+        let cache = self.metadata_cache_manager.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
+        let idempotent_manager = self.idempotent_manager.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
         let request_queue_sx5 = self.request_queue_sx5.clone();
@@ -163,6 +168,7 @@ where
                 subscribe_manager,
                 metadata_storage_adapter,
                 message_storage_adapter,
+                idempotent_manager,
                 request_queue_sx4,
                 request_queue_sx5,
                 response_queue_sx4,
@@ -175,7 +181,7 @@ where
     fn start_grpc_server(&self) {
         let server = GrpcServer::new(
             self.conf.grpc_port.clone(),
-            self.metadata_cache.clone(),
+            self.metadata_cache_manager.clone(),
             self.metadata_storage_adapter.clone(),
         );
         self.runtime.spawn(async move {
@@ -185,7 +191,7 @@ where
 
     fn start_http_server(&self) {
         let http_state = HttpServerState::new(
-            self.metadata_cache.clone(),
+            self.metadata_cache_manager.clone(),
             self.heartbeat_manager.clone(),
             self.subscribe_manager.clone(),
             self.response_queue_sx4.clone(),
@@ -248,7 +254,7 @@ where
     }
 
     fn register_node(&self) {
-        let metadata_cache = self.metadata_cache.clone();
+        let metadata_cache = self.metadata_cache_manager.clone();
         self.runtime.block_on(async move {
             metadata_cache.load_cache().await;
             register_broker_node(self.client_poll.clone()).await;

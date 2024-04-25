@@ -224,7 +224,7 @@ mod tests {
     use crate::metadata::message::Message;
     use crate::subscribe::push::topic_sub_push_thread;
     use crate::{
-        metadata::{cache::MetadataCache, topic::Topic},
+        metadata::{cache::MetadataCacheManager, topic::Topic},
         storage::message::MessageStorage,
         subscribe::manager::SubScribeManager,
     };
@@ -238,7 +238,7 @@ mod tests {
     #[tokio::test]
     async fn topic_sub_push_thread_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
             storage_adapter.clone(),
             "test-cluster".to_string(),
         ));

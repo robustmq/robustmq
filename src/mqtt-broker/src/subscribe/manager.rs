@@ -1,6 +1,6 @@
 use crate::{
     handler::subscribe::path_regex_match,
-    metadata::{cache::MetadataCache, subscriber::Subscriber},
+    metadata::{cache::MetadataCacheManager, subscriber::Subscriber},
     server::MQTTProtocol,
 };
 use dashmap::DashMap;
@@ -11,14 +11,14 @@ use storage_adapter::storage::StorageAdapter;
 #[derive(Clone)]
 pub struct SubScribeManager<T> {
     pub topic_subscribe: DashMap<String, DashMap<u64, Subscriber>>,
-    pub metadata_cache: Arc<MetadataCache<T>>,
+    pub metadata_cache: Arc<MetadataCacheManager<T>>,
 }
 
 impl<T> SubScribeManager<T>
 where
     T: StorageAdapter,
 {
-    pub fn new(metadata_cache: Arc<MetadataCache<T>>) -> Self {
+    pub fn new(metadata_cache: Arc<MetadataCacheManager<T>>) -> Self {
         return SubScribeManager {
             metadata_cache,
             topic_subscribe: DashMap::with_capacity(256),
@@ -87,7 +87,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::metadata::{cache::MetadataCache, topic::Topic};
+    use crate::metadata::{cache::MetadataCacheManager, topic::Topic};
     use crate::subscribe::manager::SubScribeManager;
     use protocol::mqtt::{Filter, Subscribe};
     use std::sync::Arc;
@@ -96,7 +96,7 @@ mod tests {
     #[tokio::test]
     async fn parse_subscribe() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
             storage_adapter.clone(),
             "test-cluster".to_string(),
         ));
@@ -138,7 +138,7 @@ mod tests {
     #[tokio::test]
     async fn remove_subscribe() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
             storage_adapter.clone(),
             "test-cluster".to_string(),
         ));

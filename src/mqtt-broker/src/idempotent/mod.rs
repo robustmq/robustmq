@@ -5,19 +5,25 @@ use dashmap::DashMap;
 pub mod memory;
 pub mod persistence;
 
-#[async_trait]
-pub trait Idempotent {
-    async fn save_idem_data(&self, topic_id: String, pkid: u16);
-    async fn delete_idem_data(&self, topic_id: String, pkid: u16);
-    async fn idem_data_exists(&self, topic_id: String, pkid: u16) -> bool;
-    async fn idem_data(&self) -> DashMap<String,u64>;
+#[derive(Clone)]
+pub struct IdempotentData {
+    pub connect_id: u64,
+    pub create_time: u64,
 }
 
-pub struct IdempotentCleanThread {}
+#[async_trait]
+pub trait Idempotent {
+    async fn save_idem_data(&self, connect_id: u64, pkid: u16);
+    async fn delete_idem_data(&self, connect_id: u64, pkid: u16);
+    async fn get_idem_data(&self, connect_id: u64, pkid: u16) -> Option<IdempotentData>;
+    async fn idem_data(&self) -> DashMap<String, IdempotentData>;
+}
 
-impl IdempotentCleanThread {
-    pub fn new() -> IdempotentCleanThread {
-        return IdempotentCleanThread {};
+pub struct IdempotentCleanManager {}
+
+impl IdempotentCleanManager {
+    pub fn new() -> IdempotentCleanManager {
+        return IdempotentCleanManager {};
     }
 
     pub fn start(&self) {

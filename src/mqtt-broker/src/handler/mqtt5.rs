@@ -1,7 +1,12 @@
+use super::packet::{publish_comp_fail, publish_comp_success};
 use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send_retain_message};
+use crate::idempotent::Idempotent;
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
-    metadata::{cache::MetadataCache, message::Message, session::LastWillData, topic::Topic},
+    idempotent::memory::IdempotentMemory,
+    metadata::{
+        cache::MetadataCacheManager, message::Message, session::LastWillData, topic::Topic,
+    },
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
@@ -24,7 +29,7 @@ use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 pub struct Mqtt5Service<T, S> {
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     subscribe_manager: Arc<SubScribeManager<T>>,
     ack_build: MQTTAckBuild<T>,
     heartbeat_manager: Arc<HeartbeatManager>,
@@ -38,7 +43,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        metadata_cache: Arc<MetadataCache<T>>,
+        metadata_cache: Arc<MetadataCacheManager<T>>,
         subscribe_manager: Arc<SubScribeManager<T>>,
         ack_build: MQTTAckBuild<T>,
         heartbeat_manager: Arc<HeartbeatManager>,
@@ -171,6 +176,7 @@ where
         connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
+        idempotent_manager: Arc<IdempotentMemory>,
     ) -> Option<MQTTPacket> {
         let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
         let client_id = if let Some(se) = self.metadata_cache.connect_id_info.get(&connect_id) {
@@ -253,7 +259,7 @@ where
         let mut offset = "".to_string();
         if let Some(record) = Message::build_record(publish.clone(), publish_properties.clone()) {
             match message_storage
-                .append_topic_message(topic.topic_id, vec![record])
+                .append_topic_message(topic.topic_id.clone(), vec![record])
                 .await
             {
                 Ok(da) => {
@@ -288,14 +294,35 @@ where
                 return Some(self.ack_build.pub_ack(pkid, None, user_properties));
             }
             QoS::ExactlyOnce => {
+                idempotent_manager.save_idem_data(connect_id, pkid).await;
                 return Some(self.ack_build.pub_rec(session.session_present));
             }
         }
     }
 
-    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
+    pub async fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
 
-    pub fn publish_rel(&self, pub_rel: PubRel, pubrel_properties: Option<PubRelProperties>) {}
+    pub async fn publish_rel(
+        &self,
+        connect_id: u64,
+        pub_rel: PubRel,
+        _: Option<PubRelProperties>,
+        idempotent_manager: Arc<IdempotentMemory>,
+    ) -> MQTTPacket {
+        
+        if idempotent_manager
+            .get_idem_data(connect_id, pub_rel.pkid)
+            .await
+            .is_none()
+        {
+            return publish_comp_fail(pub_rel.pkid);
+        };
+
+        idempotent_manager
+            .delete_idem_data(connect_id, pub_rel.pkid)
+            .await;
+        return publish_comp_success(pub_rel.pkid);
+    }
 
     pub async fn subscribe(
         &self,

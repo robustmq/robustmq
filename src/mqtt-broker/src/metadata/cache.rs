@@ -25,7 +25,7 @@ pub struct MetadataChangeData {
 }
 
 #[derive(Clone)]
-pub struct MetadataCache<T> {
+pub struct MetadataCacheManager<T> {
     pub cluster_name: String,
     pub cluster_info: DashMap<String, Cluster>,
     pub user_info: DashMap<String, User>,
@@ -37,12 +37,12 @@ pub struct MetadataCache<T> {
     pub metadata_storage_adapter: Arc<T>,
 }
 
-impl<T> MetadataCache<T>
+impl<T> MetadataCacheManager<T>
 where
     T: StorageAdapter,
 {
     pub fn new(metadata_storage_adapter: Arc<T>, cluster_name: String) -> Self {
-        let cache = MetadataCache {
+        let cache = MetadataCacheManager {
             cluster_name: cluster_name,
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(256),

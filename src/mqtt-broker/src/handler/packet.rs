@@ -1,22 +1,20 @@
 use crate::{
-    metadata::{cache::MetadataCache, cluster::Cluster, session::Session},
+    metadata::{cache::MetadataCacheManager, cluster::Cluster, session::Session},
     server::MQTTProtocol,
 };
 use protocol::mqtt::{
-    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
-    DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, SubAck,
-    SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
+    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompReason, SubAck, SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason
 };
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MQTTAckBuild<T> {
     protocol: MQTTProtocol,
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
 }
 
 impl<T> MQTTAckBuild<T> {
-    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCache<T>>) -> Self {
+    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCacheManager<T>>) -> Self {
         return MQTTAckBuild {
             protocol,
             metadata_cache,
@@ -80,7 +78,7 @@ impl<T> MQTTAckBuild<T> {
         return MQTTPacket::PubAck(pub_ack, properties);
     }
 
-    pub fn pub_rec(&self,session_present:bool) -> MQTTPacket {
+    pub fn pub_rec(&self, session_present: bool) -> MQTTPacket {
         let conn_ack = ConnAck {
             session_present,
             code: ConnectReturnCode::Success,
@@ -160,4 +158,20 @@ impl<T> MQTTAckBuild<T> {
         }
         return MQTTPacket::Disconnect(disconnect, None);
     }
+}
+
+pub fn publish_comp_fail(pkid: u16) -> MQTTPacket {
+    let pub_comp =PubComp{
+        pkid,
+        reason: PubCompReason::PacketIdentifierNotFound,
+    };
+    return MQTTPacket::PubComp(pub_comp, None);
+}
+
+pub fn publish_comp_success(pkid: u16) -> MQTTPacket {
+    let pub_comp =PubComp{
+        pkid,
+        reason: PubCompReason::Success,
+    };
+    return MQTTPacket::PubComp(pub_comp, None);
 }

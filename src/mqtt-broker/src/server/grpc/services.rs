@@ -1,5 +1,5 @@
 use crate::{
-    metadata::{available_flag, cache::MetadataCache, user::User},
+    metadata::{available_flag, cache::MetadataCacheManager, user::User},
     storage::{cluster::ClusterStorage, user::UserStorage},
 };
 use common_base::{errors::RobustMQError, tools::now_mills};
@@ -15,7 +15,7 @@ use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcBrokerServices<T> {
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     metadata_storage_adapter: Arc<T>,
 }
 
@@ -23,7 +23,7 @@ impl<T> GrpcBrokerServices<T>
 where
     T: StorageAdapter,
 {
-    pub fn new(metadata_cache: Arc<MetadataCache<T>>, metadata_storage_adapter: Arc<T>) -> Self {
+    pub fn new(metadata_cache: Arc<MetadataCacheManager<T>>, metadata_storage_adapter: Arc<T>) -> Self {
         return GrpcBrokerServices {
             metadata_cache,
             metadata_storage_adapter,

@@ -1,6 +1,6 @@
 use super::node::{hearbeat_info, index, metadata_info, metrics, subscribe_info};
 use crate::{
-    cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCache,
+    cluster::heartbeat_manager::HeartbeatManager, metadata::cache::MetadataCacheManager,
     server::tcp::packet::ResponsePackage, subscribe::manager::SubScribeManager,
 };
 use axum::routing::get;
@@ -18,7 +18,7 @@ pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState<T> {
-    pub metadata_cache: Arc<MetadataCache<T>>,
+    pub metadata_cache: Arc<MetadataCacheManager<T>>,
     pub heartbeat_manager: Arc<HeartbeatManager>,
     pub subscribe_manager: Arc<SubScribeManager<T>>,
     pub response_queue_sx4: Sender<ResponsePackage>,
@@ -30,7 +30,7 @@ where
     T: StorageAdapter,
 {
     pub fn new(
-        metadata_cache: Arc<MetadataCache<T>>,
+        metadata_cache: Arc<MetadataCacheManager<T>>,
         heartbeat_manager: Arc<HeartbeatManager>,
         subscribe_manager: Arc<SubScribeManager<T>>,
         response_queue_sx4: Sender<ResponsePackage>,
