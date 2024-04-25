@@ -8,7 +8,7 @@ use axum::Router;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
 use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::{broadcast::Sender, RwLock};
+use tokio::sync::broadcast::Sender;
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_HEARTBEAT_INFO: &str = "/heartbeat-info";
@@ -18,9 +18,9 @@ pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState<T> {
-    pub metadata_cache: Arc<RwLock<MetadataCache<T>>>,
-    pub heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-    pub subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+    pub metadata_cache: Arc<MetadataCache<T>>,
+    pub heartbeat_manager: Arc<HeartbeatManager>,
+    pub subscribe_manager: Arc<SubScribeManager<T>>,
     pub response_queue_sx4: Sender<ResponsePackage>,
     pub response_queue_sx5: Sender<ResponsePackage>,
 }
@@ -30,9 +30,9 @@ where
     T: StorageAdapter,
 {
     pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
-        heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+        metadata_cache: Arc<MetadataCache<T>>,
+        heartbeat_manager: Arc<HeartbeatManager>,
+        subscribe_manager: Arc<SubScribeManager<T>>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {

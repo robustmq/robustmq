@@ -1,8 +1,8 @@
-use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
-
 use super::{cluster::Cluster, session::Session, topic::Topic, user::User};
+use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -27,12 +27,12 @@ pub struct MetadataChangeData {
 #[derive(Clone)]
 pub struct MetadataCache<T> {
     pub cluster_info: Cluster,
-    pub user_info: HashMap<String, User>,
-    pub session_info: HashMap<String, Session>,
-    pub topic_info: HashMap<String, Topic>,
-    pub topic_id_name: HashMap<String, String>,
-    pub connect_id_info: HashMap<u64, String>,
-    pub login_info: HashMap<u64, bool>,
+    pub user_info: DashMap<String, User>,
+    pub session_info: DashMap<String, Session>,
+    pub topic_info: DashMap<String, Topic>,
+    pub topic_id_name: DashMap<String, String>,
+    pub connect_id_info: DashMap<u64, String>,
+    pub login_info: DashMap<u64, bool>,
     pub metadata_storage_adapter: Arc<T>,
 }
 
@@ -43,12 +43,12 @@ where
     pub fn new(metadata_storage_adapter: Arc<T>) -> Self {
         let cache = MetadataCache {
             cluster_info: Cluster::default(),
-            user_info: HashMap::new(),
-            session_info: HashMap::new(),
-            topic_info: HashMap::new(),
-            topic_id_name: HashMap::new(),
-            connect_id_info: HashMap::new(),
-            login_info: HashMap::new(),
+            user_info: DashMap::with_capacity(256),
+            session_info: DashMap::with_capacity(256),
+            topic_info: DashMap::with_capacity(256),
+            topic_id_name: DashMap::with_capacity(256),
+            connect_id_info: DashMap::with_capacity(256),
+            login_info: DashMap::with_capacity(256),
             metadata_storage_adapter,
         };
         return cache;
@@ -58,13 +58,8 @@ where
         // load cluster config
         let cluster_storage = ClusterStorage::new(self.metadata_storage_adapter.clone());
         self.cluster_info = match cluster_storage.get_cluster_config().await {
-            Ok(cluster) => {
-                if let Some(data) = cluster {
-                    data
-                } else {
-                    Cluster::new()
-                }
-            }
+            Ok(Some(cluster)) => cluster,
+            Ok(None) => Cluster::new(),
             Err(e) => {
                 panic!(
                     "Failed to load the cluster configuration with error message:{}",
@@ -85,10 +80,6 @@ where
             }
         };
 
-        // Not all session information is loaded at startup, only when the client is connected,
-        // if the clean session is set, it will check whether the session exists and then update the local cache.
-        self.session_info = HashMap::new();
-
         // load topic info
         let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
         self.topic_info = match topic_storage.topic_list().await {
@@ -104,12 +95,9 @@ where
         for (topic_name, topic) in self.topic_info.clone() {
             self.topic_id_name.insert(topic.topic_id, topic_name);
         }
-
-        self.connect_id_info = HashMap::new();
-        self.login_info = HashMap::new();
     }
 
-    pub fn apply(&mut self, data: String) {
+    pub fn apply(&self, data: String) {
         let data: MetadataChangeData = serde_json::from_str(&data).unwrap();
         match data.data_type {
             MetadataCacheType::User => match data.action {
@@ -130,34 +118,34 @@ where
         }
     }
 
-    pub fn set_cluster_info(&mut self, cluster: Cluster) {
+    pub fn set_cluster_info(&self, cluster: Cluster) {
         self.cluster_info = cluster;
     }
 
-    pub fn set_user(&mut self, user: User) {
+    pub fn set_user(&self, user: User) {
         self.user_info.insert(user.username.clone(), user);
     }
 
-    pub fn del_user(&mut self, value: String) {
+    pub fn del_user(&self, value: String) {
         let data: User = serde_json::from_str(&value).unwrap();
         self.user_info.remove(&data.username);
     }
 
-    pub fn set_session(&mut self, client_id: String, session: Session) {
+    pub fn set_session(&self, client_id: String, session: Session) {
         self.session_info.insert(client_id, session);
     }
 
-    pub fn set_client_id(&mut self, connect_id: u64, client_id: String) {
+    pub fn set_client_id(&self, connect_id: u64, client_id: String) {
         self.connect_id_info.insert(connect_id, client_id);
     }
 
-    pub fn set_topic(&mut self, topic_name: &String, topic: &Topic) {
+    pub fn set_topic(&self, topic_name: &String, topic: &Topic) {
         let t = topic.clone();
         self.topic_info.insert(topic_name.clone(), t.clone());
         self.topic_id_name.insert(t.topic_id, topic_name.clone());
     }
 
-    pub fn login_success(&mut self, connect_id: u64) {
+    pub fn login_success(&self, connect_id: u64) {
         self.login_info.insert(connect_id, true);
     }
 
@@ -183,11 +171,12 @@ where
         return None;
     }
 
-    pub fn remove_connect_id(&mut self, connect_id: u64) {
+    pub fn remove_connect_id(&self, connect_id: u64) {
         if let Some(client_id) = self.connect_id_info.get(&connect_id) {
-            self.session_info.remove(client_id);
+            self.session_info.remove(&*client_id);
             self.login_info.remove(&connect_id);
             self.connect_id_info.remove(&connect_id);
         }
     }
+
 }

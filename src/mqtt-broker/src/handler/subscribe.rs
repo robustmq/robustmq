@@ -9,7 +9,7 @@ use protocol::mqtt::{
 };
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::{broadcast::Sender, RwLock};
+use tokio::sync::broadcast::Sender;
 
 pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
     // Path perfect matching
@@ -32,7 +32,7 @@ pub async fn send_retain_message<T, S>(
     subscribe: Subscribe,
     subscribe_properties: Option<SubscribeProperties>,
     message_storage: MessageStorage<S>,
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
     response_queue_sx: Sender<ResponsePackage>,
     new_sub: bool,
     dup_msg: bool,
@@ -61,8 +61,7 @@ where
         for topic_id in topic_id_list {
             match message_storage.get_retain_message(topic_id.clone()).await {
                 Ok(Some(msg)) => {
-                    let cache = metadata_cache.read().await;
-                    if let Some(topic_name) = cache.topic_name_by_id(topic_id) {
+                    if let Some(topic_name) = metadata_cache.topic_name_by_id(topic_id) {
                         let publish = Publish {
                             dup: dup_msg,
                             qos: max_qos(msg.qos, filter.qos),
@@ -108,11 +107,10 @@ pub fn max_qos(msg_qos: QoS, sub_max_qos: QoS) -> QoS {
 }
 
 pub async fn get_sub_topic_id_list<T>(
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
     sub_path: String,
 ) -> Vec<String> {
-    let cache = metadata_cache.read().await;
-    let topic_id_name: std::collections::HashMap<String, String> = cache.topic_id_name.clone();
+    let topic_id_name = metadata_cache.topic_id_name.clone();
 
     let mut result = Vec::new();
     for (topic_id, topic_name) in topic_id_name {
@@ -130,7 +128,7 @@ mod tests {
     use bytes::Bytes;
     use protocol::mqtt::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
     use storage_adapter::memory::MemoryStorageAdapter;
-    use tokio::sync::{broadcast, RwLock};
+    use tokio::sync::broadcast;
 
     use crate::{
         handler::subscribe::{
@@ -161,12 +159,10 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
-        let mut cache = metadata_cache.write().await;
+        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
-        cache.set_topic(&topic_name, &topic);
-        drop(cache);
+        metadata_cache.set_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();
         let result = get_sub_topic_id_list(metadata_cache.clone(), sub_path).await;
@@ -177,7 +173,7 @@ mod tests {
     #[tokio::test]
     async fn send_retain_message_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
+        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;
         let mut filters = Vec::new();
@@ -202,9 +198,7 @@ mod tests {
         let payload = "testtesttest".to_string();
         let topic = Topic::new(&topic_name);
 
-        let mut cache = metadata_cache.write().await;
-        cache.set_topic(&topic_name, &topic);
-        drop(cache);
+        metadata_cache.set_topic(&topic_name, &topic);
 
         let mut retain_message = Message::default();
         retain_message.dup = false;

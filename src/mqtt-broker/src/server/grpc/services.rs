@@ -12,11 +12,10 @@ use protocol::{
 };
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::RwLock;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcBrokerServices<T> {
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
     metadata_storage_adapter: Arc<T>,
 }
 
@@ -24,10 +23,7 @@ impl<T> GrpcBrokerServices<T>
 where
     T: StorageAdapter,
 {
-    pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
-        metadata_storage_adapter: Arc<T>,
-    ) -> Self {
+    pub fn new(metadata_cache: Arc<MetadataCache<T>>, metadata_storage_adapter: Arc<T>) -> Self {
         return GrpcBrokerServices {
             metadata_cache,
             metadata_storage_adapter,
@@ -50,8 +46,7 @@ where
                 RobustMQError::ParameterCannotBeNull("data".to_string()).to_string(),
             ));
         }
-        let mut handler = self.metadata_cache.write().await;
-        handler.apply(req.data);
+        self.metadata_cache.apply(req.data);
         return Ok(Response::new(CommonReply::default()));
     }
 
@@ -78,8 +73,7 @@ where
             Ok(_) => {
                 let mut reply = CommonReply::default();
                 reply.data = req.username;
-                let mut cache = self.metadata_cache.write().await;
-                cache.set_user(user_info);
+                self.metadata_cache.set_user(user_info);
                 return Ok(Response::new(reply));
             }
             Err(e) => {
@@ -92,8 +86,7 @@ where
         &self,
         request: Request<SetClusterConfigRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        let mut cache = self.metadata_cache.write().await;
-        let mut cluster = cache.cluster_info.clone();
+        let mut cluster = self.metadata_cache.cluster_info;
         let req_data = request.into_inner();
         cluster.session_expiry_interval = req_data.session_expiry_interval;
         cluster.topic_alias_max = req_data.topic_alias_max as u16;
@@ -119,7 +112,7 @@ where
         cluster.receive_max = req_data.receive_max as u16;
         cluster.secret_free_login = req_data.secret_free_login;
 
-        cache.set_cluster_info(cluster.clone());
+        self.metadata_cache.set_cluster_info(cluster.clone());
 
         let cluster_storage = ClusterStorage::new(self.metadata_storage_adapter.clone());
         match cluster_storage.save_cluster(cluster.clone()).await {

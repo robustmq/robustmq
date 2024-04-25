@@ -14,7 +14,7 @@ use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::{broadcast::Sender, RwLock};
+use tokio::sync::broadcast::Sender;
 
 pub mod grpc;
 pub mod http;
@@ -38,9 +38,9 @@ impl From<MQTTProtocol> for String {
 }
 
 pub async fn start_mqtt_server<T, S>(
-    cache: Arc<RwLock<MetadataCache<T>>>,
-    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+    cache: Arc<MetadataCache<T>>,
+    heartbeat_manager: Arc<HeartbeatManager>,
+    subscribe_manager: Arc<SubScribeManager<T>>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     request_queue_sx4: Sender<RequestPackage>,
@@ -90,7 +90,7 @@ async fn start_mqtt4_server<T, U>(
 {
     let port = conf.mqtt.mqtt4_port;
     let codec = Mqtt4Codec::new();
-    let server = TcpServer::<Mqtt4Codec, T,U>::new(
+    let server = TcpServer::<Mqtt4Codec, T, U>::new(
         MQTTProtocol::MQTT4,
         command,
         conf.network_tcp.accept_thread_num,
@@ -121,7 +121,7 @@ async fn start_mqtt5_server<T, U>(
 {
     let codec = Mqtt5Codec::new();
     let port = conf.mqtt.mqtt5_port;
-    let server = TcpServer::<Mqtt5Codec, T,U>::new(
+    let server = TcpServer::<Mqtt5Codec, T, U>::new(
         MQTTProtocol::MQTT5,
         command,
         conf.network_tcp.accept_thread_num,

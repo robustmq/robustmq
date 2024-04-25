@@ -6,21 +6,20 @@ use protocol::mqtt::{
     Publish, Subscribe, Unsubscribe,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Mqtt4Service<T> {
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
     ack_build: MQTTAckBuild<T>,
     login: bool,
-    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+    heartbeat_manager: Arc<HeartbeatManager>,
 }
 
 impl<T> Mqtt4Service<T> {
     pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+        metadata_cache: Arc<MetadataCache<T>>,
         ack_build: MQTTAckBuild<T>,
-        heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+        heartbeat_manager: Arc<HeartbeatManager>,
     ) -> Self {
         return Mqtt4Service {
             metadata_cache,

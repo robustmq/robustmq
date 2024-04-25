@@ -8,16 +8,15 @@ use protocol::mqtt::{
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct MQTTAckBuild<T> {
     protocol: MQTTProtocol,
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
 }
 
 impl<T> MQTTAckBuild<T> {
-    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<RwLock<MetadataCache<T>>>) -> Self {
+    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCache<T>>) -> Self {
         return MQTTAckBuild {
             protocol,
             metadata_cache,
