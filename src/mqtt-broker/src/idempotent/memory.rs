@@ -34,4 +34,8 @@ impl Idempotent for IdempotentMemory {
         let key = self.iden_key(topic_id, pkid);
         return self.pkid_data.contains_key(&key);
     }
+
+    async fn idem_data(&self) -> DashMap<String, u64> {
+        return self.pkid_data.clone();
+    }
 }

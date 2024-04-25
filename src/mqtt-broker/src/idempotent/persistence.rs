@@ -1,4 +1,5 @@
 use axum::async_trait;
+use dashmap::DashMap;
 
 use super::Idempotent;
 
@@ -18,5 +19,9 @@ impl Idempotent for IdempotentPersistence {
 
     async fn idem_data_exists(&self, topic_id: String, pkid: u16) -> bool {
         return false;
+    }
+
+    async fn idem_data(&self) -> DashMap<String, u64> {
+        return DashMap::with_capacity(256);
     }
 }
