@@ -7,20 +7,18 @@ use crate::{
 };
 use bytes::Bytes;
 use common_base::log::{error, info};
+use dashmap::DashMap;
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
-    sync::{
-        broadcast::{self, Sender},
-        RwLock,
-    },
+    sync::broadcast::{self, Sender},
     time::sleep,
 };
 
 pub struct PushServer<T, S> {
-    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
-    topic_push_thread: HashMap<String, Sender<bool>>,
+    subscribe_manager: Arc<SubScribeManager<T>>,
+    topic_push_thread: DashMap<String, Sender<bool>>,
     message_storage_adapter: Arc<S>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
@@ -32,28 +30,24 @@ where
     S: StorageAdapter + Send + Sync + 'static,
 {
     pub fn new(
-        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+        subscribe_manager: Arc<SubScribeManager<T>>,
         message_storage_adapter: Arc<S>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {
         return PushServer {
             subscribe_manager,
-            topic_push_thread: HashMap::new(),
+            topic_push_thread: DashMap::with_capacity(256),
             message_storage_adapter,
             response_queue_sx4,
             response_queue_sx5,
         };
     }
 
-    pub async fn start(&mut self) {
+    pub async fn start(&self) {
         info("Subscription push thread is started successfully.".to_string());
         loop {
-            let sub_manager = self.subscribe_manager.read().await;
-            let topic_subscribe = sub_manager.topic_subscribe.clone();
-            drop(sub_manager);
-
-            for (topic_id, list) in topic_subscribe {
+            for (topic_id, list) in self.subscribe_manager.topic_subscribe.clone() {
                 // If the topic has no subscribers,
                 // remove the topic information from the subscription relationship cache and stop the topic push management thread.
                 if list.len() == 0 {
@@ -70,8 +64,8 @@ where
                             }
                         }
                     }
-                    let mut sub_manager_w = self.subscribe_manager.write().await;
-                    sub_manager_w.remove_topic(topic_id.clone());
+
+                    self.subscribe_manager.remove_topic(topic_id.clone());
                     continue;
                 }
 
@@ -117,8 +111,8 @@ where
     }
 }
 
-pub async fn topic_sub_push_thread<T,S>(
-    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+pub async fn topic_sub_push_thread<T, S>(
+    subscribe_manager: Arc<SubScribeManager<T>>,
     message_storage: MessageStorage<S>,
     topic_id: String,
     response_queue_sx4: Sender<ResponsePackage>,
@@ -130,9 +124,7 @@ pub async fn topic_sub_push_thread<T,S>(
     let record_num = 5;
     let max_wait_ms = 500;
     loop {
-        let sub_manager = subscribe_manager.read().await;
-        let topic_sub = sub_manager.topic_subscribe.clone();
-        drop(sub_manager);
+        let topic_sub = subscribe_manager.topic_subscribe.clone();
         for (topic_name, sub_list) in topic_sub {
             if sub_list.len() == 0 {
                 sleep(Duration::from_millis(max_wait_ms)).await;
@@ -241,24 +233,20 @@ mod tests {
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
     use storage_adapter::record::Record;
-    use tokio::sync::{broadcast, RwLock};
+    use tokio::sync::broadcast;
 
     #[tokio::test]
     async fn topic_sub_push_thread_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(storage_adapter.clone())));
+        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
 
         // Create topic
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
-        let mut cache = metadata_cache.write().await;
-        cache.set_topic(&topic_name, &topic);
-        drop(cache);
-
-        let sub_manager = Arc::new(RwLock::new(SubScribeManager::new(metadata_cache)));
+        metadata_cache.set_topic(&topic_name, &topic);
+        let sub_manager = Arc::new(SubScribeManager::new(metadata_cache));
 
         // Subscription topic
-        let mut sub_m = sub_manager.write().await;
         let connect_id = 1;
         let packet_identifier = 2;
         let mut filters = Vec::new();
@@ -274,7 +262,7 @@ mod tests {
             packet_identifier,
             filters,
         };
-        sub_m
+        sub_manager
             .parse_subscribe(
                 crate::server::MQTTProtocol::MQTT5,
                 connect_id,
@@ -282,7 +270,6 @@ mod tests {
                 None,
             )
             .await;
-        drop(sub_m);
 
         // Start push thread
         let message_storage = MessageStorage::new(storage_adapter.clone());

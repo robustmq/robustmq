@@ -30,9 +30,9 @@ use server::{
 };
 use std::sync::Arc;
 use storage_adapter::{
-    memory::MemoryStorageAdapter,
+    // memory::MemoryStorageAdapter,
     mysql::{build_mysql_conn_pool, MySQLStorageAdapter},
-    placement::PlacementStorageAdapter,
+    // placement::PlacementStorageAdapter,
     storage::StorageAdapter,
 };
 use subscribe::{manager::SubScribeManager, push::PushServer};
@@ -41,12 +41,13 @@ use tokio::{
     signal,
     sync::{
         broadcast::{self, Sender},
-        Mutex, RwLock,
+        Mutex,
     },
 };
 
 mod cluster;
 mod handler;
+mod idempotent;
 mod metadata;
 mod metrics;
 mod security;
@@ -77,9 +78,9 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 
 pub struct MqttBroker<'a, T, S> {
     conf: &'a BrokerMQTTConfig,
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
-    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
+    heartbeat_manager: Arc<HeartbeatManager>,
+    subscribe_manager: Arc<SubScribeManager<T>>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
@@ -108,15 +109,10 @@ where
         let (response_queue_sx4, _) = broadcast::channel(1000);
         let (response_queue_sx5, _) = broadcast::channel(1000);
 
-        let heartbeat_manager = Arc::new(RwLock::new(HeartbeatManager::new(
-            HEART_CONNECT_SHARD_HASH_NUM,
-        )));
+        let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
 
-        let metadata_cache = Arc::new(RwLock::new(MetadataCache::new(
-            metadata_storage_adapter.clone(),
-        )));
-        let subscribe_manager =
-            Arc::new(RwLock::new(SubScribeManager::new(metadata_cache.clone())));
+        let metadata_cache = Arc::new(MetadataCache::new(metadata_storage_adapter.clone()));
+        let subscribe_manager = Arc::new(SubScribeManager::new(metadata_cache.clone()));
 
         return MqttBroker {
             conf,
@@ -251,8 +247,7 @@ where
     fn register_node(&self) {
         let metadata_cache = self.metadata_cache.clone();
         self.runtime.block_on(async move {
-            let mut cache = metadata_cache.write().await;
-            cache.load_cache().await;
+            metadata_cache.load_cache().await;
             register_broker_node(self.client_poll.clone()).await;
         });
     }

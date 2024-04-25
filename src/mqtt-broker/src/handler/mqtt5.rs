@@ -1,34 +1,33 @@
 use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send_retain_message};
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
-    metadata::{
-        cache::MetadataCache, cluster::Cluster, message::Message, session::LastWillData,
-        topic::Topic,
-    },
+    metadata::{cache::MetadataCache, message::Message, session::LastWillData, topic::Topic},
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::{message::MessageStorage, topic::TopicStorage},
     subscribe::manager::SubScribeManager,
 };
 use common_base::{
+    errors::RobustMQError,
     log::error,
     tools::{now_second, unique_id},
 };
 use protocol::mqtt::{
     Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, Publish,
-    PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, PubRel,
+    PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties, Unsubscribe,
+    UnsubscribeProperties,
 };
 use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
-use tokio::sync::{broadcast::Sender, RwLock};
+use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 pub struct Mqtt5Service<T, S> {
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
-    subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
+    subscribe_manager: Arc<SubScribeManager<T>>,
     ack_build: MQTTAckBuild<T>,
-    heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+    heartbeat_manager: Arc<HeartbeatManager>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
 }
@@ -39,10 +38,10 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
-        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+        metadata_cache: Arc<MetadataCache<T>>,
+        subscribe_manager: Arc<SubScribeManager<T>>,
         ack_build: MQTTAckBuild<T>,
-        heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
+        heartbeat_manager: Arc<HeartbeatManager>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
@@ -65,10 +64,7 @@ where
         last_will_properties: Option<LastWillProperties>,
         login: Option<Login>,
     ) -> MQTTPacket {
-        let cache = self.metadata_cache.read().await;
-        let cluster = &cache.cluster_info.clone();
-        drop(cache);
-
+        let cluster = self.metadata_cache.get_cluster_info();
         // connect for authentication
         match authentication_login(
             self.metadata_cache.clone(),
@@ -144,10 +140,10 @@ where
 
         // update cache
         // When working with locks, the default is to release them as soon as possible
-        let mut cache = self.metadata_cache.write().await;
-        cache.set_session(client_id.clone(), client_session.clone());
-        cache.set_client_id(connect_id, client_id.clone());
-        drop(cache);
+        self.metadata_cache
+            .set_session(client_id.clone(), client_session.clone());
+        self.metadata_cache
+            .set_client_id(connect_id, client_id.clone());
 
         // Record heartbeat information
         let session_keep_alive = client_session.keep_alive;
@@ -156,9 +152,8 @@ where
             keep_live: session_keep_alive,
             heartbeat: now_second(),
         };
-        let mut heartbeat = self.heartbeat_manager.write().await;
-        heartbeat.report_hearbeat(connect_id, live_time);
-        drop(heartbeat);
+        self.heartbeat_manager
+            .report_hearbeat(connect_id, live_time);
 
         return self
             .ack_build
@@ -173,26 +168,44 @@ where
 
     pub async fn publish(
         &self,
+        connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
-    ) -> MQTTPacket {
+    ) -> Option<MQTTPacket> {
         let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
-        let mut cache = self.metadata_cache.write().await;
+        let client_id = if let Some(se) = self.metadata_cache.connect_id_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return Some(self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            ));
+        };
 
-        let topic = if let Some(tp) = cache.get_topic_by_name(topic_name.clone()) {
+        let session = if let Some(se) = self.metadata_cache.session_info.get(&client_id) {
+            se.clone()
+        } else {
+            return Some(self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundClientInCache(client_id).to_string()),
+            ));
+        };
+
+        let topic = if let Some(tp) = self.metadata_cache.get_topic_by_name(topic_name.clone()) {
             tp
         } else {
             // Persisting the topic information
             let topic = Topic::new(&topic_name);
-            cache.set_topic(&topic_name, &topic);
+            self.metadata_cache.set_topic(&topic_name, &topic);
             let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
             match topic_storage.save_topic(&topic_name, &topic).await {
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
-                    return self
-                        .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                    return Some(
+                        self.ack_build
+                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
+                    );
                 }
             }
 
@@ -207,15 +220,14 @@ where
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
-                    return self
-                        .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                    return Some(
+                        self.ack_build
+                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
+                    );
                 }
             }
             topic
         };
-
-        drop(cache);
 
         // Persisting retain message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
@@ -229,9 +241,10 @@ where
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
-                    return self
-                        .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                    return Some(
+                        self.ack_build
+                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
+                    );
                 }
             }
         }
@@ -248,9 +261,10 @@ where
                 }
                 Err(e) => {
                     error(e.to_string());
-                    return self
-                        .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                    return Some(
+                        self.ack_build
+                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
+                    );
                 }
             }
         }
@@ -265,10 +279,23 @@ where
             user_properties.push(("offset".to_string(), offset));
         }
 
-        return self.ack_build.pub_ack(pkid, None, user_properties);
+        //ontent is returned according to different QOS levels
+        match publish.qos {
+            QoS::AtMostOnce => {
+                return None;
+            }
+            QoS::AtLeastOnce => {
+                return Some(self.ack_build.pub_ack(pkid, None, user_properties));
+            }
+            QoS::ExactlyOnce => {
+                return Some(self.ack_build.pub_rec(session.session_present));
+            }
+        }
     }
 
     pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
+
+    pub fn publish_rel(&self, pub_rel: PubRel, pubrel_properties: Option<PubRelProperties>) {}
 
     pub async fn subscribe(
         &self,
@@ -278,8 +305,7 @@ where
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
         // Saving subscriptions
-        let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager
+        self.subscribe_manager
             .parse_subscribe(
                 crate::server::MQTTProtocol::MQTT5,
                 connect_id,
@@ -287,7 +313,6 @@ where
                 subscribe_properties.clone(),
             )
             .await;
-        drop(sub_manager);
 
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
@@ -321,16 +346,15 @@ where
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
-        let cache = self.metadata_cache.read().await;
-        if let Some(client_id) = cache.connect_id_info.get(&connect_id) {
-            if let Some(session_info) = cache.session_info.get(client_id) {
+        if let Some(client_id) = self.metadata_cache.connect_id_info.get(&connect_id) {
+            if let Some(session_info) = self.metadata_cache.session_info.get(&client_id.clone()) {
                 let live_time = ConnectionLiveTime {
                     protobol: crate::server::MQTTProtocol::MQTT5,
                     keep_live: session_info.keep_alive,
                     heartbeat: now_second(),
                 };
-                let mut heartbeat = self.heartbeat_manager.write().await;
-                heartbeat.report_hearbeat(connect_id, live_time);
+                self.heartbeat_manager
+                    .report_hearbeat(connect_id, live_time);
                 return self.ack_build.ping_resp();
             }
         }
@@ -347,17 +371,15 @@ where
     ) -> MQTTPacket {
         // Remove subscription information
         if un_subscribe.filters.len() > 0 {
-            let cache = self.metadata_cache.read().await;
             let mut topic_ids = Vec::new();
             for topic_name in un_subscribe.filters {
-                if let Some(topic) = cache.get_topic_by_name(topic_name) {
+                if let Some(topic) = self.metadata_cache.get_topic_by_name(topic_name) {
                     topic_ids.push(topic.topic_id);
                 }
             }
 
-            let mut sub_manager = self.subscribe_manager.write().await;
-            sub_manager.remove_subscribe(connect_id, topic_ids);
-            drop(sub_manager);
+            self.subscribe_manager
+                .remove_subscribe(connect_id, topic_ids);
         }
 
         return self
@@ -371,17 +393,9 @@ where
         disconnect: Disconnect,
         disconnect_properties: Option<DisconnectProperties>,
     ) -> MQTTPacket {
-        let mut cache = self.metadata_cache.write().await;
-        cache.remove_connect_id(connect_id);
-        drop(cache);
-
-        let mut heartbeat = self.heartbeat_manager.write().await;
-        heartbeat.remove_connect(connect_id);
-        drop(heartbeat);
-
-        let mut sub_manager = self.subscribe_manager.write().await;
-        sub_manager.remove_connect_subscribe(connect_id);
-        drop(sub_manager);
+        self.metadata_cache.remove_connect_id(connect_id);
+        self.heartbeat_manager.remove_connect(connect_id);
+        self.subscribe_manager.remove_connect_subscribe(connect_id);
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection, None);

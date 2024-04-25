@@ -1,14 +1,10 @@
-use std::collections::HashMap;
-
-use crate::metadata::{
-    cluster::Cluster, session::Session, subscriber::Subscriber, topic::Topic, user::User,
-};
-
 use super::server::HttpServerState;
+use crate::metadata::{cluster::Cluster, session::Session, topic::Topic, user::User};
 use axum::extract::State;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf, http_response::success_response, metrics::dump_metrics,
 };
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
 pub async fn metrics() -> String {
@@ -16,28 +12,26 @@ pub async fn metrics() -> String {
 }
 
 pub async fn hearbeat_info<T>(State(state): State<HttpServerState<T>>) -> String {
-    let data = state.heartbeat_manager.read().await;
-    return success_response(data.heartbeat_data.clone());
+    let data = state.heartbeat_manager.shard_data.clone();
+    return success_response(data);
 }
 
 pub async fn metadata_info<T>(State(state): State<HttpServerState<T>>) -> String {
-    let data = state.metadata_cache.read().await;
     let result = MetadataCacheResult {
-        cluster_info: data.cluster_info.clone(),
-        user_info: data.user_info.clone(),
-        session_info: data.session_info.clone(),
-        topic_info: data.topic_info.clone(),
-        topic_id_name: data.topic_id_name.clone(),
-        connect_id_info: data.connect_id_info.clone(),
-        login_info: data.login_info.clone(),
+        cluster_info: state.metadata_cache.cluster_info.clone(),
+        user_info: state.metadata_cache.user_info.clone(),
+        session_info: state.metadata_cache.session_info.clone(),
+        topic_info: state.metadata_cache.topic_info.clone(),
+        topic_id_name: state.metadata_cache.topic_id_name.clone(),
+        connect_id_info: state.metadata_cache.connect_id_info.clone(),
+        login_info: state.metadata_cache.login_info.clone(),
     };
 
     return success_response(result);
 }
 
 pub async fn subscribe_info<T>(State(state): State<HttpServerState<T>>) -> String {
-    let data = state.subscribe_manager.read().await;
-    return success_response(data.topic_subscribe.clone());
+    return success_response(state.subscribe_manager.topic_subscribe.clone());
 }
 
 pub async fn index<T>(State(state): State<HttpServerState<T>>) -> String {
@@ -47,11 +41,11 @@ pub async fn index<T>(State(state): State<HttpServerState<T>>) -> String {
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct MetadataCacheResult {
-    pub cluster_info: Cluster,
-    pub user_info: HashMap<String, User>,
-    pub session_info: HashMap<String, Session>,
-    pub topic_info: HashMap<String, Topic>,
-    pub topic_id_name: HashMap<String, String>,
-    pub connect_id_info: HashMap<u64, String>,
-    pub login_info: HashMap<u64, bool>,
+    pub cluster_info: DashMap<String, Cluster>,
+    pub user_info: DashMap<String, User>,
+    pub session_info: DashMap<String, Session>,
+    pub topic_info: DashMap<String, Topic>,
+    pub topic_id_name: DashMap<String, String>,
+    pub connect_id_info: DashMap<u64, String>,
+    pub login_info: DashMap<u64, bool>,
 }

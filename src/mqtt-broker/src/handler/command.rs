@@ -10,7 +10,6 @@ use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
-use tokio::sync::RwLock;
 
 // T: metadata storage adapter
 // S: message storage adapter
@@ -20,7 +19,7 @@ pub struct Command<T, S> {
     ack_build: MQTTAckBuild<T>,
     mqtt4_service: Mqtt4Service<T>,
     mqtt5_service: Mqtt5Service<T, S>,
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
     response_queue_sx: Sender<ResponsePackage>,
 }
 
@@ -31,9 +30,9 @@ where
 {
     pub fn new(
         protocol: MQTTProtocol,
-        metadata_cache: Arc<RwLock<MetadataCache<T>>>,
-        heartbeat_manager: Arc<RwLock<HeartbeatManager>>,
-        subscribe_manager: Arc<RwLock<SubScribeManager<T>>>,
+        metadata_cache: Arc<MetadataCache<T>>,
+        heartbeat_manager: Arc<HeartbeatManager>,
+        subscribe_manager: Arc<SubScribeManager<T>>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
@@ -93,8 +92,7 @@ where
 
                 if let MQTTPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
-                        let mut cache = self.metadata_cache.write().await;
-                        cache.login_success(connect_id);
+                        self.metadata_cache.login_success(connect_id);
                         info(format!("connect [{}] login success", connect_id));
                     }
                 }
@@ -111,12 +109,25 @@ where
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return Some(
-                        self.mqtt5_service
-                            .publish(publish, publish_properties)
-                            .await,
-                    );
+                    return self
+                        .mqtt5_service
+                        .publish(connect_id, publish, publish_properties)
+                        .await;
                 }
+            }
+
+            MQTTPacket::PubRel(pub_rel, pub_rel_properties) => {
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
+                }
+                if self.protocol == MQTTProtocol::MQTT4 {
+                    return None;
+                }
+
+                if self.protocol == MQTTProtocol::MQTT5 {
+                    self.mqtt5_service.publish_rel(pub_rel, pub_rel_properties);
+                }
+                return None;
             }
 
             MQTTPacket::PubAck(pub_ack, pub_ack_properties) => {
@@ -224,7 +235,6 @@ where
     }
 
     pub async fn auth_login(&self, connect_id: u64) -> bool {
-        let cache = self.metadata_cache.write().await;
-        return cache.is_login(connect_id);
+        return self.metadata_cache.is_login(connect_id);
     }
 }

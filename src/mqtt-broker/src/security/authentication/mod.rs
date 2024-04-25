@@ -1,11 +1,9 @@
 use self::plaintext::Plaintext;
 use crate::metadata::{cache::MetadataCache, cluster::Cluster};
 use axum::async_trait;
-use bytes::Bytes;
 use common_base::errors::RobustMQError;
 use protocol::mqtt::{ConnectProperties, Login};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub mod plaintext;
 
@@ -15,10 +13,10 @@ pub trait Authentication {
 }
 
 pub async fn authentication_login<T>(
-    metadata_cache: Arc<RwLock<MetadataCache<T>>>,
+    metadata_cache: Arc<MetadataCache<T>>,
     cluster: &Cluster,
     login: Option<Login>,
-    _: &Option<ConnectProperties>
+    _: &Option<ConnectProperties>,
 ) -> Result<bool, RobustMQError> {
     // Supports non-secret login
     if cluster.secret_free_login() {
@@ -27,8 +25,7 @@ pub async fn authentication_login<T>(
 
     // Basic authentication mode
     if let Some(info) = login {
-        let cache = metadata_cache.read().await;
-        let plaintext = Plaintext::new(info, &cache.user_info);
+        let plaintext = Plaintext::new(info, &metadata_cache.user_info);
         return plaintext.apply().await;
     }
 
@@ -36,4 +33,3 @@ pub async fn authentication_login<T>(
 
     return Ok(false);
 }
-

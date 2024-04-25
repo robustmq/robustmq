@@ -4,6 +4,7 @@ use super::{
 };
 use crate::metadata::user::User;
 use common_base::errors::RobustMQError;
+use dashmap::DashMap;
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::{record::Record, storage::StorageAdapter};
 
@@ -37,12 +38,10 @@ where
                 return self.storage_adapter.set(key, Record::build_b(data)).await;
             }
             Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(
-                    format!(
-                        "save user config error, error messsage:{}",
-                        e.to_string()
-                    )
-                ))
+                return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                    "save user config error, error messsage:{}",
+                    e.to_string()
+                )))
             }
         }
     }
@@ -72,10 +71,10 @@ where
     }
 
     // Getting a list of users
-    pub async fn user_list(&self) -> Result<HashMap<String, User>, RobustMQError> {
+    pub async fn user_list(&self) -> Result<DashMap<String, User>, RobustMQError> {
         match self.all_info_storage.get_all().await {
             Ok(data) => {
-                let mut list = HashMap::new();
+                let list = DashMap::with_capacity(256);
                 for username in data {
                     match self.get_user(username.clone()).await {
                         Ok(user) => {

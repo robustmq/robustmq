@@ -70,6 +70,13 @@ pub enum RobustMQError {
 
     #[error("Module {0} does not support this feature {1}")]
     NotSupportFeature(String, String),
+
+    #[error("Connection ID [0] information not found in cache.")]
+    NotFoundConnectionInCache(u64),
+
+    #[error("Client [*] information not found in cache.")]
+    NotFoundClientInCache(String),
+
 }
 
 #[cfg(test)]
