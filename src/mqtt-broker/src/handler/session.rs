@@ -21,12 +21,12 @@ where
     let client_session = if connnect.clean_session {
         let session_storage = SessionStorage::new(storage_adapter.clone());
         match session_storage.get_session(&client_id).await {
-            Ok(Some(session)) => {
+            Ok(Some(mut session)) => {
                 session.update_reconnect_time();
                 session
             }
             Ok(None) => Session::build_session(
-                &client_id,
+                client_id.clone(),
                 connnect,
                 connect_properties,
                 cluster.server_keep_alive(),
@@ -38,7 +38,7 @@ where
         }
     } else {
         Session::build_session(
-            &client_id,
+            client_id.clone(),
             connnect,
             connect_properties,
             cluster.server_keep_alive(),

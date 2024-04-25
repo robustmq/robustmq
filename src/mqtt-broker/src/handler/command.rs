@@ -111,12 +111,25 @@ where
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return Some(
-                        self.mqtt5_service
-                            .publish(publish, publish_properties)
-                            .await,
-                    );
+                    return self
+                        .mqtt5_service
+                        .publish(connect_id, publish, publish_properties)
+                        .await;
                 }
+            }
+
+            MQTTPacket::PubRel(pub_rel, pub_rel_properties) => {
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
+                }
+                if self.protocol == MQTTProtocol::MQTT4 {
+                    return None;
+                }
+
+                if self.protocol == MQTTProtocol::MQTT5 {
+                    self.mqtt5_service.publish_rel(pub_rel, pub_rel_properties);
+                }
+                return None;
             }
 
             MQTTPacket::PubAck(pub_ack, pub_ack_properties) => {

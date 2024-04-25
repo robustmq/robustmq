@@ -81,9 +81,9 @@ impl<T> MQTTAckBuild<T> {
         return MQTTPacket::PubAck(pub_ack, properties);
     }
 
-    pub fn pub_rec(&self) -> MQTTPacket {
+    pub fn pub_rec(&self,session_present:bool) -> MQTTPacket {
         let conn_ack = ConnAck {
-            session_present: true,
+            session_present,
             code: ConnectReturnCode::Success,
         };
         return MQTTPacket::ConnAck(conn_ack, None);

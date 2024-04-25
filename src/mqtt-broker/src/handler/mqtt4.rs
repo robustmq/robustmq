@@ -40,21 +40,10 @@ impl<T> Mqtt4Service<T> {
         let client_id = unique_id();
         let auto_client_id = true;
         let reason_string = Some("".to_string());
-        let user_properties = Vec::new();
         let response_information = Some("".to_string());
         let server_reference = Some("".to_string());
-        return self
-            .ack_build
-            .conn_ack(
-                client_id,
-                auto_client_id,
-                reason_string,
-                user_properties,
-                response_information,
-                server_reference,
-                1,
-            )
-            .await;
+       
+        return self.ack_build.pub_ack(0, None, Vec::new());
     }
 
     pub fn publish(&self, publish: Publish) -> MQTTPacket {
