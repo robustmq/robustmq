@@ -18,10 +18,10 @@ use common_base::{
     tools::{now_second, unique_id},
 };
 use protocol::mqtt::{
-    Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, PubRel,
-    PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties, Unsubscribe,
-    UnsubscribeProperties,
+    ConnAck, Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
+    PubAckProperties, PubRel, PubRelProperties, Publish, PublishProperties, QoS, Subscribe,
+    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
@@ -83,13 +83,14 @@ where
                 if !flag {
                     return self
                         .ack_build
-                        .distinct(DisconnectReasonCode::NotAuthorized, None);
+                        .packet_connect_fail(ConnectReturnCode::NotAuthorized, None);
                 }
             }
             Err(e) => {
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::NotAuthorized, Some(e.to_string()));
+                return self.ack_build.packet_connect_fail(
+                    ConnectReturnCode::ServiceUnavailable,
+                    Some(e.to_string()),
+                );
             }
         }
 
@@ -114,8 +115,8 @@ where
             Ok(session) => session,
             Err(e) => {
                 error(e.to_string());
-                return self.ack_build.distinct(
-                    DisconnectReasonCode::AdministrativeAction,
+                return self.ack_build.packet_connect_fail(
+                    ConnectReturnCode::ServiceUnavailable,
                     Some(e.to_string()),
                 );
             }
@@ -136,9 +137,10 @@ where
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
-                    return self
-                        .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                    return self.ack_build.packet_connect_fail(
+                        ConnectReturnCode::ServiceUnavailable,
+                        Some(e.to_string()),
+                    );
                 }
             }
         }
@@ -309,7 +311,6 @@ where
         _: Option<PubRelProperties>,
         idempotent_manager: Arc<IdempotentMemory>,
     ) -> MQTTPacket {
-        
         if idempotent_manager
             .get_idem_data(connect_id, pub_rel.pkid)
             .await

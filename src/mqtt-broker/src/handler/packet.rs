@@ -3,7 +3,10 @@ use crate::{
     server::MQTTProtocol,
 };
 use protocol::mqtt::{
-    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompReason, SubAck, SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason
+    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
+    PubCompReason, SubAck, SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties,
+    UnsubAckReason,
 };
 use std::sync::Arc;
 
@@ -21,44 +24,20 @@ impl<T> MQTTAckBuild<T> {
         };
     }
 
-    pub async fn conn_ack(
+    pub fn packet_connect_fail(
         &self,
-        cluster: &Cluster,
-        session: &Session,
-        client_id: String,
-        auto_client_id: bool,
+        code: ConnectReturnCode,
+        reason_string: Option<String>,
     ) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: session.session_present,
-            code: ConnectReturnCode::Success,
-        };
-
-        let assigned_client_identifier = if auto_client_id {
-            Some(client_id)
-        } else {
-            None
-        };
-
-        let ack_properties = ConnAckProperties {
-            session_expiry_interval: session.session_expiry_interval,
-            receive_max: cluster.receive_max(),
-            max_qos: cluster.max_qos(),
-            retain_available: Some(cluster.retain_available()),
-            max_packet_size: Some(cluster.max_packet_size()),
-            assigned_client_identifier: assigned_client_identifier,
-            topic_alias_max: Some(cluster.topic_alias_max()),
-            reason_string: None,
-            user_properties: Vec::new(),
-            wildcard_subscription_available: Some(cluster.wildcard_subscription_available()),
-            subscription_identifiers_available: Some(cluster.subscription_identifiers_available()),
-            shared_subscription_available: Some(cluster.shared_subscription_available()),
-            server_keep_alive: Some(cluster.server_keep_alive()),
-            response_information: None,
-            server_reference: None,
-            authentication_method: None,
-            authentication_data: None,
-        };
-        return MQTTPacket::ConnAck(conn_ack, Some(ack_properties));
+        let mut properties = ConnAckProperties::default();
+        properties.reason_string = reason_string;
+        return MQTTPacket::ConnAck(
+            ConnAck {
+                session_present: false,
+                code,
+            },
+            Some(properties),
+        );
     }
 
     pub fn pub_ack(
@@ -161,7 +140,7 @@ impl<T> MQTTAckBuild<T> {
 }
 
 pub fn publish_comp_fail(pkid: u16) -> MQTTPacket {
-    let pub_comp =PubComp{
+    let pub_comp = PubComp {
         pkid,
         reason: PubCompReason::PacketIdentifierNotFound,
     };
@@ -169,9 +148,43 @@ pub fn publish_comp_fail(pkid: u16) -> MQTTPacket {
 }
 
 pub fn publish_comp_success(pkid: u16) -> MQTTPacket {
-    let pub_comp =PubComp{
+    let pub_comp = PubComp {
         pkid,
         reason: PubCompReason::Success,
     };
     return MQTTPacket::PubComp(pub_comp, None);
+}
+
+pub fn build_connect_properties(
+    cluster: &Cluster,
+    session: &Session,
+    client_id: String,
+    auto_client_id: bool,
+) -> ConnAckProperties {
+    let assigned_client_identifier = if auto_client_id {
+        Some(client_id)
+    } else {
+        None
+    };
+
+    let ack_properties = ConnAckProperties {
+        session_expiry_interval: session.session_expiry_interval,
+        receive_max: cluster.receive_max(),
+        max_qos: cluster.max_qos(),
+        retain_available: Some(cluster.retain_available()),
+        max_packet_size: Some(cluster.max_packet_size()),
+        assigned_client_identifier: assigned_client_identifier,
+        topic_alias_max: Some(cluster.topic_alias_max()),
+        reason_string: None,
+        user_properties: Vec::new(),
+        wildcard_subscription_available: Some(cluster.wildcard_subscription_available()),
+        subscription_identifiers_available: Some(cluster.subscription_identifiers_available()),
+        shared_subscription_available: Some(cluster.shared_subscription_available()),
+        server_keep_alive: Some(cluster.server_keep_alive()),
+        response_information: None,
+        server_reference: None,
+        authentication_method: None,
+        authentication_data: None,
+    };
+    return ack_properties;
 }
