@@ -1,4 +1,4 @@
-use super::{cluster::Cluster, session::Session, topic::Topic, user::User};
+use super::{cluster::Cluster, connection::Connection, session::Session, topic::Topic, user::User};
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
@@ -30,10 +30,9 @@ pub struct MetadataCacheManager<T> {
     pub cluster_info: DashMap<String, Cluster>,
     pub user_info: DashMap<String, User>,
     pub session_info: DashMap<String, Session>,
+    pub connection_info: DashMap<u64, Connection>,
     pub topic_info: DashMap<String, Topic>,
     pub topic_id_name: DashMap<String, String>,
-    pub connect_id_info: DashMap<u64, String>,
-    pub login_info: DashMap<u64, bool>,
     pub metadata_storage_adapter: Arc<T>,
 }
 
@@ -49,8 +48,7 @@ where
             session_info: DashMap::with_capacity(256),
             topic_info: DashMap::with_capacity(256),
             topic_id_name: DashMap::with_capacity(256),
-            connect_id_info: DashMap::with_capacity(256),
-            login_info: DashMap::with_capacity(256),
+            connection_info: DashMap::with_capacity(256),
             metadata_storage_adapter,
         };
         return cache;
@@ -110,7 +108,7 @@ where
             MetadataCacheType::User => match data.action {
                 MetadataCacheAction::Set => {
                     let user: User = serde_json::from_str(&data.value).unwrap();
-                    self.set_user(user);
+                    self.add_user(user);
                 }
                 MetadataCacheAction::Del => self.del_user(data.value),
             },
@@ -133,7 +131,7 @@ where
         return self.cluster_info.get(&self.cluster_name).unwrap().clone();
     }
 
-    pub fn set_user(&self, user: User) {
+    pub fn add_user(&self, user: User) {
         self.user_info.insert(user.username.clone(), user);
     }
 
@@ -142,12 +140,12 @@ where
         self.user_info.remove(&data.username);
     }
 
-    pub fn set_session(&self, client_id: String, session: Session) {
+    pub fn add_session(&self, client_id: String, session: Session) {
         self.session_info.insert(client_id, session);
     }
 
-    pub fn set_client_id(&self, connect_id: u64, client_id: String) {
-        self.connect_id_info.insert(connect_id, client_id);
+    pub fn add_connection(&self, connect_id: u64, conn: Connection) {
+        self.connection_info.insert(connect_id, conn);
     }
 
     pub fn set_topic(&self, topic_name: &String, topic: &Topic) {
@@ -157,11 +155,16 @@ where
     }
 
     pub fn login_success(&self, connect_id: u64) {
-        self.login_info.insert(connect_id, true);
+        if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
+            conn.login = true;
+        }
     }
 
     pub fn is_login(&self, connect_id: u64) -> bool {
-        return self.login_info.contains_key(&connect_id);
+        if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
+            return conn.login;
+        }
+        return false;
     }
 
     pub fn topic_exists(&self, topic: &String) -> bool {
@@ -183,10 +186,17 @@ where
     }
 
     pub fn remove_connect_id(&self, connect_id: u64) {
-        if let Some(client_id) = self.connect_id_info.get(&connect_id) {
-            self.session_info.remove(&*client_id);
-            self.login_info.remove(&connect_id);
-            self.connect_id_info.remove(&connect_id);
+        self.connection_info.remove(&connect_id);
+    }
+
+    pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
+        if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
+            if let Some(topic_name) = conn.topic_alias.get(&topic_alias) {
+                return Some(topic_name.clone());
+            } else {
+                return None;
+            }
         }
+        return None;
     }
 }

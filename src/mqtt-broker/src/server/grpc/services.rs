@@ -73,7 +73,7 @@ where
             Ok(_) => {
                 let mut reply = CommonReply::default();
                 reply.data = req.username;
-                self.metadata_cache.set_user(user_info);
+                self.metadata_cache.add_user(user_info);
                 return Ok(Response::new(reply));
             }
             Err(e) => {
