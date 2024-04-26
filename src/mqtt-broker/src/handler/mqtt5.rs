@@ -1,10 +1,15 @@
+use super::packet::{publish_comp_fail, publish_comp_success};
 use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send_retain_message};
+use crate::idempotent::Idempotent;
+use crate::metadata::connection::Connection;
+use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
-    metadata::{cache::MetadataCache, message::Message, session::LastWillData, topic::Topic},
+    idempotent::memory::IdempotentMemory,
+    metadata::{cache::MetadataCacheManager, message::Message, session::LastWillData},
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
-    storage::{message::MessageStorage, topic::TopicStorage},
+    storage::message::MessageStorage,
     subscribe::manager::SubScribeManager,
 };
 use common_base::{
@@ -13,18 +18,18 @@ use common_base::{
     tools::{now_second, unique_id},
 };
 use protocol::mqtt::{
-    Connect, ConnectProperties, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, PubRel,
-    PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties, Unsubscribe,
-    UnsubscribeProperties,
+    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
+    PubAckProperties, PubAckReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
+    Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use std::sync::Arc;
-use storage_adapter::storage::{ShardConfig, StorageAdapter};
+use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 pub struct Mqtt5Service<T, S> {
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     subscribe_manager: Arc<SubScribeManager<T>>,
     ack_build: MQTTAckBuild<T>,
     heartbeat_manager: Arc<HeartbeatManager>,
@@ -38,7 +43,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        metadata_cache: Arc<MetadataCache<T>>,
+        metadata_cache: Arc<MetadataCacheManager<T>>,
         subscribe_manager: Arc<SubScribeManager<T>>,
         ack_build: MQTTAckBuild<T>,
         heartbeat_manager: Arc<HeartbeatManager>,
@@ -78,13 +83,14 @@ where
                 if !flag {
                     return self
                         .ack_build
-                        .distinct(DisconnectReasonCode::NotAuthorized, None);
+                        .packet_connect_fail(ConnectReturnCode::NotAuthorized, None);
                 }
             }
             Err(e) => {
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::NotAuthorized, Some(e.to_string()));
+                return self.ack_build.packet_connect_fail(
+                    ConnectReturnCode::ServiceUnavailable,
+                    Some(e.to_string()),
+                );
             }
         }
 
@@ -109,8 +115,8 @@ where
             Ok(session) => session,
             Err(e) => {
                 error(e.to_string());
-                return self.ack_build.distinct(
-                    DisconnectReasonCode::AdministrativeAction,
+                return self.ack_build.packet_connect_fail(
+                    ConnectReturnCode::ServiceUnavailable,
                     Some(e.to_string()),
                 );
             }
@@ -131,9 +137,10 @@ where
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
-                    return self
-                        .ack_build
-                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                    return self.ack_build.packet_connect_fail(
+                        ConnectReturnCode::ServiceUnavailable,
+                        Some(e.to_string()),
+                    );
                 }
             }
         }
@@ -141,9 +148,9 @@ where
         // update cache
         // When working with locks, the default is to release them as soon as possible
         self.metadata_cache
-            .set_session(client_id.clone(), client_session.clone());
+            .add_session(client_id.clone(), client_session.clone());
         self.metadata_cache
-            .set_client_id(connect_id, client_id.clone());
+            .add_connection(connect_id, Connection::new(connect_id, client_id.clone()));
 
         // Record heartbeat information
         let session_keep_alive = client_session.keep_alive;
@@ -155,15 +162,12 @@ where
         self.heartbeat_manager
             .report_hearbeat(connect_id, live_time);
 
-        return self
-            .ack_build
-            .conn_ack(
-                &cluster,
-                &client_session,
-                client_id,
-                connnect.client_id.is_empty(),
-            )
-            .await;
+        return self.ack_build.packet_connect_success(
+            &cluster,
+            &client_session,
+            client_id,
+            connnect.client_id.is_empty(),
+        );
     }
 
     pub async fn publish(
@@ -171,9 +175,41 @@ where
         connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
+        idempotent_manager: Arc<IdempotentMemory>,
     ) -> Option<MQTTPacket> {
-        let topic_name = String::from_utf8(publish.topic.to_vec()).unwrap();
-        let client_id = if let Some(se) = self.metadata_cache.connect_id_info.get(&connect_id) {
+        let topic_name = match publish_get_topic_name(
+            connect_id,
+            publish.clone(),
+            self.metadata_cache.clone(),
+            publish_properties.clone(),
+        ) {
+            Ok(da) => da,
+            Err(e) => {
+                return Some(
+                    self.ack_build
+                        .pub_ack_fail(PubAckReason::UnspecifiedError, Some(e.to_string())),
+                );
+            }
+        };
+
+        let topic = match get_topic_info(
+            topic_name,
+            self.metadata_cache.clone(),
+            self.metadata_storage_adapter.clone(),
+            self.message_storage_adapter.clone(),
+        )
+        .await
+        {
+            Ok(tp) => tp,
+            Err(e) => {
+                return Some(
+                    self.ack_build
+                        .pub_ack_fail(PubAckReason::UnspecifiedError, Some(e.to_string())),
+                );
+            }
+        };
+
+        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
             se.clone()
         } else {
             return Some(self.ack_build.distinct(
@@ -182,51 +218,23 @@ where
             ));
         };
 
+        let client_id = connection.client_id;
+
         let session = if let Some(se) = self.metadata_cache.session_info.get(&client_id) {
             se.clone()
         } else {
-            return Some(self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
+            return Some(self.ack_build.pub_ack_fail(
+                PubAckReason::UnspecifiedError,
                 Some(RobustMQError::NotFoundClientInCache(client_id).to_string()),
             ));
         };
 
-        let topic = if let Some(tp) = self.metadata_cache.get_topic_by_name(topic_name.clone()) {
-            tp
-        } else {
-            // Persisting the topic information
-            let topic = Topic::new(&topic_name);
-            self.metadata_cache.set_topic(&topic_name, &topic);
-            let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
-            match topic_storage.save_topic(&topic_name, &topic).await {
-                Ok(_) => {}
-                Err(e) => {
-                    error(e.to_string());
-                    return Some(
-                        self.ack_build
-                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
-                    );
-                }
-            }
-
-            // Create the resource object of the storage layer
-            let shard_name = topic.topic_id.clone();
-            let shard_config = ShardConfig::default();
-            match self
-                .message_storage_adapter
-                .create_shard(shard_name, shard_config)
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => {
-                    error(e.to_string());
-                    return Some(
-                        self.ack_build
-                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
-                    );
-                }
-            }
-            topic
+        if publish.payload.len() == 0 || publish.payload.len() > (session.max_packet_size as usize)
+        {
+            return Some(self.ack_build.pub_ack_fail(
+                PubAckReason::PayloadFormatInvalid,
+                Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
+            ));
         };
 
         // Persisting retain message data
@@ -250,14 +258,15 @@ where
         }
 
         // Persisting stores message data
-        let mut offset = "".to_string();
-        if let Some(record) = Message::build_record(publish.clone(), publish_properties.clone()) {
+        let offset = if let Some(record) =
+            Message::build_record(publish.clone(), publish_properties.clone())
+        {
             match message_storage
-                .append_topic_message(topic.topic_id, vec![record])
+                .append_topic_message(topic.topic_id.clone(), vec![record])
                 .await
             {
                 Ok(da) => {
-                    offset = format!("{:?}", da);
+                    format!("{:?}", da)
                 }
                 Err(e) => {
                     error(e.to_string());
@@ -267,18 +276,13 @@ where
                     );
                 }
             }
-        }
+        } else {
+            "-1".to_string()
+        };
 
         // Pub Ack information is built
         let pkid = publish.pkid;
-        let mut user_properties = Vec::new();
-        if let Some(properties) = publish_properties {
-            user_properties = properties.user_properties;
-        }
-        if !offset.is_empty() {
-            user_properties.push(("offset".to_string(), offset));
-        }
-
+        let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
         //ontent is returned according to different QOS levels
         match publish.qos {
             QoS::AtMostOnce => {
@@ -288,14 +292,34 @@ where
                 return Some(self.ack_build.pub_ack(pkid, None, user_properties));
             }
             QoS::ExactlyOnce => {
-                return Some(self.ack_build.pub_rec(session.session_present));
+                idempotent_manager.save_idem_data(connect_id, pkid).await;
+                return Some(self.ack_build.pub_rec(pkid, user_properties));
             }
         }
     }
 
-    pub fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
+    pub async fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
 
-    pub fn publish_rel(&self, pub_rel: PubRel, pubrel_properties: Option<PubRelProperties>) {}
+    pub async fn publish_rel(
+        &self,
+        connect_id: u64,
+        pub_rel: PubRel,
+        _: Option<PubRelProperties>,
+        idempotent_manager: Arc<IdempotentMemory>,
+    ) -> MQTTPacket {
+        if idempotent_manager
+            .get_idem_data(connect_id, pub_rel.pkid)
+            .await
+            .is_none()
+        {
+            return publish_comp_fail(pub_rel.pkid);
+        };
+
+        idempotent_manager
+            .delete_idem_data(connect_id, pub_rel.pkid)
+            .await;
+        return publish_comp_success(pub_rel.pkid);
+    }
 
     pub async fn subscribe(
         &self,
@@ -304,6 +328,7 @@ where
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
+        
         // Saving subscriptions
         self.subscribe_manager
             .parse_subscribe(
@@ -346,21 +371,32 @@ where
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
-        if let Some(client_id) = self.metadata_cache.connect_id_info.get(&connect_id) {
-            if let Some(session_info) = self.metadata_cache.session_info.get(&client_id.clone()) {
-                let live_time = ConnectionLiveTime {
-                    protobol: crate::server::MQTTProtocol::MQTT5,
-                    keep_live: session_info.keep_alive,
-                    heartbeat: now_second(),
-                };
-                self.heartbeat_manager
-                    .report_hearbeat(connect_id, live_time);
-                return self.ack_build.ping_resp();
-            }
+        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
+        let client_id = connection.client_id;
+
+        if let Some(session_info) = self.metadata_cache.session_info.get(&client_id.clone()) {
+            let live_time = ConnectionLiveTime {
+                protobol: crate::server::MQTTProtocol::MQTT5,
+                keep_live: session_info.keep_alive,
+                heartbeat: now_second(),
+            };
+            self.heartbeat_manager
+                .report_hearbeat(connect_id, live_time);
+            return self.ack_build.ping_resp();
         }
-        return self
-            .ack_build
-            .distinct(DisconnectReasonCode::UseAnotherServer, None);
+
+        return self.ack_build.distinct(
+            DisconnectReasonCode::UnspecifiedError,
+            Some(RobustMQError::NotFoundSessionInCache(connect_id).to_string()),
+        );
     }
 
     pub async fn un_subscribe(

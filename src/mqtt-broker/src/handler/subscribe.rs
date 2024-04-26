@@ -1,5 +1,5 @@
 use crate::{
-    metadata::cache::MetadataCache, server::tcp::packet::ResponsePackage,
+    metadata::cache::MetadataCacheManager, server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
@@ -32,7 +32,7 @@ pub async fn send_retain_message<T, S>(
     subscribe: Subscribe,
     subscribe_properties: Option<SubscribeProperties>,
     message_storage: MessageStorage<S>,
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     response_queue_sx: Sender<ResponsePackage>,
     new_sub: bool,
     dup_msg: bool,
@@ -107,7 +107,7 @@ pub fn max_qos(msg_qos: QoS, sub_max_qos: QoS) -> QoS {
 }
 
 pub async fn get_sub_topic_id_list<T>(
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     sub_path: String,
 ) -> Vec<String> {
     let topic_id_name = metadata_cache.topic_id_name.clone();
@@ -134,7 +134,7 @@ mod tests {
         handler::subscribe::{
             get_sub_topic_id_list, max_qos, path_regex_match, send_retain_message,
         },
-        metadata::{cache::MetadataCache, message::Message, topic::Topic},
+        metadata::{cache::MetadataCacheManager, message::Message, topic::Topic},
         storage::message::MessageStorage,
     };
 
@@ -159,7 +159,10 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
+            storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
         metadata_cache.set_topic(&topic_name, &topic);
@@ -173,7 +176,10 @@ mod tests {
     #[tokio::test]
     async fn send_retain_message_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
+            storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;
         let mut filters = Vec::new();

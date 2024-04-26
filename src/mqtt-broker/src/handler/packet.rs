@@ -1,47 +1,40 @@
 use crate::{
-    metadata::{cache::MetadataCache, cluster::Cluster, session::Session},
+    metadata::{cache::MetadataCacheManager, cluster::Cluster, session::Session},
     server::MQTTProtocol,
 };
 use protocol::mqtt::{
-    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
-    DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, SubAck,
-    SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
+    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason
 };
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MQTTAckBuild<T> {
     protocol: MQTTProtocol,
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
 }
 
 impl<T> MQTTAckBuild<T> {
-    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCache<T>>) -> Self {
+    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCacheManager<T>>) -> Self {
         return MQTTAckBuild {
             protocol,
             metadata_cache,
         };
     }
 
-    pub async fn conn_ack(
+    pub fn packet_connect_success(
         &self,
         cluster: &Cluster,
         session: &Session,
         client_id: String,
         auto_client_id: bool,
     ) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: session.session_present,
-            code: ConnectReturnCode::Success,
-        };
-
         let assigned_client_identifier = if auto_client_id {
             Some(client_id)
         } else {
             None
         };
 
-        let ack_properties = ConnAckProperties {
+        let properties = ConnAckProperties {
             session_expiry_interval: session.session_expiry_interval,
             receive_max: cluster.receive_max(),
             max_qos: cluster.max_qos(),
@@ -60,9 +53,39 @@ impl<T> MQTTAckBuild<T> {
             authentication_method: None,
             authentication_data: None,
         };
-        return MQTTPacket::ConnAck(conn_ack, Some(ack_properties));
+        return MQTTPacket::ConnAck(
+            ConnAck {
+                session_present: session.session_present,
+                code: ConnectReturnCode::Success,
+            },
+            Some(properties),
+        );
     }
 
+    pub fn packet_connect_fail(
+        &self,
+        code: ConnectReturnCode,
+        reason_string: Option<String>,
+    ) -> MQTTPacket {
+        let mut properties = ConnAckProperties::default();
+        properties.reason_string = reason_string;
+        return MQTTPacket::ConnAck(
+            ConnAck {
+                session_present: false,
+                code,
+            },
+            Some(properties),
+        );
+    }
+
+    pub fn pub_ack_fail(&self, reason: PubAckReason, reason_string: Option<String>) -> MQTTPacket {
+        let pub_ack = PubAck { pkid: 0, reason };
+        let properties = Some(PubAckProperties {
+            reason_string,
+            user_properties: Vec::new(),
+        });
+        return MQTTPacket::PubAck(pub_ack, properties);
+    }
     pub fn pub_ack(
         &self,
         pkid: u16,
@@ -80,12 +103,21 @@ impl<T> MQTTAckBuild<T> {
         return MQTTPacket::PubAck(pub_ack, properties);
     }
 
-    pub fn pub_rec(&self,session_present:bool) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present,
-            code: ConnectReturnCode::Success,
+    pub fn pub_rec(
+        &self,
+        pkid: u16,
+        user_properties: Vec<(String, String)>,
+    ) -> MQTTPacket {
+        let pub_rec = PubRec {
+            pkid,
+            reason: PubRecReason::Success,
         };
-        return MQTTPacket::ConnAck(conn_ack, None);
+
+        let properties = PubRecProperties {
+            reason_string: Some("".to_string()),
+            user_properties,
+        };
+        return MQTTPacket::PubRec(pub_rec, Some(properties));
     }
 
     pub fn pub_rel(&self) -> MQTTPacket {
@@ -160,4 +192,20 @@ impl<T> MQTTAckBuild<T> {
         }
         return MQTTPacket::Disconnect(disconnect, None);
     }
+}
+
+pub fn publish_comp_fail(pkid: u16) -> MQTTPacket {
+    let pub_comp = PubComp {
+        pkid,
+        reason: PubCompReason::PacketIdentifierNotFound,
+    };
+    return MQTTPacket::PubComp(pub_comp, None);
+}
+
+pub fn publish_comp_success(pkid: u16) -> MQTTPacket {
+    let pub_comp = PubComp {
+        pkid,
+        reason: PubCompReason::Success,
+    };
+    return MQTTPacket::PubComp(pub_comp, None);
 }

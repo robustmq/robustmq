@@ -3,8 +3,7 @@ use self::tcp::{
     tcp_server::TcpServer,
 };
 use crate::{
-    cluster::heartbeat_manager::HeartbeatManager, handler::command::Command,
-    metadata::cache::MetadataCache, subscribe::manager::SubScribeManager,
+    cluster::heartbeat_manager::HeartbeatManager, handler::command::Command, idempotent::memory::IdempotentMemory, metadata::cache::MetadataCacheManager, subscribe::manager::SubScribeManager
 };
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
@@ -38,11 +37,12 @@ impl From<MQTTProtocol> for String {
 }
 
 pub async fn start_mqtt_server<T, S>(
-    cache: Arc<MetadataCache<T>>,
+    cache: Arc<MetadataCacheManager<T>>,
     heartbeat_manager: Arc<HeartbeatManager>,
     subscribe_manager: Arc<SubScribeManager<T>>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
+    idempotent_manager: Arc<IdempotentMemory>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
     response_queue_sx4: Sender<ResponsePackage>,
@@ -61,6 +61,7 @@ pub async fn start_mqtt_server<T, S>(
             metadata_storage_adapter.clone(),
             message_storage_adapter.clone(),
             response_queue_sx4.clone(),
+            idempotent_manager.clone(),
         );
         start_mqtt4_server(conf, command.clone(), request_queue_sx4, response_queue_sx4).await;
     }
@@ -74,6 +75,7 @@ pub async fn start_mqtt_server<T, S>(
             metadata_storage_adapter.clone(),
             message_storage_adapter.clone(),
             response_queue_sx5.clone(),
+            idempotent_manager.clone(),
         );
         start_mqtt5_server(conf, command.clone(), request_queue_sx5, response_queue_sx5).await;
     }

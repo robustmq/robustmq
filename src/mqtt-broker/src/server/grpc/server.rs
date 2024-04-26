@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::metadata::cache::MetadataCache;
+use crate::metadata::cache::MetadataCacheManager;
 
 use super::services::GrpcBrokerServices;
 use common_base::log::info;
@@ -10,7 +10,7 @@ use tonic::transport::Server;
 
 pub struct GrpcServer<T> {
     port: u32,
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     metadata_storage_adapter: Arc<T>,
 }
 
@@ -20,7 +20,7 @@ where
 {
     pub fn new(
         port: u32,
-        metadata_cache: Arc<MetadataCache<T>>,
+        metadata_cache: Arc<MetadataCacheManager<T>>,
         metadata_storage_adapter: Arc<T>,
     ) -> Self {
         return Self {

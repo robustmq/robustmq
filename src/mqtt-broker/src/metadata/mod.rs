@@ -12,6 +12,7 @@ pub mod session;
 pub mod subscriber;
 pub mod topic;
 pub mod user;
+pub mod connection;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AvailableFlag {

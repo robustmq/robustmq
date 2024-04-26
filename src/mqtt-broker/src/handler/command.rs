@@ -2,9 +2,10 @@ use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::MQTTAckBuild;
 use crate::cluster::heartbeat_manager::HeartbeatManager;
+use crate::idempotent::memory::IdempotentMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::manager::SubScribeManager;
-use crate::{metadata::cache::MetadataCache, server::MQTTProtocol};
+use crate::{metadata::cache::MetadataCacheManager, server::MQTTProtocol};
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
 use std::sync::Arc;
@@ -19,8 +20,9 @@ pub struct Command<T, S> {
     ack_build: MQTTAckBuild<T>,
     mqtt4_service: Mqtt4Service<T>,
     mqtt5_service: Mqtt5Service<T, S>,
-    metadata_cache: Arc<MetadataCache<T>>,
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     response_queue_sx: Sender<ResponsePackage>,
+    idempotent_manager: Arc<IdempotentMemory>,
 }
 
 impl<T, S> Command<T, S>
@@ -30,12 +32,13 @@ where
 {
     pub fn new(
         protocol: MQTTProtocol,
-        metadata_cache: Arc<MetadataCache<T>>,
+        metadata_cache: Arc<MetadataCacheManager<T>>,
         heartbeat_manager: Arc<HeartbeatManager>,
         subscribe_manager: Arc<SubScribeManager<T>>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
+        idempotent_manager: Arc<IdempotentMemory>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
         let mqtt4_service = Mqtt4Service::new(
@@ -58,6 +61,7 @@ where
             mqtt5_service,
             metadata_cache,
             response_queue_sx,
+            idempotent_manager,
         };
     }
 
@@ -111,7 +115,12 @@ where
                 if self.protocol == MQTTProtocol::MQTT5 {
                     return self
                         .mqtt5_service
-                        .publish(connect_id, publish, publish_properties)
+                        .publish(
+                            connect_id,
+                            publish,
+                            publish_properties,
+                            self.idempotent_manager.clone(),
+                        )
                         .await;
                 }
             }
@@ -125,7 +134,14 @@ where
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    self.mqtt5_service.publish_rel(pub_rel, pub_rel_properties);
+                    self.mqtt5_service
+                        .publish_rel(
+                            connect_id,
+                            pub_rel,
+                            pub_rel_properties,
+                            self.idempotent_manager.clone(),
+                        )
+                        .await;
                 }
                 return None;
             }

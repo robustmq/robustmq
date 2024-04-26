@@ -74,9 +74,17 @@ pub enum RobustMQError {
     #[error("Connection ID [0] information not found in cache.")]
     NotFoundConnectionInCache(u64),
 
+    #[error("Session ID [0] information not found in cache.")]
+    NotFoundSessionInCache(u64),
+
     #[error("Client [*] information not found in cache.")]
     NotFoundClientInCache(String),
 
+    #[error("There is a problem with the length [{0}] of the Packet. Please check the length of the request packet")]
+    PacketLenthError(usize),
+
+    #[error("topic name is not available")]
+    TopicNameInvalid()
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 use crate::{
     handler::subscribe::path_regex_match,
-    metadata::{cache::MetadataCache, subscriber::Subscriber},
+    metadata::{cache::MetadataCacheManager, subscriber::Subscriber},
     server::MQTTProtocol,
 };
 use dashmap::DashMap;
@@ -11,14 +11,14 @@ use storage_adapter::storage::StorageAdapter;
 #[derive(Clone)]
 pub struct SubScribeManager<T> {
     pub topic_subscribe: DashMap<String, DashMap<u64, Subscriber>>,
-    pub metadata_cache: Arc<MetadataCache<T>>,
+    pub metadata_cache: Arc<MetadataCacheManager<T>>,
 }
 
 impl<T> SubScribeManager<T>
 where
     T: StorageAdapter,
 {
-    pub fn new(metadata_cache: Arc<MetadataCache<T>>) -> Self {
+    pub fn new(metadata_cache: Arc<MetadataCacheManager<T>>) -> Self {
         return SubScribeManager {
             metadata_cache,
             topic_subscribe: DashMap::with_capacity(256),
@@ -76,9 +76,10 @@ where
     }
 
     pub fn remove_connect_subscribe(&self, connect_id: u64) {
-        for (_, sub_list) in self.topic_subscribe.clone() {
+        for (topic_id, sub_list) in self.topic_subscribe.clone() {
             if sub_list.contains_key(&connect_id) {
-                sub_list.remove(&connect_id);
+                let ts = self.topic_subscribe.get(&topic_id).unwrap();
+                ts.remove(&connect_id);
             }
         }
     }
@@ -86,7 +87,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::metadata::{cache::MetadataCache, topic::Topic};
+    use crate::metadata::{cache::MetadataCacheManager, topic::Topic};
     use crate::subscribe::manager::SubScribeManager;
     use protocol::mqtt::{Filter, Subscribe};
     use std::sync::Arc;
@@ -95,11 +96,14 @@ mod tests {
     #[tokio::test]
     async fn parse_subscribe() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
+            storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
         metadata_cache.set_topic(&topic_name, &topic);
-        let mut sub_manager = SubScribeManager::new(metadata_cache);
+        let sub_manager = SubScribeManager::new(metadata_cache);
         let connect_id = 1;
         let packet_identifier = 2;
         let mut filters = Vec::new();
@@ -125,7 +129,7 @@ mod tests {
             .await;
         assert!(sub_manager.topic_subscribe.len() == 1);
         assert!(sub_manager.topic_subscribe.contains_key(&topic.topic_id));
-        let mut vec_sub = sub_manager.topic_subscribe.get(&topic.topic_id).unwrap();
+        let vec_sub = sub_manager.topic_subscribe.get(&topic.topic_id).unwrap();
         assert!(vec_sub.contains_key(&connect_id));
         let sub = vec_sub.get(&connect_id).unwrap();
         assert!(sub.qos == protocol::mqtt::QoS::AtLeastOnce);
@@ -134,12 +138,15 @@ mod tests {
     #[tokio::test]
     async fn remove_subscribe() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCache::new(storage_adapter.clone()));
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
+            storage_adapter.clone(),
+            "test-cluster".to_string(),
+        ));
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
         metadata_cache.set_topic(&topic_name, &topic);
 
-        let mut sub_manager = SubScribeManager::new(metadata_cache);
+        let sub_manager = SubScribeManager::new(metadata_cache);
         let connect_id = 1;
         let packet_identifier = 2;
         let mut filters = Vec::new();
