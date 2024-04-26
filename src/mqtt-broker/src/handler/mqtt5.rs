@@ -307,6 +307,7 @@ where
         _: Option<PubRelProperties>,
         idempotent_manager: Arc<IdempotentMemory>,
     ) -> MQTTPacket {
+
         if idempotent_manager
             .get_idem_data(connect_id, pub_rel.pkid)
             .await

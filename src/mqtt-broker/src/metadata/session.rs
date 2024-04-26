@@ -41,7 +41,11 @@ impl Session {
         if let Some(properties) = connect_properties {
             session.session_expiry_interval = properties.session_expiry_interval;
             session.receive_maximum = properties.receive_maximum;
-            session.max_packet_size = properties.max_packet_size.unwrap();
+            session.max_packet_size = if let Some(da) = properties.max_packet_size{
+                    da
+            }else{
+                1024*1024
+            };
             session.topic_alias_max = properties.topic_alias_max;
             session.request_response_info = properties.request_response_info;
             session.request_problem_info = properties.request_problem_info;
