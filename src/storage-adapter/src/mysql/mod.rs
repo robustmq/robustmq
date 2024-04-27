@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use crate::{
     record::{Header, Record},
     storage::{ShardConfig, StorageAdapter},
@@ -332,7 +330,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                     now_second(),
                     now_second(),
                 );
-                println!("sql:{}", update_sql);
+
                 match conn.query_drop(update_sql) {
                     Ok(()) => return Ok(true),
                     Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),

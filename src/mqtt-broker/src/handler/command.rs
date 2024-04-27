@@ -134,16 +134,16 @@ where
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    self.mqtt5_service
+                    return Some(self.mqtt5_service
                         .publish_rel(
                             connect_id,
                             pub_rel,
                             pub_rel_properties,
                             self.idempotent_manager.clone(),
                         )
-                        .await;
+                        .await);
                 }
-                return None;
+
             }
 
             MQTTPacket::PubAck(pub_ack, pub_ack_properties) => {
@@ -155,7 +155,7 @@ where
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    self.mqtt5_service.publish_ack(pub_ack, pub_ack_properties);
+                    self.mqtt5_service.publish_ack(pub_ack, pub_ack_properties).await;
                 }
                 return None;
             }
