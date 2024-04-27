@@ -58,7 +58,7 @@ impl<T> Mqtt4Service<T> {
         if self.login {
             return self.un_login_err();
         }
-        return self.ack_build.sub_ack(0, None, Vec::new());
+        return self.ack_build.sub_ack(0);
     }
 
     pub fn ping(&self, ping: PingReq) -> MQTTPacket {

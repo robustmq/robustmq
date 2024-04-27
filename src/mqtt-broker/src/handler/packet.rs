@@ -142,20 +142,13 @@ impl<T> MQTTAckBuild<T> {
 
     pub fn sub_ack(
         &self,
-        pkid: u16,
-        reason_string: Option<String>,
-        user_properties: Vec<(String, String)>,
+        pkid: u16
     ) -> MQTTPacket {
         let sub_ack = SubAck {
             pkid: pkid,
             return_codes: vec![SubscribeReasonCode::QoS0],
         };
-
-        let sub_properties = Some(SubAckProperties {
-            reason_string,
-            user_properties,
-        });
-        return MQTTPacket::SubAck(sub_ack, sub_properties);
+        return MQTTPacket::SubAck(sub_ack, None);
     }
 
     pub fn unsub_ack(

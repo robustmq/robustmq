@@ -364,11 +364,7 @@ where
         }
 
         let pkid = subscribe.packet_identifier;
-        let mut user_properties = Vec::new();
-        if let Some(properties) = subscribe_properties {
-            user_properties = properties.user_properties;
-        }
-        return self.ack_build.sub_ack(pkid, None, user_properties);
+        return self.ack_build.sub_ack(pkid);
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
