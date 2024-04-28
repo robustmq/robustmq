@@ -5,8 +5,8 @@ use crate::{
 };
 use common_base::errors::RobustMQError;
 use prost::Message;
-use protocol::placement_center::generate::engine::{CreateSegmentRequest, DeleteSegmentRequest, DeleteShardRequest};
-use protocol::placement_center::generate::{common::CommonReply, engine::CreateShardRequest};
+use protocol::placement_center::generate::journal::{CreateSegmentRequest, DeleteSegmentRequest, DeleteShardRequest};
+use protocol::placement_center::generate::{common::CommonReply, journal::CreateShardRequest};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 

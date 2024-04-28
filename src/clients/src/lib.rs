@@ -19,7 +19,7 @@ use placement::{
     journal::JournalServiceManager, kv::KvServiceManager, placement::PlacementServiceManager,
 };
 use protocol::placement_center::generate::{
-    engine::engine_service_client::EngineServiceClient, kv::kv_service_client::KvServiceClient,
+    journal::engine_service_client::EngineServiceClient, kv::kv_service_client::KvServiceClient,
     placement::placement_center_service_client::PlacementCenterServiceClient,
 };
 use std::collections::HashMap;

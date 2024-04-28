@@ -23,7 +23,7 @@ use common_base::runtime::create_runtime;
 use controller::broker::controller::BrokerServerController;
 use controller::engine::controller::StorageEngineController;
 use http::server::{start_http_server, HttpServerState};
-use protocol::placement_center::generate::engine::engine_service_server::EngineServiceServer;
+use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::data_route::DataRoute;

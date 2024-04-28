@@ -18,7 +18,7 @@ use common_base::{
 };
 use prost::Message as _;
 use protocol::placement_center::generate::{
-    engine::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest},
+    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest},
     kv::{DeleteRequest, SetRequest},
     placement::{RegisterNodeRequest, UnRegisterNodeRequest},
 };

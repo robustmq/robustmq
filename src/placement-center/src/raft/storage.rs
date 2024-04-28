@@ -5,10 +5,10 @@ use bincode::serialize;
 use common_base::errors::RobustMQError;
 use prost::Message;
 
-use protocol::placement_center::generate::engine::CreateSegmentRequest;
-use protocol::placement_center::generate::engine::CreateShardRequest;
-use protocol::placement_center::generate::engine::DeleteSegmentRequest;
-use protocol::placement_center::generate::engine::DeleteShardRequest;
+use protocol::placement_center::generate::journal::CreateSegmentRequest;
+use protocol::placement_center::generate::journal::CreateShardRequest;
+use protocol::placement_center::generate::journal::DeleteSegmentRequest;
+use protocol::placement_center::generate::journal::DeleteShardRequest;
 use protocol::placement_center::generate::kv::DeleteRequest;
 use protocol::placement_center::generate::kv::SetRequest;
 use protocol::placement_center::generate::placement::RegisterNodeRequest;

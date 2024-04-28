@@ -162,11 +162,11 @@ pub mod engine_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/engine.EngineService/CreateShard",
+                "/journal.EngineService/CreateShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("engine.EngineService", "CreateShard"));
+                .insert(GrpcMethod::new("journal.EngineService", "CreateShard"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -185,11 +185,11 @@ pub mod engine_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/engine.EngineService/GetShard",
+                "/journal.EngineService/GetShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("engine.EngineService", "GetShard"));
+                .insert(GrpcMethod::new("journal.EngineService", "GetShard"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -211,11 +211,11 @@ pub mod engine_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/engine.EngineService/DeleteShard",
+                "/journal.EngineService/DeleteShard",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("engine.EngineService", "DeleteShard"));
+                .insert(GrpcMethod::new("journal.EngineService", "DeleteShard"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -237,11 +237,11 @@ pub mod engine_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/engine.EngineService/CreateSegment",
+                "/journal.EngineService/CreateSegment",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("engine.EngineService", "CreateSegment"));
+                .insert(GrpcMethod::new("journal.EngineService", "CreateSegment"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -263,11 +263,11 @@ pub mod engine_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/engine.EngineService/DeleteSegment",
+                "/journal.EngineService/DeleteSegment",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("engine.EngineService", "DeleteSegment"));
+                .insert(GrpcMethod::new("journal.EngineService", "DeleteSegment"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -396,7 +396,7 @@ pub mod engine_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/engine.EngineService/CreateShard" => {
+                "/journal.EngineService/CreateShard" => {
                     #[allow(non_camel_case_types)]
                     struct CreateShardSvc<T: EngineService>(pub Arc<T>);
                     impl<
@@ -442,7 +442,7 @@ pub mod engine_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/engine.EngineService/GetShard" => {
+                "/journal.EngineService/GetShard" => {
                     #[allow(non_camel_case_types)]
                     struct GetShardSvc<T: EngineService>(pub Arc<T>);
                     impl<
@@ -488,7 +488,7 @@ pub mod engine_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/engine.EngineService/DeleteShard" => {
+                "/journal.EngineService/DeleteShard" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteShardSvc<T: EngineService>(pub Arc<T>);
                     impl<
@@ -534,7 +534,7 @@ pub mod engine_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/engine.EngineService/CreateSegment" => {
+                "/journal.EngineService/CreateSegment" => {
                     #[allow(non_camel_case_types)]
                     struct CreateSegmentSvc<T: EngineService>(pub Arc<T>);
                     impl<
@@ -580,7 +580,7 @@ pub mod engine_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/engine.EngineService/DeleteSegment" => {
+                "/journal.EngineService/DeleteSegment" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteSegmentSvc<T: EngineService>(pub Arc<T>);
                     impl<
@@ -664,6 +664,6 @@ pub mod engine_service_server {
         }
     }
     impl<T: EngineService> tonic::server::NamedService for EngineServiceServer<T> {
-        const NAME: &'static str = "engine.EngineService";
+        const NAME: &'static str = "journal.EngineService";
     }
 }

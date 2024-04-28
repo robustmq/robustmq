@@ -19,8 +19,9 @@ mod tests {
             .compile(
                 &[
                     "src/placement_center/proto/common.proto",
-                    "src/placement_center/proto/engine.proto",
+                    "src/placement_center/proto/journal.proto",
                     "src/placement_center/proto/kv.proto",
+                    "src/placement_center/proto/mqtt.proto",
                     "src/placement_center/proto/placement.proto",
                     ],
                 &["src/placement_center/proto"], // specify the root location to search proto dependencies

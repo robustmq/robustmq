@@ -2,7 +2,7 @@ use common_base::errors::RobustMQError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
-    engine::{
+    journal::{
         engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest,
         DeleteSegmentRequest, DeleteShardRequest,
     },
