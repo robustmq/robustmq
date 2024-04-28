@@ -1,10 +1,10 @@
-use super::packet::{publish_comp_fail, publish_comp_success};
+use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use super::{packet::MQTTAckBuild, session::get_session_info, subscribe::send_retain_message};
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::{
-    cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
+    core::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
     idempotent::memory::IdempotentMemory,
     metadata::{cache::MetadataCacheManager, message::Message, session::LastWillData},
     security::authentication::authentication_login,
@@ -12,11 +12,8 @@ use crate::{
     storage::message::MessageStorage,
     subscribe::manager::SubScribeManager,
 };
-use common_base::{
-    errors::RobustMQError,
-    log::error,
-    tools::{now_second, unique_id},
-};
+use common_base::log::info;
+use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
@@ -81,13 +78,11 @@ where
         {
             Ok(flag) => {
                 if !flag {
-                    return self
-                        .ack_build
-                        .packet_connect_fail(ConnectReturnCode::NotAuthorized, None);
+                    return packet_connect_fail(ConnectReturnCode::NotAuthorized, None);
                 }
             }
             Err(e) => {
-                return self.ack_build.packet_connect_fail(
+                return packet_connect_fail(
                     ConnectReturnCode::ServiceUnavailable,
                     Some(e.to_string()),
                 );
@@ -98,9 +93,7 @@ where
         let (client_id, new_client_id) = match get_client_id(connnect.client_id.clone()) {
             Ok((client_id, new_client_id)) => (client_id, new_client_id),
             Err(e) => {
-                return self
-                    .ack_build
-                    .packet_connect_fail(ConnectReturnCode::BadClientId, Some(e.to_string()));
+                return packet_connect_fail(ConnectReturnCode::BadClientId, Some(e.to_string()));
             }
         };
 
@@ -113,12 +106,13 @@ where
             connect_properties.clone(),
         );
 
-        let containn_last_will = !last_will.is_none();
+        let contain_last_will = !last_will.is_none();
         // save session data
         let (session, new_session) = match get_session_info(
             connect_id,
             client_id.clone(),
-            containn_last_will,
+            contain_last_will,
+            last_will_properties.clone(),
             &cluster,
             &connnect,
             &connect_properties,
@@ -129,7 +123,7 @@ where
             Ok(session) => session,
             Err(e) => {
                 error(e.to_string());
-                return self.ack_build.packet_connect_fail(
+                return packet_connect_fail(
                     ConnectReturnCode::ServiceUnavailable,
                     Some(e.to_string()),
                 );
@@ -137,7 +131,7 @@ where
         };
 
         // save last will data
-        if containn_last_will {
+        if contain_last_will {
             let last_will = LastWillData {
                 last_will,
                 last_will_properties,
@@ -151,7 +145,7 @@ where
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());
-                    return self.ack_build.packet_connect_fail(
+                    return packet_connect_fail(
                         ConnectReturnCode::ServiceUnavailable,
                         Some(e.to_string()),
                     );
@@ -241,6 +235,26 @@ where
             ));
         };
 
+        let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            conn.client_id.clone()
+        } else {
+            return Some(self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            ));
+        };
+
+        if !idempotent_manager
+            .get_idem_data(client_id.clone(), publish.pkid)
+            .await
+            .is_none()
+        {
+            return Some(
+                self.ack_build
+                    .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
+            );
+        };
+
         // Persisting retain message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         if publish.retain {
@@ -296,7 +310,9 @@ where
                 return Some(self.ack_build.pub_ack(pkid, None, user_properties));
             }
             QoS::ExactlyOnce => {
-                idempotent_manager.save_idem_data(connect_id, pkid).await;
+                idempotent_manager
+                    .save_idem_data(connection.client_id, pkid)
+                    .await;
                 return Some(self.ack_build.pub_rec(pkid, user_properties));
             }
         }
@@ -311,8 +327,17 @@ where
         _: Option<PubRelProperties>,
         idempotent_manager: Arc<IdempotentMemory>,
     ) -> MQTTPacket {
+        let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            conn.client_id.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
         if idempotent_manager
-            .get_idem_data(connect_id, pub_rel.pkid)
+            .get_idem_data(client_id.clone(), pub_rel.pkid)
             .await
             .is_none()
         {
@@ -320,7 +345,7 @@ where
         };
 
         idempotent_manager
-            .delete_idem_data(connect_id, pub_rel.pkid)
+            .delete_idem_data(client_id, pub_rel.pkid)
             .await;
         return publish_comp_success(pub_rel.pkid);
     }
@@ -436,20 +461,13 @@ where
         connect_id: u64,
         disconnect: Disconnect,
         disconnect_properties: Option<DisconnectProperties>,
-    ) -> MQTTPacket {
-        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
-            se.clone()
-        } else {
-            return self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-            );
-        };
-
+    ) -> Option<MQTTPacket> {
+        info(format!(
+            "Connection [{}] disconnect,disconnect:{:?},disconnect_properties{:?}",
+            connect_id, disconnect, disconnect_properties
+        ));
         self.metadata_cache.remove_connection(connect_id);
         self.heartbeat_manager.remove_connection(connect_id);
-        return self
-            .ack_build
-            .distinct(DisconnectReasonCode::NormalDisconnection, None);
+        return None;
     }
 }

@@ -20,6 +20,9 @@ use tokio::{
 
 pub mod heartbeat_manager;
 pub mod keep_alive;
+pub mod session_expiry;
+pub mod system_topic;
+pub mod share_sub;
 
 pub const HEART_CONNECT_SHARD_HASH_NUM: u64 = 20;
 

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Session {
     pub client_id: String,
     pub last_will: bool,
+    pub last_will_delay_interval: u32,
     pub session_expiry: u32,
     pub create_time: u64,
     pub connection_id: Option<u64>,
@@ -13,11 +14,17 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(client_id: String, session_expiry: u32, last_will: bool) -> Session {
+    pub fn new(
+        client_id: String,
+        session_expiry: u32,
+        last_will: bool,
+        delay_interval: u32,
+    ) -> Session {
         let mut session = Session::default();
         session.client_id = client_id.clone();
         session.last_will = last_will;
         session.session_expiry = session_expiry;
+        session.last_will_delay_interval = delay_interval;
         session.create_time = now_second();
         return session;
     }
@@ -36,5 +43,3 @@ pub struct LastWillData {
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
 }
-
-

@@ -1,7 +1,7 @@
 use super::storage::{StorageData, StorageDataType};
 use crate::{
     cache::{cluster::ClusterCache, engine::EngineCache},
-    controller::engine::segment_replica::SegmentReplicaAlgorithm,
+    controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
         cluster::{ClusterInfo, ClusterStorage},
         kv::KvStorage,
@@ -18,7 +18,7 @@ use common_base::{
 };
 use prost::Message as _;
 use protocol::placement_center::generate::{
-    engine::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest},
+    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest},
     kv::{DeleteRequest, SetRequest},
     placement::{RegisterNodeRequest, UnRegisterNodeRequest},
 };

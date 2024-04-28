@@ -17,7 +17,7 @@ use crate::{cache::placement::PlacementClusterCache, raft::storage::PlacementCen
 use clients::{placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard}, ClientPool};
 use protocol::placement_center::generate::{
     common::CommonReply,
-    engine::{
+    journal::{
         engine_service_server::EngineService, CreateSegmentRequest, CreateShardRequest,
         DeleteSegmentRequest, DeleteShardRequest, GetShardReply, GetShardRequest,
     },

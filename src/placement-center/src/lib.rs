@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::server::peer::{PeerMessage, PeersManager};
+use self::raft::peer::{PeerMessage, PeersManager};
 use cache::cluster::ClusterCache;
 use cache::engine::EngineCache;
 use cache::placement::{Node, PlacementClusterCache};
@@ -20,18 +20,17 @@ use clients::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
-use controller::broker::controller::BrokerServerController;
-use controller::engine::controller::StorageEngineController;
-use http::server::{start_http_server, HttpServerState};
-use protocol::placement_center::generate::engine::engine_service_server::EngineServiceServer;
+use controller::controller::ClusterController;
+use crate::server::http::server::{start_http_server, HttpServerState};
+use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::data_route::DataRoute;
 use raft::status_machine::RaftMachine;
 use raft::storage::{PlacementCenterStorage, RaftMessage};
-use server::service_engine::GrpcEngineService;
-use server::service_kv::GrpcKvService;
-use server::service_placement::GrpcPlacementService;
+use server::grpc::service_engine::GrpcEngineService;
+use server::grpc::service_kv::GrpcKvService;
+use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use storage::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
@@ -42,10 +41,10 @@ use tokio::sync::{broadcast, mpsc, Mutex};
 use tonic::transport::Server;
 mod cache;
 mod controller;
-mod http;
 mod raft;
 mod server;
 mod storage;
+mod core;
 
 pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,
@@ -108,9 +107,7 @@ impl PlacementCenter {
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
         let placement_center_storage = Arc::new(PlacementCenterStorage::new(raft_message_send));
 
-        self.start_broker_controller();
-
-        self.start_engine_controller(placement_center_storage.clone(), stop_send.clone());
+        self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
         self.start_peers_manager(peer_message_recv);
 
@@ -174,15 +171,16 @@ impl PlacementCenter {
         });
     }
 
+
+
     // Start Storage Engine Cluster Controller
-    pub fn start_engine_controller(
+    pub fn start_controller(
         &self,
         placement_center_storage: Arc<PlacementCenterStorage>,
         stop_send: broadcast::Sender<bool>,
     ) {
-        let ctrl = StorageEngineController::new(
+        let ctrl = ClusterController::new(
             self.cluster_cache.clone(),
-            self.engine_cache.clone(),
             placement_center_storage,
             self.rocksdb_engine_handler.clone(),
             stop_send,
@@ -190,16 +188,6 @@ impl PlacementCenter {
         self.daemon_runtime.spawn(async move {
             ctrl.start().await;
         });
-    }
-
-    // Start Broker Server Cluster Controller
-    pub fn start_broker_controller(&self) {
-        let broker_cache = self.cluster_cache.clone();
-        self.daemon_runtime.spawn(async move {
-            let ctrl = BrokerServerController::new(broker_cache);
-            ctrl.start().await;
-        });
-        info_meta("Broker Server Controller started successfully");
     }
 
     // Start Raft Status Machine

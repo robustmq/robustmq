@@ -13,11 +13,11 @@ impl IdempotentPersistence {
 
 #[async_trait]
 impl Idempotent for IdempotentPersistence {
-    async fn save_idem_data(&self, connect_id: u64, pkid: u16) {}
+    async fn save_idem_data(&self, client_id: String, pkid: u16) {}
 
-    async fn delete_idem_data(&self, connect_id: u64, pkid: u16) {}
+    async fn delete_idem_data(&self, client_id: String, pkid: u16) {}
 
-    async fn get_idem_data(&self, connect_id: u64, pkid: u16) -> Option<IdempotentData> {
+    async fn get_idem_data(&self, client_id: String, pkid: u16) -> Option<IdempotentData> {
         return None;
     }
 

@@ -15,7 +15,7 @@
  */
 
 syntax = "proto3";
-package engine;
+package journal;
 import "common.proto";
 
 service EngineService {

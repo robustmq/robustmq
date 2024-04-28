@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use common_base::errors::RobustMQError;
 use mobc::Manager;
-use protocol::placement_center::generate::engine::engine_service_client::EngineServiceClient;
+use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
 use crate::ClientPool;

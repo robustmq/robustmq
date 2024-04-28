@@ -1,7 +1,7 @@
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
-use super::packet::MQTTAckBuild;
-use crate::cluster::heartbeat_manager::HeartbeatManager;
+use super::packet::{packet_connect_fail, MQTTAckBuild};
+use crate::core::heartbeat_manager::HeartbeatManager;
 use crate::idempotent::memory::IdempotentMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::manager::SubScribeManager;
@@ -71,28 +71,27 @@ where
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
                 if self.protocol != MQTTProtocol::MQTT4 && self.protocol != MQTTProtocol::MQTT5 {}
 
-                let ack_pkg =
-                    if self.protocol == MQTTProtocol::MQTT4 {
-                        self.mqtt4_service
-                            .connect(connect.clone(), last_will.clone(), login.clone())
-                            .await
-                    } else if self.protocol == MQTTProtocol::MQTT5 {
-                        self.mqtt5_service
-                            .connect(
-                                connect_id,
-                                connect,
-                                properties,
-                                last_will,
-                                last_will_peoperties,
-                                login,
-                            )
-                            .await
-                    } else {
-                        return Some(self.ack_build.packet_connect_fail(
-                            ConnectReturnCode::UnsupportedProtocolVersion,
-                            None,
-                        ));
-                    };
+                let ack_pkg = if self.protocol == MQTTProtocol::MQTT4 {
+                    self.mqtt4_service
+                        .connect(connect.clone(), last_will.clone(), login.clone())
+                        .await
+                } else if self.protocol == MQTTProtocol::MQTT5 {
+                    self.mqtt5_service
+                        .connect(
+                            connect_id,
+                            connect,
+                            properties,
+                            last_will,
+                            last_will_peoperties,
+                            login,
+                        )
+                        .await
+                } else {
+                    return Some(packet_connect_fail(
+                        ConnectReturnCode::UnsupportedProtocolVersion,
+                        None,
+                    ));
+                };
 
                 if let MQTTPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
@@ -225,11 +224,10 @@ where
                 }
 
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return Some(
-                        self.mqtt5_service
-                            .disconnect(connect_id, disconnect, disconnect_properties)
-                            .await,
-                    );
+                    return self
+                        .mqtt5_service
+                        .disconnect(connect_id, disconnect, disconnect_properties)
+                        .await;
                 }
             }
 

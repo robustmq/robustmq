@@ -53,3 +53,7 @@ pub fn key_all_shard(cluster_name: &String) -> String {
 pub fn uniq_key_id() -> String {
     return "generage_uniq_int_id".to_string();
 }
+
+pub fn share_sub_key() -> String {
+    return "".to_string();
+}
