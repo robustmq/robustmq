@@ -2,7 +2,7 @@ use super::{
     connection::Connection, connection_manager::ConnectionManager, packet::ResponsePackage,
 };
 use crate::{
-    handler::command::Command,
+    handler::{command::Command, packet::packet_connect_fail},
     metrics::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
         metrics_response_queue,
@@ -10,7 +10,7 @@ use crate::{
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
 use common_base::log::{debug, error, info};
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
 use std::{
     fmt::{Debug, Error},
@@ -108,8 +108,8 @@ where
                 let request_queue_sx = request_queue_sx.clone();
                 match listener.accept().await {
                     Ok((stream, addr)) => {
+                        
                         // split stream
-
                         let (r_stream, w_stream) = io::split(stream);
                         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
                         let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
@@ -118,7 +118,12 @@ where
                         match cm.connect_check() {
                             Ok(_) => {}
                             Err(e) => {
-                                error(format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
+                                let reason=format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string());
+                                error(reason.clone());
+                                packet_connect_fail(
+                                    protocol::mqtt::ConnectReturnCode::ServerBusy,
+                                    Some(reason),
+                                );
                                 continue;
                             }
                         }

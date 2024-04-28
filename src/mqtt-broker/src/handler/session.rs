@@ -3,7 +3,7 @@ use crate::{
     storage::session::SessionStorage,
 };
 use common_base::errors::RobustMQError;
-use protocol::mqtt::{Connect, ConnectProperties};
+use protocol::mqtt::{Connect, ConnectProperties, LastWillProperties};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 
@@ -11,6 +11,7 @@ pub async fn get_session_info<T>(
     connect_id: u64,
     client_id: String,
     contain_last_will: bool,
+    last_will_properties: Option<LastWillProperties>,
     cluster: &Cluster,
     connnect: &Connect,
     connect_properties: &Option<ConnectProperties>,
@@ -20,6 +21,15 @@ where
     T: StorageAdapter,
 {
     let session_expiry = session_expiry_interval(cluster, connect_properties);
+    let delay_interval = if let Some(properties) = last_will_properties {
+        if let Some(value) = properties.delay_interval {
+            value
+        } else {
+            0
+        }
+    } else {
+        0
+    };
     let (mut session, new_session) = if connnect.clean_session {
         let session_storage = SessionStorage::new(storage_adapter.clone());
         match session_storage.get_session(&client_id).await {
@@ -28,7 +38,12 @@ where
                 (session, false)
             }
             Ok(None) => (
-                Session::new(client_id.clone(), session_expiry, contain_last_will),
+                Session::new(
+                    client_id.clone(),
+                    session_expiry,
+                    contain_last_will,
+                    delay_interval,
+                ),
                 true,
             ),
             Err(e) => {
@@ -37,7 +52,12 @@ where
         }
     } else {
         (
-            Session::new(client_id.clone(), session_expiry, contain_last_will),
+            Session::new(
+                client_id.clone(),
+                session_expiry,
+                contain_last_will,
+                delay_interval,
+            ),
             true,
         )
     };

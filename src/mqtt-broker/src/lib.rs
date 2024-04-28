@@ -14,7 +14,8 @@
 use clients::ClientPool;
 use cluster::{
     heartbeat_manager::HeartbeatManager, keep_alive::KeepAlive, register_broker_node,
-    report_heartbeat, unregister_broker_node, HEART_CONNECT_SHARD_HASH_NUM,
+    report_heartbeat, session_expiry::SessionExpiry, unregister_broker_node,
+    HEART_CONNECT_SHARD_HASH_NUM,
 };
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
@@ -143,6 +144,7 @@ where
         self.start_mqtt_server();
         self.start_http_server();
         self.start_keep_alive_thread(stop_send.subscribe());
+        self.start_session_expiry_thread(stop_send.subscribe());
         self.start_cluster_heartbeat_report(stop_send.subscribe());
         self.start_push_server(stop_send.subscribe());
         self.awaiting_stop(stop_send);
@@ -230,6 +232,13 @@ where
         );
         self.runtime.spawn(async move {
             keep_alive.start_heartbeat_check().await;
+        });
+    }
+
+    fn start_session_expiry_thread(&self, stop_send: broadcast::Receiver<bool>) {
+        let sesssion_expiry = SessionExpiry::new();
+        self.runtime.spawn(async move {
+            sesssion_expiry.start_session_expire_check().await;
         });
     }
 

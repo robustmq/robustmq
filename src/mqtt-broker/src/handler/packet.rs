@@ -66,22 +66,6 @@ impl<T> MQTTAckBuild<T> {
         );
     }
 
-    pub fn packet_connect_fail(
-        &self,
-        code: ConnectReturnCode,
-        reason_string: Option<String>,
-    ) -> MQTTPacket {
-        let mut properties = ConnAckProperties::default();
-        properties.reason_string = reason_string;
-        return MQTTPacket::ConnAck(
-            ConnAck {
-                session_present: false,
-                code,
-            },
-            Some(properties),
-        );
-    }
-
     pub fn pub_ack_fail(&self, reason: PubAckReason, reason_string: Option<String>) -> MQTTPacket {
         let pub_ack = PubAck { pkid: 0, reason };
         let properties = Some(PubAckProperties {
@@ -198,4 +182,20 @@ pub fn publish_comp_success(pkid: u16) -> MQTTPacket {
         reason: PubCompReason::Success,
     };
     return MQTTPacket::PubComp(pub_comp, None);
+}
+
+
+pub fn packet_connect_fail(
+    code: ConnectReturnCode,
+    reason_string: Option<String>,
+) -> MQTTPacket {
+    let mut properties = ConnAckProperties::default();
+    properties.reason_string = reason_string;
+    return MQTTPacket::ConnAck(
+        ConnAck {
+            session_present: false,
+            code,
+        },
+        Some(properties),
+    );
 }
