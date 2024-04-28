@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use clients::ClientPool;
-use cluster::{
+use core::{
     heartbeat_manager::HeartbeatManager, keep_alive::KeepAlive, register_broker_node,
     report_heartbeat, session_expiry::SessionExpiry, unregister_broker_node,
     HEART_CONNECT_SHARD_HASH_NUM,
@@ -47,7 +47,7 @@ use tokio::{
     },
 };
 
-mod cluster;
+mod core;
 mod handler;
 mod idempotent;
 mod metadata;
