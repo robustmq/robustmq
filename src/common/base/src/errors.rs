@@ -84,7 +84,10 @@ pub enum RobustMQError {
     PacketLenthError(usize),
 
     #[error("topic name is not available")]
-    TopicNameInvalid()
+    TopicNameInvalid(),
+
+    #[error("client id [{0}] Format error")]
+    ClientIdFormatError(String)
 }
 
 #[cfg(test)]

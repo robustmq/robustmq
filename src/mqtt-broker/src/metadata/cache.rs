@@ -185,7 +185,7 @@ where
         return None;
     }
 
-    pub fn remove_connect_id(&self, connect_id: u64) {
+    pub fn remove_connection(&self, connect_id: u64) {
         self.connection_info.remove(&connect_id);
     }
 

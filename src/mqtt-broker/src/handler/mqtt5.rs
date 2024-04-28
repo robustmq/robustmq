@@ -1,7 +1,7 @@
 use super::packet::{publish_comp_fail, publish_comp_success};
-use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send_retain_message};
+use super::{packet::MQTTAckBuild, session::get_session_info, subscribe::send_retain_message};
 use crate::idempotent::Idempotent;
-use crate::metadata::connection::Connection;
+use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
@@ -95,16 +95,30 @@ where
         }
 
         // auto create client id
-        let client_id = if connnect.client_id.is_empty() {
-            unique_id()
-        } else {
-            connnect.client_id.clone()
+        let (client_id, new_client_id) = match get_client_id(connnect.client_id.clone()) {
+            Ok((client_id, new_client_id)) => (client_id, new_client_id),
+            Err(e) => {
+                return self
+                    .ack_build
+                    .packet_connect_fail(ConnectReturnCode::BadClientId, Some(e.to_string()));
+            }
         };
 
-        // save session data
-        let client_session = match save_connect_session(
+        // build connection data
+        let connection = create_connection(
+            connect_id,
             client_id.clone(),
-            !last_will.is_none(),
+            &cluster,
+            connnect.clone(),
+            connect_properties.clone(),
+        );
+
+        let containn_last_will = !last_will.is_none();
+        // save session data
+        let (session, new_session) = match get_session_info(
+            connect_id,
+            client_id.clone(),
+            containn_last_will,
             &cluster,
             &connnect,
             &connect_properties,
@@ -123,7 +137,7 @@ where
         };
 
         // save last will data
-        if !last_will.is_none() {
+        if containn_last_will {
             let last_will = LastWillData {
                 last_will,
                 last_will_properties,
@@ -148,15 +162,14 @@ where
         // update cache
         // When working with locks, the default is to release them as soon as possible
         self.metadata_cache
-            .add_session(client_id.clone(), client_session.clone());
+            .add_session(client_id.clone(), session.clone());
         self.metadata_cache
-            .add_connection(connect_id, Connection::new(connect_id, client_id.clone()));
+            .add_connection(connect_id, connection.clone());
 
         // Record heartbeat information
-        let session_keep_alive = client_session.keep_alive;
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
             protobol: crate::server::MQTTProtocol::MQTT5,
-            keep_live: session_keep_alive,
+            keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
         self.heartbeat_manager
@@ -164,9 +177,10 @@ where
 
         return self.ack_build.packet_connect_success(
             &cluster,
-            &client_session,
-            client_id,
-            connnect.client_id.is_empty(),
+            client_id.clone(),
+            new_client_id,
+            session.session_expiry,
+            new_session,
         );
     }
 
@@ -218,18 +232,8 @@ where
             ));
         };
 
-        let client_id = connection.client_id;
-
-        let session = if let Some(se) = self.metadata_cache.session_info.get(&client_id) {
-            se.clone()
-        } else {
-            return Some(self.ack_build.pub_ack_fail(
-                PubAckReason::UnspecifiedError,
-                Some(RobustMQError::NotFoundClientInCache(client_id).to_string()),
-            ));
-        };
-
-        if publish.payload.len() == 0 || publish.payload.len() > (session.max_packet_size as usize)
+        if publish.payload.len() == 0
+            || publish.payload.len() > (connection.max_packet_size as usize)
         {
             return Some(self.ack_build.pub_ack_fail(
                 PubAckReason::PayloadFormatInvalid,
@@ -307,7 +311,6 @@ where
         _: Option<PubRelProperties>,
         idempotent_manager: Arc<IdempotentMemory>,
     ) -> MQTTPacket {
-
         if idempotent_manager
             .get_idem_data(connect_id, pub_rel.pkid)
             .await
@@ -329,12 +332,20 @@ where
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
-        
+        let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            conn.client_id.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
         // Saving subscriptions
         self.subscribe_manager
             .parse_subscribe(
                 crate::server::MQTTProtocol::MQTT5,
-                connect_id,
+                client_id,
                 subscribe.clone(),
                 subscribe_properties.clone(),
             )
@@ -377,23 +388,14 @@ where
             );
         };
 
-        let client_id = connection.client_id;
-
-        if let Some(session_info) = self.metadata_cache.session_info.get(&client_id.clone()) {
-            let live_time = ConnectionLiveTime {
-                protobol: crate::server::MQTTProtocol::MQTT5,
-                keep_live: session_info.keep_alive,
-                heartbeat: now_second(),
-            };
-            self.heartbeat_manager
-                .report_hearbeat(connect_id, live_time);
-            return self.ack_build.ping_resp();
-        }
-
-        return self.ack_build.distinct(
-            DisconnectReasonCode::UnspecifiedError,
-            Some(RobustMQError::NotFoundSessionInCache(connect_id).to_string()),
-        );
+        let live_time = ConnectionLiveTime {
+            protobol: crate::server::MQTTProtocol::MQTT5,
+            keep_live: connection.keep_alive as u16,
+            heartbeat: now_second(),
+        };
+        self.heartbeat_manager
+            .report_hearbeat(connect_id, live_time);
+        return self.ack_build.ping_resp();
     }
 
     pub async fn un_subscribe(
@@ -402,6 +404,15 @@ where
         un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
     ) -> MQTTPacket {
+        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
         // Remove subscription information
         if un_subscribe.filters.len() > 0 {
             let mut topic_ids = Vec::new();
@@ -412,7 +423,7 @@ where
             }
 
             self.subscribe_manager
-                .remove_subscribe(connect_id, topic_ids);
+                .remove_subscribe(connection.client_id, topic_ids);
         }
 
         return self
@@ -426,9 +437,17 @@ where
         disconnect: Disconnect,
         disconnect_properties: Option<DisconnectProperties>,
     ) -> MQTTPacket {
-        self.metadata_cache.remove_connect_id(connect_id);
-        self.heartbeat_manager.remove_connect(connect_id);
-        self.subscribe_manager.remove_connect_subscribe(connect_id);
+        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
+        self.metadata_cache.remove_connection(connect_id);
+        self.heartbeat_manager.remove_connection(connect_id);
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection, None);

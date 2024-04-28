@@ -389,7 +389,7 @@ pub fn qos(num: u8) -> Option<QoS> {
     }
 }
 
-impl From<QoS> for u8{
+impl From<QoS> for u8 {
     fn from(value: QoS) -> Self {
         match value {
             QoS::AtMostOnce => 0,
