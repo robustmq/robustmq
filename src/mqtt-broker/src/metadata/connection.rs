@@ -1,4 +1,7 @@
-use common_base::tools::now_second;
+use common_base::{
+    errors::RobustMQError,
+    tools::{now_second, unique_id},
+};
 use dashmap::DashMap;
 use protocol::mqtt::{Connect, ConnectProperties};
 use serde::{Deserialize, Serialize};
@@ -104,3 +107,22 @@ pub fn create_connection(
 pub fn client_keep_alive(server_keep_alive: u16, client_keep_alive: u16) -> u16 {
     return std::cmp::min(server_keep_alive, client_keep_alive);
 }
+
+pub fn get_client_id(client_id: String) -> Result<(String, bool), RobustMQError> {
+    let (client_id, new_client_id) = if client_id.is_empty() {
+        (unique_id(), true)
+    } else {
+        (client_id.clone(), false)
+    };
+    if !client_id_validator(){
+        return Err(RobustMQError::ClientIdFormatError(client_id))
+    }
+
+    return Ok((client_id, new_client_id));
+}
+
+pub fn client_id_validator()->bool{
+    return true;
+}
+
+

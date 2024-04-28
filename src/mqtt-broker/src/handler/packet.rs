@@ -3,7 +3,10 @@ use crate::{
     server::MQTTProtocol,
 };
 use protocol::mqtt::{
-    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason
+    ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
+    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubAckProperties,
+    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 use std::sync::Arc;
 
@@ -24,9 +27,10 @@ impl<T> MQTTAckBuild<T> {
     pub fn packet_connect_success(
         &self,
         cluster: &Cluster,
-        session: &Session,
         client_id: String,
         auto_client_id: bool,
+        session_expiry_interval: u32,
+        session_present: bool,
     ) -> MQTTPacket {
         let assigned_client_identifier = if auto_client_id {
             Some(client_id)
@@ -35,7 +39,7 @@ impl<T> MQTTAckBuild<T> {
         };
 
         let properties = ConnAckProperties {
-            session_expiry_interval: session.session_expiry_interval,
+            session_expiry_interval: Some(session_expiry_interval),
             receive_max: cluster.receive_max(),
             max_qos: cluster.max_qos(),
             retain_available: Some(cluster.retain_available()),
@@ -55,7 +59,7 @@ impl<T> MQTTAckBuild<T> {
         };
         return MQTTPacket::ConnAck(
             ConnAck {
-                session_present: session.session_present,
+                session_present,
                 code: ConnectReturnCode::Success,
             },
             Some(properties),
@@ -103,11 +107,7 @@ impl<T> MQTTAckBuild<T> {
         return MQTTPacket::PubAck(pub_ack, properties);
     }
 
-    pub fn pub_rec(
-        &self,
-        pkid: u16,
-        user_properties: Vec<(String, String)>,
-    ) -> MQTTPacket {
+    pub fn pub_rec(&self, pkid: u16, user_properties: Vec<(String, String)>) -> MQTTPacket {
         let pub_rec = PubRec {
             pkid,
             reason: PubRecReason::Success,
@@ -140,10 +140,7 @@ impl<T> MQTTAckBuild<T> {
         return MQTTPacket::PingResp(PingResp {});
     }
 
-    pub fn sub_ack(
-        &self,
-        pkid: u16
-    ) -> MQTTPacket {
+    pub fn sub_ack(&self, pkid: u16) -> MQTTPacket {
         let sub_ack = SubAck {
             pkid: pkid,
             return_codes: vec![SubscribeReasonCode::QoS0],

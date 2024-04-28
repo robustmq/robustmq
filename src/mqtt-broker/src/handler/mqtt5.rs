@@ -1,7 +1,7 @@
 use super::packet::{publish_comp_fail, publish_comp_success};
 use super::{packet::MQTTAckBuild, session::get_session_info, subscribe::send_retain_message};
 use crate::idempotent::Idempotent;
-use crate::metadata::connection::{create_connection, Connection};
+use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
@@ -95,10 +95,13 @@ where
         }
 
         // auto create client id
-        let client_id = if connnect.client_id.is_empty() {
-            unique_id()
-        } else {
-            connnect.client_id.clone()
+        let (client_id, new_client_id) = match get_client_id(connnect.client_id.clone()) {
+            Ok((client_id, new_client_id)) => (client_id, new_client_id),
+            Err(e) => {
+                return self
+                    .ack_build
+                    .packet_connect_fail(ConnectReturnCode::BadClientId, Some(e.to_string()));
+            }
         };
 
         // build connection data
@@ -112,7 +115,8 @@ where
 
         let containn_last_will = !last_will.is_none();
         // save session data
-        let client_session = match get_session_info(
+        let (session, new_session) = match get_session_info(
+            connect_id,
             client_id.clone(),
             containn_last_will,
             &cluster,
@@ -158,7 +162,7 @@ where
         // update cache
         // When working with locks, the default is to release them as soon as possible
         self.metadata_cache
-            .add_session(client_id.clone(), client_session.clone());
+            .add_session(client_id.clone(), session.clone());
         self.metadata_cache
             .add_connection(connect_id, connection.clone());
 
@@ -173,9 +177,10 @@ where
 
         return self.ack_build.packet_connect_success(
             &cluster,
-            &client_session,
-            client_id,
-            connnect.client_id.is_empty(),
+            client_id.clone(),
+            new_client_id,
+            session.session_expiry,
+            new_session,
         );
     }
 
@@ -383,23 +388,14 @@ where
             );
         };
 
-        let client_id = connection.client_id;
-
-        if let Some(session_info) = self.metadata_cache.session_info.get(&client_id.clone()) {
-            let live_time = ConnectionLiveTime {
-                protobol: crate::server::MQTTProtocol::MQTT5,
-                keep_live: session_info.keep_alive,
-                heartbeat: now_second(),
-            };
-            self.heartbeat_manager
-                .report_hearbeat(connect_id, live_time);
-            return self.ack_build.ping_resp();
-        }
-
-        return self.ack_build.distinct(
-            DisconnectReasonCode::UnspecifiedError,
-            Some(RobustMQError::NotFoundSessionInCache(connect_id).to_string()),
-        );
+        let live_time = ConnectionLiveTime {
+            protobol: crate::server::MQTTProtocol::MQTT5,
+            keep_live: connection.keep_alive as u16,
+            heartbeat: now_second(),
+        };
+        self.heartbeat_manager
+            .report_hearbeat(connect_id, live_time);
+        return self.ack_build.ping_resp();
     }
 
     pub async fn un_subscribe(
@@ -408,6 +404,15 @@ where
         un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
     ) -> MQTTPacket {
+        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
         // Remove subscription information
         if un_subscribe.filters.len() > 0 {
             let mut topic_ids = Vec::new();
@@ -418,7 +423,7 @@ where
             }
 
             self.subscribe_manager
-                .remove_subscribe(connect_id, topic_ids);
+                .remove_subscribe(connection.client_id, topic_ids);
         }
 
         return self
@@ -432,9 +437,17 @@ where
         disconnect: Disconnect,
         disconnect_properties: Option<DisconnectProperties>,
     ) -> MQTTPacket {
-        self.metadata_cache.remove_connect_id(connect_id);
-        self.heartbeat_manager.remove_connect(connect_id);
-        self.subscribe_manager.remove_connect_subscribe(connect_id);
+        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
+        self.metadata_cache.remove_connection(connect_id);
+        self.heartbeat_manager.remove_connection(connect_id);
         return self
             .ack_build
             .distinct(DisconnectReasonCode::NormalDisconnection, None);

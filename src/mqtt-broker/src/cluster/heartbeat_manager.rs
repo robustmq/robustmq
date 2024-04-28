@@ -27,7 +27,7 @@ impl HeartbeatManager {
         }
     }
 
-    pub fn remove_connect(&self, connect_id: u64) {
+    pub fn remove_connection(&self, connect_id: u64) {
         let hash_num = self.calc_shard_hash_num(connect_id);
         if let Some(row) = self.shard_data.get(&hash_num) {
             row.remove_connect(connect_id);

@@ -1,7 +1,7 @@
 use super::manager::SubScribeManager;
 use crate::{
     handler::subscribe::max_qos,
-    metadata::message::Message,
+    metadata::{cache::MetadataCacheManager, message::Message},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
@@ -17,6 +17,7 @@ use tokio::{
 };
 
 pub struct PushServer<T, S> {
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     subscribe_manager: Arc<SubScribeManager<T>>,
     topic_push_thread: DashMap<String, Sender<bool>>,
     message_storage_adapter: Arc<S>,
@@ -30,12 +31,14 @@ where
     S: StorageAdapter + Send + Sync + 'static,
 {
     pub fn new(
+        metadata_cache: Arc<MetadataCacheManager<T>>,
         subscribe_manager: Arc<SubScribeManager<T>>,
         message_storage_adapter: Arc<S>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {
         return PushServer {
+            metadata_cache,
             subscribe_manager,
             topic_push_thread: DashMap::with_capacity(256),
             message_storage_adapter,
@@ -76,6 +79,7 @@ where
                     let response_queue_sx5 = self.response_queue_sx5.clone();
                     let storage_adapter = self.message_storage_adapter.clone();
                     let subscribe_manager = self.subscribe_manager.clone();
+                    let metadata_cache = self.metadata_cache.clone();
                     self.topic_push_thread.insert(topic_id.clone(), sx);
 
                     tokio::spawn(async move {
@@ -95,6 +99,7 @@ where
                             let message_storage = MessageStorage::new(storage_adapter.clone());
 
                             topic_sub_push_thread(
+                                metadata_cache.clone(),
                                 subscribe_manager.clone(),
                                 message_storage,
                                 topic_id.clone(),
@@ -112,6 +117,7 @@ where
 }
 
 pub async fn topic_sub_push_thread<T, S>(
+    metadata_cache: Arc<MetadataCacheManager<T>>,
     subscribe_manager: Arc<SubScribeManager<T>>,
     message_storage: MessageStorage<S>,
     topic_id: String,
@@ -163,6 +169,18 @@ pub async fn topic_sub_push_thread<T, S>(
                         if let Some(id) = subscribe.subscription_identifier {
                             sub_id.push(id);
                         }
+
+                        let connect_id = if let Some(sess) =
+                            metadata_cache.session_info.get(&subscribe.client_id)
+                        {
+                            if let Some(conn_id) = sess.connection_id {
+                                conn_id
+                            } else {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        };
                         for record in result.clone() {
                             let msg = match Message::decode_record(record) {
                                 Ok(msg) => msg,
@@ -192,7 +210,7 @@ pub async fn topic_sub_push_thread<T, S>(
                             };
 
                             let resp = ResponsePackage {
-                                connection_id: subscribe.client_id,
+                                connection_id: connect_id,
                                 packet: MQTTPacket::Publish(publish, Some(properties)),
                             };
 
@@ -247,10 +265,10 @@ mod tests {
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
         metadata_cache.set_topic(&topic_name, &topic);
-        let sub_manager = Arc::new(SubScribeManager::new(metadata_cache));
+        let sub_manager = Arc::new(SubScribeManager::new(metadata_cache.clone()));
 
         // Subscription topic
-        let connect_id = 1;
+        let client_id = "test-ttt".to_string();
         let packet_identifier = 2;
         let mut filters = Vec::new();
         let filter = Filter {
@@ -268,7 +286,7 @@ mod tests {
         sub_manager
             .parse_subscribe(
                 crate::server::MQTTProtocol::MQTT5,
-                connect_id,
+                client_id,
                 subscribe,
                 None,
             )
@@ -282,6 +300,7 @@ mod tests {
         let topic_id: String = topic.topic_id.clone();
         tokio::spawn(async move {
             topic_sub_push_thread(
+                metadata_cache,
                 sub_manager,
                 ms,
                 topic_id,
