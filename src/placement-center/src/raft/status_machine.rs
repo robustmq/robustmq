@@ -3,7 +3,7 @@ use super::storage::{RaftMessage, RaftResponseMesage};
 use crate::cache::placement::{Node, PlacementClusterCache};
 use crate::raft::data_route::DataRoute;
 use crate::storage::raft::RaftMachineStorage;
-use crate::server::peer::PeerMessage;
+use crate::raft::peer::PeerMessage;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
 use common_base::errors::RobustMQError;

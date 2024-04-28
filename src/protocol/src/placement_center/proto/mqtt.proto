@@ -25,6 +25,7 @@ service MqttService {
 
 message ShareSubRequest{
     string share_sub_name = 1;
+    string cluster_name = 2;
 }
 
 message ShareSubReply{

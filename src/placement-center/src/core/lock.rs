@@ -47,8 +47,7 @@ impl Lock {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-
-    use crate::server::lock::Lock;
+    use crate::core::lock::Lock;
     use crate::storage::rocksdb::RocksDBEngine;
     use common_base::config::placement_center::PlacementCenterConfig;
 

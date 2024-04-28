@@ -1,7 +1,7 @@
 use super::storage::{StorageData, StorageDataType};
 use crate::{
     cache::{cluster::ClusterCache, engine::EngineCache},
-    controller::engine::segment_replica::SegmentReplicaAlgorithm,
+    controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
         cluster::{ClusterInfo, ClusterStorage},
         kv::KvStorage,
