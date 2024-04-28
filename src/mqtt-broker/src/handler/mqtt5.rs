@@ -1,7 +1,7 @@
 use super::packet::{publish_comp_fail, publish_comp_success};
-use super::{packet::MQTTAckBuild, session::save_connect_session, subscribe::send_retain_message};
+use super::{packet::MQTTAckBuild, session::get_session_info, subscribe::send_retain_message};
 use crate::idempotent::Idempotent;
-use crate::metadata::connection::Connection;
+use crate::metadata::connection::{create_connection, Connection};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::{
     cluster::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
@@ -101,10 +101,20 @@ where
             connnect.client_id.clone()
         };
 
-        // save session data
-        let client_session = match save_connect_session(
+        // build connection data
+        let connection = create_connection(
+            connect_id,
             client_id.clone(),
-            !last_will.is_none(),
+            &cluster,
+            connnect.clone(),
+            connect_properties.clone(),
+        );
+
+        let containn_last_will = !last_will.is_none();
+        // save session data
+        let client_session = match get_session_info(
+            client_id.clone(),
+            containn_last_will,
             &cluster,
             &connnect,
             &connect_properties,
@@ -123,7 +133,7 @@ where
         };
 
         // save last will data
-        if !last_will.is_none() {
+        if containn_last_will {
             let last_will = LastWillData {
                 last_will,
                 last_will_properties,
@@ -150,13 +160,12 @@ where
         self.metadata_cache
             .add_session(client_id.clone(), client_session.clone());
         self.metadata_cache
-            .add_connection(connect_id, Connection::new(connect_id, client_id.clone()));
+            .add_connection(connect_id, connection.clone());
 
         // Record heartbeat information
-        let session_keep_alive = client_session.keep_alive;
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
             protobol: crate::server::MQTTProtocol::MQTT5,
-            keep_live: session_keep_alive,
+            keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
         self.heartbeat_manager
@@ -218,18 +227,8 @@ where
             ));
         };
 
-        let client_id = connection.client_id;
-
-        let session = if let Some(se) = self.metadata_cache.session_info.get(&client_id) {
-            se.clone()
-        } else {
-            return Some(self.ack_build.pub_ack_fail(
-                PubAckReason::UnspecifiedError,
-                Some(RobustMQError::NotFoundClientInCache(client_id).to_string()),
-            ));
-        };
-
-        if publish.payload.len() == 0 || publish.payload.len() > (session.max_packet_size as usize)
+        if publish.payload.len() == 0
+            || publish.payload.len() > (connection.max_packet_size as usize)
         {
             return Some(self.ack_build.pub_ack_fail(
                 PubAckReason::PayloadFormatInvalid,
@@ -307,7 +306,6 @@ where
         _: Option<PubRelProperties>,
         idempotent_manager: Arc<IdempotentMemory>,
     ) -> MQTTPacket {
-
         if idempotent_manager
             .get_idem_data(connect_id, pub_rel.pkid)
             .await
@@ -329,12 +327,20 @@ where
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
-        
+        let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            conn.client_id.clone()
+        } else {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
         // Saving subscriptions
         self.subscribe_manager
             .parse_subscribe(
                 crate::server::MQTTProtocol::MQTT5,
-                connect_id,
+                client_id,
                 subscribe.clone(),
                 subscribe_properties.clone(),
             )

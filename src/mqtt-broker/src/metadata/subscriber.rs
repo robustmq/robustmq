@@ -6,7 +6,7 @@ use crate::server::MQTTProtocol;
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Subscriber {
     pub protocol: MQTTProtocol,
-    pub connect_id: u64,
+    pub client_id: String,
     pub packet_identifier: u16,
     pub qos: QoS,
     pub nolocal: bool,

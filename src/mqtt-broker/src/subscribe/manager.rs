@@ -10,7 +10,8 @@ use storage_adapter::storage::StorageAdapter;
 
 #[derive(Clone)]
 pub struct SubScribeManager<T> {
-    pub topic_subscribe: DashMap<String, DashMap<u64, Subscriber>>,
+    pub topic_subscribe: DashMap<String, DashMap<String, Subscriber>>,
+    pub client_subscribe: DashMap<String, DashMap<String, u64>>,
     pub metadata_cache: Arc<MetadataCacheManager<T>>,
 }
 
@@ -22,13 +23,14 @@ where
         return SubScribeManager {
             metadata_cache,
             topic_subscribe: DashMap::with_capacity(256),
+            client_subscribe: DashMap::with_capacity(256),
         };
     }
 
     pub async fn parse_subscribe(
         &self,
         protocol: MQTTProtocol,
-        connect_id: u64,
+        client_id: String,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
@@ -44,12 +46,18 @@ where
                     .insert(topic_id.clone(), DashMap::with_capacity(256));
             }
 
+            if !self.client_subscribe.contains_key(&client_id) {
+                self.client_subscribe
+                    .insert(client_id.clone(), DashMap::with_capacity(256))
+            }
+
             let tp_sub = self.topic_subscribe.get_mut(&topic_id).unwrap();
+            let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
             for filter in subscribe.filters.clone() {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
                     let sub = Subscriber {
                         protocol: protocol.clone(),
-                        connect_id,
+                        client_id: client_id.clone(),
                         packet_identifier: subscribe.packet_identifier,
                         qos: filter.qos,
                         nolocal: filter.nolocal,
@@ -57,7 +65,7 @@ where
                         subscription_identifier: sub_identifier,
                         user_properties: Vec::new(),
                     };
-                    tp_sub.insert(connect_id, sub);
+                    tp_sub.insert(client_id.clone(), sub);
                 }
             }
         }
@@ -67,19 +75,19 @@ where
         self.topic_subscribe.remove(&topic_id);
     }
 
-    pub fn remove_subscribe(&self, connect_id: u64, topic_ids: Vec<String>) {
+    pub fn remove_subscribe(&self, client_id: String, topic_ids: Vec<String>) {
         for topic_id in topic_ids {
             if let Some(sub_list) = self.topic_subscribe.get(&topic_id) {
-                sub_list.remove(&connect_id);
+                sub_list.remove(&client_id);
             }
         }
     }
 
-    pub fn remove_connect_subscribe(&self, connect_id: u64) {
+    pub fn remove_connect_subscribe(&self, client_id: String) {
         for (topic_id, sub_list) in self.topic_subscribe.clone() {
-            if sub_list.contains_key(&connect_id) {
+            if sub_list.contains_key(&client_id) {
                 let ts = self.topic_subscribe.get(&topic_id).unwrap();
-                ts.remove(&connect_id);
+                ts.remove(&client_id);
             }
         }
     }

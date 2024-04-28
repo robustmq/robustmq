@@ -192,7 +192,7 @@ pub async fn topic_sub_push_thread<T, S>(
                             };
 
                             let resp = ResponsePackage {
-                                connection_id: subscribe.connect_id,
+                                connection_id: subscribe.client_id,
                                 packet: MQTTPacket::Publish(publish, Some(properties)),
                             };
 
