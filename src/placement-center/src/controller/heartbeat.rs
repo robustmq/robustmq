@@ -5,7 +5,7 @@ use crate::{
 use common_base::log::{error_meta, info_meta};
 use protocol::placement_center::generate::{common::ClusterType, placement::UnRegisterNodeRequest};
 use std::{
-    sync::{Arc, RwLock},
+    sync::Arc,
     thread::sleep,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -14,7 +14,7 @@ use tokio::sync::broadcast;
 pub struct StorageEngineNodeHeartBeat {
     timeout_ms: u128,
     check_time_ms: u64,
-    cluster_cache: Arc<RwLock<ClusterCache>>,
+    cluster_cache: Arc<ClusterCache>,
     placement_center_storage: Arc<PlacementCenterStorage>,
     stop_recv: broadcast::Receiver<bool>,
 }
@@ -23,7 +23,7 @@ impl StorageEngineNodeHeartBeat {
     pub fn new(
         timeout_ms: u128,
         check_time_ms: u64,
-        cluster_cache: Arc<RwLock<ClusterCache>>,
+        cluster_cache: Arc<ClusterCache>,
         placement_center_storage: Arc<PlacementCenterStorage>,
         stop_recv: broadcast::Receiver<bool>,
     ) -> Self {
@@ -53,23 +53,14 @@ impl StorageEngineNodeHeartBeat {
                 .unwrap()
                 .as_millis();
 
-            let ec = self.cluster_cache.read().unwrap();
-            let node_list = ec.node_list.clone();
-            let node_heartbeat = ec.node_heartbeat.clone();
-            let cluster_list = ec.cluster_list.clone();
-
-            // Obtain node, cluster, and heartbeat information from the Cache.
-            // To avoid occupying the read lock of the Cache for a long time, manually release the read lock after data is read
-            drop(ec);
-
-            for (_, node) in node_list {
+            for (_, node) in self.cluster_cache.node_list.clone() {
                 let key = node_key(node.cluster_name.clone(), node.node_id);
-                if let Some(prev_time) = node_heartbeat.get(&key) {
+                if let Some(prev_time) = self.cluster_cache.node_heartbeat.get(&key) {
                     // Detects whether the heartbeat rate of a node exceeds the unreported rate.
                     // If yes, remove the node
                     if time - *prev_time >= self.timeout_ms {
                         let cluster_name = node.cluster_name.clone();
-                        if let Some(_) = cluster_list.get(&cluster_name) {
+                        if let Some(_) = self.cluster_cache.cluster_list.get(&cluster_name) {
                             let mut req = UnRegisterNodeRequest::default();
                             req.node_id = node.node_id;
                             req.cluster_name = node.cluster_name.clone();
@@ -92,8 +83,7 @@ impl StorageEngineNodeHeartBeat {
                         }
                     }
                 } else {
-                    let mut ec = self.cluster_cache.write().unwrap();
-                    ec.heart_time(key, time);
+                    self.cluster_cache.heart_time(key, time);
                 }
             }
             sleep(Duration::from_millis(self.check_time_ms));

@@ -1,6 +1,6 @@
 use super::preferred_election::PreferredElection;
 use crate::{
-    cache::engine::EngineCache,
+    cache::journal::JournalCache,
     raft::storage::PlacementCenterStorage,
     storage::{
         cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
@@ -11,7 +11,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 
 pub struct StorageEngineController {
-    engine_cache: Arc<RwLock<EngineCache>>,
+    engine_cache: Arc<RwLock<JournalCache>>,
     placement_center_storage: Arc<PlacementCenterStorage>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
@@ -19,7 +19,7 @@ pub struct StorageEngineController {
 
 impl StorageEngineController {
     pub fn new(
-        engine_cache: Arc<RwLock<EngineCache>>,
+        engine_cache: Arc<RwLock<JournalCache>>,
         placement_center_storage: Arc<PlacementCenterStorage>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_send: broadcast::Sender<bool>,

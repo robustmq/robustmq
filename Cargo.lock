@@ -35,7 +35,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77c3a9648d43b9cd48db467b3f87fdd6e146bcc88ab0180006cef2179fe11d01"
 dependencies = [
  "cfg-if",
- "getrandom",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -2234,13 +2233,13 @@ checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
 name = "placement-center"
 version = "0.0.1"
 dependencies = [
- "ahash 0.8.7",
  "axum 0.7.4",
  "bincode",
  "byteorder",
  "bytes",
  "clients",
  "common-base",
+ "dashmap",
  "futures",
  "futures-util",
  "lazy_static",

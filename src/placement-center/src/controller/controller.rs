@@ -5,11 +5,11 @@ use crate::{
     storage::{cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine},
 };
 use common_base::{config::placement_center::placement_center_conf, log::info_meta};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tokio::sync::broadcast;
 
 pub struct ClusterController {
-    cluster_cache: Arc<RwLock<ClusterCache>>,
+    cluster_cache: Arc<ClusterCache>,
     placement_center_storage: Arc<PlacementCenterStorage>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
@@ -17,7 +17,7 @@ pub struct ClusterController {
 
 impl ClusterController {
     pub fn new(
-        cluster_cache: Arc<RwLock<ClusterCache>>,
+        cluster_cache: Arc<ClusterCache>,
         placement_center_storage: Arc<PlacementCenterStorage>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_send: broadcast::Sender<bool>,
@@ -44,19 +44,18 @@ impl ClusterController {
         let cluster_handler = ClusterStorage::new(self.rocksdb_engine_handler.clone());
         let cluster_list = cluster_handler.all_cluster();
 
-        let mut cluster_cache = self.cluster_cache.write().unwrap();
         let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
 
         for cluster in cluster_list {
             let cluster_name = cluster.cluster_name.clone();
 
             // load cluster cache
-            cluster_cache.add_cluster(cluster.clone());
+            self.cluster_cache.add_cluster(cluster.clone());
 
             // load node cache
             let node_list = node_handler.node_list(cluster_name.clone());
             for node in node_list {
-                cluster_cache.add_node(node);
+                self.cluster_cache.add_node(node);
             }
         }
     }

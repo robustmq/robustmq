@@ -45,7 +45,6 @@ pub struct RaftInfo {
 }
 
 pub async fn placement_center(State(state): State<HttpServerState>) -> String {
-    let cluster_read = state.placement_cache.read().unwrap();
     let storage = state.raft_storage.read().unwrap();
 
     let hs = storage.hard_state();
@@ -53,7 +52,7 @@ pub async fn placement_center(State(state): State<HttpServerState>) -> String {
     let uncommit_index = storage.uncommit_index();
 
     let raft_info = RaftInfo {
-        role: format!("{:?}", cluster_read.raft_role),
+        role: format!("{:?}", state.placement_cache.raft_role),
         first_index: storage.first_index(),
         last_index: storage.last_index(),
         term: hs.term,
@@ -68,8 +67,8 @@ pub async fn placement_center(State(state): State<HttpServerState>) -> String {
     };
 
     let resp = IndexResponse {
-        local: cluster_read.local.clone(),
-        node_lists: cluster_read.peers.clone(),
+        local: state.placement_cache.local.clone(),
+        node_lists: state.placement_cache.peers.clone(),
         raft: raft_info,
     };
 

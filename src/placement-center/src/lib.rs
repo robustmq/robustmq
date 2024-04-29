@@ -14,7 +14,7 @@
 
 use self::raft::peer::{PeerMessage, PeersManager};
 use cache::cluster::ClusterCache;
-use cache::engine::EngineCache;
+use cache::journal::JournalCache;
 use cache::placement::{Node, PlacementClusterCache};
 use clients::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
@@ -50,9 +50,9 @@ pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,
     daemon_runtime: Arc<Runtime>,
     // Cache metadata information for the Storage Engine cluster
-    cluster_cache: Arc<RwLock<ClusterCache>>,
+    cluster_cache: Arc<ClusterCache>,
     // Cache metadata information for the Broker Server cluster
-    engine_cache: Arc<RwLock<EngineCache>>,
+    engine_cache: Arc<JournalCache>,
     // Cache metadata information for the Placement Cluster cluster
     placement_cache: Arc<RwLock<PlacementClusterCache>>,
     // Global implementation of Raft state machine data storage
@@ -75,8 +75,8 @@ impl PlacementCenter {
             config.runtime_work_threads,
         ));
 
-        let engine_cache = Arc::new(RwLock::new(EngineCache::new()));
-        let cluster_cache = Arc::new(RwLock::new(ClusterCache::new()));
+        let engine_cache = Arc::new(JournalCache::new());
+        let cluster_cache = Arc::new(ClusterCache::new());
         let placement_cache = Arc::new(RwLock::new(PlacementClusterCache::new(
             Node::new(config.addr.clone(), config.node_id, config.grpc_port),
             config.nodes.clone(),

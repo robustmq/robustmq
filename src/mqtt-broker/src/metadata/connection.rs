@@ -81,17 +81,22 @@ pub fn create_connection(
             let request_problem_info = if let Some(value) = properties.request_problem_info {
                 value
             } else {
-                u8::MAX
+                0
             };
 
             (
-                receive_maximum,
-                max_packet_size,
-                topic_alias_max,
+                std::cmp::min(receive_maximum, cluster.receive_max()),
+                std::cmp::min(max_packet_size, cluster.max_packet_size()),
+                std::cmp::min(topic_alias_max, cluster.topic_alias_max()),
                 request_problem_info,
             )
         } else {
-            (u16::MAX, u32::MAX, u16::MAX, u8::MAX)
+            (
+                cluster.receive_max(),
+                cluster.max_packet_size(),
+                cluster.topic_alias_max(),
+                0,
+            )
         };
     return Connection::new(
         connect_id,
@@ -114,15 +119,13 @@ pub fn get_client_id(client_id: String) -> Result<(String, bool), RobustMQError>
     } else {
         (client_id.clone(), false)
     };
-    if !client_id_validator(){
-        return Err(RobustMQError::ClientIdFormatError(client_id))
+    if !client_id_validator() {
+        return Err(RobustMQError::ClientIdFormatError(client_id));
     }
 
     return Ok((client_id, new_client_id));
 }
 
-pub fn client_id_validator()->bool{
+pub fn client_id_validator() -> bool {
     return true;
 }
-
-
