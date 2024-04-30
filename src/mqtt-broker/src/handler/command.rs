@@ -1,7 +1,7 @@
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
-use crate::core::heartbeat_manager::HeartbeatManager;
+use crate::core::client_heartbeat::HeartbeatManager;
 use crate::idempotent::memory::IdempotentMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::manager::SubScribeManager;

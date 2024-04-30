@@ -23,7 +23,6 @@ pub async fn register_storage_engine_node(
     req.cluster_name = config.cluster_name;
     req.node_id = config.node_id;
     req.node_ip = get_local_ip();
-    req.node_port = config.grpc_port;
     req.extend_info = "".to_string();
     match register_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {

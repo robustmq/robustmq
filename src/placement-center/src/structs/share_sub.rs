@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct ShareSub {
     pub cluster_name: String,
     pub share_sub_name: String,

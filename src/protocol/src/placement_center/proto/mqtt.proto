@@ -30,4 +30,6 @@ message ShareSubRequest{
 
 message ShareSubReply{
     uint64 broker_id = 1;
+    string broker_ip = 2;
+    string extend_info = 3;
 }

@@ -5,11 +5,12 @@ use crate::{
     storage::{
         cluster::ClusterStorage,
         kv::KvStorage,
-        node::{NodeInfo, NodeStorage},
+        node::NodeStorage,
         rocksdb::RocksDBEngine,
         segment::{SegmentInfo, SegmentStatus, SegmentStorage},
         shard::{ShardInfo, ShardStorage},
-    }, structs::cluster::ClusterInfo,
+    },
+    structs::{cluster::ClusterInfo, node::Node},
 };
 use bincode::deserialize;
 use common_base::{
@@ -100,11 +101,11 @@ impl DataRoute {
             .unwrap();
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
-
-        let node = NodeInfo {
+        let node = Node {
             node_id: req.node_id,
             node_ip: req.node_ip,
-            node_port: req.node_port,
+            node_inner_addr: req.node_inner_addr,
+            extend: req.extend_info,
             cluster_name: cluster_name.clone(),
             cluster_type: cluster_type.as_str_name().to_string(),
             create_time: now_mills(),
@@ -308,7 +309,6 @@ mod tests {
         let mut req = RegisterNodeRequest::default();
         req.node_id = node_id;
         req.node_ip = node_ip.clone();
-        req.node_port = node_port;
         req.cluster_type = ClusterType::MqttBrokerServer.into();
         req.cluster_name = cluster_name.clone();
         req.extend_info = "{}".to_string();
@@ -335,7 +335,6 @@ mod tests {
         let nd = node.unwrap();
         assert_eq!(nd.node_id, node_id);
         assert_eq!(nd.node_ip, node_ip);
-        assert_eq!(nd.node_port, node_port);
 
         let _ = node_storage.delete_node(&cluster_name, node_id);
         let res = node_storage.get_node(cluster_name.clone(), node_id);

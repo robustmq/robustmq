@@ -1,38 +1,13 @@
-use common_base::log::info_meta;
-use raft::StateRole;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt::{self, Display},
+use common_base::{
+    config::placement_center::placement_center_conf, log::info_meta, tools::get_local_ip,
 };
+use protocol::placement_center::generate::common::ClusterType;
+use raft::StateRole;
+
+use std::collections::HashMap;
 use toml::Table;
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
-pub struct Node {
-    pub ip: String,
-    pub id: u64,
-    pub inner_port: u16,
-}
-
-impl Node {
-    pub fn new(ip: String, id: u64, port: u16) -> Node {
-        Node {
-            ip,
-            id,
-            inner_port: port,
-        }
-    }
-
-    pub fn addr(&self) -> String {
-        format!("{}:{}", self.ip, self.inner_port)
-    }
-}
-
-impl Display for Node {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ip:{},id:{},port:{}", self.ip, self.id, self.inner_port)
-    }
-}
+use crate::structs::node::Node;
 
 #[derive(PartialEq, Default, Debug, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeState {
@@ -53,13 +28,27 @@ pub struct PlacementCache {
 }
 
 impl PlacementCache {
-    pub fn new(local: Node, nodes: Table) -> PlacementCache {
+    pub fn new() -> PlacementCache {
+        let config = placement_center_conf();
+        let mut local = Node::default();
+        local.cluster_type = ClusterType::PlacementCenter.as_str_name().to_string();
+        local.cluster_name = config.cluster_name.clone();
+        local.node_inner_addr = format!("{}:{}", config.addr.clone(), config.grpc_port);
+        local.node_ip = config.addr.clone();
+        local.node_id = config.node_id;
+
         let mut peers = HashMap::new();
-        for (node_id, addr) in nodes {
-            let (ip, port) = addr.as_str().unwrap().split_once(":").unwrap();
-            let p: u16 = port.to_string().trim().parse().unwrap();
+        for (node_id, addr) in config.nodes.clone() {
+            let (ip, _) = addr.as_str().unwrap().split_once(":").unwrap();
             let id: u64 = node_id.to_string().trim().parse().unwrap();
-            peers.insert(id, Node::new(ip.to_string(), id, p));
+            let mut node = Node::default();
+
+            node.cluster_type = ClusterType::PlacementCenter.as_str_name().to_string();
+            node.cluster_name = config.cluster_name.clone();
+            node.node_inner_addr = addr.to_string();
+            node.node_ip = ip.to_string();
+            node.node_id = id;
+            peers.insert(id, node);
         }
 
         PlacementCache {
@@ -109,7 +98,7 @@ impl PlacementCache {
 
     pub fn leader_addr(&self) -> String {
         if let Some(leader) = self.leader.clone() {
-            return leader.addr();
+            return leader.node_inner_addr;
         }
         return "".to_string();
     }

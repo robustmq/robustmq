@@ -37,8 +37,8 @@ pub struct RegisterNodeRequest {
     pub node_ip: ::prost::alloc::string::String,
     #[prost(uint64, tag = "4")]
     pub node_id: u64,
-    #[prost(uint32, tag = "5")]
-    pub node_port: u32,
+    #[prost(string, tag = "5")]
+    pub node_inner_addr: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
     pub extend_info: ::prost::alloc::string::String,
 }

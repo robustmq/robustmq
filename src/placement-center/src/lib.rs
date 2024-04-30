@@ -16,7 +16,7 @@ use self::raft::peer::{PeerMessage, PeersManager};
 use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::cluster::ClusterCache;
 use cache::journal::JournalCache;
-use cache::placement::{Node, PlacementCache};
+use cache::placement::PlacementCache;
 use clients::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
@@ -31,6 +31,7 @@ use raft::storage::{PlacementCenterStorage, RaftMessage};
 use server::grpc::service_engine::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_placement::GrpcPlacementService;
+use structs::node::Node;
 use std::sync::{Arc, RwLock};
 use storage::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
@@ -78,10 +79,7 @@ impl PlacementCenter {
 
         let engine_cache = Arc::new(JournalCache::new());
         let cluster_cache = Arc::new(ClusterCache::new());
-        let placement_cache = Arc::new(RwLock::new(PlacementCache::new(
-            Node::new(config.addr.clone(), config.node_id, config.grpc_port),
-            config.nodes.clone(),
-        )));
+        let placement_cache = Arc::new(RwLock::new(PlacementCache::new()));
 
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
 

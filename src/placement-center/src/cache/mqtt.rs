@@ -1,5 +1,4 @@
 use dashmap::DashMap;
-
 use crate::structs::share_sub::ShareSub;
 
 pub struct MqttCache {
@@ -21,6 +20,14 @@ impl MqttCache {
     pub fn remove_share_sub(&self, cluster_name: String, group_id: String) {
         let key = self.key_name(cluster_name, group_id);
         self.share_sub_list.remove(&key);
+    }
+
+    pub fn get_share_sub(&self, cluster_name: String, group_id: String) -> Option<ShareSub>{
+        let key = self.key_name(cluster_name, group_id);
+        if let Some(value) = self.share_sub_list.get(&key){
+            return Some(value.clone())
+        }
+        return None;
     }
 
     pub fn key_name(&self, cluster_name: String, group_id: String) -> String {

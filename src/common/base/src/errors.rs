@@ -87,7 +87,13 @@ pub enum RobustMQError {
     TopicNameInvalid(),
 
     #[error("client id [{0}] Format error")]
-    ClientIdFormatError(String)
+    ClientIdFormatError(String),
+
+    #[error("Cluster does not exist")]
+    ClusterDoesNotExist,
+
+    #[error("No available nodes in the cluster")]
+    ClusterNoAvailableNode,
 }
 
 #[cfg(test)]

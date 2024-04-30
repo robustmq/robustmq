@@ -70,7 +70,7 @@ message RegisterNodeRequest{
     string cluster_name = 2;
     string node_ip = 3;
     uint64 node_id = 4;
-    uint32 node_port = 5;
+    string node_inner_addr = 5;
     string extend_info = 6;
 }
 

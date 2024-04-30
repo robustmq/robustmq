@@ -3,12 +3,18 @@
 pub struct ShareSubRequest {
     #[prost(string, tag = "1")]
     pub share_sub_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub cluster_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ShareSubReply {
     #[prost(uint64, tag = "1")]
     pub broker_id: u64,
+    #[prost(string, tag = "2")]
+    pub broker_ip: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub extend_info: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 pub mod mqtt_service_client {

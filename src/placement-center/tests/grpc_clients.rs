@@ -23,7 +23,6 @@ mod tests {
         request.cluster_name = cluster_name();
         request.node_id = node_id();
         request.node_ip = node_ip();
-        request.node_port = node_port();
         request.extend_info = extend_info();
         let response = client
             .register_node(tonic::Request::new(request))
