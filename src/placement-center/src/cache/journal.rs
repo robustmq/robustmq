@@ -16,14 +16,14 @@ impl JournalCache {
         };
     }
 
-    pub fn add_shard(&mut self, shard: ShardInfo) {
+    pub fn add_shard(&self, shard: ShardInfo) {
         self.shard_list.insert(
             self.shard_key(shard.cluster_name.clone(), shard.shard_name.clone()),
             shard,
         );
     }
 
-    pub fn remove_shard(&mut self, cluster_name: String, shard_name: String) {
+    pub fn remove_shard(&self, cluster_name: String, shard_name: String) {
         self.shard_list
             .remove(&self.shard_key(cluster_name, shard_name));
     }
@@ -44,16 +44,16 @@ impl JournalCache {
         return None;
     }
 
-    pub fn add_segment(&mut self, segment: SegmentInfo) {
+    pub fn add_segment(&self, segment: SegmentInfo) {
         let key = self.segment_key(
             segment.cluster_name.clone(),
             segment.shard_name.clone(),
             segment.segment_seq,
         );
 
-        self.segment_list.insert(key, segment.clone());
+        self.segment_list.insert(key.clone(), segment.clone());
 
-        if let Some(mut shard) = self.shard_list.get(&key) {
+        if let Some(mut shard) = self.shard_list.get_mut(&key) {
             if !shard.segments.contains(&segment.segment_seq) {
                 shard.segments.push(segment.segment_seq);
                 shard.last_segment_seq = segment.segment_seq;
@@ -61,7 +61,7 @@ impl JournalCache {
         }
     }
 
-    pub fn remove_segment(&mut self, cluster_name: String, shard_name: String, segment_seq: u64) {
+    pub fn remove_segment(&self, cluster_name: String, shard_name: String, segment_seq: u64) {
         let key = self.segment_key(cluster_name.clone(), shard_name.clone(), segment_seq);
         self.segment_list.remove(&key);
 

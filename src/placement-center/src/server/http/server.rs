@@ -3,16 +3,13 @@ use super::{
     storage_engine::{clusters, shard_info, shard_list, storage_engine},
 };
 use crate::{
-    cache::{cluster::ClusterCache, journal::JournalCache, placement::PlacementClusterCache},
+    cache::{cluster::ClusterCache, journal::JournalCache, placement::PlacementCache},
     storage::raft::RaftMachineStorage,
 };
 use axum::routing::get;
 use axum::Router;
 use common_base::{config::placement_center::placement_center_conf, log::info_meta};
-use std::{
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-};
+use std::{net::SocketAddr, sync::{Arc, RwLock}};
 
 pub const ROUTE_ROOT: &str = "/";
 pub const CLUSTER: &str = "/clusters";
@@ -23,7 +20,7 @@ pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {
-    pub placement_cache: Arc<PlacementClusterCache>,
+    pub placement_cache: Arc<RwLock<PlacementCache>>,
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
     pub cluster_cache: Arc<ClusterCache>,
     pub engine_cache: Arc<JournalCache>,
@@ -31,7 +28,7 @@ pub struct HttpServerState {
 
 impl HttpServerState {
     pub fn new(
-        placement_cache: Arc<PlacementClusterCache>,
+        placement_cache: Arc<RwLock<PlacementCache>>,
         raft_storage: Arc<RwLock<RaftMachineStorage>>,
         cluster_cache: Arc<ClusterCache>,
         engine_cache: Arc<JournalCache>,

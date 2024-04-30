@@ -32,7 +32,7 @@ impl ClusterCache {
     }
 
     pub fn remove_node(& self, cluster_name: String, node_id: u64) {
-        let key = node_key(cluster_name, node_id);
+        let key = node_key(cluster_name.clone(), node_id);
         self.node_list.remove(&key);
         self.node_heartbeat.remove(&key);
         self.remove_cluster_node(cluster_name, node_id);

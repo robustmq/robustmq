@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 use crate::cache::cluster::ClusterCache;
-use crate::cache::placement::PlacementClusterCache;
+use crate::cache::placement::PlacementCache;
 use crate::raft::storage::PlacementCenterStorage;
 use crate::storage::global_id::GlobalId;
 use crate::storage::rocksdb::RocksDBEngine;
@@ -37,8 +37,8 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
     placement_center_storage: Arc<PlacementCenterStorage>,
-    placement_cache: Arc<RwLock<PlacementClusterCache>>,
-    cluster_cache: Arc<RwLock<ClusterCache>>,
+    placement_cache: Arc<RwLock<PlacementCache>>,
+    cluster_cache: Arc<ClusterCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
@@ -46,8 +46,8 @@ pub struct GrpcPlacementService {
 impl GrpcPlacementService {
     pub fn new(
         placement_center_storage: Arc<PlacementCenterStorage>,
-        placement_cache: Arc<RwLock<PlacementClusterCache>>,
-        cluster_cache: Arc<RwLock<ClusterCache>>,
+        placement_cache: Arc<RwLock<PlacementCache>>,
+        cluster_cache: Arc<ClusterCache>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_poll: Arc<Mutex<ClientPool>>,
     ) -> Self {
@@ -131,8 +131,7 @@ impl PlacementCenterService for GrpcPlacementService {
             .unwrap()
             .as_millis();
         let key = format!("{}_{}", req.cluster_name, req.node_id);
-        let mut sc = self.cluster_cache.write().unwrap();
-        sc.heart_time(key, time);
+        self.cluster_cache.heart_time(key, time);
 
         return Ok(Response::new(CommonReply::default()));
     }

@@ -13,8 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::{cache::placement::PlacementClusterCache, raft::storage::PlacementCenterStorage};
-use clients::{placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard}, ClientPool};
+use crate::{cache::placement::PlacementCache, raft::storage::PlacementCenterStorage};
+use clients::{
+    placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard},
+    ClientPool,
+};
 use protocol::placement_center::generate::{
     common::CommonReply,
     journal::{
@@ -28,14 +31,14 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
     placement_center_storage: Arc<PlacementCenterStorage>,
-    placement_cache: Arc<RwLock<PlacementClusterCache>>,
+    placement_cache: Arc<RwLock<PlacementCache>>,
     client_poll: Arc<Mutex<ClientPool>>,
 }
 
 impl GrpcEngineService {
     pub fn new(
         placement_center_storage: Arc<PlacementCenterStorage>,
-        placement_cache: Arc<RwLock<PlacementClusterCache>>,
+        placement_cache: Arc<RwLock<PlacementCache>>,
         client_poll: Arc<Mutex<ClientPool>>,
     ) -> Self {
         GrpcEngineService {
