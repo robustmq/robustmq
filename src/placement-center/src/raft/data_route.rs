@@ -3,13 +3,13 @@ use crate::{
     cache::{cluster::ClusterCache, journal::JournalCache},
     controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
-        cluster::{ClusterInfo, ClusterStorage},
+        cluster::ClusterStorage,
         kv::KvStorage,
         node::{NodeInfo, NodeStorage},
         rocksdb::RocksDBEngine,
         segment::{SegmentInfo, SegmentStatus, SegmentStorage},
         shard::{ShardInfo, ShardStorage},
-    },
+    }, structs::cluster::ClusterInfo,
 };
 use bincode::deserialize;
 use common_base::{

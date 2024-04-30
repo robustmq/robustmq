@@ -45,6 +45,7 @@ mod core;
 mod raft;
 mod server;
 mod storage;
+mod structs;
 
 pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,

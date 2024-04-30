@@ -1,19 +1,11 @@
+use crate::structs::cluster::ClusterInfo;
+
 use super::{
     keys::{key_all_cluster, key_cluster},
     rocksdb::RocksDBEngine,
 };
 use common_base::log::error_meta;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
-pub struct ClusterInfo {
-    pub cluster_uid: String,
-    pub cluster_name: String,
-    pub cluster_type: String,
-    pub nodes: Vec<u64>,
-    pub create_time: u128,
-}
 
 pub struct ClusterStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
