@@ -1,6 +1,6 @@
 use super::storage::{StorageData, StorageDataType};
 use crate::{
-    cache::{cluster::ClusterCache, engine::EngineCache},
+    cache::{cluster::ClusterCache, journal::JournalCache},
     controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
         cluster::{ClusterInfo, ClusterStorage},
@@ -22,12 +22,12 @@ use protocol::placement_center::generate::{
     kv::{DeleteRequest, SetRequest},
     placement::{RegisterNodeRequest, UnRegisterNodeRequest},
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tonic::Status;
 
 pub struct DataRoute {
-    cluster_cache: Arc<RwLock<ClusterCache>>,
-    engine_cache: Arc<RwLock<EngineCache>>,
+    cluster_cache: Arc<ClusterCache>,
+    engine_cache: Arc<JournalCache>,
     node_storage: NodeStorage,
     cluster_storage: ClusterStorage,
     shard_storage: ShardStorage,
@@ -39,8 +39,8 @@ pub struct DataRoute {
 impl DataRoute {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cluster_cache: Arc<RwLock<ClusterCache>>,
-        engine_cache: Arc<RwLock<EngineCache>>,
+        cluster_cache: Arc<ClusterCache>,
+        engine_cache: Arc<JournalCache>,
     ) -> DataRoute {
         let node_storage = NodeStorage::new(rocksdb_engine_handler.clone());
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
@@ -111,8 +111,7 @@ impl DataRoute {
         };
 
         // update cluster
-        let mut sc = self.cluster_cache.write().unwrap();
-        if !sc.cluster_list.contains_key(&cluster_name) {
+        if !self.cluster_cache.cluster_list.contains_key(&cluster_name) {
             let cluster_info = ClusterInfo {
                 cluster_uid: unique_id(),
                 cluster_name: cluster_name.clone(),
@@ -120,17 +119,16 @@ impl DataRoute {
                 nodes: vec![req.node_id],
                 create_time: now_mills(),
             };
-            sc.add_cluster(cluster_info.clone());
+            self.cluster_cache.add_cluster(cluster_info.clone());
             self.cluster_storage.save_cluster(cluster_info);
             self.cluster_storage.save_all_cluster(cluster_name.clone());
         } else {
-            sc.add_cluster_node(cluster_name.clone(), node.node_id);
             self.cluster_storage
                 .add_cluster_node(&cluster_name, node.node_id);
         }
 
         // update node
-        sc.add_node(node.clone());
+        self.cluster_cache.add_node(node.clone());
 
         self.node_storage.save_node(
             cluster_name.clone(),
@@ -150,10 +148,8 @@ impl DataRoute {
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
-        let mut sc = self.cluster_cache.write().unwrap();
-        sc.remove_cluster_node(cluster_name.clone(), node_id);
-        sc.remove_node(cluster_name.clone(), node_id);
-
+        self.cluster_cache
+            .remove_node(cluster_name.clone(), node_id);
         self.node_storage.delete_node(&cluster_name, node_id);
         self.cluster_storage
             .remove_cluster_node(&cluster_name, node_id);
@@ -183,8 +179,7 @@ impl DataRoute {
             .save_all_shard(cluster_name.clone(), shard_info.shard_name.clone());
 
         // upate cache
-        let mut sc = self.engine_cache.write().unwrap();
-        sc.add_shard(shard_info);
+        self.engine_cache.add_shard(shard_info);
 
         // Create segments according to the built-in pre-created segment strategy.
         // Between 0 and N segments may be created.
@@ -205,8 +200,8 @@ impl DataRoute {
         // delete shard info
         self.shard_storage
             .delete_shard(cluster_name.clone(), shard_name.clone());
-        let mut sc = self.engine_cache.write().unwrap();
-        sc.remove_shard(cluster_name.clone(), shard_name.clone());
+        self.engine_cache
+            .remove_shard(cluster_name.clone(), shard_name.clone());
         return Ok(());
     }
 
@@ -218,9 +213,9 @@ impl DataRoute {
         let cluster_name = req.cluster_name;
         let shard_name = req.shard_name;
 
-        let ec = self.engine_cache.read().unwrap();
-        let segment_seq = ec.next_segment_seq(&cluster_name, &shard_name);
-        drop(ec);
+        let segment_seq = self
+            .engine_cache
+            .next_segment_seq(&cluster_name, &shard_name);
 
         let segment_info = SegmentInfo {
             cluster_name: cluster_name.clone(),
@@ -232,8 +227,7 @@ impl DataRoute {
         };
 
         // Updating cache information
-        let mut ec = self.engine_cache.write().unwrap();
-        ec.add_segment(segment_info.clone());
+        self.engine_cache.add_segment(segment_info.clone());
 
         // Update persistence information
         self.segment_storage.save_segment(segment_info);
@@ -253,8 +247,8 @@ impl DataRoute {
         let segment_seq = req.segment_seq;
 
         // Updating cache information
-        let mut ec = self.engine_cache.write().unwrap();
-        ec.remove_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+        self.engine_cache
+            .remove_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
 
         // Update persistence information
         self.segment_storage
@@ -289,11 +283,11 @@ impl DataRoute {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, RwLock};
+    use std::sync::Arc;
 
     use super::DataRoute;
     use crate::{
-        cache::{cluster::ClusterCache, engine::EngineCache},
+        cache::{cluster::ClusterCache, journal::JournalCache},
         storage::{
             cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
         },
@@ -322,8 +316,8 @@ mod tests {
 
         let rocksdb_engine = Arc::new(RocksDBEngine::new(&PlacementCenterConfig::default()));
 
-        let cluster_cache = Arc::new(RwLock::new(ClusterCache::new()));
-        let engine_cache = Arc::new(RwLock::new(EngineCache::new()));
+        let cluster_cache = Arc::new(ClusterCache::new());
+        let engine_cache = Arc::new(JournalCache::new());
 
         let mut route = DataRoute::new(rocksdb_engine.clone(), cluster_cache, engine_cache);
         let _ = route.register_node(data);

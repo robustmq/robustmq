@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use self::raft::peer::{PeerMessage, PeersManager};
+use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::cluster::ClusterCache;
-use cache::engine::EngineCache;
-use cache::placement::{Node, PlacementClusterCache};
+use cache::journal::JournalCache;
+use cache::placement::{Node, PlacementCache};
 use clients::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
 use controller::controller::ClusterController;
-use crate::server::http::server::{start_http_server, HttpServerState};
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
@@ -41,20 +41,20 @@ use tokio::sync::{broadcast, mpsc, Mutex};
 use tonic::transport::Server;
 mod cache;
 mod controller;
+mod core;
 mod raft;
 mod server;
 mod storage;
-mod core;
 
 pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,
     daemon_runtime: Arc<Runtime>,
     // Cache metadata information for the Storage Engine cluster
-    cluster_cache: Arc<RwLock<ClusterCache>>,
+    cluster_cache: Arc<ClusterCache>,
     // Cache metadata information for the Broker Server cluster
-    engine_cache: Arc<RwLock<EngineCache>>,
+    engine_cache: Arc<JournalCache>,
     // Cache metadata information for the Placement Cluster cluster
-    placement_cache: Arc<RwLock<PlacementClusterCache>>,
+    placement_cache: Arc<RwLock<PlacementCache>>,
     // Global implementation of Raft state machine data storage
     raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
     // Raft Global read and write pointer
@@ -75,9 +75,9 @@ impl PlacementCenter {
             config.runtime_work_threads,
         ));
 
-        let engine_cache = Arc::new(RwLock::new(EngineCache::new()));
-        let cluster_cache = Arc::new(RwLock::new(ClusterCache::new()));
-        let placement_cache = Arc::new(RwLock::new(PlacementClusterCache::new(
+        let engine_cache = Arc::new(JournalCache::new());
+        let cluster_cache = Arc::new(ClusterCache::new());
+        let placement_cache = Arc::new(RwLock::new(PlacementCache::new(
             Node::new(config.addr.clone(), config.node_id, config.grpc_port),
             config.nodes.clone(),
         )));
@@ -170,8 +170,6 @@ impl PlacementCenter {
                 .unwrap();
         });
     }
-
-
 
     // Start Storage Engine Cluster Controller
     pub fn start_controller(

@@ -22,12 +22,12 @@ impl Cluster {
     pub fn new() -> Self {
         return Cluster::default();
     }
-    pub fn receive_max(&self) -> Option<u16> {
-        return Some(self.receive_max);
+    pub fn receive_max(&self) -> u16 {
+        return self.receive_max;
     }
 
-    pub fn max_qos(&self) -> Option<u8> {
-        return Some(self.max_qos.into());
+    pub fn max_qos(&self) -> u8 {
+        return self.max_qos.into();
     }
 
     pub fn server_keep_alive(&self) -> u16 {

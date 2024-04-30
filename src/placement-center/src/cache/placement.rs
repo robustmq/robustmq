@@ -44,7 +44,7 @@ pub enum NodeState {
 }
 
 #[derive(Clone, Default, Debug)]
-pub struct PlacementClusterCache {
+pub struct PlacementCache {
     pub local: Node,
     pub leader: Option<Node>,
     pub state: NodeState,
@@ -52,8 +52,8 @@ pub struct PlacementClusterCache {
     pub peers: HashMap<u64, Node>,
 }
 
-impl PlacementClusterCache {
-    pub fn new(local: Node, nodes: Table) -> PlacementClusterCache {
+impl PlacementCache {
+    pub fn new(local: Node, nodes: Table) -> PlacementCache {
         let mut peers = HashMap::new();
         for (node_id, addr) in nodes {
             let (ip, port) = addr.as_str().unwrap().split_once(":").unwrap();
@@ -62,7 +62,7 @@ impl PlacementClusterCache {
             peers.insert(id, Node::new(ip.to_string(), id, p));
         }
 
-        PlacementClusterCache {
+        PlacementCache {
             local,
             leader: None,
             raft_role: StateRole::Follower,

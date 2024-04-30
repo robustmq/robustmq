@@ -1,34 +1,36 @@
-use crate::storage::{ segment::SegmentInfo, shard::ShardInfo,
-};
+use crate::storage::{segment::SegmentInfo, shard::ShardInfo};
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct EngineCache {
-    pub shard_list: HashMap<String, ShardInfo>,
-    pub segment_list: HashMap<String, SegmentInfo>,
+pub struct JournalCache {
+    pub shard_list: DashMap<String, ShardInfo>,
+    pub segment_list: DashMap<String, SegmentInfo>,
 }
 
-impl EngineCache {
-    pub fn new() -> EngineCache {
-        let bc = EngineCache::default();
-        return bc;
+impl JournalCache {
+    pub fn new() -> JournalCache {
+        return JournalCache {
+            shard_list: DashMap::with_capacity(8),
+            segment_list: DashMap::with_capacity(256),
+        };
     }
 
-    pub fn add_shard(&mut self, shard: ShardInfo) {
+    pub fn add_shard(&self, shard: ShardInfo) {
         self.shard_list.insert(
             self.shard_key(shard.cluster_name.clone(), shard.shard_name.clone()),
             shard,
         );
     }
 
-    pub fn remove_shard(&mut self, cluster_name: String, shard_name: String) {
+    pub fn remove_shard(&self, cluster_name: String, shard_name: String) {
         self.shard_list
             .remove(&self.shard_key(cluster_name, shard_name));
     }
 
     pub fn next_segment_seq(&self, cluster_name: &String, shard_name: &String) -> u64 {
-        if let Some(shard) = self.get_shard(cluster_name.clone(), shard_name.clone()) {
+        let key = self.shard_key(cluster_name.clone(), shard_name.clone());
+        if let Some(shard) = self.shard_list.get(&key) {
             return shard.last_segment_seq + 1;
         }
         return 1;
@@ -42,27 +44,24 @@ impl EngineCache {
         return None;
     }
 
-    pub fn add_segment(&mut self, segment: SegmentInfo) {
+    pub fn add_segment(&self, segment: SegmentInfo) {
         let key = self.segment_key(
             segment.cluster_name.clone(),
             segment.shard_name.clone(),
             segment.segment_seq,
         );
 
-        self.segment_list.insert(key, segment.clone());
+        self.segment_list.insert(key.clone(), segment.clone());
 
-        if let Some(mut shard) =
-            self.get_shard(segment.cluster_name.clone(), segment.shard_name.clone())
-        {
+        if let Some(mut shard) = self.shard_list.get_mut(&key) {
             if !shard.segments.contains(&segment.segment_seq) {
                 shard.segments.push(segment.segment_seq);
                 shard.last_segment_seq = segment.segment_seq;
-                self.add_shard(shard);
             }
         }
     }
 
-    pub fn remove_segment(&mut self, cluster_name: String, shard_name: String, segment_seq: u64) {
+    pub fn remove_segment(&self, cluster_name: String, shard_name: String, segment_seq: u64) {
         let key = self.segment_key(cluster_name.clone(), shard_name.clone(), segment_seq);
         self.segment_list.remove(&key);
 

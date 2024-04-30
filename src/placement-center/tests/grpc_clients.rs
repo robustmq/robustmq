@@ -2,7 +2,7 @@
 mod tests {
     use protocol::placement_center::generate::{
         common::ClusterType,
-        engine::{
+        journal::{
             engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest,
             DeleteSegmentRequest, DeleteShardRequest,
         },

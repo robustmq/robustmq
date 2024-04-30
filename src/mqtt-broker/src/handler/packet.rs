@@ -1,11 +1,11 @@
 use crate::{
-    metadata::{cache::MetadataCacheManager, cluster::Cluster, session::Session},
+    metadata::{cache::MetadataCacheManager, cluster::Cluster},
     server::MQTTProtocol,
 };
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
-    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubAckProperties,
+    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck,
     SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 use std::sync::Arc;
@@ -40,8 +40,8 @@ impl<T> MQTTAckBuild<T> {
 
         let properties = ConnAckProperties {
             session_expiry_interval: Some(session_expiry_interval),
-            receive_max: cluster.receive_max(),
-            max_qos: cluster.max_qos(),
+            receive_max: Some(cluster.receive_max()),
+            max_qos: Some(cluster.max_qos()),
             retain_available: Some(cluster.retain_available()),
             max_packet_size: Some(cluster.max_packet_size()),
             assigned_client_identifier: assigned_client_identifier,
