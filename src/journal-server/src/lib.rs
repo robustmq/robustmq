@@ -1,4 +1,4 @@
-use clients::ClientPool;
+use clients::poll::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common_base::{
     config::journal_server::{journal_server_conf, JournalServerConfig}, log::info_meta, metrics::register_prometheus_export, runtime::create_runtime
@@ -25,7 +25,7 @@ pub struct JournalServer {
     stop_send: broadcast::Sender<bool>,
     server_runtime: Runtime,
     daemon_runtime: Runtime,
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl JournalServer {
@@ -35,7 +35,7 @@ impl JournalServer {
             create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
         let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
-        let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(3)));
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
 
         return JournalServer {
             config,

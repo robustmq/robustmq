@@ -14,8 +14,8 @@ server="mysql://root:123456@127.0.0.1:3306/mqtt"
 server=[]
 
 [placement]
-server = ["14.103.42.35:1228"]
-# server = ["127.0.0.1:1228"]
+# server = ["14.103.42.35:1228"]
+server = ["127.0.0.1:1228"]
 
 [mqtt]
 mqtt4_enable = true

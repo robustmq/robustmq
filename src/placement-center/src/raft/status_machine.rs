@@ -1,9 +1,10 @@
 use super::rocksdb_storage::RaftRocksDBStorage;
 use super::storage::{RaftMessage, RaftResponseMesage};
-use crate::cache::placement::{Node, PlacementCache};
+use crate::cache::placement::PlacementCache;
 use crate::raft::data_route::DataRoute;
-use crate::storage::raft::RaftMachineStorage;
 use crate::raft::peer::PeerMessage;
+use crate::storage::raft::RaftMachineStorage;
+use crate::structs::node::Node;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
 use common_base::errors::RobustMQError;
@@ -401,7 +402,7 @@ impl RaftMachine {
             tokio::spawn(async move {
                 match send
                     .send(PeerMessage {
-                        to: node_c.addr(),
+                        to: node_c.node_inner_addr,
                         data: msg,
                     })
                     .await

@@ -11,6 +11,7 @@ use protocol::placement_center::generate::journal::DeleteSegmentRequest;
 use protocol::placement_center::generate::journal::DeleteShardRequest;
 use protocol::placement_center::generate::kv::DeleteRequest;
 use protocol::placement_center::generate::kv::SetRequest;
+use protocol::placement_center::generate::mqtt::DeleteShareSubRequest;
 use protocol::placement_center::generate::placement::RegisterNodeRequest;
 use protocol::placement_center::generate::placement::UnRegisterNodeRequest;
 use raft::eraftpb::ConfChange;
@@ -21,6 +22,8 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::time::timeout;
+
+use crate::structs::share_sub::ShareSub;
 pub enum RaftResponseMesage {
     Success,
     Fail,
@@ -59,6 +62,8 @@ pub enum StorageDataType {
     DeleteSegment,
     Set,
     Delete,
+    CreateShareSub,
+    DeleteShareSub,
 }
 
 impl fmt::Display for StorageDataType {
@@ -87,6 +92,13 @@ impl fmt::Display for StorageDataType {
             }
             StorageDataType::Delete => {
                 write!(f, "Delete")
+            }
+
+            StorageDataType::CreateShareSub => {
+                write!(f, "CreateShareSub")
+            }
+            StorageDataType::DeleteShareSub => {
+                write!(f, "DeleteShareSub")
             }
         }
     }
@@ -192,6 +204,27 @@ impl PlacementCenterStorage {
     pub async fn delete(&self, data: DeleteRequest) -> Result<(), RobustMQError> {
         let data = StorageData::new(StorageDataType::Delete, DeleteRequest::encode_to_vec(&data));
         return self.apply_propose_message(data, "set".to_string()).await;
+    }
+
+    pub async fn save_share_sub(&self, data: ShareSub) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::CreateShareSub,
+            serde_json::to_vec(&data).unwrap(),
+        );
+        return self
+            .apply_propose_message(data, "save_share_sub".to_string())
+            .await;
+    }
+
+    pub async fn delete_share_sub(&self, data: DeleteShareSubRequest) -> Result<(), RobustMQError> {
+        let data = StorageData::new(
+            StorageDataType::DeleteShareSub,
+            DeleteShareSubRequest::encode_to_vec(&data),
+        );
+
+        return self
+            .apply_propose_message(data, "delete_share_sub".to_string())
+            .await;
     }
 
     pub async fn save_raft_message(

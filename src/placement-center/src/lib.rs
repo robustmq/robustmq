@@ -16,20 +16,23 @@ use self::raft::peer::{PeerMessage, PeersManager};
 use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::cluster::ClusterCache;
 use cache::journal::JournalCache;
-use cache::placement::{Node, PlacementCache};
-use clients::ClientPool;
+use cache::mqtt::MqttCache;
+use cache::placement::PlacementCache;
+use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
 use controller::controller::ClusterController;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
+use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::data_route::DataRoute;
 use raft::status_machine::RaftMachine;
 use raft::storage::{PlacementCenterStorage, RaftMessage};
 use server::grpc::service_engine::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
+use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use storage::raft::RaftMachineStorage;
@@ -45,6 +48,7 @@ mod core;
 mod raft;
 mod server;
 mod storage;
+mod structs;
 
 pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,
@@ -53,6 +57,7 @@ pub struct PlacementCenter {
     cluster_cache: Arc<ClusterCache>,
     // Cache metadata information for the Broker Server cluster
     engine_cache: Arc<JournalCache>,
+    mqtt_cache: Arc<MqttCache>,
     // Cache metadata information for the Placement Cluster cluster
     placement_cache: Arc<RwLock<PlacementCache>>,
     // Global implementation of Raft state machine data storage
@@ -60,7 +65,7 @@ pub struct PlacementCenter {
     // Raft Global read and write pointer
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl PlacementCenter {
@@ -76,11 +81,9 @@ impl PlacementCenter {
         ));
 
         let engine_cache = Arc::new(JournalCache::new());
-        let cluster_cache = Arc::new(ClusterCache::new());
-        let placement_cache = Arc::new(RwLock::new(PlacementCache::new(
-            Node::new(config.addr.clone(), config.node_id, config.grpc_port),
-            config.nodes.clone(),
-        )));
+        let cluster_cache: Arc<ClusterCache> = Arc::new(ClusterCache::new());
+        let mqtt_cache: Arc<MqttCache> = Arc::new(MqttCache::new());
+        let placement_cache = Arc::new(RwLock::new(PlacementCache::new()));
 
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
 
@@ -88,13 +91,14 @@ impl PlacementCenter {
             rocksdb_engine_handler.clone(),
         )));
 
-        let client_poll = Arc::new(Mutex::new(ClientPool::new(3)));
+        let client_poll = Arc::new(ClientPool::new(3));
 
         return PlacementCenter {
             server_runtime,
             daemon_runtime,
             cluster_cache,
             engine_cache,
+            mqtt_cache,
             placement_cache,
             raft_machine_storage,
             rocksdb_engine_handler,
@@ -156,6 +160,13 @@ impl PlacementCenter {
             self.client_poll.clone(),
         );
 
+        let mqtt_handler = GrpcMqttService::new(
+            self.cluster_cache.clone(),
+            self.mqtt_cache.clone(),
+            placement_center_storage.clone(),
+            self.rocksdb_engine_handler.clone(),
+        );
+
         self.server_runtime.spawn(async move {
             info_meta(&format!(
                 "RobustMQ Meta Grpc Server start success. bind addr:{}",
@@ -164,6 +175,7 @@ impl PlacementCenter {
             Server::builder()
                 .add_service(PlacementCenterServiceServer::new(placement_handler))
                 .add_service(KvServiceServer::new(kv_handler))
+                .add_service(MqttServiceServer::new(mqtt_handler))
                 .add_service(EngineServiceServer::new(engine_handler))
                 .serve(ip)
                 .await

@@ -1,14 +1,32 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ShareSubRequest {
+pub struct GetShareSubRequest {
     #[prost(string, tag = "1")]
-    pub share_sub_name: ::prost::alloc::string::String,
+    pub group_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub sub_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub cluster_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ShareSubReply {
+pub struct GetShareSubReply {
     #[prost(uint64, tag = "1")]
     pub broker_id: u64,
+    #[prost(string, tag = "2")]
+    pub broker_ip: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub extend_info: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteShareSubRequest {
+    #[prost(string, tag = "1")]
+    pub group_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub sub_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub cluster_name: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 pub mod mqtt_service_client {
@@ -95,11 +113,14 @@ pub mod mqtt_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        ///
-        pub async fn share_sub(
+        /// Get or create a shared subscription
+        pub async fn get_share_sub(
             &mut self,
-            request: impl tonic::IntoRequest<super::ShareSubRequest>,
-        ) -> std::result::Result<tonic::Response<super::ShareSubReply>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::GetShareSubRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetShareSubReply>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -111,10 +132,37 @@ pub mod mqtt_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/ShareSub",
+                "/mqtt.MqttService/GetShareSub",
             );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("mqtt.MqttService", "ShareSub"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "GetShareSub"));
+            self.inner.unary(req, path, codec).await
+        }
+        /// Delete a shared subscription
+        pub async fn delete_share_sub(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteShareSubRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/DeleteShareSub",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "DeleteShareSub"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -126,11 +174,22 @@ pub mod mqtt_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with MqttServiceServer.
     #[async_trait]
     pub trait MqttService: Send + Sync + 'static {
-        ///
-        async fn share_sub(
+        /// Get or create a shared subscription
+        async fn get_share_sub(
             &self,
-            request: tonic::Request<super::ShareSubRequest>,
-        ) -> std::result::Result<tonic::Response<super::ShareSubReply>, tonic::Status>;
+            request: tonic::Request<super::GetShareSubRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetShareSubReply>,
+            tonic::Status,
+        >;
+        /// Delete a shared subscription
+        async fn delete_share_sub(
+            &self,
+            request: tonic::Request<super::DeleteShareSubRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
     }
     #[derive(Debug)]
     pub struct MqttServiceServer<T: MqttService> {
@@ -211,25 +270,25 @@ pub mod mqtt_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/mqtt.MqttService/ShareSub" => {
+                "/mqtt.MqttService/GetShareSub" => {
                     #[allow(non_camel_case_types)]
-                    struct ShareSubSvc<T: MqttService>(pub Arc<T>);
+                    struct GetShareSubSvc<T: MqttService>(pub Arc<T>);
                     impl<
                         T: MqttService,
-                    > tonic::server::UnaryService<super::ShareSubRequest>
-                    for ShareSubSvc<T> {
-                        type Response = super::ShareSubReply;
+                    > tonic::server::UnaryService<super::GetShareSubRequest>
+                    for GetShareSubSvc<T> {
+                        type Response = super::GetShareSubReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::ShareSubRequest>,
+                            request: tonic::Request<super::GetShareSubRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttService>::share_sub(&inner, request).await
+                                <T as MqttService>::get_share_sub(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -241,7 +300,53 @@ pub mod mqtt_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = ShareSubSvc(inner);
+                        let method = GetShareSubSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/DeleteShareSub" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteShareSubSvc<T: MqttService>(pub Arc<T>);
+                    impl<
+                        T: MqttService,
+                    > tonic::server::UnaryService<super::DeleteShareSubRequest>
+                    for DeleteShareSubSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteShareSubRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::delete_share_sub(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DeleteShareSubSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

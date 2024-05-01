@@ -16,18 +16,31 @@
 
 syntax = "proto3";
 package mqtt;
+import "common.proto";
 
 service MqttService {
-  //
-  rpc ShareSub(ShareSubRequest) returns(ShareSubReply){}
+  // Get or create a shared subscription
+  rpc GetShareSub(GetShareSubRequest) returns(GetShareSubReply){}
+  
+  // Delete a shared subscription
+  rpc DeleteShareSub(DeleteShareSubRequest) returns(common.CommonReply){}
 
 }
 
-message ShareSubRequest{
-    string share_sub_name = 1;
-    string cluster_name = 2;
+message GetShareSubRequest{
+    string group_name = 1;
+    string sub_name = 2;
+    string cluster_name = 3;
 }
 
-message ShareSubReply{
+message GetShareSubReply{
     uint64 broker_id = 1;
+    string broker_ip = 2;
+    string extend_info = 3;
+}
+
+message DeleteShareSubRequest{
+    string group_name = 1;
+    string sub_name = 2;
+    string cluster_name = 3;
 }

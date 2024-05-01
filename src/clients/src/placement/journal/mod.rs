@@ -3,9 +3,9 @@ use std::sync::Arc;
 use common_base::errors::RobustMQError;
 use mobc::Manager;
 use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
-use tokio::sync::Mutex;
 use tonic::transport::Channel;
-use crate::ClientPool;
+use crate::poll::ClientPool;
+
 use self::inner::{
     inner_create_segment, inner_create_shard, inner_delete_segment, inner_delete_shard,
 };
@@ -16,7 +16,7 @@ pub mod inner;
 
 pub async fn journal_interface_call(
     interface: PlacementCenterInterface,
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, RobustMQError> {
@@ -35,7 +35,10 @@ pub async fn journal_interface_call(
                 PlacementCenterInterface::DeleteSegment => {
                     inner_delete_segment(client, request.clone()).await
                 }
-                _ => return Err(RobustMQError::CommmonError("".to_string())),
+                _ => return Err(RobustMQError::CommmonError(format!(
+                    "journal service does not support service interfaces [{:?}]",
+                    interface
+                ))),
             };
             match result {
                 Ok(data) => return Ok(data),
@@ -51,11 +54,10 @@ pub async fn journal_interface_call(
 }
 
 pub async fn journal_client(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<EngineServiceClient<Channel>, RobustMQError> {
-    let mut poll = client_poll.lock().await;
-    match poll.get_engine_services_client(addr).await {
+    match client_poll.get_journal_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }

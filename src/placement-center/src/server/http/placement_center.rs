@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
+use crate::structs::node::Node;
+
 use super::server::HttpServerState;
-use crate::cache::placement::Node;
 use axum::extract::State;
 use common_base::{http_response::success_response, metrics::dump_metrics};
 use serde::{Deserialize, Serialize};

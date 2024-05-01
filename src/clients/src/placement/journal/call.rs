@@ -1,17 +1,16 @@
 use crate::placement::PlacementCenterService;
-use crate::{
-    placement::{retry_call, PlacementCenterInterface},
-    ClientPool,
-};
+use crate::placement::{retry_call, PlacementCenterInterface};
+use crate::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use prost::Message;
-use protocol::placement_center::generate::journal::{CreateSegmentRequest, DeleteSegmentRequest, DeleteShardRequest};
+use protocol::placement_center::generate::journal::{
+    CreateSegmentRequest, DeleteSegmentRequest, DeleteShardRequest,
+};
 use protocol::placement_center::generate::{common::CommonReply, journal::CreateShardRequest};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub async fn create_shard(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateShardRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -36,7 +35,7 @@ pub async fn create_shard(
 }
 
 pub async fn delete_shard(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteShardRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -61,7 +60,7 @@ pub async fn delete_shard(
 }
 
 pub async fn create_segment(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateSegmentRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -86,7 +85,7 @@ pub async fn create_segment(
 }
 
 pub async fn delete_segment(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSegmentRequest,
 ) -> Result<CommonReply, RobustMQError> {

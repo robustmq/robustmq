@@ -3,13 +3,15 @@ use crate::{
     cache::{cluster::ClusterCache, journal::JournalCache},
     controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
-        cluster::{ClusterInfo, ClusterStorage},
+        cluster::ClusterStorage,
         kv::KvStorage,
-        node::{NodeInfo, NodeStorage},
+        node::NodeStorage,
         rocksdb::RocksDBEngine,
         segment::{SegmentInfo, SegmentStatus, SegmentStorage},
         shard::{ShardInfo, ShardStorage},
+        share_sub::ShareSubStorage,
     },
+    structs::{cluster::ClusterInfo, node::Node, share_sub::ShareSub},
 };
 use bincode::deserialize;
 use common_base::{
@@ -18,9 +20,7 @@ use common_base::{
 };
 use prost::Message as _;
 use protocol::placement_center::generate::{
-    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest},
-    kv::{DeleteRequest, SetRequest},
-    placement::{RegisterNodeRequest, UnRegisterNodeRequest},
+    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, mqtt::DeleteShareSubRequest, placement::{RegisterNodeRequest, UnRegisterNodeRequest}
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -33,6 +33,7 @@ pub struct DataRoute {
     shard_storage: ShardStorage,
     segment_storage: SegmentStorage,
     kv_storage: KvStorage,
+    share_sub_storage: ShareSubStorage,
     repcli_algo: SegmentReplicaAlgorithm,
 }
 
@@ -46,7 +47,8 @@ impl DataRoute {
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
         let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
         let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
-        let kv_storage = KvStorage::new(rocksdb_engine_handler);
+        let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
+        let share_sub_storage = ShareSubStorage::new(rocksdb_engine_handler.clone());
         let repcli_algo = SegmentReplicaAlgorithm::new(cluster_cache.clone(), engine_cache.clone());
         return DataRoute {
             cluster_cache,
@@ -56,6 +58,7 @@ impl DataRoute {
             shard_storage,
             segment_storage,
             kv_storage,
+            share_sub_storage,
             repcli_algo,
         };
     }
@@ -89,6 +92,12 @@ impl DataRoute {
             StorageDataType::Delete => {
                 return self.delete(storage_data.value);
             }
+            StorageDataType::CreateShareSub => {
+                return self.create_share_sub(storage_data.value);
+            }
+            StorageDataType::DeleteShareSub => {
+                return self.delete_share_sub(storage_data.value);
+            }
         }
     }
 
@@ -100,11 +109,11 @@ impl DataRoute {
             .unwrap();
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
-
-        let node = NodeInfo {
+        let node = Node {
             node_id: req.node_id,
             node_ip: req.node_ip,
-            node_port: req.node_port,
+            node_inner_addr: req.node_inner_addr,
+            extend: req.extend_info,
             cluster_name: cluster_name.clone(),
             cluster_type: cluster_type.as_str_name().to_string(),
             create_time: now_mills(),
@@ -120,7 +129,7 @@ impl DataRoute {
                 create_time: now_mills(),
             };
             self.cluster_cache.add_cluster(cluster_info.clone());
-            self.cluster_storage.save_cluster(cluster_info);
+            self.cluster_storage.save(cluster_info);
             self.cluster_storage.save_all_cluster(cluster_name.clone());
         } else {
             self.cluster_storage
@@ -145,7 +154,6 @@ impl DataRoute {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
-        let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
         self.cluster_cache
@@ -174,7 +182,7 @@ impl DataRoute {
         };
 
         // persist
-        self.shard_storage.save_shard(shard_info.clone());
+        self.shard_storage.save(shard_info.clone());
         self.shard_storage
             .save_all_shard(cluster_name.clone(), shard_info.shard_name.clone());
 
@@ -199,7 +207,7 @@ impl DataRoute {
 
         // delete shard info
         self.shard_storage
-            .delete_shard(cluster_name.clone(), shard_name.clone());
+            .delete(cluster_name.clone(), shard_name.clone());
         self.engine_cache
             .remove_shard(cluster_name.clone(), shard_name.clone());
         return Ok(());
@@ -279,6 +287,18 @@ impl DataRoute {
     pub fn pre_create_segment(&self) -> Result<(), RobustMQError> {
         return Ok(());
     }
+
+    pub fn create_share_sub(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let data: ShareSub = serde_json::from_slice(&value).unwrap();
+        return self.share_sub_storage.save(data);
+    }
+
+    pub fn delete_share_sub(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req: DeleteShareSubRequest = DeleteShareSubRequest::decode(value.as_ref())
+        .map_err(|e| Status::invalid_argument(e.to_string()))
+        .unwrap();
+    return self.share_sub_storage.delete(req.cluster_name,req.group_name);
+    }
 }
 
 #[cfg(test)]
@@ -308,7 +328,6 @@ mod tests {
         let mut req = RegisterNodeRequest::default();
         req.node_id = node_id;
         req.node_ip = node_ip.clone();
-        req.node_port = node_port;
         req.cluster_type = ClusterType::MqttBrokerServer.into();
         req.cluster_name = cluster_name.clone();
         req.extend_info = "{}".to_string();
@@ -326,7 +345,7 @@ mod tests {
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
         let shard_storage = ShardStorage::new(rocksdb_engine.clone());
 
-        let cluster = cluster_storage.get_cluster(&cluster_name);
+        let cluster = cluster_storage.get(&cluster_name);
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
         assert_eq!(cl.nodes, vec![node_id]);
@@ -335,13 +354,12 @@ mod tests {
         let nd = node.unwrap();
         assert_eq!(nd.node_id, node_id);
         assert_eq!(nd.node_ip, node_ip);
-        assert_eq!(nd.node_port, node_port);
 
         let _ = node_storage.delete_node(&cluster_name, node_id);
         let res = node_storage.get_node(cluster_name.clone(), node_id);
         assert!(res.is_none());
 
-        let cluster = cluster_storage.get_cluster(&cluster_name);
+        let cluster = cluster_storage.get(&cluster_name);
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
         assert_eq!(cl.nodes.len(), 0);

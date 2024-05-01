@@ -1,4 +1,4 @@
-use super::heartbeat_manager::HeartbeatManager;
+use super::client_heartbeat::HeartbeatManager;
 use crate::{
     metrics::metrics_heartbeat_keep_alive_run_info,
     server::{tcp::packet::RequestPackage, MQTTProtocol},

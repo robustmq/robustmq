@@ -4,7 +4,7 @@ use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::{
-    core::heartbeat_manager::{ConnectionLiveTime, HeartbeatManager},
+    core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
     idempotent::memory::IdempotentMemory,
     metadata::{cache::MetadataCacheManager, message::Message, session::LastWillData},
     security::authentication::authentication_login,

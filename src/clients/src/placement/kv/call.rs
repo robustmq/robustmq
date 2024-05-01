@@ -1,7 +1,7 @@
 use super::PlacementCenterInterface;
 use crate::{
     placement::{retry_call, PlacementCenterService},
-    ClientPool,
+    poll::ClientPool,
 };
 use common_base::errors::RobustMQError;
 use prost::Message as _;
@@ -10,10 +10,9 @@ use protocol::placement_center::generate::{
     kv::{DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest},
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub async fn placement_set(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -38,7 +37,7 @@ pub async fn placement_set(
 }
 
 pub async fn placement_get(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: GetRequest,
 ) -> Result<GetReply, RobustMQError> {
@@ -63,7 +62,7 @@ pub async fn placement_get(
 }
 
 pub async fn placement_delete(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -88,7 +87,7 @@ pub async fn placement_delete(
 }
 
 pub async fn placement_exists(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ExistsRequest,
 ) -> Result<ExistsReply, RobustMQError> {
@@ -108,6 +107,46 @@ pub async fn placement_exists(
         },
         Err(e) => {
             return Err(e);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::placement::kv::call::{placement_get, placement_set};
+    use crate::poll::ClientPool;
+    use protocol::placement_center::generate::kv::{GetRequest, SetRequest};
+
+    #[tokio::test]
+    async fn set() {
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec!["127.0.0.1:1228".to_string()];
+        let key = "test-sub-name".to_string();
+        let value = "test-group-name".to_string();
+        let request = SetRequest { key:key.clone(), value };
+        match placement_set(client_poll.clone(), addrs.clone(), request).await {
+            Ok(da) => {
+                println!("{:?}", da);
+                assert!(true)
+            }
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
+        }
+
+        let get_req = GetRequest { key };
+        match placement_get(client_poll, addrs, get_req).await {
+            Ok(da) => {
+                println!("{:?}", da);
+                assert!(true)
+            }
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
         }
     }
 }

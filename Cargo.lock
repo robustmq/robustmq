@@ -611,6 +611,7 @@ dependencies = [
  "axum 0.7.4",
  "bytes",
  "common-base",
+ "dashmap",
  "lazy_static",
  "mobc",
  "prost 0.12.3",
@@ -1735,6 +1736,7 @@ checksum = "523dc4f511e55ab87b694dc30d0f820d60906ef06413f93d4d7a1385599cc149"
 name = "metadata-struct"
 version = "0.0.1"
 dependencies = [
+ "serde",
  "thiserror",
 ]
 
@@ -1848,6 +1850,7 @@ dependencies = [
  "dashmap",
  "futures",
  "lazy_static",
+ "metadata-struct",
  "prometheus",
  "protocol",
  "serde",

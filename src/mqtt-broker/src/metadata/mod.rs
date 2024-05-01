@@ -1,18 +1,15 @@
-use std::default;
-
-use protocol::{broker_server::generate::mqtt::Available, mqtt::QoS};
+use protocol::broker_server::generate::mqtt::Available;
 use serde::{Deserialize, Serialize};
 
 pub mod acl;
 pub mod cache;
 pub mod cluster;
+pub mod connection;
 pub mod message;
-pub mod node;
 pub mod session;
 pub mod subscriber;
 pub mod topic;
 pub mod user;
-pub mod connection;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AvailableFlag {

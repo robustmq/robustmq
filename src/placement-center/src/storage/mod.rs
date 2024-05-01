@@ -23,3 +23,4 @@ pub mod cluster;
 pub mod segment;
 pub mod kv;
 pub mod global_id;
+pub mod share_sub;
