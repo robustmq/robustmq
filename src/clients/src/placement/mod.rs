@@ -3,7 +3,7 @@ use self::{
     placement::placement_interface_call,
 };
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::errors::RobustMQError;
+use common_base::{errors::RobustMQError, log::info};
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 

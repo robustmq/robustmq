@@ -1,6 +1,7 @@
 use super::PlacementCenterInterface;
 use crate::{
-    placement::{retry_call, PlacementCenterService}, poll::ClientPool,
+    placement::{retry_call, PlacementCenterService},
+    poll::ClientPool,
 };
 use common_base::errors::RobustMQError;
 use prost::Message as _;
@@ -56,6 +57,34 @@ pub async fn placement_delete_share_sub(
         },
         Err(e) => {
             return Err(e);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use protocol::placement_center::generate::mqtt::GetShareSubRequest;
+
+    use crate::placement::mqtt::call::placement_get_share_sub;
+    use crate::poll::ClientPool;
+
+    #[tokio::test]
+    async fn get_share_sub() {
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec!["127.0.0.1:1228".to_string()];
+        let cluster_name = "test-cluster-name".to_string();
+        let sub_name = "test-sub-name".to_string();
+        let group_name = "test-group-name".to_string();
+        let request = GetShareSubRequest {
+            group_name,
+            sub_name,
+            cluster_name,
+        };
+        match placement_get_share_sub(client_poll, addrs, request).await {
+            Ok(da) => {}
+            Err(e) => {}
         }
     }
 }

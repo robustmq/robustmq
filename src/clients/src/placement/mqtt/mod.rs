@@ -89,6 +89,3 @@ impl Manager for MQTTServiceManager {
         Ok(conn)
     }
 }
-
-#[cfg(test)]
-mod tests {}
