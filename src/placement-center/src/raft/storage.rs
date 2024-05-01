@@ -59,6 +59,8 @@ pub enum StorageDataType {
     DeleteSegment,
     Set,
     Delete,
+    CreateShareSub,
+    DeleteShareSub,
 }
 
 impl fmt::Display for StorageDataType {
@@ -87,6 +89,13 @@ impl fmt::Display for StorageDataType {
             }
             StorageDataType::Delete => {
                 write!(f, "Delete")
+            }
+
+            StorageDataType::CreateShareSub => {
+                write!(f, "CreateShareSub")
+            }
+            StorageDataType::DeleteShareSub => {
+                write!(f, "DeleteShareSub")
             }
         }
     }

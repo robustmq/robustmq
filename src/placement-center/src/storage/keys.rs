@@ -54,6 +54,6 @@ pub fn uniq_key_id() -> String {
     return "generage_uniq_int_id".to_string();
 }
 
-pub fn share_sub_key() -> String {
-    return "".to_string();
+pub fn share_sub_key(cluster_name: String,group_name:String) -> String {
+    return "mqtt_share_sub_".to_string();
 }

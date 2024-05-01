@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use crate::{
     cache::{cluster::ClusterCache, mqtt::MqttCache},
-    core::lock::Lock,
+    core::{lock::Lock, share_sub::calc_share_sub_leader},
     raft::storage::PlacementCenterStorage,
     storage::rocksdb::RocksDBEngine,
+    structs::share_sub::ShareSub,
 };
+use common_base::tools::now_second;
 use protocol::placement_center::generate::mqtt::{
     mqtt_service_server::MqttService, ShareSubReply, ShareSubRequest,
 };
@@ -39,24 +41,49 @@ impl MqttService for GrpcMqttService {
         request: Request<ShareSubRequest>,
     ) -> Result<Response<ShareSubReply>, Status> {
         let req = request.into_inner();
+        let cluster_name = req.cluster_name;
+        let group_name = req.group_name;
+        let sub_name = req.sub_name;
 
         let mut reply = ShareSubReply::default();
-        if let Some(share_sub) = self
+        let leader_broker = if let Some(share_sub) = self
             .mqtt_cache
-            .get_share_sub(req.cluster_name.clone(), req.share_sub_name)
+            .get_share_sub(cluster_name.clone(), sub_name.clone())
         {
-            let leader_id = share_sub.leader_broker;
-            if let Some(node) = self.cluster_cache.get_node(req.cluster_name, leader_id) {
-                reply.broker_id = leader_id;
-                reply.broker_ip = node.node_ip;
-                reply.extend_info = node.extend;
-            }
-        }
-        let key = format!("global_share_sub_lock");
-        let lock = Lock::new(key.clone(), self.rocksdb_engine_handler.clone());
-        lock.lock();
+            share_sub.leader_broker
+        } else {
+            let key = format!("global_share_sub_lock");
+            let lock = Lock::new(key.clone(), self.rocksdb_engine_handler.clone());
+            lock.lock().unwrap();
+            let leader_broker =
+                match calc_share_sub_leader(cluster_name.clone(), self.cluster_cache.clone()) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        return Err(Status::cancelled(e.to_string()));
+                    }
+                };
 
-        lock.un_lock();
+            let share_sub = ShareSub {
+                cluster_name: cluster_name.clone(),
+                group_name: group_name.clone(),
+                sub_name: sub_name.clone(),
+                leader_broker,
+                create_time: now_second(),
+            };
+
+            self.mqtt_cache
+                .add_share_sub(cluster_name.clone(), group_name.clone(), share_sub);
+
+            //todo
+
+            lock.un_lock().unwrap();
+            leader_broker
+        };
+        if let Some(node) = self.cluster_cache.get_node(cluster_name, leader_broker) {
+            reply.broker_id = leader_broker;
+            reply.broker_ip = node.node_ip;
+            reply.extend_info = node.extend;
+        }
         return Ok(Response::new(reply));
     }
 }

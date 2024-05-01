@@ -18,7 +18,7 @@ impl ClusterStorage {
         }
     }
 
-    pub fn save_cluster(&self, cluster_info: ClusterInfo) {
+    pub fn save(&self, cluster_info: ClusterInfo) {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let cluster_key = key_cluster(&cluster_info.cluster_name);
         match self
@@ -32,7 +32,7 @@ impl ClusterStorage {
         }
     }
 
-    pub fn get_cluster(&self, cluster_name: &String) -> Option<ClusterInfo> {
+    pub fn get(&self, cluster_name: &String) -> Option<ClusterInfo> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let cluster_key = key_cluster(&cluster_name);
         match self
@@ -77,20 +77,20 @@ impl ClusterStorage {
     }
 
     pub fn add_cluster_node(&self, cluster_name: &String, node_id: u64) {
-        if let Some(mut cluster_info) = self.get_cluster(&cluster_name) {
+        if let Some(mut cluster_info) = self.get(&cluster_name) {
             if !cluster_info.nodes.contains(&node_id) {
                 cluster_info.nodes.push(node_id);
-                self.save_cluster(cluster_info);
+                self.save(cluster_info);
             }
         }
     }
 
     pub fn remove_cluster_node(&self, cluster_name: &String, node_id: u64) {
-        if let Some(mut cluster_info) = self.get_cluster(&cluster_name) {
+        if let Some(mut cluster_info) = self.get(&cluster_name) {
             match cluster_info.nodes.binary_search(&node_id) {
                 Ok(index) => {
                     cluster_info.nodes.remove(index);
-                    self.save_cluster(cluster_info);
+                    self.save(cluster_info);
                 }
                 Err(_) => {}
             }
@@ -102,7 +102,7 @@ impl ClusterStorage {
 
         let mut result = Vec::new();
         for cluster_name in all_cluster {
-            if let Some(cluster_info) = self.get_cluster(&cluster_name) {
+            if let Some(cluster_info) = self.get(&cluster_name) {
                 result.push(cluster_info);
             }
         }

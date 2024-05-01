@@ -23,7 +23,7 @@ impl NodeStorage {
         let mut result = Vec::new();
         let cf = self.rocksdb_engine_handler.cf_cluster();
 
-        let cluster_info = self.cluster_storage.get_cluster(&cluster_name);
+        let cluster_info = self.cluster_storage.get(&cluster_name);
         if cluster_info.is_none() {
             return result;
         }
