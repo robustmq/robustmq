@@ -1,3 +1,4 @@
+use clients::poll::ClientPool;
 // Copyright 2023 RobustMQ Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,14 +12,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use clients::ClientPool;
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
     runtime::create_runtime,
 };
 use core::{
-    client_heartbeat::HeartbeatManager, keep_alive::KeepAlive, server_heartbeat::{register_broker_node, report_heartbeat, unregister_broker_node}, session_expiry::SessionExpiry, HEART_CONNECT_SHARD_HASH_NUM
+    client_heartbeat::HeartbeatManager,
+    keep_alive::KeepAlive,
+    server_heartbeat::{register_broker_node, report_heartbeat, unregister_broker_node},
+    session_expiry::SessionExpiry,
+    HEART_CONNECT_SHARD_HASH_NUM,
 };
 use idempotent::memory::IdempotentMemory;
 use metadata::cache::MetadataCacheManager;
@@ -39,10 +43,7 @@ use subscribe::{manager::SubScribeManager, push::PushServer};
 use tokio::{
     runtime::Runtime,
     signal,
-    sync::{
-        broadcast::{self, Sender},
-        Mutex,
-    },
+    sync::broadcast::{self, Sender},
 };
 
 mod core;
@@ -57,7 +58,7 @@ mod subscribe;
 
 pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
-    let client_poll: Arc<Mutex<ClientPool>> = Arc::new(Mutex::new(ClientPool::new(1)));
+    let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
 
     // let metadata_storage_adapter = Arc::new(PlacementStorageAdapter::new(
     //     client_poll.clone(),
@@ -87,7 +88,7 @@ pub struct MqttBroker<'a, T, S> {
     request_queue_sx5: Sender<RequestPackage>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
 }
@@ -98,7 +99,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        client_poll: Arc<Mutex<ClientPool>>,
+        client_poll: Arc<ClientPool>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
     ) -> Self {

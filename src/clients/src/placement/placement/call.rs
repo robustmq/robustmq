@@ -1,6 +1,5 @@
 use crate::{
-    placement::{retry_call, PlacementCenterInterface, PlacementCenterService},
-    ClientPool,
+    placement::{retry_call, PlacementCenterInterface, PlacementCenterService}, poll::ClientPool,
 };
 use common_base::errors::RobustMQError;
 use prost::Message;
@@ -12,10 +11,9 @@ use protocol::placement_center::generate::{
     },
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub async fn register_node(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: RegisterNodeRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -40,7 +38,7 @@ pub async fn register_node(
 }
 
 pub async fn un_register_node(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UnRegisterNodeRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -65,7 +63,7 @@ pub async fn un_register_node(
 }
 
 pub async fn heartbeat(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: HeartbeatRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -90,7 +88,7 @@ pub async fn heartbeat(
 }
 
 pub async fn send_raft_message(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SendRaftMessageRequest,
 ) -> Result<SendRaftMessageReply, RobustMQError> {
@@ -115,7 +113,7 @@ pub async fn send_raft_message(
 }
 
 pub async fn send_raft_conf_change(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SendRaftConfChangeRequest,
 ) -> Result<SendRaftConfChangeReply, RobustMQError> {

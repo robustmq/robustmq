@@ -1,6 +1,6 @@
 use clients::{
     placement::placement::call::{heartbeat, register_node, un_register_node},
-    ClientPool,
+    poll::ClientPool,
 };
 use common_base::{
     config::journal_server::JournalServerConfig,
@@ -12,10 +12,10 @@ use protocol::placement_center::generate::{
     placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},
 };
 use std::{sync::Arc, time::Duration};
-use tokio::{sync::Mutex, time};
+use tokio::time;
 
 pub async fn register_storage_engine_node(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     config: JournalServerConfig,
 ) {
     let mut req = RegisterNodeRequest::default();
@@ -38,7 +38,7 @@ pub async fn register_storage_engine_node(
 }
 
 pub async fn unregister_storage_engine_node(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     config: JournalServerConfig,
 ) {
     let mut req = UnRegisterNodeRequest::default();
@@ -56,7 +56,7 @@ pub async fn unregister_storage_engine_node(
     }
 }
 
-pub async fn report_heartbeat(client_poll: Arc<Mutex<ClientPool>>, config: JournalServerConfig) {
+pub async fn report_heartbeat(client_poll: Arc<ClientPool>, config: JournalServerConfig) {
     loop {
         let mut req = HeartbeatRequest::default();
         req.cluster_name = config.cluster_name.clone();

@@ -1,10 +1,10 @@
-use crate::ClientPool;
 use common_base::errors::RobustMQError;
 use mobc::Manager;
 use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tonic::transport::Channel;
+
+use crate::poll::ClientPool;
 
 use self::inner::{
     inner_heartbeat, inner_register_node, inner_send_raft_conf_change, inner_send_raft_message,
@@ -18,7 +18,7 @@ mod inner;
 
 pub(crate) async fn placement_interface_call(
     interface: PlacementCenterInterface,
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, RobustMQError> {
@@ -56,11 +56,10 @@ pub(crate) async fn placement_interface_call(
 }
 
 async fn placement_client(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
-    let mut poll = client_poll.lock().await;
-    match poll.get_placement_services_client(addr).await {
+    match client_poll.get_placement_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }

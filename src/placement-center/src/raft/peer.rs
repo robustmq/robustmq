@@ -1,8 +1,8 @@
-use clients::{placement::placement::call::send_raft_message, ClientPool};
+use clients::{placement::placement::call::send_raft_message, poll::ClientPool};
 use common_base::log::{debug_meta, error_meta, info_meta};
 use protocol::placement_center::generate::placement::SendRaftMessageRequest;
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::mpsc;
 
 #[derive(Debug, Clone)]
 pub struct PeerMessage {
@@ -12,13 +12,13 @@ pub struct PeerMessage {
 
 pub struct PeersManager {
     peer_message_recv: mpsc::Receiver<PeerMessage>,
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl PeersManager {
     pub fn new(
         peer_message_recv: mpsc::Receiver<PeerMessage>,
-        client_poll: Arc<Mutex<ClientPool>>,
+        client_poll: Arc<ClientPool>,
     ) -> PeersManager {
         let pm = PeersManager {
             peer_message_recv,

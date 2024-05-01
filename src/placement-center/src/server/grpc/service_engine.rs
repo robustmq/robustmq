@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 use crate::{cache::placement::PlacementCache, raft::storage::PlacementCenterStorage};
-use clients::{
-    placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard},
-    ClientPool,
-};
+use clients::{placement::journal::call::{
+    create_segment, create_shard, delete_segment, delete_shard,
+}, poll::ClientPool};
 use protocol::placement_center::generate::{
     common::CommonReply,
     journal::{
@@ -26,20 +25,19 @@ use protocol::placement_center::generate::{
     },
 };
 use std::sync::{Arc, RwLock};
-use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
     placement_center_storage: Arc<PlacementCenterStorage>,
     placement_cache: Arc<RwLock<PlacementCache>>,
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
     pub fn new(
         placement_center_storage: Arc<PlacementCenterStorage>,
         placement_cache: Arc<RwLock<PlacementCache>>,
-        client_poll: Arc<Mutex<ClientPool>>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
             placement_center_storage,

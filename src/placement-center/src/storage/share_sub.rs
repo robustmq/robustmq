@@ -36,14 +36,14 @@ impl ShareSubStorage {
         return None;
     }
 
-    pub fn delete(&self, cluster_name: String, group_name: String) {
+    pub fn delete(&self, cluster_name: String, group_name: String) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let key = share_sub_key(cluster_name, group_name);
         match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {}
-            Err(e) => {
-                error_meta(&e);
+            Ok(_) => {
+                return Ok(());
             }
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         }
     }
 }

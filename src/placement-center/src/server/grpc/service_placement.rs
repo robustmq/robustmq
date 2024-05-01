@@ -19,7 +19,7 @@ use crate::raft::storage::PlacementCenterStorage;
 use crate::storage::global_id::GlobalId;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
-use clients::ClientPool;
+use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use prost::Message;
 use protocol::placement_center::generate::common::{CommonReply, GenerageIdType};
@@ -32,7 +32,6 @@ use protocol::placement_center::generate::placement::{
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::Mutex;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
@@ -40,7 +39,7 @@ pub struct GrpcPlacementService {
     placement_cache: Arc<RwLock<PlacementCache>>,
     cluster_cache: Arc<ClusterCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl GrpcPlacementService {
@@ -49,7 +48,7 @@ impl GrpcPlacementService {
         placement_cache: Arc<RwLock<PlacementCache>>,
         cluster_cache: Arc<ClusterCache>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        client_poll: Arc<Mutex<ClientPool>>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcPlacementService {
             placement_center_storage,

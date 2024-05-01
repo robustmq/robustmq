@@ -17,7 +17,7 @@ use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::cluster::ClusterCache;
 use cache::journal::JournalCache;
 use cache::placement::PlacementCache;
-use clients::ClientPool;
+use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
@@ -31,7 +31,6 @@ use raft::storage::{PlacementCenterStorage, RaftMessage};
 use server::grpc::service_engine::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_placement::GrpcPlacementService;
-use structs::node::Node;
 use std::sync::{Arc, RwLock};
 use storage::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
@@ -62,7 +61,7 @@ pub struct PlacementCenter {
     // Raft Global read and write pointer
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl PlacementCenter {
@@ -87,7 +86,7 @@ impl PlacementCenter {
             rocksdb_engine_handler.clone(),
         )));
 
-        let client_poll = Arc::new(Mutex::new(ClientPool::new(3)));
+        let client_poll = Arc::new(ClientPool::new(3));
 
         return PlacementCenter {
             server_runtime,

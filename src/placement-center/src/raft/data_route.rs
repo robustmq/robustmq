@@ -8,9 +8,10 @@ use crate::{
         node::NodeStorage,
         rocksdb::RocksDBEngine,
         segment::{SegmentInfo, SegmentStatus, SegmentStorage},
-        shard::{ShardInfo, ShardStorage}, share_sub::ShareSubStorage,
+        shard::{ShardInfo, ShardStorage},
+        share_sub::ShareSubStorage,
     },
-    structs::{cluster::ClusterInfo, node::Node},
+    structs::{cluster::ClusterInfo, node::Node, share_sub::ShareSub},
 };
 use bincode::deserialize;
 use common_base::{
@@ -19,7 +20,7 @@ use common_base::{
 };
 use prost::Message as _;
 use protocol::placement_center::generate::{
-    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, mqtt::ShareSubRequest, placement::{RegisterNodeRequest, UnRegisterNodeRequest}
+    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, mqtt::DeleteShareSubRequest, placement::{RegisterNodeRequest, UnRegisterNodeRequest}
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -288,15 +289,15 @@ impl DataRoute {
     }
 
     pub fn create_share_sub(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: ShareSubRequest = ShareSubRequest::decode(value.as_ref())
-        .map_err(|e| Status::invalid_argument(e.to_string()))
-        .unwrap();
-    
-        return Ok(());
+        let data: ShareSub = serde_json::from_slice(&value).unwrap();
+        return self.share_sub_storage.save(data);
     }
 
     pub fn delete_share_sub(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        return Ok(());
+        let req: DeleteShareSubRequest = DeleteShareSubRequest::decode(value.as_ref())
+        .map_err(|e| Status::invalid_argument(e.to_string()))
+        .unwrap();
+    return self.share_sub_storage.delete(req.cluster_name,req.group_name);
     }
 }
 

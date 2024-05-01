@@ -1,6 +1,6 @@
 use clients::{
     placement::placement::call::{heartbeat, register_node, un_register_node},
-    ClientPool,
+    poll::ClientPool,
 };
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
@@ -12,13 +12,10 @@ use protocol::placement_center::generate::{
     common::ClusterType,
     placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},
 };
-use std::{fmt::format, sync::Arc, time::Duration};
-use tokio::{
-    sync::{broadcast, Mutex},
-    time,
-};
+use std::{sync::Arc, time::Duration};
+use tokio::{sync::broadcast, time};
 
-pub async fn register_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
+pub async fn register_broker_node(client_poll: Arc<ClientPool>) {
     let config = broker_mqtt_conf();
     let local_ip = get_local_ip();
     let mut req = RegisterNodeRequest::default();
@@ -60,7 +57,7 @@ pub async fn register_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
     }
 }
 
-pub async fn unregister_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
+pub async fn unregister_broker_node(client_poll: Arc<ClientPool>) {
     let config = broker_mqtt_conf();
     let mut req = UnRegisterNodeRequest::default();
     req.cluster_type = ClusterType::MqttBrokerServer.into();
@@ -84,7 +81,7 @@ pub async fn unregister_broker_node(client_poll: Arc<Mutex<ClientPool>>) {
 }
 
 pub async fn report_heartbeat(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     mut stop_send: broadcast::Receiver<bool>,
 ) {
     time::sleep(Duration::from_millis(5000)).await;

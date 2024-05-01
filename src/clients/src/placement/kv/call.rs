@@ -1,7 +1,6 @@
 use super::PlacementCenterInterface;
 use crate::{
-    placement::{retry_call, PlacementCenterService},
-    ClientPool,
+    placement::{retry_call, PlacementCenterService}, poll::ClientPool,
 };
 use common_base::errors::RobustMQError;
 use prost::Message as _;
@@ -10,10 +9,9 @@ use protocol::placement_center::generate::{
     kv::{DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest},
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 pub async fn placement_set(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -38,7 +36,7 @@ pub async fn placement_set(
 }
 
 pub async fn placement_get(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: GetRequest,
 ) -> Result<GetReply, RobustMQError> {
@@ -63,7 +61,7 @@ pub async fn placement_get(
 }
 
 pub async fn placement_delete(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteRequest,
 ) -> Result<CommonReply, RobustMQError> {
@@ -88,7 +86,7 @@ pub async fn placement_delete(
 }
 
 pub async fn placement_exists(
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ExistsRequest,
 ) -> Result<ExistsReply, RobustMQError> {

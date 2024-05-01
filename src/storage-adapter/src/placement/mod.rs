@@ -5,23 +5,22 @@ use crate::{
 use axum::async_trait;
 use clients::{
     placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
-    ClientPool,
+    poll::ClientPool,
 };
 use common_base::errors::RobustMQError;
 use protocol::placement_center::generate::kv::{
     DeleteRequest, ExistsRequest, GetRequest, SetRequest,
 };
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct PlacementStorageAdapter {
-    client_poll: Arc<Mutex<ClientPool>>,
+    client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
 }
 
 impl PlacementStorageAdapter {
-    pub fn new(client_poll: Arc<Mutex<ClientPool>>, addrs: Vec<String>) -> Self {
+    pub fn new(client_poll: Arc<ClientPool>, addrs: Vec<String>) -> Self {
         return PlacementStorageAdapter { client_poll, addrs };
     }
 }
@@ -156,5 +155,4 @@ impl StorageAdapter for PlacementStorageAdapter {
             "stream_write".to_string(),
         ));
     }
-    
 }
