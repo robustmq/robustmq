@@ -41,7 +41,7 @@ pub enum RobustMQError {
     )]
     TonicTransport(#[from] tonic::transport::Error),
 
-    #[error("Grpc call of the Meta node failed,Grpc status was {0}")]
+    #[error("Grpc call of the node failed,Grpc status was {0}")]
     MetaGrpcStatus(Status),
 
     #[error("Leader node does not exist in the Meta cluster, which may be due to the election process or the election failure.")]

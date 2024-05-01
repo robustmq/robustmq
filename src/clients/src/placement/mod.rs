@@ -3,7 +3,7 @@ use self::{
     placement::placement_interface_call,
 };
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::{errors::RobustMQError, log::info};
+use common_base::{errors::RobustMQError, log::{error, info}};
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -53,7 +53,7 @@ async fn retry_call(
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, RobustMQError> {
-    let mut times = 0;
+    let mut times = 1;
     loop {
         let index = times % addrs.len();
         let addr = addrs.get(index).unwrap().clone();
@@ -104,6 +104,7 @@ async fn retry_call(
                 return Ok(data);
             }
             Err(e) => {
+                error(e.to_string());
                 if times > retry_times() {
                     return Err(e);
                 }

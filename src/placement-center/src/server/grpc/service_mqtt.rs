@@ -51,7 +51,6 @@ impl MqttService for GrpcMqttService {
         let cluster_name = req.cluster_name;
         let group_name = req.group_name;
         let sub_name = req.sub_name;
-        println!("{}","test1");
         let mut reply = GetShareSubReply::default();
         let leader_broker = if let Some(share_sub) = self
             .mqtt_cache
@@ -84,7 +83,6 @@ impl MqttService for GrpcMqttService {
                 share_sub.clone(),
             );
 
-            println!("{}","test2");
             match self
                 .placement_center_storage
                 .save_share_sub(share_sub)

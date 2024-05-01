@@ -40,7 +40,12 @@ pub(crate) async fn placement_interface_call(
                 PlacementCenterInterface::SendRaftConfChange => {
                     inner_send_raft_conf_change(client, request.clone()).await
                 }
-                _ => return Err(RobustMQError::CommmonError("".to_string())),
+                _ => {
+                    return Err(RobustMQError::CommmonError(format!(
+                        "placement service does not support service interfaces [{:?}]",
+                        interface
+                    )))
+                }
             };
             match result {
                 Ok(data) => return Ok(data),

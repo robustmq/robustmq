@@ -1,6 +1,7 @@
 use super::PlacementCenterInterface;
 use crate::{
-    placement::{retry_call, PlacementCenterService}, poll::ClientPool,
+    placement::{retry_call, PlacementCenterService},
+    poll::ClientPool,
 };
 use common_base::errors::RobustMQError;
 use prost::Message as _;
@@ -106,6 +107,46 @@ pub async fn placement_exists(
         },
         Err(e) => {
             return Err(e);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::placement::kv::call::{placement_get, placement_set};
+    use crate::poll::ClientPool;
+    use protocol::placement_center::generate::kv::{GetRequest, SetRequest};
+
+    #[tokio::test]
+    async fn set() {
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec!["127.0.0.1:1228".to_string()];
+        let key = "test-sub-name".to_string();
+        let value = "test-group-name".to_string();
+        let request = SetRequest { key:key.clone(), value };
+        match placement_set(client_poll.clone(), addrs.clone(), request).await {
+            Ok(da) => {
+                println!("{:?}", da);
+                assert!(true)
+            }
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
+        }
+
+        let get_req = GetRequest { key };
+        match placement_get(client_poll, addrs, get_req).await {
+            Ok(da) => {
+                println!("{:?}", da);
+                assert!(true)
+            }
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
         }
     }
 }

@@ -83,8 +83,14 @@ mod tests {
             cluster_name,
         };
         match placement_get_share_sub(client_poll, addrs, request).await {
-            Ok(da) => {}
-            Err(e) => {}
+            Ok(da) => {
+                println!("{:?}", da);
+                assert!(true)
+            }
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
         }
     }
 }

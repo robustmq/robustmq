@@ -35,7 +35,10 @@ pub async fn journal_interface_call(
                 PlacementCenterInterface::DeleteSegment => {
                     inner_delete_segment(client, request.clone()).await
                 }
-                _ => return Err(RobustMQError::CommmonError("".to_string())),
+                _ => return Err(RobustMQError::CommmonError(format!(
+                    "journal service does not support service interfaces [{:?}]",
+                    interface
+                ))),
             };
             match result {
                 Ok(data) => return Ok(data),

@@ -37,7 +37,10 @@ pub(crate) async fn kv_interface_call(
                 PlacementCenterInterface::Delete => inner_delete(client, request.clone()).await,
                 PlacementCenterInterface::Get => inner_get(client, request.clone()).await,
                 PlacementCenterInterface::Exists => inner_exists(client, request.clone()).await,
-                _ => return Err(RobustMQError::CommmonError("".to_string())),
+                _ => return Err(RobustMQError::CommmonError(format!(
+                    "kv service does not support service interfaces [{:?}]",
+                    interface
+                ))),
             };
             match result {
                 Ok(data) => return Ok(data),
