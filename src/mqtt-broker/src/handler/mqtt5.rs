@@ -1,5 +1,6 @@
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use super::{packet::MQTTAckBuild, session::get_session_info, subscribe::send_retain_message};
+use crate::core::share_sub::is_share_sub;
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
@@ -365,7 +366,6 @@ where
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
-
         // Saving subscriptions
         self.subscribe_manager
             .parse_subscribe(

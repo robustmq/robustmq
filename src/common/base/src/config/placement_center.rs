@@ -86,6 +86,8 @@ pub fn init_placement_center_conf_by_config(
 ) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
+    create_fold(config.data_path.clone());
+    create_fold(config.log_path.clone());
     PLACEMENT_CENTER_CONF.get_or_init(|| {
         return config;
     })

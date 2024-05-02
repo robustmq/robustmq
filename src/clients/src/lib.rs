@@ -19,7 +19,7 @@ pub mod mqtt;
 pub mod placement;
 pub mod poll;
 
-const MAX_RETRY_TIMES: usize = 0;
+const MAX_RETRY_TIMES: usize = 10;
 
 pub fn retry_times() -> usize {
     return MAX_RETRY_TIMES;

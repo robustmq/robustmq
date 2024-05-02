@@ -12,24 +12,13 @@ use protocol::placement_center::generate::{
 };
 use tonic::transport::Channel;
 
+#[derive(Clone)]
 pub struct ClientPool {
     ip_max_num: u64,
     placement_service_pools: DashMap<String, Pool<PlacementServiceManager>>,
     journal_service_pools: DashMap<String, Pool<JournalServiceManager>>,
     kv_service_pools: DashMap<String, Pool<KvServiceManager>>,
     mqtt_service_pools: DashMap<String, Pool<MQTTServiceManager>>,
-}
-
-impl Clone for ClientPool {
-    fn clone(&self) -> Self {
-        Self {
-            ip_max_num: self.ip_max_num,
-            placement_service_pools: self.placement_service_pools.clone(),
-            journal_service_pools: self.journal_service_pools.clone(),
-            kv_service_pools: self.kv_service_pools.clone(),
-            mqtt_service_pools: self.mqtt_service_pools.clone(),
-        }
-    }
 }
 
 impl ClientPool {
@@ -51,19 +40,18 @@ impl ClientPool {
             let manager = PlacementServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
             self.placement_service_pools
-                .insert(addr.clone(), pool.clone());
+                .insert(addr.clone(), pool);
         }
-        if let Some(client) = self.placement_service_pools.get(&addr) {
-            match client.clone().get().await {
-                Ok(conn) => {
-                    return Ok(conn.into_inner());
-                }
+        if let Some(poll) = self.placement_service_pools.get(&addr) {
+            match poll.get().await {
+                Ok(conn) => return Ok(conn.into_inner()),
                 Err(e) => {
                     return Err(RobustMQError::NoAvailableConnection(e.to_string()));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection("".to_string()));
+        return Err(RobustMQError::NoAvailableConnection(
+            "Placement service client connection pool in the placement center has no connections available".to_string(),));
     }
 
     pub async fn get_journal_services_client(
@@ -73,11 +61,10 @@ impl ClientPool {
         if !self.journal_service_pools.contains_key(&addr) {
             let manager = JournalServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
-            self.journal_service_pools
-                .insert(addr.clone(), pool.clone());
+            self.journal_service_pools.insert(addr.clone(), pool);
         }
-        if let Some(client) = self.journal_service_pools.get(&addr) {
-            match client.clone().get().await {
+        if let Some(poll) = self.journal_service_pools.get(&addr) {
+            match poll.get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());
                 }
@@ -86,7 +73,8 @@ impl ClientPool {
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection("".to_string()));
+        return Err(RobustMQError::NoAvailableConnection(
+            "Journal service client connection pool in the placement center has no connections available".to_string(),));
     }
 
     pub async fn get_kv_services_client(
@@ -96,10 +84,10 @@ impl ClientPool {
         if !self.kv_service_pools.contains_key(&addr) {
             let manager = KvServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
-            self.kv_service_pools.insert(addr.clone(), pool.clone());
+            self.kv_service_pools.insert(addr.clone(), pool);
         }
-        if let Some(client) = self.kv_service_pools.get(&addr) {
-            match client.clone().get().await {
+        if let Some(poll) = self.kv_service_pools.get(&addr) {
+            match poll.get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());
                 }
@@ -120,10 +108,10 @@ impl ClientPool {
         if !self.kv_service_pools.contains_key(&addr) {
             let manager = MQTTServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
-            self.mqtt_service_pools.insert(addr.clone(), pool.clone());
+            self.mqtt_service_pools.insert(addr.clone(), pool);
         }
-        if let Some(client) = self.mqtt_service_pools.get(&addr) {
-            match client.clone().get().await {
+        if let Some(poll) = self.mqtt_service_pools.get(&addr) {
+            match poll.get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());
                 }

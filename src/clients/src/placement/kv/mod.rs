@@ -76,7 +76,11 @@ impl Manager for KvServiceManager {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => return Err(RobustMQError::TonicTransport(err)),
+            Err(err) => return Err(RobustMQError::CommmonError(format!(
+                "{},{}",
+                err.to_string(),
+                self.addr.clone()
+            ))),
         };
     }
 
