@@ -1,7 +1,8 @@
 use super::manager::SubScribeManager;
 use crate::{
+    core::share_sub::share_sub_rewrite_publish_flag,
     handler::subscribe::max_qos,
-    metadata::{cache::MetadataCacheManager, message::Message},
+    metadata::{cache::MetadataCacheManager, message::Message, user},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
@@ -198,13 +199,19 @@ pub async fn topic_sub_push_thread<T, S>(
                                 payload: Bytes::from(msg.payload),
                             };
 
+                            // If it is a shared subscription, it will be identified with the push message
+                            let mut user_properteis = Vec::new();
+                            if subscribe.is_share_sub {
+                                user_properteis.push(share_sub_rewrite_publish_flag());
+                            }
+
                             let properties = PublishProperties {
                                 payload_format_indicator: None,
                                 message_expiry_interval: None,
                                 topic_alias: None,
                                 response_topic: None,
                                 correlation_data: None,
-                                user_properties: Vec::new(),
+                                user_properties: user_properteis,
                                 subscription_identifiers: sub_id.clone(),
                                 content_type: None,
                             };
@@ -247,6 +254,7 @@ mod tests {
         subscribe::manager::SubScribeManager,
     };
     use bytes::Bytes;
+    use clients::poll::ClientPool;
     use protocol::mqtt::{Filter, MQTTPacket, Subscribe};
     use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
@@ -260,6 +268,8 @@ mod tests {
             storage_adapter.clone(),
             "test-cluster".to_string(),
         ));
+
+        let client_poll = Arc::new(ClientPool::new(3));
 
         // Create topic
         let topic_name = "/test/topic".to_string();
@@ -289,6 +299,7 @@ mod tests {
                 client_id,
                 subscribe,
                 None,
+                client_poll.clone(),
             )
             .await;
 

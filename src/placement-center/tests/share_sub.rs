@@ -1,32 +1,33 @@
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        sync::Arc,
-        thread::{self, sleep},
-        time::Duration,
-    };
+    use std::{sync::Arc, thread::sleep, time::Duration};
 
     use clients::{
         placement::{mqtt::call::placement_get_share_sub, placement::call::register_node},
         poll::ClientPool,
     };
+    use common_base::log::{error, info};
     use common_base::{
         config::placement_center::{init_placement_center_conf_by_config, PlacementCenterConfig},
-        log::{error, info, init_placement_center_log},
+        log::init_placement_center_log,
     };
     use placement_center::PlacementCenter;
     use protocol::placement_center::generate::{
         common::ClusterType, mqtt::GetShareSubRequest, placement::RegisterNodeRequest,
     };
-    use tokio::sync::broadcast::{self, Sender};
+    use std::{
+        fs,
+        thread::{self},
+    };
+    use tokio::sync::broadcast::Sender;
+    use tokio::sync::broadcast::{self};
     use toml::map::Map;
 
     #[tokio::test]
     async fn test_share_sub() {
         let (stop_send, _) = broadcast::channel::<bool>(2);
-        let cc = conf();
-        start_placement_center(cc, stop_send.clone());
+        let cc = test_conf();
+        test_start_placement_center(cc, stop_send.clone());
 
         let client_poll = Arc::new(ClientPool::new(3));
         let mut addrs = Vec::new();
@@ -78,10 +79,9 @@ mod tests {
         }
 
         sleep(Duration::from_secs(2));
-        clean(stop_send.clone());
+        test_clean(stop_send.clone());
     }
-
-    fn start_placement_center(conf: PlacementCenterConfig, stop_send: Sender<bool>) {
+    pub fn test_start_placement_center(conf: PlacementCenterConfig, stop_send: Sender<bool>) {
         thread::spawn(move || {
             init_placement_center_conf_by_config(conf);
             init_placement_center_log();
@@ -90,7 +90,7 @@ mod tests {
         });
     }
 
-    fn conf() -> PlacementCenterConfig {
+    pub fn test_conf() -> PlacementCenterConfig {
         let mut conf = PlacementCenterConfig::default();
         conf.cluster_name = "placement-test".to_string();
         conf.node_id = 1;
@@ -109,8 +109,8 @@ mod tests {
         return conf;
     }
 
-    fn clean(stop_send: Sender<bool>) {
-        let conf = conf();
+    pub fn test_clean(stop_send: Sender<bool>) {
+        let conf = test_conf();
         fs::remove_dir_all(conf.log_path).unwrap();
         fs::remove_dir_all(conf.data_path).unwrap();
         stop_send.send(true).unwrap();

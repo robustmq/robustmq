@@ -1,6 +1,6 @@
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use super::{packet::MQTTAckBuild, session::get_session_info, subscribe::send_retain_message};
-use crate::core::share_sub::is_share_sub;
+use crate::core::share_sub::{is_share_sub, is_share_sub_rewrite_publish};
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
@@ -13,6 +13,7 @@ use crate::{
     storage::message::MessageStorage,
     subscribe::manager::SubScribeManager,
 };
+use clients::poll::ClientPool;
 use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
@@ -33,6 +34,7 @@ pub struct Mqtt5Service<T, S> {
     heartbeat_manager: Arc<HeartbeatManager>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl<T, S> Mqtt5Service<T, S>
@@ -47,6 +49,7 @@ where
         heartbeat_manager: Arc<HeartbeatManager>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,
@@ -55,6 +58,7 @@ where
             heartbeat_manager,
             metadata_storage_adapter,
             message_storage_adapter,
+            client_poll,
         };
     }
 
@@ -186,6 +190,8 @@ where
         publish_properties: Option<PublishProperties>,
         idempotent_manager: Arc<IdempotentMemory>,
     ) -> Option<MQTTPacket> {
+        if is_share_sub_rewrite_publish(publish_properties.clone()) {}
+
         let topic_name = match publish_get_topic_name(
             connect_id,
             publish.clone(),
@@ -366,15 +372,25 @@ where
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
+        
         // Saving subscriptions
-        self.subscribe_manager
+        match self
+            .subscribe_manager
             .parse_subscribe(
                 crate::server::MQTTProtocol::MQTT5,
                 client_id,
                 subscribe.clone(),
                 subscribe_properties.clone(),
+                self.client_poll.clone(),
             )
-            .await;
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                self.ack_build
+                    .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+            }
+        }
 
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
