@@ -4,7 +4,7 @@ use clients::{
 };
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    log::{debug, info},
+    log::{debug, error, info},
     tools::get_local_ip,
 };
 use metadata_struct::mqtt_node_extend::MQTTNodeExtend;
@@ -74,9 +74,7 @@ pub async fn unregister_broker_node(client_poll: Arc<ClientPool>) {
         Ok(_) => {
             info(format!("Node {} exits successfully", config.broker_id));
         }
-        Err(e) => {
-            panic!("{}", e.to_string())
-        }
+        Err(e) => error(e.to_string()),
     }
 }
 
@@ -114,9 +112,9 @@ pub async fn report_heartbeat(
                     config.broker_id
                 ));
             }
-            Err(e) => {
-                panic!("{}", e.to_string())
-            }
+            Err(e) => error(e.to_string()),
         }
+
+        time::sleep(Duration::from_millis(1000)).await;
     }
 }

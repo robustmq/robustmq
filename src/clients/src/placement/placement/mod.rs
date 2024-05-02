@@ -94,7 +94,13 @@ impl Manager for PlacementServiceManager {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => return Err(RobustMQError::TonicTransport(err)),
+            Err(err) => {
+                return Err(RobustMQError::CommmonError(format!(
+                    "manager connect error:{},{}",
+                    err.to_string(),
+                    self.addr.clone()
+                )))
+            }
         };
     }
 

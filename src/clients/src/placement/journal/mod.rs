@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use crate::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use mobc::Manager;
 use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
 use tonic::transport::Channel;
-use crate::poll::ClientPool;
 
 use self::inner::{
     inner_create_segment, inner_create_shard, inner_delete_segment, inner_delete_shard,
@@ -35,10 +35,12 @@ pub async fn journal_interface_call(
                 PlacementCenterInterface::DeleteSegment => {
                     inner_delete_segment(client, request.clone()).await
                 }
-                _ => return Err(RobustMQError::CommmonError(format!(
-                    "journal service does not support service interfaces [{:?}]",
-                    interface
-                ))),
+                _ => {
+                    return Err(RobustMQError::CommmonError(format!(
+                        "journal service does not support service interfaces [{:?}]",
+                        interface
+                    )))
+                }
             };
             match result {
                 Ok(data) => return Ok(data),
@@ -88,7 +90,13 @@ impl Manager for JournalServiceManager {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => return Err(RobustMQError::TonicTransport(err)),
+            Err(err) => {
+                return Err(RobustMQError::CommmonError(format!(
+                    "{},{}",
+                    err.to_string(),
+                    self.addr.clone()
+                )))
+            }
         };
     }
 

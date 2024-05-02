@@ -7,7 +7,7 @@ use crate::{
     storage::rocksdb::RocksDBEngine,
     structs::share_sub::ShareSub,
 };
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{errors::RobustMQError, log::info, tools::now_second};
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
@@ -15,7 +15,6 @@ use protocol::placement_center::generate::{
         GetShareSubRequest,
     },
 };
-use slog::info;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
@@ -68,7 +67,10 @@ impl MqttService for GrpcMqttService {
                         return Err(Status::cancelled(e.to_string()));
                     }
                 };
-
+            info(format!(
+                " Leader node of the computed shared subscription [{}/{}] is [{}]",
+                group_name, sub_name, leader_broker
+            ));
             let share_sub = ShareSub {
                 cluster_name: cluster_name.clone(),
                 group_name: group_name.clone(),
