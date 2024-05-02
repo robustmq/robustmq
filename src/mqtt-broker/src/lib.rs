@@ -156,6 +156,7 @@ where
         let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         let idempotent_manager = self.idempotent_manager.clone();
+        let client_poll = self.client_poll.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
         let request_queue_sx5 = self.request_queue_sx5.clone();
@@ -164,6 +165,7 @@ where
         let response_queue_sx5 = self.response_queue_sx5.clone();
         self.runtime.spawn(async move {
             start_mqtt_server(
+                client_poll,
                 cache,
                 heartbeat_manager,
                 subscribe_manager,
