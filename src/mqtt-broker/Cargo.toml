@@ -21,4 +21,5 @@ lazy_static.workspace = true
 prometheus.workspace = true
 storage-adapter.workspace = true
 clients.workspace = true
-metadata-struct.workspace =true
+metadata-struct.workspace = true
+regex.workspace = true

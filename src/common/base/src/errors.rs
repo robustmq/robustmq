@@ -95,8 +95,17 @@ pub enum RobustMQError {
     #[error("Resource does not exist")]
     ResourceDoesNotExist,
 
+    #[error("Topic name cannot be empty")]
+    TopicNameIsEmpty,
+
+    #[error("Topic name is incorrectly formatted")]
+    TopicNameIncorrectlyFormatted,
+
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,
+
+    #[error("Invalid subscription Path. [#] must be the last bit of the Path")]
+    InvalidSubscriptionPath,
 }
 
 #[cfg(test)]
