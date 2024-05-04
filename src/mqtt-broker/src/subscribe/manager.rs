@@ -37,6 +37,7 @@ where
         };
     }
 
+
     pub async fn parse_subscribe(
         &self,
         protocol: MQTTProtocol,
@@ -65,9 +66,9 @@ where
             let tp_sub = self.topic_subscribe.get_mut(&topic_id).unwrap();
             let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
             for filter in subscribe.filters.clone() {
+
                 if is_share_sub(filter.path.clone()) {
                     let (group_name, sub_name) = decode_share_info(filter.path.clone());
-
                     if path_regex_match(topic_name.clone(), sub_name.clone()) {
                         let conf = broker_mqtt_conf();
                         let req = GetShareSubRequest {

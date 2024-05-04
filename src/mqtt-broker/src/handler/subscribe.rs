@@ -7,6 +7,7 @@ use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
     MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
+use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
@@ -17,11 +18,21 @@ pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
         return true;
     }
 
-    // Single-level wildcards
-    // eg: sensor/+/temperature
+    if sub_regex.contains("+") {
+        let sub_regex = sub_regex.replace("+", "[^+*/]+");
+        let re = Regex::new(&format!("{}", sub_regex)).unwrap();
+        println!("{}", sub_regex);
+        return re.is_match(&topic_name);
+    }
 
-    // Multi-layer wildcards
-    // eg: sensor/#/temperature
+    if sub_regex.contains("#") {
+        if sub_regex.split("#").last().unwrap() != "#".to_string() {
+            return false;
+        }
+        let sub_regex = sub_regex.replace("#", "[^+#]+");
+        let re = Regex::new(&format!("{}", sub_regex)).unwrap();
+        return re.is_match(&topic_name);
+    }
 
     return false;
 }
@@ -143,6 +154,26 @@ mod tests {
         let topic_name = "/topic/test".to_string();
         let sub_regex = "/topic/test".to_string();
         assert!(path_regex_match(topic_name, sub_regex));
+
+        let topic_name = r"sensor/1/temperature".to_string();
+        let sub_regex = r"sensor/+/temperature".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+
+        let topic_name = r"sensor/1/2/temperature3".to_string();
+        let sub_regex = r"sensor/+/temperature".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+
+        let topic_name = r"sensor/temperature3".to_string();
+        let sub_regex = r"sensor/+/temperature".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+
+        let topic_name = r"sensor/temperature3".to_string();
+        let sub_regex = r"sensor/+".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+
+        let topic_name = r"sensor/temperature3/tmpq".to_string();
+        let sub_regex = r"sensor/+".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), false);
     }
 
     #[test]

@@ -6,6 +6,7 @@ use common_base::{
     tools::{now_mills, unique_id},
 };
 use protocol::mqtt::{PubAckReason, Publish, PublishProperties};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
@@ -30,8 +31,25 @@ impl Topic {
     }
 }
 
-pub fn topic_name_validator(topic_name: String) -> bool {
-    return true;
+pub fn topic_name_validator(topic_name: String) -> Result<(), RobustMQError> {
+    if topic_name.is_empty() {
+        return Err(RobustMQError::TopicNameIsEmpty);
+    }
+    let topic_slice: Vec<&str> = topic_name.split("/").collect();
+    if topic_slice.first().unwrap().to_string() == "/".to_string() {
+        return Err(RobustMQError::TopicNameIncorrectlyFormatted);
+    }
+
+    if topic_slice.last().unwrap().to_string() == "/".to_string() {
+        return Err(RobustMQError::TopicNameIncorrectlyFormatted);
+    }
+
+    let format_str = "^[A-Za-z0-9+#/]+$".to_string();
+    let re = Regex::new(&format!("{}", format_str)).unwrap();
+    if !re.is_match(&topic_name) {
+        return Err(RobustMQError::TopicNameIncorrectlyFormatted);
+    }
+    return Ok(());
 }
 
 pub fn publish_get_topic_name<T>(
@@ -66,8 +84,11 @@ where
         }
     };
 
-    if !topic_name_validator(topic_name.clone()) {
-        return Err(RobustMQError::TopicNameInvalid());
+    match topic_name_validator(topic_name.clone()) {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(e);
+        }
     }
 
     return Ok(topic_name);
