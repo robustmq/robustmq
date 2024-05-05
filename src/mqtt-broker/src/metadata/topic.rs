@@ -134,3 +134,51 @@ where
     };
     return Ok(topic);
 }
+
+#[cfg(test)]
+mod test {
+    use common_base::errors::RobustMQError;
+
+    use super::topic_name_validator;
+
+    #[test]
+    pub fn topic_name_validator_test() {
+        let topic_name = "".to_string();
+        match topic_name_validator(topic_name) {
+            Ok(_) => {}
+            Err(e) => {
+                assert!(e.to_string() == RobustMQError::TopicNameIsEmpty.to_string())
+            }
+        }
+
+        let topic_name = "/test/test".to_string();
+        match topic_name_validator(topic_name) {
+            Ok(_) => {}
+            Err(e) => {
+                assert!(e.to_string() == RobustMQError::TopicNameIncorrectlyFormatted.to_string())
+            }
+        }
+
+        let topic_name = "test/test/".to_string();
+        match topic_name_validator(topic_name) {
+            Ok(_) => {}
+            Err(e) => {
+                assert!(e.to_string() == RobustMQError::TopicNameIncorrectlyFormatted.to_string())
+            }
+        }
+
+        let topic_name = "test/$1".to_string();
+        match topic_name_validator(topic_name) {
+            Ok(_) => {}
+            Err(e) => {
+                assert!(e.to_string() == RobustMQError::TopicNameIncorrectlyFormatted.to_string())
+            }
+        }
+
+        let topic_name = "test/1".to_string();
+        match topic_name_validator(topic_name) {
+            Ok(_) => {}
+            Err(_) => {}
+        }
+    }
+}
