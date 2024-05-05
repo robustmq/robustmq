@@ -1,136 +1,46 @@
-use crate::{
-    core::share_sub::{decode_share_info, is_share_sub},
-    handler::subscribe::path_regex_match,
-    metadata::{cache::MetadataCacheManager, subscriber::Subscriber},
-    server::MQTTProtocol,
-};
-use clients::{placement::mqtt::call::placement_get_share_sub, poll::ClientPool};
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError, log::info, tools::now_second,
-};
+use crate::metadata::{cache::MetadataCacheManager, subscriber::Subscriber};
 use dashmap::DashMap;
-use protocol::{
-    mqtt::{Subscribe, SubscribeProperties},
-    placement_center::generate::mqtt::GetShareSubRequest,
-};
+use protocol::mqtt::{Subscribe, SubscribeProperties};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 
 #[derive(Clone)]
-pub struct SubScribeManager<T> {
+pub struct SubscribeData {
+    subscribe: Subscribe,
+    subscribe_properties: Option<SubscribeProperties>,
+}
+
+#[derive(Clone)]
+pub struct SubScribeManager {
+    pub subscribe_filter: DashMap<u64, SubscribeData>,
     // (topic_id, (client_id, sub))
     pub topic_subscribe: DashMap<String, DashMap<String, Subscriber>>,
     //(client_id, (topic_id, create_time))
     pub client_subscribe: DashMap<String, DashMap<String, u64>>,
-    pub metadata_cache: Arc<MetadataCacheManager<T>>,
 }
 
-impl<T> SubScribeManager<T>
-where
-    T: StorageAdapter,
-{
-    pub fn new(metadata_cache: Arc<MetadataCacheManager<T>>) -> Self {
+impl SubScribeManager {
+    pub fn new() -> Self {
         return SubScribeManager {
-            metadata_cache,
+            subscribe_filter: DashMap::with_capacity(256),
             topic_subscribe: DashMap::with_capacity(256),
             client_subscribe: DashMap::with_capacity(256),
         };
     }
 
-
-    pub async fn parse_subscribe(
+    pub async fn add_filter(
         &self,
-        protocol: MQTTProtocol,
-        client_id: String,
+        connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
-        client_poll: Arc<ClientPool>,
-    ) -> Result<(), RobustMQError> {
-        let sub_identifier = if let Some(properties) = subscribe_properties {
-            properties.subscription_identifier
-        } else {
-            None
-        };
-
-        for (topic_id, topic_name) in self.metadata_cache.topic_id_name.clone() {
-            if !self.topic_subscribe.contains_key(&topic_id) {
-                self.topic_subscribe
-                    .insert(topic_id.clone(), DashMap::with_capacity(256));
-            }
-
-            if !self.client_subscribe.contains_key(&client_id) {
-                self.client_subscribe
-                    .insert(client_id.clone(), DashMap::with_capacity(256));
-            }
-
-            let tp_sub = self.topic_subscribe.get_mut(&topic_id).unwrap();
-            let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
-            for filter in subscribe.filters.clone() {
-
-                if is_share_sub(filter.path.clone()) {
-                    let (group_name, sub_name) = decode_share_info(filter.path.clone());
-                    if path_regex_match(topic_name.clone(), sub_name.clone()) {
-                        let conf = broker_mqtt_conf();
-                        let req = GetShareSubRequest {
-                            cluster_name: conf.cluster_name.clone(),
-                            group_name,
-                            sub_name: sub_name.clone(),
-                        };
-                        match placement_get_share_sub(
-                            client_poll.clone(),
-                            conf.placement.server.clone(),
-                            req,
-                        )
-                        .await
-                        {
-                            Ok(reply) => {
-                                info(format!(
-                                    " Leader node for the shared subscription is [{}]",
-                                    reply.broker_id
-                                ));
-                                if reply.broker_id != conf.broker_id {
-                                    //todo
-                                } else {
-                                    let sub = Subscriber {
-                                        protocol: protocol.clone(),
-                                        client_id: client_id.clone(),
-                                        packet_identifier: subscribe.packet_identifier,
-                                        qos: filter.qos,
-                                        nolocal: filter.nolocal,
-                                        preserve_retain: filter.preserve_retain,
-                                        subscription_identifier: sub_identifier,
-                                        user_properties: Vec::new(),
-                                        is_share_sub: true,
-                                    };
-                                    tp_sub.insert(client_id.clone(), sub);
-                                    client_sub.insert(topic_id.clone(), now_second());
-                                }
-                            }
-                            Err(e) => {
-                                return Err(e);
-                            }
-                        }
-                    }
-                } else {
-                    if path_regex_match(topic_name.clone(), filter.path.clone()) {
-                        let sub = Subscriber {
-                            protocol: protocol.clone(),
-                            client_id: client_id.clone(),
-                            packet_identifier: subscribe.packet_identifier,
-                            qos: filter.qos,
-                            nolocal: filter.nolocal,
-                            preserve_retain: filter.preserve_retain,
-                            subscription_identifier: sub_identifier,
-                            user_properties: Vec::new(),
-                            is_share_sub: false,
-                        };
-                        tp_sub.insert(client_id.clone(), sub);
-                        client_sub.insert(topic_id.clone(), now_second());
-                    }
-                }
-            }
-        }
-        return Ok(());
+    ) {
+        self.subscribe_filter.insert(
+            connect_id,
+            SubscribeData {
+                subscribe,
+                subscribe_properties,
+            },
+        );
     }
 
     pub fn remove_topic(&self, topic_id: String) {
@@ -224,7 +134,7 @@ mod tests {
 
         let client_poll = Arc::new(ClientPool::new(3));
 
-        let sub_manager = SubScribeManager::new(metadata_cache);
+        let sub_manager = SubScribeManager::new();
         let packet_identifier = 2;
         let mut filters = Vec::new();
         let filter = Filter {

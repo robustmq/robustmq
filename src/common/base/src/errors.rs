@@ -104,8 +104,10 @@ pub enum RobustMQError {
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,
 
-    #[error("Invalid subscription Path. [#] must be the last bit of the Path")]
-    InvalidSubscriptionPath,
+    #[error("Filter cannot be empty when subscribing")]
+    FilterCannotBeEmpty,
+
+
 }
 
 #[cfg(test)]

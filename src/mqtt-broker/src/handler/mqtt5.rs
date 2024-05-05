@@ -364,6 +364,13 @@ where
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
+        if subscribe.filters.len() == 0 {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::FilterCannotBeEmpty.to_string()),
+            );
+        }
+
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             conn.client_id.clone()
         } else {
@@ -372,7 +379,7 @@ where
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
-        
+
         // Saving subscriptions
         match self
             .subscribe_manager
