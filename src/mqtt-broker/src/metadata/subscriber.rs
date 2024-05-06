@@ -14,6 +14,7 @@ pub struct Subscriber {
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,
     pub is_share_sub: bool,
+    pub group_name: Option<String>,
 }
 
 #[derive(Clone)]

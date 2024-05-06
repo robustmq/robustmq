@@ -102,7 +102,7 @@ where
     } else {
         // Persisting the topic information
         let topic = Topic::new(&topic_name);
-        metadata_cache.set_topic(&topic_name, &topic);
+        metadata_cache.add_topic(&topic_name, &topic);
         let topic_storage = TopicStorage::new(metadata_storage_adapter.clone());
         match topic_storage.save_topic(&topic_name, &topic).await {
             Ok(_) => {}

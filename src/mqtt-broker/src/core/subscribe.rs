@@ -198,7 +198,7 @@ mod tests {
         let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
-        metadata_cache.set_topic(&topic_name, &topic);
+        metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();
         let result = get_sub_topic_id_list(metadata_cache.clone(), sub_path).await;
@@ -234,7 +234,7 @@ mod tests {
         let payload = "testtesttest".to_string();
         let topic = Topic::new(&topic_name);
 
-        metadata_cache.set_topic(&topic_name, &topic);
+        metadata_cache.add_topic(&topic_name, &topic);
 
         let mut retain_message = Message::default();
         retain_message.dup = false;

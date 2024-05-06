@@ -34,7 +34,6 @@ pub struct MetadataChangeData {
 
 #[derive(Clone)]
 pub struct MetadataCacheManager {
-    
     // cluster_name
     pub cluster_name: String,
 
@@ -50,7 +49,7 @@ pub struct MetadataCacheManager {
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, Connection>,
 
-    // (topic_id, Topic)
+    // (topic_name, Topic)
     pub topic_info: DashMap<String, Topic>,
 
     // (topic_id, topic_name)
@@ -142,7 +141,7 @@ impl MetadataCacheManager {
         self.connection_info.insert(connect_id, conn);
     }
 
-    pub fn set_topic(&self, topic_name: &String, topic: &Topic) {
+    pub fn add_topic(&self, topic_name: &String, topic: &Topic) {
         let t = topic.clone();
         self.topic_info.insert(topic_name.clone(), t.clone());
         self.topic_id_name.insert(t.topic_id, topic_name.clone());
@@ -179,8 +178,15 @@ impl MetadataCacheManager {
         return None;
     }
 
-    pub fn remove_connection(&self, connect_id: u64) {
+    pub fn remove_connection(&self, connect_id: u64, client_id: String) {
         self.connection_info.remove(&connect_id);
+        self.session_info.remove(&client_id);
+        self.subscribe_filter.remove(&client_id);
+    }
+
+    pub fn remove_topic(&self, topic_name: String) {
+        //todo
+        
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
@@ -192,21 +198,6 @@ impl MetadataCacheManager {
             }
         }
         return None;
-    }
-
-    pub fn init_metadata_data(
-        &self,
-        data: (
-            Cluster,
-            DashMap<String, User>,
-            DashMap<String, Topic>,
-            DashMap<String, String>,
-        ),
-    ) {
-        self.set_cluster_info(data.0);
-        self.user_info = data.1;
-        self.topic_info = data.2;
-        self.topic_id_name = data.3;
     }
 }
 

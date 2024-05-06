@@ -1,6 +1,7 @@
+use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
-use super::{packet::MQTTAckBuild, session::get_session_info};
 use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::session::get_session_info;
 use crate::core::subscribe::{filter_name_validator, save_retain_message};
 use crate::core::subscribe_share::is_share_sub_rewrite_publish;
 use crate::idempotent::Idempotent;
@@ -450,15 +451,9 @@ where
 
         // Remove subscription information
         if un_subscribe.filters.len() > 0 {
-            let mut topic_ids = Vec::new();
-            for topic_name in un_subscribe.filters {
-                if let Some(topic) = self.metadata_cache.get_topic_by_name(topic_name) {
-                    topic_ids.push(topic.topic_id);
-                }
-            }
-
             self.metadata_cache
                 .remove_filter(connection.client_id.clone());
+            //un_subscribe.filters
         }
 
         return self
@@ -472,11 +467,18 @@ where
         disconnect: Disconnect,
         disconnect_properties: Option<DisconnectProperties>,
     ) -> Option<MQTTPacket> {
+        let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return None;
+        };
+
         info(format!(
             "Connection [{}] disconnect,disconnect:{:?},disconnect_properties{:?}",
             connect_id, disconnect, disconnect_properties
         ));
-        self.metadata_cache.remove_connection(connect_id);
+        self.metadata_cache
+            .remove_connection(connect_id, connection.client_id);
         self.heartbeat_manager.remove_connection(connect_id);
         return None;
     }
