@@ -17,17 +17,14 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
+use subscribe::{exclusive_sub::SubscribeExclusive, manager::SubscribeManager};
+use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
     client_heartbeat::HeartbeatManager,
     keep_alive::KeepAlive,
     server_heartbeat::{register_broker_node, report_heartbeat, unregister_broker_node},
     session_expiry::SessionExpiry,
-    subscribe_manager::SubscribeManager,
     HEART_CONNECT_SHARD_HASH_NUM,
-};
-use core::{
-    metadata_cache::{load_metadata_cache, MetadataCacheManager},
-    subscribe_exclusive::SubscribeExclusive,
 };
 use idempotent::memory::IdempotentMemory;
 use server::{
@@ -120,8 +117,6 @@ where
         let idempotent_manager: Arc<IdempotentMemory> = Arc::new(IdempotentMemory::new());
         let subscribe_manager = Arc::new(SubscribeManager::new(
             metadata_cache.clone(),
-            response_queue_sx4.clone(),
-            response_queue_sx5.clone(),
             client_poll.clone(),
         ));
 
@@ -213,23 +208,15 @@ where
     }
 
     fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
-        let push_server = SubscribeManager::new(
-            self.metadata_cache_manager.clone(),
-            self.response_queue_sx4.clone(),
-            self.response_queue_sx5.clone(),
-            self.client_poll.clone(),
-        );
-
         let push_server = SubscribeExclusive::new(
             self.message_storage_adapter.clone(),
             self.metadata_cache_manager.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.subscribe_manager.clone(),
-            self.client_poll.clone(),
         );
         self.runtime.spawn(async move {
-            push_server.start().await;
+            push_server.start_thread().await;
         });
     }
 

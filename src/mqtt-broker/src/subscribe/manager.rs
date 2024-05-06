@@ -1,6 +1,6 @@
 use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::subscribe::path_regex_match;
 use crate::metadata::subscriber::Subscriber;
-use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
 use clients::placement::mqtt::call::placement_get_share_sub;
 use clients::poll::ClientPool;
@@ -13,9 +13,7 @@ use protocol::mqtt::{Subscribe, SubscribeProperties};
 use protocol::placement_center::generate::mqtt::GetShareSubRequest;
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::broadcast::Sender, time::sleep};
-
-use super::subscribe::path_regex_match;
-use super::subscribe_share::{decode_share_info, is_share_sub};
+use crate::subscribe::share_rewrite::{decode_share_info, is_share_sub};
 
 pub struct SubscribeManager {
     metadata_cache: Arc<MetadataCacheManager>,
@@ -35,12 +33,7 @@ pub struct SubscribeManager {
 }
 
 impl SubscribeManager {
-    pub fn new(
-        metadata_cache: Arc<MetadataCacheManager>,
-        response_queue_sx4: Sender<ResponsePackage>,
-        response_queue_sx5: Sender<ResponsePackage>,
-        client_poll: Arc<ClientPool>,
-    ) -> Self {
+    pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
         return SubscribeManager {
             metadata_cache,
             client_poll,

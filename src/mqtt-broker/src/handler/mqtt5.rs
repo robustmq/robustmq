@@ -3,10 +3,10 @@ use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::get_session_info;
 use crate::core::subscribe::{filter_name_validator, save_retain_message};
-use crate::core::subscribe_share::is_share_sub_rewrite_publish;
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
+use crate::subscribe::share_rewrite::is_share_sub_rewrite_publish;
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
     idempotent::memory::IdempotentMemory,

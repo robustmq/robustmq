@@ -19,19 +19,22 @@ pub struct ShareSubRewriteSub {
     pub subscribe: Subscribe,
     pub subscribe_properties: Option<SubscribeProperties>,
 }
+
 #[derive(Clone)]
-pub struct ShareSubManager {
+pub struct SubscribeShare {
     pub share_sub_list: DashMap<String, ShareSubRewriteSub>,
     pub share_sub_thread: DashMap<String, String>,
 }
 
-impl ShareSubManager {
+impl SubscribeShare {
     pub fn new() -> Self {
-        return ShareSubManager {
+        return SubscribeShare {
             share_sub_list: DashMap::with_capacity(128),
             share_sub_thread: DashMap::with_capacity(128),
         };
     }
+
+    pub fn start() {}
 
     pub fn add_share_sub_rewrite_sub(&self, client_id: String, rewrite_sub: ShareSubRewriteSub) {
         self.share_sub_list.insert(client_id, rewrite_sub);
@@ -152,7 +155,7 @@ pub fn share_sub_rewrite_publish_flag() -> (String, String) {
 #[cfg(test)]
 mod tests {
     use super::decode_share_info;
-    use crate::core::subscribe_share::is_share_sub;
+    use crate::subscribe::share_rewrite::is_share_sub;
 
     #[tokio::test]
     async fn is_share_sub_test() {
