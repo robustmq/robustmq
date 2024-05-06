@@ -2,7 +2,6 @@ use protocol::broker_server::generate::mqtt::Available;
 use serde::{Deserialize, Serialize};
 
 pub mod acl;
-pub mod cache;
 pub mod cluster;
 pub mod connection;
 pub mod message;

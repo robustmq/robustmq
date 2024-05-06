@@ -1,5 +1,6 @@
 use super::packet::MQTTAckBuild;
-use crate::{core::client_heartbeat::HeartbeatManager, metadata::cache::MetadataCacheManager};
+use crate::core::client_heartbeat::HeartbeatManager;
+use crate::core::metadata_cache::MetadataCacheManager;
 use common_base::tools::unique_id;
 use protocol::mqtt::{
     Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
@@ -8,17 +9,17 @@ use protocol::mqtt::{
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct Mqtt4Service<T> {
-    metadata_cache: Arc<MetadataCacheManager<T>>,
-    ack_build: MQTTAckBuild<T>,
+pub struct Mqtt4Service {
+    metadata_cache: Arc<MetadataCacheManager>,
+    ack_build: MQTTAckBuild,
     login: bool,
     heartbeat_manager: Arc<HeartbeatManager>,
 }
 
-impl<T> Mqtt4Service<T> {
+impl Mqtt4Service {
     pub fn new(
-        metadata_cache: Arc<MetadataCacheManager<T>>,
-        ack_build: MQTTAckBuild<T>,
+        metadata_cache: Arc<MetadataCacheManager>,
+        ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<HeartbeatManager>,
     ) -> Self {
         return Mqtt4Service {
@@ -41,7 +42,7 @@ impl<T> Mqtt4Service<T> {
         let reason_string = Some("".to_string());
         let response_information = Some("".to_string());
         let server_reference = Some("".to_string());
-       
+
         return self.ack_build.pub_ack(0, None, Vec::new());
     }
 

@@ -1,9 +1,10 @@
 use self::plaintext::Plaintext;
-use crate::metadata::{cache::MetadataCacheManager, cluster::Cluster};
+use crate::metadata::cluster::Cluster;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use protocol::mqtt::{ConnectProperties, Login};
 use std::sync::Arc;
+use crate::core::metadata_cache::MetadataCacheManager;
 
 pub mod plaintext;
 
@@ -12,8 +13,8 @@ pub trait Authentication {
     async fn apply(&self) -> Result<bool, RobustMQError>;
 }
 
-pub async fn authentication_login<T>(
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+pub async fn authentication_login(
+    metadata_cache: Arc<MetadataCacheManager>,
     cluster: &Cluster,
     login: Option<Login>,
     _: &Option<ConnectProperties>,

@@ -1,5 +1,7 @@
 use super::server::HttpServerState;
-use crate::metadata::{cluster::Cluster, connection::Connection, session::Session, topic::Topic, user::User};
+use crate::metadata::{
+    cluster::Cluster, connection::Connection, session::Session, topic::Topic, user::User,
+};
 use axum::extract::State;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf, http_response::success_response, metrics::dump_metrics,
@@ -11,12 +13,12 @@ pub async fn metrics() -> String {
     return dump_metrics();
 }
 
-pub async fn hearbeat_info<T>(State(state): State<HttpServerState<T>>) -> String {
+pub async fn hearbeat_info(State(state): State<HttpServerState>) -> String {
     let data = state.heartbeat_manager.shard_data.clone();
     return success_response(data);
 }
 
-pub async fn metadata_info<T>(State(state): State<HttpServerState<T>>) -> String {
+pub async fn metadata_info(State(state): State<HttpServerState>) -> String {
     let result = MetadataCacheResult {
         cluster_info: state.metadata_cache.cluster_info.clone(),
         user_info: state.metadata_cache.user_info.clone(),
@@ -29,11 +31,12 @@ pub async fn metadata_info<T>(State(state): State<HttpServerState<T>>) -> String
     return success_response(result);
 }
 
-pub async fn subscribe_info<T>(State(state): State<HttpServerState<T>>) -> String {
-    return success_response(state.subscribe_manager.topic_subscribe.clone());
+pub async fn subscribe_info(State(state): State<HttpServerState>) -> String {
+    // return success_response(state.subscribe_manager.topic_subscribe.clone());
+    return success_response("");
 }
 
-pub async fn index<T>(State(state): State<HttpServerState<T>>) -> String {
+pub async fn index(State(state): State<HttpServerState>) -> String {
     let conf = broker_mqtt_conf();
     return success_response(conf.clone());
 }

@@ -1,18 +1,14 @@
-use std::sync::Arc;
-
-use bytes::Bytes;
+use crate::core::metadata_cache::MetadataCacheManager;
+use crate::storage::topic::TopicStorage;
 use common_base::{
     errors::RobustMQError,
     tools::{now_mills, unique_id},
 };
-use protocol::mqtt::{PubAckReason, Publish, PublishProperties};
+use protocol::mqtt::{Publish, PublishProperties};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
-
-use crate::storage::topic::TopicStorage;
-
-use super::cache::MetadataCacheManager;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Topic {
@@ -52,15 +48,12 @@ pub fn topic_name_validator(topic_name: String) -> Result<(), RobustMQError> {
     return Ok(());
 }
 
-pub fn publish_get_topic_name<T>(
+pub fn publish_get_topic_name(
     connect_id: u64,
     publish: Publish,
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+    metadata_cache: Arc<MetadataCacheManager>,
     publish_properties: Option<PublishProperties>,
-) -> Result<String, RobustMQError>
-where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> Result<String, RobustMQError> {
     let topic_alias = if let Some(pub_properties) = publish_properties {
         pub_properties.topic_alias
     } else {
@@ -96,7 +89,7 @@ where
 
 pub async fn get_topic_info<T, S>(
     topic_name: String,
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+    metadata_cache: Arc<MetadataCacheManager>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
 ) -> Result<Topic, RobustMQError>
@@ -109,7 +102,7 @@ where
     } else {
         // Persisting the topic information
         let topic = Topic::new(&topic_name);
-        metadata_cache.set_topic(&topic_name, &topic);
+        metadata_cache.add_topic(&topic_name, &topic);
         let topic_storage = TopicStorage::new(metadata_storage_adapter.clone());
         match topic_storage.save_topic(&topic_name, &topic).await {
             Ok(_) => {}

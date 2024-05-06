@@ -1,4 +1,3 @@
-use axum::extract::ConnectInfo;
 use common_base::log::error;
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
@@ -91,6 +90,12 @@ impl ShareSubManager {
             sleep(Duration::from_secs(1)).await;
         }
     }
+
+    // Handles message push tasks for shared subscriptions
+    // If the current Broker is the Leader node of the subscription, the message is pushed directly to the client.
+    // If the current Broker is not the subscribed Leader node, it initiates a subscription task to the subscribed Leader node,
+    // receives the data pushed by the Leader node, and returns it to the client.
+    pub fn share_sub_action_thread(&self) {}
 }
 
 const SHARE_SUB_PREFIX: &str = "$share";
@@ -146,8 +151,8 @@ pub fn share_sub_rewrite_publish_flag() -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::share_sub::is_share_sub;
     use super::decode_share_info;
+    use crate::core::subscribe_share::is_share_sub;
 
     #[tokio::test]
     async fn is_share_sub_test() {
@@ -190,6 +195,5 @@ mod tests {
         let (group_name, topic_name) = decode_share_info(sub4);
         assert_eq!(group_name, "comsumer1".to_string());
         assert_eq!(topic_name, "/finance/#".to_string());
-
     }
 }

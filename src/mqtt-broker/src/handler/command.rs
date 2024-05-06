@@ -2,10 +2,10 @@ use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
 use crate::core::client_heartbeat::HeartbeatManager;
+use crate::core::metadata_cache::MetadataCacheManager;
 use crate::idempotent::memory::IdempotentMemory;
 use crate::server::tcp::packet::ResponsePackage;
-use crate::subscribe::manager::SubScribeManager;
-use crate::{metadata::cache::MetadataCacheManager, server::MQTTProtocol};
+use crate::server::MQTTProtocol;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
@@ -18,10 +18,10 @@ use tokio::sync::broadcast::Sender;
 #[derive(Clone)]
 pub struct Command<T, S> {
     protocol: MQTTProtocol,
-    ack_build: MQTTAckBuild<T>,
-    mqtt4_service: Mqtt4Service<T>,
+    ack_build: MQTTAckBuild,
+    mqtt4_service: Mqtt4Service,
     mqtt5_service: Mqtt5Service<T, S>,
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+    metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     idempotent_manager: Arc<IdempotentMemory>,
 }
@@ -33,9 +33,8 @@ where
 {
     pub fn new(
         protocol: MQTTProtocol,
-        metadata_cache: Arc<MetadataCacheManager<T>>,
+        metadata_cache: Arc<MetadataCacheManager>,
         heartbeat_manager: Arc<HeartbeatManager>,
-        subscribe_manager: Arc<SubScribeManager<T>>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
@@ -50,7 +49,6 @@ where
         );
         let mqtt5_service = Mqtt5Service::new(
             metadata_cache.clone(),
-            subscribe_manager,
             ack_build.clone(),
             heartbeat_manager.clone(),
             metadata_storage_adapter.clone(),

@@ -1,9 +1,17 @@
-use super::{cluster::Cluster, connection::Connection, session::Session, topic::Topic, user::User};
-use crate::storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage};
+use crate::metadata::{
+    cluster::Cluster, connection::Connection, session::Session, subscriber::SubscribeData,
+    topic::Topic, user::User,
+};
+use crate::{
+    server::MQTTProtocol,
+    storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage},
+};
 use dashmap::DashMap;
+use protocol::mqtt::{Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
+
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
     Set,
@@ -25,81 +33,66 @@ pub struct MetadataChangeData {
 }
 
 #[derive(Clone)]
-pub struct MetadataCacheManager<T> {
+pub struct MetadataCacheManager {
+    // cluster_name
     pub cluster_name: String,
+
+    // (cluster_name, Cluster)
     pub cluster_info: DashMap<String, Cluster>,
+
+    // (username, User)
     pub user_info: DashMap<String, User>,
+
+    // (client_id, Session)
     pub session_info: DashMap<String, Session>,
+
+    // (connect_id, Connection)
     pub connection_info: DashMap<u64, Connection>,
+
+    // (topic_name, Topic)
     pub topic_info: DashMap<String, Topic>,
+
+    // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
-    pub metadata_storage_adapter: Arc<T>,
+
+    // (client_id, SubscribeData)
+    pub subscribe_filter: DashMap<String, SubscribeData>,
 }
 
-impl<T> MetadataCacheManager<T>
-where
-    T: StorageAdapter,
-{
-    pub fn new(metadata_storage_adapter: Arc<T>, cluster_name: String) -> Self {
+impl MetadataCacheManager {
+    pub fn new(cluster_name: String) -> Self {
         let cache = MetadataCacheManager {
-            cluster_name: cluster_name,
+            cluster_name,
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(256),
             session_info: DashMap::with_capacity(256),
             topic_info: DashMap::with_capacity(256),
             topic_id_name: DashMap::with_capacity(256),
             connection_info: DashMap::with_capacity(256),
-            metadata_storage_adapter,
+            subscribe_filter: DashMap::with_capacity(8),
         };
         return cache;
     }
 
-    pub async fn load_cache(&self) {
-        // load cluster config
-        let cluster_storage = ClusterStorage::new(self.metadata_storage_adapter.clone());
-        let cluster = match cluster_storage.get_cluster_config().await {
-            Ok(Some(cluster)) => cluster,
-            Ok(None) => Cluster::new(),
-            Err(e) => {
-                panic!(
-                    "Failed to load the cluster configuration with error message:{}",
-                    e.to_string()
-                );
-            }
-        };
-        self.cluster_info.insert(self.cluster_name.clone(), cluster);
+    pub fn add_filter(
+        &self,
+        client_id: String,
+        protocol: MQTTProtocol,
+        subscribe: Subscribe,
+        subscribe_properties: Option<SubscribeProperties>,
+    ) {
+        self.subscribe_filter.insert(
+            client_id,
+            SubscribeData {
+                protocol,
+                subscribe,
+                subscribe_properties,
+            },
+        );
+    }
 
-        // load all user
-        let user_storage = UserStorage::new(self.metadata_storage_adapter.clone());
-        let user_list = match user_storage.user_list().await {
-            Ok(list) => list,
-            Err(e) => {
-                panic!(
-                    "Failed to load the user list with error message:{}",
-                    e.to_string()
-                );
-            }
-        };
-        for (username, user) in user_list {
-            self.user_info.insert(username, user);
-        }
-
-        // load topic info
-        let topic_storage = TopicStorage::new(self.metadata_storage_adapter.clone());
-        let topic_list = match topic_storage.topic_list().await {
-            Ok(list) => list,
-            Err(e) => {
-                panic!(
-                    "Failed to load the topic list with error message:{}",
-                    e.to_string()
-                );
-            }
-        };
-
-        for (topic_name, topic) in topic_list {
-            self.topic_info.insert(topic_name.clone(), topic.clone());
-            self.topic_id_name.insert(topic.topic_id, topic_name);
-        }
+    pub fn remove_filter(&self, client_id: String) {
+        self.subscribe_filter.remove(&client_id);
     }
 
     pub fn apply(&self, data: String) {
@@ -148,7 +141,7 @@ where
         self.connection_info.insert(connect_id, conn);
     }
 
-    pub fn set_topic(&self, topic_name: &String, topic: &Topic) {
+    pub fn add_topic(&self, topic_name: &String, topic: &Topic) {
         let t = topic.clone();
         self.topic_info.insert(topic_name.clone(), t.clone());
         self.topic_id_name.insert(t.topic_id, topic_name.clone());
@@ -185,8 +178,15 @@ where
         return None;
     }
 
-    pub fn remove_connection(&self, connect_id: u64) {
+    pub fn remove_connection(&self, connect_id: u64, client_id: String) {
         self.connection_info.remove(&connect_id);
+        self.session_info.remove(&client_id);
+        self.subscribe_filter.remove(&client_id);
+    }
+
+    pub fn remove_topic(&self, topic_name: String) {
+        //todo
+        
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
@@ -199,4 +199,67 @@ where
         }
         return None;
     }
+}
+
+pub async fn load_metadata_cache<T>(
+    metadata_storage_adapter: Arc<T>,
+) -> (
+    Cluster,
+    DashMap<String, User>,
+    DashMap<String, Topic>,
+    DashMap<String, String>,
+)
+where
+    T: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    // load cluster config
+    let cluster_storage = ClusterStorage::new(metadata_storage_adapter.clone());
+    let cluster = match cluster_storage.get_cluster_config().await {
+        Ok(Some(cluster)) => cluster,
+        Ok(None) => Cluster::new(),
+        Err(e) => {
+            panic!(
+                "Failed to load the cluster configuration with error message:{}",
+                e.to_string()
+            );
+        }
+    };
+
+    // load all user
+    let user_storage = UserStorage::new(metadata_storage_adapter.clone());
+    let user_list = match user_storage.user_list().await {
+        Ok(list) => list,
+        Err(e) => {
+            panic!(
+                "Failed to load the user list with error message:{}",
+                e.to_string()
+            );
+        }
+    };
+
+    let user_info = DashMap::with_capacity(8);
+    for (username, user) in user_list {
+        user_info.insert(username, user);
+    }
+
+    // load topic info
+    let topic_storage = TopicStorage::new(metadata_storage_adapter.clone());
+    let topic_list = match topic_storage.topic_list().await {
+        Ok(list) => list,
+        Err(e) => {
+            panic!(
+                "Failed to load the topic list with error message:{}",
+                e.to_string()
+            );
+        }
+    };
+
+    let topic_info = DashMap::with_capacity(8);
+    let topic_id_name = DashMap::with_capacity(8);
+
+    for (topic_name, topic) in topic_list {
+        topic_info.insert(topic_name.clone(), topic.clone());
+        topic_id_name.insert(topic.topic_id, topic_name);
+    }
+    return (cluster, user_info, topic_info, topic_id_name);
 }
