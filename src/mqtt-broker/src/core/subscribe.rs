@@ -1,16 +1,23 @@
-use crate::{
-    metadata::cache::MetadataCacheManager, server::tcp::packet::ResponsePackage,
-    storage::message::MessageStorage,
-};
+use crate::core::metadata_cache::MetadataCacheManager;
+use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
-    MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
+    Filter, MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
+    SubscribeProperties,
 };
 use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
+
+pub fn filter_name_validator(filters: Vec<Filter>) -> bool {
+    if filters.len() == 0 {
+        return true;
+    }
+
+    return false;
+}
 
 pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
     // Path perfect matching
@@ -38,18 +45,17 @@ pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
 }
 
 // Reservation messages are processed when a subscription is created
-pub async fn send_retain_message<T, S>(
+pub async fn save_retain_message<S>(
     connect_id: u64,
     subscribe: Subscribe,
     subscribe_properties: Option<SubscribeProperties>,
     message_storage: MessageStorage<S>,
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+    metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     new_sub: bool,
     dup_msg: bool,
 ) -> Result<(), RobustMQError>
 where
-    T: StorageAdapter + Send + Sync + 'static,
     S: StorageAdapter + Send + Sync + 'static,
 {
     let mut sub_id = Vec::new();
@@ -117,8 +123,8 @@ pub fn max_qos(msg_qos: QoS, sub_max_qos: QoS) -> QoS {
     return sub_max_qos;
 }
 
-pub async fn get_sub_topic_id_list<T>(
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+pub async fn get_sub_topic_id_list(
+    metadata_cache: Arc<MetadataCacheManager>,
     sub_path: String,
 ) -> Vec<String> {
     let topic_id_name = metadata_cache.topic_id_name.clone();
@@ -141,11 +147,10 @@ mod tests {
     use storage_adapter::memory::MemoryStorageAdapter;
     use tokio::sync::broadcast;
 
+    use crate::core::metadata_cache::MetadataCacheManager;
     use crate::{
-        handler::subscribe::{
-            get_sub_topic_id_list, max_qos, path_regex_match, send_retain_message,
-        },
-        metadata::{cache::MetadataCacheManager, message::Message, topic::Topic},
+        core::subscribe::{get_sub_topic_id_list, max_qos, path_regex_match, save_retain_message},
+        metadata::{message::Message, topic::Topic},
         storage::message::MessageStorage,
     };
 
@@ -190,10 +195,7 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCacheManager::new(
-            storage_adapter.clone(),
-            "test-cluster".to_string(),
-        ));
+        let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
         metadata_cache.set_topic(&topic_name, &topic);
@@ -207,10 +209,7 @@ mod tests {
     #[tokio::test]
     async fn send_retain_message_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCacheManager::new(
-            storage_adapter.clone(),
-            "test-cluster".to_string(),
-        ));
+        let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;
         let mut filters = Vec::new();
@@ -256,7 +255,7 @@ mod tests {
             }
         }
 
-        match send_retain_message(
+        match save_retain_message(
             connect_id,
             subscribe,
             subscribe_properties,

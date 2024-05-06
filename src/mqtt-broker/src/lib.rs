@@ -17,15 +17,16 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
+use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
     client_heartbeat::HeartbeatManager,
     keep_alive::KeepAlive,
     server_heartbeat::{register_broker_node, report_heartbeat, unregister_broker_node},
     session_expiry::SessionExpiry,
+    subscribe_push::PushServer,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
 use idempotent::memory::IdempotentMemory;
-use metadata::cache::MetadataCacheManager;
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -39,7 +40,6 @@ use storage_adapter::{
     // placement::PlacementStorageAdapter,
     storage::StorageAdapter,
 };
-use subscribe::{manager::SubScribeManager, push::PushServer};
 use tokio::{
     runtime::Runtime,
     signal,
@@ -79,9 +79,8 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 
 pub struct MqttBroker<'a, T, S> {
     conf: &'a BrokerMQTTConfig,
-    metadata_cache_manager: Arc<MetadataCacheManager<T>>,
+    metadata_cache_manager: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatManager>,
-    subscribe_manager: Arc<SubScribeManager<T>>,
     idempotent_manager: Arc<IdempotentMemory>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
@@ -113,11 +112,7 @@ where
 
         let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
 
-        let metadata_cache = Arc::new(MetadataCacheManager::new(
-            metadata_storage_adapter.clone(),
-            "test-cluster".to_string(),
-        ));
-        let subscribe_manager = Arc::new(SubScribeManager::new(metadata_cache.clone()));
+        let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
         let idempotent_manager: Arc<IdempotentMemory> = Arc::new(IdempotentMemory::new());
 
         return MqttBroker {
@@ -125,7 +120,6 @@ where
             runtime,
             metadata_cache_manager: metadata_cache,
             heartbeat_manager,
-            subscribe_manager,
             idempotent_manager,
             request_queue_sx4,
             request_queue_sx5,
@@ -152,7 +146,6 @@ where
     fn start_mqtt_server(&self) {
         let cache = self.metadata_cache_manager.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
-        let subscribe_manager = self.subscribe_manager.clone();
         let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         let idempotent_manager = self.idempotent_manager.clone();
@@ -168,7 +161,6 @@ where
                 client_poll,
                 cache,
                 heartbeat_manager,
-                subscribe_manager,
                 metadata_storage_adapter,
                 message_storage_adapter,
                 idempotent_manager,
@@ -196,7 +188,6 @@ where
         let http_state = HttpServerState::new(
             self.metadata_cache_manager.clone(),
             self.heartbeat_manager.clone(),
-            self.subscribe_manager.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
         );
@@ -213,7 +204,6 @@ where
     fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
         let push_server = PushServer::new(
             self.metadata_cache_manager.clone(),
-            self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
@@ -266,8 +256,9 @@ where
 
     fn register_node(&self) {
         let metadata_cache = self.metadata_cache_manager.clone();
+        let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         self.runtime.block_on(async move {
-            metadata_cache.load_cache().await;
+            metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);
             register_broker_node(self.client_poll.clone()).await;
         });
     }

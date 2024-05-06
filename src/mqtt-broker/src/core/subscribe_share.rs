@@ -1,4 +1,3 @@
-use axum::extract::ConnectInfo;
 use common_base::log::error;
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
@@ -146,7 +145,7 @@ pub fn share_sub_rewrite_publish_flag() -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::share_sub::is_share_sub;
+    use crate::core::subscribe_share::is_share_sub;
     use super::decode_share_info;
 
     #[tokio::test]

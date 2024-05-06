@@ -1,17 +1,18 @@
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
-use super::{packet::MQTTAckBuild, session::get_session_info, subscribe::send_retain_message};
-use crate::core::share_sub::{is_share_sub, is_share_sub_rewrite_publish};
+use super::{packet::MQTTAckBuild, session::get_session_info};
+use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::subscribe::{filter_name_validator, save_retain_message};
+use crate::core::subscribe_share::is_share_sub_rewrite_publish;
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
     idempotent::memory::IdempotentMemory,
-    metadata::{cache::MetadataCacheManager, message::Message, session::LastWillData},
+    metadata::{message::Message, session::LastWillData},
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
-    subscribe::manager::SubScribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::log::info;
@@ -28,9 +29,8 @@ use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 pub struct Mqtt5Service<T, S> {
-    metadata_cache: Arc<MetadataCacheManager<T>>,
-    subscribe_manager: Arc<SubScribeManager<T>>,
-    ack_build: MQTTAckBuild<T>,
+    metadata_cache: Arc<MetadataCacheManager>,
+    ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<HeartbeatManager>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
@@ -43,9 +43,8 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        metadata_cache: Arc<MetadataCacheManager<T>>,
-        subscribe_manager: Arc<SubScribeManager<T>>,
-        ack_build: MQTTAckBuild<T>,
+        metadata_cache: Arc<MetadataCacheManager>,
+        ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<HeartbeatManager>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
@@ -53,7 +52,6 @@ where
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,
-            subscribe_manager,
             ack_build,
             heartbeat_manager,
             metadata_storage_adapter,
@@ -364,7 +362,7 @@ where
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
-        if subscribe.filters.len() == 0 {
+        if filter_name_validator(subscribe.filters.clone()) {
             return self.ack_build.distinct(
                 DisconnectReasonCode::UnspecifiedError,
                 Some(RobustMQError::FilterCannotBeEmpty.to_string()),
@@ -381,27 +379,16 @@ where
         };
 
         // Saving subscriptions
-        match self
-            .subscribe_manager
-            .parse_subscribe(
-                crate::server::MQTTProtocol::MQTT5,
-                client_id,
-                subscribe.clone(),
-                subscribe_properties.clone(),
-                self.client_poll.clone(),
-            )
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                self.ack_build
-                    .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
-            }
-        }
+        self.metadata_cache.add_filter(
+            client_id.clone(),
+            crate::server::MQTTProtocol::MQTT5,
+            subscribe.clone(),
+            subscribe_properties.clone(),
+        );
 
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-        match send_retain_message(
+        match save_retain_message(
             connect_id,
             subscribe.clone(),
             subscribe_properties.clone(),
@@ -470,8 +457,8 @@ where
                 }
             }
 
-            self.subscribe_manager
-                .remove_subscribe(connection.client_id, topic_ids);
+            self.metadata_cache
+                .remove_filter(connection.client_id.clone());
         }
 
         return self

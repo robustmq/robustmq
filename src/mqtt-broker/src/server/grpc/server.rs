@@ -1,7 +1,5 @@
 use std::sync::Arc;
-
-use crate::metadata::cache::MetadataCacheManager;
-
+use crate::core::metadata_cache::MetadataCacheManager;
 use super::services::GrpcBrokerServices;
 use common_base::log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
@@ -10,7 +8,7 @@ use tonic::transport::Server;
 
 pub struct GrpcServer<T> {
     port: u32,
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+    metadata_cache: Arc<MetadataCacheManager>,
     metadata_storage_adapter: Arc<T>,
 }
 
@@ -20,7 +18,7 @@ where
 {
     pub fn new(
         port: u32,
-        metadata_cache: Arc<MetadataCacheManager<T>>,
+        metadata_cache: Arc<MetadataCacheManager>,
         metadata_storage_adapter: Arc<T>,
     ) -> Self {
         return Self {

@@ -1,23 +1,21 @@
-use crate::{
-    metadata::{cache::MetadataCacheManager, cluster::Cluster},
-    server::MQTTProtocol,
-};
+use crate::core::metadata_cache::MetadataCacheManager;
+use crate::{metadata::cluster::Cluster, server::MQTTProtocol};
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
-    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck,
-    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
+    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubscribeReasonCode, UnsubAck,
+    UnsubAckProperties, UnsubAckReason,
 };
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct MQTTAckBuild<T> {
+pub struct MQTTAckBuild {
     protocol: MQTTProtocol,
-    metadata_cache: Arc<MetadataCacheManager<T>>,
+    metadata_cache: Arc<MetadataCacheManager>,
 }
 
-impl<T> MQTTAckBuild<T> {
-    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCacheManager<T>>) -> Self {
+impl MQTTAckBuild {
+    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCacheManager>) -> Self {
         return MQTTAckBuild {
             protocol,
             metadata_cache,
@@ -184,11 +182,7 @@ pub fn publish_comp_success(pkid: u16) -> MQTTPacket {
     return MQTTPacket::PubComp(pub_comp, None);
 }
 
-
-pub fn packet_connect_fail(
-    code: ConnectReturnCode,
-    reason_string: Option<String>,
-) -> MQTTPacket {
+pub fn packet_connect_fail(code: ConnectReturnCode, reason_string: Option<String>) -> MQTTPacket {
     let mut properties = ConnAckProperties::default();
     properties.reason_string = reason_string;
     return MQTTPacket::ConnAck(

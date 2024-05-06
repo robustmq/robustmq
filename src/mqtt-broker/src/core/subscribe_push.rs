@@ -1,8 +1,8 @@
-use super::manager::SubScribeManager;
+use crate::core::metadata_cache::MetadataCacheManager;
 use crate::{
-    core::share_sub::share_sub_rewrite_publish_flag,
-    handler::subscribe::max_qos,
-    metadata::{cache::MetadataCacheManager, message::Message, user},
+    core::subscribe::max_qos,
+    core::subscribe_share::share_sub_rewrite_publish_flag,
+    metadata::message::Message,
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
@@ -17,30 +17,26 @@ use tokio::{
     time::sleep,
 };
 
-pub struct PushServer<T, S> {
-    metadata_cache: Arc<MetadataCacheManager<T>>,
-    subscribe_manager: Arc<SubScribeManager<T>>,
+pub struct PushServer<S> {
+    metadata_cache: Arc<MetadataCacheManager>,
     topic_push_thread: DashMap<String, Sender<bool>>,
     message_storage_adapter: Arc<S>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
 }
 
-impl<T, S> PushServer<T, S>
+impl<S> PushServer<S>
 where
-    T: StorageAdapter + Send + Sync + 'static,
     S: StorageAdapter + Send + Sync + 'static,
 {
     pub fn new(
-        metadata_cache: Arc<MetadataCacheManager<T>>,
-        subscribe_manager: Arc<SubScribeManager<T>>,
+        metadata_cache: Arc<MetadataCacheManager>,
         message_storage_adapter: Arc<S>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {
         return PushServer {
             metadata_cache,
-            subscribe_manager,
             topic_push_thread: DashMap::with_capacity(256),
             message_storage_adapter,
             response_queue_sx4,
@@ -51,75 +47,164 @@ where
     pub async fn start(&self) {
         info("Subscription push thread is started successfully.".to_string());
         loop {
-            for (topic_id, list) in self.subscribe_manager.topic_subscribe.clone() {
-                // If the topic has no subscribers,
-                // remove the topic information from the subscription relationship cache and stop the topic push management thread.
-                if list.len() == 0 {
-                    if let Some(sx) = self.topic_push_thread.get(&topic_id) {
-                        match sx.send(true) {
-                            Ok(_) => {
+            self.parse_filter();
+            self.push_thread();
+            sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    pub fn parse_filter(&self) {
+        let sub_identifier = if let Some(properties) = subscribe_properties {
+            properties.subscription_identifier
+        } else {
+            None
+        };
+
+        for (topic_id, topic_name) in self.metadata_cache.topic_id_name.clone() {
+            if !self.topic_subscribe.contains_key(&topic_id) {
+                self.topic_subscribe
+                    .insert(topic_id.clone(), DashMap::with_capacity(256));
+            }
+
+            if !self.client_subscribe.contains_key(&client_id) {
+                self.client_subscribe
+                    .insert(client_id.clone(), DashMap::with_capacity(256));
+            }
+
+            let tp_sub = self.topic_subscribe.get_mut(&topic_id).unwrap();
+            let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
+            for filter in subscribe.filters.clone() {
+                if is_share_sub(filter.path.clone()) {
+                    let (group_name, sub_name) = decode_share_info(filter.path.clone());
+                    if path_regex_match(topic_name.clone(), sub_name.clone()) {
+                        let conf = broker_mqtt_conf();
+                        let req = GetShareSubRequest {
+                            cluster_name: conf.cluster_name.clone(),
+                            group_name,
+                            sub_name: sub_name.clone(),
+                        };
+                        match placement_get_share_sub(
+                            client_poll.clone(),
+                            conf.placement.server.clone(),
+                            req,
+                        )
+                        .await
+                        {
+                            Ok(reply) => {
                                 info(format!(
-                                    "Push thread for Topic [{}] was stopped successfully",
-                                    topic_id
+                                    " Leader node for the shared subscription is [{}]",
+                                    reply.broker_id
                                 ));
+                                if reply.broker_id != conf.broker_id {
+                                    //todo
+                                } else {
+                                    let sub = Subscriber {
+                                        protocol: protocol.clone(),
+                                        client_id: client_id.clone(),
+                                        packet_identifier: subscribe.packet_identifier,
+                                        qos: filter.qos,
+                                        nolocal: filter.nolocal,
+                                        preserve_retain: filter.preserve_retain,
+                                        subscription_identifier: sub_identifier,
+                                        user_properties: Vec::new(),
+                                        is_share_sub: true,
+                                    };
+                                    tp_sub.insert(client_id.clone(), sub);
+                                    client_sub.insert(topic_id.clone(), now_second());
+                                }
                             }
                             Err(e) => {
-                                error(e.to_string());
+                                return Err(e);
                             }
                         }
                     }
-
-                    self.subscribe_manager.remove_topic(topic_id.clone());
-                    continue;
-                }
-
-                // 1. If no push thread is detected for topic, the corresponding thread is created for topic dimension push management.
-                if !self.topic_push_thread.contains_key(&topic_id) {
-                    let (sx, mut rx) = broadcast::channel(1000);
-                    let response_queue_sx4 = self.response_queue_sx4.clone();
-                    let response_queue_sx5 = self.response_queue_sx5.clone();
-                    let storage_adapter = self.message_storage_adapter.clone();
-                    let subscribe_manager = self.subscribe_manager.clone();
-                    let metadata_cache = self.metadata_cache.clone();
-                    self.topic_push_thread.insert(topic_id.clone(), sx);
-
-                    tokio::spawn(async move {
-                        info(format!(
-                            "Push thread for Topic [{}] was started successfully",
-                            topic_id
-                        ));
-                        loop {
-                            match rx.try_recv() {
-                                Ok(flag) => {
-                                    if flag {
-                                        break;
-                                    }
-                                }
-                                Err(_) => {}
-                            }
-                            let message_storage = MessageStorage::new(storage_adapter.clone());
-
-                            topic_sub_push_thread(
-                                metadata_cache.clone(),
-                                subscribe_manager.clone(),
-                                message_storage,
-                                topic_id.clone(),
-                                response_queue_sx4.clone(),
-                                response_queue_sx5.clone(),
-                            )
-                            .await;
-                        }
-                    });
+                } else {
+                    if path_regex_match(topic_name.clone(), filter.path.clone()) {
+                        let sub = Subscriber {
+                            protocol: protocol.clone(),
+                            client_id: client_id.clone(),
+                            packet_identifier: subscribe.packet_identifier,
+                            qos: filter.qos,
+                            nolocal: filter.nolocal,
+                            preserve_retain: filter.preserve_retain,
+                            subscription_identifier: sub_identifier,
+                            user_properties: Vec::new(),
+                            is_share_sub: false,
+                        };
+                        tp_sub.insert(client_id.clone(), sub);
+                        client_sub.insert(topic_id.clone(), now_second());
+                    }
                 }
             }
-            sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    pub fn push_thread(&self) {
+        for (topic_id, list) in self.subscribe_manager.topic_subscribe.clone() {
+            // If the topic has no subscribers,
+            // remove the topic information from the subscription relationship cache and stop the topic push management thread.
+            if list.len() == 0 {
+                if let Some(sx) = self.topic_push_thread.get(&topic_id) {
+                    match sx.send(true) {
+                        Ok(_) => {
+                            info(format!(
+                                "Push thread for Topic [{}] was stopped successfully",
+                                topic_id
+                            ));
+                        }
+                        Err(e) => {
+                            error(e.to_string());
+                        }
+                    }
+                }
+
+                self.subscribe_manager.remove_topic(topic_id.clone());
+                continue;
+            }
+
+            // 1. If no push thread is detected for topic, the corresponding thread is created for topic dimension push management.
+            if !self.topic_push_thread.contains_key(&topic_id) {
+                let (sx, mut rx) = broadcast::channel(1000);
+                let response_queue_sx4 = self.response_queue_sx4.clone();
+                let response_queue_sx5 = self.response_queue_sx5.clone();
+                let storage_adapter = self.message_storage_adapter.clone();
+                let subscribe_manager = self.subscribe_manager.clone();
+                let metadata_cache = self.metadata_cache.clone();
+                self.topic_push_thread.insert(topic_id.clone(), sx);
+
+                tokio::spawn(async move {
+                    info(format!(
+                        "Push thread for Topic [{}] was started successfully",
+                        topic_id
+                    ));
+                    loop {
+                        match rx.try_recv() {
+                            Ok(flag) => {
+                                if flag {
+                                    break;
+                                }
+                            }
+                            Err(_) => {}
+                        }
+                        let message_storage = MessageStorage::new(storage_adapter.clone());
+
+                        topic_sub_push_thread(
+                            metadata_cache.clone(),
+                            message_storage,
+                            topic_id.clone(),
+                            response_queue_sx4.clone(),
+                            response_queue_sx5.clone(),
+                        )
+                        .await;
+                    }
+                });
+            }
         }
     }
 }
 
 pub async fn topic_sub_push_thread<T, S>(
-    metadata_cache: Arc<MetadataCacheManager<T>>,
-    subscribe_manager: Arc<SubScribeManager<T>>,
+    metadata_cache: Arc<MetadataCacheManager>,
     message_storage: MessageStorage<S>,
     topic_id: String,
     response_queue_sx4: Sender<ResponsePackage>,
@@ -251,7 +336,6 @@ mod tests {
     use crate::{
         metadata::{cache::MetadataCacheManager, topic::Topic},
         storage::message::MessageStorage,
-        subscribe::manager::SubScribeManager,
     };
     use bytes::Bytes;
     use clients::poll::ClientPool;
@@ -264,10 +348,7 @@ mod tests {
     #[tokio::test]
     async fn topic_sub_push_thread_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCacheManager::new(
-            storage_adapter.clone(),
-            "test-cluster".to_string(),
-        ));
+        let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
 
         let client_poll = Arc::new(ClientPool::new(3));
 
@@ -275,7 +356,6 @@ mod tests {
         let topic_name = "/test/topic".to_string();
         let topic = Topic::new(&topic_name);
         metadata_cache.set_topic(&topic_name, &topic);
-        let sub_manager = Arc::new(SubScribeManager::new(metadata_cache.clone()));
 
         // Subscription topic
         let client_id = "test-ttt".to_string();
@@ -312,7 +392,6 @@ mod tests {
         tokio::spawn(async move {
             topic_sub_push_thread(
                 metadata_cache,
-                sub_manager,
                 ms,
                 topic_id,
                 response_queue_sx4,
