@@ -1,7 +1,7 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
-use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
+use crate::subscribe::share_rewrite::{decode_share_info, is_share_sub};
 use clients::placement::mqtt::call::placement_get_share_sub;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -12,10 +12,9 @@ use dashmap::DashMap;
 use protocol::mqtt::{Subscribe, SubscribeProperties};
 use protocol::placement_center::generate::mqtt::GetShareSubRequest;
 use std::{sync::Arc, time::Duration};
-use tokio::{sync::broadcast::Sender, time::sleep};
+use tokio::time::sleep;
 
 use super::subscribe::path_regex_match;
-use super::subscribe_share::{decode_share_info, is_share_sub};
 
 pub struct SubscribeManager {
     metadata_cache: Arc<MetadataCacheManager>,
@@ -23,9 +22,6 @@ pub struct SubscribeManager {
 
     // (topic_id,(client_id,Subscriber))
     pub exclusive_subscribe: DashMap<String, DashMap<String, Subscriber>>,
-
-    // (topic_id,(client_id,Sender<bool>))
-    pub share_sub_action_thread: DashMap<String, Sender<bool>>,
 
     // (topic_id,(client_id,Subscriber))
     pub share_subscribe: DashMap<String, DashMap<String, Subscriber>>,
@@ -35,17 +31,11 @@ pub struct SubscribeManager {
 }
 
 impl SubscribeManager {
-    pub fn new(
-        metadata_cache: Arc<MetadataCacheManager>,
-        response_queue_sx4: Sender<ResponsePackage>,
-        response_queue_sx5: Sender<ResponsePackage>,
-        client_poll: Arc<ClientPool>,
-    ) -> Self {
+    pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
         return SubscribeManager {
             metadata_cache,
             client_poll,
             exclusive_subscribe: DashMap::with_capacity(8),
-            share_sub_action_thread: DashMap::with_capacity(8),
             share_subscribe: DashMap::with_capacity(8),
             client_subscribe: DashMap::with_capacity(8),
         };

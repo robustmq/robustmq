@@ -1,14 +1,11 @@
-use super::{
-    metadata_cache::MetadataCacheManager, subscribe::max_qos, subscribe_manager::SubscribeManager,
-    subscribe_share::share_sub_rewrite_publish_flag,
-};
 use crate::{
-    metadata::{message::Message, subscriber::Subscriber, topic},
+    core::metadata_cache::MetadataCacheManager,
+    metadata::{message::Message, subscriber::Subscriber},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
+    subscribe::share_rewrite::share_sub_rewrite_publish_flag,
 };
 use bytes::Bytes;
-use clients::poll::ClientPool;
 use common_base::log::{error, info};
 use dashmap::DashMap;
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
@@ -18,16 +15,17 @@ use tokio::{
     sync::broadcast::{self, Sender},
     time::sleep,
 };
+
+use super::{manager::SubscribeManager, subscribe::max_qos};
 #[derive(Clone)]
 pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
+    subscribe_manager: Arc<SubscribeManager>,
+    message_storage: Arc<S>,
     // (topic_id, Sender<bool>)
     exclusive_sub_push_thread: DashMap<String, Sender<bool>>,
-    subscribe_manager: Arc<SubscribeManager>,
-    client_poll: Arc<ClientPool>,
-    message_storage: Arc<MessageStorage<S>>,
 }
 
 impl<S> SubscribeExclusive<S>
@@ -35,12 +33,11 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        message_storage: Arc<MessageStorage<S>>,
+        message_storage: Arc<S>,
         metadata_cache: Arc<MetadataCacheManager>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
         subscribe_manager: Arc<SubscribeManager>,
-        client_poll: Arc<ClientPool>,
     ) -> Self {
         return SubscribeExclusive {
             message_storage,
@@ -49,7 +46,6 @@ where
             response_queue_sx5,
             exclusive_sub_push_thread: DashMap::with_capacity(256),
             subscribe_manager,
-            client_poll,
         };
     }
 
@@ -69,7 +65,9 @@ where
             if list.len() == 0 {
                 if let Some(sx) = self.exclusive_sub_push_thread.get(&topic_id) {
                     match sx.send(true) {
-                        Ok(_) => {}
+                        Ok(_) => {
+                            self.exclusive_sub_push_thread.remove(&topic_id);
+                        }
                         Err(e) => {
                             error(e.to_string());
                         }
@@ -86,13 +84,14 @@ where
                 let response_queue_sx4 = self.response_queue_sx4.clone();
                 let response_queue_sx5 = self.response_queue_sx5.clone();
                 let metadata_cache = self.metadata_cache.clone();
-                self.exclusive_sub_push_thread.insert(topic_id.clone(), sx);
                 let subscribe_manager = self.subscribe_manager.clone();
                 let message_storage = self.message_storage.clone();
 
+                // Subscribe to the data push thread
+                self.exclusive_sub_push_thread.insert(topic_id.clone(), sx);
                 tokio::spawn(async move {
                     info(format!(
-                        "Push thread for Topic [{}] was started successfully",
+                        "Exclusive push thread for Topic [{}] was started successfully",
                         topic_id
                     ));
                     loop {
@@ -100,7 +99,7 @@ where
                             Ok(flag) => {
                                 if flag {
                                     info(format!(
-                                        "Push thread for Topic [{}] was stopped successfully",
+                                        "Exclusive Push thread for Topic [{}] was stopped successfully",
                                         topic_id
                                     ));
                                     break;
@@ -134,13 +133,14 @@ where
 async fn push_thread<S>(
     sub_list: DashMap<String, Subscriber>,
     metadata_cache: Arc<MetadataCacheManager>,
-    message_storage: Arc<MessageStorage<S>>,
+    message_storage: Arc<S>,
     topic_id: String,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    let message_storage = MessageStorage::new(message_storage);
     let group_id = format!("system_sub_{}", topic_id);
     let record_num = 5;
     let max_wait_ms = 500;
