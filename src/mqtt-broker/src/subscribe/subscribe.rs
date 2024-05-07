@@ -149,9 +149,11 @@ mod tests {
 
     use crate::core::metadata_cache::MetadataCacheManager;
     use crate::{
-        core::subscribe::{get_sub_topic_id_list, max_qos, path_regex_match, save_retain_message},
         metadata::{message::Message, topic::Topic},
         storage::message::MessageStorage,
+        subscribe::subscribe::{
+            get_sub_topic_id_list, max_qos, path_regex_match, save_retain_message,
+        },
     };
 
     #[test]

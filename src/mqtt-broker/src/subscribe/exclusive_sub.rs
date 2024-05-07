@@ -1,5 +1,9 @@
 use crate::{
-    core::{metadata_cache::MetadataCacheManager, subscribe::max_qos}, metadata::{message::Message, subscriber::Subscriber}, server::{tcp::packet::ResponsePackage, MQTTProtocol}, storage::message::MessageStorage, subscribe::share_rewrite::share_sub_rewrite_publish_flag
+    core::metadata_cache::MetadataCacheManager,
+    metadata::{message::Message, subscriber::Subscriber},
+    server::{tcp::packet::ResponsePackage, MQTTProtocol},
+    storage::message::MessageStorage,
+    subscribe::share_rewrite::share_sub_rewrite_publish_flag,
 };
 use bytes::Bytes;
 use common_base::log::{error, info};
@@ -12,7 +16,7 @@ use tokio::{
     time::sleep,
 };
 
-use super::manager::SubscribeManager;
+use super::{manager::SubscribeManager, subscribe::max_qos};
 #[derive(Clone)]
 pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,
@@ -47,25 +51,8 @@ where
 
     pub async fn start_thread(&self) {
         loop {
-            self.try_clean_exclusive_sub_push_thread();
             self.exclusive_sub_push_thread();
             sleep(Duration::from_secs(1)).await;
-        }
-    }
-
-    // Try to clean up threads that the topic has been removed but are still subscribed to
-    fn try_clean_exclusive_sub_push_thread(&self) {
-        for (topic_id, sx) in self.exclusive_sub_push_thread.clone() {
-            if !self.metadata_cache.topic_id_name.contains_key(&topic_id) {
-                match sx.send(true) {
-                    Ok(_) => {
-                        self.exclusive_sub_push_thread.remove(&topic_id);
-                    }
-                    Err(e) => {
-                        error(e.to_string());
-                    }
-                }
-            }
         }
     }
 
