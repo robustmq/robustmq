@@ -33,6 +33,7 @@ pub struct BrokerMQTTConfig {
     pub mysql: Mysql,
     pub placement: Placement,
     pub journal: Journal,
+    pub subscribe: Subscribe,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -68,6 +69,11 @@ pub struct Runtime {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Mysql {
     pub server: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Subscribe {
+    pub share_model: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

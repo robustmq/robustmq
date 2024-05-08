@@ -6,6 +6,7 @@ use crate::core::metadata_cache::MetadataCacheManager;
 use crate::idempotent::memory::IdempotentMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
+use crate::subscribe::manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
@@ -39,7 +40,7 @@ where
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
         idempotent_manager: Arc<IdempotentMemory>,
-        client_poll: Arc<ClientPool>,
+        sucscribe_manager: Arc<SubscribeManager>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
         let mqtt4_service = Mqtt4Service::new(
@@ -53,7 +54,7 @@ where
             heartbeat_manager.clone(),
             metadata_storage_adapter.clone(),
             message_storage_adapter.clone(),
-            client_poll,
+            sucscribe_manager.clone(),
         );
         return Command {
             protocol,
