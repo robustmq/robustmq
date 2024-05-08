@@ -5,7 +5,8 @@ use crate::core::session::get_session_info;
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
-use crate::subscribe::share_rewrite::is_share_sub_rewrite_publish;
+use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::share_sub::is_share_sub_rewrite_publish;
 use crate::subscribe::subscribe::{filter_name_validator, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
@@ -15,7 +16,6 @@ use crate::{
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
-use clients::poll::ClientPool;
 use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
@@ -35,7 +35,7 @@ pub struct Mqtt5Service<T, S> {
     heartbeat_manager: Arc<HeartbeatManager>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
-    client_poll: Arc<ClientPool>,
+    sucscribe_manager: Arc<SubscribeManager>,
 }
 
 impl<T, S> Mqtt5Service<T, S>
@@ -49,7 +49,7 @@ where
         heartbeat_manager: Arc<HeartbeatManager>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
-        client_poll: Arc<ClientPool>,
+        sucscribe_manager: Arc<SubscribeManager>,
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,
@@ -57,7 +57,7 @@ where
             heartbeat_manager,
             metadata_storage_adapter,
             message_storage_adapter,
-            client_poll,
+            sucscribe_manager,
         };
     }
 
@@ -387,6 +387,13 @@ where
             subscribe_properties.clone(),
         );
 
+        self.sucscribe_manager.add_subscribe(
+            client_id.clone(),
+            crate::server::MQTTProtocol::MQTT5,
+            subscribe.clone(),
+            subscribe_properties.clone(),
+        );
+
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         match save_retain_message(
@@ -453,7 +460,9 @@ where
         if un_subscribe.filters.len() > 0 {
             self.metadata_cache
                 .remove_filter(connection.client_id.clone());
-            //un_subscribe.filters
+
+            self.sucscribe_manager
+                .remove_subscribe(connection.client_id.clone(), un_subscribe.filters);
         }
 
         return self

@@ -3,7 +3,6 @@ use crate::{
     metadata::{message::Message, subscriber::Subscriber},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
-    subscribe::share_rewrite::share_sub_rewrite_publish_flag,
 };
 use bytes::Bytes;
 use common_base::log::{error, info};
@@ -16,7 +15,7 @@ use tokio::{
     time::sleep,
 };
 
-use super::{manager::SubscribeManager, subscribe::max_qos};
+use super::{manager::SubscribeManager, share_sub::share_sub_rewrite_publish_flag, subscribe::max_qos};
 #[derive(Clone)]
 pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,
@@ -49,7 +48,7 @@ where
         };
     }
 
-    pub async fn start_thread(&self) {
+    pub async fn start(&self) {
         loop {
             self.exclusive_sub_push_thread();
             sleep(Duration::from_secs(1)).await;

@@ -17,7 +17,6 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
-use subscribe::{exclusive_sub::SubscribeExclusive, manager::SubscribeManager};
 use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
     client_heartbeat::HeartbeatManager,
@@ -40,6 +39,7 @@ use storage_adapter::{
     // placement::PlacementStorageAdapter,
     storage::StorageAdapter,
 };
+use subscribe::{exclusive_sub::SubscribeExclusive, manager::SubscribeManager};
 use tokio::{
     runtime::Runtime,
     signal,
@@ -155,7 +155,7 @@ where
         let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         let idempotent_manager = self.idempotent_manager.clone();
-        let client_poll = self.client_poll.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
         let request_queue_sx5 = self.request_queue_sx5.clone();
@@ -164,7 +164,7 @@ where
         let response_queue_sx5 = self.response_queue_sx5.clone();
         self.runtime.spawn(async move {
             start_mqtt_server(
-                client_poll,
+                subscribe_manager,
                 cache,
                 heartbeat_manager,
                 metadata_storage_adapter,
@@ -208,15 +208,21 @@ where
     }
 
     fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
-        let push_server = SubscribeExclusive::new(
+        let subscribe_manager = self.subscribe_manager.clone();
+        self.runtime.spawn(async move {
+            subscribe_manager.start().await;
+        });
+
+        let exclusive_sub = SubscribeExclusive::new(
             self.message_storage_adapter.clone(),
             self.metadata_cache_manager.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.subscribe_manager.clone(),
         );
+
         self.runtime.spawn(async move {
-            push_server.start_thread().await;
+            exclusive_sub.start().await;
         });
     }
 
