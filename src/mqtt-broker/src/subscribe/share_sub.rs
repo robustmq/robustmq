@@ -9,9 +9,9 @@ use common_base::log::{error, info};
 use dashmap::DashMap;
 use protocol::mqtt::{MQTTPacket, PublishProperties, SubscribeProperties};
 use std::{sync::Arc, time::Duration};
-use storage_adapter::storage::StorageAdapter;
+use storage_adapter::{record::Record, storage::StorageAdapter};
 use tokio::{
-    sync::broadcast::{self, Sender},
+    sync::mpsc::{self, Receiver, Sender},
     time::sleep,
 };
 
@@ -20,24 +20,37 @@ const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE: &str = "True";
 
 #[derive(Clone)]
-pub struct SubscribeShare {
+pub struct SubscribeShare<S> {
     // (topic_id, Sender<bool>)
-    pub leader_push_thread: DashMap<String, Sender<bool>>,
+    pub leader_pull_data_thread: DashMap<String, Sender<bool>>,
+
+    // (topic_id, Sender<bool>)
+    pub leader_push_data_thread: DashMap<String, Sender<bool>>,
 
     // (topic_id, Sender<bool>)
     pub follower_sub_thread: DashMap<String, Sender<bool>>,
 
     pub subscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
+    message_storage: Arc<S>,
 }
 
-impl SubscribeShare {
-    pub fn new(client_poll: Arc<ClientPool>, subscribe_manager: Arc<SubscribeManager>) -> Self {
+impl<S> SubscribeShare<S>
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    pub fn new(
+        client_poll: Arc<ClientPool>,
+        subscribe_manager: Arc<SubscribeManager>,
+        message_storage: Arc<S>,
+    ) -> Self {
         return SubscribeShare {
-            leader_push_thread: DashMap::with_capacity(128),
+            leader_pull_data_thread: DashMap::with_capacity(128),
+            leader_push_data_thread: DashMap::with_capacity(128),
             follower_sub_thread: DashMap::with_capacity(128),
             subscribe_manager,
             client_poll,
+            message_storage,
         };
     }
 
@@ -45,62 +58,153 @@ impl SubscribeShare {
         loop {
             for (topic_id, sub_list) in self.subscribe_manager.share_leader_subscribe.clone() {
                 if sub_list.len() == 0 {
-                    if let Some(sx) = self.leader_push_thread.get(&topic_id) {
-                        match sx.send(true) {
+                    // stop pull data thread
+                    if let Some(sx) = self.leader_pull_data_thread.get(&topic_id) {
+                        match sx.send(true).await {
                             Ok(_) => {
-                                self.leader_push_thread.remove(&topic_id);
+                                self.leader_pull_data_thread.remove(&topic_id);
                             }
                             Err(e) => error(e.to_string()),
                         }
                     }
+
+                    // stop push data thread
+                    if let Some(sx) = self.leader_push_data_thread.get(&topic_id) {
+                        match sx.send(true).await {
+                            Ok(_) => {
+                                self.leader_push_data_thread.remove(&topic_id);
+                            }
+                            Err(e) => error(e.to_string()),
+                        }
+                    }
+
                     self.subscribe_manager
                         .share_leader_subscribe
                         .remove(&topic_id);
-                }
-
-                if self.leader_push_thread.contains_key(&topic_id) {
                     continue;
                 }
 
-                let (sx, mut rx) = broadcast::channel(2);
-                tokio::spawn(async move {
-                    info(format!(
-                        "Share push thread for Topic [{}] was started successfully",
-                        topic_id
-                    ));
-                    loop {
-                        match rx.try_recv() {
-                            Ok(flag) => {
-                                if flag {
-                                    info(format!(
-                                        "Exclusive Push thread for Topic [{}] was stopped successfully",
-                                        topic_id
-                                    ));
-                                    break;
-                                }
-                            }
-                            Err(_) => {}
-                        }
-                        if let Some(sub_list) =
-                            self.subscribe_manager.share_leader_subscribe.get(&topic_id)
-                        {
-                            push_thread(
-                                sub_list.clone(),
-                                metadata_cache.clone(),
-                                message_storage.clone(),
-                                topic_id.clone(),
-                                response_queue_sx4.clone(),
-                                response_queue_sx5.clone(),
-                            )
-                            .await;
-                        } else {
-                            sleep(Duration::from_millis(100)).await;
-                        }
-                    }
-                });
+                let (sx, rx) = mpsc::channel(10000);
+
+                // start pull data thread
+                if !self.leader_pull_data_thread.contains_key(&topic_id) {
+                    self.start_topic_pull_data_thread(topic_id.clone(), sx)
+                        .await;
+                }
+
+                // start push data thread
+                if !self.leader_push_data_thread.contains_key(&topic_id) {
+                    self.start_topic_push_data_thread(topic_id.clone(), rx)
+                        .await;
+                }
             }
+
             sleep(Duration::from_secs(1)).await;
         }
+    }
+
+    pub async fn start_topic_pull_data_thread(&self, topic_id: String, channel_sx: Sender<Record>) {
+        let (sx, mut rx) = mpsc::channel(1);
+        self.leader_pull_data_thread.insert(topic_id.clone(), sx);
+        let message_storage = self.message_storage.clone();
+        tokio::spawn(async move {
+            info(format!(
+                "Share push thread for Topic [{}] was started successfully",
+                topic_id
+            ));
+            let message_storage = MessageStorage::new(message_storage);
+            let group_id = format!("system_sub_{}", topic_id);
+            let record_num = 100;
+            let max_wait_ms = 500;
+            loop {
+                match rx.try_recv() {
+                    Ok(flag) => {
+                        if flag {
+                            info(format!(
+                                "Exclusive Push thread for Topic [{}] was stopped successfully",
+                                topic_id
+                            ));
+                            break;
+                        }
+                    }
+                    Err(_) => {}
+                }
+
+                match message_storage
+                    .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
+                    .await
+                {
+                    Ok(results) => {
+                        if results.len() == 0 {
+                            sleep(Duration::from_millis(max_wait_ms)).await;
+                            return;
+                        }
+
+                        // commit offset
+                        if let Some(last_res) = results.last() {
+                            match message_storage
+                                .commit_group_offset(
+                                    topic_id.clone(),
+                                    group_id.clone(),
+                                    last_res.offset,
+                                )
+                                .await
+                            {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error(e.to_string());
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Push data to subscribers
+                        for record in results.clone() {
+                            match channel_sx.send(record).await {
+                                Ok(_) => {}
+                                Err(e) => error(e.to_string()),
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error(e.to_string());
+                        sleep(Duration::from_millis(max_wait_ms)).await;
+                    }
+                }
+            }
+        });
+    }
+
+    pub async fn start_topic_push_data_thread(
+        &self,
+        topic_id: String,
+        mut channel_rx: Receiver<Record>,
+    ) {
+        let (sx, mut rx) = mpsc::channel(1);
+        self.leader_push_data_thread.insert(topic_id.clone(), sx);
+
+        tokio::spawn(async move {
+            info(format!(
+                "Share push thread for Topic [{}] was started successfully",
+                topic_id
+            ));
+            loop {
+                match rx.try_recv() {
+                    Ok(flag) => {
+                        if flag {
+                            info(format!(
+                                "Exclusive Push thread for Topic [{}] was stopped successfully",
+                                topic_id
+                            ));
+                            break;
+                        }
+                    }
+                    Err(_) => {}
+                }
+
+                if let Some(record) = channel_rx.recv().await {}
+            }
+        });
     }
 
     pub async fn start_follower_sub(&self) {
@@ -191,9 +295,7 @@ async fn leader_push_thread<S>(
             }
 
             // Push data to subscribers
-            for record in results.clone() {
-                
-            }
+            for record in results.clone() {}
         }
         Err(e) => {
             error(e.to_string());
@@ -203,70 +305,70 @@ async fn leader_push_thread<S>(
 }
 
 fn push_by_round_robin() {
-    let mut sub_id = Vec::new();
-    if let Some(id) = subscribe.subscription_identifier {
-        sub_id.push(id);
-    }
+    // let mut sub_id = Vec::new();
+    // if let Some(id) = subscribe.subscription_identifier {
+    //     sub_id.push(id);
+    // }
 
-    let connect_id =
-        if let Some(sess) = metadata_cache.session_info.get(&subscribe.client_id) {
-            if let Some(conn_id) = sess.connection_id {
-                conn_id
-            } else {
-                continue;
-            }
-        } else {
-            continue;
-        };
-    let msg = match Message::decode_record(record) {
-        Ok(msg) => msg,
-        Err(e) => {
-            error(e.to_string());
-            continue;
-        }
-    };
-    let publish = Publish {
-        dup: false,
-        qos: max_qos(msg.qos, subscribe.qos),
-        pkid: subscribe.packet_identifier,
-        retain: false,
-        topic: Bytes::from(topic_name.clone()),
-        payload: Bytes::from(msg.payload),
-    };
+    // let connect_id =
+    //     if let Some(sess) = metadata_cache.session_info.get(&subscribe.client_id) {
+    //         if let Some(conn_id) = sess.connection_id {
+    //             conn_id
+    //         } else {
+    //             continue;
+    //         }
+    //     } else {
+    //         continue;
+    //     };
+    // let msg = match Message::decode_record(record) {
+    //     Ok(msg) => msg,
+    //     Err(e) => {
+    //         error(e.to_string());
+    //         continue;
+    //     }
+    // };
+    // let publish = Publish {
+    //     dup: false,
+    //     qos: max_qos(msg.qos, subscribe.qos),
+    //     pkid: subscribe.packet_identifier,
+    //     retain: false,
+    //     topic: Bytes::from(topic_name.clone()),
+    //     payload: Bytes::from(msg.payload),
+    // };
 
-    // If it is a shared subscription, it will be identified with the push message
-    let mut user_properteis = Vec::new();
-    if subscribe.is_share_sub {
-        user_properteis.push(share_sub_rewrite_publish_flag());
-    }
+    // // If it is a shared subscription, it will be identified with the push message
+    // let mut user_properteis = Vec::new();
+    // if subscribe.is_share_sub {
+    //     user_properteis.push(share_sub_rewrite_publish_flag());
+    // }
 
-    let properties = PublishProperties {
-        payload_format_indicator: None,
-        message_expiry_interval: None,
-        topic_alias: None,
-        response_topic: None,
-        correlation_data: None,
-        user_properties: user_properteis,
-        subscription_identifiers: sub_id.clone(),
-        content_type: None,
-    };
+    // let properties = PublishProperties {
+    //     payload_format_indicator: None,
+    //     message_expiry_interval: None,
+    //     topic_alias: None,
+    //     response_topic: None,
+    //     correlation_data: None,
+    //     user_properties: user_properteis,
+    //     subscription_identifiers: sub_id.clone(),
+    //     content_type: None,
+    // };
 
-    let resp = ResponsePackage {
-        connection_id: connect_id,
-        packet: MQTTPacket::Publish(publish, Some(properties)),
-    };
+    // let resp = ResponsePackage {
+    //     connection_id: connect_id,
+    //     packet: MQTTPacket::Publish(publish, Some(properties)),
+    // };
 
-    if subscribe.protocol == MQTTProtocol::MQTT4 {
-        match response_queue_sx4.send(resp) {
-            Ok(_) => {}
-            Err(e) => error(format!("{}", e.to_string())),
-        }
-    } else if subscribe.protocol == MQTTProtocol::MQTT5 {
-        match response_queue_sx5.send(resp) {
-            Ok(_) => {}
-            Err(e) => error(format!("{}", e.to_string())),
-        }
-    }
+    // if subscribe.protocol == MQTTProtocol::MQTT4 {
+    //     match response_queue_sx4.send(resp) {
+    //         Ok(_) => {}
+    //         Err(e) => error(format!("{}", e.to_string())),
+    //     }
+    // } else if subscribe.protocol == MQTTProtocol::MQTT5 {
+    //     match response_queue_sx5.send(resp) {
+    //         Ok(_) => {}
+    //         Err(e) => error(format!("{}", e.to_string())),
+    //     }
+    // }
 }
 
 fn push_by_random() {}
