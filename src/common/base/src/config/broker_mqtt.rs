@@ -74,6 +74,7 @@ pub struct Mysql {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Subscribe {
     pub share_model: String,
+    pub shared_subscription_strategy: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
