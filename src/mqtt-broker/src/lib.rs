@@ -39,7 +39,9 @@ use storage_adapter::{
     // placement::PlacementStorageAdapter,
     storage::StorageAdapter,
 };
-use subscribe::{exclusive_sub::SubscribeExclusive, manager::SubscribeManager};
+use subscribe::{
+    exclusive_sub::SubscribeExclusive, manager::SubscribeManager, share_sub::SubscribeShare,
+};
 use tokio::{
     runtime::Runtime,
     signal,
@@ -223,6 +225,32 @@ where
 
         self.runtime.spawn(async move {
             exclusive_sub.start().await;
+        });
+
+        let share_sub = SubscribeShare::new(
+            self.client_poll.clone(),
+            self.subscribe_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.response_queue_sx4.clone(),
+            self.response_queue_sx5.clone(),
+            self.metadata_cache_manager.clone(),
+        );
+
+        self.runtime.spawn(async move {
+            share_sub.start_leader_push().await;
+        });
+
+        let share_sub = SubscribeShare::new(
+            self.client_poll.clone(),
+            self.subscribe_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.response_queue_sx4.clone(),
+            self.response_queue_sx5.clone(),
+            self.metadata_cache_manager.clone(),
+        );
+
+        self.runtime.spawn(async move {
+            share_sub.start_follower_sub().await;
         });
     }
 

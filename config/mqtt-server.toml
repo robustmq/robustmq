@@ -43,6 +43,8 @@ lock_try_mut_sleep_time_ms = 50
 
 [subscribe]
 share_model = "rewrite"
+# random, round_robin, sticky, hash
+shared_subscription_strategy = "round_robin"
 
 [log]
 log_path = "/tmp/logs"

@@ -6,12 +6,12 @@ use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
 use crate::server::MQTTProtocol;
 use clients::{placement::mqtt::call::placement_get_share_sub, poll::ClientPool};
-use common_base::tools::now_second;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     errors::RobustMQError,
     log::{error, info},
 };
+use common_base::{config::broker_mqtt::MQTT, tools::now_second};
 use dashmap::DashMap;
 use protocol::{
     mqtt::{Subscribe, SubscribeProperties},
@@ -23,6 +23,7 @@ use tokio::time::sleep;
 #[derive(Clone)]
 pub struct ShareSubShareSub {
     pub client_id: String,
+    pub protocol: MQTTProtocol,
     pub group_name: String,
     pub sub_name: String,
     pub leader_id: u64,
@@ -38,11 +39,11 @@ pub struct SubscribeManager {
     // (topic_id,(client_id,Subscriber))
     pub exclusive_subscribe: DashMap<String, DashMap<String, Subscriber>>,
 
-    // (topic_id,(client_id,ShareSubShareSub))
+    // (topic_id,(client_id,Subscriber))
     pub share_leader_subscribe: DashMap<String, DashMap<String, Subscriber>>,
 
-    // (topic_id,(client_id,ShareSubShareSub))
-    pub share_follower_subscribe: DashMap<String, DashMap<String, ShareSubShareSub>>,
+    // (client_id,ShareSubShareSub)
+    pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
 
     // (client_id, (topic_id, now_second()))
     pub client_subscribe: DashMap<String, DashMap<String, u64>>,
@@ -123,9 +124,7 @@ impl SubscribeManager {
         }
     }
 
-    pub fn share_sub_leader_change(){
-        
-    }
+    pub fn share_sub_leader_change() {}
 
     pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
@@ -137,10 +136,6 @@ impl SubscribeManager {
 
                 if is_share_sub(path) {
                     if let Some(sub_list) = self.share_leader_subscribe.get_mut(&topic_id) {
-                        sub_list.remove(&client_id);
-                    }
-
-                    if let Some(sub_list) = self.share_follower_subscribe.get_mut(&topic_id) {
                         sub_list.remove(&client_id);
                     }
                 } else {
@@ -172,7 +167,6 @@ impl SubscribeManager {
         };
         let exclusive_sub = self.exclusive_subscribe.get_mut(&topic_id).unwrap();
         let share_sub_leader = self.share_leader_subscribe.get_mut(&topic_id).unwrap();
-        let share_sub_follower = self.share_follower_subscribe.get_mut(&topic_id).unwrap();
 
         let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
 
@@ -207,12 +201,14 @@ impl SubscribeManager {
                                     client_id: client_id.clone(),
                                     group_name: group_name.clone(),
                                     sub_name: sub_name.clone(),
+                                    protocol: protocol.clone(),
                                     leader_id: reply.broker_id,
                                     leader_addr: reply.broker_ip,
                                     subscribe: subscribe.clone(),
                                     subscribe_properties: subscribe_properties.clone(),
                                 };
-                                share_sub_follower.insert(client_id.clone(), share_sub);
+                                self.share_follower_subscribe
+                                    .insert(client_id.clone(), share_sub);
                             }
                         }
                         Err(e) => {
