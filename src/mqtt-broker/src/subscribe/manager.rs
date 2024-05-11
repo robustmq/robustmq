@@ -6,22 +6,28 @@ use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
 use crate::server::MQTTProtocol;
 use clients::{placement::mqtt::call::placement_get_share_sub, poll::ClientPool};
+use common_base::tools::now_second;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     errors::RobustMQError,
     log::{error, info},
 };
-use common_base::{config::broker_mqtt::MQTT, tools::now_second};
 use dashmap::DashMap;
 use protocol::{
     mqtt::{Subscribe, SubscribeProperties},
     placement_center::generate::mqtt::{GetShareSubReply, GetShareSubRequest},
 };
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{atomic::AtomicU64, Arc},
+    time::Duration,
+};
 use tokio::time::sleep;
+
+static SUB_IDENTIFIER_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
 pub struct ShareSubShareSub {
+    pub identifier_id: u64,
     pub client_id: String,
     pub protocol: MQTTProtocol,
     pub group_name: String,
@@ -45,6 +51,9 @@ pub struct SubscribeManager {
     // (client_id,ShareSubShareSub)
     pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
 
+    // (identifier_id，client_id)
+    pub share_follower_identifier_id: DashMap<usize, String>,
+
     // (client_id, (topic_id, now_second()))
     pub client_subscribe: DashMap<String, DashMap<String, u64>>,
 }
@@ -58,6 +67,7 @@ impl SubscribeManager {
             share_leader_subscribe: DashMap::with_capacity(8),
             share_follower_subscribe: DashMap::with_capacity(8),
             client_subscribe: DashMap::with_capacity(8),
+            share_follower_identifier_id: DashMap::with_capacity(8),
         };
     }
 
@@ -197,7 +207,10 @@ impl SubscribeManager {
                             if reply.broker_id == conf.broker_id {
                                 share_sub_leader.insert(client_id.clone(), sub);
                             } else {
+                                let identifier_id = SUB_IDENTIFIER_ID_BUILD
+                                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                 let share_sub = ShareSubShareSub {
+                                    identifier_id,
                                     client_id: client_id.clone(),
                                     group_name: group_name.clone(),
                                     sub_name: sub_name.clone(),
@@ -209,6 +222,8 @@ impl SubscribeManager {
                                 };
                                 self.share_follower_subscribe
                                     .insert(client_id.clone(), share_sub);
+                                self.share_follower_identifier_id
+                                    .insert(identifier_id as usize, client_id.clone());
                             }
                         }
                         Err(e) => {

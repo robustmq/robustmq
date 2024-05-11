@@ -16,11 +16,11 @@ use common_base::{
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use protocol::{
-    mqtt::{MQTTPacket, Publish, PublishProperties, SubscribeProperties},
+    mqtt::{MQTTPacket, Publish, PublishProperties, QoS, SubscribeProperties},
     mqttv4::codec::Mqtt4Codec,
     mqttv5::codec::Mqtt5Codec,
 };
-use std::{sync::Arc, time::Duration};
+use std::{process::id, sync::Arc, time::Duration};
 use storage_adapter::{record::Record, storage::StorageAdapter};
 use tokio::{
     net::TcpStream,
@@ -294,11 +294,19 @@ where
                                 continue;
                             };
                         if let Some(record) = channel_rx.recv().await {
+                            let msg = match Message::decode_record(record) {
+                                Ok(msg) => msg,
+                                Err(e) => {
+                                    error(e.to_string());
+                                    return;
+                                }
+                            };
                             publish_to_client(
                                 connect_id,
-                                topic_name,
+                                Bytes::from(topic_name),
+                                msg.qos,
+                                msg.payload,
                                 subscribe,
-                                record,
                                 response_queue_sx4.clone(),
                                 response_queue_sx5.clone(),
                             )
@@ -340,7 +348,14 @@ async fn rewrite_sub_mqtt4(share_sub: ShareSubShareSub, mut rx: Receiver<bool>) 
     let stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
 }
 
-async fn rewrite_sub_mqtt5(share_sub: ShareSubShareSub, mut rx: Receiver<bool>) {
+async fn rewrite_sub_mqtt5(
+    metadata_cache: Arc<MetadataCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    share_sub: ShareSubShareSub,
+    mut rx: Receiver<bool>,
+    response_queue_sx4: broadcast::Sender<ResponsePackage>,
+    response_queue_sx5: broadcast::Sender<ResponsePackage>,
+) {
     let socket = TcpStream::connect(share_sub.leader_addr.clone())
         .await
         .unwrap();
@@ -352,14 +367,65 @@ async fn rewrite_sub_mqtt5(share_sub: ShareSubShareSub, mut rx: Receiver<bool>) 
             match data {
                 Ok(da) => match da {
                     MQTTPacket::Publish(publish, publish_properties) => {
-                        
+                        if let Some(properties) = publish_properties {
+                            if is_share_sub_rewrite_publish(properties.user_properties) {
+                                for iden_id in properties.subscription_identifiers {
+                                    let client_id = if let Some(client_id) =
+                                        subscribe_manager.share_follower_identifier_id.get(&iden_id)
+                                    {
+                                        client_id.clone()
+                                    } else {
+                                        continue;
+                                    };
+
+                                    let connect_id = if let Some(sess) =
+                                        metadata_cache.session_info.get(&client_id)
+                                    {
+                                        if let Some(conn_id) = sess.connection_id {
+                                            conn_id
+                                        } else {
+                                            continue;
+                                        }
+                                    } else {
+                                        continue;
+                                    };
+
+                                    match publish.qos {
+                                        QoS::AtLeastOnce => {}
+                                        QoS::ExactlyOnce => {}
+                                        QoS::AtMostOnce => {
+                                            //
+                                            publish_to_client(
+                                                connect_id,
+                                                publish.topic,
+                                                publish.qos,
+                                                publish.payload,
+                                                share_sub.subscribe,
+                                                response_queue_sx4,
+                                                response_queue_sx5,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
-                    MQTTPacket::PubRec(publish, publish_properties) => {}
+                    MQTTPacket::PubRec(publish, publish_properties) => {
+                        if let Some(properties) = publish_properties {
+                            if is_share_sub_rewrite_publish(properties.user_properties) {}
+                        }
+                    }
 
-                    MQTTPacket::PubComp(publish, publish_properties) => {}
+                    MQTTPacket::PubComp(publish, publish_properties) => {
+                        if let Some(properties) = publish_properties {
+                            if is_share_sub_rewrite_publish(properties.user_properties) {}
+                        }
+                    }
 
-                    MQTTPacket::Disconnect(publish, publish_properties) => {}
+                    MQTTPacket::Disconnect(publish, publish_properties) => {
+                        break;
+                    }
                     _ => {
                         error("".to_string());
                     }
@@ -380,9 +446,10 @@ async fn rewrite_sub_mqtt5(share_sub: ShareSubShareSub, mut rx: Receiver<bool>) 
 
 async fn publish_to_client(
     connect_id: u64,
-    topic_name: String,
+    topic_name: Bytes,
+    msg_qos: QoS,
+    payload: Bytes,
     subscribe: Subscriber,
-    record: Record,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
 ) {
@@ -391,21 +458,13 @@ async fn publish_to_client(
         sub_id.push(id);
     }
 
-    let msg = match Message::decode_record(record) {
-        Ok(msg) => msg,
-        Err(e) => {
-            error(e.to_string());
-            return;
-        }
-    };
-
     let publish = Publish {
         dup: false,
-        qos: max_qos(msg.qos, subscribe.qos),
+        qos: max_qos(msg_qos, subscribe.qos),
         pkid: subscribe.packet_identifier,
         retain: false,
-        topic: Bytes::from(topic_name.clone()),
-        payload: Bytes::from(msg.payload),
+        topic: topic_name,
+        payload,
     };
 
     // If it is a shared subscription, it will be identified with the push message
@@ -453,31 +512,25 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
     return (group_name, sub_name);
 }
 
-pub fn is_share_sub_rewrite_publish(publish_properties: Option<PublishProperties>) -> bool {
-    if let Some(properties) = publish_properties {
-        for (k, v) in properties.user_properties {
-            if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
-                && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
-            {
-                return true;
-            }
+pub fn is_share_sub_rewrite_publish(user_properties: Vec<(String, String)>) -> bool {
+    for (k, v) in user_properties {
+        if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
+            && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
+        {
+            return true;
         }
     }
+
     return false;
 }
 
 pub fn build_rewrite_subscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
     let subscribe = rewrite_sub.subscribe.clone();
-    let mut subscribe_properties =
-        if let Some(properties) = rewrite_sub.subscribe_properties.clone() {
-            properties
-        } else {
-            SubscribeProperties::default()
-        };
-
+    let mut subscribe_properties = SubscribeProperties::default();
     let mut user_properties = Vec::new();
     user_properties.push(share_sub_rewrite_publish_flag());
     subscribe_properties.user_properties = user_properties;
+    subscribe_properties.subscription_identifier = Some(rewrite_sub.identifier_id as usize);
     return MQTTPacket::Subscribe(subscribe, Some(subscribe_properties));
 }
 
