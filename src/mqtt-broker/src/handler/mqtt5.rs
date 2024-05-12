@@ -5,7 +5,7 @@ use crate::core::session::get_session_info;
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
-use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::sub_manager::SubscribeManager;
 use crate::subscribe::subscribe::{filter_name_validator, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
@@ -384,12 +384,14 @@ where
             subscribe_properties.clone(),
         );
 
-        self.sucscribe_manager.add_subscribe(
-            client_id.clone(),
-            crate::server::MQTTProtocol::MQTT5,
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
+        self.sucscribe_manager
+            .add_subscribe(
+                client_id.clone(),
+                crate::server::MQTTProtocol::MQTT5,
+                subscribe.clone(),
+                subscribe_properties.clone(),
+            )
+            .await;
 
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());

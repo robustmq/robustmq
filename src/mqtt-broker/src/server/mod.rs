@@ -6,7 +6,7 @@ use crate::{
     core::client_heartbeat::HeartbeatManager, handler::command::Command,
     idempotent::memory::IdempotentMemory,
 };
-use crate::{core::metadata_cache::MetadataCacheManager, subscribe::manager::SubscribeManager};
+use crate::{core::metadata_cache::MetadataCacheManager, subscribe::sub_manager::SubscribeManager};
 use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},

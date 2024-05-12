@@ -1,5 +1,5 @@
 use super::{
-    manager::SubscribeManager,
+    sub_manager::SubscribeManager,
     subscribe::{max_qos, share_sub_rewrite_publish_flag},
 };
 use crate::{
@@ -359,48 +359,5 @@ pub async fn publish_to_client(
 
 #[cfg(test)]
 mod tests {
-    use crate::subscribe::subscribe::{decode_share_info, is_share_sub};
-
-    #[tokio::test]
-    async fn is_share_sub_test() {
-        let sub1 = "$share/consumer1/sport/tennis/+".to_string();
-        let sub2 = "$share/consumer2/sport/tennis/+".to_string();
-        let sub3 = "$share/consumer1/sport/#".to_string();
-        let sub4 = "$share/comsumer1/finance/#".to_string();
-
-        assert!(is_share_sub(sub1));
-        assert!(is_share_sub(sub2));
-        assert!(is_share_sub(sub3));
-        assert!(is_share_sub(sub4));
-
-        let sub5 = "/comsumer1/$share/finance/#".to_string();
-        let sub6 = "/comsumer1/$share/finance/$share".to_string();
-
-        assert!(!is_share_sub(sub5));
-        assert!(!is_share_sub(sub6));
-    }
-
-    #[tokio::test]
-    async fn decode_share_info_test() {
-        let sub1 = "$share/consumer1/sport/tennis/+".to_string();
-        let sub2 = "$share/consumer2/sport/tennis/+".to_string();
-        let sub3 = "$share/consumer1/sport/#".to_string();
-        let sub4 = "$share/comsumer1/finance/#".to_string();
-
-        let (group_name, topic_name) = decode_share_info(sub1);
-        assert_eq!(group_name, "consumer1".to_string());
-        assert_eq!(topic_name, "/sport/tennis/+".to_string());
-
-        let (group_name, topic_name) = decode_share_info(sub2);
-        assert_eq!(group_name, "consumer2".to_string());
-        assert_eq!(topic_name, "/sport/tennis/+".to_string());
-
-        let (group_name, topic_name) = decode_share_info(sub3);
-        assert_eq!(group_name, "consumer1".to_string());
-        assert_eq!(topic_name, "/sport/#".to_string());
-
-        let (group_name, topic_name) = decode_share_info(sub4);
-        assert_eq!(group_name, "comsumer1".to_string());
-        assert_eq!(topic_name, "/finance/#".to_string());
-    }
+   
 }

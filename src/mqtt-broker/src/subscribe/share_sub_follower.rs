@@ -1,8 +1,12 @@
-use super::{manager::SubscribeManager, share_sub_leader::publish_to_client, subscribe::{is_share_sub_rewrite_publish, share_sub_rewrite_publish_flag}};
+use super::{
+    sub_manager::SubscribeManager,
+    share_sub_leader::publish_to_client,
+    subscribe::{is_share_sub_rewrite_publish, share_sub_rewrite_publish_flag},
+};
 use crate::{
     core::metadata_cache::MetadataCacheManager,
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
-    subscribe::manager::ShareSubShareSub,
+    subscribe::sub_manager::ShareSubShareSub,
 };
 use common_base::log::{error, info};
 use dashmap::DashMap;
@@ -10,7 +14,8 @@ use futures::{SinkExt, StreamExt};
 use protocol::{
     mqtt::{
         Disconnect, DisconnectProperties, MQTTPacket, PubComp, PubCompProperties, PubRec,
-        PubRecProperties, Publish, PublishProperties, QoS, SubscribeProperties,
+        PubRecProperties, Publish, PublishProperties, QoS, SubscribeProperties, UnsubAck,
+        UnsubAckProperties, Unsubscribe, UnsubscribeProperties,
     },
     mqttv5::codec::Mqtt5Codec,
 };
@@ -84,7 +89,9 @@ impl SubscribeShareFollower {
     pub async fn stop_client(&self, client_id: String) {
         if let Some(sx) = self.follower_sub_thread.get(&client_id) {
             match sx.send(true).await {
-                Ok(_) => {}
+                Ok(_) => {
+                    self.follower_sub_thread.remove(&client_id);
+                }
                 Err(_) => {}
             }
         }
@@ -95,16 +102,6 @@ impl SubscribeShareFollower {
 
 async fn rewrite_sub_mqtt4(share_sub: ShareSubShareSub, mut rx: Receiver<bool>) {
     //todo MQTT 4 does not currently support shared subscriptions
-}
-
-pub fn build_rewrite_subscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
-    let subscribe = rewrite_sub.subscribe.clone();
-    let mut subscribe_properties = SubscribeProperties::default();
-    let mut user_properties = Vec::new();
-    user_properties.push(share_sub_rewrite_publish_flag());
-    subscribe_properties.user_properties = user_properties;
-    subscribe_properties.subscription_identifier = Some(rewrite_sub.identifier_id as usize);
-    return MQTTPacket::Subscribe(subscribe, Some(subscribe_properties));
 }
 
 async fn rewrite_sub_mqtt5(
@@ -127,10 +124,10 @@ async fn rewrite_sub_mqtt5(
                 if flag {
                     info(format!(
                         "Rewrite sub thread for client [{}] was stopped successfully",
-                        share_sub.client_id
+                        share_sub.client_id.clone()
                     ));
-                    //todo unsubscribe
-                    break;
+                    let unscribe_pkg = build_rewrite_unsubscribe_pkg(share_sub.clone());
+                    let _ = stream.send(unscribe_pkg).await;
                 }
             }
             Err(_) => {}
@@ -139,16 +136,20 @@ async fn rewrite_sub_mqtt5(
             match data {
                 Ok(da) => match da {
                     MQTTPacket::Publish(publish, publish_properties) => {
-                        packet_publish(
-                            subscribe_manager.clone(),
-                            metadata_cache.clone(),
-                            share_sub.clone(),
-                            publish,
-                            publish_properties,
-                            response_queue_sx4.clone(),
-                            response_queue_sx5.clone(),
-                        )
-                        .await;
+                        if let Some(properties) = publish_properties.clone() {
+                            if is_share_sub_rewrite_publish(properties.user_properties) {
+                                packet_publish(
+                                    subscribe_manager.clone(),
+                                    metadata_cache.clone(),
+                                    share_sub.clone(),
+                                    publish,
+                                    publish_properties,
+                                    response_queue_sx4.clone(),
+                                    response_queue_sx5.clone(),
+                                )
+                                .await;
+                            }
+                        }
                     }
 
                     MQTTPacket::PubRec(pubrec, pubrec_properties) => {
@@ -169,6 +170,11 @@ async fn rewrite_sub_mqtt5(
 
                     MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
                         packet_distinct(disconnect, disconnect_properties).await;
+                        break;
+                    }
+
+                    MQTTPacket::UnsubAck(unsuback, unsuback_properties) => {
+                        packet_unsuback(unsuback, unsuback_properties).await;
                         break;
                     }
                     _ => {
@@ -281,5 +287,31 @@ async fn packet_pubcomp(publish: PubComp, pubcomp_properties: Option<PubCompProp
 
 async fn packet_distinct(publish: Disconnect, disconnect_properties: Option<DisconnectProperties>) {
 }
+
+async fn packet_unsuback(publish: UnsubAck, disconnect_properties: Option<UnsubAckProperties>) {}
+
+pub fn build_rewrite_subscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
+    let subscribe = rewrite_sub.subscribe.clone();
+    let mut subscribe_properties = SubscribeProperties::default();
+    let mut user_properties = Vec::new();
+    user_properties.push(share_sub_rewrite_publish_flag());
+    subscribe_properties.user_properties = user_properties;
+    subscribe_properties.subscription_identifier = Some(rewrite_sub.identifier_id as usize);
+    return MQTTPacket::Subscribe(subscribe, Some(subscribe_properties));
+}
+
+pub fn build_rewrite_unsubscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
+    let filters = Vec::new();
+    let un_subscribe = Unsubscribe {
+        pkid: rewrite_sub.subscribe.packet_identifier,
+        filters,
+    };
+
+    let un_subscribe_properties = UnsubscribeProperties {
+        user_properties: Vec::new(),
+    };
+    return MQTTPacket::Unsubscribe(un_subscribe, Some(un_subscribe_properties));
+}
+
 #[cfg(test)]
 mod tests {}

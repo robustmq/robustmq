@@ -132,7 +132,6 @@ impl SubscribeManager {
         }
     }
 
-    pub fn share_sub_leader_change() {}
 
     pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {

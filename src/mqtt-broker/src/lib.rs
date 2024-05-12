@@ -40,7 +40,7 @@ use storage_adapter::{
     storage::StorageAdapter,
 };
 use subscribe::{
-    exclusive_sub::SubscribeExclusive, manager::SubscribeManager,
+    exclusive_sub::SubscribeExclusive, sub_manager::SubscribeManager,
     share_sub_follower::SubscribeShareFollower, share_sub_leader::SubscribeShareLeader,
 };
 use tokio::{
