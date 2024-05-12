@@ -1,7 +1,4 @@
-use super::{
-    share_sub::{decode_share_info, is_share_sub},
-    subscribe::path_regex_match,
-};
+use super::subscribe::{decode_share_info, is_share_sub, path_regex_match};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
 use crate::server::MQTTProtocol;
@@ -111,7 +108,7 @@ impl SubscribeManager {
         }
     }
 
-    pub fn add_subscribe(
+    pub async fn add_subscribe(
         &self,
         client_id: String,
         protocol: MQTTProtocol,
@@ -130,7 +127,8 @@ impl SubscribeManager {
                 protocol.clone(),
                 subscribe.clone(),
                 subscribe_properties.clone(),
-            );
+            )
+            .await;
         }
     }
 

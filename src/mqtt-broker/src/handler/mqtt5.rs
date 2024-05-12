@@ -6,7 +6,6 @@ use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::subscribe::manager::SubscribeManager;
-use crate::subscribe::share_sub::is_share_sub_rewrite_publish;
 use crate::subscribe::subscribe::{filter_name_validator, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
@@ -189,8 +188,6 @@ where
         publish_properties: Option<PublishProperties>,
         idempotent_manager: Arc<IdempotentMemory>,
     ) -> Option<MQTTPacket> {
-        if is_share_sub_rewrite_publish(publish_properties.clone()) {}
-
         let topic_name = match publish_get_topic_name(
             connect_id,
             publish.clone(),

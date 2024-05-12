@@ -11,6 +11,14 @@ use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
 
+use super::manager::ShareSubShareSub;
+
+const SHARE_SUB_PREFIX: &str = "$share";
+const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
+const SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE: &str = "True";
+
+
+
 pub fn filter_name_validator(filters: Vec<Filter>) -> bool {
     if filters.len() == 0 {
         return true;
@@ -136,6 +144,37 @@ pub async fn get_sub_topic_id_list(
         }
     }
     return result;
+}
+
+pub fn is_share_sub(sub_name: String) -> bool {
+    return sub_name.starts_with(SHARE_SUB_PREFIX);
+}
+
+pub fn decode_share_info(sub_name: String) -> (String, String) {
+    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
+    str_slice.remove(0);
+    let group_name = str_slice.remove(0).to_string();
+    let sub_name = format!("/{}", str_slice.join("/"));
+    return (group_name, sub_name);
+}
+
+pub fn is_share_sub_rewrite_publish(user_properties: Vec<(String, String)>) -> bool {
+    for (k, v) in user_properties {
+        if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
+            && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+pub fn share_sub_rewrite_publish_flag() -> (String, String) {
+    return (
+        SHARE_SUB_REWRITE_PUBLISH_FLAG.to_string(),
+        SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string(),
+    );
 }
 
 #[cfg(test)]
