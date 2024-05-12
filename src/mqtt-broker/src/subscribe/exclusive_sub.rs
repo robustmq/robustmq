@@ -15,7 +15,7 @@ use tokio::{
     time::sleep,
 };
 
-use super::{manager::SubscribeManager, share_sub::share_sub_rewrite_publish_flag, subscribe::max_qos};
+use super::{manager::SubscribeManager, subscribe::{max_qos, share_sub_rewrite_publish_flag}};
 #[derive(Clone)]
 pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,

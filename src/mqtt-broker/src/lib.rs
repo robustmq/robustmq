@@ -40,7 +40,8 @@ use storage_adapter::{
     storage::StorageAdapter,
 };
 use subscribe::{
-    exclusive_sub::SubscribeExclusive, manager::SubscribeManager, share_sub::SubscribeShare,
+    exclusive_sub::SubscribeExclusive, manager::SubscribeManager,
+    share_sub_follower::SubscribeShareFollower, share_sub_leader::SubscribeShareLeader,
 };
 use tokio::{
     runtime::Runtime,
@@ -227,8 +228,7 @@ where
             exclusive_sub.start().await;
         });
 
-        let share_sub = SubscribeShare::new(
-            self.client_poll.clone(),
+        let leader_sub = SubscribeShareLeader::new(
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.response_queue_sx4.clone(),
@@ -237,20 +237,18 @@ where
         );
 
         self.runtime.spawn(async move {
-            share_sub.start_leader_push().await;
+            leader_sub.start().await;
         });
 
-        let share_sub = SubscribeShare::new(
-            self.client_poll.clone(),
+        let follower_sub = SubscribeShareFollower::new(
             self.subscribe_manager.clone(),
-            self.message_storage_adapter.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.metadata_cache_manager.clone(),
         );
 
         self.runtime.spawn(async move {
-            share_sub.start_follower_sub().await;
+            follower_sub.start().await;
         });
     }
 

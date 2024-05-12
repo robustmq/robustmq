@@ -1,40 +1,29 @@
-use super::{manager::SubscribeManager, subscribe::max_qos};
+use super::{
+    manager::SubscribeManager,
+    subscribe::{max_qos, share_sub_rewrite_publish_flag},
+};
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    metadata::{message::Message, subscriber::Subscriber},
+    metadata::message::Message,
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
-    subscribe::manager::ShareSubShareSub,
 };
-
 use bytes::Bytes;
-use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     log::{error, info},
 };
 use dashmap::DashMap;
-use futures::{SinkExt, StreamExt};
-use protocol::{
-    mqtt::{MQTTPacket, Publish, PublishProperties, SubscribeProperties},
-    mqttv4::codec::Mqtt4Codec,
-    mqttv5::codec::Mqtt5Codec,
-};
+use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::{record::Record, storage::StorageAdapter};
 use tokio::{
-    net::TcpStream,
     sync::{
         broadcast,
         mpsc::{self, Receiver, Sender},
     },
     time::sleep,
 };
-use tokio_util::codec::Framed;
-
-const SHARE_SUB_PREFIX: &str = "$share";
-const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
-const SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE: &str = "True";
 
 const SHARED_SUBSCRIPTION_STRATEGY_ROUND_ROBIN: &str = "round_robin";
 const SHARED_SUBSCRIPTION_STRATEGY_RANDOM: &str = "random";
@@ -43,42 +32,35 @@ const SHARED_SUBSCRIPTION_STRATEGY_HASH: &str = "hash";
 const SHARED_SUBSCRIPTION_STRATEGY_LOCAL: &str = "local";
 
 #[derive(Clone)]
-pub struct SubscribeShare<S> {
+pub struct SubscribeShareLeader<S> {
     // (topic_id, Sender<bool>)
     pub leader_pull_data_thread: DashMap<String, Sender<bool>>,
 
     // (topic_id, Sender<bool>)
     pub leader_push_data_thread: DashMap<String, Sender<bool>>,
 
-    // (topic_id, Sender<bool>)
-    pub follower_sub_thread: DashMap<String, Sender<bool>>,
-
     pub subscribe_manager: Arc<SubscribeManager>,
-    client_poll: Arc<ClientPool>,
     message_storage: Arc<S>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
     metadata_cache: Arc<MetadataCacheManager>,
 }
 
-impl<S> SubscribeShare<S>
+impl<S> SubscribeShareLeader<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        client_poll: Arc<ClientPool>,
         subscribe_manager: Arc<SubscribeManager>,
         message_storage: Arc<S>,
         response_queue_sx4: broadcast::Sender<ResponsePackage>,
         response_queue_sx5: broadcast::Sender<ResponsePackage>,
         metadata_cache: Arc<MetadataCacheManager>,
     ) -> Self {
-        return SubscribeShare {
+        return SubscribeShareLeader {
             leader_pull_data_thread: DashMap::with_capacity(128),
             leader_push_data_thread: DashMap::with_capacity(128),
-            follower_sub_thread: DashMap::with_capacity(128),
             subscribe_manager,
-            client_poll,
             message_storage,
             response_queue_sx4,
             response_queue_sx5,
@@ -86,7 +68,7 @@ where
         };
     }
 
-    pub async fn start_leader_push(&self) {
+    pub async fn start(&self) {
         let conf = broker_mqtt_conf();
         loop {
             for (topic_id, sub_list) in self.subscribe_manager.share_leader_subscribe.clone() {
@@ -287,18 +269,55 @@ where
                             continue;
                         };
 
-                        let topic_name =
+                        let topic_name: String =
                             if let Some(topic_name) = metadata_cache.topic_id_name.get(&topic_id) {
                                 topic_name.clone()
                             } else {
                                 continue;
                             };
                         if let Some(record) = channel_rx.recv().await {
+                            let msg: Message = match Message::decode_record(record) {
+                                Ok(msg) => msg,
+                                Err(e) => {
+                                    error(e.to_string());
+                                    return;
+                                }
+                            };
+                            let mut sub_id = Vec::new();
+                            if let Some(id) = subscribe.subscription_identifier {
+                                sub_id.push(id);
+                            }
+
+                            let publish = Publish {
+                                dup: false,
+                                qos: max_qos(msg.qos, subscribe.qos),
+                                pkid: subscribe.packet_identifier,
+                                retain: false,
+                                topic: Bytes::from(topic_name),
+                                payload: msg.payload,
+                            };
+
+                            // If it is a shared subscription, it will be identified with the push message
+                            let mut user_properteis = Vec::new();
+                            user_properteis.push(share_sub_rewrite_publish_flag());
+
+                            let properties = PublishProperties {
+                                payload_format_indicator: None,
+                                message_expiry_interval: None,
+                                topic_alias: None,
+                                response_topic: None,
+                                correlation_data: None,
+                                user_properties: user_properteis,
+                                subscription_identifiers: sub_id.clone(),
+                                content_type: None,
+                            };
+                            let resp: ResponsePackage = ResponsePackage {
+                                connection_id: connect_id,
+                                packet: MQTTPacket::Publish(publish, Some(properties)),
+                            };
                             publish_to_client(
-                                connect_id,
-                                topic_name,
-                                subscribe,
-                                record,
+                                subscribe.protocol,
+                                resp,
                                 response_queue_sx4.clone(),
                                 response_queue_sx5.clone(),
                             )
@@ -317,123 +336,20 @@ where
     fn start_push_by_sticky(&self) {}
 
     fn start_push_by_local(&self) {}
-
-    pub async fn start_follower_sub(&self) {
-        for (client_id, share_sub) in self.subscribe_manager.share_follower_subscribe.clone() {
-            let (sx, rx) = mpsc::channel(1);
-            self.leader_pull_data_thread.insert(client_id.clone(), sx);
-            tokio::spawn(async move {
-                if share_sub.protocol == MQTTProtocol::MQTT4 {
-                    rewrite_sub_mqtt4(share_sub, rx).await;
-                } else if share_sub.protocol == MQTTProtocol::MQTT5 {
-                    rewrite_sub_mqtt5(share_sub, rx).await;
-                }
-            });
-        }
-    }
 }
 
-async fn rewrite_sub_mqtt4(share_sub: ShareSubShareSub, mut rx: Receiver<bool>) {
-    let socket = TcpStream::connect(share_sub.leader_addr.clone())
-        .await
-        .unwrap();
-    let stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
-}
-
-async fn rewrite_sub_mqtt5(share_sub: ShareSubShareSub, mut rx: Receiver<bool>) {
-    let socket = TcpStream::connect(share_sub.leader_addr.clone())
-        .await
-        .unwrap();
-    let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
-    let packet = build_rewrite_subscribe_pkg(share_sub);
-    let _ = stream.send(packet).await;
-    loop {
-        if let Some(data) = stream.next().await {
-            match data {
-                Ok(da) => match da {
-                    MQTTPacket::Publish(publish, publish_properties) => {
-                        
-                    }
-
-                    MQTTPacket::PubRec(publish, publish_properties) => {}
-
-                    MQTTPacket::PubComp(publish, publish_properties) => {}
-
-                    MQTTPacket::Disconnect(publish, publish_properties) => {}
-                    _ => {
-                        error("".to_string());
-                    }
-                },
-                Err(e) => error(e.to_string()),
-            }
-        }
-        match rx.try_recv() {
-            Ok(flag) => {
-                if flag {
-                    break;
-                }
-            }
-            Err(_) => {}
-        }
-    }
-}
-
-async fn publish_to_client(
-    connect_id: u64,
-    topic_name: String,
-    subscribe: Subscriber,
-    record: Record,
+pub async fn publish_to_client(
+    protocol: MQTTProtocol,
+    resp: ResponsePackage,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
 ) {
-    let mut sub_id = Vec::new();
-    if let Some(id) = subscribe.subscription_identifier {
-        sub_id.push(id);
-    }
-
-    let msg = match Message::decode_record(record) {
-        Ok(msg) => msg,
-        Err(e) => {
-            error(e.to_string());
-            return;
-        }
-    };
-
-    let publish = Publish {
-        dup: false,
-        qos: max_qos(msg.qos, subscribe.qos),
-        pkid: subscribe.packet_identifier,
-        retain: false,
-        topic: Bytes::from(topic_name.clone()),
-        payload: Bytes::from(msg.payload),
-    };
-
-    // If it is a shared subscription, it will be identified with the push message
-    let mut user_properteis = Vec::new();
-    user_properteis.push(share_sub_rewrite_publish_flag());
-
-    let properties = PublishProperties {
-        payload_format_indicator: None,
-        message_expiry_interval: None,
-        topic_alias: None,
-        response_topic: None,
-        correlation_data: None,
-        user_properties: user_properteis,
-        subscription_identifiers: sub_id.clone(),
-        content_type: None,
-    };
-
-    let resp = ResponsePackage {
-        connection_id: connect_id,
-        packet: MQTTPacket::Publish(publish, Some(properties)),
-    };
-
-    if subscribe.protocol == MQTTProtocol::MQTT4 {
+    if protocol == MQTTProtocol::MQTT4 {
         match response_queue_sx4.send(resp) {
             Ok(_) => {}
             Err(e) => error(format!("{}", e.to_string())),
         }
-    } else if subscribe.protocol == MQTTProtocol::MQTT5 {
+    } else if protocol == MQTTProtocol::MQTT5 {
         match response_queue_sx5.send(resp) {
             Ok(_) => {}
             Err(e) => error(format!("{}", e.to_string())),
@@ -441,57 +357,9 @@ async fn publish_to_client(
     }
 }
 
-pub fn is_share_sub(sub_name: String) -> bool {
-    return sub_name.starts_with(SHARE_SUB_PREFIX);
-}
-
-pub fn decode_share_info(sub_name: String) -> (String, String) {
-    let mut str_slice: Vec<&str> = sub_name.split("/").collect();
-    str_slice.remove(0);
-    let group_name = str_slice.remove(0).to_string();
-    let sub_name = format!("/{}", str_slice.join("/"));
-    return (group_name, sub_name);
-}
-
-pub fn is_share_sub_rewrite_publish(publish_properties: Option<PublishProperties>) -> bool {
-    if let Some(properties) = publish_properties {
-        for (k, v) in properties.user_properties {
-            if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
-                && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
-            {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-pub fn build_rewrite_subscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
-    let subscribe = rewrite_sub.subscribe.clone();
-    let mut subscribe_properties =
-        if let Some(properties) = rewrite_sub.subscribe_properties.clone() {
-            properties
-        } else {
-            SubscribeProperties::default()
-        };
-
-    let mut user_properties = Vec::new();
-    user_properties.push(share_sub_rewrite_publish_flag());
-    subscribe_properties.user_properties = user_properties;
-    return MQTTPacket::Subscribe(subscribe, Some(subscribe_properties));
-}
-
-pub fn share_sub_rewrite_publish_flag() -> (String, String) {
-    return (
-        SHARE_SUB_REWRITE_PUBLISH_FLAG.to_string(),
-        SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string(),
-    );
-}
-
 #[cfg(test)]
 mod tests {
-    use super::decode_share_info;
-    use crate::subscribe::share_sub::is_share_sub;
+    use crate::subscribe::subscribe::{decode_share_info, is_share_sub};
 
     #[tokio::test]
     async fn is_share_sub_test() {
