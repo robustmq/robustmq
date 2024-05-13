@@ -905,7 +905,7 @@ pub struct Unsubscribe {
     pub filters: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UnsubscribeProperties {
     pub user_properties: Vec<(String, String)>,
 }

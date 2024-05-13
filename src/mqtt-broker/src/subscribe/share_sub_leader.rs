@@ -93,15 +93,11 @@ where
                         }
                     }
 
-                    self.subscribe_manager
-                        .share_leader_subscribe
-                        .remove(&topic_id);
                     continue;
                 }
 
                 let (sx, rx) = mpsc::channel(10000);
 
-                let subscribe_manager = self.subscribe_manager.clone();
                 // start pull data thread
                 if !self.leader_pull_data_thread.contains_key(&topic_id) {
                     self.start_topic_pull_data_thread(topic_id.clone(), sx)
@@ -109,6 +105,7 @@ where
                 }
 
                 // start push data thread
+                let subscribe_manager = self.subscribe_manager.clone();
                 if !self.leader_push_data_thread.contains_key(&topic_id) {
                     // round_robin
                     if conf.subscribe.shared_subscription_strategy
@@ -157,7 +154,7 @@ where
         let message_storage = self.message_storage.clone();
         tokio::spawn(async move {
             info(format!(
-                "Share push thread for Topic [{}] was started successfully",
+                "Share sub pull data thread for Topic [{}] was started successfully",
                 topic_id
             ));
             let message_storage = MessageStorage::new(message_storage);
@@ -169,7 +166,7 @@ where
                     Ok(flag) => {
                         if flag {
                             info(format!(
-                                "Exclusive Push thread for Topic [{}] was stopped successfully",
+                                "Share sub pull data thread for Topic [{}] was stopped successfully",
                                 topic_id
                             ));
                             break;
@@ -226,27 +223,28 @@ where
     pub fn start_push_by_round_robin(
         &self,
         topic_id: String,
-        mut channel_rx: Receiver<Record>,
+        mut recv_message_rx: Receiver<Record>,
         subscribe_manager: Arc<SubscribeManager>,
     ) {
-        let (sx, mut rx) = mpsc::channel(1);
-        self.leader_push_data_thread.insert(topic_id.clone(), sx);
+        let (stop_sx, mut stop_rx) = mpsc::channel(1);
+        self.leader_push_data_thread
+            .insert(topic_id.clone(), stop_sx);
         let response_queue_sx4 = self.response_queue_sx4.clone();
         let response_queue_sx5 = self.response_queue_sx5.clone();
         let metadata_cache = self.metadata_cache.clone();
 
         tokio::spawn(async move {
             info(format!(
-                "Share push thread for Topic [{}] was started successfully",
+                "Share sub push data thread for Topic [{}] was started successfully",
                 topic_id
             ));
 
             loop {
-                match rx.try_recv() {
+                match stop_rx.try_recv() {
                     Ok(flag) => {
                         if flag {
                             info(format!(
-                                "Exclusive Push thread for Topic [{}] was stopped successfully",
+                                "Share sub push data thread for Topic [{}] was stopped successfully",
                                 topic_id
                             ));
                             break;
@@ -275,7 +273,7 @@ where
                             } else {
                                 continue;
                             };
-                        if let Some(record) = channel_rx.recv().await {
+                        if let Some(record) = recv_message_rx.recv().await {
                             let msg: Message = match Message::decode_record(record) {
                                 Ok(msg) => msg,
                                 Err(e) => {
@@ -297,9 +295,10 @@ where
                                 payload: msg.payload,
                             };
 
-                            // If it is a shared subscription, it will be identified with the push message
                             let mut user_properteis = Vec::new();
-                            user_properteis.push(share_sub_rewrite_publish_flag());
+                            if subscribe.is_contain_rewrite_flag {
+                                user_properteis.push(share_sub_rewrite_publish_flag());
+                            }
 
                             let properties = PublishProperties {
                                 payload_format_indicator: None,
@@ -358,6 +357,4 @@ pub async fn publish_to_client(
 }
 
 #[cfg(test)]
-mod tests {
-   
-}
+mod tests {}

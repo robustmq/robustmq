@@ -104,8 +104,8 @@ pub enum RobustMQError {
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,
 
-    #[error("Filter cannot be empty when subscribing")]
-    FilterCannotBeEmpty,
+    #[error("Bad subscription Path")]
+    BadSubscriptionPath,
 
 
 }

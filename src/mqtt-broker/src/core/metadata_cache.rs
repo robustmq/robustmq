@@ -74,7 +74,7 @@ impl MetadataCacheManager {
         return cache;
     }
 
-    pub fn add_filter(
+    pub fn add_client_subscribe(
         &self,
         client_id: String,
         protocol: MQTTProtocol,

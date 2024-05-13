@@ -363,7 +363,7 @@ where
         if filter_name_validator(subscribe.filters.clone()) {
             return self.ack_build.distinct(
                 DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::FilterCannotBeEmpty.to_string()),
+                Some(RobustMQError::BadSubscriptionPath.to_string()),
             );
         }
 
@@ -377,7 +377,7 @@ where
         };
 
         // Saving subscriptions
-        self.metadata_cache.add_filter(
+        self.metadata_cache.add_client_subscribe(
             client_id.clone(),
             crate::server::MQTTProtocol::MQTT5,
             subscribe.clone(),

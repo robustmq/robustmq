@@ -19,6 +19,12 @@ pub fn filter_name_validator(filters: Vec<Filter>) -> bool {
     if filters.len() == 0 {
         return true;
     }
+    let regex = Regex::new(r"^[a-zA-Z0-9#+/]+$").unwrap();
+    for filter in filters {
+        if !regex.is_match(&filter.path) {
+            return false;
+        }
+    }
 
     return false;
 }
@@ -154,7 +160,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
     return (group_name, sub_name);
 }
 
-pub fn is_share_sub_rewrite_publish(user_properties: Vec<(String, String)>) -> bool {
+pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
     for (k, v) in user_properties {
         if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
             && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()

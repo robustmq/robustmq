@@ -1,6 +1,9 @@
-use super::subscribe::{decode_share_info, is_share_sub, path_regex_match};
+use super::subscribe::{
+    decode_share_info, is_contain_rewrite_flag, is_share_sub, path_regex_match,
+};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
+use crate::metadata::topic;
 use crate::server::MQTTProtocol;
 use clients::{placement::mqtt::call::placement_get_share_sub, poll::ClientPool};
 use common_base::tools::now_second;
@@ -76,28 +79,15 @@ impl SubscribeManager {
         }
     }
 
+    // Handle subscriptions to new topics
     pub async fn parse_subscribe_by_new_topic(&self) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
-            let topic_id = topic.topic_id;
-            if self.exclusive_subscribe.contains_key(&topic_id) {
-                continue;
-            }
-
-            if !self.exclusive_subscribe.contains_key(&topic_id) {
-                self.exclusive_subscribe
-                    .insert(topic_id.clone(), DashMap::with_capacity(256));
-            }
-
             for (client_id, data) in self.metadata_cache.subscribe_filter.clone() {
-                if !self.client_subscribe.contains_key(&client_id) {
-                    self.client_subscribe
-                        .insert(client_id.clone(), DashMap::with_capacity(256));
-                }
                 let subscribe = data.subscribe;
                 let subscribe_properties = data.subscribe_properties;
                 self.parse_subscribe(
                     topic_name.clone(),
-                    topic_id.clone(),
+                    topic.topic_id.clone(),
                     client_id.clone(),
                     data.protocol.clone(),
                     subscribe,
@@ -116,13 +106,9 @@ impl SubscribeManager {
         subscribe_properties: Option<SubscribeProperties>,
     ) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
-            let topic_id = topic.topic_id;
-            if !self.exclusive_subscribe.contains_key(&topic_id) {
-                continue;
-            }
             self.parse_subscribe(
                 topic_name,
-                topic_id,
+                topic.topic_id,
                 client_id.clone(),
                 protocol.clone(),
                 subscribe.clone(),
@@ -131,7 +117,6 @@ impl SubscribeManager {
             .await;
         }
     }
-
 
     pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
@@ -172,9 +157,24 @@ impl SubscribeManager {
         } else {
             None
         };
+
+        if !self.exclusive_subscribe.contains_key(&topic_id) {
+            self.exclusive_subscribe
+                .insert(topic_id.clone(), DashMap::with_capacity(8));
+        }
+
+        if !self.share_leader_subscribe.contains_key(&topic_id) {
+            self.share_leader_subscribe
+                .insert(topic_id.clone(), DashMap::with_capacity(8));
+        }
+
+        if !self.client_subscribe.contains_key(&client_id) {
+            self.client_subscribe
+                .insert(client_id.clone(), DashMap::with_capacity(8));
+        }
+
         let exclusive_sub = self.exclusive_subscribe.get_mut(&topic_id).unwrap();
         let share_sub_leader = self.share_leader_subscribe.get_mut(&topic_id).unwrap();
-
         let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
 
         let conf = broker_mqtt_conf();
@@ -188,20 +188,24 @@ impl SubscribeManager {
                 preserve_retain: filter.preserve_retain,
                 subscription_identifier: sub_identifier,
                 user_properties: Vec::new(),
-                is_share_sub: false,
+                is_contain_rewrite_flag: false,
                 group_name: None,
             };
             if is_share_sub(filter.path.clone()) {
                 let (group_name, sub_name) = decode_share_info(filter.path.clone());
                 if path_regex_match(topic_name.clone(), sub_name.clone()) {
-                    sub.is_share_sub = true;
-                    sub.group_name = Some(group_name.clone());
                     match self
                         .get_share_sub_leader(group_name.clone(), sub_name.clone())
                         .await
                     {
                         Ok(reply) => {
                             if reply.broker_id == conf.broker_id {
+                                if let Some(properties) = subscribe_properties.clone() {
+                                    if is_contain_rewrite_flag(properties.user_properties) {
+                                        sub.is_contain_rewrite_flag = true;
+                                    }
+                                }
+                                sub.group_name = Some(group_name.clone());
                                 share_sub_leader.insert(client_id.clone(), sub);
                             } else {
                                 let identifier_id = SUB_IDENTIFIER_ID_BUILD
