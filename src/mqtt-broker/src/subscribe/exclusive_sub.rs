@@ -15,7 +15,7 @@ use tokio::{
     time::sleep,
 };
 
-use super::{manager::SubscribeManager, subscribe::{max_qos, share_sub_rewrite_publish_flag}};
+use super::{sub_manager::SubscribeManager, subscribe::max_qos};
 #[derive(Clone)]
 pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,
@@ -72,8 +72,6 @@ where
                         }
                     }
                 }
-
-                self.subscribe_manager.exclusive_subscribe.remove(&topic_id);
                 continue;
             }
 
@@ -142,7 +140,7 @@ async fn push_thread<S>(
     let message_storage = MessageStorage::new(message_storage);
     let group_id = format!("system_sub_{}", topic_id);
     let record_num = 5;
-    let max_wait_ms = 500;
+    let max_wait_ms = 100;
 
     for (topic_name, subscribe) in sub_list {
         match message_storage
@@ -202,11 +200,7 @@ async fn push_thread<S>(
                         payload: Bytes::from(msg.payload),
                     };
 
-                    // If it is a shared subscription, it will be identified with the push message
-                    let mut user_properteis = Vec::new();
-                    if subscribe.is_share_sub {
-                        user_properteis.push(share_sub_rewrite_publish_flag());
-                    }
+                    let user_properteis = Vec::new();
 
                     let properties = PublishProperties {
                         payload_format_indicator: None,

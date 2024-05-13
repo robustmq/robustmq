@@ -13,7 +13,7 @@ pub struct Subscriber {
     pub preserve_retain: bool,
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,
-    pub is_share_sub: bool,
+    pub is_contain_rewrite_flag: bool,
     pub group_name: Option<String>,
 }
 

@@ -1,5 +1,5 @@
 use super::{
-    manager::SubscribeManager,
+    sub_manager::SubscribeManager,
     subscribe::{max_qos, share_sub_rewrite_publish_flag},
 };
 use crate::{
@@ -93,15 +93,11 @@ where
                         }
                     }
 
-                    self.subscribe_manager
-                        .share_leader_subscribe
-                        .remove(&topic_id);
                     continue;
                 }
 
                 let (sx, rx) = mpsc::channel(10000);
 
-                let subscribe_manager = self.subscribe_manager.clone();
                 // start pull data thread
                 if !self.leader_pull_data_thread.contains_key(&topic_id) {
                     self.start_topic_pull_data_thread(topic_id.clone(), sx)
@@ -109,6 +105,7 @@ where
                 }
 
                 // start push data thread
+                let subscribe_manager = self.subscribe_manager.clone();
                 if !self.leader_push_data_thread.contains_key(&topic_id) {
                     // round_robin
                     if conf.subscribe.shared_subscription_strategy
@@ -157,7 +154,7 @@ where
         let message_storage = self.message_storage.clone();
         tokio::spawn(async move {
             info(format!(
-                "Share push thread for Topic [{}] was started successfully",
+                "Share sub pull data thread for Topic [{}] was started successfully",
                 topic_id
             ));
             let message_storage = MessageStorage::new(message_storage);
@@ -169,7 +166,7 @@ where
                     Ok(flag) => {
                         if flag {
                             info(format!(
-                                "Exclusive Push thread for Topic [{}] was stopped successfully",
+                                "Share sub pull data thread for Topic [{}] was stopped successfully",
                                 topic_id
                             ));
                             break;
@@ -226,27 +223,28 @@ where
     pub fn start_push_by_round_robin(
         &self,
         topic_id: String,
-        mut channel_rx: Receiver<Record>,
+        mut recv_message_rx: Receiver<Record>,
         subscribe_manager: Arc<SubscribeManager>,
     ) {
-        let (sx, mut rx) = mpsc::channel(1);
-        self.leader_push_data_thread.insert(topic_id.clone(), sx);
+        let (stop_sx, mut stop_rx) = mpsc::channel(1);
+        self.leader_push_data_thread
+            .insert(topic_id.clone(), stop_sx);
         let response_queue_sx4 = self.response_queue_sx4.clone();
         let response_queue_sx5 = self.response_queue_sx5.clone();
         let metadata_cache = self.metadata_cache.clone();
 
         tokio::spawn(async move {
             info(format!(
-                "Share push thread for Topic [{}] was started successfully",
+                "Share sub push data thread for Topic [{}] was started successfully",
                 topic_id
             ));
 
             loop {
-                match rx.try_recv() {
+                match stop_rx.try_recv() {
                     Ok(flag) => {
                         if flag {
                             info(format!(
-                                "Exclusive Push thread for Topic [{}] was stopped successfully",
+                                "Share sub push data thread for Topic [{}] was stopped successfully",
                                 topic_id
                             ));
                             break;
@@ -275,7 +273,7 @@ where
                             } else {
                                 continue;
                             };
-                        if let Some(record) = channel_rx.recv().await {
+                        if let Some(record) = recv_message_rx.recv().await {
                             let msg: Message = match Message::decode_record(record) {
                                 Ok(msg) => msg,
                                 Err(e) => {
@@ -297,9 +295,10 @@ where
                                 payload: msg.payload,
                             };
 
-                            // If it is a shared subscription, it will be identified with the push message
                             let mut user_properteis = Vec::new();
-                            user_properteis.push(share_sub_rewrite_publish_flag());
+                            if subscribe.is_contain_rewrite_flag {
+                                user_properteis.push(share_sub_rewrite_publish_flag());
+                            }
 
                             let properties = PublishProperties {
                                 payload_format_indicator: None,
@@ -358,49 +357,4 @@ pub async fn publish_to_client(
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::subscribe::subscribe::{decode_share_info, is_share_sub};
-
-    #[tokio::test]
-    async fn is_share_sub_test() {
-        let sub1 = "$share/consumer1/sport/tennis/+".to_string();
-        let sub2 = "$share/consumer2/sport/tennis/+".to_string();
-        let sub3 = "$share/consumer1/sport/#".to_string();
-        let sub4 = "$share/comsumer1/finance/#".to_string();
-
-        assert!(is_share_sub(sub1));
-        assert!(is_share_sub(sub2));
-        assert!(is_share_sub(sub3));
-        assert!(is_share_sub(sub4));
-
-        let sub5 = "/comsumer1/$share/finance/#".to_string();
-        let sub6 = "/comsumer1/$share/finance/$share".to_string();
-
-        assert!(!is_share_sub(sub5));
-        assert!(!is_share_sub(sub6));
-    }
-
-    #[tokio::test]
-    async fn decode_share_info_test() {
-        let sub1 = "$share/consumer1/sport/tennis/+".to_string();
-        let sub2 = "$share/consumer2/sport/tennis/+".to_string();
-        let sub3 = "$share/consumer1/sport/#".to_string();
-        let sub4 = "$share/comsumer1/finance/#".to_string();
-
-        let (group_name, topic_name) = decode_share_info(sub1);
-        assert_eq!(group_name, "consumer1".to_string());
-        assert_eq!(topic_name, "/sport/tennis/+".to_string());
-
-        let (group_name, topic_name) = decode_share_info(sub2);
-        assert_eq!(group_name, "consumer2".to_string());
-        assert_eq!(topic_name, "/sport/tennis/+".to_string());
-
-        let (group_name, topic_name) = decode_share_info(sub3);
-        assert_eq!(group_name, "consumer1".to_string());
-        assert_eq!(topic_name, "/sport/#".to_string());
-
-        let (group_name, topic_name) = decode_share_info(sub4);
-        assert_eq!(group_name, "comsumer1".to_string());
-        assert_eq!(topic_name, "/finance/#".to_string());
-    }
-}
+mod tests {}

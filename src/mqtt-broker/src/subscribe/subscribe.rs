@@ -11,17 +11,19 @@ use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
 
-use super::manager::ShareSubShareSub;
-
 const SHARE_SUB_PREFIX: &str = "$share";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE: &str = "True";
 
-
-
 pub fn filter_name_validator(filters: Vec<Filter>) -> bool {
     if filters.len() == 0 {
         return true;
+    }
+    let regex = Regex::new(r"^[a-zA-Z0-9#+/]+$").unwrap();
+    for filter in filters {
+        if !regex.is_match(&filter.path) {
+            return false;
+        }
     }
 
     return false;
@@ -158,7 +160,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
     return (group_name, sub_name);
 }
 
-pub fn is_share_sub_rewrite_publish(user_properties: Vec<(String, String)>) -> bool {
+pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
     for (k, v) in user_properties {
         if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
             && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
@@ -187,6 +189,7 @@ mod tests {
     use tokio::sync::broadcast;
 
     use crate::core::metadata_cache::MetadataCacheManager;
+    use crate::subscribe::subscribe::{decode_share_info, is_share_sub};
     use crate::{
         metadata::{message::Message, topic::Topic},
         storage::message::MessageStorage,
@@ -195,6 +198,48 @@ mod tests {
         },
     };
 
+    #[tokio::test]
+    async fn is_share_sub_test() {
+        let sub1 = "$share/consumer1/sport/tennis/+".to_string();
+        let sub2 = "$share/consumer2/sport/tennis/+".to_string();
+        let sub3 = "$share/consumer1/sport/#".to_string();
+        let sub4 = "$share/comsumer1/finance/#".to_string();
+
+        assert!(is_share_sub(sub1));
+        assert!(is_share_sub(sub2));
+        assert!(is_share_sub(sub3));
+        assert!(is_share_sub(sub4));
+
+        let sub5 = "/comsumer1/$share/finance/#".to_string();
+        let sub6 = "/comsumer1/$share/finance/$share".to_string();
+
+        assert!(!is_share_sub(sub5));
+        assert!(!is_share_sub(sub6));
+    }
+
+    #[tokio::test]
+    async fn decode_share_info_test() {
+        let sub1 = "$share/consumer1/sport/tennis/+".to_string();
+        let sub2 = "$share/consumer2/sport/tennis/+".to_string();
+        let sub3 = "$share/consumer1/sport/#".to_string();
+        let sub4 = "$share/comsumer1/finance/#".to_string();
+
+        let (group_name, topic_name) = decode_share_info(sub1);
+        assert_eq!(group_name, "consumer1".to_string());
+        assert_eq!(topic_name, "/sport/tennis/+".to_string());
+
+        let (group_name, topic_name) = decode_share_info(sub2);
+        assert_eq!(group_name, "consumer2".to_string());
+        assert_eq!(topic_name, "/sport/tennis/+".to_string());
+
+        let (group_name, topic_name) = decode_share_info(sub3);
+        assert_eq!(group_name, "consumer1".to_string());
+        assert_eq!(topic_name, "/sport/#".to_string());
+
+        let (group_name, topic_name) = decode_share_info(sub4);
+        assert_eq!(group_name, "comsumer1".to_string());
+        assert_eq!(topic_name, "/finance/#".to_string());
+    }
     #[test]
     fn path_regex_match_test() {
         let topic_name = "/topic/test".to_string();

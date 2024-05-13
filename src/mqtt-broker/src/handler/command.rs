@@ -6,7 +6,7 @@ use crate::core::metadata_cache::MetadataCacheManager;
 use crate::idempotent::memory::IdempotentMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
-use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::sub_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};

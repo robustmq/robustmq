@@ -5,7 +5,7 @@ use crate::core::session::get_session_info;
 use crate::idempotent::Idempotent;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
-use crate::subscribe::manager::SubscribeManager;
+use crate::subscribe::sub_manager::SubscribeManager;
 use crate::subscribe::subscribe::{filter_name_validator, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
@@ -363,7 +363,7 @@ where
         if filter_name_validator(subscribe.filters.clone()) {
             return self.ack_build.distinct(
                 DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::FilterCannotBeEmpty.to_string()),
+                Some(RobustMQError::BadSubscriptionPath.to_string()),
             );
         }
 
@@ -377,19 +377,21 @@ where
         };
 
         // Saving subscriptions
-        self.metadata_cache.add_filter(
+        self.metadata_cache.add_client_subscribe(
             client_id.clone(),
             crate::server::MQTTProtocol::MQTT5,
             subscribe.clone(),
             subscribe_properties.clone(),
         );
 
-        self.sucscribe_manager.add_subscribe(
-            client_id.clone(),
-            crate::server::MQTTProtocol::MQTT5,
-            subscribe.clone(),
-            subscribe_properties.clone(),
-        );
+        self.sucscribe_manager
+            .add_subscribe(
+                client_id.clone(),
+                crate::server::MQTTProtocol::MQTT5,
+                subscribe.clone(),
+                subscribe_properties.clone(),
+            )
+            .await;
 
         // Reservation messages are processed when a subscription is created
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
