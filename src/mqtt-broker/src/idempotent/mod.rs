@@ -1,6 +1,5 @@
 use axum::async_trait;
 use common_base::log::info;
-use dashmap::DashMap;
 
 pub mod memory;
 pub mod persistence;
@@ -12,11 +11,16 @@ pub struct IdempotentData {
 }
 
 #[async_trait]
-pub trait Idempotent {
-    async fn save_idem_data(&self, client_id: String, pkid: u16);
-    async fn delete_idem_data(&self, client_id: String, pkid: u16);
-    async fn get_idem_data(&self, client_id: String, pkid: u16) -> Option<IdempotentData>;
-    async fn idem_data(&self) -> DashMap<String, IdempotentData>;
+pub trait PacketIdentifierManager {
+    // qos
+    async fn save_qos_pkid_data(&self, client_id: String, pkid: u16);
+    async fn delete_qos_pkid_data(&self, client_id: String, pkid: u16);
+    async fn get_qos_pkid_data(&self, client_id: String, pkid: u16) -> Option<IdempotentData>;
+
+    // sub
+    async fn save_sub_pkid_data(&self, client_id: String, pkid: u16);
+    async fn delete_sub_pkid_data(&self, client_id: String, pkid: u16);
+    async fn get_sub_pkid_data(&self, client_id: String, pkid: u16) -> Option<u64>;
 }
 
 pub struct IdempotentCleanManager {}

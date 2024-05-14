@@ -3,7 +3,7 @@ use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
 use crate::core::client_heartbeat::HeartbeatManager;
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::idempotent::memory::IdempotentMemory;
+use crate::idempotent::memory::PacketIdentifierMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
 use crate::subscribe::sub_manager::SubscribeManager;
@@ -24,7 +24,7 @@ pub struct Command<T, S> {
     mqtt5_service: Mqtt5Service<T, S>,
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
-    idempotent_manager: Arc<IdempotentMemory>,
+    idempotent_manager: Arc<PacketIdentifierMemory>,
 }
 
 impl<T, S> Command<T, S>
@@ -39,7 +39,7 @@ where
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
-        idempotent_manager: Arc<IdempotentMemory>,
+        idempotent_manager: Arc<PacketIdentifierMemory>,
         sucscribe_manager: Arc<SubscribeManager>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());

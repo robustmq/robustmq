@@ -3,8 +3,8 @@ use crate::{metadata::cluster::Cluster, server::MQTTProtocol};
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
-    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubscribeReasonCode, UnsubAck,
-    UnsubAckProperties, UnsubAckReason,
+    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubAckProperties,
+    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 use std::sync::Arc;
 
@@ -122,12 +122,13 @@ impl MQTTAckBuild {
         return MQTTPacket::PingResp(PingResp {});
     }
 
-    pub fn sub_ack(&self, pkid: u16) -> MQTTPacket {
-        let sub_ack = SubAck {
-            pkid: pkid,
-            return_codes: vec![SubscribeReasonCode::QoS0],
+    pub fn sub_ack(&self, pkid: u16, return_codes: Vec<SubscribeReasonCode>) -> MQTTPacket {
+        let sub_ack = SubAck { pkid, return_codes };
+        let properties = SubAckProperties {
+            reason_string: None,
+            user_properties: Vec::new(),
         };
-        return MQTTPacket::SubAck(sub_ack, None);
+        return MQTTPacket::SubAck(sub_ack, Some(properties));
     }
 
     pub fn unsub_ack(

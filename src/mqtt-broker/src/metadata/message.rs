@@ -6,6 +6,7 @@ use storage_adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct Message {
+    pub client_id: String,
     pub dup: bool,
     pub qos: QoS,
     pub pkid: u16,
@@ -24,10 +25,12 @@ pub struct Message {
 
 impl Message {
     pub fn build_message(
+        client_id: String,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Message {
         let mut message = Message::default();
+        message.client_id = client_id;
         message.dup = publish.dup;
         message.qos = publish.qos;
         message.pkid = publish.pkid;
@@ -48,10 +51,11 @@ impl Message {
     }
 
     pub fn build_record(
+        client_id: String,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<Record> {
-        let msg = Message::build_message(publish, publish_properties);
+        let msg = Message::build_message(client_id, publish, publish_properties);
         match serde_json::to_vec(&msg) {
             Ok(data) => {
                 return Some(Record::build_b(data));

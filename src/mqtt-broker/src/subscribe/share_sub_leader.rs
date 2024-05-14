@@ -1,6 +1,6 @@
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{max_qos, share_sub_rewrite_publish_flag},
+    subscribe::{min_qos, share_sub_rewrite_publish_flag},
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
@@ -288,7 +288,7 @@ where
 
                             let publish = Publish {
                                 dup: false,
-                                qos: max_qos(msg.qos, subscribe.qos),
+                                qos: min_qos(msg.qos, subscribe.qos),
                                 pkid: subscribe.packet_identifier,
                                 retain: false,
                                 topic: Bytes::from(topic_name),

@@ -4,7 +4,7 @@ use bytes::Bytes;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
     Filter, MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
-    SubscribeProperties,
+    SubscribeProperties, SubscribeReasonCode,
 };
 use regex::Regex;
 use std::sync::Arc;
@@ -14,20 +14,6 @@ use tokio::sync::broadcast::Sender;
 const SHARE_SUB_PREFIX: &str = "$share";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE: &str = "True";
-
-pub fn filter_name_validator(filters: Vec<Filter>) -> bool {
-    if filters.len() == 0 {
-        return true;
-    }
-    let regex = Regex::new(r"^[a-zA-Z0-9#+/]+$").unwrap();
-    for filter in filters {
-        if !regex.is_match(&filter.path) {
-            return false;
-        }
-    }
-
-    return false;
-}
 
 pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
     // Path perfect matching
@@ -91,7 +77,7 @@ where
                     if let Some(topic_name) = metadata_cache.topic_name_by_id(topic_id) {
                         let publish = Publish {
                             dup: dup_msg,
-                            qos: max_qos(msg.qos, filter.qos),
+                            qos: min_qos(msg.qos, filter.qos),
                             pkid: subscribe.packet_identifier,
                             retain: false,
                             topic: Bytes::from(topic_name),
@@ -126,11 +112,11 @@ where
     return Ok(());
 }
 
-pub fn max_qos(msg_qos: QoS, sub_max_qos: QoS) -> QoS {
-    if msg_qos <= sub_max_qos {
-        return msg_qos;
+pub fn min_qos(cluser_qos: QoS, sub_qos: QoS) -> QoS {
+    if cluser_qos <= sub_qos {
+        return cluser_qos;
     }
-    return sub_max_qos;
+    return sub_qos;
 }
 
 pub async fn get_sub_topic_id_list(
@@ -194,7 +180,7 @@ mod tests {
         metadata::{message::Message, topic::Topic},
         storage::message::MessageStorage,
         subscribe::subscribe::{
-            get_sub_topic_id_list, max_qos, path_regex_match, save_retain_message,
+            get_sub_topic_id_list, min_qos, path_regex_match, save_retain_message,
         },
     };
 
@@ -271,11 +257,11 @@ mod tests {
     fn max_qos_test() {
         let mut sub_max_qos = QoS::AtMostOnce;
         let mut msg_qos = QoS::AtLeastOnce;
-        assert_eq!(max_qos(msg_qos, sub_max_qos), sub_max_qos);
+        assert_eq!(min_qos(msg_qos, sub_max_qos), sub_max_qos);
 
         msg_qos = QoS::AtMostOnce;
         sub_max_qos = QoS::AtLeastOnce;
-        assert_eq!(max_qos(msg_qos, sub_max_qos), msg_qos);
+        assert_eq!(min_qos(msg_qos, sub_max_qos), msg_qos);
     }
 
     #[tokio::test]

@@ -25,7 +25,7 @@ use core::{
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
-use idempotent::memory::IdempotentMemory;
+use idempotent::memory::PacketIdentifierMemory;
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -84,7 +84,7 @@ pub struct MqttBroker<'a, T, S> {
     conf: &'a BrokerMQTTConfig,
     metadata_cache_manager: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatManager>,
-    idempotent_manager: Arc<IdempotentMemory>,
+    idempotent_manager: Arc<PacketIdentifierMemory>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
@@ -117,7 +117,7 @@ where
         let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
 
         let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
-        let idempotent_manager: Arc<IdempotentMemory> = Arc::new(IdempotentMemory::new());
+        let idempotent_manager: Arc<PacketIdentifierMemory> = Arc::new(PacketIdentifierMemory::new());
         let subscribe_manager = Arc::new(SubscribeManager::new(
             metadata_cache.clone(),
             client_poll.clone(),

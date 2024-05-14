@@ -15,7 +15,7 @@ use tokio::{
     time::sleep,
 };
 
-use super::{sub_manager::SubscribeManager, subscribe::max_qos};
+use super::{sub_manager::SubscribeManager, subscribe::min_qos};
 #[derive(Clone)]
 pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,
@@ -191,16 +191,25 @@ async fn push_thread<S>(
                             continue;
                         }
                     };
+
+                    if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
+                        continue;
+                    }
+
+                    let retain = if subscribe.preserve_retain {
+                        msg.retain
+                    } else {
+                        false
+                    };
+
                     let publish = Publish {
                         dup: false,
-                        qos: max_qos(msg.qos, subscribe.qos),
+                        qos: min_qos(msg.qos, subscribe.qos),
                         pkid: subscribe.packet_identifier,
-                        retain: false,
+                        retain,
                         topic: Bytes::from(topic_name.clone()),
                         payload: Bytes::from(msg.payload),
                     };
-
-                    let user_properteis = Vec::new();
 
                     let properties = PublishProperties {
                         payload_format_indicator: None,
@@ -208,7 +217,7 @@ async fn push_thread<S>(
                         topic_alias: None,
                         response_topic: None,
                         correlation_data: None,
-                        user_properties: user_properteis,
+                        user_properties: Vec::new(),
                         subscription_identifiers: sub_id.clone(),
                         content_type: None,
                     };

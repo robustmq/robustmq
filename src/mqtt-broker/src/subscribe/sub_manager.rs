@@ -1,5 +1,5 @@
 use super::subscribe::{
-    decode_share_info, is_contain_rewrite_flag, is_share_sub, path_regex_match,
+    decode_share_info, is_contain_rewrite_flag, is_share_sub, min_qos, path_regex_match,
 };
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
@@ -177,13 +177,14 @@ impl SubscribeManager {
         let share_sub_leader = self.share_leader_subscribe.get_mut(&topic_id).unwrap();
         let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
 
+        let cluster = self.metadata_cache.get_cluster_info();
         let conf = broker_mqtt_conf();
         for filter in subscribe.filters.clone() {
             let mut sub = Subscriber {
                 protocol: protocol.clone(),
                 client_id: client_id.clone(),
                 packet_identifier: subscribe.packet_identifier,
-                qos: filter.qos,
+                qos: min_qos(cluster.max_qos(), filter.qos),
                 nolocal: filter.nolocal,
                 preserve_retain: filter.preserve_retain,
                 subscription_identifier: sub_identifier,
