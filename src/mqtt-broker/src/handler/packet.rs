@@ -39,7 +39,7 @@ impl MQTTAckBuild {
         let properties = ConnAckProperties {
             session_expiry_interval: Some(session_expiry_interval),
             receive_max: Some(cluster.receive_max()),
-            max_qos: Some(cluster.max_qos()),
+            max_qos: Some(cluster.max_qos().into()),
             retain_available: Some(cluster.retain_available()),
             max_packet_size: Some(cluster.max_packet_size()),
             assigned_client_identifier: assigned_client_identifier,

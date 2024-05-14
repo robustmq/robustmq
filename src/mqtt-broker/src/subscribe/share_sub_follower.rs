@@ -1,7 +1,6 @@
 use super::{
-    share_sub_leader::publish_to_client,
     sub_manager::SubscribeManager,
-    subscribe::{is_contain_rewrite_flag, share_sub_rewrite_publish_flag},
+    subscribe::{is_contain_rewrite_flag, publish_to_client, share_sub_rewrite_publish_flag},
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
@@ -120,7 +119,8 @@ async fn rewrite_sub_mqtt5(
         .await
         .unwrap();
     let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
-
+    // connect
+    
     // Subscribe data to Sub Leader node and send subscription request packet
     let packet = build_rewrite_subscribe_pkg(share_sub.clone());
     let _ = stream.send(packet).await;

@@ -2,14 +2,14 @@ use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::get_session_info;
-use crate::idempotent::PacketIdentifierManager;
+use crate::qos::QosDataManager;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::subscribe::sub_manager::SubscribeManager;
 use crate::subscribe::subscribe::{min_qos, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
-    idempotent::memory::PacketIdentifierMemory,
+    qos::memory::QosMemory,
     metadata::{message::Message, session::LastWillData},
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
@@ -187,7 +187,7 @@ where
         connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
-        idempotent_manager: Arc<PacketIdentifierMemory>,
+        idempotent_manager: Arc<QosMemory>,
     ) -> Option<MQTTPacket> {
         let topic_name = match publish_get_topic_name(
             connect_id,
@@ -334,7 +334,7 @@ where
         connect_id: u64,
         pub_rel: PubRel,
         _: Option<PubRelProperties>,
-        idempotent_manager: Arc<PacketIdentifierMemory>,
+        idempotent_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             conn.client_id.clone()
@@ -365,7 +365,7 @@ where
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
-        pkid_manager: Arc<PacketIdentifierMemory>,
+        pkid_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             conn.client_id.clone()
@@ -417,7 +417,7 @@ where
             );
         }
 
-        pkid_manager.save_sub_pkid_data(client_id.clone(), subscribe.packet_identifier);
+        pkid_manager.save_sub_pkid_data(client_id.clone(), subscribe.packet_identifier).await;
 
         // Saving subscriptions
         self.metadata_cache.add_client_subscribe(
@@ -488,7 +488,7 @@ where
         connect_id: u64,
         un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
-        idempotent_manager: Arc<PacketIdentifierMemory>,
+        idempotent_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
         let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
             se.clone()
@@ -498,6 +498,8 @@ where
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
+
+        idempotent_manager.delete_sub_pkid_data(connection.client_id.clone(), un_subscribe.pkid).await;
 
         // Remove subscription information
         if un_subscribe.filters.len() > 0 {

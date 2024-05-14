@@ -1,9 +1,8 @@
 use super::subscribe::{
-    decode_share_info, is_contain_rewrite_flag, is_share_sub, min_qos, path_regex_match,
+    decode_share_info, is_contain_rewrite_flag, is_share_sub, path_regex_match,
 };
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
-use crate::metadata::topic;
 use crate::server::MQTTProtocol;
 use clients::{placement::mqtt::call::placement_get_share_sub, poll::ClientPool};
 use common_base::tools::now_second;
@@ -42,8 +41,8 @@ pub struct SubscribeManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
 
-    // (topic_id,(client_id,Subscriber))
-    pub exclusive_subscribe: DashMap<String, DashMap<String, Subscriber>>,
+    // (client_id,Subscriber)
+    pub exclusive_subscribe: DashMap<String, Subscriber>,
 
     // (topic_id,(client_id,Subscriber))
     pub share_leader_subscribe: DashMap<String, DashMap<String, Subscriber>>,
@@ -131,9 +130,7 @@ impl SubscribeManager {
                         sub_list.remove(&client_id);
                     }
                 } else {
-                    if let Some(sub_list) = self.exclusive_subscribe.get_mut(&topic_id) {
-                        sub_list.remove(&client_id);
-                    }
+                    self.exclusive_subscribe.remove(&client_id);
                 }
 
                 if let Some(client_list) = self.client_subscribe.get_mut(&client_id) {
@@ -158,11 +155,6 @@ impl SubscribeManager {
             None
         };
 
-        if !self.exclusive_subscribe.contains_key(&topic_id) {
-            self.exclusive_subscribe
-                .insert(topic_id.clone(), DashMap::with_capacity(8));
-        }
-
         if !self.share_leader_subscribe.contains_key(&topic_id) {
             self.share_leader_subscribe
                 .insert(topic_id.clone(), DashMap::with_capacity(8));
@@ -173,22 +165,21 @@ impl SubscribeManager {
                 .insert(client_id.clone(), DashMap::with_capacity(8));
         }
 
-        let exclusive_sub = self.exclusive_subscribe.get_mut(&topic_id).unwrap();
         let share_sub_leader = self.share_leader_subscribe.get_mut(&topic_id).unwrap();
         let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
 
-        let cluster = self.metadata_cache.get_cluster_info();
         let conf = broker_mqtt_conf();
         for filter in subscribe.filters.clone() {
             let mut sub = Subscriber {
                 protocol: protocol.clone(),
                 client_id: client_id.clone(),
+                topic_name: topic_name.clone(),
+                topic_id: topic_id.clone(),
                 packet_identifier: subscribe.packet_identifier,
-                qos: min_qos(cluster.max_qos(), filter.qos),
+                qos: filter.qos,
                 nolocal: filter.nolocal,
                 preserve_retain: filter.preserve_retain,
                 subscription_identifier: sub_identifier,
-                user_properties: Vec::new(),
                 is_contain_rewrite_flag: false,
                 group_name: None,
             };
@@ -237,7 +228,7 @@ impl SubscribeManager {
                 }
             } else {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
-                    exclusive_sub.insert(client_id.clone(), sub);
+                    self.exclusive_subscribe.insert(client_id.clone(), sub);
                     client_sub.insert(topic_id.clone(), now_second());
                 }
             }

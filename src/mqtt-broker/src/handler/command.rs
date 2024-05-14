@@ -3,11 +3,10 @@ use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
 use crate::core::client_heartbeat::HeartbeatManager;
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::idempotent::memory::PacketIdentifierMemory;
+use crate::qos::memory::QosMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
 use crate::subscribe::sub_manager::SubscribeManager;
-use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
 use std::sync::Arc;
@@ -24,7 +23,7 @@ pub struct Command<T, S> {
     mqtt5_service: Mqtt5Service<T, S>,
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
-    idempotent_manager: Arc<PacketIdentifierMemory>,
+    idempotent_manager: Arc<QosMemory>,
 }
 
 impl<T, S> Command<T, S>
@@ -39,7 +38,7 @@ where
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
-        idempotent_manager: Arc<PacketIdentifierMemory>,
+        idempotent_manager: Arc<QosMemory>,
         sucscribe_manager: Arc<SubscribeManager>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
@@ -180,6 +179,7 @@ where
                                 subscribe,
                                 subscribe_properties,
                                 self.response_queue_sx.clone(),
+                                self.idempotent_manager.clone()
                             )
                             .await,
                     );
@@ -211,7 +211,7 @@ where
                 if self.protocol == MQTTProtocol::MQTT5 {
                     return Some(
                         self.mqtt5_service
-                            .un_subscribe(connect_id, unsubscribe, unsubscribe_properties)
+                            .un_subscribe(connect_id, unsubscribe, unsubscribe_properties,self.idempotent_manager.clone())
                             .await,
                     );
                 }

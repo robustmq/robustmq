@@ -1,4 +1,5 @@
 use crate::core::metadata_cache::MetadataCacheManager;
+use crate::server::MQTTProtocol;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
 use common_base::{errors::RobustMQError, log::error};
@@ -9,7 +10,7 @@ use protocol::mqtt::{
 use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast::{self, Sender};
 
 const SHARE_SUB_PREFIX: &str = "$share";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
@@ -112,9 +113,9 @@ where
     return Ok(());
 }
 
-pub fn min_qos(cluser_qos: QoS, sub_qos: QoS) -> QoS {
-    if cluser_qos <= sub_qos {
-        return cluser_qos;
+pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
+    if qos <= sub_qos {
+        return qos;
     }
     return sub_qos;
 }
@@ -164,6 +165,26 @@ pub fn share_sub_rewrite_publish_flag() -> (String, String) {
         SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string(),
     );
 }
+
+pub async fn publish_to_client(
+    protocol: MQTTProtocol,
+    resp: ResponsePackage,
+    response_queue_sx4: broadcast::Sender<ResponsePackage>,
+    response_queue_sx5: broadcast::Sender<ResponsePackage>,
+) {
+    if protocol == MQTTProtocol::MQTT4 {
+        match response_queue_sx4.send(resp) {
+            Ok(_) => {}
+            Err(e) => error(format!("{}", e.to_string())),
+        }
+    } else if protocol == MQTTProtocol::MQTT5 {
+        match response_queue_sx5.send(resp) {
+            Ok(_) => {}
+            Err(e) => error(format!("{}", e.to_string())),
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

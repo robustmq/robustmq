@@ -25,7 +25,7 @@ use core::{
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
-use idempotent::memory::PacketIdentifierMemory;
+use qos::memory::QosMemory;
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -51,7 +51,7 @@ use tokio::{
 
 mod core;
 mod handler;
-mod idempotent;
+mod qos;
 mod metadata;
 mod metrics;
 mod security;
@@ -84,7 +84,7 @@ pub struct MqttBroker<'a, T, S> {
     conf: &'a BrokerMQTTConfig,
     metadata_cache_manager: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatManager>,
-    idempotent_manager: Arc<PacketIdentifierMemory>,
+    idempotent_manager: Arc<QosMemory>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
@@ -117,7 +117,7 @@ where
         let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
 
         let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
-        let idempotent_manager: Arc<PacketIdentifierMemory> = Arc::new(PacketIdentifierMemory::new());
+        let idempotent_manager: Arc<QosMemory> = Arc::new(QosMemory::new());
         let subscribe_manager = Arc::new(SubscribeManager::new(
             metadata_cache.clone(),
             client_poll.clone(),
