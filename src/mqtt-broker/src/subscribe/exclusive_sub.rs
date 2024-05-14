@@ -69,7 +69,6 @@ where
             let response_queue_sx4 = self.response_queue_sx4.clone();
             let response_queue_sx5 = self.response_queue_sx5.clone();
             let metadata_cache = self.metadata_cache.clone();
-            let subscribe_manager = self.subscribe_manager.clone();
             let message_storage = self.message_storage.clone();
 
             // Subscribe to the data push thread
@@ -104,14 +103,19 @@ where
                         Err(_) => {}
                     }
 
-                    let connect_id =
-                        if let Some(id) = metadata_cache.get_connect_id(subscribe.client_id) {
-                            id
-                        } else {
-                            continue;
-                        };
+                    let connect_id = if let Some(id) =
+                        metadata_cache.get_connect_id(subscribe.client_id.clone())
+                    {
+                        id
+                    } else {
+                        continue;
+                    };
                     match message_storage
-                        .read_topic_message(subscribe.topic_id, group_id.clone(), record_num)
+                        .read_topic_message(
+                            subscribe.topic_id.clone(),
+                            group_id.clone(),
+                            record_num,
+                        )
                         .await
                     {
                         Ok(result) => {
@@ -121,7 +125,7 @@ where
                             }
 
                             for record in result.clone() {
-                                let msg = match Message::decode_record(record) {
+                                let msg = match Message::decode_record(record.clone()) {
                                     Ok(msg) => msg,
                                     Err(e) => {
                                         error(e.to_string());
@@ -175,27 +179,27 @@ where
                                 .await;
 
                                 match qos {
-                                    protocol::mqtt::QoS::AtMostOnce => {}
-
-                                    protocol::mqtt::QoS::AtLeastOnce => {}
-                                    protocol::mqtt::QoS::ExactlyOnce => {}
-                                }
-                                // commit offset
-                                if let Some(last_res) = result.last() {
-                                    match message_storage
-                                        .commit_group_offset(
-                                            topic_id.clone(),
-                                            group_id.clone(),
-                                            last_res.offset,
-                                        )
-                                        .await
-                                    {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            error(e.to_string());
-                                            continue;
+                                    protocol::mqtt::QoS::AtMostOnce => {
+                                        match message_storage
+                                            .commit_group_offset(
+                                                subscribe.topic_id.clone(),
+                                                group_id.clone(),
+                                                record.offset,
+                                            )
+                                            .await
+                                        {
+                                            Ok(_) => {}
+                                            Err(e) => {
+                                                error(e.to_string());
+                                                continue;
+                                            }
                                         }
                                     }
+
+                                    protocol::mqtt::QoS::AtLeastOnce => {
+
+                                    }
+                                    protocol::mqtt::QoS::ExactlyOnce => {}
                                 }
                             }
                         }
