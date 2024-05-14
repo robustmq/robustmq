@@ -7,14 +7,15 @@ use crate::server::MQTTProtocol;
 pub struct Subscriber {
     pub protocol: MQTTProtocol,
     pub client_id: String,
+    pub group_name: Option<String>,
+    pub topic_name: String,
+    pub topic_id: String,
     pub packet_identifier: u16,
     pub qos: QoS,
     pub nolocal: bool,
     pub preserve_retain: bool,
-    pub subscription_identifier: Option<usize>,
-    pub user_properties: Vec<(String, String)>,
     pub is_contain_rewrite_flag: bool,
-    pub group_name: Option<String>,
+    pub subscription_identifier: Option<usize>,
 }
 
 #[derive(Clone)]

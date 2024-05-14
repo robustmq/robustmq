@@ -1,12 +1,10 @@
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{max_qos, share_sub_rewrite_publish_flag},
+    subscribe::{min_qos, publish_to_client, share_sub_rewrite_publish_flag},
 };
 use crate::{
-    core::metadata_cache::MetadataCacheManager,
-    metadata::message::Message,
-    server::{tcp::packet::ResponsePackage, MQTTProtocol},
-    storage::message::MessageStorage,
+    core::metadata_cache::MetadataCacheManager, metadata::message::Message,
+    server::tcp::packet::ResponsePackage, storage::message::MessageStorage,
 };
 use bytes::Bytes;
 use common_base::{
@@ -288,7 +286,7 @@ where
 
                             let publish = Publish {
                                 dup: false,
-                                qos: max_qos(msg.qos, subscribe.qos),
+                                qos: min_qos(msg.qos, subscribe.qos),
                                 pkid: subscribe.packet_identifier,
                                 retain: false,
                                 topic: Bytes::from(topic_name),
@@ -335,25 +333,6 @@ where
     fn start_push_by_sticky(&self) {}
 
     fn start_push_by_local(&self) {}
-}
-
-pub async fn publish_to_client(
-    protocol: MQTTProtocol,
-    resp: ResponsePackage,
-    response_queue_sx4: broadcast::Sender<ResponsePackage>,
-    response_queue_sx5: broadcast::Sender<ResponsePackage>,
-) {
-    if protocol == MQTTProtocol::MQTT4 {
-        match response_queue_sx4.send(resp) {
-            Ok(_) => {}
-            Err(e) => error(format!("{}", e.to_string())),
-        }
-    } else if protocol == MQTTProtocol::MQTT5 {
-        match response_queue_sx5.send(resp) {
-            Ok(_) => {}
-            Err(e) => error(format!("{}", e.to_string())),
-        }
-    }
 }
 
 #[cfg(test)]

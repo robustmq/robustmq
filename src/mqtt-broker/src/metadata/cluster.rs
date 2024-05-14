@@ -26,8 +26,8 @@ impl Cluster {
         return self.receive_max;
     }
 
-    pub fn max_qos(&self) -> u8 {
-        return self.max_qos.into();
+    pub fn max_qos(&self) -> QoS {
+        return self.max_qos;
     }
 
     pub fn server_keep_alive(&self) -> u16 {

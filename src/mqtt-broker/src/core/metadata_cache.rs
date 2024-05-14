@@ -186,7 +186,6 @@ impl MetadataCacheManager {
 
     pub fn remove_topic(&self, topic_name: String) {
         //todo
-        
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
@@ -195,6 +194,15 @@ impl MetadataCacheManager {
                 return Some(topic_name.clone());
             } else {
                 return None;
+            }
+        }
+        return None;
+    }
+
+    pub fn get_connect_id(&self, client_id: String) -> Option<u64> {
+        if let Some(sess) = self.session_info.get(&client_id) {
+            if let Some(conn_id) = sess.connection_id {
+                return Some(conn_id);
             }
         }
         return None;

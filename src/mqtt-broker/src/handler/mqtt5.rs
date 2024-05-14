@@ -2,14 +2,14 @@ use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::get_session_info;
-use crate::idempotent::Idempotent;
+use crate::qos::QosDataManager;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::subscribe::sub_manager::SubscribeManager;
-use crate::subscribe::subscribe::{filter_name_validator, save_retain_message};
+use crate::subscribe::subscribe::{min_qos, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
-    idempotent::memory::IdempotentMemory,
+    qos::memory::QosMemory,
     metadata::{message::Message, session::LastWillData},
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
@@ -21,8 +21,9 @@ use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
     PubAckProperties, PubAckReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
-    Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
+use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
@@ -186,7 +187,7 @@ where
         connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
-        idempotent_manager: Arc<IdempotentMemory>,
+        idempotent_manager: Arc<QosMemory>,
     ) -> Option<MQTTPacket> {
         let topic_name = match publish_get_topic_name(
             connect_id,
@@ -248,7 +249,7 @@ where
         };
 
         if !idempotent_manager
-            .get_idem_data(client_id.clone(), publish.pkid)
+            .get_qos_pkid_data(client_id.clone(), publish.pkid)
             .await
             .is_none()
         {
@@ -261,8 +262,11 @@ where
         // Persisting retain message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         if publish.retain {
-            let retain_message =
-                Message::build_message(publish.clone(), publish_properties.clone());
+            let retain_message = Message::build_message(
+                client_id.clone(),
+                publish.clone(),
+                publish_properties.clone(),
+            );
             match message_storage
                 .save_retain_message(topic.topic_id.clone(), retain_message)
                 .await
@@ -279,9 +283,11 @@ where
         }
 
         // Persisting stores message data
-        let offset = if let Some(record) =
-            Message::build_record(publish.clone(), publish_properties.clone())
-        {
+        let offset = if let Some(record) = Message::build_record(
+            client_id.clone(),
+            publish.clone(),
+            publish_properties.clone(),
+        ) {
             match message_storage
                 .append_topic_message(topic.topic_id.clone(), vec![record])
                 .await
@@ -314,7 +320,7 @@ where
             }
             QoS::ExactlyOnce => {
                 idempotent_manager
-                    .save_idem_data(connection.client_id, pkid)
+                    .save_qos_pkid_data(connection.client_id, pkid)
                     .await;
                 return Some(self.ack_build.pub_rec(pkid, user_properties));
             }
@@ -328,7 +334,7 @@ where
         connect_id: u64,
         pub_rel: PubRel,
         _: Option<PubRelProperties>,
-        idempotent_manager: Arc<IdempotentMemory>,
+        idempotent_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             conn.client_id.clone()
@@ -340,7 +346,7 @@ where
         };
 
         if idempotent_manager
-            .get_idem_data(client_id.clone(), pub_rel.pkid)
+            .get_qos_pkid_data(client_id.clone(), pub_rel.pkid)
             .await
             .is_none()
         {
@@ -348,7 +354,7 @@ where
         };
 
         idempotent_manager
-            .delete_idem_data(client_id, pub_rel.pkid)
+            .delete_qos_pkid_data(client_id, pub_rel.pkid)
             .await;
         return publish_comp_success(pub_rel.pkid);
     }
@@ -359,22 +365,59 @@ where
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
+        pkid_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
-        if filter_name_validator(subscribe.filters.clone()) {
-            return self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::BadSubscriptionPath.to_string()),
-            );
-        }
-
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             conn.client_id.clone()
         } else {
             return self.ack_build.distinct(
                 DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id.clone()).to_string()),
             );
         };
+
+        if !pkid_manager
+            .get_sub_pkid_data(client_id.clone(), subscribe.packet_identifier)
+            .await
+            .is_none()
+        {
+            return self.ack_build.sub_ack(
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::PkidInUse],
+            );
+        }
+
+        let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
+        let regex = Regex::new(r"^[a-zA-Z0-9#+/]+$").unwrap();
+        let cluster_qos = self.metadata_cache.get_cluster_info().max_qos();
+        let mut contain_success = false;
+        for filter in subscribe.filters.clone() {
+            if !regex.is_match(&filter.path) {
+                return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
+                continue;
+            }
+            contain_success = true;
+            match min_qos(cluster_qos, filter.qos) {
+                QoS::AtMostOnce => {
+                    return_codes.push(SubscribeReasonCode::QoS0);
+                }
+                QoS::AtLeastOnce => {
+                    return_codes.push(SubscribeReasonCode::QoS1);
+                }
+                QoS::ExactlyOnce => {
+                    return_codes.push(SubscribeReasonCode::QoS2);
+                }
+            }
+        }
+
+        if !contain_success {
+            return self.ack_build.sub_ack(
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::TopicFilterInvalid],
+            );
+        }
+
+        pkid_manager.save_sub_pkid_data(client_id.clone(), subscribe.packet_identifier).await;
 
         // Saving subscriptions
         self.metadata_cache.add_client_subscribe(
@@ -417,7 +460,7 @@ where
         }
 
         let pkid = subscribe.packet_identifier;
-        return self.ack_build.sub_ack(pkid);
+        return self.ack_build.sub_ack(pkid, return_codes);
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
@@ -445,6 +488,7 @@ where
         connect_id: u64,
         un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
+        idempotent_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
         let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
             se.clone()
@@ -454,6 +498,8 @@ where
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
+
+        idempotent_manager.delete_sub_pkid_data(connection.client_id.clone(), un_subscribe.pkid).await;
 
         // Remove subscription information
         if un_subscribe.filters.len() > 0 {
