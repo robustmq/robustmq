@@ -11,7 +11,7 @@ pub struct QosMemory {
     // (client_id_pkid, time_sec)
     sub_pkid_data: DashMap<String, u64>,
 
-    // (client_id, PublishQosMessageData)
+    // (client_id_pkid, PublishQosMessageData)
     publish_pkid_data: DashMap<String, PublishQosMessageData>,
 }
 

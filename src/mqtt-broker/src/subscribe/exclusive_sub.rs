@@ -1,8 +1,6 @@
 use crate::{
-    core::metadata_cache::MetadataCacheManager,
-    metadata::{message::Message, subscriber::Subscriber},
-    server::{tcp::packet::ResponsePackage, MQTTProtocol},
-    storage::message::MessageStorage,
+    core::metadata_cache::MetadataCacheManager, metadata::message::Message,
+    server::tcp::packet::ResponsePackage, storage::message::MessageStorage,
 };
 use bytes::Bytes;
 use common_base::log::{error, info};
@@ -144,11 +142,14 @@ where
                                 } else {
                                     false
                                 };
-                                
+
+                                // 
+                                let pkid = 1;
+
                                 let publish = Publish {
                                     dup: false,
                                     qos,
-                                    pkid: subscribe.packet_identifier,
+                                    pkid,
                                     retain,
                                     topic: Bytes::from(subscribe.topic_name.clone()),
                                     payload: Bytes::from(msg.payload),
@@ -196,9 +197,7 @@ where
                                         }
                                     }
 
-                                    protocol::mqtt::QoS::AtLeastOnce => {
-
-                                    }
+                                    protocol::mqtt::QoS::AtLeastOnce => {}
                                     protocol::mqtt::QoS::ExactlyOnce => {}
                                 }
                             }
