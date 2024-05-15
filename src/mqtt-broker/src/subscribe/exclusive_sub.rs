@@ -78,7 +78,7 @@ where
                     client_id
                 ));
                 let message_storage = MessageStorage::new(message_storage);
-                let group_id = format!("system_sub_{}", subscribe.client_id);
+                let group_id = format!("system_sub_{}", client_id);
                 let record_num = 5;
                 let max_wait_ms = 100;
 
