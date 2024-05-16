@@ -327,7 +327,9 @@ where
         }
     }
 
-    pub async fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {}
+    pub async fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {
+        
+    }
 
     pub async fn publish_rel(
         &self,
