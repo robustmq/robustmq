@@ -176,13 +176,11 @@ impl SubscribeManager {
         let conf = broker_mqtt_conf();
 
         for filter in subscribe.filters.clone() {
-            let pkid = self.metadata_cache.get_available_pkid(client_id.clone());
             let mut sub = Subscriber {
                 protocol: protocol.clone(),
                 client_id: client_id.clone(),
                 topic_name: topic_name.clone(),
                 topic_id: topic_id.clone(),
-                sub_publish_pkid: pkid,
                 qos: filter.qos,
                 nolocal: filter.nolocal,
                 preserve_retain: filter.preserve_retain,
@@ -225,7 +223,6 @@ impl SubscribeManager {
                                 self.share_follower_identifier_id
                                     .insert(identifier_id as usize, client_id.clone());
                             }
-                            self.metadata_cache.save_pkid_info(client_id.clone(), pkid);
                             client_sub.insert(topic_id.clone(), now_second());
                         }
                         Err(e) => {
@@ -236,7 +233,6 @@ impl SubscribeManager {
             } else {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
                     exclusive_sub.push(sub);
-                    self.metadata_cache.save_pkid_info(client_id.clone(), pkid);
                     client_sub.insert(topic_id.clone(), now_second());
                 }
             }

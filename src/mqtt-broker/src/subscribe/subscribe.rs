@@ -171,20 +171,20 @@ pub async fn publish_to_client(
     resp: ResponsePackage,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
-) {
+) -> Result<(), RobustMQError> {
     if protocol == MQTTProtocol::MQTT4 {
         match response_queue_sx4.send(resp) {
             Ok(_) => {}
-            Err(e) => error(format!("{}", e.to_string())),
+            Err(e) => return Err(RobustMQError::CommmonError(format!("{}", e.to_string()))),
         }
     } else if protocol == MQTTProtocol::MQTT5 {
         match response_queue_sx5.send(resp) {
             Ok(_) => {}
-            Err(e) => error(format!("{}", e.to_string())),
+            Err(e) => return Err(RobustMQError::CommmonError(format!("{}", e.to_string()))),
         }
     }
+    return Ok(());
 }
-
 
 #[cfg(test)]
 mod tests {

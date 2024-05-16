@@ -19,7 +19,11 @@ use crate::{
 use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
-    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, PubAckReason, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties
+    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
+    PubAckProperties, PubAckReason, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish,
+    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe,
+    UnsubscribeProperties,
 };
 use regex::Regex;
 use std::sync::Arc;
@@ -350,6 +354,7 @@ where
 
         return None;
     }
+
     pub async fn publish_rec(
         &self,
         connect_id: u64,
@@ -357,7 +362,6 @@ where
         _: Option<PubRecProperties>,
         idempotent_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
-
     }
 
     pub async fn publish_comp(
@@ -367,7 +371,6 @@ where
         _: Option<PubRelProperties>,
         idempotent_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
-        
     }
     pub async fn publish_rel(
         &self,
