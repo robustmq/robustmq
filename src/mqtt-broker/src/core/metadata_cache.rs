@@ -57,6 +57,9 @@ pub struct MetadataCacheManager {
 
     // (client_id, SubscribeData)
     pub subscribe_filter: DashMap<String, SubscribeData>,
+
+    // (client_id, vec<pkid>)
+    pub publish_pkid_info: DashMap<String, Vec<u16>>,
 }
 
 impl MetadataCacheManager {
@@ -70,6 +73,7 @@ impl MetadataCacheManager {
             topic_id_name: DashMap::with_capacity(256),
             connection_info: DashMap::with_capacity(256),
             subscribe_filter: DashMap::with_capacity(8),
+            publish_pkid_info: DashMap::with_capacity(8),
         };
         return cache;
     }
@@ -206,6 +210,32 @@ impl MetadataCacheManager {
             }
         }
         return None;
+    }
+
+    pub fn get_available_pkid(&self, client_id: String) -> u16 {
+        if let Some(pkid_list) = self.publish_pkid_info.get(&client_id) {
+            for i in 0..65535 {
+                if pkid_list.contains(&i) {
+                    continue;
+                }
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    pub fn save_pkid_info(&self, client_id: String, pkid: u16) {
+        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
+            pkid_list.push(pkid);
+        } else {
+            self.publish_pkid_info.insert(client_id, vec![pkid]);
+        }
+    }
+
+    pub fn remove_pkid_info(&self, client_id: String, pkid: u16) {
+        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
+            pkid_list.retain(|x| *x == pkid);
+        }
     }
 }
 

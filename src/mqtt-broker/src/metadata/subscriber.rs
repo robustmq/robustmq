@@ -10,7 +10,6 @@ pub struct Subscriber {
     pub group_name: Option<String>,
     pub topic_name: String,
     pub topic_id: String,
-    pub packet_identifier: u16,
     pub qos: QoS,
     pub nolocal: bool,
     pub preserve_retain: bool,

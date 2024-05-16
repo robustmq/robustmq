@@ -5,6 +5,7 @@ use crate::server::tcp::packet::ResponsePackage;
 
 pub mod memory;
 pub mod persist;
+pub mod ack_manager;
 
 #[derive(Clone)]
 pub struct QosData {

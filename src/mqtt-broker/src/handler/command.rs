@@ -3,6 +3,7 @@ use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
 use crate::core::client_heartbeat::HeartbeatManager;
 use crate::core::metadata_cache::MetadataCacheManager;
+use crate::qos::ack_manager::AckManager;
 use crate::qos::memory::QosMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
@@ -40,6 +41,7 @@ where
         response_queue_sx: Sender<ResponsePackage>,
         idempotent_manager: Arc<QosMemory>,
         sucscribe_manager: Arc<SubscribeManager>,
+        ack_manager: Arc<AckManager>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
         let mqtt4_service = Mqtt4Service::new(
@@ -54,6 +56,7 @@ where
             metadata_storage_adapter.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
+            ack_manager.clone(),
         );
         return Command {
             protocol,
@@ -125,6 +128,26 @@ where
                 }
             }
 
+            MQTTPacket::PubRec(pub_rec, pub_rec_properties) => {
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
+                }
+                if self.protocol == MQTTProtocol::MQTT4 {
+                    return None;
+                }
+                if self.protocol == MQTTProtocol::MQTT5 {}
+            }
+
+            MQTTPacket::PubComp(pub_comp, pub_comp_properties) => {
+                if !self.auth_login(connect_id).await {
+                    return Some(self.un_login_err(connect_id));
+                }
+                if self.protocol == MQTTProtocol::MQTT4 {
+                    return None;
+                }
+                if self.protocol == MQTTProtocol::MQTT5 {}
+            }
+
             MQTTPacket::PubRel(pub_rel, pub_rel_properties) => {
                 if !self.auth_login(connect_id).await {
                     return Some(self.un_login_err(connect_id));
@@ -157,7 +180,7 @@ where
 
                 if self.protocol == MQTTProtocol::MQTT5 {
                     self.mqtt5_service
-                        .publish_ack(pub_ack, pub_ack_properties)
+                        .publish_ack(connect_id, pub_ack, pub_ack_properties)
                         .await;
                 }
                 return None;
@@ -179,7 +202,7 @@ where
                                 subscribe,
                                 subscribe_properties,
                                 self.response_queue_sx.clone(),
-                                self.idempotent_manager.clone()
+                                self.idempotent_manager.clone(),
                             )
                             .await,
                     );
@@ -211,7 +234,12 @@ where
                 if self.protocol == MQTTProtocol::MQTT5 {
                     return Some(
                         self.mqtt5_service
-                            .un_subscribe(connect_id, unsubscribe, unsubscribe_properties,self.idempotent_manager.clone())
+                            .un_subscribe(
+                                connect_id,
+                                unsubscribe,
+                                unsubscribe_properties,
+                                self.idempotent_manager.clone(),
+                            )
                             .await,
                     );
                 }

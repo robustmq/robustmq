@@ -41,8 +41,8 @@ pub struct SubscribeManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
 
-    // (client_id,Subscriber)
-    pub exclusive_subscribe: DashMap<String, Subscriber>,
+    // (client_id,Vec<Subscriber>)
+    pub exclusive_subscribe: DashMap<String, Vec<Subscriber>>,
 
     // (topic_id,(client_id,Subscriber))
     pub share_leader_subscribe: DashMap<String, DashMap<String, Subscriber>>,
@@ -155,6 +155,11 @@ impl SubscribeManager {
             None
         };
 
+        if !self.exclusive_subscribe.contains_key(&client_id) {
+            self.exclusive_subscribe
+                .insert(client_id.clone(), Vec::new());
+        }
+
         if !self.share_leader_subscribe.contains_key(&topic_id) {
             self.share_leader_subscribe
                 .insert(topic_id.clone(), DashMap::with_capacity(8));
@@ -164,18 +169,18 @@ impl SubscribeManager {
             self.client_subscribe
                 .insert(client_id.clone(), DashMap::with_capacity(8));
         }
-
+        let mut exclusive_sub = self.exclusive_subscribe.get_mut(&client_id).unwrap();
         let share_sub_leader = self.share_leader_subscribe.get_mut(&topic_id).unwrap();
         let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
 
         let conf = broker_mqtt_conf();
+
         for filter in subscribe.filters.clone() {
             let mut sub = Subscriber {
                 protocol: protocol.clone(),
                 client_id: client_id.clone(),
                 topic_name: topic_name.clone(),
                 topic_id: topic_id.clone(),
-                packet_identifier: subscribe.packet_identifier,
                 qos: filter.qos,
                 nolocal: filter.nolocal,
                 preserve_retain: filter.preserve_retain,
@@ -218,17 +223,16 @@ impl SubscribeManager {
                                 self.share_follower_identifier_id
                                     .insert(identifier_id as usize, client_id.clone());
                             }
+                            client_sub.insert(topic_id.clone(), now_second());
                         }
                         Err(e) => {
                             error(e.to_string());
                         }
                     }
-
-                    client_sub.insert(topic_id.clone(), now_second());
                 }
             } else {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
-                    self.exclusive_subscribe.insert(client_id.clone(), sub);
+                    exclusive_sub.push(sub);
                     client_sub.insert(topic_id.clone(), now_second());
                 }
             }
