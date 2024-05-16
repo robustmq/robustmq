@@ -25,7 +25,10 @@ use core::{
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
-use qos::memory::QosMemory;
+use qos::{
+    ack_manager::{self, AckManager},
+    memory::QosMemory,
+};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -40,8 +43,8 @@ use storage_adapter::{
     storage::StorageAdapter,
 };
 use subscribe::{
-    exclusive_sub::SubscribeExclusive, sub_manager::SubscribeManager,
-    share_sub_follower::SubscribeShareFollower, share_sub_leader::SubscribeShareLeader,
+    exclusive_sub::SubscribeExclusive, share_sub_follower::SubscribeShareFollower,
+    share_sub_leader::SubscribeShareLeader, sub_manager::SubscribeManager,
 };
 use tokio::{
     runtime::Runtime,
@@ -51,9 +54,9 @@ use tokio::{
 
 mod core;
 mod handler;
-mod qos;
 mod metadata;
 mod metrics;
+mod qos;
 mod security;
 mod server;
 mod storage;
@@ -94,6 +97,7 @@ pub struct MqttBroker<'a, T, S> {
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeManager>,
+    ack_manager: Arc<AckManager>,
 }
 
 impl<'a, T, S> MqttBroker<'a, T, S>
@@ -118,6 +122,7 @@ where
 
         let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
         let idempotent_manager: Arc<QosMemory> = Arc::new(QosMemory::new());
+        let ack_manager: Arc<AckManager> = Arc::new(AckManager::new());
         let subscribe_manager = Arc::new(SubscribeManager::new(
             metadata_cache.clone(),
             client_poll.clone(),
@@ -137,6 +142,7 @@ where
             metadata_storage_adapter,
             message_storage_adapter,
             subscribe_manager,
+            ack_manager,
         };
     }
 
@@ -159,6 +165,7 @@ where
         let message_storage_adapter = self.message_storage_adapter.clone();
         let idempotent_manager = self.idempotent_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
+        let ack_manager = self.ack_manager.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
         let request_queue_sx5 = self.request_queue_sx5.clone();
@@ -173,6 +180,7 @@ where
                 metadata_storage_adapter,
                 message_storage_adapter,
                 idempotent_manager,
+                ack_manager,
                 request_queue_sx4,
                 request_queue_sx5,
                 response_queue_sx4,
@@ -222,6 +230,7 @@ where
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.subscribe_manager.clone(),
+            self.ack_manager.clone(),
         );
 
         self.runtime.spawn(async move {

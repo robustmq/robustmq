@@ -2,15 +2,16 @@ use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::get_session_info;
-use crate::qos::QosDataManager;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
+use crate::qos::ack_manager::AckManager;
+use crate::qos::QosDataManager;
 use crate::subscribe::sub_manager::SubscribeManager;
 use crate::subscribe::subscribe::{min_qos, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
-    qos::memory::QosMemory,
     metadata::{message::Message, session::LastWillData},
+    qos::memory::QosMemory,
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
@@ -18,10 +19,7 @@ use crate::{
 use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
-    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
-    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
-    PubAckProperties, PubAckReason, PubRel, PubRelProperties, Publish, PublishProperties, QoS,
-    Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
+    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, PubAckReason, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties
 };
 use regex::Regex;
 use std::sync::Arc;
@@ -36,6 +34,7 @@ pub struct Mqtt5Service<T, S> {
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     sucscribe_manager: Arc<SubscribeManager>,
+    ack_manager: Arc<AckManager>,
 }
 
 impl<T, S> Mqtt5Service<T, S>
@@ -50,6 +49,7 @@ where
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeManager>,
+        ack_manager: Arc<AckManager>,
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,
@@ -58,6 +58,7 @@ where
             metadata_storage_adapter,
             message_storage_adapter,
             sucscribe_manager,
+            ack_manager,
         };
     }
 
@@ -327,10 +328,47 @@ where
         }
     }
 
-    pub async fn publish_ack(&self, pub_ack: PubAck, puback_properties: Option<PubAckProperties>) {
-        
+    pub async fn publish_ack(
+        &self,
+        connect_id: u64,
+        pub_ack: PubAck,
+        _: Option<PubAckProperties>,
+    ) -> Option<MQTTPacket> {
+        let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            conn.client_id.clone()
+        } else {
+            return Some(self.ack_build.distinct(
+                DisconnectReasonCode::UnspecifiedError,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            ));
+        };
+
+        let pkid = pub_ack.pkid;
+        if self.ack_manager.contain(client_id.clone(), pkid) {
+            self.ack_manager.remove(client_id, pkid);
+        }
+
+        return None;
+    }
+    pub async fn publish_rec(
+        &self,
+        connect_id: u64,
+        pub_rel: PubRec,
+        _: Option<PubRecProperties>,
+        idempotent_manager: Arc<QosMemory>,
+    ) -> MQTTPacket {
+
     }
 
+    pub async fn publish_comp(
+        &self,
+        connect_id: u64,
+        pub_rel: PubRel,
+        _: Option<PubRelProperties>,
+        idempotent_manager: Arc<QosMemory>,
+    ) -> MQTTPacket {
+        
+    }
     pub async fn publish_rel(
         &self,
         connect_id: u64,
@@ -419,7 +457,9 @@ where
             );
         }
 
-        pkid_manager.save_sub_pkid_data(client_id.clone(), subscribe.packet_identifier).await;
+        pkid_manager
+            .save_sub_pkid_data(client_id.clone(), subscribe.packet_identifier)
+            .await;
 
         // Saving subscriptions
         self.metadata_cache.add_client_subscribe(
@@ -501,7 +541,9 @@ where
             );
         };
 
-        idempotent_manager.delete_sub_pkid_data(connection.client_id.clone(), un_subscribe.pkid).await;
+        idempotent_manager
+            .delete_sub_pkid_data(connection.client_id.clone(), un_subscribe.pkid)
+            .await;
 
         // Remove subscription information
         if un_subscribe.filters.len() > 0 {
