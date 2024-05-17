@@ -1,17 +1,18 @@
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    metadata::message::Message,
+    metadata::{message::Message, subscriber::Subscriber},
     qos::ack_manager::{AckManager, AckPacketInfo},
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
 use common_base::{
+    errors::RobustMQError,
     log::{error, info},
     tools::now_second,
 };
 use dashmap::DashMap;
-use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
+use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
@@ -34,7 +35,7 @@ pub struct SubscribeExclusive<S> {
     subscribe_manager: Arc<SubscribeManager>,
     message_storage: Arc<S>,
     ack_manager: Arc<AckManager>,
-    // (client_id, Sender<bool>)
+    // (client_id_topic_id, Sender<bool>)
     push_thread: DashMap<String, Sender<bool>>,
 }
 
@@ -79,6 +80,7 @@ where
                 if self.push_thread.contains_key(&thread_key) {
                     continue;
                 }
+
                 let (stop_sx, mut stop_rx) = broadcast::channel(2);
                 let response_queue_sx4 = self.response_queue_sx4.clone();
                 let response_queue_sx5 = self.response_queue_sx5.clone();
@@ -88,6 +90,7 @@ where
 
                 // Subscribe to the data push thread
                 self.push_thread.insert(thread_key, stop_sx);
+                let pkid: u16 = metadata_cache.get_available_pkid(client_id.clone());
                 tokio::spawn(async move {
                     info(format!(
                         "Exclusive push thread for client_id [{}],topic_id [{}] was started successfully",
@@ -162,7 +165,6 @@ where
                                         false
                                     };
 
-                                    let pkid = metadata_cache.get_available_pkid(client_id.clone());
                                     let publish = Publish {
                                         dup: false,
                                         qos,
@@ -188,75 +190,38 @@ where
                                         packet: MQTTPacket::Publish(publish, Some(properties)),
                                     };
 
-                                    match publish_to_client(
-                                        subscribe.protocol.clone(),
+                                    //
+                                    match retry_publish(
+                                        client_id.clone(),
+                                        pkid,
+                                        metadata_cache.clone(),
+                                        ack_manager.clone(),
+                                        qos,
+                                        subscribe.clone(),
                                         resp,
                                         response_queue_sx4.clone(),
                                         response_queue_sx5.clone(),
                                     )
                                     .await
                                     {
-                                        Ok(_) => {
-                                            match qos {
-                                                protocol::mqtt::QoS::AtMostOnce => {
-                                                    match message_storage
-                                                        .commit_group_offset(
-                                                            subscribe.topic_id.clone(),
-                                                            group_id.clone(),
-                                                            record.offset,
-                                                        )
-                                                        .await
-                                                    {
-                                                        Ok(_) => {}
-                                                        Err(e) => {
-                                                            error(e.to_string());
-                                                            continue;
-                                                        }
-                                                    }
-                                                }
-                                                // protocol::mqtt::QoS::AtLeastOnce
-                                                // protocol::mqtt::QoS::ExactlyOnce
-                                                _ => {
-                                                    metadata_cache
-                                                        .save_pkid_info(client_id.clone(), pkid);
-                                                    let (qos_sx, qos_rx) = mpsc::channel(1);
-                                                    ack_manager.add(
-                                                        client_id.clone(),
-                                                        pkid,
-                                                        AckPacketInfo {
-                                                            sx: qos_sx,
-                                                            create_time: now_second(),
-                                                            client_id: client_id.clone(),
-                                                            packet: resp,
-                                                        },
-                                                    );
-
-                                                    if wait_qos_ack(qos_rx).await {
-                                                        match message_storage
-                                                            .commit_group_offset(
-                                                                subscribe.topic_id.clone(),
-                                                                group_id.clone(),
-                                                                record.offset,
-                                                            )
-                                                            .await
-                                                        {
-                                                            Ok(_) => {}
-                                                            Err(e) => {
-                                                                error(e.to_string());
-                                                                continue;
-                                                            }
-                                                        }
-                                                    } else {
-                                                        ack_manager.remove(client_id.clone(), pkid);
-                                                    }
+                                        Ok(()) => {
+                                            match message_storage
+                                                .commit_group_offset(
+                                                    subscribe.topic_id.clone(),
+                                                    group_id.clone(),
+                                                    record.offset,
+                                                )
+                                                .await
+                                            {
+                                                Ok(_) => {}
+                                                Err(e) => {
+                                                    error(e.to_string());
+                                                    continue;
                                                 }
                                             }
                                         }
-                                        Err(e) => {
-                                            error(e.to_string());
-                                            continue;
-                                        }
-                                    };
+                                        Err(e) => error(e.to_string()),
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -268,6 +233,59 @@ where
                 });
             }
         }
+    }
+}
+
+async fn retry_publish(
+    client_id: String,
+    pkid: u16,
+    metadata_cache: Arc<MetadataCacheManager>,
+    ack_manager: Arc<AckManager>,
+    qos: QoS,
+    subscribe: Subscriber,
+    resp: ResponsePackage,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+) -> Result<(), RobustMQError> {
+    loop {
+        match publish_to_client(
+            subscribe.protocol.clone(),
+            resp.clone(),
+            response_queue_sx4.clone(),
+            response_queue_sx5.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                match qos {
+                    protocol::mqtt::QoS::AtMostOnce => {
+                        return Ok(());
+                    }
+                    // protocol::mqtt::QoS::AtLeastOnce
+                    // protocol::mqtt::QoS::ExactlyOnce
+                    _ => {
+                        metadata_cache.save_pkid_info(client_id.clone(), pkid);
+
+                        let (qos_sx, qos_rx) = mpsc::channel(1);
+                        ack_manager.add(
+                            client_id.clone(),
+                            pkid,
+                            AckPacketInfo {
+                                sx: qos_sx,
+                                create_time: now_second(),
+                            },
+                        );
+
+                        if wait_qos_ack(qos_rx).await {
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                error(e.to_string());
+            }
+        };
     }
 }
 

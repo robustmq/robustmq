@@ -287,7 +287,7 @@ where
                             let publish = Publish {
                                 dup: false,
                                 qos: min_qos(msg.qos, subscribe.qos),
-                                pkid: subscribe.sub_publish_pkid,
+                                pkid: 1,
                                 retain: false,
                                 topic: Bytes::from(topic_name),
                                 payload: msg.payload,

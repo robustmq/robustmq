@@ -25,10 +25,7 @@ use core::{
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
-use qos::{
-    ack_manager::{self, AckManager},
-    memory::QosMemory,
-};
+use qos::{ack_manager::AckManager, memory::QosMemory};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -75,10 +72,13 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let pool = build_mysql_conn_pool(&conf.mysql.server).unwrap();
     let metadata_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
     let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
+    let metadata_cache = Arc::new(MetadataCacheManager::new(conf.cluster_name.clone()));
+
     let server = MqttBroker::new(
         client_poll,
         metadata_storage_adapter,
         message_storage_adapter,
+        metadata_cache,
     );
     server.start(stop_send)
 }
@@ -109,6 +109,7 @@ where
         client_poll: Arc<ClientPool>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
+        metadata_cache: Arc<MetadataCacheManager>,
     ) -> Self {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
@@ -120,7 +121,6 @@ where
 
         let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
 
-        let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
         let idempotent_manager: Arc<QosMemory> = Arc::new(QosMemory::new());
         let ack_manager: Arc<AckManager> = Arc::new(AckManager::new());
         let subscribe_manager = Arc::new(SubscribeManager::new(
@@ -307,6 +307,18 @@ where
         let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         self.runtime.block_on(async move {
             // metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);
+            let (cluster, user_info, topic_info) =
+                load_metadata_cache(metadata_storage_adapter).await;
+            metadata_cache.set_cluster_info(cluster);
+
+            for (_, user) in user_info {
+                metadata_cache.add_user(user);
+            }
+
+            for (topic_name, topic) in topic_info {
+                metadata_cache.add_topic(&topic_name, &topic);
+            }
+
             register_broker_node(self.client_poll.clone()).await;
         });
     }
