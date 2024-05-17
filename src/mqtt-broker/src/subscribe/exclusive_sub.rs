@@ -222,10 +222,12 @@ where
                                                     let (qos_sx, qos_rx) = mpsc::channel(1);
                                                     ack_manager.add(
                                                         client_id.clone(),
-                                                        subscribe.sub_publish_pkid,
+                                                        pkid,
                                                         AckPacketInfo {
                                                             sx: qos_sx,
                                                             create_time: now_second(),
+                                                            client_id: client_id.clone(),
+                                                            packet: resp,
                                                         },
                                                     );
 
@@ -245,10 +247,7 @@ where
                                                             }
                                                         }
                                                     } else {
-                                                        ack_manager.remove(
-                                                            client_id.clone(),
-                                                            subscribe.sub_publish_pkid,
-                                                        );
+                                                        ack_manager.remove(client_id.clone(), pkid);
                                                     }
                                                 }
                                             }

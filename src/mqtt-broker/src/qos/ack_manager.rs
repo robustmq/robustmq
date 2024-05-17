@@ -1,10 +1,14 @@
 use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
+use crate::server::tcp::packet::ResponsePackage;
+
 #[derive(Clone)]
 pub struct AckPacketInfo {
     pub sx: Sender<bool>,
     pub create_time: u64,
+    pub client_id: String,
+    pub packet: ResponsePackage,
 }
 
 #[derive(Clone)]

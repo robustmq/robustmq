@@ -237,6 +237,13 @@ impl MetadataCacheManager {
             pkid_list.retain(|x| *x == pkid);
         }
     }
+
+    pub fn client_pkid_size(&self, client_id: String, pkid: u16) -> usize {
+        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
+            return pkid_list.len();
+        }
+        return 0;
+    }
 }
 
 pub async fn load_metadata_cache<T>(
