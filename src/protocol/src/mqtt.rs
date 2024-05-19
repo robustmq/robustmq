@@ -821,7 +821,7 @@ impl fmt::Display for PubCompProperties {
 //--------------------------- Subscribe packet -------------------------------
 
 /// Subscription packet
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Subscribe {
     pub packet_identifier: u16,
     pub filters: Vec<Filter>,
@@ -847,7 +847,7 @@ pub enum RetainForwardRule {
     Never,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SubscribeProperties {
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,

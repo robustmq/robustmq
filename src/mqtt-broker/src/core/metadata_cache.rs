@@ -32,7 +32,7 @@ pub struct MetadataChangeData {
     pub value: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MetadataCacheManager {
     // cluster_name
     pub cluster_name: String,
@@ -248,12 +248,7 @@ impl MetadataCacheManager {
 
 pub async fn load_metadata_cache<T>(
     metadata_storage_adapter: Arc<T>,
-) -> (
-    Cluster,
-    DashMap<String, User>,
-    DashMap<String, Topic>,
-    DashMap<String, String>,
-)
+) -> (Cluster, DashMap<String, User>, DashMap<String, Topic>)
 where
     T: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -300,11 +295,9 @@ where
     };
 
     let topic_info = DashMap::with_capacity(8);
-    let topic_id_name = DashMap::with_capacity(8);
 
     for (topic_name, topic) in topic_list {
         topic_info.insert(topic_name.clone(), topic.clone());
-        topic_id_name.insert(topic.topic_id, topic_name);
     }
-    return (cluster, user_info, topic_info, topic_id_name);
+    return (cluster, user_info, topic_info);
 }

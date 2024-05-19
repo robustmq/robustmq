@@ -42,8 +42,8 @@ pub struct SubscribeManager {
     // (client_id,Vec<Subscriber>)
     pub exclusive_subscribe: DashMap<String, Vec<Subscriber>>,
 
-    // (topic_id,(client_id,Subscriber)) 
-    pub share_leader_subscribe: DashMap<String, DashMap<String, Subscriber>>,
+    // (client_id,Vec<Subscriber>)
+    pub share_leader_subscribe: DashMap<String, Vec<Subscriber>>,
 
     // (client_id,ShareSubShareSub)
     pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
@@ -152,7 +152,7 @@ impl SubscribeManager {
 
         if !self.share_leader_subscribe.contains_key(&topic_id) {
             self.share_leader_subscribe
-                .insert(topic_id.clone(), DashMap::with_capacity(8));
+                .insert(topic_id.clone(), Vec::new());
         }
 
         let mut exclusive_sub = self.exclusive_subscribe.get_mut(&client_id).unwrap();

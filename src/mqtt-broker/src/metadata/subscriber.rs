@@ -17,7 +17,7 @@ pub struct Subscriber {
     pub subscription_identifier: Option<usize>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SubscribeData {
     pub protocol: MQTTProtocol,
     pub subscribe: Subscribe,
