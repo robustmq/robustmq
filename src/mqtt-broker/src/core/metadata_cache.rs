@@ -56,7 +56,7 @@ pub struct MetadataCacheManager {
     pub topic_id_name: DashMap<String, String>,
 
     // (client_id, SubscribeData)
-    pub subscribe_filter: DashMap<String, SubscribeData>,
+    pub subscribe_filter: DashMap<String, DashMap<u16, SubscribeData>>,
 
     // (client_id, vec<pkid>)
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
@@ -85,14 +85,27 @@ impl MetadataCacheManager {
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
-        self.subscribe_filter.insert(
-            client_id,
-            SubscribeData {
-                protocol,
-                subscribe,
-                subscribe_properties,
-            },
-        );
+        if let Some(data) = self.subscribe_filter.get_mut(&client_id) {
+            data.insert(
+                subscribe.packet_identifier,
+                SubscribeData {
+                    protocol,
+                    subscribe,
+                    subscribe_properties,
+                },
+            );
+        } else {
+            let data = DashMap::with_capacity(8);
+            data.insert(
+                subscribe.packet_identifier,
+                SubscribeData {
+                    protocol,
+                    subscribe,
+                    subscribe_properties,
+                },
+            );
+            self.subscribe_filter.insert(client_id, data);
+        };
     }
 
     pub fn remove_filter(&self, client_id: String) {

@@ -9,6 +9,7 @@ pub struct Subscriber {
     pub client_id: String,
     pub sub_path: String,
     pub topic_name: String,
+    pub group_name: Option<String>,
     pub topic_id: String,
     pub qos: QoS,
     pub nolocal: bool,

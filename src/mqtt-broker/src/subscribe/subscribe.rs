@@ -148,6 +148,9 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 }
 
 pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
+    // source IP
+
+    // 
     for (k, v) in user_properties {
         if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
             && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
