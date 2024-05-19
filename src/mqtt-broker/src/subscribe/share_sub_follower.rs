@@ -7,17 +7,22 @@ use crate::{
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     subscribe::sub_manager::ShareSubShareSub,
 };
-use common_base::log::{error, info};
+use common_base::{
+    errors::RobustMQError,
+    log::{error, info},
+    tools::unique_id,
+};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use protocol::{
     mqtt::{
-        Disconnect, DisconnectProperties, MQTTPacket, PubComp, PubCompProperties, PubRec,
-        PubRecProperties, Publish, PublishProperties, QoS, SubscribeProperties, UnsubAck,
-        UnsubAckProperties, Unsubscribe, UnsubscribeProperties,
+        Connect, ConnectProperties, Disconnect, DisconnectProperties, Login, MQTTPacket, PubComp,
+        PubCompProperties, PubRec, PubRecProperties, Publish, PublishProperties, QoS,
+        SubscribeProperties, UnsubAck, UnsubAckProperties, Unsubscribe, UnsubscribeProperties,
     },
     mqttv5::codec::Mqtt5Codec,
 };
+use rumqttc::v5::{mqttbytes::QoS as rumqttcQos, AsyncClient, MqttOptions};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     net::TcpStream,
@@ -64,7 +69,8 @@ impl SubscribeShareFollower {
                 let response_queue_sx5 = self.response_queue_sx5.clone();
                 let (stop_sx, stop_rx) = mpsc::channel(1);
                 self.follower_sub_thread.insert(client_id.clone(), stop_sx);
-
+                // 检查ShareSubShareSub的Leader是否存在，否则则更新。
+                
                 tokio::spawn(async move {
                     if share_sub.protocol == MQTTProtocol::MQTT4 {
                         rewrite_sub_mqtt4().await;
@@ -103,6 +109,52 @@ async fn rewrite_sub_mqtt4() {
     //todo MQTT 4 does not currently support shared subscriptions
 }
 
+async fn rewrite_sub_mqtt5_new(
+    metadata_cache: Arc<MetadataCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    share_sub: ShareSubShareSub,
+    mut rx: Receiver<bool>,
+    response_queue_sx4: broadcast::Sender<ResponsePackage>,
+    response_queue_sx5: broadcast::Sender<ResponsePackage>,
+) -> Result<(), RobustMQError> {
+    let addr_info: Vec<&str> = share_sub.leader_addr.split(":").collect();
+    let mut mqttoptions = MqttOptions::new(
+        unique_id(),
+        addr_info.get(0).unwrap().to_string(),
+        addr_info
+            .get(1)
+            .unwrap()
+            .to_string()
+            .parse::<u16>()
+            .unwrap(),
+    );
+
+    mqttoptions.set_keep_alive(Duration::from_secs(5));
+    mqttoptions.set_clean_start(true);
+
+    let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
+    match client
+        .subscribe(share_sub.sub_path.clone(), rumqttcQos::AtMostOnce)
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+    }
+
+    while let Ok(notification) = eventloop.poll().await {
+        println!("Received = {:?}", notification);
+    }
+
+    match client.unsubscribe(share_sub.sub_path).await {
+        Ok(_) => {
+            return Ok(());
+        }
+        Err(e) => {
+            return Err(RobustMQError::CommmonError(e.to_string()));
+        }
+    }
+}
+
 async fn rewrite_sub_mqtt5(
     metadata_cache: Arc<MetadataCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
@@ -120,7 +172,7 @@ async fn rewrite_sub_mqtt5(
         .unwrap();
     let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
     // connect
-    
+
     // Subscribe data to Sub Leader node and send subscription request packet
     let packet = build_rewrite_subscribe_pkg(share_sub.clone());
     let _ = stream.send(packet).await;
@@ -286,6 +338,15 @@ async fn packet_distinct(publish: Disconnect, disconnect_properties: Option<Disc
 
 async fn packet_unsuback(publish: UnsubAck, disconnect_properties: Option<UnsubAckProperties>) {}
 
+// pub fn build_rewrite_connect_pkc() -> MQTTPacket {
+//     let connect = Connect {
+//         keep_alive: 60,
+//         client_id:
+//     };
+//     let properties = ConnectProperties::default();
+//     let login = Login::default();
+//     return MQTTPacket::Connect(connect, Some(properties), None, None, Some(login));
+// }
 pub fn build_rewrite_subscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
     let subscribe = rewrite_sub.subscribe.clone();
     let subscribe_properties = SubscribeProperties {

@@ -399,7 +399,7 @@ impl From<QoS> for u8 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Login {
     pub username: String,
     pub password: String,

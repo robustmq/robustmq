@@ -5,7 +5,6 @@ use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
 use crate::server::MQTTProtocol;
 use clients::{placement::mqtt::call::placement_get_share_sub, poll::ClientPool};
-use common_base::tools::now_second;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     errors::RobustMQError,
@@ -29,8 +28,7 @@ pub struct ShareSubShareSub {
     pub identifier_id: u64,
     pub client_id: String,
     pub protocol: MQTTProtocol,
-    pub group_name: String,
-    pub sub_name: String,
+    pub sub_path: String,
     pub leader_id: u64,
     pub leader_addr: String,
     pub subscribe: Subscribe,
@@ -44,7 +42,7 @@ pub struct SubscribeManager {
     // (client_id,Vec<Subscriber>)
     pub exclusive_subscribe: DashMap<String, Vec<Subscriber>>,
 
-    // (topic_id,(client_id,Subscriber))
+    // (topic_id,(client_id,Subscriber)) 
     pub share_leader_subscribe: DashMap<String, DashMap<String, Subscriber>>,
 
     // (client_id,ShareSubShareSub)
@@ -52,9 +50,6 @@ pub struct SubscribeManager {
 
     // (identifier_id，client_id)
     pub share_follower_identifier_id: DashMap<usize, String>,
-
-    // (client_id, (topic_id, now_second()))
-    pub client_subscribe: DashMap<String, DashMap<String, u64>>,
 }
 
 impl SubscribeManager {
@@ -65,7 +60,6 @@ impl SubscribeManager {
             exclusive_subscribe: DashMap::with_capacity(8),
             share_leader_subscribe: DashMap::with_capacity(8),
             share_follower_subscribe: DashMap::with_capacity(8),
-            client_subscribe: DashMap::with_capacity(8),
             share_follower_identifier_id: DashMap::with_capacity(8),
         };
     }
@@ -132,10 +126,6 @@ impl SubscribeManager {
                 } else {
                     self.exclusive_subscribe.remove(&client_id);
                 }
-
-                if let Some(client_list) = self.client_subscribe.get_mut(&client_id) {
-                    client_list.remove(&topic_id);
-                }
             }
         }
     }
@@ -165,13 +155,8 @@ impl SubscribeManager {
                 .insert(topic_id.clone(), DashMap::with_capacity(8));
         }
 
-        if !self.client_subscribe.contains_key(&client_id) {
-            self.client_subscribe
-                .insert(client_id.clone(), DashMap::with_capacity(8));
-        }
         let mut exclusive_sub = self.exclusive_subscribe.get_mut(&client_id).unwrap();
         let share_sub_leader = self.share_leader_subscribe.get_mut(&topic_id).unwrap();
-        let client_sub = self.client_subscribe.get_mut(&client_id).unwrap();
 
         let conf = broker_mqtt_conf();
 
@@ -186,7 +171,7 @@ impl SubscribeManager {
                 preserve_retain: filter.preserve_retain,
                 subscription_identifier: sub_identifier,
                 is_contain_rewrite_flag: false,
-                group_name: None,
+                sub_path: filter.path.clone(),
             };
             if is_share_sub(filter.path.clone()) {
                 let (group_name, sub_name) = decode_share_info(filter.path.clone());
@@ -202,7 +187,6 @@ impl SubscribeManager {
                                         sub.is_contain_rewrite_flag = true;
                                     }
                                 }
-                                sub.group_name = Some(group_name.clone());
                                 share_sub_leader.insert(client_id.clone(), sub);
                             } else {
                                 let identifier_id = SUB_IDENTIFIER_ID_BUILD
@@ -210,8 +194,7 @@ impl SubscribeManager {
                                 let share_sub = ShareSubShareSub {
                                     identifier_id,
                                     client_id: client_id.clone(),
-                                    group_name: group_name.clone(),
-                                    sub_name: sub_name.clone(),
+                                    sub_path: filter.path.clone(),
                                     protocol: protocol.clone(),
                                     leader_id: reply.broker_id,
                                     leader_addr: reply.broker_ip,
@@ -223,7 +206,6 @@ impl SubscribeManager {
                                 self.share_follower_identifier_id
                                     .insert(identifier_id as usize, client_id.clone());
                             }
-                            client_sub.insert(topic_id.clone(), now_second());
                         }
                         Err(e) => {
                             error(e.to_string());
@@ -233,7 +215,6 @@ impl SubscribeManager {
             } else {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
                     exclusive_sub.push(sub);
-                    client_sub.insert(topic_id.clone(), now_second());
                 }
             }
         }
@@ -269,98 +250,6 @@ impl SubscribeManager {
 
 #[cfg(test)]
 mod tests {
-    // use crate::metadata::message::Message;
-    // use crate::{metadata::topic::Topic, storage::message::MessageStorage};
-    // use bytes::Bytes;
-    // use clients::poll::ClientPool;
-    // use protocol::mqtt::{Filter, MQTTPacket, Subscribe};
-    // use std::sync::Arc;
-    // use storage_adapter::memory::MemoryStorageAdapter;
-    // use storage_adapter::record::Record;
-    // use tokio::sync::broadcast;
-
     #[tokio::test]
-    async fn topic_sub_push_thread_test() {
-        // let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        // let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
-
-        // let client_poll = Arc::new(ClientPool::new(3));
-
-        // // Create topic
-        // let topic_name = "/test/topic".to_string();
-        // let topic = Topic::new(&topic_name);
-        // metadata_cache.set_topic(&topic_name, &topic);
-
-        // // Subscription topic
-        // let client_id = "test-ttt".to_string();
-        // let packet_identifier = 2;
-        // let mut filters = Vec::new();
-        // let filter = Filter {
-        //     path: "/test/topic".to_string(),
-        //     qos: protocol::mqtt::QoS::AtLeastOnce,
-        //     nolocal: true,
-        //     preserve_retain: true,
-        //     retain_forward_rule: protocol::mqtt::RetainForwardRule::Never,
-        // };
-        // filters.push(filter);
-        // let subscribe = Subscribe {
-        //     packet_identifier,
-        //     filters,
-        // };
-        // sub_manager
-        //     .parse_subscribe(
-        //         crate::server::MQTTProtocol::MQTT5,
-        //         client_id,
-        //         subscribe,
-        //         None,
-        //         client_poll.clone(),
-        //     )
-        //     .await;
-
-        // // Start push thread
-        // let message_storage = MessageStorage::new(storage_adapter.clone());
-        // let (response_queue_sx4, mut response_queue_rx4) = broadcast::channel(1000);
-        // let (response_queue_sx5, mut response_queue_rx5) = broadcast::channel(1000);
-        // let ms = message_storage.clone();
-        // let topic_id: String = topic.topic_id.clone();
-        // tokio::spawn(async move {
-        //     topic_sub_push_thread(
-        //         metadata_cache,
-        //         ms,
-        //         topic_id,
-        //         response_queue_sx4,
-        //         response_queue_sx5,
-        //     )
-        //     .await;
-        // });
-
-        // // Send data
-        // let mut msg = Message::default();
-        // msg.payload = Bytes::from("testtest".to_string());
-
-        // let record = Record::build_b(serde_json::to_vec(&msg).unwrap());
-        // message_storage
-        //     .append_topic_message(topic.topic_id.clone(), vec![record])
-        //     .await
-        //     .unwrap();
-
-        // // Receive subscription data
-        // loop {
-        //     match response_queue_rx5.recv().await {
-        //         Ok(packet) => {
-        //             if let MQTTPacket::Publish(publish, _) = packet.packet {
-        //                 assert_eq!(publish.topic, topic.topic_id);
-        //                 assert_eq!(publish.payload, msg.payload);
-        //             } else {
-        //                 println!("Package does not exist");
-        //                 assert!(false);
-        //             }
-        //             break;
-        //         }
-        //         Err(e) => {
-        //             println!("{}", e)
-        //         }
-        //     }
-        // }
-    }
+    async fn topic_sub_push_thread_test() {}
 }
