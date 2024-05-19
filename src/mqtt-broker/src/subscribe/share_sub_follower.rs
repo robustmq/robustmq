@@ -1,13 +1,18 @@
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{is_contain_rewrite_flag, publish_to_client, share_sub_rewrite_publish_flag},
+    subscribe::{
+        get_share_sub_leader, is_contain_rewrite_flag, publish_to_client,
+        share_sub_rewrite_publish_flag,
+    },
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     subscribe::sub_manager::ShareSubShareSub,
 };
+use clients::poll::ClientPool;
 use common_base::{
+    config::broker_mqtt::broker_mqtt_conf,
     errors::RobustMQError,
     log::{error, info},
     tools::unique_id,
@@ -16,9 +21,9 @@ use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use protocol::{
     mqtt::{
-        Connect, ConnectProperties, Disconnect, DisconnectProperties, Login, MQTTPacket, PubComp,
-        PubCompProperties, PubRec, PubRecProperties, Publish, PublishProperties, QoS,
-        SubscribeProperties, UnsubAck, UnsubAckProperties, Unsubscribe, UnsubscribeProperties,
+        Disconnect, DisconnectProperties, MQTTPacket, PubComp, PubCompProperties, PubRec,
+        PubRecProperties, Publish, PublishProperties, QoS, SubscribeProperties, UnsubAck,
+        UnsubAckProperties, Unsubscribe, UnsubscribeProperties,
     },
     mqttv5::codec::Mqtt5Codec,
 };
@@ -42,6 +47,7 @@ pub struct SubscribeShareFollower {
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
     metadata_cache: Arc<MetadataCacheManager>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl SubscribeShareFollower {
@@ -50,6 +56,7 @@ impl SubscribeShareFollower {
         response_queue_sx4: broadcast::Sender<ResponsePackage>,
         response_queue_sx5: broadcast::Sender<ResponsePackage>,
         metadata_cache: Arc<MetadataCacheManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         return SubscribeShareFollower {
             follower_sub_thread: DashMap::with_capacity(128),
@@ -57,6 +64,7 @@ impl SubscribeShareFollower {
             response_queue_sx4,
             response_queue_sx5,
             metadata_cache,
+            client_poll,
         };
     }
 
@@ -69,23 +77,42 @@ impl SubscribeShareFollower {
                 let response_queue_sx5 = self.response_queue_sx5.clone();
                 let (stop_sx, stop_rx) = mpsc::channel(1);
                 self.follower_sub_thread.insert(client_id.clone(), stop_sx);
-                // 检查ShareSubShareSub的Leader是否存在，否则则更新。
-                
-                tokio::spawn(async move {
-                    if share_sub.protocol == MQTTProtocol::MQTT4 {
-                        rewrite_sub_mqtt4().await;
-                    } else if share_sub.protocol == MQTTProtocol::MQTT5 {
-                        rewrite_sub_mqtt5(
-                            metadata_cache,
-                            sub_manager,
-                            share_sub,
-                            stop_rx,
-                            response_queue_sx4,
-                            response_queue_sx5,
-                        )
-                        .await;
+
+                match get_share_sub_leader(
+                    self.client_poll.clone(),
+                    share_sub.group_name.clone(),
+                    share_sub.sub_name.clone(),
+                )
+                .await
+                {
+                    Ok(reply) => {
+                        let conf = broker_mqtt_conf();
+                        if conf.broker_id == reply.broker_id {
+                            // add leader push && remove follower sub
+                            self.subscribe_manager
+                                .share_follower_subscribe
+                                .remove(&client_id);
+                        } else {
+                            tokio::spawn(async move {
+                                if share_sub.protocol == MQTTProtocol::MQTT4 {
+                                    rewrite_sub_mqtt4().await;
+                                } else if share_sub.protocol == MQTTProtocol::MQTT5 {
+                                    rewrite_sub_mqtt5(
+                                        reply.broker_ip,
+                                        metadata_cache,
+                                        sub_manager,
+                                        share_sub,
+                                        stop_rx,
+                                        response_queue_sx4,
+                                        response_queue_sx5,
+                                    )
+                                    .await;
+                                }
+                            });
+                        }
                     }
-                });
+                    Err(e) => error(e.to_string()),
+                }
             }
             sleep(Duration::from_secs(1)).await;
         }
@@ -109,53 +136,8 @@ async fn rewrite_sub_mqtt4() {
     //todo MQTT 4 does not currently support shared subscriptions
 }
 
-async fn rewrite_sub_mqtt5_new(
-    metadata_cache: Arc<MetadataCacheManager>,
-    subscribe_manager: Arc<SubscribeManager>,
-    share_sub: ShareSubShareSub,
-    mut rx: Receiver<bool>,
-    response_queue_sx4: broadcast::Sender<ResponsePackage>,
-    response_queue_sx5: broadcast::Sender<ResponsePackage>,
-) -> Result<(), RobustMQError> {
-    let addr_info: Vec<&str> = share_sub.leader_addr.split(":").collect();
-    let mut mqttoptions = MqttOptions::new(
-        unique_id(),
-        addr_info.get(0).unwrap().to_string(),
-        addr_info
-            .get(1)
-            .unwrap()
-            .to_string()
-            .parse::<u16>()
-            .unwrap(),
-    );
-
-    mqttoptions.set_keep_alive(Duration::from_secs(5));
-    mqttoptions.set_clean_start(true);
-
-    let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    match client
-        .subscribe(share_sub.sub_path.clone(), rumqttcQos::AtMostOnce)
-        .await
-    {
-        Ok(_) => {}
-        Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
-    }
-
-    while let Ok(notification) = eventloop.poll().await {
-        println!("Received = {:?}", notification);
-    }
-
-    match client.unsubscribe(share_sub.sub_path).await {
-        Ok(_) => {
-            return Ok(());
-        }
-        Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
-        }
-    }
-}
-
 async fn rewrite_sub_mqtt5(
+    leader_addr: String,
     metadata_cache: Arc<MetadataCacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     share_sub: ShareSubShareSub,
@@ -167,7 +149,7 @@ async fn rewrite_sub_mqtt5(
         "Rewrite sub mqtt5 thread for client [{}] was start successfully",
         share_sub.client_id.clone()
     ));
-    let socket = TcpStream::connect(share_sub.leader_addr.clone())
+    let socket = TcpStream::connect(leader_addr.clone())
         .await
         .unwrap();
     let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());

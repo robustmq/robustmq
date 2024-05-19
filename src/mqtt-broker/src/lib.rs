@@ -243,10 +243,11 @@ where
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.metadata_cache_manager.clone(),
+            self.ack_manager.clone(),
         );
 
         self.runtime.spawn(async move {
-            leader_sub.start().await;
+            leader_sub.start_leader_push_sub_check_thread().await;
         });
 
         let follower_sub = SubscribeShareFollower::new(

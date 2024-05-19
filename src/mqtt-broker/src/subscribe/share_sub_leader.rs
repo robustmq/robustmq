@@ -1,10 +1,11 @@
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, publish_to_client, share_sub_rewrite_publish_flag},
+    subscribe::{min_qos, retry_publish, share_sub_rewrite_publish_flag},
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager, metadata::message::Message,
-    server::tcp::packet::ResponsePackage, storage::message::MessageStorage,
+    qos::ack_manager::AckManager, server::tcp::packet::ResponsePackage,
+    storage::message::MessageStorage,
 };
 use bytes::Bytes;
 use common_base::{
@@ -14,11 +15,11 @@ use common_base::{
 use dashmap::DashMap;
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
 use std::{sync::Arc, time::Duration};
-use storage_adapter::{record::Record, storage::StorageAdapter};
+use storage_adapter::storage::StorageAdapter;
 use tokio::{
     sync::{
         broadcast,
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Sender},
     },
     time::sleep,
 };
@@ -31,10 +32,10 @@ const SHARED_SUBSCRIPTION_STRATEGY_LOCAL: &str = "local";
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
-    // (topic_id, Sender<bool>)
+    // (group_name_topic_name, Sender<bool>)
     pub leader_pull_data_thread: DashMap<String, Sender<bool>>,
 
-    // (topic_id, Sender<bool>)
+    // (group_name_topic_name, Sender<bool>)
     pub leader_push_data_thread: DashMap<String, Sender<bool>>,
 
     pub subscribe_manager: Arc<SubscribeManager>,
@@ -42,6 +43,7 @@ pub struct SubscribeShareLeader<S> {
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
     metadata_cache: Arc<MetadataCacheManager>,
+    ack_manager: Arc<AckManager>,
 }
 
 impl<S> SubscribeShareLeader<S>
@@ -54,6 +56,7 @@ where
         response_queue_sx4: broadcast::Sender<ResponsePackage>,
         response_queue_sx5: broadcast::Sender<ResponsePackage>,
         metadata_cache: Arc<MetadataCacheManager>,
+        ack_manager: Arc<AckManager>,
     ) -> Self {
         return SubscribeShareLeader {
             leader_pull_data_thread: DashMap::with_capacity(128),
@@ -63,29 +66,34 @@ where
             response_queue_sx4,
             response_queue_sx5,
             metadata_cache,
+            ack_manager,
         };
     }
 
-    pub async fn start(&self) {
+    // leader_push_sub_check
+    pub async fn start_leader_push_sub_check_thread(&self) {
         let conf = broker_mqtt_conf();
         loop {
-            for (topic_id, sub_list) in self.subscribe_manager.share_leader_subscribe.clone() {
-                if sub_list.len() == 0 {
+            // Periodically verify if any push tasks are not started
+            // If so, the thread is started
+            for (_, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
+                let key = format!("{}_{}", sub_data.group_name, sub_data.topic_id);
+                if sub_data.sub_list.len() == 0 {
                     // stop pull data thread
-                    if let Some(sx) = self.leader_pull_data_thread.get(&topic_id) {
+                    if let Some(sx) = self.leader_pull_data_thread.get(&key) {
                         match sx.send(true).await {
                             Ok(_) => {
-                                self.leader_pull_data_thread.remove(&topic_id);
+                                self.leader_pull_data_thread.remove(&sub_data.topic_id);
                             }
                             Err(e) => error(e.to_string()),
                         }
                     }
 
                     // stop push data thread
-                    if let Some(sx) = self.leader_push_data_thread.get(&topic_id) {
+                    if let Some(sx) = self.leader_push_data_thread.get(&key) {
                         match sx.send(true).await {
                             Ok(_) => {
-                                self.leader_push_data_thread.remove(&topic_id);
+                                self.leader_push_data_thread.remove(&key);
                             }
                             Err(e) => error(e.to_string()),
                         }
@@ -94,22 +102,19 @@ where
                     continue;
                 }
 
-                let (sx, rx) = mpsc::channel(10000);
-
-                // start pull data thread
-                if !self.leader_pull_data_thread.contains_key(&topic_id) {
-                    self.start_topic_pull_data_thread(topic_id.clone(), sx)
-                        .await;
-                }
-
                 // start push data thread
                 let subscribe_manager = self.subscribe_manager.clone();
-                if !self.leader_push_data_thread.contains_key(&topic_id) {
+                if !self.leader_push_data_thread.contains_key(&key) {
                     // round_robin
                     if conf.subscribe.shared_subscription_strategy
                         == SHARED_SUBSCRIPTION_STRATEGY_ROUND_ROBIN.to_string()
                     {
-                        self.start_push_by_round_robin(topic_id.clone(), rx, subscribe_manager);
+                        self.start_push_by_round_robin(
+                            sub_data.group_name.clone(),
+                            sub_data.topic_id.clone(),
+                            sub_data.topic_name.clone(),
+                            subscribe_manager,
+                        );
                     }
 
                     // random
@@ -142,30 +147,61 @@ where
                 }
             }
 
+            // Periodically verify that a push task is running, but the subscribe task has stopped
+            // If so, stop the process and clean up the data
+            for (key, sx) in self.leader_push_data_thread.clone() {
+                if !self
+                    .subscribe_manager
+                    .share_leader_subscribe
+                    .contains_key(&key)
+                {
+                    match sx.send(true).await {
+                        Ok(()) => {
+                            self.leader_push_data_thread.remove(&key);
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
             sleep(Duration::from_secs(1)).await;
         }
     }
 
-    pub async fn start_topic_pull_data_thread(&self, topic_id: String, channel_sx: Sender<Record>) {
-        let (sx, mut rx) = mpsc::channel(1);
-        self.leader_pull_data_thread.insert(topic_id.clone(), sx);
+    pub fn start_push_by_round_robin(
+        &self,
+        group_name: String,
+        topic_id: String,
+        topic_name: String,
+        subscribe_manager: Arc<SubscribeManager>,
+    ) {
+        let (stop_sx, mut stop_rx) = mpsc::channel(1);
+        self.leader_push_data_thread
+            .insert(topic_id.clone(), stop_sx);
+        let response_queue_sx4 = self.response_queue_sx4.clone();
+        let response_queue_sx5 = self.response_queue_sx5.clone();
+        let metadata_cache = self.metadata_cache.clone();
         let message_storage = self.message_storage.clone();
+        let ack_manager = self.ack_manager.clone();
+
         tokio::spawn(async move {
             info(format!(
-                "Share sub pull data thread for Topic [{}] was started successfully",
-                topic_id
+                "Share sub push data thread for GroupName {},Topic [{}] was started successfully",
+                group_name, topic_name
             ));
+
             let message_storage = MessageStorage::new(message_storage);
-            let group_id = format!("system_sub_{}", topic_id);
-            let record_num = 100;
+            let group_id = format!("system_sub_{}_{}", group_name, topic_id);
+
             let max_wait_ms = 500;
+            let cursor_point = 0;
+
             loop {
-                match rx.try_recv() {
+                match stop_rx.try_recv() {
                     Ok(flag) => {
                         if flag {
                             info(format!(
-                                "Share sub pull data thread for Topic [{}] was stopped successfully",
-                                topic_id
+                                "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
+                                group_name, topic_name
                             ));
                             break;
                         }
@@ -173,6 +209,19 @@ where
                     Err(_) => {}
                 }
 
+                let sub_list = if let Some(sub) =
+                    subscribe_manager.share_leader_subscribe.get(&topic_id)
+                {
+                    sub.sub_list
+                } else {
+                    info(format!(
+                            "Share sub push data thread for GroupName {},Topic [{}] , subscription length is 0 and the thread is exited.",
+                            group_name, topic_name
+                        ));
+                    break;
+                };
+
+                let record_num = sub_list.len() * 2;
                 match message_storage
                     .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
                     .await
@@ -182,96 +231,7 @@ where
                             sleep(Duration::from_millis(max_wait_ms)).await;
                             return;
                         }
-
-                        // commit offset
-                        if let Some(last_res) = results.last() {
-                            match message_storage
-                                .commit_group_offset(
-                                    topic_id.clone(),
-                                    group_id.clone(),
-                                    last_res.offset,
-                                )
-                                .await
-                            {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    error(e.to_string());
-                                    return;
-                                }
-                            }
-                        }
-
-                        // Push data to subscribers
-                        for record in results.clone() {
-                            match channel_sx.send(record).await {
-                                Ok(_) => {}
-                                Err(e) => error(e.to_string()),
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        error(e.to_string());
-                        sleep(Duration::from_millis(max_wait_ms)).await;
-                    }
-                }
-            }
-        });
-    }
-
-    pub fn start_push_by_round_robin(
-        &self,
-        topic_id: String,
-        mut recv_message_rx: Receiver<Record>,
-        subscribe_manager: Arc<SubscribeManager>,
-    ) {
-        let (stop_sx, mut stop_rx) = mpsc::channel(1);
-        self.leader_push_data_thread
-            .insert(topic_id.clone(), stop_sx);
-        let response_queue_sx4 = self.response_queue_sx4.clone();
-        let response_queue_sx5 = self.response_queue_sx5.clone();
-        let metadata_cache = self.metadata_cache.clone();
-
-        tokio::spawn(async move {
-            info(format!(
-                "Share sub push data thread for Topic [{}] was started successfully",
-                topic_id
-            ));
-
-            loop {
-                match stop_rx.try_recv() {
-                    Ok(flag) => {
-                        if flag {
-                            info(format!(
-                                "Share sub push data thread for Topic [{}] was stopped successfully",
-                                topic_id
-                            ));
-                            break;
-                        }
-                    }
-                    Err(_) => {}
-                }
-
-                if let Some(sub_list) = subscribe_manager.share_leader_subscribe.get(&topic_id) {
-                    for (_, subscribe) in sub_list.clone() {
-                        let connect_id = if let Some(sess) =
-                            metadata_cache.session_info.get(&subscribe.client_id)
-                        {
-                            if let Some(conn_id) = sess.connection_id {
-                                conn_id
-                            } else {
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        };
-
-                        let topic_name: String =
-                            if let Some(topic_name) = metadata_cache.topic_id_name.get(&topic_id) {
-                                topic_name.clone()
-                            } else {
-                                continue;
-                            };
-                        if let Some(record) = recv_message_rx.recv().await {
+                        for record in results {
                             let msg: Message = match Message::decode_record(record) {
                                 Ok(msg) => msg,
                                 Err(e) => {
@@ -279,15 +239,37 @@ where
                                     return;
                                 }
                             };
+
+                            let current_point = if cursor_point < sub_list.len() {
+                                cursor_point
+                            } else {
+                                0
+                            };
+
+                            let subscribe = sub_list.get(current_point).unwrap();
+                            
+                            let pkid: u16 =
+                                metadata_cache.get_available_pkid(subscribe.client_id.clone());
+
+                            let connect_id = if let Some(connect_id) =
+                                metadata_cache.get_connect_id(subscribe.client_id)
+                            {
+                                connect_id
+                            } else {
+                                continue;
+                            };
+
                             let mut sub_id = Vec::new();
                             if let Some(id) = subscribe.subscription_identifier {
                                 sub_id.push(id);
                             }
 
+                            let qos = min_qos(msg.qos, subscribe.qos);
+
                             let publish = Publish {
                                 dup: false,
-                                qos: min_qos(msg.qos, subscribe.qos),
-                                pkid: 1,
+                                qos: qos.clone(),
+                                pkid,
                                 retain: false,
                                 topic: Bytes::from(topic_name),
                                 payload: msg.payload,
@@ -312,14 +294,44 @@ where
                                 connection_id: connect_id,
                                 packet: MQTTPacket::Publish(publish, Some(properties)),
                             };
-                            publish_to_client(
-                                subscribe.protocol,
+
+                            match retry_publish(
+                                subscribe.client_id.clone(),
+                                pkid,
+                                metadata_cache.clone(),
+                                ack_manager.clone(),
+                                qos,
+                                subscribe.clone(),
                                 resp,
                                 response_queue_sx4.clone(),
                                 response_queue_sx5.clone(),
                             )
-                            .await;
+                            .await
+                            {
+                                Ok(()) => {
+                                    cursor_point = cursor_point + 1;
+                                    match message_storage
+                                        .commit_group_offset(
+                                            subscribe.topic_id.clone(),
+                                            group_id.clone(),
+                                            record.offset,
+                                        )
+                                        .await
+                                    {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            error(e.to_string());
+                                            continue;
+                                        }
+                                    }
+                                }
+                                Err(e) => error(e.to_string()),
+                            }
                         }
+                    }
+                    Err(e) => {
+                        error(e.to_string());
+                        sleep(Duration::from_millis(max_wait_ms)).await;
                     }
                 }
             }

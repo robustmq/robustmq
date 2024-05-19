@@ -55,7 +55,7 @@ pub struct MetadataCacheManager {
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
 
-    // (client_id, SubscribeData)
+    // (client_id, <pkid,SubscribeData>)
     pub subscribe_filter: DashMap<String, DashMap<u16, SubscribeData>>,
 
     // (client_id, vec<pkid>)

@@ -1,31 +1,22 @@
 use crate::{
-    core::metadata_cache::MetadataCacheManager,
-    metadata::{message::Message, subscriber::Subscriber},
-    qos::ack_manager::{AckManager, AckPacketInfo},
-    server::tcp::packet::ResponsePackage,
+    core::metadata_cache::MetadataCacheManager, metadata::message::Message,
+    qos::ack_manager::AckManager, server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-    tools::now_second,
-};
+use common_base::log::{error, info};
 use dashmap::DashMap;
-use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
+use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
-    sync::{
-        broadcast::{self, Sender},
-        mpsc,
-    },
-    time::{sleep, timeout},
+    sync::broadcast::{self, Sender},
+    time::sleep,
 };
 
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, publish_to_client},
+    subscribe::{min_qos, retry_publish},
 };
 
 pub struct SubscribeExclusive<S> {
@@ -232,74 +223,6 @@ where
                     }
                 });
             }
-        }
-    }
-}
-
-async fn retry_publish(
-    client_id: String,
-    pkid: u16,
-    metadata_cache: Arc<MetadataCacheManager>,
-    ack_manager: Arc<AckManager>,
-    qos: QoS,
-    subscribe: Subscriber,
-    resp: ResponsePackage,
-    response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_sx5: Sender<ResponsePackage>,
-) -> Result<(), RobustMQError> {
-    loop {
-        match publish_to_client(
-            subscribe.protocol.clone(),
-            resp.clone(),
-            response_queue_sx4.clone(),
-            response_queue_sx5.clone(),
-        )
-        .await
-        {
-            Ok(_) => {
-                match qos {
-                    protocol::mqtt::QoS::AtMostOnce => {
-                        return Ok(());
-                    }
-                    // protocol::mqtt::QoS::AtLeastOnce
-                    // protocol::mqtt::QoS::ExactlyOnce
-                    _ => {
-                        metadata_cache.save_pkid_info(client_id.clone(), pkid);
-
-                        let (qos_sx, qos_rx) = mpsc::channel(1);
-                        ack_manager.add(
-                            client_id.clone(),
-                            pkid,
-                            AckPacketInfo {
-                                sx: qos_sx,
-                                create_time: now_second(),
-                            },
-                        );
-
-                        if wait_qos_ack(qos_rx).await {
-                            return Ok(());
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                error(e.to_string());
-            }
-        };
-    }
-}
-
-async fn wait_qos_ack(mut rx: mpsc::Receiver<bool>) -> bool {
-    let res = timeout(Duration::from_secs(30), async {
-        if let Some(flag) = rx.recv().await {
-            return flag;
-        }
-        return false;
-    });
-    match res.await {
-        Ok(_) => return true,
-        Err(_) => {
-            return false;
         }
     }
 }

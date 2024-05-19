@@ -1,16 +1,26 @@
 use crate::core::metadata_cache::MetadataCacheManager;
+use crate::metadata::subscriber::Subscriber;
+use crate::qos::ack_manager::{AckManager, AckPacketInfo};
 use crate::server::MQTTProtocol;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
+use clients::placement::mqtt::call::placement_get_share_sub;
+use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::log::info;
+use common_base::tools::now_second;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
-    Filter, MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
-    SubscribeProperties, SubscribeReasonCode,
+    MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
+use protocol::placement_center::generate::mqtt::{GetShareSubReply, GetShareSubRequest};
 use regex::Regex;
 use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::mpsc;
+use tokio::time::timeout;
 
 const SHARE_SUB_PREFIX: &str = "$share";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
@@ -150,7 +160,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
     // source IP
 
-    // 
+    //
     for (k, v) in user_properties {
         if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
             && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
@@ -162,11 +172,100 @@ pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
     return false;
 }
 
+pub async fn get_share_sub_leader(
+    client_poll: Arc<ClientPool>,
+    group_name: String,
+    sub_name: String,
+) -> Result<GetShareSubReply, RobustMQError> {
+    let conf = broker_mqtt_conf();
+    let req = GetShareSubRequest {
+        cluster_name: conf.cluster_name.clone(),
+        group_name,
+        sub_name: sub_name.clone(),
+    };
+    match placement_get_share_sub(client_poll, conf.placement.server.clone(), req).await {
+        Ok(reply) => {
+            return Ok(reply);
+        }
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
 pub fn share_sub_rewrite_publish_flag() -> (String, String) {
     return (
         SHARE_SUB_REWRITE_PUBLISH_FLAG.to_string(),
         SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string(),
     );
+}
+
+pub async fn retry_publish(
+    client_id: String,
+    pkid: u16,
+    metadata_cache: Arc<MetadataCacheManager>,
+    ack_manager: Arc<AckManager>,
+    qos: QoS,
+    subscribe: Subscriber,
+    resp: ResponsePackage,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+) -> Result<(), RobustMQError> {
+    loop {
+        match publish_to_client(
+            subscribe.protocol.clone(),
+            resp.clone(),
+            response_queue_sx4.clone(),
+            response_queue_sx5.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                match qos {
+                    protocol::mqtt::QoS::AtMostOnce => {
+                        return Ok(());
+                    }
+                    // protocol::mqtt::QoS::AtLeastOnce
+                    // protocol::mqtt::QoS::ExactlyOnce
+                    _ => {
+                        metadata_cache.save_pkid_info(client_id.clone(), pkid);
+
+                        let (qos_sx, qos_rx) = mpsc::channel(1);
+                        ack_manager.add(
+                            client_id.clone(),
+                            pkid,
+                            AckPacketInfo {
+                                sx: qos_sx,
+                                create_time: now_second(),
+                            },
+                        );
+
+                        if wait_qos_ack(qos_rx).await {
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                error(e.to_string());
+            }
+        };
+    }
+}
+
+async fn wait_qos_ack(mut rx: mpsc::Receiver<bool>) -> bool {
+    let res = timeout(Duration::from_secs(30), async {
+        if let Some(flag) = rx.recv().await {
+            return flag;
+        }
+        return false;
+    });
+    match res.await {
+        Ok(_) => return true,
+        Err(_) => {
+            return false;
+        }
+    }
 }
 
 pub async fn publish_to_client(
