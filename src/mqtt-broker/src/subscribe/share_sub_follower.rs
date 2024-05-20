@@ -88,7 +88,9 @@ impl SubscribeShareFollower {
                     Ok(reply) => {
                         let conf = broker_mqtt_conf();
                         if conf.broker_id == reply.broker_id {
-                            // add leader push && remove follower sub
+                            // add to leader push
+                            
+                            // remove follower sub
                             self.subscribe_manager
                                 .share_follower_subscribe
                                 .remove(&client_id);
@@ -117,19 +119,6 @@ impl SubscribeShareFollower {
             sleep(Duration::from_secs(1)).await;
         }
     }
-
-    pub async fn stop_client(&self, client_id: String) {
-        if let Some(sx) = self.follower_sub_thread.get(&client_id) {
-            match sx.send(true).await {
-                Ok(_) => {
-                    self.follower_sub_thread.remove(&client_id);
-                }
-                Err(_) => {}
-            }
-        }
-    }
-
-    pub async fn transport_leader(&self) {}
 }
 
 async fn rewrite_sub_mqtt4() {
@@ -149,9 +138,7 @@ async fn rewrite_sub_mqtt5(
         "Rewrite sub mqtt5 thread for client [{}] was start successfully",
         share_sub.client_id.clone()
     ));
-    let socket = TcpStream::connect(leader_addr.clone())
-        .await
-        .unwrap();
+    let socket = TcpStream::connect(leader_addr.clone()).await.unwrap();
     let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
     // connect
 
