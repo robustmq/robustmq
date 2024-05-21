@@ -22,9 +22,10 @@ use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use protocol::{
     mqtt::{
-        Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PubComp,
-        PubCompProperties, PubRec, PubRecProperties, Publish, PublishProperties, QoS, Subscribe,
-        SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
+        Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PubAck, PubAckProperties,
+        PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec, PubRecProperties,
+        PubRecReason, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
+        SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
     },
     mqttv5::codec::Mqtt5Codec,
 };
@@ -160,7 +161,7 @@ async fn rewrite_sub_mqtt5(
     let socket = TcpStream::connect(leader_addr.clone()).await.unwrap();
     let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
     let client_id = unique_id();
-    let connect_pkg = build_rewrite_connect_pkc(client_id);
+    let connect_pkg = build_rewrite_connect_pkg(client_id).clone();
     let _ = stream.send(connect_pkg.clone()).await;
     loop {
         match rx.try_recv() {
@@ -218,32 +219,133 @@ async fn rewrite_sub_mqtt5(
                         }
 
                         MQTTPacket::Publish(publish, _) => {
-                            packet_publish(
-                                metadata_cache.clone(),
-                                ack_manager.clone(),
-                                share_sub.clone(),
-                                publish,
-                                response_queue_sx4.clone(),
-                                response_queue_sx5.clone(),
-                            )
-                            .await;
-                        }
+                            let client_id = share_sub.client_id;
 
-                        MQTTPacket::PubRec(pubrec, pubrec_properties) => {
-                            if let Some(properties) = pubrec_properties.clone() {
-                                if is_contain_rewrite_flag(properties.user_properties) {
-                                    packet_pubrec(pubrec, pubrec_properties).await;
-                                }
+                            let connect_id = if let Some(connect_id) =
+                                metadata_cache.get_connect_id(client_id.clone())
+                            {
+                                connect_id
+                            } else {
+                                return;
+                            };
+
+                            let mut sub_id = Vec::new();
+                            if let Some(id) = share_sub.subscription_identifier.clone() {
+                                sub_id.push(id);
                             }
-                            // Subscribe data to Sub Leader node and send subscription request packet
-                            let packet = build_rewrite_subscribe_pkg(share_sub.clone());
+
+                            let pkid: u16 = metadata_cache.get_available_pkid(client_id.clone());
+
+                            let client_pub = Publish {
+                                dup: false,
+                                qos: publish.qos,
+                                pkid,
+                                retain: false,
+                                topic: publish.topic.clone(),
+                                payload: publish.payload.clone(),
+                            };
+
+                            let properties = PublishProperties {
+                                payload_format_indicator: None,
+                                message_expiry_interval: None,
+                                topic_alias: None,
+                                response_topic: None,
+                                correlation_data: None,
+                                user_properties: Vec::new(),
+                                subscription_identifiers: sub_id.clone(),
+                                content_type: None,
+                            };
+
+                            let resp = ResponsePackage {
+                                connection_id: connect_id,
+                                packet: MQTTPacket::Publish(client_pub, Some(properties)),
+                            };
+
+                            loop {
+                                match publish_to_client(
+                                    share_sub.protocol.clone(),
+                                    resp.clone(),
+                                    response_queue_sx4.clone(),
+                                    response_queue_sx5.clone(),
+                                )
+                                .await
+                                {
+                                    Ok(_) => {
+                                        match publish.qos {
+                                            protocol::mqtt::QoS::AtMostOnce => {
+                                                continue;
+                                            }
+
+                                            // protocol::mqtt::QoS::AtLeastOnce
+                                            protocol::mqtt::QoS::AtLeastOnce => {
+                                                metadata_cache
+                                                    .save_pkid_info(client_id.clone(), pkid);
+                                                let (qos_sx, qos_rx) = mpsc::channel(1);
+                                                ack_manager.add(
+                                                    client_id.clone(),
+                                                    pkid,
+                                                    AckPacketInfo {
+                                                        sx: qos_sx,
+                                                        create_time: now_second(),
+                                                    },
+                                                );
+
+                                                if wait_qos_ack(qos_rx).await {
+                                                    let puback = build_publish_ack(
+                                                        pkid,
+                                                        PubAckReason::Success,
+                                                    );
+                                                    let _ = stream.send(puback).await;
+                                                }
+                                            }
+
+                                            // protocol::mqtt::QoS::ExactlyOnce
+                                            protocol::mqtt::QoS::ExactlyOnce => {
+                                                metadata_cache
+                                                    .save_pkid_info(client_id.clone(), pkid);
+
+                                                let (qos_sx, qos_rx) = mpsc::channel(1);
+                                                ack_manager.add(
+                                                    client_id.clone(),
+                                                    pkid,
+                                                    AckPacketInfo {
+                                                        sx: qos_sx,
+                                                        create_time: now_second(),
+                                                    },
+                                                );
+
+                                                if wait_qos_ack(qos_rx).await {
+                                                    let puback = build_publish_rec(
+                                                        pkid,
+                                                        PubRecReason::Success,
+                                                    );
+                                                    let _ = stream.send(puback).await;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error(e.to_string());
+                                    }
+                                };
+                            }
                         }
 
-                        MQTTPacket::PubComp(pubcomp, pubcomp_properties) => {
-                            if let Some(properties) = pubcomp_properties.clone() {
-                                if is_contain_rewrite_flag(properties.user_properties) {
-                                    packet_pubcomp(pubcomp, pubcomp_properties).await;
-                                }
+                        MQTTPacket::PubRel(pubrel, _) => {
+                            let client_id = share_sub.client_id.clone();
+                            let (qos_sx, qos_rx) = mpsc::channel(1);
+                            ack_manager.add(
+                                client_id.clone(),
+                                pubrel.pkid,
+                                AckPacketInfo {
+                                    sx: qos_sx,
+                                    create_time: now_second(),
+                                },
+                            );
+                            if wait_qos_ack(qos_rx).await {
+                                let puback =
+                                    build_publish_comp(pubrel.pkid, PubCompReason::Success);
+                                let _ = stream.send(puback).await;
                             }
                         }
 
@@ -251,7 +353,7 @@ async fn rewrite_sub_mqtt5(
                             break;
                         }
 
-                        MQTTPacket::UnsubAck(unsuback, unsuback_properties) => {
+                        MQTTPacket::UnsubAck(_, _) => {
                             break;
                         }
                         _ => {
@@ -265,77 +367,7 @@ async fn rewrite_sub_mqtt5(
     }
 }
 
-async fn packet_publish(
-    metadata_cache: Arc<MetadataCacheManager>,
-    ack_manager: Arc<AckManager>,
-    share_sub: ShareSubShareSub,
-    publish: Publish,
-    response_queue_sx4: broadcast::Sender<ResponsePackage>,
-    response_queue_sx5: broadcast::Sender<ResponsePackage>,
-) {
-    let client_id = share_sub.client_id;
-
-    let connect_id = if let Some(connect_id) = metadata_cache.get_connect_id(client_id.clone()) {
-        connect_id
-    } else {
-        return;
-    };
-
-    let mut sub_id = Vec::new();
-    if let Some(id) = share_sub.subscription_identifier.clone() {
-        sub_id.push(id);
-    }
-
-    let pkid: u16 = metadata_cache.get_available_pkid(client_id.clone());
-
-    let client_pub = Publish {
-        dup: false,
-        qos: publish.qos,
-        pkid,
-        retain: false,
-        topic: publish.topic.clone(),
-        payload: publish.payload.clone(),
-    };
-
-    let properties = PublishProperties {
-        payload_format_indicator: None,
-        message_expiry_interval: None,
-        topic_alias: None,
-        response_topic: None,
-        correlation_data: None,
-        user_properties: Vec::new(),
-        subscription_identifiers: sub_id.clone(),
-        content_type: None,
-    };
-
-    let resp = ResponsePackage {
-        connection_id: connect_id,
-        packet: MQTTPacket::Publish(client_pub, Some(properties)),
-    };
-
-    match retry_publish(
-        client_id,
-        pkid,
-        metadata_cache,
-        ack_manager,
-        publish.qos,
-        share_sub.protocol.clone(),
-        resp,
-        response_queue_sx4.clone(),
-        response_queue_sx5.clone(),
-    )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => error(e.to_string()),
-    }
-}
-
-async fn packet_pubrec(publish: PubRec, pubrec_properties: Option<PubRecProperties>) {}
-
-async fn packet_pubcomp(publish: PubComp, pubcomp_properties: Option<PubCompProperties>) {}
-
-pub fn build_rewrite_connect_pkc(client_id: String) -> MQTTPacket {
+fn build_rewrite_connect_pkg(client_id: String) -> MQTTPacket {
     let connect = Connect {
         keep_alive: 60,
         client_id,
@@ -349,8 +381,7 @@ pub fn build_rewrite_connect_pkc(client_id: String) -> MQTTPacket {
     return MQTTPacket::Connect(connect, Some(properties), None, None, Some(login));
 }
 
-// build subscribe pkg
-pub fn build_rewrite_subscribe_pkg(share_sub: ShareSubShareSub) -> MQTTPacket {
+fn build_rewrite_subscribe_pkg(share_sub: ShareSubShareSub) -> MQTTPacket {
     let subscribe = Subscribe {
         packet_identifier: share_sub.packet_identifier,
         filters: vec![share_sub.filter],
@@ -364,77 +395,29 @@ pub fn build_rewrite_subscribe_pkg(share_sub: ShareSubShareSub) -> MQTTPacket {
     return MQTTPacket::Subscribe(subscribe, Some(subscribe_poperties));
 }
 
-pub fn build_rewrite_unsubscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
+fn build_rewrite_unsubscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
     return MQTTPacket::Unsubscribe(
         Unsubscribe::default(),
         Some(UnsubscribeProperties::default()),
     );
 }
 
-pub async fn retry_publish_and_rewrite(
-    client_id: String,
-    pkid: u16,
-    metadata_cache: Arc<MetadataCacheManager>,
-    ack_manager: Arc<AckManager>,
-    qos: QoS,
-    protocol: MQTTProtocol,
-    resp: ResponsePackage,
-    response_queue_sx4: broadcast::Sender<ResponsePackage>,
-    response_queue_sx5: broadcast::Sender<ResponsePackage>,
-) -> Result<(), RobustMQError> {
-    loop {
-        match publish_to_client(
-            protocol.clone(),
-            resp.clone(),
-            response_queue_sx4.clone(),
-            response_queue_sx5.clone(),
-        )
-        .await
-        {
-            Ok(_) => {
-                match qos {
-                    protocol::mqtt::QoS::AtMostOnce => {
-                        return Ok(());
-                    }
-                    // protocol::mqtt::QoS::AtLeastOnce
-                    protocol::mqtt::QoS::AtLeastOnce => {
-                        metadata_cache.save_pkid_info(client_id.clone(), pkid);
-                        let (qos_sx, qos_rx) = mpsc::channel(1);
-                        ack_manager.add(
-                            client_id.clone(),
-                            pkid,
-                            AckPacketInfo {
-                                sx: qos_sx,
-                                create_time: now_second(),
-                            },
-                        );
+fn build_publish_ack(pkid: u16, reason: PubAckReason) -> MQTTPacket {
+    let puback = PubAck { pkid, reason };
+    let puback_properties = PubAckProperties::default();
+    return MQTTPacket::PubAck(puback, Some(puback_properties));
+}
 
-                        if wait_qos_ack(qos_rx).await {
-                            
-                            return Ok(());
-                        }
-                    }
-                    // protocol::mqtt::QoS::ExactlyOnce
-                    protocol::mqtt::QoS::ExactlyOnce => {
-                        metadata_cache.save_pkid_info(client_id.clone(), pkid);
+fn build_publish_rec(pkid: u16, reason: PubRecReason) -> MQTTPacket {
+    let puback = PubRec { pkid, reason };
+    let puback_properties = PubRecProperties::default();
+    return MQTTPacket::PubRec(puback, Some(puback_properties));
+}
 
-                        let (qos_sx, qos_rx) = mpsc::channel(1);
-                        ack_manager.add(
-                            client_id.clone(),
-                            pkid,
-                            AckPacketInfo {
-                                sx: qos_sx,
-                                create_time: now_second(),
-                            },
-                        );
-                    }
-                }
-            }
-            Err(e) => {
-                error(e.to_string());
-            }
-        };
-    }
+fn build_publish_comp(pkid: u16, reason: PubCompReason) -> MQTTPacket {
+    let pubcomp = PubComp { pkid, reason };
+    let pubcomp_properties = PubCompProperties::default();
+    return MQTTPacket::PubComp(pubcomp, Some(pubcomp_properties));
 }
 
 #[cfg(test)]

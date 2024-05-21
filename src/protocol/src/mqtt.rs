@@ -669,7 +669,7 @@ pub enum PubAckReason {
     PayloadFormatInvalid,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubAckProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
@@ -712,7 +712,7 @@ pub enum PubRecReason {
     PayloadFormatInvalid,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubRecProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
@@ -792,7 +792,7 @@ pub enum PubCompReason {
     PacketIdentifierNotFound,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubCompProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,

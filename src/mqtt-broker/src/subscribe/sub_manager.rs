@@ -1,5 +1,6 @@
 use super::subscribe::{
-    decode_share_info, is_contain_rewrite_flag, is_share_sub, path_regex_match,
+    decode_share_info, get_share_sub_leader, is_contain_rewrite_flag, is_share_sub,
+    path_regex_match,
 };
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
@@ -10,10 +11,7 @@ use common_base::{
     log::{error, info},
 };
 use dashmap::DashMap;
-use protocol::{
-    mqtt::{Filter, Subscribe, SubscribeProperties},
-    placement_center::generate::mqtt::{GetShareSubReply, GetShareSubRequest},
-};
+use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
 use std::{
     sync::{atomic::AtomicU64, Arc},
     time::Duration,
@@ -24,14 +22,24 @@ static SUB_IDENTIFIER_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
 pub struct ShareSubShareSub {
-    pub identifier_id: u64,
     pub client_id: String,
+    pub group_name: String,
+    pub sub_name: String,
     pub protocol: MQTTProtocol,
-    pub sub_path: String,
-    pub subscribe: Subscribe,
-    pub subscribe_properties: Option<SubscribeProperties>,
+    pub packet_identifier: u16,
+    pub filter: Filter,
+    pub subscription_identifier: Option<usize>,
 }
 
+#[derive(Clone)]
+pub struct ShareLeaderSubscribeData {
+    pub group_name: String,
+    pub topic_id: String,
+    pub topic_name: String,
+    pub sub_list: Vec<Subscriber>,
+}
+
+#[derive(Clone)]
 pub struct SubscribeManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
@@ -39,10 +47,10 @@ pub struct SubscribeManager {
     // (client_id,Vec<Subscriber>)
     pub exclusive_subscribe: DashMap<String, Vec<Subscriber>>,
 
-    // (group_name_topic_name,Vec<Subscriber>)
-    pub share_leader_subscribe: DashMap<String, Vec<Subscriber>>,
+    // (group_name_topic_id,Vec<Subscriber>)
+    pub share_leader_subscribe: DashMap<String, ShareLeaderSubscribeData>,
 
-    // (group_name,ShareSubShareSub)
+    // (group_name_sub_name,ShareSubShareSub)
     pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
 
     // (identifier_id，client_id)
@@ -72,18 +80,20 @@ impl SubscribeManager {
     // Handle subscriptions to new topics
     pub async fn parse_subscribe_by_new_topic(&self) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
-            for (client_id, data) in self.metadata_cache.subscribe_filter.clone() {
-                let subscribe = data.subscribe;
-                let subscribe_properties = data.subscribe_properties;
-                self.parse_subscribe(
-                    topic_name.clone(),
-                    topic.topic_id.clone(),
-                    client_id.clone(),
-                    data.protocol.clone(),
-                    subscribe,
-                    subscribe_properties,
-                )
-                .await;
+            for (client_id, sub_list) in self.metadata_cache.subscribe_filter.clone() {
+                for (_, data) in sub_list {
+                    let subscribe = data.subscribe;
+                    let subscribe_properties = data.subscribe_properties;
+                    self.parse_subscribe(
+                        topic_name.clone(),
+                        topic.topic_id.clone(),
+                        client_id.clone(),
+                        data.protocol.clone(),
+                        subscribe,
+                        subscribe_properties,
+                    )
+                    .await;
+                }
             }
         }
     }
@@ -116,11 +126,16 @@ impl SubscribeManager {
                     continue;
                 }
 
-                if is_share_sub(path) {
+                if is_share_sub(path.clone()) {
                     // leader
-                    for (client_id, mut data) in self.share_leader_subscribe {
+                    for (client_id, mut data) in self.share_leader_subscribe.clone() {
                         data.sub_list.retain(|x| *x.sub_path == path);
                     }
+
+                    // follower
+                    let (group_name, sub_name) = decode_share_info(path);
+                    let follower_key = format!("{}_{}", group_name, sub_name);
+                    self.share_follower_subscribe.remove(&follower_key);
                 } else {
                     self.exclusive_subscribe.remove(&client_id);
                 }
@@ -169,17 +184,25 @@ impl SubscribeManager {
             if is_share_sub(filter.path.clone()) {
                 let (group_name, sub_name) = decode_share_info(filter.path.clone());
                 if path_regex_match(topic_name.clone(), sub_name.clone()) {
-                    match self
-                        .get_share_sub_leader(group_name.clone(), sub_name.clone())
-                        .await
+                    match get_share_sub_leader(
+                        self.client_poll.clone(),
+                        group_name.clone(),
+                        sub_name.clone(),
+                    )
+                    .await
                     {
                         Ok(reply) => {
                             if reply.broker_id == conf.broker_id {
                                 let leader_key = format!("{}_{}", group_name, topic_id);
 
                                 if !self.share_leader_subscribe.contains_key(&leader_key) {
-                                    self.share_leader_subscribe
-                                        .insert(leader_key.clone(), Vec::new());
+                                    let data = ShareLeaderSubscribeData {
+                                        group_name: group_name.clone(),
+                                        topic_id: topic_id.clone(),
+                                        topic_name: topic_name.clone(),
+                                        sub_list: Vec::new(),
+                                    };
+                                    self.share_leader_subscribe.insert(leader_key.clone(), data);
                                 }
 
                                 let mut share_sub_leader =
@@ -191,22 +214,26 @@ impl SubscribeManager {
                                     }
                                 }
                                 sub.group_name = Some(group_name);
-                                share_sub_leader.push(sub);
+                                share_sub_leader.sub_list.push(sub);
                             } else {
-                                let identifier_id = SUB_IDENTIFIER_ID_BUILD
-                                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                                 let share_sub = ShareSubShareSub {
-                                    identifier_id,
                                     client_id: client_id.clone(),
-                                    sub_path: filter.path.clone(),
                                     protocol: protocol.clone(),
-                                    subscribe: subscribe.clone(),
-                                    subscribe_properties: subscribe_properties.clone(),
+                                    packet_identifier: subscribe.packet_identifier,
+                                    filter: filter.clone(),
+                                    group_name: group_name.clone(),
+                                    sub_name: sub_name.clone(),
+                                    subscription_identifier: if let Some(properties) =
+                                        subscribe_properties.clone()
+                                    {
+                                        properties.subscription_identifier
+                                    } else {
+                                        None
+                                    },
                                 };
+                                let follower_key = format!("{}_{}", group_name, sub_name);
                                 self.share_follower_subscribe
-                                    .insert(client_id.clone(), share_sub);
-                                self.share_follower_identifier_id
-                                    .insert(identifier_id as usize, client_id.clone());
+                                    .insert(follower_key, share_sub);
                             }
                         }
                         Err(e) => {
@@ -218,33 +245,6 @@ impl SubscribeManager {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
                     exclusive_sub.push(sub);
                 }
-            }
-        }
-    }
-
-    pub async fn get_share_sub_leader(
-        &self,
-        group_name: String,
-        sub_name: String,
-    ) -> Result<GetShareSubReply, RobustMQError> {
-        let conf = broker_mqtt_conf();
-        let req = GetShareSubRequest {
-            cluster_name: conf.cluster_name.clone(),
-            group_name,
-            sub_name: sub_name.clone(),
-        };
-        match placement_get_share_sub(self.client_poll.clone(), conf.placement.server.clone(), req)
-            .await
-        {
-            Ok(reply) => {
-                info(format!(
-                    " Leader node for the shared subscription is [{}]",
-                    reply.broker_id
-                ));
-                return Ok(reply);
-            }
-            Err(e) => {
-                return Err(e);
             }
         }
     }

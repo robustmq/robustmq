@@ -19,7 +19,11 @@ use crate::{
 use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
-    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties
+    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
+    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,
+    PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
+    SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use regex::Regex;
 use std::sync::Arc;
@@ -340,7 +344,8 @@ where
             if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
                 match data.sx.send(true).await {
                     Ok(()) => {
-                        self.ack_manager.remove(client_id, pkid);
+                        self.ack_manager.remove(client_id.clone(), pkid);
+                        self.metadata_cache.save_pkid_info(client_id.clone(), pkid);
                     }
                     Err(e) => {
                         error(e.to_string());
