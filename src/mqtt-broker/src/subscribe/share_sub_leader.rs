@@ -193,7 +193,7 @@ where
             let group_id = format!("system_sub_{}_{}", group_name, topic_id);
 
             let max_wait_ms = 500;
-            let cursor_point = 0;
+            let mut cursor_point = 0;
 
             loop {
                 match stop_rx.try_recv() {
@@ -212,7 +212,7 @@ where
                 let sub_list = if let Some(sub) =
                     subscribe_manager.share_leader_subscribe.get(&topic_id)
                 {
-                    sub.sub_list
+                    sub.sub_list.clone()
                 } else {
                     info(format!(
                             "Share sub push data thread for GroupName {},Topic [{}] , subscription length is 0 and the thread is exited.",
@@ -232,7 +232,7 @@ where
                             return;
                         }
                         for record in results {
-                            let msg: Message = match Message::decode_record(record) {
+                            let msg: Message = match Message::decode_record(record.clone()) {
                                 Ok(msg) => msg,
                                 Err(e) => {
                                     error(e.to_string());
@@ -247,12 +247,12 @@ where
                             };
 
                             let subscribe = sub_list.get(current_point).unwrap();
-                            
+
                             let pkid: u16 =
                                 metadata_cache.get_available_pkid(subscribe.client_id.clone());
 
                             let connect_id = if let Some(connect_id) =
-                                metadata_cache.get_connect_id(subscribe.client_id)
+                                metadata_cache.get_connect_id(subscribe.client_id.clone())
                             {
                                 connect_id
                             } else {
@@ -271,7 +271,7 @@ where
                                 qos: qos.clone(),
                                 pkid,
                                 retain: false,
-                                topic: Bytes::from(topic_name),
+                                topic: Bytes::from(topic_name.clone()),
                                 payload: msg.payload,
                             };
 
@@ -301,7 +301,7 @@ where
                                 metadata_cache.clone(),
                                 ack_manager.clone(),
                                 qos,
-                                subscribe.clone(),
+                                subscribe.protocol.clone(),
                                 resp,
                                 response_queue_sx4.clone(),
                                 response_queue_sx5.clone(),
@@ -314,7 +314,7 @@ where
                                         .commit_group_offset(
                                             subscribe.topic_id.clone(),
                                             group_id.clone(),
-                                            record.offset,
+                                            record.offset.clone(),
                                         )
                                         .await
                                     {

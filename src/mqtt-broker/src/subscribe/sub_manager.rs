@@ -5,17 +5,13 @@ use super::subscribe::{
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::metadata::subscriber::Subscriber;
 use crate::server::MQTTProtocol;
-use clients::{placement::mqtt::call::placement_get_share_sub, poll::ClientPool};
+use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    errors::RobustMQError,
     log::{error, info},
 };
 use dashmap::DashMap;
-use protocol::{
-    mqtt::{Filter, Subscribe, SubscribeProperties},
-    placement_center::generate::mqtt::{GetShareSubReply, GetShareSubRequest},
-};
+use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
 use std::{
     sync::{atomic::AtomicU64, Arc},
     time::Duration,
@@ -130,9 +126,9 @@ impl SubscribeManager {
                     continue;
                 }
 
-                if is_share_sub(path) {
+                if is_share_sub(path.clone()) {
                     // leader
-                    for (client_id, mut data) in self.share_leader_subscribe {
+                    for (client_id, mut data) in self.share_leader_subscribe.clone() {
                         data.sub_list.retain(|x| *x.sub_path == path);
                     }
 

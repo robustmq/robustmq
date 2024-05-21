@@ -899,7 +899,7 @@ pub struct SubAckProperties {
 //--------------------------- Unsubscribe packet -------------------------------
 
 /// Unsubscribe packet
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Unsubscribe {
     pub pkid: u16,
     pub filters: Vec<String>,

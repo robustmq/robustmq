@@ -255,6 +255,8 @@ where
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.metadata_cache_manager.clone(),
+            self.client_poll.clone(),
+            self.ack_manager.clone(),
         );
 
         self.runtime.spawn(async move {

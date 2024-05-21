@@ -19,11 +19,7 @@ use crate::{
 use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
-    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
-    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
-    PubAckProperties, PubAckReason, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish,
-    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe,
-    UnsubscribeProperties,
+    Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties
 };
 use regex::Regex;
 use std::sync::Arc;
@@ -361,7 +357,6 @@ where
         connect_id: u64,
         pub_rec: PubRec,
         _: Option<PubRecProperties>,
-        _: Arc<QosMemory>,
     ) -> MQTTPacket {
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
@@ -382,14 +377,14 @@ where
     pub async fn publish_comp(
         &self,
         connect_id: u64,
-        pub_rel: PubRel,
-        _: Option<PubRelProperties>,
+        pub_comp: PubComp,
+        _: Option<PubCompProperties>,
     ) -> MQTTPacket {
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             self.ack_manager
-                .remove(conn.client_id.clone(), pub_rel.pkid);
+                .remove(conn.client_id.clone(), pub_comp.pkid);
         }
-        return self.ack_build.pub_rec(pub_rel.pkid, Vec::new());
+        return self.ack_build.pub_rec(pub_comp.pkid, Vec::new());
     }
 
     pub async fn publish_rel(

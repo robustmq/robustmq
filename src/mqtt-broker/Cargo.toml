@@ -23,4 +23,3 @@ storage-adapter.workspace = true
 clients.workspace = true
 metadata-struct.workspace = true
 regex.workspace = true
-rumqttc.workspace = true

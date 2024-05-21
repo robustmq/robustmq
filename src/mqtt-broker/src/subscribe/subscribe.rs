@@ -1,5 +1,4 @@
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::metadata::subscriber::Subscriber;
 use crate::qos::ack_manager::{AckManager, AckPacketInfo};
 use crate::server::MQTTProtocol;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
@@ -7,7 +6,6 @@ use bytes::Bytes;
 use clients::placement::mqtt::call::placement_get_share_sub;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::log::info;
 use common_base::tools::now_second;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
@@ -206,14 +204,14 @@ pub async fn retry_publish(
     metadata_cache: Arc<MetadataCacheManager>,
     ack_manager: Arc<AckManager>,
     qos: QoS,
-    subscribe: Subscriber,
+    protocol: MQTTProtocol,
     resp: ResponsePackage,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
 ) -> Result<(), RobustMQError> {
     loop {
         match publish_to_client(
-            subscribe.protocol.clone(),
+            protocol.clone(),
             resp.clone(),
             response_queue_sx4.clone(),
             response_queue_sx5.clone(),
@@ -253,7 +251,7 @@ pub async fn retry_publish(
     }
 }
 
-async fn wait_qos_ack(mut rx: mpsc::Receiver<bool>) -> bool {
+pub async fn wait_qos_ack(mut rx: mpsc::Receiver<bool>) -> bool {
     let res = timeout(Duration::from_secs(30), async {
         if let Some(flag) = rx.recv().await {
             return flag;

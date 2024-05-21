@@ -188,7 +188,7 @@ where
                                         metadata_cache.clone(),
                                         ack_manager.clone(),
                                         qos,
-                                        subscribe.clone(),
+                                        subscribe.protocol.clone(),
                                         resp,
                                         response_queue_sx4.clone(),
                                         response_queue_sx5.clone(),
