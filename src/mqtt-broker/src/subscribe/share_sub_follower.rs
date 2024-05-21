@@ -91,7 +91,7 @@ impl SubscribeShareFollower {
                     Ok(reply) => {
                         let conf = broker_mqtt_conf();
                         if conf.broker_id == reply.broker_id {
-                            // remove follower sub
+                            // add leader push && remove follower sub
                             self.subscribe_manager
                                 .share_follower_subscribe
                                 .remove(&client_id);
