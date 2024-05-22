@@ -135,7 +135,12 @@ where
                 if self.protocol == MQTTProtocol::MQTT4 {
                     return None;
                 }
-                if self.protocol == MQTTProtocol::MQTT5 {}
+                if self.protocol == MQTTProtocol::MQTT5 {
+                    return self
+                        .mqtt5_service
+                        .publish_rec(connect_id, pub_rec, pub_rec_properties)
+                        .await;
+                }
             }
 
             MQTTPacket::PubComp(pub_comp, pub_comp_properties) => {
@@ -145,7 +150,13 @@ where
                 if self.protocol == MQTTProtocol::MQTT4 {
                     return None;
                 }
-                if self.protocol == MQTTProtocol::MQTT5 {}
+                if self.protocol == MQTTProtocol::MQTT5 {
+                    return Some(
+                        self.mqtt5_service
+                            .publish_comp(connect_id, pub_comp, pub_comp_properties)
+                            .await,
+                    );
+                }
             }
 
             MQTTPacket::PubRel(pub_rel, pub_rel_properties) => {

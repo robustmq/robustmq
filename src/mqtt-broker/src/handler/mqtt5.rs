@@ -21,9 +21,9 @@ use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
-    PubAckProperties, PubAckReason, PubRec, PubRecProperties, PubRel, PubRelProperties, Publish,
-    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe,
-    UnsubscribeProperties,
+    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,
+    PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
+    SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use regex::Regex;
 use std::sync::Arc;
@@ -338,18 +338,20 @@ where
         pub_ack: PubAck,
         _: Option<PubAckProperties>,
     ) -> Option<MQTTPacket> {
-        let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
-            conn.client_id.clone()
-        } else {
-            return Some(self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-            ));
-        };
-
-        let pkid = pub_ack.pkid;
-        if self.ack_manager.contain(client_id.clone(), pkid) {
-            self.ack_manager.remove(client_id, pkid);
+        if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            let client_id = conn.client_id.clone();
+            let pkid = pub_ack.pkid;
+            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
+                match data.sx.send(true).await {
+                    Ok(()) => {
+                        self.ack_manager.remove(client_id.clone(), pkid);
+                        self.metadata_cache.save_pkid_info(client_id.clone(), pkid);
+                    }
+                    Err(e) => {
+                        error(e.to_string());
+                    }
+                }
+            }
         }
 
         return None;
@@ -358,20 +360,38 @@ where
     pub async fn publish_rec(
         &self,
         connect_id: u64,
-        pub_rel: PubRec,
+        pub_rec: PubRec,
         _: Option<PubRecProperties>,
-        idempotent_manager: Arc<QosMemory>,
-    ) -> MQTTPacket {
+    ) -> Option<MQTTPacket> {
+        if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            let client_id = conn.client_id.clone();
+            let pkid = pub_rec.pkid;
+            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
+                match data.sx.send(true).await {
+                    Ok(()) => return None,
+                    Err(e) => {
+                        error(e.to_string());
+                    }
+                }
+            }
+        }
+
+        return Some(self.ack_build.pub_rel());
     }
 
     pub async fn publish_comp(
         &self,
         connect_id: u64,
-        pub_rel: PubRel,
-        _: Option<PubRelProperties>,
-        idempotent_manager: Arc<QosMemory>,
+        pub_comp: PubComp,
+        _: Option<PubCompProperties>,
     ) -> MQTTPacket {
+        if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
+            self.ack_manager
+                .remove(conn.client_id.clone(), pub_comp.pkid);
+        }
+        return self.ack_build.pub_rec(pub_comp.pkid, Vec::new());
     }
+
     pub async fn publish_rel(
         &self,
         connect_id: u64,

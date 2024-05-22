@@ -10,29 +10,32 @@ pub struct AckPacketInfo {
 #[derive(Clone)]
 pub struct AckManager {
     //(client_id_pkid, send)
-    qos_ack_pkg_info: DashMap<String, AckPacketInfo>,
+    qos_ack_pkid_info: DashMap<String, AckPacketInfo>,
 }
 
 impl AckManager {
     pub fn new() -> Self {
         return AckManager {
-            qos_ack_pkg_info: DashMap::with_capacity(8),
+            qos_ack_pkid_info: DashMap::with_capacity(8),
         };
     }
 
     pub fn add(&self, client_id: String, pkid: u16, packet: AckPacketInfo) {
         let key = self.keys(client_id, pkid);
-        self.qos_ack_pkg_info.insert(key, packet);
+        self.qos_ack_pkid_info.insert(key, packet);
     }
 
     pub fn remove(&self, client_id: String, pkid: u16) {
         let key = self.keys(client_id, pkid);
-        self.qos_ack_pkg_info.remove(&key);
+        self.qos_ack_pkid_info.remove(&key);
     }
 
-    pub fn contain(&self, client_id: String, pkid: u16) -> bool {
+    pub fn get(&self, client_id: String, pkid: u16) -> Option<AckPacketInfo> {
         let key = self.keys(client_id, pkid);
-        return self.qos_ack_pkg_info.contains_key(&key);
+        if let Some(data) = self.qos_ack_pkid_info.get(&key) {
+            return Some(data.clone());
+        }
+        return None;
     }
 
     fn keys(&self, client_id: String, pkid: u16) -> String {

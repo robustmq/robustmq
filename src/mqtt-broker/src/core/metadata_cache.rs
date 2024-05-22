@@ -32,7 +32,7 @@ pub struct MetadataChangeData {
     pub value: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MetadataCacheManager {
     // cluster_name
     pub cluster_name: String,
@@ -55,8 +55,8 @@ pub struct MetadataCacheManager {
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
 
-    // (client_id, SubscribeData)
-    pub subscribe_filter: DashMap<String, SubscribeData>,
+    // (client_id, <pkid,SubscribeData>)
+    pub subscribe_filter: DashMap<String, DashMap<u16, SubscribeData>>,
 
     // (client_id, vec<pkid>)
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
@@ -85,14 +85,27 @@ impl MetadataCacheManager {
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
-        self.subscribe_filter.insert(
-            client_id,
-            SubscribeData {
-                protocol,
-                subscribe,
-                subscribe_properties,
-            },
-        );
+        if let Some(data) = self.subscribe_filter.get_mut(&client_id) {
+            data.insert(
+                subscribe.packet_identifier,
+                SubscribeData {
+                    protocol,
+                    subscribe,
+                    subscribe_properties,
+                },
+            );
+        } else {
+            let data = DashMap::with_capacity(8);
+            data.insert(
+                subscribe.packet_identifier,
+                SubscribeData {
+                    protocol,
+                    subscribe,
+                    subscribe_properties,
+                },
+            );
+            self.subscribe_filter.insert(client_id, data);
+        };
     }
 
     pub fn remove_filter(&self, client_id: String) {
@@ -237,16 +250,18 @@ impl MetadataCacheManager {
             pkid_list.retain(|x| *x == pkid);
         }
     }
+
+    pub fn client_pkid_size(&self, client_id: String, pkid: u16) -> usize {
+        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
+            return pkid_list.len();
+        }
+        return 0;
+    }
 }
 
 pub async fn load_metadata_cache<T>(
     metadata_storage_adapter: Arc<T>,
-) -> (
-    Cluster,
-    DashMap<String, User>,
-    DashMap<String, Topic>,
-    DashMap<String, String>,
-)
+) -> (Cluster, DashMap<String, User>, DashMap<String, Topic>)
 where
     T: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -293,11 +308,9 @@ where
     };
 
     let topic_info = DashMap::with_capacity(8);
-    let topic_id_name = DashMap::with_capacity(8);
 
     for (topic_name, topic) in topic_list {
         topic_info.insert(topic_name.clone(), topic.clone());
-        topic_id_name.insert(topic.topic_id, topic_name);
     }
-    return (cluster, user_info, topic_info, topic_id_name);
+    return (cluster, user_info, topic_info);
 }

@@ -36,6 +36,10 @@ pub fn info(msg: String) -> () {
     log::info!(target:"app::server", "{}",msg)
 }
 
+pub fn warn(msg: String) -> () {
+    log::warn!(target:"app::server", "{}",msg)
+}
+
 pub fn debug(msg: String) -> () {
     log::debug!(target:"app::server", "{}",msg)
 }

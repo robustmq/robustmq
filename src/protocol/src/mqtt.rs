@@ -399,7 +399,7 @@ impl From<QoS> for u8 {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Login {
     pub username: String,
     pub password: String,
@@ -669,7 +669,7 @@ pub enum PubAckReason {
     PayloadFormatInvalid,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubAckProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
@@ -712,7 +712,7 @@ pub enum PubRecReason {
     PayloadFormatInvalid,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubRecProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
@@ -750,7 +750,7 @@ pub enum PubRelReason {
     PacketIdentifierNotFound,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq,Default)]
 pub struct PubRelProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
@@ -792,7 +792,7 @@ pub enum PubCompReason {
     PacketIdentifierNotFound,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubCompProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
@@ -821,7 +821,7 @@ impl fmt::Display for PubCompProperties {
 //--------------------------- Subscribe packet -------------------------------
 
 /// Subscription packet
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Subscribe {
     pub packet_identifier: u16,
     pub filters: Vec<Filter>,
@@ -847,7 +847,7 @@ pub enum RetainForwardRule {
     Never,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SubscribeProperties {
     pub subscription_identifier: Option<usize>,
     pub user_properties: Vec<(String, String)>,
@@ -899,7 +899,7 @@ pub struct SubAckProperties {
 //--------------------------- Unsubscribe packet -------------------------------
 
 /// Unsubscribe packet
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Unsubscribe {
     pub pkid: u16,
     pub filters: Vec<String>,
