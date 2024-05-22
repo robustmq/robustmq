@@ -136,11 +136,10 @@ where
                     return None;
                 }
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return Some(
-                        self.mqtt5_service
-                            .publish_rec(connect_id, pub_rec, pub_rec_properties)
-                            .await,
-                    );
+                    return self
+                        .mqtt5_service
+                        .publish_rec(connect_id, pub_rec, pub_rec_properties)
+                        .await;
                 }
             }
 

@@ -362,13 +362,13 @@ where
         connect_id: u64,
         pub_rec: PubRec,
         _: Option<PubRecProperties>,
-    ) -> MQTTPacket {
+    ) -> Option<MQTTPacket> {
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
             if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
                 match data.sx.send(true).await {
-                    Ok(()) => {}
+                    Ok(()) => return None,
                     Err(e) => {
                         error(e.to_string());
                     }
@@ -376,7 +376,7 @@ where
             }
         }
 
-        return self.ack_build.pub_rel();
+        return Some(self.ack_build.pub_rel());
     }
 
     pub async fn publish_comp(

@@ -750,7 +750,7 @@ pub enum PubRelReason {
     PacketIdentifierNotFound,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq,Default)]
 pub struct PubRelProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,

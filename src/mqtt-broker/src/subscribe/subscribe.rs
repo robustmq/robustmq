@@ -223,9 +223,14 @@ pub async fn retry_publish(
                     protocol::mqtt::QoS::AtMostOnce => {
                         return Ok(());
                     }
+                    
                     // protocol::mqtt::QoS::AtLeastOnce
+                    protocol::mqtt::QoS::AtLeastOnce => {
+
+                    }
+                    
                     // protocol::mqtt::QoS::ExactlyOnce
-                    _ => {
+                    protocol::mqtt::QoS::ExactlyOnce => {
                         metadata_cache.save_pkid_info(client_id.clone(), pkid);
 
                         let (qos_sx, qos_rx) = mpsc::channel(1);
@@ -238,7 +243,7 @@ pub async fn retry_publish(
                             },
                         );
 
-                        if wait_qos_ack(qos_rx).await {
+                        if wait_packet_ack(qos_rx).await {
                             return Ok(());
                         }
                     }
@@ -251,7 +256,7 @@ pub async fn retry_publish(
     }
 }
 
-pub async fn wait_qos_ack(mut rx: mpsc::Receiver<bool>) -> bool {
+pub async fn wait_packet_ack(mut rx: mpsc::Receiver<bool>) -> bool {
     let res = timeout(Duration::from_secs(30), async {
         if let Some(flag) = rx.recv().await {
             return flag;
