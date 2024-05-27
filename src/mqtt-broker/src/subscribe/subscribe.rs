@@ -1,15 +1,17 @@
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::qos::ack_manager::{AckManager, AckPacketInfo};
+use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo};
 use crate::server::MQTTProtocol;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
 use clients::placement::mqtt::call::placement_get_share_sub;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::log::warn;
 use common_base::tools::now_second;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
-    MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
+    MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
+    SubscribeProperties,
 };
 use protocol::placement_center::generate::mqtt::{GetShareSubReply, GetShareSubRequest};
 use regex::Regex;
@@ -17,7 +19,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self, Sender};
-use tokio::sync::mpsc;
 use tokio::time::timeout;
 
 const SHARE_SUB_PREFIX: &str = "$share";
@@ -107,6 +108,7 @@ where
                             connection_id: connect_id,
                             packet: MQTTPacket::Publish(publish, Some(properties)),
                         };
+
                         match response_queue_sx.send(resp) {
                             Ok(_) => {}
                             Err(e) => error(format!("{}", e.to_string())),
@@ -198,80 +200,27 @@ pub fn share_sub_rewrite_publish_flag() -> (String, String) {
     );
 }
 
-pub async fn retry_publish(
-    client_id: String,
-    pkid: u16,
-    metadata_cache: Arc<MetadataCacheManager>,
-    ack_manager: Arc<AckManager>,
-    qos: QoS,
-    protocol: MQTTProtocol,
-    resp: ResponsePackage,
-    response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_sx5: Sender<ResponsePackage>,
-) -> Result<(), RobustMQError> {
-    loop {
-        match publish_to_client(
-            protocol.clone(),
-            resp.clone(),
-            response_queue_sx4.clone(),
-            response_queue_sx5.clone(),
-        )
-        .await
-        {
-            Ok(_) => {
-                match qos {
-                    protocol::mqtt::QoS::AtMostOnce => {
-                        return Ok(());
-                    }
-                    
-                    // protocol::mqtt::QoS::AtLeastOnce
-                    protocol::mqtt::QoS::AtLeastOnce => {
-
-                    }
-                    
-                    // protocol::mqtt::QoS::ExactlyOnce
-                    protocol::mqtt::QoS::ExactlyOnce => {
-                        metadata_cache.save_pkid_info(client_id.clone(), pkid);
-
-                        let (qos_sx, qos_rx) = mpsc::channel(1);
-                        ack_manager.add(
-                            client_id.clone(),
-                            pkid,
-                            AckPacketInfo {
-                                sx: qos_sx,
-                                create_time: now_second(),
-                            },
-                        );
-
-                        if wait_packet_ack(qos_rx).await {
-                            return Ok(());
-                        }
-                    }
-                }
-            }
-            Err(e) => {
-                error(e.to_string());
-            }
-        };
-    }
-}
-
-pub async fn wait_packet_ack(mut rx: mpsc::Receiver<bool>) -> bool {
+pub async fn wait_packet_ack(sx: Sender<AckPackageData>) -> Option<AckPackageData> {
     let res = timeout(Duration::from_secs(30), async {
-        if let Some(flag) = rx.recv().await {
-            return flag;
+        match sx.subscribe().recv().await {
+            Ok(data) => {
+                return Some(data);
+            }
+            Err(_) => {
+                return None;
+            }
         }
-        return false;
     });
+
     match res.await {
-        Ok(_) => return true,
+        Ok(data) => data,
         Err(_) => {
-            return false;
+            return None;
         }
     }
 }
 
-pub async fn publish_to_client(
+pub async fn publish_to_response_queue(
     protocol: MQTTProtocol,
     resp: ResponsePackage,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,

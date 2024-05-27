@@ -4,7 +4,7 @@ use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::get_session_info;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
-use crate::qos::ack_manager::AckManager;
+use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
 use crate::qos::QosDataManager;
 use crate::subscribe::sub_manager::SubscribeManager;
 use crate::subscribe::subscribe::{min_qos, save_retain_message};
@@ -26,6 +26,7 @@ use protocol::mqtt::{
     SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use regex::Regex;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
@@ -74,6 +75,7 @@ where
         last_will: Option<LastWill>,
         last_will_properties: Option<LastWillProperties>,
         login: Option<Login>,
+        addr: SocketAddr,
     ) -> MQTTPacket {
         let cluster = self.metadata_cache.get_cluster_info();
         // connect for authentication
@@ -82,6 +84,7 @@ where
             &cluster,
             login,
             &connect_properties,
+            addr,
         )
         .await
         {
@@ -342,11 +345,11 @@ where
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
             if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(true).await {
-                    Ok(()) => {
-                        self.ack_manager.remove(client_id.clone(), pkid);
-                        self.metadata_cache.save_pkid_info(client_id.clone(), pkid);
-                    }
+                match data.sx.send(AckPackageData {
+                    ack_type: AckPackageType::PubAck,
+                    pkid: pub_ack.pkid,
+                }) {
+                    Ok(_) => {}
                     Err(e) => {
                         error(e.to_string());
                     }
@@ -367,8 +370,11 @@ where
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
             if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(true).await {
-                    Ok(()) => return None,
+                match data.sx.send(AckPackageData {
+                    ack_type: AckPackageType::PubRec,
+                    pkid: pub_rec.pkid,
+                }) {
+                    Ok(_) => return None,
                     Err(e) => {
                         error(e.to_string());
                     }
@@ -384,12 +390,23 @@ where
         connect_id: u64,
         pub_comp: PubComp,
         _: Option<PubCompProperties>,
-    ) -> MQTTPacket {
+    ) -> Option<MQTTPacket> {
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
-            self.ack_manager
-                .remove(conn.client_id.clone(), pub_comp.pkid);
+            let client_id = conn.client_id.clone();
+            let pkid = pub_comp.pkid;
+            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
+                match data.sx.send(AckPackageData {
+                    ack_type: AckPackageType::PubComp,
+                    pkid: pub_comp.pkid,
+                }) {
+                    Ok(_) => return None,
+                    Err(e) => {
+                        error(e.to_string());
+                    }
+                }
+            }
         }
-        return self.ack_build.pub_rec(pub_comp.pkid, Vec::new());
+        return None;
     }
 
     pub async fn publish_rel(

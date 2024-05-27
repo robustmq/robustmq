@@ -1,10 +1,23 @@
 use dashmap::DashMap;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 pub struct AckPacketInfo {
-    pub sx: Sender<bool>,
+    pub sx: Sender<AckPackageData>,
     pub create_time: u64,
+}
+
+#[derive(Clone)]
+pub struct AckPackageData {
+    pub ack_type: AckPackageType,
+    pub pkid: u16,
+}
+
+#[derive(Clone, PartialEq, PartialOrd,Debug)]
+pub enum AckPackageType {
+    PubAck,
+    PubComp,
+    PubRec,
 }
 
 #[derive(Clone)]

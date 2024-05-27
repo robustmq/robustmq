@@ -1,26 +1,27 @@
 use super::{
+    exclusive_sub::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, retry_publish, share_sub_rewrite_publish_flag},
+    subscribe::{min_qos, share_sub_rewrite_publish_flag},
 };
 use crate::{
-    core::metadata_cache::MetadataCacheManager, metadata::message::Message,
-    qos::ack_manager::AckManager, server::tcp::packet::ResponsePackage,
+    core::metadata_cache::MetadataCacheManager,
+    metadata::message::Message,
+    qos::ack_manager::{AckManager, AckPacketInfo},
+    server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     log::{error, info},
+    tools::now_second,
 };
 use dashmap::DashMap;
-use protocol::mqtt::{MQTTPacket, Publish, PublishProperties};
+use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
-    sync::{
-        broadcast,
-        mpsc::{self, Sender},
-    },
+    sync::broadcast::{self, Sender},
     time::sleep,
 };
 
@@ -32,12 +33,8 @@ const SHARED_SUBSCRIPTION_STRATEGY_LOCAL: &str = "local";
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
-    // (group_name_topic_name, Sender<bool>)
-    pub leader_pull_data_thread: DashMap<String, Sender<bool>>,
-
-    // (group_name_topic_name, Sender<bool>)
-    pub leader_push_data_thread: DashMap<String, Sender<bool>>,
-
+    //(group_name_topic_id, Sender<bool>)
+    pub leader_push_thread: DashMap<String, Sender<bool>>,
     pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: Arc<S>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
@@ -59,8 +56,7 @@ where
         ack_manager: Arc<AckManager>,
     ) -> Self {
         return SubscribeShareLeader {
-            leader_pull_data_thread: DashMap::with_capacity(128),
-            leader_push_data_thread: DashMap::with_capacity(128),
+            leader_push_thread: DashMap::with_capacity(128),
             subscribe_manager,
             message_storage,
             response_queue_sx4,
@@ -70,30 +66,17 @@ where
         };
     }
 
-    // leader_push_sub_check
-    pub async fn start_leader_push_sub_check_thread(&self) {
+    pub async fn start(&self) {
         let conf = broker_mqtt_conf();
         loop {
-            // Periodically verify if any push tasks are not started
-            // If so, the thread is started
+            // Periodically verify if any push tasks are not started. If so, the thread is started
             for (_, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
-                let key = format!("{}_{}", sub_data.group_name, sub_data.topic_id);
+                let key = self.key(sub_data.group_name.clone(), sub_data.topic_id.clone());
                 if sub_data.sub_list.len() == 0 {
-                    // stop pull data thread
-                    if let Some(sx) = self.leader_pull_data_thread.get(&key) {
-                        match sx.send(true).await {
+                    if let Some(sx) = self.leader_push_thread.get(&key) {
+                        match sx.send(true) {
                             Ok(_) => {
-                                self.leader_pull_data_thread.remove(&sub_data.topic_id);
-                            }
-                            Err(e) => error(e.to_string()),
-                        }
-                    }
-
-                    // stop push data thread
-                    if let Some(sx) = self.leader_push_data_thread.get(&key) {
-                        match sx.send(true).await {
-                            Ok(_) => {
-                                self.leader_push_data_thread.remove(&key);
+                                self.leader_push_thread.remove(&key);
                             }
                             Err(e) => error(e.to_string()),
                         }
@@ -104,7 +87,7 @@ where
 
                 // start push data thread
                 let subscribe_manager = self.subscribe_manager.clone();
-                if !self.leader_push_data_thread.contains_key(&key) {
+                if !self.leader_push_thread.contains_key(&key) {
                     // round_robin
                     if conf.subscribe.shared_subscription_strategy
                         == SHARED_SUBSCRIPTION_STRATEGY_ROUND_ROBIN.to_string()
@@ -116,7 +99,6 @@ where
                             subscribe_manager,
                         );
                     }
-
                     // random
                     if conf.subscribe.shared_subscription_strategy
                         == SHARED_SUBSCRIPTION_STRATEGY_RANDOM.to_string()
@@ -149,15 +131,15 @@ where
 
             // Periodically verify that a push task is running, but the subscribe task has stopped
             // If so, stop the process and clean up the data
-            for (key, sx) in self.leader_push_data_thread.clone() {
+            for (key, sx) in self.leader_push_thread.clone() {
                 if !self
                     .subscribe_manager
                     .share_leader_subscribe
                     .contains_key(&key)
                 {
-                    match sx.send(true).await {
-                        Ok(()) => {
-                            self.leader_push_data_thread.remove(&key);
+                    match sx.send(true) {
+                        Ok(_) => {
+                            self.leader_push_thread.remove(&key);
                         }
                         Err(_) => {}
                     }
@@ -174,9 +156,10 @@ where
         topic_name: String,
         subscribe_manager: Arc<SubscribeManager>,
     ) {
-        let (stop_sx, mut stop_rx) = mpsc::channel(1);
-        self.leader_push_data_thread
-            .insert(topic_id.clone(), stop_sx);
+        let (stop_sx, mut stop_rx) = broadcast::channel(1);
+        let key = self.key(group_name, topic_id);
+        self.leader_push_thread.insert(key, stop_sx);
+
         let response_queue_sx4 = self.response_queue_sx4.clone();
         let response_queue_sx5 = self.response_queue_sx5.clone();
         let metadata_cache = self.metadata_cache.clone();
@@ -248,9 +231,6 @@ where
 
                             let subscribe = sub_list.get(current_point).unwrap();
 
-                            let pkid: u16 =
-                                metadata_cache.get_available_pkid(subscribe.client_id.clone());
-
                             let connect_id = if let Some(connect_id) =
                                 metadata_cache.get_connect_id(subscribe.client_id.clone())
                             {
@@ -269,7 +249,7 @@ where
                             let publish = Publish {
                                 dup: false,
                                 qos: qos.clone(),
-                                pkid,
+                                pkid: 0,
                                 retain: false,
                                 topic: Bytes::from(topic_name.clone()),
                                 payload: msg.payload,
@@ -290,47 +270,128 @@ where
                                 subscription_identifiers: sub_id.clone(),
                                 content_type: None,
                             };
-                            let resp: ResponsePackage = ResponsePackage {
-                                connection_id: connect_id,
-                                packet: MQTTPacket::Publish(publish, Some(properties)),
-                            };
 
-                            match retry_publish(
-                                subscribe.client_id.clone(),
-                                pkid,
-                                metadata_cache.clone(),
-                                ack_manager.clone(),
-                                qos,
-                                subscribe.protocol.clone(),
-                                resp,
-                                response_queue_sx4.clone(),
-                                response_queue_sx5.clone(),
-                            )
-                            .await
-                            {
-                                Ok(()) => {
-                                    cursor_point = cursor_point + 1;
-                                    match message_storage
-                                        .commit_group_offset(
-                                            subscribe.topic_id.clone(),
-                                            group_id.clone(),
-                                            record.offset.clone(),
-                                        )
-                                        .await
+                            match qos {
+                                QoS::AtMostOnce => {
+                                    let resp = ResponsePackage {
+                                        connection_id: connect_id,
+                                        packet: MQTTPacket::Publish(publish, Some(properties)),
+                                    };
+
+                                    publish_message_qos0(
+                                        metadata_cache.clone(),
+                                        subscribe.client_id.clone(),
+                                        publish,
+                                        properties,
+                                        subscribe.protocol.clone(),
+                                        response_queue_sx4.clone(),
+                                        response_queue_sx5.clone(),
+                                        stop_sx.clone(),
+                                    )
+                                    .await;
+                                }
+
+                                QoS::AtLeastOnce => {
+                                    let pkid: u16 =
+                                        metadata_cache.get_pkid(subscribe.client_id.clone()).await;
+                                    publish.pkid = pkid;
+
+                                    let resp = ResponsePackage {
+                                        connection_id: connect_id,
+                                        packet: MQTTPacket::Publish(publish, Some(properties)),
+                                    };
+
+                                    let (wait_puback_sx, _) = broadcast::channel(1);
+                                    ack_manager.add(
+                                        subscribe.client_id.clone(),
+                                        pkid,
+                                        AckPacketInfo {
+                                            sx: wait_puback_sx.clone(),
+                                            create_time: now_second(),
+                                        },
+                                    );
+
+                                    match publish_message_qos1(
+                                        metadata_cache.clone(),
+                                        subscribe.client_id.clone(),
+                                        publish,
+                                        properties,
+                                        pkid,
+                                        subscribe.protocol.clone(),
+                                        response_queue_sx4.clone(),
+                                        response_queue_sx5.clone(),
+                                        stop_sx.clone(),
+                                        wait_puback_sx,
+                                    )
+                                    .await
                                     {
-                                        Ok(_) => {}
+                                        Ok(()) => {
+                                            metadata_cache.remove_pkid_info(
+                                                subscribe.client_id.clone(),
+                                                pkid,
+                                            );
+                                            ack_manager.remove(subscribe.client_id.clone(), pkid);
+                                        }
                                         Err(e) => {
                                             error(e.to_string());
-                                            continue;
                                         }
                                     }
                                 }
-                                Err(e) => error(e.to_string()),
-                            }
+                                QoS::ExactlyOnce => {
+                                    let pkid: u16 =
+                                        metadata_cache.get_pkid(subscribe.client_id.clone()).await;
+                                    publish.pkid = pkid;
+
+                                    let resp = ResponsePackage {
+                                        connection_id: connect_id,
+                                        packet: MQTTPacket::Publish(publish, Some(properties)),
+                                    };
+
+                                    let (wait_ack_sx, _) = broadcast::channel(1);
+                                    ack_manager.add(
+                                        subscribe.client_id.clone(),
+                                        pkid,
+                                        AckPacketInfo {
+                                            sx: wait_ack_sx.clone(),
+                                            create_time: now_second(),
+                                        },
+                                    );
+                                    match publish_message_qos2(
+                                        metadata_cache.clone(),
+                                        subscribe.client_id.clone(),
+                                        publish,
+                                        properties,
+                                        pkid,
+                                        subscribe.protocol.clone(),
+                                        response_queue_sx4.clone(),
+                                        response_queue_sx5.clone(),
+                                        stop_sx.clone(),
+                                        wait_ack_sx,
+                                    )
+                                    .await
+                                    {
+                                        Ok(()) => {
+                                            metadata_cache.remove_pkid_info(
+                                                subscribe.client_id.clone(),
+                                                pkid,
+                                            );
+                                            ack_manager.remove(subscribe.client_id.clone(), pkid);
+                                        }
+                                        Err(e) => {
+                                            error(e.to_string());
+                                        }
+                                    }
+                                }
+                            };
                         }
                     }
                     Err(e) => {
-                        error(e.to_string());
+                        error(format!(
+                        "Failed to read message from storage, failure message: {},topic:{},group{}",
+                        e.to_string(),
+                        topic_id.clone(),
+                        group_id.clone()
+                    ));
                         sleep(Duration::from_millis(max_wait_ms)).await;
                     }
                 }
@@ -345,6 +406,10 @@ where
     fn start_push_by_sticky(&self) {}
 
     fn start_push_by_local(&self) {}
+
+    fn key(&self, group_name: String, topic_id: String) -> String {
+        return format!("{}_{}", group_name, topic_id);
+    }
 }
 
 #[cfg(test)]

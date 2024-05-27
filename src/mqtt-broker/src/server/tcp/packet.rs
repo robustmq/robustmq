@@ -1,15 +1,19 @@
+use std::net::SocketAddr;
+
 use protocol::mqtt::MQTTPacket;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct RequestPackage {
     pub connection_id: u64,
+    pub addr: SocketAddr,
     pub packet: MQTTPacket,
 }
 
 impl RequestPackage {
-    pub fn new(connection_id: u64, packet: MQTTPacket) -> Self {
+    pub fn new(connection_id: u64, addr: SocketAddr, packet: MQTTPacket) -> Self {
         Self {
             connection_id,
+            addr,
             packet,
         }
     }

@@ -28,6 +28,10 @@ mqtts5_port = 8884
 websocket_port = 8083
 websockets_port = 8084
 
+[system]
+system_user = "admin"
+system_password = "pwd123"
+
 [runtime]
 worker_threads = 16
 

@@ -1,7 +1,8 @@
 use super::{
     sub_manager::SubscribeManager,
     subscribe::{
-        get_share_sub_leader, publish_to_client, share_sub_rewrite_publish_flag, wait_packet_ack,
+        get_share_sub_leader, publish_to_response_queue, share_sub_rewrite_publish_flag,
+        wait_packet_ack,
     },
 };
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     subscribe::sub_manager::ShareSubShareSub,
 };
-use clients::{mqtt, poll::ClientPool};
+use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     log::{error, info, warn},
@@ -72,12 +73,13 @@ impl SubscribeShareFollower {
 
     pub async fn start(&self) {
         loop {
-            for (client_id, share_sub) in self.subscribe_manager.share_follower_subscribe.clone() {
+            for (_, share_sub) in self.subscribe_manager.share_follower_subscribe.clone() {
                 let metadata_cache = self.metadata_cache.clone();
                 let response_queue_sx4 = self.response_queue_sx4.clone();
                 let response_queue_sx5 = self.response_queue_sx5.clone();
                 let (stop_sx, stop_rx) = mpsc::channel(1);
-                self.follower_sub_thread.insert(client_id.clone(), stop_sx);
+                self.follower_sub_thread
+                    .insert(share_sub.client_id.clone(), stop_sx);
                 let ack_manager = self.ack_manager.clone();
 
                 match get_share_sub_leader(
@@ -90,10 +92,12 @@ impl SubscribeShareFollower {
                     Ok(reply) => {
                         let conf = broker_mqtt_conf();
                         if conf.broker_id == reply.broker_id {
-                            // add leader push && remove follower sub
+                            // remove follower sub
+                            let follower_key =
+                                format!("{}_{}", share_sub.group_name, share_sub.sub_name);
                             self.subscribe_manager
                                 .share_follower_subscribe
-                                .remove(&client_id);
+                                .remove(&follower_key);
 
                             // parse sub
                             let subscribe = Subscribe {
@@ -115,9 +119,9 @@ impl SubscribeShareFollower {
                         } else {
                             tokio::spawn(async move {
                                 if share_sub.protocol == MQTTProtocol::MQTT4 {
-                                    rewrite_sub_mqtt4().await;
+                                    resub_sub_mqtt4().await;
                                 } else if share_sub.protocol == MQTTProtocol::MQTT5 {
-                                    rewrite_sub_mqtt5(
+                                    resub_sub_mqtt5(
                                         ack_manager,
                                         reply.broker_ip,
                                         metadata_cache,
@@ -134,16 +138,16 @@ impl SubscribeShareFollower {
                     Err(e) => error(e.to_string()),
                 }
             }
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(5)).await;
         }
     }
 }
 
-async fn rewrite_sub_mqtt4() {
+async fn resub_sub_mqtt4() {
     error("MQTT 4 does not currently support shared subscriptions".to_string());
 }
 
-async fn rewrite_sub_mqtt5(
+async fn resub_sub_mqtt5(
     ack_manager: Arc<AckManager>,
     leader_addr: String,
     metadata_cache: Arc<MetadataCacheManager>,
@@ -153,11 +157,15 @@ async fn rewrite_sub_mqtt5(
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
 ) {
     info(format!(
-        "Rewrite sub mqtt5 thread for client [{}] was start successfully",
-        share_sub.client_id.clone()
+        "ReSub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was start successfully",
+        share_sub.client_id.clone(),
+        share_sub.group_name.clone(),
+        share_sub.sub_name.clone(),
     ));
+
     let socket = TcpStream::connect(leader_addr.clone()).await.unwrap();
     let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
+
     let follower_sub_leader_client_id = unique_id();
 
     // Create a connection to GroupName
@@ -211,7 +219,9 @@ async fn rewrite_sub_mqtt5(
                                 // When the connection is successful, a subscription request is sent
                                 let sub_packet = build_rewrite_subscribe_pkg(share_sub.clone());
                                 match stream.send(sub_packet).await {
-                                    Ok(_) => {}
+                                    Ok(_) => {
+                                        continue;
+                                    }
                                     Err(e) => {
                                         error(format!(
                                             "Share follower [{}] send Subscribe packet error. error message:{}",
@@ -299,7 +309,7 @@ async fn rewrite_sub_mqtt5(
                             };
 
                             loop {
-                                match publish_to_client(
+                                match publish_to_response_queue(
                                     share_sub.protocol.clone(),
                                     resp.clone(),
                                     response_queue_sx4.clone(),
@@ -332,8 +342,8 @@ async fn rewrite_sub_mqtt5(
                                                     },
                                                 );
 
-                                                if wait_packet_ack(wait_puback_rx).await {
-                                                    let puback = build_publish_ack(
+                                                if wait_packet_ack(wait_puback_rx).await > 0 {
+                                                    let puback = build_rewrite_publish_ack(
                                                         pkid,
                                                         PubAckReason::Success,
                                                     );
@@ -359,20 +369,21 @@ async fn rewrite_sub_mqtt5(
                                                     pkid,
                                                 );
 
-                                                let (wait_pubrec_sx, wait_pubrec_rx) =
+                                                let (wait_client_pubrec_sx, wait_client_pubrec_rx) =
                                                     mpsc::channel(1);
 
                                                 ack_manager.add(
                                                     mqtt_client_client_id.clone(),
                                                     pkid,
                                                     AckPacketInfo {
-                                                        sx: wait_pubrec_sx,
+                                                        sx: wait_client_pubrec_sx,
                                                         create_time: now_second(),
                                                     },
                                                 );
 
-                                                if wait_packet_ack(wait_pubrec_rx).await {
-                                                    let puback = build_publish_rec(
+                                                if wait_packet_ack(wait_client_pubrec_rx).await > 0
+                                                {
+                                                    let puback = build_to_leader_pubrec(
                                                         publish.pkid,
                                                         PubRecReason::Success,
                                                         pkid,
@@ -381,8 +392,19 @@ async fn rewrite_sub_mqtt5(
                                                         Ok(_) => {}
                                                         Err(e) => {
                                                             error(format!("Share follower [{}] send PubRec packet error.
-                                                             error message:{}",follower_sub_leader_client_id,e.to_string()))
+                                                             error message:{}",follower_sub_leader_client_id,e.to_string()));
+                                                            continue;
                                                         }
+                                                    }
+
+                                                    let (
+                                                        wait_leader_pubrel_sx,
+                                                        wait_leader_pubrec_rx,
+                                                    ) = mpsc::channel(1);
+
+                                                    if wait_packet_ack(wait_leader_pubrec_rx).await
+                                                        > 0
+                                                    {
                                                     }
                                                 }
                                             }
@@ -416,7 +438,7 @@ async fn rewrite_sub_mqtt5(
                                 },
                             );
 
-                            if wait_packet_ack(qos_rx).await {
+                            if wait_packet_ack(qos_rx).await > 0 {
                                 let puback =
                                     build_publish_comp(pubrel.pkid, PubCompReason::Success);
                                 let _ = stream.send(puback).await;
@@ -476,13 +498,13 @@ fn build_rewrite_unsubscribe_pkg(rewrite_sub: ShareSubShareSub) -> MQTTPacket {
     );
 }
 
-fn build_publish_ack(pkid: u16, reason: PubAckReason) -> MQTTPacket {
+fn build_rewrite_publish_ack(pkid: u16, reason: PubAckReason) -> MQTTPacket {
     let puback = PubAck { pkid, reason };
     let puback_properties = PubAckProperties::default();
     return MQTTPacket::PubAck(puback, Some(puback_properties));
 }
 
-fn build_publish_rec(pkid: u16, reason: PubRecReason, mqtt_client_pkid: u16) -> MQTTPacket {
+fn build_to_leader_pubrec(pkid: u16, reason: PubRecReason, mqtt_client_pkid: u16) -> MQTTPacket {
     let puback = PubRec { pkid, reason };
     let puback_properties = PubRecProperties {
         reason_string: None,

@@ -10,6 +10,7 @@ use crate::server::MQTTProtocol;
 use crate::subscribe::sub_manager::SubscribeManager;
 use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
@@ -69,7 +70,12 @@ where
         };
     }
 
-    pub async fn apply(&mut self, connect_id: u64, packet: MQTTPacket) -> Option<MQTTPacket> {
+    pub async fn apply(
+        &mut self,
+        connect_id: u64,
+        addr: SocketAddr,
+        packet: MQTTPacket,
+    ) -> Option<MQTTPacket> {
         info(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
@@ -88,6 +94,7 @@ where
                             last_will,
                             last_will_peoperties,
                             login,
+                            addr,
                         )
                         .await
                 } else {
@@ -151,11 +158,10 @@ where
                     return None;
                 }
                 if self.protocol == MQTTProtocol::MQTT5 {
-                    return Some(
-                        self.mqtt5_service
-                            .publish_comp(connect_id, pub_comp, pub_comp_properties)
-                            .await,
-                    );
+                    return self
+                        .mqtt5_service
+                        .publish_comp(connect_id, pub_comp, pub_comp_properties)
+                        .await;
                 }
             }
 
