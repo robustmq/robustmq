@@ -14,6 +14,7 @@ use futures::{SinkExt, StreamExt};
 use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
 use std::{
     fmt::{Debug, Error},
+    net::ToSocketAddrs,
     sync::Arc,
 };
 use storage_adapter::storage::StorageAdapter;
@@ -108,7 +109,6 @@ where
                 let request_queue_sx = request_queue_sx.clone();
                 match listener.accept().await {
                     Ok((stream, addr)) => {
-                        
                         // split stream
                         let (r_stream, w_stream) = io::split(stream);
                         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
@@ -141,7 +141,8 @@ where
                                         Ok(data) => {
                                             metrics_request_packet_incr(&protocol_lable);
                                             let pack: MQTTPacket = data.try_into().unwrap();
-                                            let package = RequestPackage::new(connection_id, pack);
+                                            let package =
+                                                RequestPackage::new(connection_id, addr, pack);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
                                                 Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
@@ -178,7 +179,10 @@ where
             while let Ok(packet) = request_queue_rx.recv().await {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
 
-                if let Some(resp) = command.apply(packet.connection_id, packet.packet).await {
+                if let Some(resp) = command
+                    .apply(packet.connection_id, packet.addr, packet.packet)
+                    .await
+                {
                     // Close the client connection
                     if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
                         if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {

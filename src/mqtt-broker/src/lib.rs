@@ -247,7 +247,7 @@ where
         );
 
         self.runtime.spawn(async move {
-            leader_sub.start_leader_push_sub_check_thread().await;
+            leader_sub.start().await;
         });
 
         let follower_sub = SubscribeShareFollower::new(

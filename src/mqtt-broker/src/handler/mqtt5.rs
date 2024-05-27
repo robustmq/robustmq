@@ -26,6 +26,7 @@ use protocol::mqtt::{
     SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use regex::Regex;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
@@ -74,6 +75,7 @@ where
         last_will: Option<LastWill>,
         last_will_properties: Option<LastWillProperties>,
         login: Option<Login>,
+        addr: SocketAddr,
     ) -> MQTTPacket {
         let cluster = self.metadata_cache.get_cluster_info();
         // connect for authentication
@@ -82,6 +84,7 @@ where
             &cluster,
             login,
             &connect_properties,
+            addr,
         )
         .await
         {

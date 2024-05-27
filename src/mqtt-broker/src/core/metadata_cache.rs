@@ -40,6 +40,8 @@ pub struct MetadataCacheManager {
     // cluster_name
     pub cluster_name: String,
 
+    pub cluster_broker_list:Vec<>,
+
     // (cluster_name, Cluster)
     pub cluster_info: DashMap<String, Cluster>,
 

@@ -1,13 +1,14 @@
 use crate::{
     core::metadata_cache::MetadataCacheManager,
     metadata::message::Message,
-    qos::ack_manager::{AckManager, AckPackageType, AckPacketInfo},
+    qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
 use common_base::{
-    log::{error, info, warn},
+    errors::RobustMQError,
+    log::{error, info},
     tools::now_second,
 };
 use dashmap::DashMap;
@@ -21,7 +22,7 @@ use tokio::{
 
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, publish_message_to_client, publish_to_response_queue, wait_packet_ack},
+    subscribe::{min_qos, publish_to_response_queue, wait_packet_ack},
 };
 
 pub struct SubscribeExclusive<S> {
@@ -85,7 +86,7 @@ where
                 let ack_manager = self.ack_manager.clone();
 
                 // Subscribe to the data push thread
-                self.push_thread.insert(thread_key, stop_sx);
+                self.push_thread.insert(thread_key, stop_sx.clone());
 
                 tokio::spawn(async move {
                     info(format!(
@@ -152,13 +153,10 @@ where
                                         false
                                     };
 
-                                    let pkid: u16 =
-                                        metadata_cache.get_pkid(client_id.clone()).await;
-
-                                    let publish = Publish {
+                                    let mut publish = Publish {
                                         dup: false,
                                         qos,
-                                        pkid,
+                                        pkid: 0,
                                         retain,
                                         topic: Bytes::from(subscribe.topic_name.clone()),
                                         payload: Bytes::from(msg.payload),
@@ -175,66 +173,99 @@ where
                                         content_type: None,
                                     };
 
-                                    let connect_id = if let Some(id) =
-                                        metadata_cache.get_connect_id(subscribe.client_id.clone())
-                                    {
-                                        id
-                                    } else {
-                                        continue;
-                                    };
+                                    match qos {
+                                        QoS::AtMostOnce => {
+                                            publish_message_qos0(
+                                                metadata_cache.clone(),
+                                                client_id.clone(),
+                                                publish,
+                                                properties,
+                                                subscribe.protocol.clone(),
+                                                response_queue_sx4.clone(),
+                                                response_queue_sx5.clone(),
+                                                stop_sx.clone(),
+                                            )
+                                            .await;
+                                        }
 
-                                    let resp = ResponsePackage {
-                                        connection_id: connect_id,
-                                        packet: MQTTPacket::Publish(publish, Some(properties)),
-                                    };
+                                        QoS::AtLeastOnce => {
+                                            let pkid: u16 =
+                                                metadata_cache.get_pkid(client_id.clone()).await;
+                                            publish.pkid = pkid;
 
-                                    let mut retry_times = 1;
+                                            let (wait_puback_sx, _) = broadcast::channel(1);
+                                            ack_manager.add(
+                                                client_id.clone(),
+                                                pkid,
+                                                AckPacketInfo {
+                                                    sx: wait_puback_sx.clone(),
+                                                    create_time: now_second(),
+                                                },
+                                            );
 
-                                    loop {
-                                        match publish_message_to_client(
-                                            connect_id,
-                                            client_id.clone(),
-                                            pkid,
-                                            ack_manager.clone(),
-                                            qos,
-                                            subscribe.protocol.clone(),
-                                            resp.clone(),
-                                            response_queue_sx4.clone(),
-                                            response_queue_sx5.clone(),
-                                        )
-                                        .await
-                                        {
-                                            Ok(()) => {
-                                                metadata_cache
-                                                    .remove_pkid_info(client_id.clone(), pkid);
-
-                                                match message_storage
-                                                    .commit_group_offset(
-                                                        subscribe.topic_id.clone(),
-                                                        group_id.clone(),
-                                                        record.offset,
-                                                    )
-                                                    .await
-                                                {
-                                                    Ok(_) => {}
-                                                    Err(_) => {
-                                                        //Occasional commit offset failures are allowed because subsequent commit offsets overwrite previous ones.
-                                                        continue;
-                                                    }
+                                            match publish_message_qos1(
+                                                metadata_cache.clone(),
+                                                client_id.clone(),
+                                                publish,
+                                                properties,
+                                                pkid,
+                                                subscribe.protocol.clone(),
+                                                response_queue_sx4.clone(),
+                                                response_queue_sx5.clone(),
+                                                stop_sx.clone(),
+                                                wait_puback_sx,
+                                            )
+                                            .await
+                                            {
+                                                Ok(()) => {
+                                                    metadata_cache
+                                                        .remove_pkid_info(client_id.clone(), pkid);
+                                                    ack_manager.remove(client_id.clone(), pkid);
                                                 }
-                                                break;
-                                            }
-                                            Err(e) => {
-                                                retry_times = retry_times + 1;
-                                                if retry_times > 3 {
-                                                    error(format!("Failed to push subscription message to client, failure message: {},topic:{},group{}",e.to_string(),
-                                                    subscribe.topic_id.clone(),
-                                                    group_id.clone()));
-                                                    break;
+                                                Err(e) => {
+                                                    error(e.to_string());
                                                 }
                                             }
                                         }
-                                    }
+                                        QoS::ExactlyOnce => {
+                                            let pkid: u16 =
+                                                metadata_cache.get_pkid(client_id.clone()).await;
+                                            publish.pkid = pkid;
+
+                                            let (wait_ack_sx, _) = broadcast::channel(1);
+                                            ack_manager.add(
+                                                client_id.clone(),
+                                                pkid,
+                                                AckPacketInfo {
+                                                    sx: wait_ack_sx.clone(),
+                                                    create_time: now_second(),
+                                                },
+                                            );
+                                            match publish_message_qos2(
+                                                metadata_cache.clone(),
+                                                client_id.clone(),
+                                                publish,
+                                                properties,
+                                                pkid,
+                                                subscribe.protocol.clone(),
+                                                response_queue_sx4.clone(),
+                                                response_queue_sx5.clone(),
+                                                stop_sx.clone(),
+                                                wait_ack_sx,
+                                            )
+                                            .await
+                                            {
+                                                Ok(()) => {
+                                                    metadata_cache
+                                                        .remove_pkid_info(client_id.clone(), pkid);
+                                                    ack_manager.remove(client_id.clone(), pkid);
+                                                }
+                                                Err(e) => {
+                                                    error(e.to_string());
+                                                }
+                                            }
+                                        }
+                                    };
                                 }
                             }
                             Err(e) => {
@@ -254,14 +285,42 @@ where
     }
 }
 
-// When the subscription QOS is 0, 
+// When the subscription QOS is 0,
 // the message can be pushed directly to the request return queue without the need for a retry mechanism.
 pub async fn publish_message_qos0(
+    metadata_cache: Arc<MetadataCacheManager>,
+    client_id: String,
+    publish: Publish,
+    publish_properties: PublishProperties,
     protocol: MQTTProtocol,
-    resp: ResponsePackage,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
+    stop_sx: broadcast::Sender<bool>,
 ) {
+    let connect_id;
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return;
+                }
+            }
+            Err(_) => {}
+        }
+        if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+            connect_id = id;
+            break;
+        } else {
+            sleep(Duration::from_secs(1)).await;
+            continue;
+        };
+    }
+
+    let resp = ResponsePackage {
+        connection_id: connect_id,
+        packet: MQTTPacket::Publish(publish, Some(publish_properties)),
+    };
+
     match publish_to_response_queue(
         protocol.clone(),
         resp.clone(),
@@ -284,24 +343,42 @@ pub async fn publish_message_qos0(
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
 pub async fn publish_message_qos1(
+    metadata_cache: Arc<MetadataCacheManager>,
     client_id: String,
+    mut publish: Publish,
+    publish_properties: PublishProperties,
     pkid: u16,
-    ack_manager: Arc<AckManager>,
     protocol: MQTTProtocol,
-    resp: ResponsePackage,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
-) {
+    wait_puback_sx: broadcast::Sender<AckPackageData>,
+) -> Result<(), RobustMQError> {
+    let mut retry_times = 0;
     loop {
         match stop_sx.subscribe().try_recv() {
             Ok(flag) => {
                 if flag {
-                    break;
+                    return Ok(());
                 }
             }
             Err(_) => {}
         }
+
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+            id
+        } else {
+            sleep(Duration::from_secs(1)).await;
+            continue;
+        };
+
+        retry_times = retry_times + 1;
+        publish.dup = retry_times >= 2;
+
+        let resp = ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+        };
 
         match publish_to_response_queue(
             protocol.clone(),
@@ -312,22 +389,10 @@ pub async fn publish_message_qos1(
         .await
         {
             Ok(_) => {
-                let (wait_puback_sx, _) = broadcast::channel(1);
-                ack_manager.add(
-                    client_id.clone(),
-                    pkid,
-                    AckPacketInfo {
-                        sx: wait_puback_sx.clone(),
-                        create_time: now_second(),
-                    },
-                );
-                
                 if let Some(data) = wait_packet_ack(wait_puback_sx.clone()).await {
                     if data.ack_type == AckPackageType::PubAck && data.pkid == pkid {
-                        ack_manager.remove(client_id, pkid);
-                        break;
+                        return Ok(());
                     }
-                    warn(format!("Wait to receive a Publish Ack packet, but the received packet is {:?} not PubAck.",data.ack_type));
                 }
             }
             Err(e) => {
@@ -335,94 +400,157 @@ pub async fn publish_message_qos1(
                     "Failed to write QOS1 Publish message to response queue, failure message: {}",
                     e.to_string()
                 ));
-                sleep(Duration::from_secs(10)).await;
+                sleep(Duration::from_secs(1)).await;
             }
         }
     }
 }
 
+// send publish message
+// wait pubrec message
+// send pubrel message
+// wait pubcomp message
 pub async fn publish_message_qos2(
-    connect_id: u64,
+    metadata_cache: Arc<MetadataCacheManager>,
     client_id: String,
+    mut publish: Publish,
+    publish_properties: PublishProperties,
     pkid: u16,
-    ack_manager: Arc<AckManager>,
     protocol: MQTTProtocol,
-    resp: ResponsePackage,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
-) {
-    match publish_to_response_queue(
-        protocol.clone(),
-        resp.clone(),
-        response_queue_sx4.clone(),
-        response_queue_sx5.clone(),
-    )
-    .await
-    {
-        Ok(_) => {
-            let (wait_pubrec_sx, _) = broadcast::channel(1);
-            ack_manager.add(
-                client_id.clone(),
-                pkid,
-                AckPacketInfo {
-                    sx: wait_pubrec_sx.clone(),
-                    create_time: now_second(),
-                },
-            );
-
-            // wait pub rec
-            loop {
-                if let Some(data) = wait_packet_ack(wait_pubrec_sx.clone()).await {
-                    if data.ack_type == AckPackageType::PubRec {
-                        let pubrel = PubRel {
-                            pkid,
-                            reason: protocol::mqtt::PubRelReason::Success,
-                        };
-
-                        let pubrel_resp = ResponsePackage {
-                            connection_id: connect_id,
-                            packet: MQTTPacket::PubRel(pubrel, None),
-                        };
-
-                        match publish_to_response_queue(
-                            protocol.clone(),
-                            pubrel_resp.clone(),
-                            response_queue_sx4.clone(),
-                            response_queue_sx5.clone(),
-                        )
-                        .await
-                        {
-                            Ok(_) => {
-                                // wait pub comp
-                                let (wait_pubcomp_sx, _) = broadcast::channel(1);
-                                loop {
-                                    if let Some(data) =
-                                        wait_packet_ack(wait_pubcomp_sx.clone()).await
-                                    {
-                                        if data.ack_type == AckPackageType::PubComp {
-                                            ack_manager.remove(client_id.clone(), pkid);
-                                            return;
-                                        }
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                error(format!(
-                                            "Failed to write PubRel message to response queue, failure message: {}",
-                                            e.to_string()
-                                        ));
-                            }
-                        }
-                    }
-                    warn(format!("Wait to receive a Publish Rec packet, but the received packet is {:?} not PubRec.",data.ack_type));
+    stop_sx: broadcast::Sender<bool>,
+    wait_ack_sx: broadcast::Sender<AckPackageData>,
+) -> Result<(), RobustMQError> {
+    // send publish message
+    let mut retry_times = 0;
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return Ok(());
                 }
             }
+            Err(_) => {}
         }
-        Err(e) => {
-            error(format!(
-                "Failed to write QOS1 Publish message to response queue, failure message: {}",
-                e.to_string()
-            ));
+
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+            id
+        } else {
+            sleep(Duration::from_secs(1)).await;
+            continue;
+        };
+
+        retry_times = retry_times + 1;
+        publish.dup = retry_times >= 2;
+
+        let resp = ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+        };
+
+        match publish_to_response_queue(
+            protocol.clone(),
+            resp.clone(),
+            response_queue_sx4.clone(),
+            response_queue_sx5.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                break;
+            }
+            Err(e) => {
+                error(format!(
+                    "Failed to write QOS1 Publish message to response queue, failure message: {}",
+                    e.to_string()
+                ));
+                sleep(Duration::from_millis(5)).await;
+            }
         }
     }
+
+    // wait pub rec
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return Ok(());
+                }
+            }
+            Err(_) => {}
+        }
+        if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
+            if data.ack_type == AckPackageType::PubRec {
+                break;
+            }
+        }
+    }
+
+    // send pub rel
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return Ok(());
+                }
+            }
+            Err(_) => {}
+        }
+
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+            id
+        } else {
+            sleep(Duration::from_secs(1)).await;
+            continue;
+        };
+
+        let pubrel = PubRel {
+            pkid,
+            reason: protocol::mqtt::PubRelReason::Success,
+        };
+
+        let pubrel_resp = ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::PubRel(pubrel, None),
+        };
+
+        match publish_to_response_queue(
+            protocol.clone(),
+            pubrel_resp.clone(),
+            response_queue_sx4.clone(),
+            response_queue_sx5.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                break;
+            }
+            Err(e) => {
+                error(format!(
+                    "Failed to write PubRel message to response queue, failure message: {}",
+                    e.to_string()
+                ));
+            }
+        }
+    }
+
+    // wait pub comp
+    let (wait_pubcomp_sx, _) = broadcast::channel(1);
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return Ok(());
+                }
+            }
+            Err(_) => {}
+        }
+        if let Some(data) = wait_packet_ack(wait_pubcomp_sx.clone()).await {
+            if data.ack_type == AckPackageType::PubComp {
+                break;
+            }
+        }
+    }
+    return Ok(());
 }
