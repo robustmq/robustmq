@@ -165,7 +165,7 @@ async fn resub_sub_mqtt5(
 
     let socket = TcpStream::connect(leader_addr.clone()).await.unwrap();
     let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
-    
+
     let follower_sub_leader_client_id = unique_id();
 
     // Create a connection to GroupName

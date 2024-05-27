@@ -34,6 +34,7 @@ pub struct BrokerMQTTConfig {
     pub placement: Placement,
     pub journal: Journal,
     pub subscribe: Subscribe,
+    pub system: SystemConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -91,6 +92,12 @@ pub struct Placement {
 pub struct StorageConfig {
     pub metadata: String,
     pub message: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SystemConfig {
+    pub system_user: String,
+    pub system_password: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
