@@ -6,11 +6,14 @@ use crate::{
     server::MQTTProtocol,
     storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage},
 };
+use common_base::log::warn;
 use dashmap::DashMap;
 use protocol::mqtt::{Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
+use tokio::time::sleep;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -225,23 +228,30 @@ impl MetadataCacheManager {
         return None;
     }
 
-    pub fn get_available_pkid(&self, client_id: String) -> u16 {
-        if let Some(pkid_list) = self.publish_pkid_info.get(&client_id) {
-            for i in 0..65535 {
-                if pkid_list.contains(&i) {
-                    continue;
-                }
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    pub fn save_pkid_info(&self, client_id: String, pkid: u16) {
+    pub async fn get_pkid(&self, client_id: String) -> u16 {
+        let pkid = self.get_available_pkid(client_id.clone()).await;
         if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
             pkid_list.push(pkid);
         } else {
             self.publish_pkid_info.insert(client_id, vec![pkid]);
+        }
+        return pkid;
+    }
+
+    async fn get_available_pkid(&self, client_id: String) -> u16 {
+        loop {
+            if let Some(pkid_list) = self.publish_pkid_info.get(&client_id) {
+                for i in 0..65535 {
+                    if pkid_list.contains(&i) {
+                        continue;
+                    }
+                    return i;
+                }
+            } else {
+                return 0;
+            }
+            sleep(Duration::from_millis(10)).await;
+            warn("No pkid available for client, wait 10ms.".to_string());
         }
     }
 

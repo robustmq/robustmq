@@ -1,6 +1,6 @@
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, retry_publish, share_sub_rewrite_publish_flag},
+    subscribe::{min_qos, publish_message_to_client, share_sub_rewrite_publish_flag},
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager, metadata::message::Message,
@@ -295,42 +295,59 @@ where
                                 packet: MQTTPacket::Publish(publish, Some(properties)),
                             };
 
-                            match retry_publish(
-                                subscribe.client_id.clone(),
-                                pkid,
-                                metadata_cache.clone(),
-                                ack_manager.clone(),
-                                qos,
-                                subscribe.protocol.clone(),
-                                resp,
-                                response_queue_sx4.clone(),
-                                response_queue_sx5.clone(),
-                            )
-                            .await
-                            {
-                                Ok(()) => {
-                                    cursor_point = cursor_point + 1;
-                                    match message_storage
-                                        .commit_group_offset(
-                                            subscribe.topic_id.clone(),
-                                            group_id.clone(),
-                                            record.offset.clone(),
-                                        )
-                                        .await
-                                    {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            error(e.to_string());
-                                            continue;
+                            let mut retry_times = 1;
+                            loop {
+                                match publish_message_to_client(
+                                    connect_id,
+                                    subscribe.client_id.clone(),
+                                    pkid,
+                                    metadata_cache.clone(),
+                                    ack_manager.clone(),
+                                    qos,
+                                    subscribe.protocol.clone(),
+                                    resp,
+                                    response_queue_sx4.clone(),
+                                    response_queue_sx5.clone(),
+                                )
+                                .await
+                                {
+                                    Ok(()) => {
+                                        match message_storage
+                                            .commit_group_offset(
+                                                subscribe.topic_id.clone(),
+                                                group_id.clone(),
+                                                record.offset,
+                                            )
+                                            .await
+                                        {
+                                            Ok(_) => {}
+                                            Err(_) => {
+                                                //Occasional commit offset failures are allowed because subsequent commit offsets overwrite previous ones.
+                                                continue;
+                                            }
+                                        }
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        retry_times = retry_times + 1;
+                                        if retry_times > 3 {
+                                            error(format!("Failed to push subscription message to client, failure message: {},topic:{},group{}",e.to_string(),
+                                                    subscribe.topic_id.clone(),
+                                                    group_id.clone()));
+                                            break;
                                         }
                                     }
                                 }
-                                Err(e) => error(e.to_string()),
                             }
                         }
                     }
                     Err(e) => {
-                        error(e.to_string());
+                        error(format!(
+                        "Failed to read message from storage, failure message: {},topic:{},group{}",
+                        e.to_string(),
+                        topic_id.clone(),
+                        group_id.clone()
+                    ));
                         sleep(Duration::from_millis(max_wait_ms)).await;
                     }
                 }
