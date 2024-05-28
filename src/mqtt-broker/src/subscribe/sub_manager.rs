@@ -56,11 +56,11 @@ pub struct SubscribeManager {
     // (group_name_topic_id, Sender<bool>)
     pub share_leader_push_thread: DashMap<String, Sender<bool>>,
 
-    // (group_name_sub_name,ShareSubShareSub)
+    // (client_id_group_name_sub_name,ShareSubShareSub)
     pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
 
-    // (group_name_sub_name, Sender<bool>)
-    pub share_follower_push_thread: DashMap<String, Sender<bool>>,
+    // (client_id_group_name_sub_name, Sender<bool>)
+    pub share_follower_resub_thread: DashMap<String, Sender<bool>>,
 
     // (identifier_id，client_id)
     pub share_follower_identifier_id: DashMap<usize, String>,
@@ -77,7 +77,7 @@ impl SubscribeManager {
             share_follower_identifier_id: DashMap::with_capacity(8),
             exclusive_push_thread: DashMap::with_capacity(8),
             share_leader_push_thread: DashMap::with_capacity(8),
-            share_follower_push_thread: DashMap::with_capacity(8),
+            share_follower_resub_thread: DashMap::with_capacity(8),
         };
     }
 
@@ -237,9 +237,14 @@ impl SubscribeManager {
                                         None
                                     },
                                 };
-                                let follower_key = format!("{}_{}", group_name, sub_name);
-                                self.share_follower_subscribe
-                                    .insert(follower_key, share_sub);
+                                self.share_follower_subscribe.insert(
+                                    self.share_follower_key(
+                                        client_id.clone(),
+                                        group_name,
+                                        topic_id.clone(),
+                                    ),
+                                    share_sub,
+                                );
                             }
                         }
                         Err(e) => {
@@ -264,7 +269,14 @@ impl SubscribeManager {
         return format!("{}_{}", group_name, topic_id);
     }
 
-    fn share_leader
+    fn share_follower_key(
+        &self,
+        client_id: String,
+        group_name: String,
+        topic_id: String,
+    ) -> String {
+        return format!("{}_{}_{}", client_id, group_name, topic_id);
+    }
 }
 
 #[cfg(test)]

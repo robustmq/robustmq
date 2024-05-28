@@ -10,11 +10,10 @@ use crate::{
     server::{tcp::packet::RequestPackage, MQTTProtocol},
 };
 use common_base::log::{debug, error, info};
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
 use std::{
     fmt::{Debug, Error},
-    net::ToSocketAddrs,
     sync::Arc,
 };
 use storage_adapter::storage::StorageAdapter;

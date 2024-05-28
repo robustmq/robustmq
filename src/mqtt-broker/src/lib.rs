@@ -27,7 +27,6 @@ use core::{
     HEART_CONNECT_SHARD_HASH_NUM,
 };
 use metadata::user::User;
-use protocol::broker_server::generate::mqtt::CommonReply;
 use qos::{ack_manager::AckManager, memory::QosMemory};
 use server::{
     grpc::server::GrpcServer,
@@ -316,8 +315,8 @@ where
             // init system user
             let conf = broker_mqtt_conf();
             let system_user_info = User {
-                username: conf.system.system_user,
-                password: conf.system.system_password,
+                username: conf.system.system_user.clone(),
+                password: conf.system.system_password.clone(),
                 salt: crate::metadata::user::UserSalt::Md5,
                 is_superuser: true,
                 create_time: now_mills(),
@@ -327,7 +326,9 @@ where
                 Ok(_) => {
                     metadata_cache.add_user(system_user_info);
                 }
-                Err(e) => {}
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
             }
 
             // metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);

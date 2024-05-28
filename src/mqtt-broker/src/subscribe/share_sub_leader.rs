@@ -16,7 +16,7 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
-use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
+use protocol::mqtt::{Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
@@ -176,7 +176,7 @@ where
         let (stop_sx, mut stop_rx) = broadcast::channel(1);
         self.subscribe_manager
             .share_leader_push_thread
-            .insert(share_leader_key, stop_sx);
+            .insert(share_leader_key.clone(), stop_sx.clone());
 
         let response_queue_sx4 = self.response_queue_sx4.clone();
         let response_queue_sx5 = self.response_queue_sx5.clone();
@@ -264,7 +264,7 @@ where
 
                             let qos = min_qos(msg.qos, subscribe.qos);
 
-                            let publish = Publish {
+                            let mut publish = Publish {
                                 dup: false,
                                 qos: qos.clone(),
                                 pkid: 0,
@@ -291,11 +291,6 @@ where
 
                             match qos {
                                 QoS::AtMostOnce => {
-                                    let resp = ResponsePackage {
-                                        connection_id: connect_id,
-                                        packet: MQTTPacket::Publish(publish, Some(properties)),
-                                    };
-
                                     publish_message_qos0(
                                         metadata_cache.clone(),
                                         subscribe.client_id.clone(),
@@ -314,11 +309,6 @@ where
                                         metadata_cache.get_pkid(subscribe.client_id.clone()).await;
                                     publish.pkid = pkid;
 
-                                    let resp = ResponsePackage {
-                                        connection_id: connect_id,
-                                        packet: MQTTPacket::Publish(publish, Some(properties)),
-                                    };
-
                                     let (wait_puback_sx, _) = broadcast::channel(1);
                                     ack_manager.add(
                                         subscribe.client_id.clone(),
@@ -332,8 +322,8 @@ where
                                     match publish_message_qos1(
                                         metadata_cache.clone(),
                                         subscribe.client_id.clone(),
-                                        publish,
-                                        properties,
+                                        publish.clone(),
+                                        properties.clone(),
                                         pkid,
                                         subscribe.protocol.clone(),
                                         response_queue_sx4.clone(),
@@ -359,11 +349,6 @@ where
                                     let pkid: u16 =
                                         metadata_cache.get_pkid(subscribe.client_id.clone()).await;
                                     publish.pkid = pkid;
-
-                                    let resp = ResponsePackage {
-                                        connection_id: connect_id,
-                                        packet: MQTTPacket::Publish(publish, Some(properties)),
-                                    };
 
                                     let (wait_ack_sx, _) = broadcast::channel(1);
                                     ack_manager.add(
@@ -416,7 +401,7 @@ where
                 }
             }
 
-            self.subscribe_manager
+            subscribe_manager
                 .share_leader_push_thread
                 .remove(&share_leader_key);
         });
