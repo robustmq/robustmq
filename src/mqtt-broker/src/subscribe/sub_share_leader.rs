@@ -1,7 +1,7 @@
 use super::{
-    sub_exclusive::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
-    sub_manager::SubscribeManager,
     sub_common::{min_qos, share_sub_rewrite_publish_flag},
+    sub_exclusive::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
+    subscribe_cache::SubscribeCache,
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
@@ -32,7 +32,7 @@ const SHARED_SUBSCRIPTION_STRATEGY_LOCAL: &str = "local";
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
-    pub subscribe_manager: Arc<SubscribeManager>,
+    pub subscribe_manager: Arc<SubscribeCache>,
     message_storage: Arc<S>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
@@ -45,7 +45,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        subscribe_manager: Arc<SubscribeManager>,
+        subscribe_manager: Arc<SubscribeCache>,
         message_storage: Arc<S>,
         response_queue_sx4: broadcast::Sender<ResponsePackage>,
         response_queue_sx5: broadcast::Sender<ResponsePackage>,
@@ -171,7 +171,7 @@ where
         group_name: String,
         topic_id: String,
         topic_name: String,
-        subscribe_manager: Arc<SubscribeManager>,
+        subscribe_manager: Arc<SubscribeCache>,
     ) {
         let (stop_sx, mut stop_rx) = broadcast::channel(1);
         self.subscribe_manager
@@ -194,7 +194,7 @@ where
             let group_id = format!("system_sub_{}_{}", group_name, topic_id);
 
             let max_wait_ms = 500;
-            let mut cursor_point = 0;
+            let cursor_point = 0;
 
             loop {
                 match stop_rx.try_recv() {

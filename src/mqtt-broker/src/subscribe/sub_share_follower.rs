@@ -1,6 +1,6 @@
 use super::{
     sub_exclusive::publish_message_qos0,
-    sub_manager::SubscribeManager,
+    subscribe_cache::SubscribeCache,
     sub_common::{
         get_share_sub_leader, publish_to_response_queue, share_sub_rewrite_publish_flag,
         wait_packet_ack,
@@ -10,7 +10,7 @@ use crate::{
     core::metadata_cache::MetadataCacheManager,
     qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
-    subscribe::sub_manager::ShareSubShareSub,
+    subscribe::subscribe_cache::ShareSubShareSub,
 };
 use clients::poll::ClientPool;
 use common_base::{
@@ -40,7 +40,7 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 
 #[derive(Clone)]
 pub struct SubscribeShareFollower {
-    pub subscribe_manager: Arc<SubscribeManager>,
+    pub subscribe_manager: Arc<SubscribeCache>,
     pub ack_manager: Arc<AckManager>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
@@ -50,7 +50,7 @@ pub struct SubscribeShareFollower {
 
 impl SubscribeShareFollower {
     pub fn new(
-        subscribe_manager: Arc<SubscribeManager>,
+        subscribe_manager: Arc<SubscribeCache>,
         response_queue_sx4: broadcast::Sender<ResponsePackage>,
         response_queue_sx5: broadcast::Sender<ResponsePackage>,
         metadata_cache: Arc<MetadataCacheManager>,
@@ -178,7 +178,7 @@ async fn resub_sub_mqtt5(
     metadata_cache: Arc<MetadataCacheManager>,
     share_sub: ShareSubShareSub,
     sx: Sender<bool>,
-    subscribe_manager: Arc<SubscribeManager>,
+    subscribe_manager: Arc<SubscribeCache>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
 ) {

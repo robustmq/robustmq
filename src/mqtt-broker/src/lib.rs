@@ -43,8 +43,8 @@ use storage_adapter::{
     storage::StorageAdapter,
 };
 use subscribe::{
-    sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
-    sub_share_leader::SubscribeShareLeader, sub_manager::SubscribeManager,
+    sub_exclusive::SubscribeExclusive, subscribe_cache::SubscribeCache,
+    sub_share_follower::SubscribeShareFollower, sub_share_leader::SubscribeShareLeader,
 };
 use tokio::{
     runtime::Runtime,
@@ -99,7 +99,7 @@ pub struct MqttBroker<'a, T, S> {
     client_poll: Arc<ClientPool>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
-    subscribe_manager: Arc<SubscribeManager>,
+    subscribe_manager: Arc<SubscribeCache>,
     ack_manager: Arc<AckManager>,
 }
 
@@ -126,7 +126,7 @@ where
 
         let idempotent_manager: Arc<QosMemory> = Arc::new(QosMemory::new());
         let ack_manager: Arc<AckManager> = Arc::new(AckManager::new());
-        let subscribe_manager = Arc::new(SubscribeManager::new(
+        let subscribe_manager = Arc::new(SubscribeCache::new(
             metadata_cache.clone(),
             client_poll.clone(),
         ));
@@ -155,7 +155,7 @@ where
         self.start_mqtt_server();
         self.start_http_server();
         self.start_keep_alive_thread(stop_send.subscribe());
-        self.start_session_expiry_thread(stop_send.subscribe());
+        self.start_session_expiry_thread();
         self.start_cluster_heartbeat_report(stop_send.subscribe());
         self.start_push_server();
         self.awaiting_stop(stop_send);
@@ -280,7 +280,7 @@ where
         });
     }
 
-    fn start_session_expiry_thread(&self, stop_send: broadcast::Receiver<bool>) {
+    fn start_session_expiry_thread(&self) {
         let sesssion_expiry = SessionExpiry::new();
         self.runtime.spawn(async move {
             sesssion_expiry.start_session_expire_check().await;

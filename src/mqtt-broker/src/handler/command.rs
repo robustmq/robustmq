@@ -7,8 +7,8 @@ use crate::qos::ack_manager::AckManager;
 use crate::qos::memory::QosMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
-use crate::subscribe::sub_manager::SubscribeManager;
-use common_base::log::info;
+use crate::subscribe::subscribe_cache::SubscribeCache;
+use common_base::log::{debug, info};
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -41,7 +41,7 @@ where
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
         idempotent_manager: Arc<QosMemory>,
-        sucscribe_manager: Arc<SubscribeManager>,
+        sucscribe_manager: Arc<SubscribeCache>,
         ack_manager: Arc<AckManager>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
@@ -76,7 +76,7 @@ where
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
-        info(format!("revc packet:{:?}", packet));
+        debug(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
                 if self.protocol != MQTTProtocol::MQTT4 && self.protocol != MQTTProtocol::MQTT5 {}
