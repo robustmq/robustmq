@@ -157,7 +157,7 @@ where
         self.start_keep_alive_thread(stop_send.subscribe());
         self.start_session_expiry_thread(stop_send.subscribe());
         self.start_cluster_heartbeat_report(stop_send.subscribe());
-        self.start_push_server(stop_send.subscribe());
+        self.start_push_server();
         self.awaiting_stop(stop_send);
     }
 
@@ -221,7 +221,7 @@ where
             .spawn(async move { report_heartbeat(client_poll, stop_send).await });
     }
 
-    fn start_push_server(&self, stop_send: broadcast::Receiver<bool>) {
+    fn start_push_server(&self) {
         let subscribe_manager = self.subscribe_manager.clone();
         self.runtime.spawn(async move {
             subscribe_manager.start().await;

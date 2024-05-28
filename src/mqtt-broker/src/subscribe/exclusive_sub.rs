@@ -315,7 +315,7 @@ where
 // the message can be pushed directly to the request return queue without the need for a retry mechanism.
 pub async fn publish_message_qos0(
     metadata_cache: Arc<MetadataCacheManager>,
-    client_id: String,
+    mqtt_client_id: String,
     publish: Publish,
     publish_properties: PublishProperties,
     protocol: MQTTProtocol,
@@ -333,7 +333,7 @@ pub async fn publish_message_qos0(
             }
             Err(_) => {}
         }
-        if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+        if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id.clone()) {
             connect_id = id;
             break;
         } else {
@@ -346,7 +346,7 @@ pub async fn publish_message_qos0(
         connection_id: connect_id,
         packet: MQTTPacket::Publish(publish, Some(publish_properties)),
     };
-
+    // 2. publish to mqtt client
     match publish_to_response_queue(
         protocol.clone(),
         resp.clone(),
