@@ -41,7 +41,7 @@ use tokio_util::codec::Framed;
 
 #[derive(Clone)]
 pub struct SubscribeShareFollower {
-    // (client_id, Sender<bool>)
+    // (group_name_sub_name, Sender<bool>)
     pub follower_sub_thread: DashMap<String, Sender<bool>>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub ack_manager: Arc<AckManager>,
@@ -73,13 +73,13 @@ impl SubscribeShareFollower {
 
     pub async fn start(&self) {
         loop {
-            for (_, share_sub) in self.subscribe_manager.share_follower_subscribe.clone() {
+            for (group_name_sub_name, share_sub) in
+                self.subscribe_manager.share_follower_subscribe.clone()
+            {
                 let metadata_cache = self.metadata_cache.clone();
                 let response_queue_sx4 = self.response_queue_sx4.clone();
                 let response_queue_sx5 = self.response_queue_sx5.clone();
                 let (stop_sx, stop_rx) = mpsc::channel(1);
-                self.follower_sub_thread
-                    .insert(share_sub.client_id.clone(), stop_sx);
                 let ack_manager = self.ack_manager.clone();
 
                 match get_share_sub_leader(
@@ -117,6 +117,8 @@ impl SubscribeShareFollower {
                                 )
                                 .await;
                         } else {
+                            self.follower_sub_thread
+                                .insert(group_name_sub_name.clone(), stop_sx);
                             tokio::spawn(async move {
                                 if share_sub.protocol == MQTTProtocol::MQTT4 {
                                     resub_sub_mqtt4().await;
@@ -170,11 +172,11 @@ async fn resub_sub_mqtt5(
 
     // Create a connection to GroupName
     let connect_pkg = build_rewrite_connect_pkg(follower_sub_leader_client_id.clone()).clone();
-    match stream.send(connect_pkg.clone()).await {
+    match stream.send(connect_pkg).await {
         Ok(_) => {}
         Err(e) => {
             error(format!(
-                "Share follower [{}] send Connect packet error. error message:{}",
+                "ReSub follower [{}] send Connect packet error. error message:{}",
                 follower_sub_leader_client_id,
                 e.to_string()
             ));
@@ -464,6 +466,7 @@ async fn resub_sub_mqtt5(
 }
 
 fn build_rewrite_connect_pkg(client_id: String) -> MQTTPacket {
+    let conf = broker_mqtt_conf();
     let connect = Connect {
         keep_alive: 60,
         client_id,
@@ -473,7 +476,12 @@ fn build_rewrite_connect_pkg(client_id: String) -> MQTTPacket {
     let mut properties = ConnectProperties::default();
     properties.session_expiry_interval = Some(60);
     properties.user_properties = vec![share_sub_rewrite_publish_flag()];
-    let login = Login::default();
+
+    let login = Login {
+        username: conf.system.system_user,
+        password: conf.system.system_password,
+    };
+
     return MQTTPacket::Connect(connect, Some(properties), None, None, Some(login));
 }
 

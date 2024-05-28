@@ -16,6 +16,7 @@ use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
     runtime::create_runtime,
+    tools::now_mills,
 };
 use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
@@ -25,6 +26,8 @@ use core::{
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
+use metadata::user::User;
+use protocol::broker_server::generate::mqtt::CommonReply;
 use qos::{ack_manager::AckManager, memory::QosMemory};
 use server::{
     grpc::server::GrpcServer,
@@ -33,6 +36,7 @@ use server::{
     tcp::packet::{RequestPackage, ResponsePackage},
 };
 use std::sync::Arc;
+use storage::user::UserStorage;
 use storage_adapter::{
     // memory::MemoryStorageAdapter,
     mysql::{build_mysql_conn_pool, MySQLStorageAdapter},
@@ -309,6 +313,23 @@ where
         let metadata_cache = self.metadata_cache_manager.clone();
         let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         self.runtime.block_on(async move {
+            // init system user
+            let conf = broker_mqtt_conf();
+            let system_user_info = User {
+                username: conf.system.system_user,
+                password: conf.system.system_password,
+                salt: crate::metadata::user::UserSalt::Md5,
+                is_superuser: true,
+                create_time: now_mills(),
+            };
+            let user_storage = UserStorage::new(metadata_storage_adapter.clone());
+            match user_storage.save_user(system_user_info.clone()).await {
+                Ok(_) => {
+                    metadata_cache.add_user(system_user_info);
+                }
+                Err(e) => {}
+            }
+
             // metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);
             let (cluster, user_info, topic_info) =
                 load_metadata_cache(metadata_storage_adapter).await;
