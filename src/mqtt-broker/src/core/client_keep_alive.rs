@@ -77,7 +77,7 @@ impl ClientKeepAlive {
                         let max_timeout = (time.keep_live * 2) as u64;
                         if (now_second() - time.heartbeat) > max_timeout {
                             let disconnect = Disconnect {
-                                reason_code: DisconnectReasonCode::AdministrativeAction,
+                                reason_code: DisconnectReasonCode::KeepAliveTimeout,
                             };
                             let properties = Some(DisconnectProperties {
                                             session_expiry_interval: None,
