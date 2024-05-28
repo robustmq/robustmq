@@ -21,7 +21,7 @@ use tokio::{
 
 use super::{
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, publish_to_response_queue, wait_packet_ack},
+    sub_common::{min_qos, publish_to_response_queue, wait_packet_ack},
 };
 
 pub struct SubscribeExclusive<S> {
@@ -448,7 +448,7 @@ pub async fn publish_message_qos2(
     stop_sx: broadcast::Sender<bool>,
     wait_ack_sx: broadcast::Sender<AckPackageData>,
 ) -> Result<(), RobustMQError> {
-    // send publish message
+    // 1. send publish message
     let mut retry_times = 0;
     loop {
         match stop_sx.subscribe().try_recv() {
@@ -496,7 +496,7 @@ pub async fn publish_message_qos2(
         }
     }
 
-    // wait pub rec
+    // 2. wait pub rec
     loop {
         match stop_sx.subscribe().try_recv() {
             Ok(flag) => {
@@ -513,7 +513,7 @@ pub async fn publish_message_qos2(
         }
     }
 
-    // send pub rel
+    // 3. send pub rel
     loop {
         match stop_sx.subscribe().try_recv() {
             Ok(flag) => {
@@ -561,7 +561,7 @@ pub async fn publish_message_qos2(
         }
     }
 
-    // wait pub comp
+    // 4. wait pub comp
     let (wait_pubcomp_sx, _) = broadcast::channel(1);
     loop {
         match stop_sx.subscribe().try_recv() {

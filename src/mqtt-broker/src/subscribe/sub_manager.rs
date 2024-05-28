@@ -1,4 +1,4 @@
-use super::subscribe::{
+use super::sub_common::{
     decode_share_info, get_share_sub_leader, is_contain_rewrite_flag, is_share_sub,
     path_regex_match,
 };
@@ -12,13 +12,8 @@ use common_base::{
 };
 use dashmap::DashMap;
 use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
-use std::{
-    sync::{atomic::AtomicU64, Arc},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 use tokio::{sync::broadcast::Sender, time::sleep};
-
-static SUB_IDENTIFIER_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
 pub struct ShareSubShareSub {
@@ -132,7 +127,6 @@ impl SubscribeManager {
 
     pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
-            let topic_id = topic.topic_id;
             for path in filter_path.clone() {
                 if !path_regex_match(topic_name.clone(), path.clone()) {
                     continue;
@@ -140,13 +134,17 @@ impl SubscribeManager {
 
                 if is_share_sub(path.clone()) {
                     // leader
-                    for (client_id, mut data) in self.share_leader_subscribe.clone() {
+                    for (_, mut data) in self.share_leader_subscribe.clone() {
                         data.sub_list.retain(|x| *x.sub_path == path);
                     }
 
                     // follower
-                    let (group_name, sub_name) = decode_share_info(path);
-                    let follower_key = format!("{}_{}", group_name, sub_name);
+                    let (group_name, _) = decode_share_info(path);
+                    let follower_key = self.share_follower_key(
+                        client_id.clone(),
+                        group_name,
+                        topic.topic_id.clone(),
+                    );
                     self.share_follower_subscribe.remove(&follower_key);
                 } else {
                     self.exclusive_subscribe.remove(&client_id);
@@ -281,6 +279,4 @@ impl SubscribeManager {
 
 #[cfg(test)]
 mod tests {
-    #[tokio::test]
-    async fn topic_sub_push_thread_test() {}
 }

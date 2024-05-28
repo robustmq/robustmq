@@ -1,7 +1,7 @@
 use super::{
-    exclusive_sub::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
+    sub_exclusive::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, share_sub_rewrite_publish_flag},
+    sub_common::{min_qos, share_sub_rewrite_publish_flag},
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,

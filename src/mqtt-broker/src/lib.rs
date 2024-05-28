@@ -43,8 +43,8 @@ use storage_adapter::{
     storage::StorageAdapter,
 };
 use subscribe::{
-    exclusive_sub::SubscribeExclusive, share_sub_follower::SubscribeShareFollower,
-    share_sub_leader::SubscribeShareLeader, sub_manager::SubscribeManager,
+    sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
+    sub_share_leader::SubscribeShareLeader, sub_manager::SubscribeManager,
 };
 use tokio::{
     runtime::Runtime,
