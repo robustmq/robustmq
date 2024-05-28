@@ -3,14 +3,14 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
-pub struct HeartbeatManager {
+pub struct HeartbeatCache {
     shard_num: u64,
     pub shard_data: DashMap<u64, HeartbeatShard>,
 }
 
-impl HeartbeatManager {
+impl HeartbeatCache {
     pub fn new(shard_num: u64) -> Self {
-        return HeartbeatManager {
+        return HeartbeatCache {
             shard_num,
             shard_data: DashMap::with_capacity(256),
         };

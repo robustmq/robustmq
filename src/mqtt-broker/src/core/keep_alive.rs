@@ -1,4 +1,4 @@
-use super::client_heartbeat::HeartbeatManager;
+use super::heartbeat_cache::HeartbeatCache;
 use crate::{
     metrics::metrics_heartbeat_keep_alive_run_info,
     server::{tcp::packet::RequestPackage, MQTTProtocol},
@@ -20,7 +20,7 @@ use tokio::{
 
 pub struct KeepAlive {
     shard_num: u64,
-    heartbeat_manager: Arc<HeartbeatManager>,
+    heartbeat_manager: Arc<HeartbeatCache>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
     stop_send: broadcast::Receiver<bool>,
@@ -29,7 +29,7 @@ pub struct KeepAlive {
 impl KeepAlive {
     pub fn new(
         shard_num: u64,
-        heartbeat_manager: Arc<HeartbeatManager>,
+        heartbeat_manager: Arc<HeartbeatCache>,
         request_queue_sx4: Sender<RequestPackage>,
         request_queue_sx5: Sender<RequestPackage>,
         stop_send: broadcast::Receiver<bool>,
@@ -88,7 +88,7 @@ impl KeepAlive {
                             if time.protobol == MQTTProtocol::MQTT4 {
                                 let req = RequestPackage {
                                     connection_id: connect_id,
-                                    addr: "127.0.0.1".parse().unwrap(),
+                                    addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect.clone(), None),
                                 };
                                 match request_queue_sx4.send(req) {
@@ -101,7 +101,7 @@ impl KeepAlive {
                             if time.protobol == MQTTProtocol::MQTT5 {
                                 let req = RequestPackage {
                                     connection_id: connect_id,
-                                    addr: "127.0.0.1".parse().unwrap(),
+                                    addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect, properties),
                                 };
 

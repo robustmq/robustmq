@@ -20,7 +20,7 @@ use common_base::{
 };
 use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
-    client_heartbeat::HeartbeatManager,
+    heartbeat_cache::HeartbeatCache,
     keep_alive::KeepAlive,
     server_heartbeat::{register_broker_node, report_heartbeat, unregister_broker_node},
     session_expiry::SessionExpiry,
@@ -89,7 +89,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 pub struct MqttBroker<'a, T, S> {
     conf: &'a BrokerMQTTConfig,
     metadata_cache_manager: Arc<MetadataCacheManager>,
-    heartbeat_manager: Arc<HeartbeatManager>,
+    heartbeat_manager: Arc<HeartbeatCache>,
     idempotent_manager: Arc<QosMemory>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
@@ -122,7 +122,7 @@ where
         let (response_queue_sx4, _) = broadcast::channel(1000);
         let (response_queue_sx5, _) = broadcast::channel(1000);
 
-        let heartbeat_manager = Arc::new(HeartbeatManager::new(HEART_CONNECT_SHARD_HASH_NUM));
+        let heartbeat_manager = Arc::new(HeartbeatCache::new(HEART_CONNECT_SHARD_HASH_NUM));
 
         let idempotent_manager: Arc<QosMemory> = Arc::new(QosMemory::new());
         let ack_manager: Arc<AckManager> = Arc::new(AckManager::new());

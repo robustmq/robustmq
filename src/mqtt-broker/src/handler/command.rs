@@ -1,7 +1,7 @@
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
-use crate::core::client_heartbeat::HeartbeatManager;
+use crate::core::heartbeat_cache::HeartbeatCache;
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::qos::ack_manager::AckManager;
 use crate::qos::memory::QosMemory;
@@ -36,7 +36,7 @@ where
     pub fn new(
         protocol: MQTTProtocol,
         metadata_cache: Arc<MetadataCacheManager>,
-        heartbeat_manager: Arc<HeartbeatManager>,
+        heartbeat_manager: Arc<HeartbeatCache>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
@@ -76,7 +76,7 @@ where
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
-        debug(format!("revc packet:{:?}", packet));
+        info(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
                 if self.protocol != MQTTProtocol::MQTT4 && self.protocol != MQTTProtocol::MQTT5 {}

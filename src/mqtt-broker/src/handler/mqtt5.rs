@@ -9,7 +9,7 @@ use crate::qos::QosDataManager;
 use crate::subscribe::sub_common::{min_qos, save_retain_message};
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
-    core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
+    core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
     metadata::{message::Message, session::LastWillData},
     qos::memory::QosMemory,
     security::authentication::authentication_login,
@@ -35,7 +35,7 @@ use tokio::sync::broadcast::Sender;
 pub struct Mqtt5Service<T, S> {
     metadata_cache: Arc<MetadataCacheManager>,
     ack_build: MQTTAckBuild,
-    heartbeat_manager: Arc<HeartbeatManager>,
+    heartbeat_manager: Arc<HeartbeatCache>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCache>,
@@ -50,7 +50,7 @@ where
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
         ack_build: MQTTAckBuild,
-        heartbeat_manager: Arc<HeartbeatManager>,
+        heartbeat_manager: Arc<HeartbeatCache>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCache>,
@@ -612,8 +612,11 @@ where
         };
 
         self.metadata_cache
-            .remove_connection(connect_id, connection.client_id);
-        self.sucscribe_cache.remove_subscribe(client_id, filter_path)
+            .remove_connection(connect_id, connection.client_id.clone());
+        
+        self.sucscribe_cache
+            .remove_client(connection.client_id.clone());
+
         self.heartbeat_manager.remove_connection(connect_id);
         return Some(
             self.ack_build

@@ -126,14 +126,25 @@ impl SubscribeCache {
     }
 
     pub fn remove_client(&self, client_id: String) {
-        for (key, subscriber) in self.exclusive_subscribe {
+        for (key, subscriber) in self.exclusive_subscribe.clone() {
             if subscriber.client_id == client_id {
                 self.exclusive_subscribe.remove(&key);
             }
         }
 
-        for (_, share_sub) in self.share_leader_subscribe{
-                share_sub.sub_list
+        for (key, share_sub) in self.share_leader_subscribe.clone() {
+            for subscriber in share_sub.sub_list {
+                if subscriber.client_id == client_id {
+                    let mut mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                    mut_data.sub_list.retain(|row| *row.client_id == client_id)
+                }
+            }
+        }
+
+        for (key, share_sub) in self.share_follower_subscribe.clone() {
+            if share_sub.client_id == client_id {
+                self.share_follower_subscribe.remove(&key);
+            }
         }
     }
 
