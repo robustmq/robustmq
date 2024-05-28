@@ -16,7 +16,7 @@ use std::{
     sync::{atomic::AtomicU64, Arc},
     time::Duration,
 };
-use tokio::time::sleep;
+use tokio::{sync::broadcast::Sender, time::sleep};
 
 static SUB_IDENTIFIER_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
@@ -44,14 +44,23 @@ pub struct SubscribeManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
 
-    // (client_id,Vec<Subscriber>)
-    pub exclusive_subscribe: DashMap<String, Vec<Subscriber>>,
+    // (client_id_topic_id, Subscriber)
+    pub exclusive_subscribe: DashMap<String, Subscriber>,
 
-    // (group_name_topic_id,Vec<Subscriber>)
+    // (client_id_topic_id, Sender<bool>)
+    pub exclusive_push_thread: DashMap<String, Sender<bool>>,
+
+    // (group_name_topic_id, ShareLeaderSubscribeData)
     pub share_leader_subscribe: DashMap<String, ShareLeaderSubscribeData>,
+
+    // (group_name_topic_id, Sender<bool>)
+    pub share_leader_push_thread: DashMap<String, Sender<bool>>,
 
     // (group_name_sub_name,ShareSubShareSub)
     pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
+
+    // (group_name_sub_name, Sender<bool>)
+    pub share_follower_push_thread: DashMap<String, Sender<bool>>,
 
     // (identifier_id，client_id)
     pub share_follower_identifier_id: DashMap<usize, String>,
@@ -66,6 +75,9 @@ impl SubscribeManager {
             share_leader_subscribe: DashMap::with_capacity(8),
             share_follower_subscribe: DashMap::with_capacity(8),
             share_follower_identifier_id: DashMap::with_capacity(8),
+            exclusive_push_thread: DashMap::with_capacity(8),
+            share_leader_push_thread: DashMap::with_capacity(8),
+            share_follower_push_thread: DashMap::with_capacity(8),
         };
     }
 
@@ -158,13 +170,6 @@ impl SubscribeManager {
             None
         };
 
-        if !self.exclusive_subscribe.contains_key(&client_id) {
-            self.exclusive_subscribe
-                .insert(client_id.clone(), Vec::new());
-        }
-
-        let mut exclusive_sub = self.exclusive_subscribe.get_mut(&client_id).unwrap();
-
         let conf = broker_mqtt_conf();
 
         for filter in subscribe.filters.clone() {
@@ -193,7 +198,8 @@ impl SubscribeManager {
                     {
                         Ok(reply) => {
                             if reply.broker_id == conf.broker_id {
-                                let leader_key = format!("{}_{}", group_name, topic_id);
+                                let leader_key =
+                                    self.share_leader_key(group_name.clone(), topic_id.clone());
 
                                 if !self.share_leader_subscribe.contains_key(&leader_key) {
                                     let data = ShareLeaderSubscribeData {
@@ -243,11 +249,22 @@ impl SubscribeManager {
                 }
             } else {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
-                    exclusive_sub.push(sub);
+                    self.exclusive_subscribe
+                        .insert(self.exclusive_key(client_id.clone(), topic_id.clone()), sub);
                 }
             }
         }
     }
+
+    pub fn exclusive_key(&self, client_id: String, topic_id: String) -> String {
+        return format!("{}_{}", client_id, topic_id);
+    }
+
+    fn share_leader_key(&self, group_name: String, topic_id: String) -> String {
+        return format!("{}_{}", group_name, topic_id);
+    }
+
+    fn share_leader
 }
 
 #[cfg(test)]

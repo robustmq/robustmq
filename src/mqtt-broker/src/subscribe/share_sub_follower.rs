@@ -41,8 +41,6 @@ use tokio_util::codec::Framed;
 
 #[derive(Clone)]
 pub struct SubscribeShareFollower {
-    // (client_id, Sender<bool>)
-    pub follower_sub_thread: DashMap<String, Sender<bool>>,
     pub subscribe_manager: Arc<SubscribeManager>,
     pub ack_manager: Arc<AckManager>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
