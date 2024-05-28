@@ -33,7 +33,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::{
     io,
     net::TcpStream,
-    sync::broadcast::{self, Sender},
+    sync::broadcast::{self, Receiver, Sender},
     time::sleep,
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
@@ -405,7 +405,6 @@ async fn resub_sub_mqtt5(
                                 );
 
                                 match resub_publish_message_qos2(
-                                    follower_sub_leader_pkid,
                                     metadata_cache.clone(),
                                     mqtt_client_id.clone(),
                                     publish.clone(),
@@ -577,7 +576,6 @@ async fn resub_publish_message_qos1(
 // send pubrel message
 // wait pubcomp message
 pub async fn resub_publish_message_qos2(
-    follower_sub_leader_pkid: u16,
     metadata_cache: Arc<MetadataCacheManager>,
     mqtt_client_id: String,
     mut publish: Publish,
