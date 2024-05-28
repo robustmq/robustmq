@@ -1,5 +1,5 @@
 use super::packet::MQTTAckBuild;
-use crate::core::client_heartbeat::HeartbeatManager;
+use crate::core::heartbeat_cache::HeartbeatCache;
 use crate::core::metadata_cache::MetadataCacheManager;
 use common_base::tools::unique_id;
 use protocol::mqtt::{
@@ -13,14 +13,14 @@ pub struct Mqtt4Service {
     metadata_cache: Arc<MetadataCacheManager>,
     ack_build: MQTTAckBuild,
     login: bool,
-    heartbeat_manager: Arc<HeartbeatManager>,
+    heartbeat_manager: Arc<HeartbeatCache>,
 }
 
 impl Mqtt4Service {
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
         ack_build: MQTTAckBuild,
-        heartbeat_manager: Arc<HeartbeatManager>,
+        heartbeat_manager: Arc<HeartbeatCache>,
     ) -> Self {
         return Mqtt4Service {
             metadata_cache,

@@ -1,6 +1,6 @@
 use super::node::{hearbeat_info, index, metadata_info, metrics, subscribe_info};
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::{core::client_heartbeat::HeartbeatManager, server::tcp::packet::ResponsePackage};
+use crate::{core::heartbeat_cache::HeartbeatCache, server::tcp::packet::ResponsePackage};
 use axum::routing::get;
 use axum::Router;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
@@ -16,7 +16,7 @@ pub const ROUTE_METRICS: &str = "/metrics";
 #[derive(Clone)]
 pub struct HttpServerState {
     pub metadata_cache: Arc<MetadataCacheManager>,
-    pub heartbeat_manager: Arc<HeartbeatManager>,
+    pub heartbeat_manager: Arc<HeartbeatCache>,
     pub response_queue_sx4: Sender<ResponsePackage>,
     pub response_queue_sx5: Sender<ResponsePackage>,
 }
@@ -24,7 +24,7 @@ pub struct HttpServerState {
 impl HttpServerState {
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
-        heartbeat_manager: Arc<HeartbeatManager>,
+        heartbeat_manager: Arc<HeartbeatCache>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
     ) -> Self {

@@ -20,7 +20,7 @@ use tokio::{
 };
 
 use super::{
-    sub_manager::SubscribeManager,
+    subscribe_cache::SubscribeCache,
     sub_common::{min_qos, publish_to_response_queue, wait_packet_ack},
 };
 
@@ -28,7 +28,7 @@ pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
-    subscribe_manager: Arc<SubscribeManager>,
+    subscribe_manager: Arc<SubscribeCache>,
     message_storage: Arc<S>,
     ack_manager: Arc<AckManager>,
 }
@@ -42,7 +42,7 @@ where
         metadata_cache: Arc<MetadataCacheManager>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
-        subscribe_manager: Arc<SubscribeManager>,
+        subscribe_manager: Arc<SubscribeCache>,
         ack_manager: Arc<AckManager>,
     ) -> Self {
         return SubscribeExclusive {

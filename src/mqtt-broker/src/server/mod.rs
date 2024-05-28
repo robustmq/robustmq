@@ -3,11 +3,11 @@ use self::tcp::{
     tcp_server::TcpServer,
 };
 use crate::{
-    core::client_heartbeat::HeartbeatManager,
+    core::heartbeat_cache::HeartbeatCache,
     handler::command::Command,
     qos::{ack_manager::AckManager, memory::QosMemory},
 };
-use crate::{core::metadata_cache::MetadataCacheManager, subscribe::sub_manager::SubscribeManager};
+use crate::{core::metadata_cache::MetadataCacheManager, subscribe::subscribe_cache::SubscribeCache};
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
@@ -40,9 +40,9 @@ impl From<MQTTProtocol> for String {
 }
 
 pub async fn start_mqtt_server<T, S>(
-    sucscribe_manager: Arc<SubscribeManager>,
+    sucscribe_manager: Arc<SubscribeCache>,
     cache: Arc<MetadataCacheManager>,
-    heartbeat_manager: Arc<HeartbeatManager>,
+    heartbeat_manager: Arc<HeartbeatCache>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     idempotent_manager: Arc<QosMemory>,

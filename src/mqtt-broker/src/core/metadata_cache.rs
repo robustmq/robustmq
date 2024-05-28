@@ -199,13 +199,10 @@ impl MetadataCacheManager {
     }
 
     pub fn remove_connection(&self, connect_id: u64, client_id: String) {
-        self.connection_info.remove(&connect_id);
         self.session_info.remove(&client_id);
+        self.connection_info.remove(&connect_id);
         self.subscribe_filter.remove(&client_id);
-    }
-
-    pub fn remove_topic(&self, topic_name: String) {
-        //todo
+        self.publish_pkid_info.remove(&client_id);
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {

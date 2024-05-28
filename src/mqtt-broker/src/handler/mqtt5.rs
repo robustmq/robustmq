@@ -6,17 +6,17 @@ use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
 use crate::qos::QosDataManager;
-use crate::subscribe::sub_manager::SubscribeManager;
 use crate::subscribe::sub_common::{min_qos, save_retain_message};
+use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
-    core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
+    core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
     metadata::{message::Message, session::LastWillData},
     qos::memory::QosMemory,
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
-use common_base::log::info;
+use common_base::log::{debug, info};
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -35,10 +35,10 @@ use tokio::sync::broadcast::Sender;
 pub struct Mqtt5Service<T, S> {
     metadata_cache: Arc<MetadataCacheManager>,
     ack_build: MQTTAckBuild,
-    heartbeat_manager: Arc<HeartbeatManager>,
+    heartbeat_manager: Arc<HeartbeatCache>,
     metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
-    sucscribe_manager: Arc<SubscribeManager>,
+    sucscribe_cache: Arc<SubscribeCache>,
     ack_manager: Arc<AckManager>,
 }
 
@@ -50,10 +50,10 @@ where
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
         ack_build: MQTTAckBuild,
-        heartbeat_manager: Arc<HeartbeatManager>,
+        heartbeat_manager: Arc<HeartbeatCache>,
         metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeManager>,
+        sucscribe_manager: Arc<SubscribeCache>,
         ack_manager: Arc<AckManager>,
     ) -> Self {
         return Mqtt5Service {
@@ -62,7 +62,7 @@ where
             heartbeat_manager,
             metadata_storage_adapter,
             message_storage_adapter,
-            sucscribe_manager,
+            sucscribe_cache: sucscribe_manager,
             ack_manager,
         };
     }
@@ -509,7 +509,7 @@ where
             subscribe_properties.clone(),
         );
 
-        self.sucscribe_manager
+        self.sucscribe_cache
             .add_subscribe(
                 client_id.clone(),
                 crate::server::MQTTProtocol::MQTT5,
@@ -590,7 +590,7 @@ where
             self.metadata_cache
                 .remove_filter(connection.client_id.clone());
 
-            self.sucscribe_manager
+            self.sucscribe_cache
                 .remove_subscribe(connection.client_id.clone(), un_subscribe.filters);
         }
 
@@ -602,8 +602,8 @@ where
     pub async fn disconnect(
         &self,
         connect_id: u64,
-        disconnect: Disconnect,
-        disconnect_properties: Option<DisconnectProperties>,
+        _: Disconnect,
+        _: Option<DisconnectProperties>,
     ) -> Option<MQTTPacket> {
         let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
             se.clone()
@@ -611,13 +611,16 @@ where
             return None;
         };
 
-        info(format!(
-            "Connection [{}] disconnect,disconnect:{:?},disconnect_properties{:?}",
-            connect_id, disconnect, disconnect_properties
-        ));
         self.metadata_cache
-            .remove_connection(connect_id, connection.client_id);
+            .remove_connection(connect_id, connection.client_id.clone());
+        
+        self.sucscribe_cache
+            .remove_client(connection.client_id.clone());
+
         self.heartbeat_manager.remove_connection(connect_id);
-        return None;
+        return Some(
+            self.ack_build
+                .distinct(DisconnectReasonCode::NormalDisconnection, None),
+        );
     }
 }

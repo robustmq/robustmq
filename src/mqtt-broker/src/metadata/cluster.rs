@@ -20,7 +20,19 @@ pub struct Cluster {
 
 impl Cluster {
     pub fn new() -> Self {
-        return Cluster::default();
+        return Cluster {
+            session_expiry_interval: 1800,
+            topic_alias_max: 65535,
+            max_qos: QoS::ExactlyOnce,
+            retain_available: AvailableFlag::Enable,
+            max_packet_size: 1024 * 1024 * 10,
+            wildcard_subscription_available: AvailableFlag::Enable,
+            subscription_identifiers_available: AvailableFlag::Enable,
+            shared_subscription_available: AvailableFlag::Enable,
+            server_keep_alive: 60,
+            receive_max: 65535,
+            secret_free_login: false,
+        };
     }
     pub fn receive_max(&self) -> u16 {
         return self.receive_max;

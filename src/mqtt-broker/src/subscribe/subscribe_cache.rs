@@ -35,7 +35,7 @@ pub struct ShareLeaderSubscribeData {
 }
 
 #[derive(Clone)]
-pub struct SubscribeManager {
+pub struct SubscribeCache {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
 
@@ -61,9 +61,9 @@ pub struct SubscribeManager {
     pub share_follower_identifier_id: DashMap<usize, String>,
 }
 
-impl SubscribeManager {
+impl SubscribeCache {
     pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
-        return SubscribeManager {
+        return SubscribeCache {
             client_poll,
             metadata_cache,
             exclusive_subscribe: DashMap::with_capacity(8),
@@ -122,6 +122,29 @@ impl SubscribeManager {
                 subscribe_properties.clone(),
             )
             .await;
+        }
+    }
+
+    pub fn remove_client(&self, client_id: String) {
+        for (key, subscriber) in self.exclusive_subscribe.clone() {
+            if subscriber.client_id == client_id {
+                self.exclusive_subscribe.remove(&key);
+            }
+        }
+
+        for (key, share_sub) in self.share_leader_subscribe.clone() {
+            for subscriber in share_sub.sub_list {
+                if subscriber.client_id == client_id {
+                    let mut mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                    mut_data.sub_list.retain(|row| *row.client_id == client_id)
+                }
+            }
+        }
+
+        for (key, share_sub) in self.share_follower_subscribe.clone() {
+            if share_sub.client_id == client_id {
+                self.share_follower_subscribe.remove(&key);
+            }
         }
     }
 
@@ -278,5 +301,4 @@ impl SubscribeManager {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

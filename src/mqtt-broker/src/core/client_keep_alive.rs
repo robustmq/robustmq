@@ -1,4 +1,4 @@
-use super::client_heartbeat::HeartbeatManager;
+use super::heartbeat_cache::HeartbeatCache;
 use crate::{
     metrics::metrics_heartbeat_keep_alive_run_info,
     server::{tcp::packet::RequestPackage, MQTTProtocol},
@@ -18,23 +18,23 @@ use tokio::{
     time::sleep,
 };
 
-pub struct KeepAlive {
+pub struct ClientKeepAlive {
     shard_num: u64,
-    heartbeat_manager: Arc<HeartbeatManager>,
+    heartbeat_manager: Arc<HeartbeatCache>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
     stop_send: broadcast::Receiver<bool>,
 }
 
-impl KeepAlive {
+impl ClientKeepAlive {
     pub fn new(
         shard_num: u64,
-        heartbeat_manager: Arc<HeartbeatManager>,
+        heartbeat_manager: Arc<HeartbeatCache>,
         request_queue_sx4: Sender<RequestPackage>,
         request_queue_sx5: Sender<RequestPackage>,
         stop_send: broadcast::Receiver<bool>,
     ) -> Self {
-        return KeepAlive {
+        return ClientKeepAlive {
             shard_num,
             heartbeat_manager,
             request_queue_sx4,
@@ -77,7 +77,7 @@ impl KeepAlive {
                         let max_timeout = (time.keep_live * 2) as u64;
                         if (now_second() - time.heartbeat) > max_timeout {
                             let disconnect = Disconnect {
-                                reason_code: DisconnectReasonCode::AdministrativeAction,
+                                reason_code: DisconnectReasonCode::KeepAliveTimeout,
                             };
                             let properties = Some(DisconnectProperties {
                                             session_expiry_interval: None,
@@ -88,7 +88,7 @@ impl KeepAlive {
                             if time.protobol == MQTTProtocol::MQTT4 {
                                 let req = RequestPackage {
                                     connection_id: connect_id,
-                                    addr: "127.0.0.1".parse().unwrap(),
+                                    addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect.clone(), None),
                                 };
                                 match request_queue_sx4.send(req) {
@@ -101,7 +101,7 @@ impl KeepAlive {
                             if time.protobol == MQTTProtocol::MQTT5 {
                                 let req = RequestPackage {
                                     connection_id: connect_id,
-                                    addr: "127.0.0.1".parse().unwrap(),
+                                    addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect, properties),
                                 };
 
