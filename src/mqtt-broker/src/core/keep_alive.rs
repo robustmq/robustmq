@@ -88,6 +88,7 @@ impl KeepAlive {
                             if time.protobol == MQTTProtocol::MQTT4 {
                                 let req = RequestPackage {
                                     connection_id: connect_id,
+                                    addr: "127.0.0.1".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect.clone(), None),
                                 };
                                 match request_queue_sx4.send(req) {
@@ -100,6 +101,7 @@ impl KeepAlive {
                             if time.protobol == MQTTProtocol::MQTT5 {
                                 let req = RequestPackage {
                                     connection_id: connect_id,
+                                    addr: "127.0.0.1".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect, properties),
                                 };
 

@@ -1,7 +1,7 @@
 use super::{
-    exclusive_sub::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
+    sub_exclusive::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
     sub_manager::SubscribeManager,
-    subscribe::{min_qos, share_sub_rewrite_publish_flag},
+    sub_common::{min_qos, share_sub_rewrite_publish_flag},
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
@@ -16,12 +16,11 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
-use dashmap::DashMap;
-use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
+use protocol::mqtt::{Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
-    sync::broadcast::{self, Sender},
+    sync::broadcast::{self},
     time::sleep,
 };
 
@@ -33,8 +32,6 @@ const SHARED_SUBSCRIPTION_STRATEGY_LOCAL: &str = "local";
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
-    //(group_name_topic_id, Sender<bool>)
-    pub leader_push_thread: DashMap<String, Sender<bool>>,
     pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: Arc<S>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
@@ -56,7 +53,6 @@ where
         ack_manager: Arc<AckManager>,
     ) -> Self {
         return SubscribeShareLeader {
-            leader_push_thread: DashMap::with_capacity(128),
             subscribe_manager,
             message_storage,
             response_queue_sx4,
@@ -67,98 +63,120 @@ where
     }
 
     pub async fn start(&self) {
-        let conf = broker_mqtt_conf();
         loop {
-            // Periodically verify if any push tasks are not started. If so, the thread is started
-            for (_, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
-                let key = self.key(sub_data.group_name.clone(), sub_data.topic_id.clone());
-                if sub_data.sub_list.len() == 0 {
-                    if let Some(sx) = self.leader_push_thread.get(&key) {
-                        match sx.send(true) {
-                            Ok(_) => {
-                                self.leader_push_thread.remove(&key);
-                            }
-                            Err(e) => error(e.to_string()),
-                        }
-                    }
-
-                    continue;
-                }
-
-                // start push data thread
-                let subscribe_manager = self.subscribe_manager.clone();
-                if !self.leader_push_thread.contains_key(&key) {
-                    // round_robin
-                    if conf.subscribe.shared_subscription_strategy
-                        == SHARED_SUBSCRIPTION_STRATEGY_ROUND_ROBIN.to_string()
-                    {
-                        self.start_push_by_round_robin(
-                            sub_data.group_name.clone(),
-                            sub_data.topic_id.clone(),
-                            sub_data.topic_name.clone(),
-                            subscribe_manager,
-                        );
-                    }
-                    // random
-                    if conf.subscribe.shared_subscription_strategy
-                        == SHARED_SUBSCRIPTION_STRATEGY_RANDOM.to_string()
-                    {
-                        self.start_push_by_random();
-                    }
-
-                    // sticky
-                    if conf.subscribe.shared_subscription_strategy
-                        == SHARED_SUBSCRIPTION_STRATEGY_STICKY.to_string()
-                    {
-                        self.start_push_by_sticky();
-                    }
-
-                    // hash
-                    if conf.subscribe.shared_subscription_strategy
-                        == SHARED_SUBSCRIPTION_STRATEGY_HASH.to_string()
-                    {
-                        self.start_push_by_hash();
-                    }
-
-                    // local
-                    if conf.subscribe.shared_subscription_strategy
-                        == SHARED_SUBSCRIPTION_STRATEGY_LOCAL.to_string()
-                    {
-                        self.start_push_by_local();
-                    }
-                }
-            }
-
-            // Periodically verify that a push task is running, but the subscribe task has stopped
-            // If so, stop the process and clean up the data
-            for (key, sx) in self.leader_push_thread.clone() {
-                if !self
-                    .subscribe_manager
-                    .share_leader_subscribe
-                    .contains_key(&key)
-                {
-                    match sx.send(true) {
-                        Ok(_) => {
-                            self.leader_push_thread.remove(&key);
-                        }
-                        Err(_) => {}
-                    }
-                }
-            }
+            self.start_push_thread();
+            self.try_thread_gc();
             sleep(Duration::from_secs(1)).await;
         }
     }
 
-    pub fn start_push_by_round_robin(
+    pub fn try_thread_gc(&self) {
+        // Periodically verify that a push task is running, but the subscribe task has stopped
+        // If so, stop the process and clean up the data
+        for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread.clone() {
+            if !self
+                .subscribe_manager
+                .share_leader_subscribe
+                .contains_key(&share_leader_key)
+            {
+                match sx.send(true) {
+                    Ok(_) => {
+                        self.subscribe_manager
+                            .share_leader_push_thread
+                            .remove(&share_leader_key);
+                    }
+                    Err(_) => {}
+                }
+            }
+        }
+    }
+
+    pub fn start_push_thread(&self) {
+        let conf = broker_mqtt_conf();
+        // Periodically verify if any push tasks are not started. If so, the thread is started
+        for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
+            // stop push data thread
+            if sub_data.sub_list.len() == 0 {
+                if let Some(sx) = self
+                    .subscribe_manager
+                    .share_leader_push_thread
+                    .get(&share_leader_key)
+                {
+                    match sx.send(true) {
+                        Ok(_) => {
+                            self.subscribe_manager
+                                .share_leader_push_thread
+                                .remove(&share_leader_key);
+                        }
+                        Err(e) => error(e.to_string()),
+                    }
+                }
+
+                continue;
+            }
+
+            // start push data thread
+            let subscribe_manager = self.subscribe_manager.clone();
+            if !self
+                .subscribe_manager
+                .share_leader_push_thread
+                .contains_key(&share_leader_key)
+            {
+                // round_robin
+                if conf.subscribe.shared_subscription_strategy
+                    == SHARED_SUBSCRIPTION_STRATEGY_ROUND_ROBIN.to_string()
+                {
+                    self.push_by_round_robin(
+                        share_leader_key.clone(),
+                        sub_data.group_name.clone(),
+                        sub_data.topic_id.clone(),
+                        sub_data.topic_name.clone(),
+                        subscribe_manager,
+                    );
+                }
+                // random
+                if conf.subscribe.shared_subscription_strategy
+                    == SHARED_SUBSCRIPTION_STRATEGY_RANDOM.to_string()
+                {
+                    self.push_by_random();
+                }
+
+                // sticky
+                if conf.subscribe.shared_subscription_strategy
+                    == SHARED_SUBSCRIPTION_STRATEGY_STICKY.to_string()
+                {
+                    self.push_by_sticky();
+                }
+
+                // hash
+                if conf.subscribe.shared_subscription_strategy
+                    == SHARED_SUBSCRIPTION_STRATEGY_HASH.to_string()
+                {
+                    self.push_by_hash();
+                }
+
+                // local
+                if conf.subscribe.shared_subscription_strategy
+                    == SHARED_SUBSCRIPTION_STRATEGY_LOCAL.to_string()
+                {
+                    self.push_by_local();
+                }
+            }
+        }
+    }
+
+    fn push_by_round_robin(
         &self,
+        share_leader_key: String,
         group_name: String,
         topic_id: String,
         topic_name: String,
         subscribe_manager: Arc<SubscribeManager>,
     ) {
         let (stop_sx, mut stop_rx) = broadcast::channel(1);
-        let key = self.key(group_name, topic_id);
-        self.leader_push_thread.insert(key, stop_sx);
+        self.subscribe_manager
+            .share_leader_push_thread
+            .insert(share_leader_key.clone(), stop_sx.clone());
 
         let response_queue_sx4 = self.response_queue_sx4.clone();
         let response_queue_sx5 = self.response_queue_sx5.clone();
@@ -246,7 +264,7 @@ where
 
                             let qos = min_qos(msg.qos, subscribe.qos);
 
-                            let publish = Publish {
+                            let mut publish = Publish {
                                 dup: false,
                                 qos: qos.clone(),
                                 pkid: 0,
@@ -273,11 +291,6 @@ where
 
                             match qos {
                                 QoS::AtMostOnce => {
-                                    let resp = ResponsePackage {
-                                        connection_id: connect_id,
-                                        packet: MQTTPacket::Publish(publish, Some(properties)),
-                                    };
-
                                     publish_message_qos0(
                                         metadata_cache.clone(),
                                         subscribe.client_id.clone(),
@@ -296,11 +309,6 @@ where
                                         metadata_cache.get_pkid(subscribe.client_id.clone()).await;
                                     publish.pkid = pkid;
 
-                                    let resp = ResponsePackage {
-                                        connection_id: connect_id,
-                                        packet: MQTTPacket::Publish(publish, Some(properties)),
-                                    };
-
                                     let (wait_puback_sx, _) = broadcast::channel(1);
                                     ack_manager.add(
                                         subscribe.client_id.clone(),
@@ -314,8 +322,8 @@ where
                                     match publish_message_qos1(
                                         metadata_cache.clone(),
                                         subscribe.client_id.clone(),
-                                        publish,
-                                        properties,
+                                        publish.clone(),
+                                        properties.clone(),
                                         pkid,
                                         subscribe.protocol.clone(),
                                         response_queue_sx4.clone(),
@@ -341,11 +349,6 @@ where
                                     let pkid: u16 =
                                         metadata_cache.get_pkid(subscribe.client_id.clone()).await;
                                     publish.pkid = pkid;
-
-                                    let resp = ResponsePackage {
-                                        connection_id: connect_id,
-                                        packet: MQTTPacket::Publish(publish, Some(properties)),
-                                    };
 
                                     let (wait_ack_sx, _) = broadcast::channel(1);
                                     ack_manager.add(
@@ -393,23 +396,24 @@ where
                         group_id.clone()
                     ));
                         sleep(Duration::from_millis(max_wait_ms)).await;
+                        continue;
                     }
                 }
             }
+
+            subscribe_manager
+                .share_leader_push_thread
+                .remove(&share_leader_key);
         });
     }
 
-    fn start_push_by_random(&self) {}
+    fn push_by_random(&self) {}
 
-    fn start_push_by_hash(&self) {}
+    fn push_by_hash(&self) {}
 
-    fn start_push_by_sticky(&self) {}
+    fn push_by_sticky(&self) {}
 
-    fn start_push_by_local(&self) {}
-
-    fn key(&self, group_name: String, topic_id: String) -> String {
-        return format!("{}_{}", group_name, topic_id);
-    }
+    fn push_by_local(&self) {}
 }
 
 #[cfg(test)]

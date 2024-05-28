@@ -1,4 +1,4 @@
-use super::subscribe::{
+use super::sub_common::{
     decode_share_info, get_share_sub_leader, is_contain_rewrite_flag, is_share_sub,
     path_regex_match,
 };
@@ -12,13 +12,8 @@ use common_base::{
 };
 use dashmap::DashMap;
 use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
-use std::{
-    sync::{atomic::AtomicU64, Arc},
-    time::Duration,
-};
-use tokio::time::sleep;
-
-static SUB_IDENTIFIER_ID_BUILD: AtomicU64 = AtomicU64::new(1);
+use std::{sync::Arc, time::Duration};
+use tokio::{sync::broadcast::Sender, time::sleep};
 
 #[derive(Clone)]
 pub struct ShareSubShareSub {
@@ -44,14 +39,23 @@ pub struct SubscribeManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
 
-    // (client_id,Vec<Subscriber>)
-    pub exclusive_subscribe: DashMap<String, Vec<Subscriber>>,
+    // (client_id_topic_id, Subscriber)
+    pub exclusive_subscribe: DashMap<String, Subscriber>,
 
-    // (group_name_topic_id,Vec<Subscriber>)
+    // (client_id_topic_id, Sender<bool>)
+    pub exclusive_push_thread: DashMap<String, Sender<bool>>,
+
+    // (group_name_topic_id, ShareLeaderSubscribeData)
     pub share_leader_subscribe: DashMap<String, ShareLeaderSubscribeData>,
 
-    // (group_name_sub_name,ShareSubShareSub)
+    // (group_name_topic_id, Sender<bool>)
+    pub share_leader_push_thread: DashMap<String, Sender<bool>>,
+
+    // (client_id_group_name_sub_name,ShareSubShareSub)
     pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
+
+    // (client_id_group_name_sub_name, Sender<bool>)
+    pub share_follower_resub_thread: DashMap<String, Sender<bool>>,
 
     // (identifier_id，client_id)
     pub share_follower_identifier_id: DashMap<usize, String>,
@@ -66,6 +70,9 @@ impl SubscribeManager {
             share_leader_subscribe: DashMap::with_capacity(8),
             share_follower_subscribe: DashMap::with_capacity(8),
             share_follower_identifier_id: DashMap::with_capacity(8),
+            exclusive_push_thread: DashMap::with_capacity(8),
+            share_leader_push_thread: DashMap::with_capacity(8),
+            share_follower_resub_thread: DashMap::with_capacity(8),
         };
     }
 
@@ -120,7 +127,6 @@ impl SubscribeManager {
 
     pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
-            let topic_id = topic.topic_id;
             for path in filter_path.clone() {
                 if !path_regex_match(topic_name.clone(), path.clone()) {
                     continue;
@@ -128,13 +134,17 @@ impl SubscribeManager {
 
                 if is_share_sub(path.clone()) {
                     // leader
-                    for (client_id, mut data) in self.share_leader_subscribe.clone() {
+                    for (_, mut data) in self.share_leader_subscribe.clone() {
                         data.sub_list.retain(|x| *x.sub_path == path);
                     }
 
                     // follower
-                    let (group_name, sub_name) = decode_share_info(path);
-                    let follower_key = format!("{}_{}", group_name, sub_name);
+                    let (group_name, _) = decode_share_info(path);
+                    let follower_key = self.share_follower_key(
+                        client_id.clone(),
+                        group_name,
+                        topic.topic_id.clone(),
+                    );
                     self.share_follower_subscribe.remove(&follower_key);
                 } else {
                     self.exclusive_subscribe.remove(&client_id);
@@ -157,13 +167,6 @@ impl SubscribeManager {
         } else {
             None
         };
-
-        if !self.exclusive_subscribe.contains_key(&client_id) {
-            self.exclusive_subscribe
-                .insert(client_id.clone(), Vec::new());
-        }
-
-        let mut exclusive_sub = self.exclusive_subscribe.get_mut(&client_id).unwrap();
 
         let conf = broker_mqtt_conf();
 
@@ -193,7 +196,8 @@ impl SubscribeManager {
                     {
                         Ok(reply) => {
                             if reply.broker_id == conf.broker_id {
-                                let leader_key = format!("{}_{}", group_name, topic_id);
+                                let leader_key =
+                                    self.share_leader_key(group_name.clone(), topic_id.clone());
 
                                 if !self.share_leader_subscribe.contains_key(&leader_key) {
                                     let data = ShareLeaderSubscribeData {
@@ -231,9 +235,14 @@ impl SubscribeManager {
                                         None
                                     },
                                 };
-                                let follower_key = format!("{}_{}", group_name, sub_name);
-                                self.share_follower_subscribe
-                                    .insert(follower_key, share_sub);
+                                self.share_follower_subscribe.insert(
+                                    self.share_follower_key(
+                                        client_id.clone(),
+                                        group_name,
+                                        topic_id.clone(),
+                                    ),
+                                    share_sub,
+                                );
                             }
                         }
                         Err(e) => {
@@ -243,15 +252,31 @@ impl SubscribeManager {
                 }
             } else {
                 if path_regex_match(topic_name.clone(), filter.path.clone()) {
-                    exclusive_sub.push(sub);
+                    self.exclusive_subscribe
+                        .insert(self.exclusive_key(client_id.clone(), topic_id.clone()), sub);
                 }
             }
         }
+    }
+
+    pub fn exclusive_key(&self, client_id: String, topic_id: String) -> String {
+        return format!("{}_{}", client_id, topic_id);
+    }
+
+    fn share_leader_key(&self, group_name: String, topic_id: String) -> String {
+        return format!("{}_{}", group_name, topic_id);
+    }
+
+    fn share_follower_key(
+        &self,
+        client_id: String,
+        group_name: String,
+        topic_id: String,
+    ) -> String {
+        return format!("{}_{}_{}", client_id, group_name, topic_id);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    #[tokio::test]
-    async fn topic_sub_push_thread_test() {}
 }

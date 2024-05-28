@@ -17,6 +17,7 @@ pub struct AckPackageData {
 pub enum AckPackageType {
     PubAck,
     PubComp,
+    PubRel,
     PubRec,
 }
 

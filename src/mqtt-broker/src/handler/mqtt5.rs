@@ -7,7 +7,7 @@ use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
 use crate::qos::QosDataManager;
 use crate::subscribe::sub_manager::SubscribeManager;
-use crate::subscribe::subscribe::{min_qos, save_retain_message};
+use crate::subscribe::sub_common::{min_qos, save_retain_message};
 use crate::{
     core::client_heartbeat::{ConnectionLiveTime, HeartbeatManager},
     metadata::{message::Message, session::LastWillData},
