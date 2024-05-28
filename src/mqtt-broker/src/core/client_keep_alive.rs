@@ -18,7 +18,7 @@ use tokio::{
     time::sleep,
 };
 
-pub struct KeepAlive {
+pub struct ClientKeepAlive {
     shard_num: u64,
     heartbeat_manager: Arc<HeartbeatCache>,
     request_queue_sx4: Sender<RequestPackage>,
@@ -26,7 +26,7 @@ pub struct KeepAlive {
     stop_send: broadcast::Receiver<bool>,
 }
 
-impl KeepAlive {
+impl ClientKeepAlive {
     pub fn new(
         shard_num: u64,
         heartbeat_manager: Arc<HeartbeatCache>,
@@ -34,7 +34,7 @@ impl KeepAlive {
         request_queue_sx5: Sender<RequestPackage>,
         stop_send: broadcast::Receiver<bool>,
     ) -> Self {
-        return KeepAlive {
+        return ClientKeepAlive {
             shard_num,
             heartbeat_manager,
             request_queue_sx4,

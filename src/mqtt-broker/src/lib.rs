@@ -21,8 +21,8 @@ use common_base::{
 use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
     heartbeat_cache::HeartbeatCache,
-    keep_alive::KeepAlive,
-    server_heartbeat::{register_broker_node, report_heartbeat, unregister_broker_node},
+    client_keep_alive::ClientKeepAlive,
+    placement_drive::{register_broker_node, report_heartbeat, unregister_broker_node},
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
@@ -268,7 +268,7 @@ where
     }
 
     fn start_keep_alive_thread(&self, stop_send: broadcast::Receiver<bool>) {
-        let mut keep_alive = KeepAlive::new(
+        let mut keep_alive = ClientKeepAlive::new(
             HEART_CONNECT_SHARD_HASH_NUM,
             self.heartbeat_manager.clone(),
             self.request_queue_sx4.clone(),
