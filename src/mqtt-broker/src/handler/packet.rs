@@ -3,8 +3,8 @@ use crate::{metadata::cluster::Cluster, server::MQTTProtocol};
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
-    PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck, SubAckProperties,
-    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
+    PubCompReason, PubRec, PubRecProperties, PubRecReason, PubRel, PubRelReason, SubAck,
+    SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 use std::sync::Arc;
 
@@ -102,20 +102,9 @@ impl MQTTAckBuild {
         return MQTTPacket::PubRec(pub_rec, Some(properties));
     }
 
-    pub fn pub_rel(&self) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
-        };
-        return MQTTPacket::ConnAck(conn_ack, None);
-    }
-
-    pub fn pub_comp(&self) -> MQTTPacket {
-        let conn_ack = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
-        };
-        return MQTTPacket::ConnAck(conn_ack, None);
+    pub fn pub_rel(&self, pkid: u16, reason: PubRelReason) -> MQTTPacket {
+        let pub_rel = PubRel { pkid, reason };
+        return MQTTPacket::PubRel(pub_rel, None);
     }
 
     pub fn ping_resp(&self) -> MQTTPacket {
