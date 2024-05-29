@@ -32,7 +32,8 @@ pub struct ShareLeaderSubscribeData {
     pub group_name: String,
     pub topic_id: String,
     pub topic_name: String,
-    pub sub_list: Vec<Subscriber>,
+    // (client_id_sub_path, subscriber)
+    pub sub_list: DashMap<String, Subscriber>,
 }
 
 #[derive(Clone)]
@@ -134,10 +135,10 @@ impl SubscribeCache {
         }
 
         for (key, share_sub) in self.share_leader_subscribe.clone() {
-            for subscriber in share_sub.sub_list {
+            for (sub_key, subscriber) in share_sub.sub_list {
                 if subscriber.client_id == client_id {
                     let mut mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
-                    mut_data.sub_list.retain(|row| *row.client_id == client_id)
+                    mut_data.sub_list.remove(&sub_key);
                 }
             }
         }
@@ -152,7 +153,6 @@ impl SubscribeCache {
     pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
         for (topic_name, _) in self.metadata_cache.topic_info.clone() {
             for path in filter_path.clone() {
-                
                 if !path_regex_match(topic_name.clone(), path.clone()) {
                     continue;
                 }
@@ -173,13 +173,14 @@ impl SubscribeCache {
                 // share leader
                 for (key, data) in self.share_leader_subscribe.clone() {
                     let mut flag = false;
-                    for share_sub in data.sub_list {
+                    for (sub_key, share_sub) in data.sub_list {
                         if share_sub.client_id == client_id && share_sub.sub_path == path {
-                            let mut mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
-                            mut_data.sub_list.retain(|x| *x.sub_path == path);
+                            let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                            mut_data.sub_list.remove(&sub_key);
                             flag = true;
                         }
                     }
+
                     if flag {
                         self.share_leader_subscribe.remove(&key);
                         if let Some(sx) = self.share_leader_push_thread.get(&key) {
@@ -252,12 +253,12 @@ impl SubscribeCache {
                                         group_name: group_name.clone(),
                                         topic_id: topic_id.clone(),
                                         topic_name: topic_name.clone(),
-                                        sub_list: Vec::new(),
+                                        sub_list: DashMap::with_capacity(8),
                                     };
                                     self.share_leader_subscribe.insert(leader_key.clone(), data);
                                 }
 
-                                let mut share_sub_leader =
+                                let share_sub_leader =
                                     self.share_leader_subscribe.get_mut(&leader_key).unwrap();
 
                                 if let Some(properties) = subscribe_properties.clone() {
@@ -266,7 +267,11 @@ impl SubscribeCache {
                                     }
                                 }
                                 sub.group_name = Some(group_name);
-                                share_sub_leader.sub_list.push(sub);
+                                let leader_sub_key = self
+                                    .share_leader_sub_key(client_id.clone(), filter.path.clone());
+                                if !share_sub_leader.sub_list.contains_key(&leader_sub_key) {
+                                    share_sub_leader.sub_list.insert(leader_sub_key, sub);
+                                }
                             } else {
                                 let share_sub = ShareSubShareSub {
                                     client_id: client_id.clone(),
@@ -307,12 +312,40 @@ impl SubscribeCache {
         }
     }
 
+    pub fn exclusive_push_thread_keys(&self) -> Vec<String> {
+        let mut result = Vec::new();
+        for (key, _) in self.exclusive_push_thread.clone() {
+            result.push(key);
+        }
+        return result;
+    }
+
+    pub fn share_leader_push_thread_keys(&self) -> Vec<String> {
+        let mut result = Vec::new();
+        for (key, _) in self.share_leader_push_thread.clone() {
+            result.push(key);
+        }
+        return result;
+    }
+
+    pub fn share_follower_resub_thread_keys(&self) -> Vec<String> {
+        let mut result = Vec::new();
+        for (key, _) in self.share_follower_resub_thread.clone() {
+            result.push(key);
+        }
+        return result;
+    }
+
     pub fn exclusive_key(&self, client_id: String, topic_id: String) -> String {
         return format!("{}_{}", client_id, topic_id);
     }
 
     fn share_leader_key(&self, group_name: String, topic_id: String) -> String {
         return format!("{}_{}", group_name, topic_id);
+    }
+
+    fn share_leader_sub_key(&self, client_id: String, sub_path: String) -> String {
+        return format!("{}_{}", client_id, sub_path);
     }
 
     fn share_follower_key(

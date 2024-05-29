@@ -46,6 +46,10 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         share_leader_subscribe: state.subscribe_cache.share_leader_subscribe.clone(),
         share_follower_subscribe: state.subscribe_cache.share_follower_subscribe.clone(),
         share_follower_identifier_id: state.subscribe_cache.share_follower_identifier_id.clone(),
+
+        exclusive_push_thread: state.subscribe_cache.exclusive_push_thread_keys(),
+        share_leader_push_thread: state.subscribe_cache.share_leader_push_thread_keys(),
+        share_follower_resub_thread: state.subscribe_cache.share_follower_resub_thread_keys(),
     };
 
     return success_response(result);
@@ -81,4 +85,8 @@ pub struct MetadataCacheResult {
     pub share_leader_subscribe: DashMap<String, ShareLeaderSubscribeData>,
     pub share_follower_subscribe: DashMap<String, ShareSubShareSub>,
     pub share_follower_identifier_id: DashMap<usize, String>,
+
+    pub exclusive_push_thread: Vec<String>,
+    pub share_leader_push_thread: Vec<String>,
+    pub share_follower_resub_thread: Vec<String>,
 }

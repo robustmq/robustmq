@@ -22,6 +22,25 @@ const SHARE_SUB_PREFIX: &str = "$share";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE: &str = "True";
 
+pub fn sub_path_validator(sub_path: String) -> bool {
+    let regex = Regex::new(r"^[\$a-zA-Z0-9_#+/]+$").unwrap();
+
+    if !regex.is_match(&sub_path) {
+        return false;
+    }
+
+    for path in sub_path.split("/") {
+        if path.contains("+") && path != "+" {
+            return false;
+        }
+        if path.contains("#") && path != "#" {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
     // Path perfect matching
     if topic_name == sub_regex {
@@ -245,7 +264,7 @@ mod tests {
     use tokio::sync::broadcast;
 
     use crate::core::metadata_cache::MetadataCacheManager;
-    use crate::subscribe::sub_common::{decode_share_info, is_share_sub};
+    use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
     use crate::{
         metadata::{message::Message, topic::Topic},
         storage::message::MessageStorage,
@@ -346,6 +365,36 @@ mod tests {
         let result = get_sub_topic_id_list(metadata_cache.clone(), sub_path).await;
         assert!(result.len() == 1);
         assert_eq!(result.get(0).unwrap().clone(), topic.topic_id);
+    }
+
+    #[tokio::test]
+    async fn path_validator_test() {
+        let path = "/loboxu/test".to_string();
+        assert!(sub_path_validator(path));
+        
+        let path = "/loboxu/#".to_string();
+        assert!(sub_path_validator(path));
+
+        let path = "/loboxu/+".to_string();
+        assert!(sub_path_validator(path));
+
+        let path = "$share/loboxu/#".to_string();
+        assert!(sub_path_validator(path));
+        
+        let path = "$share/loboxu/#/test".to_string();
+        assert!(sub_path_validator(path));
+
+        let path = "$share/loboxu/+/test".to_string();
+        assert!(sub_path_validator(path));
+
+        let path = "$share/loboxu/+test".to_string();
+        assert!(!sub_path_validator(path));
+
+        let path = "$share/loboxu/#test".to_string();
+        assert!(!sub_path_validator(path));
+
+        let path = "$share/loboxu/*test".to_string();
+        assert!(!sub_path_validator(path));
     }
 
     #[tokio::test]

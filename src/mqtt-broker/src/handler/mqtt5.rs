@@ -6,7 +6,7 @@ use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
 use crate::qos::QosDataManager;
-use crate::subscribe::sub_common::{min_qos, save_retain_message};
+use crate::subscribe::sub_common::{min_qos, sub_path_validator, save_retain_message};
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
@@ -477,11 +477,10 @@ where
         }
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-        let regex = Regex::new(r"^[a-zA-Z0-9#+/]+$").unwrap();
         let cluster_qos = self.metadata_cache.get_cluster_info().max_qos();
         let mut contain_success = false;
         for filter in subscribe.filters.clone() {
-            if !regex.is_match(&filter.path) {
+            if !sub_path_validator(filter.path) {
                 return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
                 continue;
             }
