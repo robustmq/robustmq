@@ -21,9 +21,9 @@ use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
-    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,
-    PubRelProperties, Publish, PublishProperties, QoS, Subscribe, SubscribeProperties,
-    SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
+    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties,
+    PubRecReason, PubRel, PubRelProperties, PubRelReason, Publish, PublishProperties, QoS,
+    Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use regex::Regex;
 use std::net::SocketAddr;
@@ -351,7 +351,10 @@ where
                 }) {
                     Ok(_) => {}
                     Err(e) => {
-                        error(e.to_string());
+                        error(format!(
+                            "publish ack send ack manager message error, error message:{}",
+                            e.to_string()
+                        ));
                     }
                 }
             }
@@ -376,13 +379,16 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error(e.to_string());
+                        error(format!(
+                            "publish rec send ack manager message error, error message:{}",
+                            e.to_string()
+                        ));
                     }
                 }
             }
         }
 
-        return Some(self.ack_build.pub_rel());
+        return Some(self.ack_build.pub_rel(pub_rec.pkid, PubRelReason::Success));
     }
 
     pub async fn publish_comp(
@@ -401,7 +407,10 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error(e.to_string());
+                        error(format!(
+                            "publish comp send ack manager message error, error message:{}",
+                            e.to_string()
+                        ));
                     }
                 }
             }
@@ -613,7 +622,7 @@ where
 
         self.metadata_cache
             .remove_connection(connect_id, connection.client_id.clone());
-        
+
         self.sucscribe_cache
             .remove_client(connection.client_id.clone());
 

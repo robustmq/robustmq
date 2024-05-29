@@ -20,8 +20,8 @@ use tokio::{
 };
 
 use super::{
-    subscribe_cache::SubscribeCache,
     sub_common::{min_qos, publish_to_response_queue, wait_packet_ack},
+    subscribe_cache::SubscribeCache,
 };
 
 pub struct SubscribeExclusive<S> {
@@ -58,7 +58,7 @@ where
     pub async fn start(&self) {
         loop {
             self.start_push_thread().await;
-            self.try_push_thread_gc();
+            self.try_push_thread_gc().await;
             sleep(Duration::from_secs(1)).await;
         }
     }
@@ -160,6 +160,19 @@ where
                                     Ok(msg) => msg,
                                     Err(e) => {
                                         error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));
+                                        match message_storage
+                                            .commit_group_offset(
+                                                subscribe.topic_id.clone(),
+                                                group_id.clone(),
+                                                record.offset,
+                                            )
+                                            .await
+                                        {
+                                            Ok(_) => {}
+                                            Err(e) => {
+                                                error(e.to_string());
+                                            }
+                                        }
                                         continue;
                                     }
                                 };
@@ -289,6 +302,22 @@ where
                                         }
                                     }
                                 };
+                                
+                                // commit offset
+                                match message_storage
+                                    .commit_group_offset(
+                                        subscribe.topic_id.clone(),
+                                        group_id.clone(),
+                                        record.offset,
+                                    )
+                                    .await
+                                {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        error(e.to_string());
+                                    }
+                                }
+                                continue;
                             }
                         }
                         Err(e) => {
@@ -507,7 +536,7 @@ pub async fn publish_message_qos2(
             Err(_) => {}
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
-            if data.ack_type == AckPackageType::PubRec {
+            if data.ack_type == AckPackageType::PubRec && data.pkid == pkid {
                 break;
             }
         }
@@ -562,18 +591,17 @@ pub async fn publish_message_qos2(
     }
 
     // 4. wait pub comp
-    let (wait_pubcomp_sx, _) = broadcast::channel(1);
     loop {
         match stop_sx.subscribe().try_recv() {
             Ok(flag) => {
                 if flag {
-                    return Ok(());
+                    break;
                 }
             }
             Err(_) => {}
         }
-        if let Some(data) = wait_packet_ack(wait_pubcomp_sx.clone()).await {
-            if data.ack_type == AckPackageType::PubComp {
+        if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
+            if data.ack_type == AckPackageType::PubComp  && data.pkid == pkid{
                 break;
             }
         }

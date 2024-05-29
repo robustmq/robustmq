@@ -238,14 +238,15 @@ impl MetadataCacheManager {
     async fn get_available_pkid(&self, client_id: String) -> u16 {
         loop {
             if let Some(pkid_list) = self.publish_pkid_info.get(&client_id) {
-                for i in 0..65535 {
+                for i in 1..65535 {
                     if pkid_list.contains(&i) {
                         continue;
                     }
                     return i;
                 }
             } else {
-                return 0;
+                self.publish_pkid_info.insert(client_id, vec![1]);
+                return 1;
             }
             sleep(Duration::from_millis(10)).await;
             warn("No pkid available for client, wait 10ms.".to_string());
