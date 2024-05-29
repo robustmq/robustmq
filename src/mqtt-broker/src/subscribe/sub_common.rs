@@ -105,7 +105,7 @@ where
                             connection_id: connect_id,
                             packet: MQTTPacket::Publish(publish, Some(properties)),
                         };
-
+                        // todo send retain
                         match response_queue_sx.send(resp) {
                             Ok(_) => {}
                             Err(e) => error(format!("{}", e.to_string())),
@@ -131,10 +131,8 @@ pub async fn get_sub_topic_id_list(
     metadata_cache: Arc<MetadataCacheManager>,
     sub_path: String,
 ) -> Vec<String> {
-    let topic_id_name = metadata_cache.topic_id_name.clone();
-
     let mut result = Vec::new();
-    for (topic_id, topic_name) in topic_id_name {
+    for (topic_id, topic_name) in metadata_cache.topic_id_name.clone() {
         if path_regex_match(topic_name.clone(), sub_path.clone()) {
             result.push(topic_id);
         }

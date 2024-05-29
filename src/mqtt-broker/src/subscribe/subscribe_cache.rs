@@ -12,10 +12,11 @@ use common_base::{
 };
 use dashmap::DashMap;
 use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
+use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::broadcast::Sender, time::sleep};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ShareSubShareSub {
     pub client_id: String,
     pub group_name: String,
@@ -26,7 +27,7 @@ pub struct ShareSubShareSub {
     pub subscription_identifier: Option<usize>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct ShareLeaderSubscribeData {
     pub group_name: String,
     pub topic_id: String,
@@ -149,28 +150,52 @@ impl SubscribeCache {
     }
 
     pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
-        for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
+        for (topic_name, _) in self.metadata_cache.topic_info.clone() {
             for path in filter_path.clone() {
+                
                 if !path_regex_match(topic_name.clone(), path.clone()) {
                     continue;
                 }
 
-                if is_share_sub(path.clone()) {
-                    // leader
-                    for (_, mut data) in self.share_leader_subscribe.clone() {
-                        data.sub_list.retain(|x| *x.sub_path == path);
+                // exclusive
+                for (key, subscriber) in self.exclusive_subscribe.clone() {
+                    if subscriber.client_id == client_id && subscriber.sub_path == path {
+                        self.exclusive_subscribe.remove(&key);
+                        if let Some(sx) = self.exclusive_push_thread.get(&key) {
+                            match sx.send(true) {
+                                Ok(_) => {}
+                                Err(e) => error(e.to_string()),
+                            }
+                        }
                     }
+                }
 
-                    // follower
-                    let (group_name, _) = decode_share_info(path);
-                    let follower_key = self.share_follower_key(
-                        client_id.clone(),
-                        group_name,
-                        topic.topic_id.clone(),
-                    );
-                    self.share_follower_subscribe.remove(&follower_key);
-                } else {
-                    self.exclusive_subscribe.remove(&client_id);
+                // share leader
+                for (key, data) in self.share_leader_subscribe.clone() {
+                    let mut flag = false;
+                    for share_sub in data.sub_list {
+                        if share_sub.client_id == client_id && share_sub.sub_path == path {
+                            let mut mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                            mut_data.sub_list.retain(|x| *x.sub_path == path);
+                            flag = true;
+                        }
+                    }
+                    if flag {
+                        self.share_leader_subscribe.remove(&key);
+                        if let Some(sx) = self.share_leader_push_thread.get(&key) {
+                            match sx.send(true) {
+                                Ok(_) => {}
+                                Err(e) => error(e.to_string()),
+                            }
+                        }
+                    }
+                }
+
+                // share follower
+                for (key, data) in self.share_follower_subscribe.clone() {
+                    if data.client_id == client_id && data.filter.path == path {
+                        self.share_follower_subscribe.remove(&key);
+                    }
                 }
             }
         }
