@@ -7,6 +7,7 @@ use clients::placement::mqtt::call::placement_get_share_sub;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::{errors::RobustMQError, log::error};
+use metadata_struct::share_sub;
 use protocol::mqtt::{
     MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
@@ -41,24 +42,30 @@ pub fn sub_path_validator(sub_path: String) -> bool {
     return true;
 }
 
-pub fn path_regex_match(topic_name: String, sub_regex: String) -> bool {
+pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
+    let path = if is_share_sub(sub_path){
+        
+    }else{
+        sub_path;
+    };
+
     // Path perfect matching
-    if topic_name == sub_regex {
+    if topic_name == sub_path {
         return true;
     }
 
-    if sub_regex.contains("+") {
-        let sub_regex = sub_regex.replace("+", "[^+*/]+");
+    if sub_path.contains("+") {
+        let sub_regex = sub_path.replace("+", "[^+*/]+");
         let re = Regex::new(&format!("{}", sub_regex)).unwrap();
         println!("{}", sub_regex);
         return re.is_match(&topic_name);
     }
 
-    if sub_regex.contains("#") {
-        if sub_regex.split("#").last().unwrap() != "#".to_string() {
+    if sub_path.contains("#") {
+        if sub_path.split("#").last().unwrap() != "#".to_string() {
             return false;
         }
-        let sub_regex = sub_regex.replace("#", "[^+#]+");
+        let sub_regex = sub_path.replace("#", "[^+#]+");
         let re = Regex::new(&format!("{}", sub_regex)).unwrap();
         return re.is_match(&topic_name);
     }
