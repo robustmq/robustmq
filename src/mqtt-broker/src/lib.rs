@@ -20,8 +20,8 @@ use common_base::{
 };
 use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
-    heartbeat_cache::HeartbeatCache,
     client_keep_alive::ClientKeepAlive,
+    heartbeat_cache::HeartbeatCache,
     placement_drive::{register_broker_node, report_heartbeat, unregister_broker_node},
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
@@ -43,8 +43,8 @@ use storage_adapter::{
     storage::StorageAdapter,
 };
 use subscribe::{
-    sub_exclusive::SubscribeExclusive, subscribe_cache::SubscribeCache,
-    sub_share_follower::SubscribeShareFollower, sub_share_leader::SubscribeShareLeader,
+    sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
+    sub_share_leader::SubscribeShareLeader, subscribe_cache::SubscribeCache,
 };
 use tokio::{
     runtime::Runtime,
@@ -210,6 +210,7 @@ where
             self.heartbeat_manager.clone(),
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
+            self.subscribe_manager.clone(),
         );
         self.runtime
             .spawn(async move { start_http_server(http_state).await });

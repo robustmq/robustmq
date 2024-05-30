@@ -120,6 +120,9 @@ where
                 let group_id = format!("system_sub_{}_{}", client_id, subscribe.topic_id);
                 let record_num = 5;
                 let max_wait_ms = 100;
+                
+                let cluster_qos = metadata_cache.get_cluster_info().max_qos();
+                let qos = min_qos(cluster_qos, subscribe.qos);
 
                 let mut sub_ids = Vec::new();
                 if let Some(id) = subscribe.subscription_identifier {
@@ -181,7 +184,6 @@ where
                                     continue;
                                 }
 
-                                let qos = min_qos(msg.qos, subscribe.qos);
 
                                 let retain = if subscribe.preserve_retain {
                                     msg.retain

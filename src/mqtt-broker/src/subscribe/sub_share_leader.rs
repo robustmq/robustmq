@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    metadata::message::Message,
+    metadata::{message::Message, subscriber::Subscriber},
     qos::ack_manager::{AckManager, AckPacketInfo},
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
@@ -195,7 +195,9 @@ where
 
             let max_wait_ms = 500;
             let cursor_point = 0;
-
+            let mut sub_list =
+                build_share_leader_sub_list(subscribe_manager.clone(), topic_id.clone());
+            let mut pre_update_sub_list_time = now_second();
             loop {
                 match stop_rx.try_recv() {
                     Ok(flag) => {
@@ -209,18 +211,11 @@ where
                     }
                     Err(_) => {}
                 }
-
-                let sub_list = if let Some(sub) =
-                    subscribe_manager.share_leader_subscribe.get(&topic_id)
-                {
-                    sub.sub_list.clone()
-                } else {
-                    info(format!(
-                            "Share sub push data thread for GroupName {},Topic [{}] , subscription length is 0 and the thread is exited.",
-                            group_name, topic_name
-                        ));
-                    break;
-                };
+                if (now_second() - pre_update_sub_list_time) > 5 {
+                    sub_list =
+                        build_share_leader_sub_list(subscribe_manager.clone(), topic_id.clone());
+                    pre_update_sub_list_time = now_second();
+                }
 
                 let record_num = sub_list.len() * 2;
                 match message_storage
@@ -248,14 +243,6 @@ where
                             };
 
                             let subscribe = sub_list.get(current_point).unwrap();
-
-                            let connect_id = if let Some(connect_id) =
-                                metadata_cache.get_connect_id(subscribe.client_id.clone())
-                            {
-                                connect_id
-                            } else {
-                                continue;
-                            };
 
                             let mut sub_id = Vec::new();
                             if let Some(id) = subscribe.subscription_identifier {
@@ -414,6 +401,23 @@ where
     fn push_by_sticky(&self) {}
 
     fn push_by_local(&self) {}
+}
+
+fn build_share_leader_sub_list(
+    subscribe_manager: Arc<SubscribeCache>,
+    topic_id: String,
+) -> Vec<Subscriber> {
+    let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(&topic_id) {
+        sub.sub_list.clone()
+    } else {
+        return Vec::new();
+    };
+
+    let mut result = Vec::new();
+    for (_, sub) in sub_list {
+        result.push(sub);
+    }
+    return result;
 }
 
 #[cfg(test)]

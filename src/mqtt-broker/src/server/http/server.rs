@@ -1,5 +1,6 @@
-use super::node::{hearbeat_info, index, metadata_info, metrics, subscribe_info};
+use super::cache::{cache_info, index, metrics};
 use crate::core::metadata_cache::MetadataCacheManager;
+use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{core::heartbeat_cache::HeartbeatCache, server::tcp::packet::ResponsePackage};
 use axum::routing::get;
 use axum::Router;
@@ -8,15 +9,14 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::broadcast::Sender;
 
 pub const ROUTE_ROOT: &str = "/";
-pub const ROUTE_HEARTBEAT_INFO: &str = "/heartbeat-info";
-pub const ROUTE_METADATA_INFO: &str = "/metadata-info";
-pub const ROUTE_SUBSCRIBE_INFO: &str = "/subscribe-info";
+pub const ROUTE_CACHE: &str = "/caches";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {
     pub metadata_cache: Arc<MetadataCacheManager>,
     pub heartbeat_manager: Arc<HeartbeatCache>,
+    pub subscribe_cache: Arc<SubscribeCache>,
     pub response_queue_sx4: Sender<ResponsePackage>,
     pub response_queue_sx5: Sender<ResponsePackage>,
 }
@@ -27,10 +27,12 @@ impl HttpServerState {
         heartbeat_manager: Arc<HeartbeatCache>,
         response_queue_sx4: Sender<ResponsePackage>,
         response_queue_sx5: Sender<ResponsePackage>,
+        subscribe_cache: Arc<SubscribeCache>,
     ) -> Self {
         return Self {
             metadata_cache,
             heartbeat_manager,
+            subscribe_cache,
             response_queue_sx4,
             response_queue_sx5,
         };
@@ -52,9 +54,7 @@ pub async fn start_http_server(state: HttpServerState) {
 fn routes(state: HttpServerState) -> Router {
     let meta = Router::new()
         .route(ROUTE_ROOT, get(index))
-        .route(ROUTE_HEARTBEAT_INFO, get(hearbeat_info))
-        .route(ROUTE_METADATA_INFO, get(metadata_info))
-        .route(ROUTE_SUBSCRIBE_INFO, get(subscribe_info))
+        .route(ROUTE_CACHE, get(cache_info))
         .route(ROUTE_METRICS, get(metrics));
     let app = Router::new().merge(meta);
     return app.with_state(state);
