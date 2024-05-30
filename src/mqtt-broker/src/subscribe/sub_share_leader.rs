@@ -103,7 +103,7 @@ where
                     .get(&share_leader_key)
                 {
                     match sx.send(true) {
-                        Ok(_) => {
+                        Ok(_) => { 
                             self.subscribe_manager
                                 .share_leader_push_thread
                                 .remove(&share_leader_key);

@@ -1,5 +1,6 @@
 use axum::async_trait;
 use common_base::log::info;
+use serde::{Deserialize, Serialize};
 
 use crate::server::tcp::packet::ResponsePackage;
 
@@ -7,7 +8,7 @@ pub mod memory;
 pub mod persist;
 pub mod ack_manager;
 
-#[derive(Clone)]
+#[derive(Clone,Serialize,Deserialize)]
 pub struct QosData {
     pub client_id: String,
     pub create_time: u64,

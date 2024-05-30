@@ -6,7 +6,7 @@ use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
 use crate::qos::QosDataManager;
-use crate::subscribe::sub_common::{min_qos, sub_path_validator, save_retain_message};
+use crate::subscribe::sub_common::{min_qos, save_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
@@ -593,14 +593,11 @@ where
             .delete_sub_pkid_data(connection.client_id.clone(), un_subscribe.pkid)
             .await;
 
-        // Remove subscription information
-        if un_subscribe.filters.len() > 0 {
-            self.metadata_cache
-                .remove_filter(connection.client_id.clone());
+        self.sucscribe_cache
+            .remove_subscribe(connection.client_id.clone(), un_subscribe.filters.clone());
 
-            self.sucscribe_cache
-                .remove_subscribe(connection.client_id.clone(), un_subscribe.filters);
-        }
+        self.metadata_cache
+            .remove_filter_by_pkid(connection.client_id.clone(), un_subscribe.filters);
 
         return self
             .ack_build

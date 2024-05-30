@@ -6,10 +6,10 @@ use dashmap::DashMap;
 #[derive(Clone)]
 pub struct QosMemory {
     // (client_id_pkid, IdempotentData)
-    qos_pkid_data: DashMap<String, QosData>,
+    pub qos_pkid_data: DashMap<String, QosData>,
 
     // (client_id_pkid, time_sec)
-    sub_pkid_data: DashMap<String, u64>,
+    pub sub_pkid_data: DashMap<String, u64>,
 
     // (client_id_pkid, PublishQosMessageData)
     publish_pkid_data: DashMap<String, PublishQosMessageData>,

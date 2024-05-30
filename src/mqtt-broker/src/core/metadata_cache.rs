@@ -8,12 +8,13 @@ use crate::{
 };
 use common_base::log::warn;
 use dashmap::DashMap;
-use protocol::mqtt::{Subscribe, SubscribeProperties};
+use protocol::mqtt::{Subscribe, SubscribeProperties, Unsubscribe};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::time::sleep;
+use tonic::client;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -59,7 +60,7 @@ pub struct MetadataCacheManager {
     pub topic_id_name: DashMap<String, String>,
 
     // (client_id, <pkid,SubscribeData>)
-    pub subscribe_filter: DashMap<String, DashMap<u16, SubscribeData>>,
+    pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
 
     // (client_id, vec<pkid>)
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
@@ -88,30 +89,42 @@ impl MetadataCacheManager {
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
-        if let Some(data) = self.subscribe_filter.get_mut(&client_id) {
-            data.insert(
-                subscribe.packet_identifier,
-                SubscribeData {
-                    protocol,
-                    subscribe,
-                    subscribe_properties,
-                },
-            );
-        } else {
-            let data = DashMap::with_capacity(8);
-            data.insert(
-                subscribe.packet_identifier,
-                SubscribeData {
-                    protocol,
-                    subscribe,
-                    subscribe_properties,
-                },
-            );
-            self.subscribe_filter.insert(client_id, data);
-        };
+        for filter in subscribe.filters {
+            if let Some(data) = self.subscribe_filter.get_mut(&client_id) {
+                data.insert(
+                    filter.path.clone(),
+                    SubscribeData {
+                        protocol: protocol.clone(),
+                        filter,
+                        subscribe_properties: subscribe_properties.clone(),
+                    },
+                );
+            } else {
+                let data = DashMap::with_capacity(8);
+                data.insert(
+                    filter.path.clone(),
+                    SubscribeData {
+                        protocol: protocol.clone(),
+                        filter,
+                        subscribe_properties: subscribe_properties.clone(),
+                    },
+                );
+                self.subscribe_filter.insert(client_id.clone(), data);
+            };
+        }
     }
 
-    pub fn remove_filter(&self, client_id: String) {
+    pub fn remove_filter_by_pkid(&self, client_id: String, filters: Vec<String>) {
+        for path in filters {
+            if let Some(sub_list) = self.subscribe_filter.get_mut(&client_id) {
+                if sub_list.contains_key(&path) {
+                    sub_list.remove(&path);
+                }
+            }
+        }
+    }
+
+    pub fn remove_filter_by_client_id(&self, client_id: String) {
         self.subscribe_filter.remove(&client_id);
     }
 

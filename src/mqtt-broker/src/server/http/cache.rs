@@ -2,16 +2,14 @@ use std::collections::HashMap;
 
 use super::server::HttpServerState;
 use crate::{
-    core::heartbeat_cache::HeartbeatShard,
-    metadata::{
+    core::heartbeat_cache::HeartbeatShard, metadata::{
         cluster::Cluster,
         connection::Connection,
         session::Session,
         subscriber::{SubscribeData, Subscriber},
         topic::Topic,
         user::User,
-    },
-    subscribe::subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
+    }, qos::{PublishQosMessageData, QosData}, subscribe::subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub}
 };
 use axum::extract::State;
 use common_base::{
@@ -50,6 +48,9 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         exclusive_push_thread: state.subscribe_cache.exclusive_push_thread_keys(),
         share_leader_push_thread: state.subscribe_cache.share_leader_push_thread_keys(),
         share_follower_resub_thread: state.subscribe_cache.share_follower_resub_thread_keys(),
+
+        qos_pkid_data: state.qos_memory.qos_pkid_data.clone(),
+        sub_pkid_data: state.qos_memory.sub_pkid_data.clone(),
     };
 
     return success_response(result);
@@ -74,7 +75,7 @@ pub struct MetadataCacheResult {
     pub connection_info: DashMap<u64, Connection>,
     pub topic_info: DashMap<String, Topic>,
     pub topic_id_name: DashMap<String, String>,
-    pub subscribe_filter: DashMap<String, DashMap<u16, SubscribeData>>,
+    pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
 
     // heartbeat data
@@ -89,4 +90,8 @@ pub struct MetadataCacheResult {
     pub exclusive_push_thread: Vec<String>,
     pub share_leader_push_thread: Vec<String>,
     pub share_follower_resub_thread: Vec<String>,
+
+    // QosMemory
+    pub qos_pkid_data: DashMap<String, QosData>,
+    pub sub_pkid_data: DashMap<String, u64>,
 }
