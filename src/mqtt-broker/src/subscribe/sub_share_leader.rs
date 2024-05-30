@@ -18,7 +18,7 @@ use common_base::{
 };
 use futures::future::err;
 use protocol::mqtt::{Publish, PublishProperties, QoS};
-use std::{sync::Arc, time::Duration};
+use std::{fmt::format, sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
     sync::broadcast::{self},
@@ -180,7 +180,7 @@ where
             let group_id = format!("system_sub_{}_{}", group_name, topic_id);
 
             let max_wait_ms = 500;
-            let cursor_point = 0;
+            let mut cursor_point = 0;
             let mut sub_list =
                 build_share_leader_sub_list(subscribe_manager.clone(), share_leader_key.clone());
             let mut pre_update_sub_list_time = now_second();
@@ -231,8 +231,10 @@ where
                             } else {
                                 0
                             };
-
+                            info(format!("current_point:{}",current_point));
                             let subscribe = sub_list.get(current_point).unwrap();
+
+                            cursor_point = current_point + 1;
 
                             let mut sub_id = Vec::new();
                             if let Some(id) = subscribe.subscription_identifier {
@@ -241,7 +243,7 @@ where
 
                             let cluster_qos = metadata_cache.get_cluster_info().max_qos();
                             let qos = min_qos(cluster_qos, subscribe.qos);
-                            
+
                             let mut publish = Publish {
                                 dup: false,
                                 qos: qos.clone(),
