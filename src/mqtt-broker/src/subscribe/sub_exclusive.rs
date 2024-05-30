@@ -58,12 +58,12 @@ where
     pub async fn start(&self) {
         loop {
             self.start_push_thread().await;
-            self.try_push_thread_gc().await;
+            self.try_thread_gc().await;
             sleep(Duration::from_secs(1)).await;
         }
     }
 
-    async fn try_push_thread_gc(&self) {
+    async fn try_thread_gc(&self) {
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
         for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread.clone() {
@@ -120,7 +120,7 @@ where
                 let group_id = format!("system_sub_{}_{}", client_id, subscribe.topic_id);
                 let record_num = 5;
                 let max_wait_ms = 100;
-                
+
                 let cluster_qos = metadata_cache.get_cluster_info().max_qos();
                 let qos = min_qos(cluster_qos, subscribe.qos);
 
@@ -143,7 +143,6 @@ where
                         }
                         Err(_) => {}
                     }
-
                     match message_storage
                         .read_topic_message(
                             subscribe.topic_id.clone(),
@@ -183,7 +182,6 @@ where
                                 if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
                                     continue;
                                 }
-
 
                                 let retain = if subscribe.preserve_retain {
                                     msg.retain
@@ -304,7 +302,7 @@ where
                                         }
                                     }
                                 };
-                                
+
                                 // commit offset
                                 match message_storage
                                     .commit_group_offset(
@@ -362,8 +360,9 @@ pub async fn publish_message_qos0(
                     return;
                 }
             }
-            Err(_) => {}
+            Err(_) => {},
         }
+
         if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id.clone()) {
             connect_id = id;
             break;
@@ -372,11 +371,13 @@ pub async fn publish_message_qos0(
             continue;
         };
     }
+    info(format!("connec_id:{}", connect_id));
 
     let resp = ResponsePackage {
         connection_id: connect_id,
         packet: MQTTPacket::Publish(publish, Some(publish_properties)),
     };
+
     // 2. publish to mqtt client
     match publish_to_response_queue(
         protocol.clone(),
@@ -603,7 +604,7 @@ pub async fn publish_message_qos2(
             Err(_) => {}
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
-            if data.ack_type == AckPackageType::PubComp  && data.pkid == pkid{
+            if data.ack_type == AckPackageType::PubComp && data.pkid == pkid {
                 break;
             }
         }

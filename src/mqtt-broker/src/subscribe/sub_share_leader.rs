@@ -16,6 +16,7 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
+use futures::future::err;
 use protocol::mqtt::{Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
@@ -85,7 +86,12 @@ where
                             .share_leader_push_thread
                             .remove(&share_leader_key);
                     }
-                    Err(_) => {}
+                    Err(err) => {
+                        error(format!(
+                            "stop sub share thread error, error message:{}",
+                            err.to_string()
+                        ));
+                    }
                 }
             }
         }
@@ -95,26 +101,6 @@ where
         let conf = broker_mqtt_conf();
         // Periodically verify if any push tasks are not started. If so, the thread is started
         for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
-            // stop push data thread
-            if sub_data.sub_list.len() == 0 {
-                if let Some(sx) = self
-                    .subscribe_manager
-                    .share_leader_push_thread
-                    .get(&share_leader_key)
-                {
-                    match sx.send(true) {
-                        Ok(_) => { 
-                            self.subscribe_manager
-                                .share_leader_push_thread
-                                .remove(&share_leader_key);
-                        }
-                        Err(e) => error(e.to_string()),
-                    }
-                }
-
-                continue;
-            }
-
             // start push data thread
             let subscribe_manager = self.subscribe_manager.clone();
             if !self
@@ -186,7 +172,7 @@ where
 
         tokio::spawn(async move {
             info(format!(
-                "Share sub push data thread for GroupName {},Topic [{}] was started successfully",
+                "Share leader push data thread for GroupName {},Topic [{}] was started successfully",
                 group_name, topic_name
             ));
 
@@ -196,8 +182,9 @@ where
             let max_wait_ms = 500;
             let cursor_point = 0;
             let mut sub_list =
-                build_share_leader_sub_list(subscribe_manager.clone(), topic_id.clone());
+                build_share_leader_sub_list(subscribe_manager.clone(), share_leader_key.clone());
             let mut pre_update_sub_list_time = now_second();
+            let mut record_num = calc_record_num(sub_list.len());
             loop {
                 match stop_rx.try_recv() {
                     Ok(flag) => {
@@ -212,12 +199,14 @@ where
                     Err(_) => {}
                 }
                 if (now_second() - pre_update_sub_list_time) > 5 {
-                    sub_list =
-                        build_share_leader_sub_list(subscribe_manager.clone(), topic_id.clone());
+                    sub_list = build_share_leader_sub_list(
+                        subscribe_manager.clone(),
+                        share_leader_key.clone(),
+                    );
                     pre_update_sub_list_time = now_second();
+                    record_num = calc_record_num(sub_list.len());
                 }
 
-                let record_num = sub_list.len() * 2;
                 match message_storage
                     .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
                     .await
@@ -225,14 +214,14 @@ where
                     Ok(results) => {
                         if results.len() == 0 {
                             sleep(Duration::from_millis(max_wait_ms)).await;
-                            return;
+                            continue;
                         }
                         for record in results {
                             let msg: Message = match Message::decode_record(record.clone()) {
                                 Ok(msg) => msg,
                                 Err(e) => {
                                     error(e.to_string());
-                                    return;
+                                    continue;
                                 }
                             };
 
@@ -373,6 +362,22 @@ where
                                     }
                                 }
                             };
+
+                            // commit offset
+                            match message_storage
+                                .commit_group_offset(
+                                    topic_id.clone(),
+                                    group_id.clone(),
+                                    record.offset,
+                                )
+                                .await
+                            {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error(e.to_string());
+                                }
+                            }
+                            continue;
                         }
                     }
                     Err(e) => {
@@ -405,9 +410,9 @@ where
 
 fn build_share_leader_sub_list(
     subscribe_manager: Arc<SubscribeCache>,
-    topic_id: String,
+    key: String,
 ) -> Vec<Subscriber> {
-    let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(&topic_id) {
+    let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(&key) {
         sub.sub_list.clone()
     } else {
         return Vec::new();
@@ -418,6 +423,10 @@ fn build_share_leader_sub_list(
         result.push(sub);
     }
     return result;
+}
+
+fn calc_record_num(sub_len: usize) -> usize {
+    return sub_len * 5;
 }
 
 #[cfg(test)]

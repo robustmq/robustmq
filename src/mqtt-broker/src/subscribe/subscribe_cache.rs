@@ -164,17 +164,6 @@ impl SubscribeCache {
                 for (key, subscriber) in self.exclusive_subscribe.clone() {
                     if subscriber.client_id == client_id && subscriber.sub_path == path {
                         self.exclusive_subscribe.remove(&key);
-                        if let Some(sx) = self.exclusive_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    error(format!(
-                                        "close exclusive push thread fail, error message:{}",
-                                        e.to_string()
-                                    ));
-                                }
-                            }
-                        }
                     }
                 }
 
@@ -191,17 +180,6 @@ impl SubscribeCache {
 
                     if flag {
                         self.share_leader_subscribe.remove(&key);
-                        if let Some(sx) = self.share_leader_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    error(format!(
-                                        "close share leader push thread fail, error message:{}",
-                                        e.to_string()
-                                    ));
-                                }
-                            }
-                        }
                     }
                 }
 
@@ -209,17 +187,6 @@ impl SubscribeCache {
                 for (key, data) in self.share_follower_subscribe.clone() {
                     if data.client_id == client_id && data.filter.path == path {
                         self.share_follower_subscribe.remove(&key);
-                        if let Some(sx) = self.share_follower_resub_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    error(format!(
-                                        "close share follower resub thread fail, error message:{}",
-                                        e.to_string()
-                                    ));
-                                }
-                            }
-                        }
                     }
                 }
             }
