@@ -371,7 +371,6 @@ pub async fn publish_message_qos0(
             continue;
         };
     }
-    info(format!("connec_id:{}", connect_id));
 
     let resp = ResponsePackage {
         connection_id: connect_id,

@@ -185,6 +185,7 @@ where
                 build_share_leader_sub_list(subscribe_manager.clone(), share_leader_key.clone());
             let mut pre_update_sub_list_time = now_second();
             let mut record_num = calc_record_num(sub_list.len());
+
             loop {
                 match stop_rx.try_recv() {
                     Ok(flag) => {
@@ -238,8 +239,9 @@ where
                                 sub_id.push(id);
                             }
 
-                            let qos = min_qos(msg.qos, subscribe.qos);
-
+                            let cluster_qos = metadata_cache.get_cluster_info().max_qos();
+                            let qos = min_qos(cluster_qos, subscribe.qos);
+                            
                             let mut publish = Publish {
                                 dup: false,
                                 qos: qos.clone(),
