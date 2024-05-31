@@ -20,27 +20,25 @@ import "common.proto";
 
 service MqttService {
   // Get or create a shared subscription
-  rpc GetShareSub(GetShareSubRequest) returns(GetShareSubReply){}
+  rpc GetShareSubLeader(GetShareSubLeaderRequest) returns(GetShareSubLeaderReply){}
   
   // Delete a shared subscription
-  rpc DeleteShareSub(DeleteShareSubRequest) returns(common.CommonReply){}
+  rpc DeleteShareSubLeader(DeleteShareSubLeaderRequest) returns(common.CommonReply){}
 
 }
 
-message GetShareSubRequest{
+message GetShareSubLeaderRequest{
     string group_name = 1;
-    string sub_name = 2;
     string cluster_name = 3;
 }
 
-message GetShareSubReply{
+message GetShareSubLeaderReply{
     uint64 broker_id = 1;
-    string broker_ip = 2;
+    string broker_addr = 2;
     string extend_info = 3;
 }
 
-message DeleteShareSubRequest{
+message DeleteShareSubLeaderRequest{
     string group_name = 1;
-    string sub_name = 2;
     string cluster_name = 3;
 }

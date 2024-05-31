@@ -211,6 +211,7 @@ where
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.subscribe_manager.clone(),
+            self.idempotent_manager.clone(),
         );
         self.runtime
             .spawn(async move { start_http_server(http_state).await });

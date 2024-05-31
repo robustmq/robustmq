@@ -11,7 +11,7 @@ use protocol::placement_center::generate::journal::DeleteSegmentRequest;
 use protocol::placement_center::generate::journal::DeleteShardRequest;
 use protocol::placement_center::generate::kv::DeleteRequest;
 use protocol::placement_center::generate::kv::SetRequest;
-use protocol::placement_center::generate::mqtt::DeleteShareSubRequest;
+use protocol::placement_center::generate::mqtt::DeleteShareSubLeaderRequest;
 use protocol::placement_center::generate::placement::RegisterNodeRequest;
 use protocol::placement_center::generate::placement::UnRegisterNodeRequest;
 use raft::eraftpb::ConfChange;
@@ -216,10 +216,10 @@ impl PlacementCenterStorage {
             .await;
     }
 
-    pub async fn delete_share_sub(&self, data: DeleteShareSubRequest) -> Result<(), RobustMQError> {
+    pub async fn delete_share_sub(&self, data: DeleteShareSubLeaderRequest) -> Result<(), RobustMQError> {
         let data = StorageData::new(
             StorageDataType::DeleteShareSub,
-            DeleteShareSubRequest::encode_to_vec(&data),
+            DeleteShareSubLeaderRequest::encode_to_vec(&data),
         );
 
         return self

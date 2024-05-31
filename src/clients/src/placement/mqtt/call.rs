@@ -7,16 +7,16 @@ use common_base::errors::RobustMQError;
 use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
-    mqtt::{DeleteShareSubRequest, GetShareSubReply, GetShareSubRequest},
+    mqtt::{DeleteShareSubLeaderRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest},
 };
 use std::sync::Arc;
 
-pub async fn placement_get_share_sub(
+pub async fn placement_get_share_sub_leader(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
-    request: GetShareSubRequest,
-) -> Result<GetShareSubReply, RobustMQError> {
-    let request_data = GetShareSubRequest::encode_to_vec(&request);
+    request: GetShareSubLeaderRequest,
+) -> Result<GetShareSubLeaderReply, RobustMQError> {
+    let request_data = GetShareSubLeaderRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::GetShareSub,
@@ -26,7 +26,7 @@ pub async fn placement_get_share_sub(
     )
     .await
     {
-        Ok(data) => match GetShareSubReply::decode(data.as_ref()) {
+        Ok(data) => match GetShareSubLeaderReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         },
@@ -36,12 +36,12 @@ pub async fn placement_get_share_sub(
     }
 }
 
-pub async fn placement_delete_share_sub(
+pub async fn placement_delete_share_sub_leader(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
-    request: DeleteShareSubRequest,
+    request: DeleteShareSubLeaderRequest,
 ) -> Result<CommonReply, RobustMQError> {
-    let request_data = DeleteShareSubRequest::encode_to_vec(&request);
+    let request_data = DeleteShareSubLeaderRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteShareSub,
@@ -65,9 +65,9 @@ pub async fn placement_delete_share_sub(
 mod tests {
     use std::sync::Arc;
 
-    use protocol::placement_center::generate::mqtt::GetShareSubRequest;
+    use protocol::placement_center::generate::mqtt::GetShareSubLeaderRequest;
 
-    use crate::placement::mqtt::call::placement_get_share_sub;
+    use crate::placement::mqtt::call::placement_get_share_sub_leader;
     use crate::poll::ClientPool;
 
     #[tokio::test]
@@ -75,14 +75,12 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec!["127.0.0.1:1228".to_string()];
         let cluster_name = "test-cluster-name".to_string();
-        let sub_name = "test-sub-name".to_string();
         let group_name = "test-group-name".to_string();
-        let request = GetShareSubRequest {
+        let request = GetShareSubLeaderRequest {
             group_name,
-            sub_name,
             cluster_name,
         };
-        match placement_get_share_sub(client_poll, addrs, request).await {
+        match placement_get_share_sub_leader(client_poll, addrs, request).await {
             Ok(da) => {
                 println!("{:?}", da);
                 assert!(true)

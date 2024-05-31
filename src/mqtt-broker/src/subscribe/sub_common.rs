@@ -3,15 +3,17 @@ use crate::qos::ack_manager::AckPackageData;
 use crate::server::MQTTProtocol;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
-use clients::placement::mqtt::call::placement_get_share_sub;
+use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error};
-use metadata_struct::share_sub;
 use protocol::mqtt::{
     MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
-use protocol::placement_center::generate::mqtt::{GetShareSubReply, GetShareSubRequest};
+use protocol::placement_center::generate::mqtt::{
+    GetShareSubLeaderReply, GetShareSubLeaderRequest,
+};
 use regex::Regex;
 use std::sync::Arc;
 use std::time::Duration;
@@ -38,34 +40,34 @@ pub fn sub_path_validator(sub_path: String) -> bool {
             return false;
         }
     }
-    
+
     return true;
 }
 
 pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
-    let path = if is_share_sub(sub_path){
-        
-    }else{
-        sub_path;
+    let path = if is_share_sub(sub_path.clone()) {
+        let (group_name, group_path) = decode_share_info(sub_path);
+        group_path
+    } else {
+        sub_path
     };
 
     // Path perfect matching
-    if topic_name == sub_path {
+    if topic_name == path {
         return true;
     }
 
-    if sub_path.contains("+") {
-        let sub_regex = sub_path.replace("+", "[^+*/]+");
+    if path.contains("+") {
+        let sub_regex = path.replace("+", "[^+*/]+");
         let re = Regex::new(&format!("{}", sub_regex)).unwrap();
-        println!("{}", sub_regex);
         return re.is_match(&topic_name);
     }
 
-    if sub_path.contains("#") {
-        if sub_path.split("#").last().unwrap() != "#".to_string() {
+    if path.contains("#") {
+        if path.split("#").last().unwrap() != "#".to_string() {
             return false;
         }
-        let sub_regex = sub_path.replace("#", "[^+#]+");
+        let sub_regex = path.replace("#", "[^+#]+");
         let re = Regex::new(&format!("{}", sub_regex)).unwrap();
         return re.is_match(&topic_name);
     }
@@ -196,15 +198,13 @@ pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
 pub async fn get_share_sub_leader(
     client_poll: Arc<ClientPool>,
     group_name: String,
-    sub_name: String,
-) -> Result<GetShareSubReply, RobustMQError> {
+) -> Result<GetShareSubLeaderReply, RobustMQError> {
     let conf = broker_mqtt_conf();
-    let req = GetShareSubRequest {
+    let req = GetShareSubLeaderRequest {
         cluster_name: conf.cluster_name.clone(),
         group_name,
-        sub_name: sub_name.clone(),
     };
-    match placement_get_share_sub(client_poll, conf.placement.server.clone(), req).await {
+    match placement_get_share_sub_leader(client_poll, conf.placement.server.clone(), req).await {
         Ok(reply) => {
             return Ok(reply);
         }
@@ -328,24 +328,48 @@ mod tests {
         let sub_regex = "/topic/test".to_string();
         assert!(path_regex_match(topic_name, sub_regex));
 
-        let topic_name = r"sensor/1/temperature".to_string();
-        let sub_regex = r"sensor/+/temperature".to_string();
+        let topic_name = r"/sensor/1/temperature".to_string();
+        let sub_regex = r"/sensor/+/temperature".to_string();
         assert_eq!(path_regex_match(topic_name, sub_regex), true);
 
-        let topic_name = r"sensor/1/2/temperature3".to_string();
-        let sub_regex = r"sensor/+/temperature".to_string();
+        let topic_name = r"/sensor/1/2/temperature3".to_string();
+        let sub_regex = r"/sensor/+/temperature".to_string();
         assert_eq!(path_regex_match(topic_name, sub_regex), false);
 
-        let topic_name = r"sensor/temperature3".to_string();
-        let sub_regex = r"sensor/+/temperature".to_string();
+        let topic_name = r"/sensor/temperature3".to_string();
+        let sub_regex = r"/sensor/+/temperature".to_string();
         assert_eq!(path_regex_match(topic_name, sub_regex), false);
 
-        let topic_name = r"sensor/temperature3".to_string();
-        let sub_regex = r"sensor/+".to_string();
+        let topic_name = r"/sensor/temperature3".to_string();
+        let sub_regex = r"/sensor/+".to_string();
         assert_eq!(path_regex_match(topic_name, sub_regex), true);
 
-        let topic_name = r"sensor/temperature3/tmpq".to_string();
-        let sub_regex = r"sensor/+".to_string();
+        let topic_name = r"/sensor/temperature3/tmpq".to_string();
+        let sub_regex = r"/sensor/#".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+
+        let topic_name = "/topic/test".to_string();
+        let sub_regex = "$share/groupname/topic/test".to_string();
+        assert!(path_regex_match(topic_name, sub_regex));
+
+        let topic_name = r"/sensor/1/temperature".to_string();
+        let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+
+        let topic_name = r"/sensor/1/2/temperature3".to_string();
+        let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+
+        let topic_name = r"/sensor/temperature3".to_string();
+        let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+
+        let topic_name = r"/sensor/temperature3".to_string();
+        let sub_regex = r"$share/groupname/sensor/+".to_string();
+        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+
+        let topic_name = r"/sensor/temperature3/tmpq".to_string();
+        let sub_regex = r"$share/groupname/sensor/#".to_string();
         assert_eq!(path_regex_match(topic_name, sub_regex), false);
     }
 
@@ -378,7 +402,7 @@ mod tests {
     async fn path_validator_test() {
         let path = "/loboxu/test".to_string();
         assert!(sub_path_validator(path));
-        
+
         let path = "/loboxu/#".to_string();
         assert!(sub_path_validator(path));
 
@@ -387,7 +411,7 @@ mod tests {
 
         let path = "$share/loboxu/#".to_string();
         assert!(sub_path_validator(path));
-        
+
         let path = "$share/loboxu/#/test".to_string();
         assert!(sub_path_validator(path));
 

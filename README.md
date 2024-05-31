@@ -53,6 +53,13 @@ The architecture is refined, and there is no need to rely on external dependent 
 cargo run --package cmd --bin meta -- --conf=config/placement-center.toml
 ```
 
+- Run cluster by mqtt-server
+```
+cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-1.toml
+cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-2.toml
+cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-3.toml
+```
+
 - Run cluster by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-1.toml

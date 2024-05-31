@@ -91,7 +91,10 @@ impl SubscribeCache {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
             for (client_id, sub_list) in self.metadata_cache.subscribe_filter.clone() {
                 for (_, data) in sub_list {
-                    let subscribe = data.subscribe;
+                    let subscribe = Subscribe {
+                        packet_identifier: 0,
+                        filters: vec![data.filter],
+                    };
                     let subscribe_properties = data.subscribe_properties;
                     self.parse_subscribe(
                         topic_name.clone(),
@@ -137,7 +140,7 @@ impl SubscribeCache {
         for (key, share_sub) in self.share_leader_subscribe.clone() {
             for (sub_key, subscriber) in share_sub.sub_list {
                 if subscriber.client_id == client_id {
-                    let mut mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                    let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
                     mut_data.sub_list.remove(&sub_key);
                 }
             }
@@ -161,12 +164,6 @@ impl SubscribeCache {
                 for (key, subscriber) in self.exclusive_subscribe.clone() {
                     if subscriber.client_id == client_id && subscriber.sub_path == path {
                         self.exclusive_subscribe.remove(&key);
-                        if let Some(sx) = self.exclusive_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error(e.to_string()),
-                            }
-                        }
                     }
                 }
 
@@ -183,12 +180,6 @@ impl SubscribeCache {
 
                     if flag {
                         self.share_leader_subscribe.remove(&key);
-                        if let Some(sx) = self.share_leader_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error(e.to_string()),
-                            }
-                        }
                     }
                 }
 
@@ -239,7 +230,6 @@ impl SubscribeCache {
                     match get_share_sub_leader(
                         self.client_poll.clone(),
                         group_name.clone(),
-                        sub_name.clone(),
                     )
                     .await
                     {

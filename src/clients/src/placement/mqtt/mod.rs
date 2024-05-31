@@ -1,6 +1,6 @@
 use crate::poll::ClientPool;
 
-use self::inner::{inner_delete_share_sub, inner_get_share_sub};
+use self::inner::{inner_delete_share_sub_leader, inner_get_share_sub_leader};
 use super::PlacementCenterInterface;
 use common_base::errors::RobustMQError;
 use mobc::Manager;
@@ -35,10 +35,10 @@ pub(crate) async fn mqtt_interface_call(
         Ok(client) => {
             let result = match interface {
                 PlacementCenterInterface::GetShareSub => {
-                    inner_get_share_sub(client, request.clone()).await
+                    inner_get_share_sub_leader(client, request.clone()).await
                 }
                 PlacementCenterInterface::DeleteShareSub => {
-                    inner_delete_share_sub(client, request.clone()).await
+                    inner_delete_share_sub_leader(client, request.clone()).await
                 }
                 _ => {
                     return Err(RobustMQError::CommmonError(format!(

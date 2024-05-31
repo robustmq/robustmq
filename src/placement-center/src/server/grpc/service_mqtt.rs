@@ -11,8 +11,8 @@ use common_base::{errors::RobustMQError, log::info, tools::now_second};
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, DeleteShareSubRequest, GetShareSubReply,
-        GetShareSubRequest,
+        mqtt_service_server::MqttService, DeleteShareSubLeaderRequest, GetShareSubLeaderReply,
+        GetShareSubLeaderRequest,
     },
 };
 use tonic::{Request, Response, Status};
@@ -42,18 +42,17 @@ impl GrpcMqttService {
 
 #[tonic::async_trait]
 impl MqttService for GrpcMqttService {
-    async fn get_share_sub(
+    async fn get_share_sub_leader(
         &self,
-        request: Request<GetShareSubRequest>,
-    ) -> Result<Response<GetShareSubReply>, Status> {
+        request: Request<GetShareSubLeaderRequest>,
+    ) -> Result<Response<GetShareSubLeaderReply>, Status> {
         let req = request.into_inner();
         let cluster_name = req.cluster_name;
         let group_name = req.group_name;
-        let sub_name = req.sub_name;
-        let mut reply = GetShareSubReply::default();
+        let mut reply = GetShareSubLeaderReply::default();
         let leader_broker = if let Some(share_sub) = self
             .mqtt_cache
-            .get_share_sub(cluster_name.clone(), sub_name.clone())
+            .get_share_sub(cluster_name.clone(), group_name.clone())
         {
             share_sub.leader_broker
         } else {
@@ -68,13 +67,12 @@ impl MqttService for GrpcMqttService {
                     }
                 };
             info(format!(
-                " Leader node of the computed shared subscription [{}/{}] is [{}]",
-                group_name, sub_name, leader_broker
+                " Leader node of the computed shared subscription [{}] is [{}]",
+                group_name, leader_broker
             ));
             let share_sub = ShareSub {
                 cluster_name: cluster_name.clone(),
                 group_name: group_name.clone(),
-                sub_name: sub_name.clone(),
                 leader_broker,
                 create_time: now_second(),
             };
@@ -101,26 +99,25 @@ impl MqttService for GrpcMqttService {
         };
         if let Some(node) = self.cluster_cache.get_node(cluster_name, leader_broker) {
             reply.broker_id = leader_broker;
-            reply.broker_ip = node.node_ip;
+            reply.broker_addr = node.node_inner_addr;
             reply.extend_info = node.extend;
         }
         return Ok(Response::new(reply));
     }
 
-    async fn delete_share_sub(
+    async fn delete_share_sub_leader(
         &self,
-        request: Request<DeleteShareSubRequest>,
+        request: Request<DeleteShareSubLeaderRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
         let cluster_name = req.cluster_name.clone();
         let group_name = req.group_name.clone();
-        let sub_name = req.sub_name.clone();
 
         let reply = CommonReply::default();
 
         if let Some(_) = self
             .mqtt_cache
-            .get_share_sub(cluster_name.clone(), sub_name.clone())
+            .get_share_sub(cluster_name.clone(), group_name.clone())
         {
             self.mqtt_cache
                 .remove_share_sub(cluster_name.clone(), group_name.clone());

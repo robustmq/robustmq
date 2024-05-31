@@ -1,4 +1,4 @@
-use protocol::mqtt::{QoS, Subscribe, SubscribeProperties};
+use protocol::mqtt::{Filter, QoS, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
 use crate::server::MQTTProtocol;
@@ -21,6 +21,6 @@ pub struct Subscriber {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SubscribeData {
     pub protocol: MQTTProtocol,
-    pub subscribe: Subscribe,
+    pub filter: Filter,
     pub subscribe_properties: Option<SubscribeProperties>,
 }
