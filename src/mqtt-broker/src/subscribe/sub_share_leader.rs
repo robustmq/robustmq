@@ -1,27 +1,29 @@
 use super::{
-    sub_common::{min_qos, share_sub_rewrite_publish_flag},
-    sub_exclusive::{publish_message_qos0, publish_message_qos1, publish_message_qos2},
+    sub_common::{
+        min_qos, publish_to_response_queue, share_sub_rewrite_publish_flag, wait_packet_ack,
+    },
+    sub_exclusive::{publish_message_qos0, publish_message_qos2},
     subscribe_cache::SubscribeCache,
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
     metadata::{message::Message, subscriber::Subscriber},
-    qos::ack_manager::{AckManager, AckPacketInfo},
-    server::tcp::packet::ResponsePackage,
+    qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo},
+    server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
+    errors::RobustMQError,
     log::{error, info},
     tools::now_second,
 };
-use futures::future::err;
-use protocol::mqtt::{Publish, PublishProperties, QoS};
-use std::{fmt::format, sync::Arc, time::Duration};
+use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
+use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
-    sync::broadcast::{self},
+    sync::broadcast::{self, Sender},
     time::sleep,
 };
 
@@ -176,7 +178,7 @@ where
                 group_name, topic_name
             ));
 
-            let message_storage = MessageStorage::new(message_storage);
+            let message_storage: MessageStorage<S> = MessageStorage::new(message_storage);
             let group_id = format!("system_sub_{}_{}", group_name, topic_id);
 
             let max_wait_ms = 500;
@@ -239,160 +241,144 @@ where
                                 }
                             };
 
-                            let current_point = if cursor_point < sub_list.len() {
-                                cursor_point
-                            } else {
-                                0
-                            };
-                            let subscribe = sub_list.get(current_point).unwrap();
+                            loop {
+                                let current_point = if cursor_point < sub_list.len() {
+                                    cursor_point
+                                } else {
+                                    0
+                                };
+                                let subscribe = sub_list.get(current_point).unwrap();
 
-                            cursor_point = current_point + 1;
+                                cursor_point = current_point + 1;
+                                let (mut publish, properties) = build_publish(
+                                    metadata_cache.clone(),
+                                    subscribe.clone(),
+                                    topic_name.clone(),
+                                    msg.clone(),
+                                );
 
-                            let mut sub_id = Vec::new();
-                            if let Some(id) = subscribe.subscription_identifier {
-                                sub_id.push(id);
-                            }
+                                match publish.qos {
+                                    QoS::AtMostOnce => {
+                                        publish_message_qos0(
+                                            metadata_cache.clone(),
+                                            subscribe.client_id.clone(),
+                                            publish,
+                                            subscribe.protocol.clone(),
+                                            response_queue_sx4.clone(),
+                                            response_queue_sx5.clone(),
+                                            stop_sx.clone(),
+                                        )
+                                        .await;
+                                        break;
+                                    }
 
-                            let cluster_qos = metadata_cache.get_cluster_info().max_qos();
-                            let qos = min_qos(cluster_qos, subscribe.qos);
+                                    QoS::AtLeastOnce => {
+                                        let pkid: u16 = metadata_cache
+                                            .get_pkid(subscribe.client_id.clone())
+                                            .await;
+                                        publish.pkid = pkid;
 
-                            let mut publish = Publish {
-                                dup: false,
-                                qos: qos.clone(),
-                                pkid: 0,
-                                retain: false,
-                                topic: Bytes::from(topic_name.clone()),
-                                payload: msg.payload,
-                            };
+                                        let (wait_puback_sx, _) = broadcast::channel(1);
+                                        ack_manager.add(
+                                            subscribe.client_id.clone(),
+                                            pkid,
+                                            AckPacketInfo {
+                                                sx: wait_puback_sx.clone(),
+                                                create_time: now_second(),
+                                            },
+                                        );
 
-                            let mut user_properteis = Vec::new();
-                            if subscribe.is_contain_rewrite_flag {
-                                user_properteis.push(share_sub_rewrite_publish_flag());
-                            }
+                                        match share_leader_publish_message_qos1(
+                                            metadata_cache.clone(),
+                                            subscribe.client_id.clone(),
+                                            publish.clone(),
+                                            properties.clone(),
+                                            pkid,
+                                            subscribe.protocol.clone(),
+                                            response_queue_sx4.clone(),
+                                            response_queue_sx5.clone(),
+                                            wait_puback_sx,
+                                        )
+                                        .await
+                                        {
+                                            Ok(()) => {
+                                                // commit offset
+                                                loop_commit_offset(
+                                                    message_storage.clone(),
+                                                    topic_id.clone(),
+                                                    group_id.clone(),
+                                                    record.offset,
+                                                )
+                                                .await;
 
-                            let properties = PublishProperties {
-                                payload_format_indicator: None,
-                                message_expiry_interval: None,
-                                topic_alias: None,
-                                response_topic: None,
-                                correlation_data: None,
-                                user_properties: user_properteis,
-                                subscription_identifiers: sub_id.clone(),
-                                content_type: None,
-                            };
-
-                            match qos {
-                                QoS::AtMostOnce => {
-                                    publish_message_qos0(
-                                        metadata_cache.clone(),
-                                        subscribe.client_id.clone(),
-                                        publish,
-                                        subscribe.protocol.clone(),
-                                        response_queue_sx4.clone(),
-                                        response_queue_sx5.clone(),
-                                        stop_sx.clone(),
-                                    )
-                                    .await;
-                                }
-
-                                QoS::AtLeastOnce => {
-                                    let pkid: u16 =
-                                        metadata_cache.get_pkid(subscribe.client_id.clone()).await;
-                                    publish.pkid = pkid;
-
-                                    let (wait_puback_sx, _) = broadcast::channel(1);
-                                    ack_manager.add(
-                                        subscribe.client_id.clone(),
-                                        pkid,
-                                        AckPacketInfo {
-                                            sx: wait_puback_sx.clone(),
-                                            create_time: now_second(),
-                                        },
-                                    );
-
-                                    match publish_message_qos1(
-                                        metadata_cache.clone(),
-                                        subscribe.client_id.clone(),
-                                        publish.clone(),
-                                        properties.clone(),
-                                        pkid,
-                                        subscribe.protocol.clone(),
-                                        response_queue_sx4.clone(),
-                                        response_queue_sx5.clone(),
-                                        stop_sx.clone(),
-                                        wait_puback_sx,
-                                    )
-                                    .await
-                                    {
-                                        Ok(()) => {
-                                            metadata_cache.remove_pkid_info(
-                                                subscribe.client_id.clone(),
-                                                pkid,
-                                            );
-                                            ack_manager.remove(subscribe.client_id.clone(), pkid);
-                                        }
-                                        Err(e) => {
-                                            error(e.to_string());
+                                                // remove data
+                                                metadata_cache.remove_pkid_info(
+                                                    subscribe.client_id.clone(),
+                                                    pkid,
+                                                );
+                                                ack_manager
+                                                    .remove(subscribe.client_id.clone(), pkid);
+                                                break;
+                                            }
+                                            Err(e) => {
+                                                error(e.to_string());
+                                            }
                                         }
                                     }
-                                }
-                                QoS::ExactlyOnce => {
-                                    let pkid: u16 =
-                                        metadata_cache.get_pkid(subscribe.client_id.clone()).await;
-                                    publish.pkid = pkid;
+                                    QoS::ExactlyOnce => {
+                                        let pkid: u16 = metadata_cache
+                                            .get_pkid(subscribe.client_id.clone())
+                                            .await;
+                                        publish.pkid = pkid;
 
-                                    let (wait_ack_sx, _) = broadcast::channel(1);
-                                    ack_manager.add(
-                                        subscribe.client_id.clone(),
-                                        pkid,
-                                        AckPacketInfo {
-                                            sx: wait_ack_sx.clone(),
-                                            create_time: now_second(),
-                                        },
-                                    );
-                                    match publish_message_qos2(
-                                        metadata_cache.clone(),
-                                        subscribe.client_id.clone(),
-                                        publish,
-                                        properties,
-                                        pkid,
-                                        subscribe.protocol.clone(),
-                                        response_queue_sx4.clone(),
-                                        response_queue_sx5.clone(),
-                                        stop_sx.clone(),
-                                        wait_ack_sx,
-                                    )
-                                    .await
-                                    {
-                                        Ok(()) => {
-                                            metadata_cache.remove_pkid_info(
-                                                subscribe.client_id.clone(),
-                                                pkid,
-                                            );
-                                            ack_manager.remove(subscribe.client_id.clone(), pkid);
+                                        let (wait_ack_sx, _) = broadcast::channel(1);
+                                        ack_manager.add(
+                                            subscribe.client_id.clone(),
+                                            pkid,
+                                            AckPacketInfo {
+                                                sx: wait_ack_sx.clone(),
+                                                create_time: now_second(),
+                                            },
+                                        );
+                                        match publish_message_qos2(
+                                            metadata_cache.clone(),
+                                            subscribe.client_id.clone(),
+                                            publish,
+                                            properties,
+                                            pkid,
+                                            subscribe.protocol.clone(),
+                                            response_queue_sx4.clone(),
+                                            response_queue_sx5.clone(),
+                                            stop_sx.clone(),
+                                            wait_ack_sx,
+                                        )
+                                        .await
+                                        {
+                                            Ok(()) => {
+                                                metadata_cache.remove_pkid_info(
+                                                    subscribe.client_id.clone(),
+                                                    pkid,
+                                                );
+                                                ack_manager
+                                                    .remove(subscribe.client_id.clone(), pkid);
+                                            }
+                                            Err(e) => {
+                                                error(e.to_string());
+                                            }
                                         }
-                                        Err(e) => {
-                                            error(e.to_string());
-                                        }
+
+                                        // commit offset
+                                        loop_commit_offset(
+                                            message_storage.clone(),
+                                            topic_id.clone(),
+                                            group_id.clone(),
+                                            record.offset,
+                                        )
+                                        .await;
+                                        break;
                                     }
-                                }
-                            };
-
-                            // commit offset
-                            match message_storage
-                                .commit_group_offset(
-                                    topic_id.clone(),
-                                    group_id.clone(),
-                                    record.offset,
-                                )
-                                .await
-                            {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    error(e.to_string());
-                                }
+                                };
                             }
-                            continue;
                         }
                     }
                     Err(e) => {
@@ -421,6 +407,120 @@ where
     fn push_by_sticky(&self) {}
 
     fn push_by_local(&self) {}
+}
+
+pub async fn loop_commit_offset<S>(
+    message_storage: MessageStorage<S>,
+    topic_id: String,
+    group_id: String,
+    offset: u128,
+) where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    loop {
+        match message_storage
+            .commit_group_offset(topic_id.clone(), group_id.clone(), offset)
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error(e.to_string());
+            }
+        }
+    }
+}
+
+pub fn build_publish(
+    metadata_cache: Arc<MetadataCacheManager>,
+    subscribe: Subscriber,
+    topic_name: String,
+    msg: Message,
+) -> (Publish, PublishProperties) {
+    let mut sub_id = Vec::new();
+    if let Some(id) = subscribe.subscription_identifier {
+        sub_id.push(id);
+    }
+
+    let cluster_qos = metadata_cache.get_cluster_info().max_qos();
+    let qos = min_qos(cluster_qos, subscribe.qos);
+
+    let publish = Publish {
+        dup: false,
+        qos: qos.clone(),
+        pkid: 0,
+        retain: false,
+        topic: Bytes::from(topic_name.clone()),
+        payload: msg.payload,
+    };
+
+    let mut user_properteis = Vec::new();
+    if subscribe.is_contain_rewrite_flag {
+        user_properteis.push(share_sub_rewrite_publish_flag());
+    }
+
+    let properties = PublishProperties {
+        payload_format_indicator: None,
+        message_expiry_interval: None,
+        topic_alias: None,
+        response_topic: None,
+        correlation_data: None,
+        user_properties: user_properteis,
+        subscription_identifiers: sub_id.clone(),
+        content_type: None,
+    };
+    return (publish, properties);
+}
+
+// To avoid messages that are not successfully pushed to the client. When the client Session expires,
+// the push thread will exit automatically and will not attempt to push again.
+pub async fn share_leader_publish_message_qos1(
+    metadata_cache: Arc<MetadataCacheManager>,
+    client_id: String,
+    publish: Publish,
+    publish_properties: PublishProperties,
+    pkid: u16,
+    protocol: MQTTProtocol,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+    wait_puback_sx: broadcast::Sender<AckPackageData>,
+) -> Result<(), RobustMQError> {
+    let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+        id
+    } else {
+        return Err(RobustMQError::NoAvailableConnection(client_id.clone()));
+    };
+
+    let resp = ResponsePackage {
+        connection_id: connect_id,
+        packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+    };
+
+    match publish_to_response_queue(
+        protocol.clone(),
+        resp.clone(),
+        response_queue_sx4.clone(),
+        response_queue_sx5.clone(),
+    )
+    .await
+    {
+        Ok(_) => {
+            if let Some(data) = wait_packet_ack(wait_puback_sx.clone()).await {
+                if data.ack_type == AckPackageType::PubAck && data.pkid == pkid {
+                    return Ok(());
+                }
+            }
+            return Err(RobustMQError::CommmonError(
+                "QOS1 publishes a message and waits for the PubAck packet to fail to be received"
+                    .to_string(),
+            ));
+        }
+        Err(e) => {
+            return Err(RobustMQError::CommmonError(format!(
+                "Failed to write QOS1 Publish message to response queue, failure message: {}",
+                e.to_string()
+            )));
+        }
+    }
 }
 
 fn build_share_leader_sub_list(

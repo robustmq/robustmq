@@ -19,14 +19,15 @@ use common_base::{
     log::{error, info},
     tools::{now_second, unique_id},
 };
+use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use metadata_struct::mqtt_node_extend::MQTTNodeExtend;
 use protocol::{
     mqtt::{
-        Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PubAck, PubAckProperties,
-        PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec, PubRecProperties,
-        PubRecReason, PubRel, Publish, Subscribe, SubscribeProperties, SubscribeReasonCode,
-        Unsubscribe, UnsubscribeProperties,
+        Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PingReq, PubAck,
+        PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
+        PubRecProperties, PubRecReason, PubRel, Publish, Subscribe, SubscribeProperties,
+        SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
     },
     mqttv5::codec::Mqtt5Codec,
 };
@@ -127,6 +128,7 @@ impl SubscribeShareFollower {
                             .insert(follower_resub_key.clone(), stop_sx.clone());
                         let subscribe_manager = self.subscribe_manager.clone();
 
+                        // push thread
                         tokio::spawn(async move {
                             if share_sub.protocol == MQTTProtocol::MQTT4 {
                                 error(
@@ -213,19 +215,17 @@ async fn resub_sub_mqtt5(
     // split stream
     let (r_stream, w_stream) = io::split(socket);
     let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
-    let mut write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+
+    let ws = WriteStream::new(sx.clone());
+    ws.add_write(FramedWrite::new(w_stream, codec.clone()));
+    let write_stream = Arc::new(ws);
 
     let follower_sub_leader_client_id = unique_id();
     let follower_sub_leader_pkid: u16 = 1;
 
     // Create a connection to GroupName
     let connect_pkg = build_resub_connect_pkg(follower_sub_leader_client_id.clone()).clone();
-    match write_frame_stream.send(connect_pkg).await {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
-        }
-    }
+    write_stream.write_frame(connect_pkg).await;
 
     // Continuously receive back packet information from the Server
     loop {
@@ -242,19 +242,7 @@ async fn resub_sub_mqtt5(
                     // When a thread exits, an unsubscribed mqtt packet is sent
                     let unscribe_pkg =
                         build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
-
-                    match write_frame_stream.send(unscribe_pkg).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            error(format!(
-                                "Share follower for client_id:[{}], group_name:[{}], sub_name:[{}] send UnSubscribe packet error. error message:{}",
-                                mqtt_client_id,
-                                group_name,
-                                sub_name,
-                                e.to_string()
-                            ));
-                        }
-                    }
+                    write_stream.write_frame(unscribe_pkg).await;
                     break;
                 }
             }
@@ -267,24 +255,15 @@ async fn resub_sub_mqtt5(
                     match da {
                         MQTTPacket::ConnAck(connack, connack_properties) => {
                             if connack.code == ConnectReturnCode::Success {
+                                // start ping thread
+                                start_ping_thread(write_stream.clone(), sx.clone());
+
                                 // When the connection is successful, a subscription request is sent
                                 let sub_packet = build_resub_subscribe_pkg(
                                     follower_sub_leader_pkid,
                                     share_sub.clone(),
                                 );
-                                match write_frame_stream.send(sub_packet).await {
-                                    Ok(_) => {
-                                        continue;
-                                    }
-                                    Err(e) => {
-                                        error(format!(
-                                            "Share follower [{}] send Subscribe packet error. error message:{}",
-                                            follower_sub_leader_client_id,
-                                            e.to_string()
-                                        ));
-                                        break;
-                                    }
-                                }
+                                write_stream.write_frame(sub_packet).await;
                             } else {
                                 error(
                                     format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error, error message: {:?},{:?}",
@@ -367,7 +346,7 @@ async fn resub_sub_mqtt5(
                                     response_queue_sx5.clone(),
                                     sx.clone(),
                                     wait_puback_sx,
-                                    &mut write_frame_stream,
+                                    write_stream.clone(),
                                 )
                                 .await
                                 {
@@ -422,7 +401,7 @@ async fn resub_sub_mqtt5(
                                     sx.clone(),
                                     wait_client_ack_sx,
                                     wait_leader_ack_sx,
-                                    &mut write_frame_stream,
+                                    write_stream.clone(),
                                 )
                                 .await
                                 {
@@ -474,21 +453,10 @@ async fn resub_sub_mqtt5(
                                 follower_sub_leader_pkid,
                                 share_sub.clone(),
                             );
-
-                            match write_frame_stream.send(unscribe_pkg).await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    error(format!(
-                                "Share follower for client_id:[{}], group_name:[{}], sub_name:[{}] send UnSubscribe packet error. error message:{}",
-                                mqtt_client_id,
-                                group_name,
-                                sub_name,
-                                e.to_string()
-                            ));
-                                }
-                            }
+                            write_stream.write_frame(unscribe_pkg).await;
                             break;
                         }
+                        MQTTPacket::PingResp(_) => {}
                         _ => {
                             error("Rewrite subscription thread cannot recognize the currently returned package".to_string());
                         }
@@ -504,6 +472,85 @@ async fn resub_sub_mqtt5(
     return Ok(());
 }
 
+pub struct WriteStream {
+    write_list:
+        DashMap<String, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>>,
+    key: String,
+    stop_sx: Sender<bool>,
+}
+
+impl WriteStream {
+    pub fn new(stop_sx: Sender<bool>) -> Self {
+        return WriteStream {
+            key: "default".to_string(),
+            write_list: DashMap::with_capacity(2),
+            stop_sx,
+        };
+    }
+
+    pub fn add_write(
+        &self,
+        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>,
+    ) {
+        self.write_list.insert(self.key.clone(), write);
+    }
+
+    pub async fn write_frame(&self, resp: MQTTPacket) {
+        loop {
+            match self.stop_sx.subscribe().try_recv() {
+                Ok(flag) => {
+                    if flag {
+                        break;
+                    }
+                }
+                Err(_) => {}
+            }
+
+            match self.write_list.try_get_mut(&self.key) {
+                dashmap::try_result::TryResult::Present(mut da) => {
+                    match da.send(resp.clone()).await {
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(e) => {
+                            error(format!(
+                                "Resub Client Failed to write data to the response queue, error message: {:?}",
+                                e
+                            ));
+                        }
+                    }
+                }
+                dashmap::try_result::TryResult::Absent => {
+                    error(format!("Resub Client [write_frame]Connection management could not obtain an available connection."));
+                }
+                dashmap::try_result::TryResult::Locked => {
+                    error(format!("Resub Client [write_frame]Connection management failed to get connection variable reference"));
+                }
+            }
+            sleep(Duration::from_secs(1)).await
+        }
+    }
+}
+
+fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>) {
+    tokio::spawn(async move {
+        loop {
+            match stop_sx.subscribe().try_recv() {
+                Ok(flag) => {
+                    if flag {
+                        break;
+                    }
+                }
+                Err(_) => {}
+            }
+
+            let ping_packet = MQTTPacket::PingReq(PingReq {});
+            write_stream.write_frame(ping_packet).await;
+            sleep(Duration::from_secs(20)).await;
+        }
+    });
+}
+
 async fn resub_publish_message_qos1(
     metadata_cache: Arc<MetadataCacheManager>,
     mqtt_client_id: String,
@@ -514,7 +561,7 @@ async fn resub_publish_message_qos1(
     response_queue_sx5: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
     wait_puback_sx: broadcast::Sender<AckPackageData>,
-    write_frame_stream: &mut FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>,
+    write_stream: Arc<WriteStream>,
 ) -> Result<(), RobustMQError> {
     let mut retry_times = 0;
     let current_message_pkid = publish.pkid;
@@ -562,28 +609,8 @@ async fn resub_publish_message_qos1(
                         // 4. puback message to sub leader
                         let puback =
                             build_resub_publish_ack(current_message_pkid, PubAckReason::Success);
-                        loop {
-                            match stop_sx.subscribe().try_recv() {
-                                Ok(flag) => {
-                                    if flag {
-                                        return Ok(());
-                                    }
-                                }
-                                Err(_) => {}
-                            }
-                            match write_frame_stream.send(puback.clone()).await {
-                                Ok(_) => {
-                                    break;
-                                }
-                                Err(e) => {
-                                    error(format!(
-                                        "Share follower send PubAck packet error. error message:{}",
-                                        e.to_string()
-                                    ));
-                                    sleep(Duration::from_secs(1)).await
-                                }
-                            }
-                        }
+                        write_stream.write_frame(puback.clone()).await;
+                        return Ok(());
                     }
                 }
             }
@@ -613,7 +640,7 @@ pub async fn resub_publish_message_qos2(
     stop_sx: broadcast::Sender<bool>,
     wait_client_ack_sx: broadcast::Sender<AckPackageData>,
     wait_leader_ack_sx: broadcast::Sender<AckPackageData>,
-    write_frame_stream: &mut FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>,
+    write_stream: Arc<WriteStream>,
 ) -> Result<(), RobustMQError> {
     let mut retry_times = 0;
     let current_message_pkid = publish.pkid;
@@ -693,28 +720,7 @@ pub async fn resub_publish_message_qos2(
                     connect_id,
                 );
 
-                loop {
-                    match stop_sx.subscribe().try_recv() {
-                        Ok(flag) => {
-                            if flag {
-                                return Ok(());
-                            }
-                        }
-                        Err(_) => {}
-                    }
-                    match write_frame_stream.send(pubrec.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            error(format!(
-                                "Share follower send PubRec packet error. error message:{}",
-                                e.to_string()
-                            ));
-                            sleep(Duration::from_secs(1)).await
-                        }
-                    }
-                }
+                write_stream.write_frame(pubrec).await;
                 break;
             }
         }
@@ -801,28 +807,7 @@ pub async fn resub_publish_message_qos2(
                 // 8.pubcomp to leader
                 let pubcomp =
                     build_resub_publish_comp(current_message_pkid, PubCompReason::Success);
-                loop {
-                    match stop_sx.subscribe().try_recv() {
-                        Ok(flag) => {
-                            if flag {
-                                return Ok(());
-                            }
-                        }
-                        Err(_) => {}
-                    }
-                    match write_frame_stream.send(pubcomp.clone()).await {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(e) => {
-                            error(format!(
-                                "Share follower send PubComp packet error. error message:{}",
-                                e.to_string()
-                            ));
-                            sleep(Duration::from_secs(1)).await
-                        }
-                    }
-                }
+                write_stream.write_frame(pubcomp).await;
                 break;
             }
         }

@@ -62,7 +62,7 @@ cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/n
 
 - Run cluster by placement-center
 ```
-cargo run --package cmd --bin placement-center -- --conf=config/cluster/.tom/node-1.toml
+cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-1.toml
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-2.toml
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-3.toml
 ```
