@@ -3,15 +3,17 @@ use crate::qos::ack_manager::AckPackageData;
 use crate::server::MQTTProtocol;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
-use clients::placement::mqtt::call::placement_get_share_sub;
+use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error};
-use metadata_struct::share_sub;
 use protocol::mqtt::{
     MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
-use protocol::placement_center::generate::mqtt::{GetShareSubReply, GetShareSubRequest};
+use protocol::placement_center::generate::mqtt::{
+    GetShareSubLeaderReply, GetShareSubLeaderRequest,
+};
 use regex::Regex;
 use std::sync::Arc;
 use std::time::Duration;
@@ -196,16 +198,18 @@ pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
 pub async fn get_share_sub_leader(
     client_poll: Arc<ClientPool>,
     group_name: String,
-    sub_name: String,
-) -> Result<GetShareSubReply, RobustMQError> {
+) -> Result<GetShareSubLeaderReply, RobustMQError> {
     let conf = broker_mqtt_conf();
-    let req = GetShareSubRequest {
+    let req = GetShareSubLeaderRequest {
         cluster_name: conf.cluster_name.clone(),
         group_name,
-        sub_name: sub_name.clone(),
     };
-    match placement_get_share_sub(client_poll, conf.placement.server.clone(), req).await {
+    match placement_get_share_sub_leader(client_poll, conf.placement.server.clone(), req).await {
         Ok(reply) => {
+            info(format!(
+                "get share sub leader info id:{}, ip:{}, extend:{}",
+                reply.broker_id, reply.broker_addr, reply.extend_info
+            ));
             return Ok(reply);
         }
         Err(e) => {

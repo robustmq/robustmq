@@ -3,20 +3,20 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_client::MqttServiceClient, DeleteShareSubRequest, GetShareSubReply,
-        GetShareSubRequest,
+        mqtt_service_client::MqttServiceClient, DeleteShareSubLeaderRequest, GetShareSubLeaderReply,
+        GetShareSubLeaderRequest,
     },
 };
 use tonic::transport::Channel;
 
-pub(crate) async fn inner_get_share_sub(
+pub(crate) async fn inner_get_share_sub_leader(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, RobustMQError> {
-    match GetShareSubRequest::decode(request.as_ref()) {
-        Ok(request) => match client.get_share_sub(request).await {
+    match GetShareSubLeaderRequest::decode(request.as_ref()) {
+        Ok(request) => match client.get_share_sub_leader(request).await {
             Ok(result) => {
-                return Ok(GetShareSubReply::encode_to_vec(&result.into_inner()));
+                return Ok(GetShareSubLeaderReply::encode_to_vec(&result.into_inner()));
             }
             Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
         },
@@ -26,12 +26,12 @@ pub(crate) async fn inner_get_share_sub(
     }
 }
 
-pub(crate) async fn inner_delete_share_sub(
+pub(crate) async fn inner_delete_share_sub_leader(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, RobustMQError> {
-    match DeleteShareSubRequest::decode(request.as_ref()) {
-        Ok(request) => match client.delete_share_sub(request).await {
+    match DeleteShareSubLeaderRequest::decode(request.as_ref()) {
+        Ok(request) => match client.delete_share_sub_leader(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }

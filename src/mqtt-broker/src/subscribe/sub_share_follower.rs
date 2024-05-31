@@ -1,10 +1,10 @@
 use super::{
-    sub_exclusive::publish_message_qos0,
-    subscribe_cache::SubscribeCache,
     sub_common::{
         get_share_sub_leader, publish_to_response_queue, share_sub_rewrite_publish_flag,
         wait_packet_ack,
     },
+    sub_exclusive::publish_message_qos0,
+    subscribe_cache::SubscribeCache,
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
@@ -20,6 +20,7 @@ use common_base::{
     tools::{now_second, unique_id},
 };
 use futures::{SinkExt, StreamExt};
+use metadata_struct::mqtt_node_extend::MQTTNodeExtend;
 use protocol::{
     mqtt::{
         Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PubAck, PubAckProperties,
@@ -84,12 +85,7 @@ impl SubscribeShareFollower {
             let response_queue_sx5 = self.response_queue_sx5.clone();
             let ack_manager = self.ack_manager.clone();
 
-            match get_share_sub_leader(
-                self.client_poll.clone(),
-                share_sub.group_name.clone(),
-                share_sub.sub_name.clone(),
-            )
-            .await
+            match get_share_sub_leader(self.client_poll.clone(), share_sub.group_name.clone()).await
             {
                 Ok(reply) => {
                     let conf = broker_mqtt_conf();
@@ -130,10 +126,12 @@ impl SubscribeShareFollower {
                                         .to_string(),
                                 );
                             } else if share_sub.protocol == MQTTProtocol::MQTT5 {
-                                resub_sub_mqtt5(
+                                let extend_info: MQTTNodeExtend =
+                                    serde_json::from_str(&reply.extend_info).unwrap();
+                                match resub_sub_mqtt5(
                                     follower_resub_key,
                                     ack_manager,
-                                    reply.broker_ip,
+                                    extend_info.mqtt5_addr,
                                     metadata_cache,
                                     share_sub,
                                     stop_sx,
@@ -141,7 +139,11 @@ impl SubscribeShareFollower {
                                     response_queue_sx4,
                                     response_queue_sx5,
                                 )
-                                .await;
+                                .await
+                                {
+                                    Ok(_) => {}
+                                    Err(e) => error(e.to_string()),
+                                }
                             }
                         });
                     }
@@ -181,7 +183,7 @@ async fn resub_sub_mqtt5(
     subscribe_manager: Arc<SubscribeCache>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
-) {
+) -> Result<(), RobustMQError> {
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
     let sub_name = share_sub.sub_name.clone();
@@ -193,7 +195,12 @@ async fn resub_sub_mqtt5(
         sub_name,
     ));
     let codec = Mqtt5Codec::new();
-    let socket = TcpStream::connect(leader_addr.clone()).await.unwrap();
+    let socket = match TcpStream::connect(leader_addr.clone()).await {
+        Ok(sock) => sock,
+        Err(e) => {
+            return Err(RobustMQError::CommmonError(e.to_string()));
+        }
+    };
 
     // split stream
     let (r_stream, w_stream) = io::split(socket);
@@ -208,14 +215,7 @@ async fn resub_sub_mqtt5(
     match write_frame_stream.send(connect_pkg).await {
         Ok(_) => {}
         Err(e) => {
-            error(format!(
-                "ReSub follower for client_id:[{}], group_name:[{}], sub_name:[{}] send Connect packet error. error message:{}",  
-                mqtt_client_id,
-                group_name,
-                sub_name,
-                e.to_string()
-            ));
-            return;
+            return Err(RobustMQError::CommmonError(e.to_string()));
         }
     }
 
@@ -475,6 +475,7 @@ async fn resub_sub_mqtt5(
     subscribe_manager
         .share_follower_resub_thread
         .remove(&follower_resub_key);
+    return Ok(());
 }
 
 async fn resub_publish_message_qos1(

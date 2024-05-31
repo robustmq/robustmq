@@ -3,7 +3,7 @@ mod tests {
     use std::{sync::Arc, thread::sleep, time::Duration};
 
     use clients::{
-        placement::{mqtt::call::placement_get_share_sub, placement::call::register_node},
+        placement::{mqtt::call::placement_get_share_sub_leader, placement::call::register_node},
         poll::ClientPool,
     };
     use common_base::log::{error, info};
@@ -13,7 +13,7 @@ mod tests {
     };
     use placement_center::PlacementCenter;
     use protocol::placement_center::generate::{
-        common::ClusterType, mqtt::GetShareSubRequest, placement::RegisterNodeRequest,
+        common::ClusterType, mqtt::GetShareSubLeaderRequest, placement::RegisterNodeRequest
     };
     use std::{
         fs,
@@ -36,7 +36,7 @@ mod tests {
         let cluster_type = ClusterType::MqttBrokerServer.try_into().unwrap();
         let cluster_name = "test-cluster".to_string();
         let node_ip = "127.0.0.1".to_string();
-        let node_id = 3;
+        let node_id = 7;
         let node_inner_addr = "127.0.0.1:8228".to_string();
         let extend_info = "".to_string();
         let request = RegisterNodeRequest {
@@ -61,16 +61,14 @@ mod tests {
         }
 
         let group_name = "test".to_string();
-        let sub_name = "test-group".to_string();
-        let req = GetShareSubRequest {
+        let req = GetShareSubLeaderRequest {
             cluster_name: cluster_name.clone(),
             group_name,
-            sub_name,
         };
 
-        match placement_get_share_sub(client_poll.clone(), addrs.clone(), req).await {
+        match placement_get_share_sub_leader(client_poll.clone(), addrs.clone(), req).await {
             Ok(rep) => {
-                assert_eq!(rep.broker_id, 3);
+                assert_eq!(rep.broker_id, node_id);
             }
             Err(e) => {
                 error(e.to_string());

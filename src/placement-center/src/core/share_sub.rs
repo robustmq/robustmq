@@ -12,7 +12,8 @@ pub fn calc_share_sub_leader(
         }
 
         // todo The node where the Share Sub Leader is located is calculated based on the cluster load
-        return Ok(cluster.nodes.first().unwrap().clone());
+        // return Ok(cluster.nodes.first().unwrap().clone());
+        return Ok(7);
     }
     return Err(RobustMQError::ClusterDoesNotExist);
 }

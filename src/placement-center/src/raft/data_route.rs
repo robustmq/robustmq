@@ -20,7 +20,7 @@ use common_base::{
 };
 use prost::Message as _;
 use protocol::placement_center::generate::{
-    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, mqtt::DeleteShareSubRequest, placement::{RegisterNodeRequest, UnRegisterNodeRequest}
+    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, mqtt::DeleteShareSubLeaderRequest, placement::{RegisterNodeRequest, UnRegisterNodeRequest}
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -294,7 +294,7 @@ impl DataRoute {
     }
 
     pub fn delete_share_sub(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: DeleteShareSubRequest = DeleteShareSubRequest::decode(value.as_ref())
+        let req: DeleteShareSubLeaderRequest = DeleteShareSubLeaderRequest::decode(value.as_ref())
         .map_err(|e| Status::invalid_argument(e.to_string()))
         .unwrap();
     return self.share_sub_storage.delete(req.cluster_name,req.group_name);

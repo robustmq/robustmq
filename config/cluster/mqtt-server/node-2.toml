@@ -1,5 +1,5 @@
 cluster_name = "mqtt-broker"
-broker_id = 1
+broker_id = 8
 grpc_port = 9981
 http_port = 9982
 
@@ -51,6 +51,6 @@ share_model = "rewrite"
 shared_subscription_strategy = "round_robin"
 
 [log]
-log_path = "/tmp/logs"
+log_path = "/tmp/logs8"
 log_segment_size = 1073741824
 log_file_num = 50

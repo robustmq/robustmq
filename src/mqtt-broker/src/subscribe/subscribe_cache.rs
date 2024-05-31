@@ -230,7 +230,6 @@ impl SubscribeCache {
                     match get_share_sub_leader(
                         self.client_poll.clone(),
                         group_name.clone(),
-                        sub_name.clone(),
                     )
                     .await
                     {
