@@ -221,7 +221,20 @@ where
                             let msg: Message = match Message::decode_record(record.clone()) {
                                 Ok(msg) => msg,
                                 Err(e) => {
-                                    error(e.to_string());
+                                    error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));
+                                    match message_storage
+                                        .commit_group_offset(
+                                            topic_id.clone(),
+                                            group_id.clone(),
+                                            record.offset,
+                                        )
+                                        .await
+                                    {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            error(e.to_string());
+                                        }
+                                    }
                                     continue;
                                 }
                             };
@@ -231,7 +244,6 @@ where
                             } else {
                                 0
                             };
-                            info(format!("current_point:{}",current_point));
                             let subscribe = sub_list.get(current_point).unwrap();
 
                             cursor_point = current_point + 1;
@@ -275,7 +287,6 @@ where
                                         metadata_cache.clone(),
                                         subscribe.client_id.clone(),
                                         publish,
-                                        properties,
                                         subscribe.protocol.clone(),
                                         response_queue_sx4.clone(),
                                         response_queue_sx5.clone(),

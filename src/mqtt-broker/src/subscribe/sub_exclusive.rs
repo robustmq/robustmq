@@ -192,7 +192,7 @@ where
                                 let mut publish = Publish {
                                     dup: false,
                                     qos,
-                                    pkid: 0,
+                                    pkid: 1,
                                     retain,
                                     topic: Bytes::from(subscribe.topic_name.clone()),
                                     payload: Bytes::from(msg.payload),
@@ -215,7 +215,6 @@ where
                                             metadata_cache.clone(),
                                             client_id.clone(),
                                             publish,
-                                            properties,
                                             subscribe.protocol.clone(),
                                             response_queue_sx4.clone(),
                                             response_queue_sx5.clone(),
@@ -346,7 +345,6 @@ pub async fn publish_message_qos0(
     metadata_cache: Arc<MetadataCacheManager>,
     mqtt_client_id: String,
     publish: Publish,
-    publish_properties: PublishProperties,
     protocol: MQTTProtocol,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
@@ -374,7 +372,7 @@ pub async fn publish_message_qos0(
 
     let resp = ResponsePackage {
         connection_id: connect_id,
-        packet: MQTTPacket::Publish(publish, Some(publish_properties)),
+        packet: MQTTPacket::Publish(publish, None),
     };
 
     // 2. publish to mqtt client

@@ -113,6 +113,14 @@ impl SubscribeShareFollower {
                             )
                             .await;
                     } else {
+                        if self
+                            .subscribe_manager
+                            .share_follower_resub_thread
+                            .contains_key(&follower_resub_key)
+                        {
+                            continue;
+                        }
+                        
                         let (stop_sx, _) = broadcast::channel(1);
                         self.subscribe_manager
                             .share_follower_resub_thread
@@ -319,7 +327,7 @@ async fn resub_sub_mqtt5(
                             }
                         }
 
-                        MQTTPacket::Publish(mut publish, publish_properties) => match publish.qos {
+                        MQTTPacket::Publish(mut publish, _) => match publish.qos {
                             // 1. leader publish to resub thread
                             protocol::mqtt::QoS::AtMostOnce => {
                                 publish.dup = false;
@@ -327,7 +335,6 @@ async fn resub_sub_mqtt5(
                                     metadata_cache.clone(),
                                     mqtt_client_id.clone(),
                                     publish,
-                                    publish_properties.unwrap(),
                                     share_sub.protocol.clone(),
                                     response_queue_sx4.clone(),
                                     response_queue_sx5.clone(),
@@ -457,10 +464,12 @@ async fn resub_sub_mqtt5(
                         }
 
                         MQTTPacket::Disconnect(_, _) => {
+                            info("receive disconnect".to_string());
                             break;
                         }
 
                         MQTTPacket::UnsubAck(_, _) => {
+                            info("receive unsuback".to_string());
                             break;
                         }
                         _ => {
@@ -468,7 +477,7 @@ async fn resub_sub_mqtt5(
                         }
                     }
                 }
-                Err(e) => error(e.to_string()),
+                Err(_) => {}
             }
         }
     }

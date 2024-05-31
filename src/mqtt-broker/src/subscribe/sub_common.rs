@@ -206,10 +206,6 @@ pub async fn get_share_sub_leader(
     };
     match placement_get_share_sub_leader(client_poll, conf.placement.server.clone(), req).await {
         Ok(reply) => {
-            info(format!(
-                "get share sub leader info id:{}, ip:{}, extend:{}",
-                reply.broker_id, reply.broker_addr, reply.extend_info
-            ));
             return Ok(reply);
         }
         Err(e) => {
