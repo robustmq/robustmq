@@ -185,8 +185,6 @@ where
             let mut cursor_point = 0;
             let mut sub_list =
                 build_share_leader_sub_list(subscribe_manager.clone(), share_leader_key.clone());
-            let mut pre_update_sub_list_time = now_second();
-            let mut record_num = calc_record_num(sub_list.len());
 
             loop {
                 match stop_rx.try_recv() {
@@ -201,15 +199,8 @@ where
                     }
                     Err(_) => {}
                 }
-                if (now_second() - pre_update_sub_list_time) > 5 {
-                    sub_list = build_share_leader_sub_list(
-                        subscribe_manager.clone(),
-                        share_leader_key.clone(),
-                    );
-                    pre_update_sub_list_time = now_second();
-                    record_num = calc_record_num(sub_list.len());
-                }
 
+                let record_num = calc_record_num(sub_list.len());
                 match message_storage
                     .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
                     .await
@@ -245,6 +236,10 @@ where
                                 let current_point = if cursor_point < sub_list.len() {
                                     cursor_point
                                 } else {
+                                    sub_list = build_share_leader_sub_list(
+                                        subscribe_manager.clone(),
+                                        share_leader_key.clone(),
+                                    );
                                     0
                                 };
                                 let subscribe = sub_list.get(current_point).unwrap();
@@ -267,6 +262,15 @@ where
                                             response_queue_sx4.clone(),
                                             response_queue_sx5.clone(),
                                             stop_sx.clone(),
+                                        )
+                                        .await;
+
+                                        // commit offset
+                                        loop_commit_offset(
+                                            message_storage.clone(),
+                                            topic_id.clone(),
+                                            group_id.clone(),
+                                            record.offset,
                                         )
                                         .await;
                                         break;
@@ -422,7 +426,9 @@ pub async fn loop_commit_offset<S>(
             .commit_group_offset(topic_id.clone(), group_id.clone(), offset)
             .await
         {
-            Ok(_) => {}
+            Ok(_) => {
+                break;
+            }
             Err(e) => {
                 error(e.to_string());
             }

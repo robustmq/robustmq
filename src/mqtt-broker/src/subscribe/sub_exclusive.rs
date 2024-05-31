@@ -12,7 +12,7 @@ use common_base::{
     tools::now_second,
 };
 use protocol::mqtt::{MQTTPacket, PubRel, Publish, PublishProperties, QoS};
-use std::{sync::Arc, time::Duration};
+use std::{fmt::format, sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
     sync::broadcast::{self, Sender},
@@ -369,7 +369,7 @@ pub async fn publish_message_qos0(
             continue;
         };
     }
-
+    
     let resp = ResponsePackage {
         connection_id: connect_id,
         packet: MQTTPacket::Publish(publish, None),
