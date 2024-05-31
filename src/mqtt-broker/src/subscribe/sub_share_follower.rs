@@ -120,7 +120,7 @@ impl SubscribeShareFollower {
                         {
                             continue;
                         }
-                        
+
                         let (stop_sx, _) = broadcast::channel(1);
                         self.subscribe_manager
                             .share_follower_resub_thread
@@ -469,7 +469,24 @@ async fn resub_sub_mqtt5(
                         }
 
                         MQTTPacket::UnsubAck(_, _) => {
-                            info("receive unsuback".to_string());
+                            // When a thread exits, an unsubscribed mqtt packet is sent
+                            let unscribe_pkg = build_resub_unsubscribe_pkg(
+                                follower_sub_leader_pkid,
+                                share_sub.clone(),
+                            );
+
+                            match write_frame_stream.send(unscribe_pkg).await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error(format!(
+                                "Share follower for client_id:[{}], group_name:[{}], sub_name:[{}] send UnSubscribe packet error. error message:{}",
+                                mqtt_client_id,
+                                group_name,
+                                sub_name,
+                                e.to_string()
+                            ));
+                                }
+                            }
                             break;
                         }
                         _ => {
