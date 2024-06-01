@@ -34,6 +34,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::{
     io,
     net::TcpStream,
+    select,
     sync::broadcast::{self, Sender},
     time::sleep,
 };
@@ -214,9 +215,10 @@ async fn resub_sub_mqtt5(
     // split stream
     let (r_stream, w_stream) = io::split(socket);
     let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
+    let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
     let ws = WriteStream::new(sx.clone());
-    ws.add_write(FramedWrite::new(w_stream, codec.clone()));
+    ws.add_write(write_frame_stream);
     let write_stream = Arc::new(ws);
 
     let follower_sub_leader_client_id = unique_id();
@@ -227,306 +229,277 @@ async fn resub_sub_mqtt5(
     write_stream.write_frame(connect_pkg).await;
 
     // Continuously receive back packet information from the Server
+    let mut rx = sx.subscribe();
     loop {
-        match sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    info(format!(
-                        "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
-                        mqtt_client_id,
-                        group_name,
-                        sub_name,
-                    ));
-
-                    // When a thread exits, an unsubscribed mqtt packet is sent
-                    let unscribe_pkg =
-                        build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
-                    write_stream.write_frame(unscribe_pkg).await;
-                    break;
-                }
-            }
-            Err(_) => {}
-        }
-
-        if let Some(data) = read_frame_stream.next().await {
-            match data {
-                Ok(da) => {
-                    match da {
-                        MQTTPacket::ConnAck(connack, connack_properties) => {
-                            if connack.code == ConnectReturnCode::Success {
-                                // start ping thread
-                                start_ping_thread(write_stream.clone(), sx.clone());
-
-                                // When the connection is successful, a subscription request is sent
-                                let sub_packet = build_resub_subscribe_pkg(
-                                    follower_sub_leader_pkid,
-                                    share_sub.clone(),
-                                );
-                                write_stream.write_frame(sub_packet).await;
-                            } else {
-                                error(
-                                    format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error, error message: {:?},{:?}",
+        select! {
+            val = rx.recv() =>{
+                match val{
+                    Ok(flag) => {
+                        if flag {
+                            info(format!(
+                                "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
                                 mqtt_client_id,
                                 group_name,
                                 sub_name,
-                                connack,
-                                connack_properties),
-                                );
-                                break;
-                            }
-                        }
+                            ));
 
-                        MQTTPacket::SubAck(suback, suback_properties) => {
-                            for reason in suback.return_codes.clone() {
-                                if reason
-                                    == SubscribeReasonCode::Success(
-                                        protocol::mqtt::QoS::AtLeastOnce,
-                                    )
-                                    || reason
-                                        == SubscribeReasonCode::Success(
-                                            protocol::mqtt::QoS::AtMostOnce,
-                                        )
-                                    || reason
-                                        == SubscribeReasonCode::Success(
-                                            protocol::mqtt::QoS::ExactlyOnce,
-                                        )
-                                    || reason == SubscribeReasonCode::QoS0
-                                    || reason == SubscribeReasonCode::QoS1
-                                    || reason == SubscribeReasonCode::QoS2
-                                {
-                                    continue;
-                                }
-                                error(format!("client_id:[{}], group_name:[{}], sub_name:[{}]Follower forwarding subscription request error, error message: {:?},{:?}",
-                                mqtt_client_id,
-                                group_name,
-                                sub_name
-                                ,suback,suback_properties));
-                                break;
-                            }
-                        }
-
-                        MQTTPacket::Publish(mut publish, _) => match publish.qos {
-                            // 1. leader publish to resub thread
-                            protocol::mqtt::QoS::AtMostOnce => {
-                                publish.dup = false;
-                                publish_message_qos0(
-                                    metadata_cache.clone(),
-                                    mqtt_client_id.clone(),
-                                    publish,
-                                    share_sub.protocol.clone(),
-                                    response_queue_sx4.clone(),
-                                    response_queue_sx5.clone(),
-                                    sx.clone(),
-                                )
-                                .await;
-                            }
-
-                            protocol::mqtt::QoS::AtLeastOnce => {
-                                let publish_to_client_pkid: u16 =
-                                    metadata_cache.get_pkid(mqtt_client_id.clone()).await;
-
-                                let (wait_puback_sx, _) = broadcast::channel(1);
-                                ack_manager.add(
-                                    mqtt_client_id.clone(),
-                                    publish_to_client_pkid,
-                                    AckPacketInfo {
-                                        sx: wait_puback_sx.clone(),
-                                        create_time: now_second(),
-                                    },
-                                );
-
-                                match resub_publish_message_qos1(
-                                    metadata_cache.clone(),
-                                    mqtt_client_id.clone(),
-                                    publish,
-                                    publish_to_client_pkid,
-                                    share_sub.protocol.clone(),
-                                    response_queue_sx4.clone(),
-                                    response_queue_sx5.clone(),
-                                    sx.clone(),
-                                    wait_puback_sx,
-                                    write_stream.clone(),
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        metadata_cache.remove_pkid_info(
-                                            mqtt_client_id.clone(),
-                                            publish_to_client_pkid,
-                                        );
-                                        ack_manager
-                                            .remove(mqtt_client_id.clone(), publish_to_client_pkid);
-                                        continue;
-                                    }
-                                    Err(e) => {
-                                        error(e.to_string());
-                                    }
-                                }
-                            }
-
-                            protocol::mqtt::QoS::ExactlyOnce => {
-                                let publish_to_client_pkid: u16 =
-                                    metadata_cache.get_pkid(mqtt_client_id.clone()).await;
-
-                                let (wait_client_ack_sx, _) = broadcast::channel(1);
-
-                                ack_manager.add(
-                                    mqtt_client_id.clone(),
-                                    publish_to_client_pkid,
-                                    AckPacketInfo {
-                                        sx: wait_client_ack_sx.clone(),
-                                        create_time: now_second(),
-                                    },
-                                );
-
-                                let (wait_leader_ack_sx, _) = broadcast::channel(1);
-                                ack_manager.add(
-                                    follower_sub_leader_client_id.clone(),
-                                    publish.pkid,
-                                    AckPacketInfo {
-                                        sx: wait_leader_ack_sx.clone(),
-                                        create_time: now_second(),
-                                    },
-                                );
-
-                                match resub_publish_message_qos2(
-                                    metadata_cache.clone(),
-                                    mqtt_client_id.clone(),
-                                    publish.clone(),
-                                    publish_to_client_pkid,
-                                    share_sub.protocol.clone(),
-                                    response_queue_sx4.clone(),
-                                    response_queue_sx5.clone(),
-                                    sx.clone(),
-                                    wait_client_ack_sx,
-                                    wait_leader_ack_sx,
-                                    write_stream.clone(),
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        metadata_cache.remove_pkid_info(
-                                            mqtt_client_id.clone(),
-                                            publish_to_client_pkid,
-                                        );
-                                        ack_manager
-                                            .remove(mqtt_client_id.clone(), publish_to_client_pkid);
-
-                                        ack_manager.remove(
-                                            follower_sub_leader_client_id.clone(),
-                                            publish.pkid,
-                                        );
-                                        continue;
-                                    }
-                                    Err(e) => {
-                                        error(e.to_string());
-                                    }
-                                }
-                            }
-                        },
-
-                        MQTTPacket::PubRel(pubrel, _) => {
-                            if let Some(data) =
-                                ack_manager.get(follower_sub_leader_client_id.clone(), pubrel.pkid)
-                            {
-                                match data.sx.send(AckPackageData {
-                                    ack_type: AckPackageType::PubRel,
-                                    pkid: pubrel.pkid,
-                                }) {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        error(e.to_string());
-                                    }
-                                }
-                            }
-                        }
-
-                        MQTTPacket::Disconnect(_, _) => {
-                            info("receive disconnect".to_string());
-                            break;
-                        }
-
-                        MQTTPacket::UnsubAck(_, _) => {
                             // When a thread exits, an unsubscribed mqtt packet is sent
-                            let unscribe_pkg = build_resub_unsubscribe_pkg(
-                                follower_sub_leader_pkid,
-                                share_sub.clone(),
-                            );
+                            let unscribe_pkg =
+                                build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
                             write_stream.write_frame(unscribe_pkg).await;
                             break;
                         }
-                        MQTTPacket::PingResp(_) => {}
-                        _ => {
-                            error("Rewrite subscription thread cannot recognize the currently returned package".to_string());
+                    }
+                    Err(_) => {}
+                }
+            }
+            val = read_frame_stream.next()=>{
+                if let Some(data) = val{
+                    match data{
+                        Ok(packet) => {
+                            let is_break = process_packet(
+                                ack_manager.clone(),
+                                metadata_cache.clone(),
+                                share_sub.clone(),
+                                sx.clone(),
+                                response_queue_sx4.clone(),
+                                response_queue_sx5.clone(),
+                                packet,
+                                write_stream.clone(),
+                                follower_sub_leader_pkid,
+                                follower_sub_leader_client_id.clone(),
+                                mqtt_client_id.clone(),
+                                group_name.clone(),
+                                sub_name.clone(),
+                            ).await;
+
+                            if is_break{
+                                break;
+                            }else{
+                                continue;
+                            }
+                        },
+                        Err(e) =>{
+                            error(format!("vvv:{}",e.to_string()));
+                            sleep(Duration::from_millis(100)).await;
                         }
                     }
+                }else{
+                    sleep(Duration::from_millis(100)).await;
                 }
-                Err(_) => {}
             }
         }
     }
+
     subscribe_manager
         .share_follower_resub_thread
         .remove(&follower_resub_key);
     return Ok(());
 }
 
-pub struct WriteStream {
-    write_list:
-        DashMap<String, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>>,
-    key: String,
-    stop_sx: Sender<bool>,
-}
+async fn process_packet(
+    ack_manager: Arc<AckManager>,
+    metadata_cache: Arc<MetadataCacheManager>,
+    share_sub: ShareSubShareSub,
+    sx: Sender<bool>,
+    response_queue_sx4: broadcast::Sender<ResponsePackage>,
+    response_queue_sx5: broadcast::Sender<ResponsePackage>,
+    packet: MQTTPacket,
+    write_stream: Arc<WriteStream>,
+    follower_sub_leader_pkid: u16,
+    follower_sub_leader_client_id: String,
+    mqtt_client_id: String,
+    group_name: String,
+    sub_name: String,
+) -> bool {
+    match packet {
+        MQTTPacket::ConnAck(connack, connack_properties) => {
+            if connack.code == ConnectReturnCode::Success {
+                // start ping thread
+                start_ping_thread(write_stream.clone(), sx.clone());
 
-impl WriteStream {
-    pub fn new(stop_sx: Sender<bool>) -> Self {
-        return WriteStream {
-            key: "default".to_string(),
-            write_list: DashMap::with_capacity(2),
-            stop_sx,
-        };
-    }
+                // When the connection is successful, a subscription request is sent
+                let sub_packet =
+                    build_resub_subscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
+                write_stream.write_frame(sub_packet).await;
 
-    pub fn add_write(
-        &self,
-        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>,
-    ) {
-        self.write_list.insert(self.key.clone(), write);
-    }
-
-    pub async fn write_frame(&self, resp: MQTTPacket) {
-        loop {
-            match self.stop_sx.subscribe().try_recv() {
-                Ok(flag) => {
-                    if flag {
-                        break;
-                    }
-                }
-                Err(_) => {}
+                return false;
+            } else {
+                error(format!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error, 
+                            error message: {:?},{:?}",mqtt_client_id,group_name,sub_name,connack,connack_properties));
+                return true;
             }
+        }
 
-            match self.write_list.try_get_mut(&self.key) {
-                dashmap::try_result::TryResult::Present(mut da) => {
-                    match da.send(resp.clone()).await {
-                        Ok(_) => {
-                            break;
+        MQTTPacket::SubAck(suback, _) => {
+            let mut is_success = true;
+            for reason in suback.return_codes.clone() {
+                if !(reason == SubscribeReasonCode::Success(protocol::mqtt::QoS::AtLeastOnce)
+                    || reason == SubscribeReasonCode::Success(protocol::mqtt::QoS::AtMostOnce)
+                    || reason == SubscribeReasonCode::Success(protocol::mqtt::QoS::ExactlyOnce)
+                    || reason == SubscribeReasonCode::QoS0
+                    || reason == SubscribeReasonCode::QoS1
+                    || reason == SubscribeReasonCode::QoS2)
+                {
+                    is_success = false;
+                }
+            }
+            return !is_success;
+        }
+
+        MQTTPacket::Publish(mut publish, _) => {
+            match publish.qos {
+                // 1. leader publish to resub thread
+                protocol::mqtt::QoS::AtMostOnce => {
+                    publish.dup = false;
+                    publish_message_qos0(
+                        metadata_cache.clone(),
+                        mqtt_client_id.clone(),
+                        publish,
+                        share_sub.protocol.clone(),
+                        response_queue_sx4.clone(),
+                        response_queue_sx5.clone(),
+                        sx.clone(),
+                    )
+                    .await;
+                }
+
+                protocol::mqtt::QoS::AtLeastOnce => {
+                    let publish_to_client_pkid: u16 =
+                        metadata_cache.get_pkid(mqtt_client_id.clone()).await;
+
+                    let (wait_puback_sx, _) = broadcast::channel(1);
+                    ack_manager.add(
+                        mqtt_client_id.clone(),
+                        publish_to_client_pkid,
+                        AckPacketInfo {
+                            sx: wait_puback_sx.clone(),
+                            create_time: now_second(),
+                        },
+                    );
+
+                    match resub_publish_message_qos1(
+                        metadata_cache.clone(),
+                        mqtt_client_id.clone(),
+                        publish,
+                        publish_to_client_pkid,
+                        share_sub.protocol.clone(),
+                        response_queue_sx4.clone(),
+                        response_queue_sx5.clone(),
+                        sx.clone(),
+                        wait_puback_sx,
+                        write_stream.clone(),
+                    )
+                    .await
+                    {
+                        Ok(()) => {
+                            metadata_cache
+                                .remove_pkid_info(mqtt_client_id.clone(), publish_to_client_pkid);
+                            ack_manager.remove(mqtt_client_id.clone(), publish_to_client_pkid);
+
+                            return false;
                         }
                         Err(e) => {
-                            error(format!(
-                                "Resub Client Failed to write data to the response queue, error message: {:?}",
-                                e
-                            ));
+                            error(e.to_string());
+                            return false;
                         }
                     }
                 }
-                dashmap::try_result::TryResult::Absent => {
-                    error(format!("Resub Client [write_frame]Connection management could not obtain an available connection."));
-                }
-                dashmap::try_result::TryResult::Locked => {
-                    error(format!("Resub Client [write_frame]Connection management failed to get connection variable reference"));
+
+                protocol::mqtt::QoS::ExactlyOnce => {
+                    let publish_to_client_pkid: u16 =
+                        metadata_cache.get_pkid(mqtt_client_id.clone()).await;
+
+                    let (wait_client_ack_sx, _) = broadcast::channel(1);
+
+                    ack_manager.add(
+                        mqtt_client_id.clone(),
+                        publish_to_client_pkid,
+                        AckPacketInfo {
+                            sx: wait_client_ack_sx.clone(),
+                            create_time: now_second(),
+                        },
+                    );
+
+                    let (wait_leader_ack_sx, _) = broadcast::channel(1);
+                    ack_manager.add(
+                        follower_sub_leader_client_id.clone(),
+                        publish.pkid,
+                        AckPacketInfo {
+                            sx: wait_leader_ack_sx.clone(),
+                            create_time: now_second(),
+                        },
+                    );
+
+                    match resub_publish_message_qos2(
+                        metadata_cache.clone(),
+                        mqtt_client_id.clone(),
+                        publish.clone(),
+                        publish_to_client_pkid,
+                        share_sub.protocol.clone(),
+                        response_queue_sx4.clone(),
+                        response_queue_sx5.clone(),
+                        sx.clone(),
+                        wait_client_ack_sx,
+                        wait_leader_ack_sx,
+                        write_stream.clone(),
+                    )
+                    .await
+                    {
+                        Ok(()) => {
+                            metadata_cache
+                                .remove_pkid_info(mqtt_client_id.clone(), publish_to_client_pkid);
+                            ack_manager.remove(mqtt_client_id.clone(), publish_to_client_pkid);
+
+                            ack_manager.remove(follower_sub_leader_client_id.clone(), publish.pkid);
+                        }
+                        Err(e) => {
+                            error(e.to_string());
+                        }
+                    }
                 }
             }
-            sleep(Duration::from_secs(1)).await
+
+            return false;
+        }
+
+        MQTTPacket::PubRel(pubrel, _) => {
+            if let Some(data) = ack_manager.get(follower_sub_leader_client_id.clone(), pubrel.pkid)
+            {
+                match data.sx.send(AckPackageData {
+                    ack_type: AckPackageType::PubRel,
+                    pkid: pubrel.pkid,
+                }) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        error(e.to_string());
+                    }
+                }
+            }
+            return false;
+        }
+
+        MQTTPacket::Disconnect(_, _) => {
+            info("receive disconnect".to_string());
+            return true;
+        }
+
+        MQTTPacket::UnsubAck(_, _) => {
+            // When a thread exits, an unsubscribed mqtt packet is sent
+            let unscribe_pkg =
+                build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
+            write_stream.write_frame(unscribe_pkg).await;
+            return true;
+        }
+        MQTTPacket::PingResp(_) => {
+            return false;
+        }
+        _ => {
+            error(
+                "Rewrite subscription thread cannot recognize the currently returned package"
+                    .to_string(),
+            );
+            return false;
         }
     }
 }
@@ -542,7 +515,6 @@ fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>) {
                 }
                 Err(_) => {}
             }
-
             let ping_packet = MQTTPacket::PingReq(PingReq {});
             write_stream.write_frame(ping_packet).await;
             sleep(Duration::from_secs(20)).await;
@@ -885,6 +857,66 @@ fn build_resub_publish_comp(pkid: u16, reason: PubCompReason) -> MQTTPacket {
     let pubcomp = PubComp { pkid, reason };
     let pubcomp_properties = PubCompProperties::default();
     return MQTTPacket::PubComp(pubcomp, Some(pubcomp_properties));
+}
+
+pub struct WriteStream {
+    write_list:
+        DashMap<String, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>>,
+    key: String,
+    stop_sx: Sender<bool>,
+}
+
+impl WriteStream {
+    pub fn new(stop_sx: Sender<bool>) -> Self {
+        return WriteStream {
+            key: "default".to_string(),
+            write_list: DashMap::with_capacity(2),
+            stop_sx,
+        };
+    }
+
+    pub fn add_write(
+        &self,
+        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, Mqtt5Codec>,
+    ) {
+        self.write_list.insert(self.key.clone(), write);
+    }
+
+    pub async fn write_frame(&self, resp: MQTTPacket) {
+        loop {
+            match self.stop_sx.subscribe().try_recv() {
+                Ok(flag) => {
+                    if flag {
+                        break;
+                    }
+                }
+                Err(_) => {}
+            }
+
+            match self.write_list.try_get_mut(&self.key) {
+                dashmap::try_result::TryResult::Present(mut da) => {
+                    match da.send(resp.clone()).await {
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(e) => {
+                            error(format!(
+                                "Resub Client Failed to write data to the response queue, error message: {:?}",
+                                e
+                            ));
+                        }
+                    }
+                }
+                dashmap::try_result::TryResult::Absent => {
+                    error(format!("Resub Client [write_frame]Connection management could not obtain an available connection."));
+                }
+                dashmap::try_result::TryResult::Locked => {
+                    error(format!("Resub Client [write_frame]Connection management failed to get connection variable reference"));
+                }
+            }
+            sleep(Duration::from_secs(1)).await
+        }
+    }
 }
 
 #[cfg(test)]
