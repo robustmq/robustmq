@@ -163,7 +163,13 @@ impl SubscribeCache {
                 // exclusive
                 for (key, subscriber) in self.exclusive_subscribe.clone() {
                     if subscriber.client_id == client_id && subscriber.sub_path == path {
-                        self.exclusive_subscribe.remove(&key);
+                        if let Some(sx) = self.exclusive_push_thread.get(&key) {
+                            match sx.send(true) {
+                                Ok(_) => {}
+                                Err(_) => {}
+                            }
+                            self.exclusive_subscribe.remove(&key);
+                        }
                     }
                 }
 
@@ -179,7 +185,13 @@ impl SubscribeCache {
                     }
 
                     if flag {
-                        self.share_leader_subscribe.remove(&key);
+                        self.share_follower_subscribe.remove(&key);
+                        if let Some(sx) = self.share_leader_push_thread.get(&key) {
+                            match sx.send(true) {
+                                Ok(_) => {}
+                                Err(_) => {}
+                            }
+                        }
                     }
                 }
 
@@ -187,6 +199,12 @@ impl SubscribeCache {
                 for (key, data) in self.share_follower_subscribe.clone() {
                     if data.client_id == client_id && data.filter.path == path {
                         self.share_follower_subscribe.remove(&key);
+                        if let Some(sx) = self.share_follower_resub_thread.get(&key) {
+                            match sx.send(true) {
+                                Ok(_) => {}
+                                Err(e) => error(e.to_string()),
+                            }
+                        }
                     }
                 }
             }
@@ -227,12 +245,7 @@ impl SubscribeCache {
             if is_share_sub(filter.path.clone()) {
                 let (group_name, sub_name) = decode_share_info(filter.path.clone());
                 if path_regex_match(topic_name.clone(), sub_name.clone()) {
-                    match get_share_sub_leader(
-                        self.client_poll.clone(),
-                        group_name.clone(),
-                    )
-                    .await
-                    {
+                    match get_share_sub_leader(self.client_poll.clone(), group_name.clone()).await {
                         Ok(reply) => {
                             if reply.broker_id == conf.broker_id {
                                 let leader_key =

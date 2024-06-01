@@ -6,10 +6,10 @@ use bytes::Bytes;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
-    MQTTPacket, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
+    MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
+    SubscribeProperties,
 };
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self, Sender};
-use tokio::time::timeout;
+use tokio::time::{sleep, timeout};
 
 const SHARE_SUB_PREFIX: &str = "$share";
 const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
@@ -259,6 +259,199 @@ pub async fn publish_to_response_queue(
         }
     }
     return Ok(());
+}
+
+pub async fn qos2_send_publish(
+    metadata_cache: Arc<MetadataCacheManager>,
+    client_id: String,
+    mut publish: Publish,
+    publish_properties: PublishProperties,
+    protocol: MQTTProtocol,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    let mut retry_times = 0;
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return;
+                }
+            }
+            Err(_) => {}
+        }
+
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+            id
+        } else {
+            sleep(Duration::from_secs(1)).await;
+            continue;
+        };
+
+        retry_times = retry_times + 1;
+        publish.dup = retry_times >= 2;
+
+        let resp = ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+        };
+
+        match publish_to_response_queue(
+            protocol.clone(),
+            resp.clone(),
+            response_queue_sx4.clone(),
+            response_queue_sx5.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                break;
+            }
+            Err(e) => {
+                error(format!(
+                    "Failed to write QOS2 Publish message to response queue, failure message: {}",
+                    e.to_string()
+                ));
+                sleep(Duration::from_millis(1)).await;
+            }
+        }
+    }
+}
+
+pub async fn qos2_send_pubrel(
+    metadata_cache: Arc<MetadataCacheManager>,
+    client_id: String,
+    pkid: u16,
+    protocol: MQTTProtocol,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return;
+                }
+            }
+            Err(_) => {}
+        }
+
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+            id
+        } else {
+            sleep(Duration::from_secs(1)).await;
+            continue;
+        };
+
+        let pubrel = PubRel {
+            pkid,
+            reason: protocol::mqtt::PubRelReason::Success,
+        };
+
+        let pubrel_resp = ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::PubRel(pubrel, None),
+        };
+
+        match publish_to_response_queue(
+            protocol.clone(),
+            pubrel_resp.clone(),
+            response_queue_sx4.clone(),
+            response_queue_sx5.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                break;
+            }
+            Err(e) => {
+                error(format!(
+                    "Failed to write PubRel message to response queue, failure message: {}",
+                    e.to_string()
+                ));
+            }
+        }
+    }
+}
+
+pub async fn loop_commit_offset<S>(
+    message_storage: MessageStorage<S>,
+    topic_id: String,
+    group_id: String,
+    offset: u128,
+) where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    loop {
+        match message_storage
+            .commit_group_offset(topic_id.clone(), group_id.clone(), offset)
+            .await
+        {
+            Ok(_) => {
+                break;
+            }
+            Err(e) => {
+                error(e.to_string());
+            }
+        }
+    }
+}
+
+// When the subscription QOS is 0,
+// the message can be pushed directly to the request return queue without the need for a retry mechanism.
+pub async fn publish_message_qos0(
+    metadata_cache: Arc<MetadataCacheManager>,
+    mqtt_client_id: String,
+    publish: Publish,
+    protocol: MQTTProtocol,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    let connect_id;
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return;
+                }
+            }
+            Err(_) => {}
+        }
+
+        if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id.clone()) {
+            connect_id = id;
+            break;
+        } else {
+            sleep(Duration::from_secs(1)).await;
+            continue;
+        };
+    }
+
+    let resp = ResponsePackage {
+        connection_id: connect_id,
+        packet: MQTTPacket::Publish(publish, None),
+    };
+
+    // 2. publish to mqtt client
+    match publish_to_response_queue(
+        protocol.clone(),
+        resp.clone(),
+        response_queue_sx4.clone(),
+        response_queue_sx5.clone(),
+    )
+    .await
+    {
+        Ok(_) => {}
+        Err(e) => {
+            error(format!(
+                "Failed to write QOS0 Publish message to response queue, failure message: {}",
+                e.to_string()
+            ));
+        }
+    }
 }
 
 #[cfg(test)]

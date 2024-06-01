@@ -107,6 +107,8 @@ pub enum RobustMQError {
     #[error("Bad subscription Path")]
     BadSubscriptionPath,
 
+    #[error("Subscribe to push, send QOS2 message to client {0}, wait for PubRec message timeout.")]
+    SubPublishWaitPubRecTimeout(String),
 
 }
 
