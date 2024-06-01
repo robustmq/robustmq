@@ -1,8 +1,8 @@
 use super::{
     sub_common::{
-        min_qos, publish_to_response_queue, share_sub_rewrite_publish_flag, wait_packet_ack,
+        loop_commit_offset, min_qos, publish_message_qos0, publish_to_response_queue,
+        qos2_send_publish, qos2_send_pubrel, share_sub_rewrite_publish_flag, wait_packet_ack,
     },
-    sub_exclusive::{publish_message_qos0, publish_message_qos2},
     subscribe_cache::SubscribeCache,
 };
 use crate::{
@@ -325,10 +325,12 @@ where
                                                 break;
                                             }
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error(format!("SharSub Leader failed to send QOS1 message to {}, error message :{},
+                                                 trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string()));
                                             }
                                         }
                                     }
+
                                     QoS::ExactlyOnce => {
                                         let pkid: u16 = metadata_cache
                                             .get_pkid(subscribe.client_id.clone())
@@ -344,7 +346,9 @@ where
                                                 create_time: now_second(),
                                             },
                                         );
-                                        match publish_message_qos2(
+
+                                        match share_leader_publish_message_qos2(
+                                            ack_manager.clone(),
                                             metadata_cache.clone(),
                                             subscribe.client_id.clone(),
                                             publish,
@@ -355,31 +359,20 @@ where
                                             response_queue_sx5.clone(),
                                             stop_sx.clone(),
                                             wait_ack_sx,
+                                            topic_id.clone(),
+                                            group_id.clone(),
+                                            record.offset,
+                                            message_storage.clone(),
                                         )
                                         .await
                                         {
                                             Ok(()) => {
-                                                metadata_cache.remove_pkid_info(
-                                                    subscribe.client_id.clone(),
-                                                    pkid,
-                                                );
-                                                ack_manager
-                                                    .remove(subscribe.client_id.clone(), pkid);
+                                                break;
                                             }
                                             Err(e) => {
                                                 error(e.to_string());
                                             }
                                         }
-
-                                        // commit offset
-                                        loop_commit_offset(
-                                            message_storage.clone(),
-                                            topic_id.clone(),
-                                            group_id.clone(),
-                                            record.offset,
-                                        )
-                                        .await;
-                                        break;
                                     }
                                 };
                             }
@@ -411,29 +404,6 @@ where
     fn push_by_sticky(&self) {}
 
     fn push_by_local(&self) {}
-}
-
-pub async fn loop_commit_offset<S>(
-    message_storage: MessageStorage<S>,
-    topic_id: String,
-    group_id: String,
-    offset: u128,
-) where
-    S: StorageAdapter + Sync + Send + 'static + Clone,
-{
-    loop {
-        match message_storage
-            .commit_group_offset(topic_id.clone(), group_id.clone(), offset)
-            .await
-        {
-            Ok(_) => {
-                break;
-            }
-            Err(e) => {
-                error(e.to_string());
-            }
-        }
-    }
 }
 
 pub fn build_publish(
@@ -479,7 +449,7 @@ pub fn build_publish(
 
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
-pub async fn share_leader_publish_message_qos1(
+async fn share_leader_publish_message_qos1(
     metadata_cache: Arc<MetadataCacheManager>,
     client_id: String,
     publish: Publish,
@@ -527,6 +497,121 @@ pub async fn share_leader_publish_message_qos1(
             )));
         }
     }
+}
+
+// send publish message
+// wait pubrec message
+// send pubrel message
+// wait pubcomp message
+async fn share_leader_publish_message_qos2<S>(
+    ack_manager: Arc<AckManager>,
+    metadata_cache: Arc<MetadataCacheManager>,
+    client_id: String,
+    publish: Publish,
+    publish_properties: PublishProperties,
+    pkid: u16,
+    protocol: MQTTProtocol,
+    response_queue_sx4: Sender<ResponsePackage>,
+    response_queue_sx5: Sender<ResponsePackage>,
+    stop_sx: broadcast::Sender<bool>,
+    wait_ack_sx: broadcast::Sender<AckPackageData>,
+    topic_id: String,
+    group_id: String,
+    offset: u128,
+    message_storage: MessageStorage<S>,
+) -> Result<(), RobustMQError>
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    // 1. send Publish to Client
+    qos2_send_publish(
+        metadata_cache.clone(),
+        client_id.clone(),
+        publish.clone(),
+        publish_properties.clone(),
+        protocol.clone(),
+        response_queue_sx4.clone(),
+        response_queue_sx5.clone(),
+        stop_sx.clone(),
+    )
+    .await;
+
+    // 2. wait pub rec
+    loop {
+        match stop_sx.subscribe().try_recv() {
+            Ok(flag) => {
+                if flag {
+                    return Ok(());
+                }
+            }
+            Err(_) => {}
+        }
+        if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
+            if data.ack_type == AckPackageType::PubRec && data.pkid == pkid {
+                // When sending a QOS2 message, as long as the pubrec is received, the offset can be submitted,
+                // the pubrel is sent asynchronously, and the pubcomp is waited for. Push the next message at the same time.
+                loop_commit_offset(
+                    message_storage.clone(),
+                    topic_id.clone(),
+                    group_id.clone(),
+                    offset,
+                )
+                .await;
+                break;
+            }
+        } else {
+            return Err(RobustMQError::SubPublishWaitPubRecTimeout(
+                client_id.clone(),
+            ));
+        }
+    }
+
+    // async wait
+    tokio::spawn(async move {
+        // 3. send pub rel
+        qos2_send_pubrel(
+            metadata_cache.clone(),
+            client_id.clone(),
+            pkid,
+            protocol.clone(),
+            response_queue_sx4.clone(),
+            response_queue_sx5.clone(),
+            stop_sx.clone(),
+        )
+        .await;
+
+        // 4. wait pub comp
+        loop {
+            match stop_sx.subscribe().try_recv() {
+                Ok(flag) => {
+                    if flag {
+                        break;
+                    }
+                }
+                Err(_) => {}
+            }
+            if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
+                if data.ack_type == AckPackageType::PubComp && data.pkid == pkid {
+                    metadata_cache.remove_pkid_info(client_id.clone(), pkid);
+                    ack_manager.remove(client_id.clone(), pkid);
+                    break;
+                }
+            } else {
+                qos2_send_pubrel(
+                    metadata_cache.clone(),
+                    client_id.clone(),
+                    pkid,
+                    protocol.clone(),
+                    response_queue_sx4.clone(),
+                    response_queue_sx5.clone(),
+                    stop_sx.clone(),
+                )
+                .await;
+            }
+        }
+    });
+
+    return Ok(());
 }
 
 fn build_share_leader_sub_list(
