@@ -14,7 +14,6 @@ use crate::{
 };
 use bytes::Bytes;
 use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
     errors::RobustMQError,
     log::{error, info},
     tools::now_second,
@@ -23,6 +22,7 @@ use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
+    select,
     sync::broadcast::{self, Sender},
     time::sleep,
 };
@@ -100,9 +100,25 @@ where
     }
 
     pub fn start_push_thread(&self) {
-        let conf = broker_mqtt_conf();
         // Periodically verify if any push tasks are not started. If so, the thread is started
         for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
+            if sub_data.sub_list.len() == 0 {
+                if let Some(sx) = self
+                    .subscribe_manager
+                    .share_leader_push_thread
+                    .get(&share_leader_key)
+                {
+                    match sx.send(true) {
+                        Ok(_) => {
+                            self.subscribe_manager
+                                .share_leader_subscribe
+                                .remove(&share_leader_key);
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
+
             // start push data thread
             let subscribe_manager = self.subscribe_manager.clone();
             if !self
@@ -110,45 +126,13 @@ where
                 .share_leader_push_thread
                 .contains_key(&share_leader_key)
             {
-                // round_robin
-                if conf.subscribe.shared_subscription_strategy
-                    == SHARED_SUBSCRIPTION_STRATEGY_ROUND_ROBIN.to_string()
-                {
-                    self.push_by_round_robin(
-                        share_leader_key.clone(),
-                        sub_data.group_name.clone(),
-                        sub_data.topic_id.clone(),
-                        sub_data.topic_name.clone(),
-                        subscribe_manager,
-                    );
-                }
-                // random
-                if conf.subscribe.shared_subscription_strategy
-                    == SHARED_SUBSCRIPTION_STRATEGY_RANDOM.to_string()
-                {
-                    self.push_by_random();
-                }
-
-                // sticky
-                if conf.subscribe.shared_subscription_strategy
-                    == SHARED_SUBSCRIPTION_STRATEGY_STICKY.to_string()
-                {
-                    self.push_by_sticky();
-                }
-
-                // hash
-                if conf.subscribe.shared_subscription_strategy
-                    == SHARED_SUBSCRIPTION_STRATEGY_HASH.to_string()
-                {
-                    self.push_by_hash();
-                }
-
-                // local
-                if conf.subscribe.shared_subscription_strategy
-                    == SHARED_SUBSCRIPTION_STRATEGY_LOCAL.to_string()
-                {
-                    self.push_by_local();
-                }
+                self.push_by_round_robin(
+                    share_leader_key.clone(),
+                    sub_data.group_name.clone(),
+                    sub_data.topic_id.clone(),
+                    sub_data.topic_name.clone(),
+                    subscribe_manager,
+                );
             }
         }
     }
@@ -181,212 +165,43 @@ where
             let message_storage: MessageStorage<S> = MessageStorage::new(message_storage);
             let group_id = format!("system_sub_{}_{}", group_name, topic_id);
 
-            let max_wait_ms = 500;
             let mut cursor_point = 0;
-            let mut sub_list =
+            let mut sub_list: Vec<Subscriber> =
                 build_share_leader_sub_list(subscribe_manager.clone(), share_leader_key.clone());
 
             loop {
-                match stop_rx.try_recv() {
-                    Ok(flag) => {
-                        if flag {
-                            info(format!(
-                                "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
-                                group_name, topic_name
-                            ));
-                            break;
-                        }
-                    }
-                    Err(_) => {}
-                }
-
-                let record_num = calc_record_num(sub_list.len());
-                match message_storage
-                    .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
-                    .await
-                {
-                    Ok(results) => {
-                        if results.len() == 0 {
-                            sleep(Duration::from_millis(max_wait_ms)).await;
-                            continue;
-                        }
-                        for record in results {
-                            let msg: Message = match Message::decode_record(record.clone()) {
-                                Ok(msg) => msg,
-                                Err(e) => {
-                                    error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));
-                                    match message_storage
-                                        .commit_group_offset(
-                                            topic_id.clone(),
-                                            group_id.clone(),
-                                            record.offset,
-                                        )
-                                        .await
-                                    {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            error(e.to_string());
-                                        }
-                                    }
-                                    continue;
+                select! {
+                    val = stop_rx.recv() =>{
+                        match val {
+                            Ok(flag) => {
+                                if flag {
+                                    info(format!(
+                                        "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
+                                        group_name, topic_name
+                                    ));
+                                    break;
                                 }
-                            };
-
-                            loop {
-                                let current_point = if cursor_point < sub_list.len() {
-                                    cursor_point
-                                } else {
-                                    sub_list = build_share_leader_sub_list(
-                                        subscribe_manager.clone(),
-                                        share_leader_key.clone(),
-                                    );
-                                    0
-                                };
-                                let subscribe = sub_list.get(current_point).unwrap();
-
-                                cursor_point = current_point + 1;
-                                let (mut publish, properties) = build_publish(
-                                    metadata_cache.clone(),
-                                    subscribe.clone(),
-                                    topic_name.clone(),
-                                    msg.clone(),
-                                );
-
-                                match publish.qos {
-                                    QoS::AtMostOnce => {
-                                        publish_message_qos0(
-                                            metadata_cache.clone(),
-                                            subscribe.client_id.clone(),
-                                            publish,
-                                            subscribe.protocol.clone(),
-                                            response_queue_sx4.clone(),
-                                            response_queue_sx5.clone(),
-                                            stop_sx.clone(),
-                                        )
-                                        .await;
-
-                                        // commit offset
-                                        loop_commit_offset(
-                                            message_storage.clone(),
-                                            topic_id.clone(),
-                                            group_id.clone(),
-                                            record.offset,
-                                        )
-                                        .await;
-                                        break;
-                                    }
-
-                                    QoS::AtLeastOnce => {
-                                        let pkid: u16 = metadata_cache
-                                            .get_pkid(subscribe.client_id.clone())
-                                            .await;
-                                        publish.pkid = pkid;
-
-                                        let (wait_puback_sx, _) = broadcast::channel(1);
-                                        ack_manager.add(
-                                            subscribe.client_id.clone(),
-                                            pkid,
-                                            AckPacketInfo {
-                                                sx: wait_puback_sx.clone(),
-                                                create_time: now_second(),
-                                            },
-                                        );
-
-                                        match share_leader_publish_message_qos1(
-                                            metadata_cache.clone(),
-                                            subscribe.client_id.clone(),
-                                            publish.clone(),
-                                            properties.clone(),
-                                            pkid,
-                                            subscribe.protocol.clone(),
-                                            response_queue_sx4.clone(),
-                                            response_queue_sx5.clone(),
-                                            wait_puback_sx,
-                                        )
-                                        .await
-                                        {
-                                            Ok(()) => {
-                                                // commit offset
-                                                loop_commit_offset(
-                                                    message_storage.clone(),
-                                                    topic_id.clone(),
-                                                    group_id.clone(),
-                                                    record.offset,
-                                                )
-                                                .await;
-
-                                                // remove data
-                                                metadata_cache.remove_pkid_info(
-                                                    subscribe.client_id.clone(),
-                                                    pkid,
-                                                );
-                                                ack_manager
-                                                    .remove(subscribe.client_id.clone(), pkid);
-                                                break;
-                                            }
-                                            Err(e) => {
-                                                error(format!("SharSub Leader failed to send QOS1 message to {}, error message :{},
-                                                 trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string()));
-                                            }
-                                        }
-                                    }
-
-                                    QoS::ExactlyOnce => {
-                                        let pkid: u16 = metadata_cache
-                                            .get_pkid(subscribe.client_id.clone())
-                                            .await;
-                                        publish.pkid = pkid;
-
-                                        let (wait_ack_sx, _) = broadcast::channel(1);
-                                        ack_manager.add(
-                                            subscribe.client_id.clone(),
-                                            pkid,
-                                            AckPacketInfo {
-                                                sx: wait_ack_sx.clone(),
-                                                create_time: now_second(),
-                                            },
-                                        );
-
-                                        match share_leader_publish_message_qos2(
-                                            ack_manager.clone(),
-                                            metadata_cache.clone(),
-                                            subscribe.client_id.clone(),
-                                            publish,
-                                            properties,
-                                            pkid,
-                                            subscribe.protocol.clone(),
-                                            response_queue_sx4.clone(),
-                                            response_queue_sx5.clone(),
-                                            stop_sx.clone(),
-                                            wait_ack_sx,
-                                            topic_id.clone(),
-                                            group_id.clone(),
-                                            record.offset,
-                                            message_storage.clone(),
-                                        )
-                                        .await
-                                        {
-                                            Ok(()) => {
-                                                break;
-                                            }
-                                            Err(e) => {
-                                                error(e.to_string());
-                                            }
-                                        }
-                                    }
-                                };
                             }
+                            Err(_) => {}
                         }
                     }
-                    Err(e) => {
-                        error(format!(
-                        "Failed to read message from storage, failure message: {},topic:{},group{}",
-                        e.to_string(),
+                    (cp,sl) = read_message_process(
+                        share_leader_key.clone(),
+                        subscribe_manager.clone(),
                         topic_id.clone(),
-                        group_id.clone()
-                    ));
-                        sleep(Duration::from_millis(max_wait_ms)).await;
-                        continue;
+                        topic_name.clone(),
+                        message_storage.clone(),
+                        sub_list.clone(),
+                        group_id.clone(),
+                        cursor_point,
+                        response_queue_sx4.clone(),
+                        response_queue_sx5.clone(),
+                        metadata_cache.clone(),
+                        ack_manager.clone(),
+                        stop_sx.clone()
+                    ) =>{
+                        cursor_point = cp;
+                        sub_list = sl;
                     }
                 }
             }
@@ -396,14 +211,208 @@ where
                 .remove(&share_leader_key);
         });
     }
+}
 
-    fn push_by_random(&self) {}
+async fn read_message_process<S>(
+    share_leader_key: String,
+    subscribe_manager: Arc<SubscribeCache>,
+    topic_id: String,
+    topic_name: String,
+    message_storage: MessageStorage<S>,
+    mut sub_list: Vec<Subscriber>,
+    group_id: String,
+    mut cursor_point: usize,
+    response_queue_sx4: broadcast::Sender<ResponsePackage>,
+    response_queue_sx5: broadcast::Sender<ResponsePackage>,
+    metadata_cache: Arc<MetadataCacheManager>,
+    ack_manager: Arc<AckManager>,
+    stop_sx: Sender<bool>,
+) -> (usize, Vec<Subscriber>)
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    let max_wait_ms: u64 = 500;
+    let record_num = calc_record_num(sub_list.len());
+    match message_storage
+        .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
+        .await
+    {
+        Ok(results) => {
+            if results.len() == 0 {
+                sleep(Duration::from_millis(max_wait_ms)).await;
+                return (cursor_point, sub_list);
+            }
+            for record in results {
+                let msg: Message = match Message::decode_record(record.clone()) {
+                    Ok(msg) => msg,
+                    Err(e) => {
+                        error(format!(
+                            "Storage layer message Decord failed with error message :{}",
+                            e.to_string()
+                        ));
+                        loop_commit_offset(
+                            message_storage.clone(),
+                            topic_id.clone(),
+                            group_id.clone(),
+                            record.offset,
+                        )
+                        .await;
+                        return (cursor_point, sub_list);
+                    }
+                };
 
-    fn push_by_hash(&self) {}
+                loop {
+                    let current_point = if cursor_point < sub_list.len() {
+                        cursor_point
+                    } else {
+                        sub_list = build_share_leader_sub_list(
+                            subscribe_manager.clone(),
+                            share_leader_key.clone(),
+                        );
+                        0
+                    };
+                    let subscribe = sub_list.get(current_point).unwrap();
 
-    fn push_by_sticky(&self) {}
+                    cursor_point = current_point + 1;
+                    let (mut publish, properties) = build_publish(
+                        metadata_cache.clone(),
+                        subscribe.clone(),
+                        topic_name.clone(),
+                        msg.clone(),
+                    );
 
-    fn push_by_local(&self) {}
+                    match publish.qos {
+                        QoS::AtMostOnce => {
+                            publish_message_qos0(
+                                metadata_cache.clone(),
+                                subscribe.client_id.clone(),
+                                publish,
+                                subscribe.protocol.clone(),
+                                response_queue_sx4.clone(),
+                                response_queue_sx5.clone(),
+                                stop_sx.clone(),
+                            )
+                            .await;
+
+                            // commit offset
+                            loop_commit_offset(
+                                message_storage.clone(),
+                                topic_id.clone(),
+                                group_id.clone(),
+                                record.offset,
+                            )
+                            .await;
+                        }
+
+                        QoS::AtLeastOnce => {
+                            let pkid: u16 =
+                                metadata_cache.get_pkid(subscribe.client_id.clone()).await;
+                            publish.pkid = pkid;
+
+                            let (wait_puback_sx, _) = broadcast::channel(1);
+                            ack_manager.add(
+                                subscribe.client_id.clone(),
+                                pkid,
+                                AckPacketInfo {
+                                    sx: wait_puback_sx.clone(),
+                                    create_time: now_second(),
+                                },
+                            );
+
+                            match share_leader_publish_message_qos1(
+                                metadata_cache.clone(),
+                                subscribe.client_id.clone(),
+                                publish.clone(),
+                                properties.clone(),
+                                pkid,
+                                subscribe.protocol.clone(),
+                                response_queue_sx4.clone(),
+                                response_queue_sx5.clone(),
+                                wait_puback_sx,
+                            )
+                            .await
+                            {
+                                Ok(()) => {
+                                    // commit offset
+                                    loop_commit_offset(
+                                        message_storage.clone(),
+                                        topic_id.clone(),
+                                        group_id.clone(),
+                                        record.offset,
+                                    )
+                                    .await;
+
+                                    // remove data
+                                    metadata_cache
+                                        .remove_pkid_info(subscribe.client_id.clone(), pkid);
+                                    ack_manager.remove(subscribe.client_id.clone(), pkid);
+                                    break;
+                                }
+                                Err(e) => {
+                                    error(format!("SharSub Leader failed to send QOS1 message to {}, error message :{},
+                                     trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string()));
+                                }
+                            }
+                        }
+
+                        QoS::ExactlyOnce => {
+                            let pkid: u16 =
+                                metadata_cache.get_pkid(subscribe.client_id.clone()).await;
+                            publish.pkid = pkid;
+
+                            let (wait_ack_sx, _) = broadcast::channel(1);
+                            ack_manager.add(
+                                subscribe.client_id.clone(),
+                                pkid,
+                                AckPacketInfo {
+                                    sx: wait_ack_sx.clone(),
+                                    create_time: now_second(),
+                                },
+                            );
+
+                            match share_leader_publish_message_qos2(
+                                ack_manager.clone(),
+                                metadata_cache.clone(),
+                                subscribe.client_id.clone(),
+                                publish,
+                                properties,
+                                pkid,
+                                subscribe.protocol.clone(),
+                                response_queue_sx4.clone(),
+                                response_queue_sx5.clone(),
+                                stop_sx.clone(),
+                                wait_ack_sx,
+                                topic_id.clone(),
+                                group_id.clone(),
+                                record.offset,
+                                message_storage.clone(),
+                            )
+                            .await
+                            {
+                                Ok(()) => {
+                                    break;
+                                }
+                                Err(e) => {
+                                    error(e.to_string());
+                                }
+                            }
+                        }
+                    };
+                }
+            }
+            return (cursor_point, sub_list);
+        }
+        Err(e) => {
+            error(format!(
+                "Failed to read message from storage, failure message: {},topic:{},group{}",
+                e.to_string(),
+                topic_id.clone(),
+                group_id.clone()
+            ));
+            sleep(Duration::from_millis(max_wait_ms)).await;
+            return (cursor_point, sub_list);
+        }
+    }
 }
 
 pub fn build_publish(
