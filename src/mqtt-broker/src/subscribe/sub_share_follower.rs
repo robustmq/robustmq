@@ -30,7 +30,7 @@ use protocol::{
     },
     mqttv5::codec::Mqtt5Codec,
 };
-use std::{sync::Arc, time::Duration};
+use std::{fmt::format, sync::Arc, time::Duration};
 use tokio::{
     io,
     net::TcpStream,
@@ -279,13 +279,9 @@ async fn resub_sub_mqtt5(
                                 continue;
                             }
                         },
-                        Err(e) =>{
-                            error(format!("vvv:{}",e.to_string()));
-                            sleep(Duration::from_millis(100)).await;
+                        Err(_) =>{
                         }
                     }
-                }else{
-                    sleep(Duration::from_millis(100)).await;
                 }
             }
         }
@@ -504,22 +500,29 @@ async fn process_packet(
     }
 }
 
-fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>) {
-    tokio::spawn(async move {
-        loop {
-            match stop_sx.subscribe().try_recv() {
-                Ok(flag) => {
-                    if flag {
-                        break;
+async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>) {
+    info("start_ping_thread start".to_string());
+    loop {
+        let ping_packet = MQTTPacket::PingReq(PingReq {});
+        let mut rx = stop_sx.subscribe();
+        select! {
+            val = rx.recv() => {
+                match val{
+                    Ok(flag) => {
+                        if flag {
+                            info("start_ping_thread stop".to_string());
+                            break;
+                        }
                     }
+                    Err(_) => {}
                 }
-                Err(_) => {}
+            },
+            _ = write_stream.write_frame(ping_packet.clone()) => {
+                sleep(Duration::from_secs(20)).await;
             }
-            let ping_packet = MQTTPacket::PingReq(PingReq {});
-            write_stream.write_frame(ping_packet).await;
-            sleep(Duration::from_secs(20)).await;
+
         }
-    });
+    }
 }
 
 async fn resub_publish_message_qos1(
