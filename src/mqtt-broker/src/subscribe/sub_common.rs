@@ -447,7 +447,7 @@ pub async fn publish_message_qos0(
         Ok(_) => {}
         Err(e) => {
             error(format!(
-                "Failed to write QOS0 Publish message to response queue, failure message: {}",
+                "Failed Publish message to response queue, failure message: {}",
                 e.to_string()
             ));
         }

@@ -123,9 +123,6 @@ impl SubscribeShareFollower {
                         }
 
                         let (stop_sx, _) = broadcast::channel(1);
-                        self.subscribe_manager
-                            .share_follower_resub_thread
-                            .insert(follower_resub_key.clone(), stop_sx.clone());
                         let subscribe_manager = self.subscribe_manager.clone();
 
                         // push thread
@@ -136,16 +133,30 @@ impl SubscribeShareFollower {
                                         .to_string(),
                                 );
                             } else if share_sub.protocol == MQTTProtocol::MQTT5 {
-                                let extend_info: MQTTNodeExtend =
-                                    serde_json::from_str(&reply.extend_info).unwrap();
+                                let extend_info: MQTTNodeExtend = match serde_json::from_str::<
+                                    MQTTNodeExtend,
+                                >(
+                                    &reply.extend_info
+                                ) {
+                                    Ok(da) => {
+                                        subscribe_manager
+                                            .share_follower_resub_thread
+                                            .insert(follower_resub_key.clone(), stop_sx.clone());
+                                        da
+                                    }
+                                    Err(e) => {
+                                        error(format!("Failed to obtain the Leader of GoupName from the Placement Center with error message {}",e.to_string()));
+                                        return;
+                                    }
+                                };
                                 match resub_sub_mqtt5(
-                                    follower_resub_key,
+                                    follower_resub_key.clone(),
                                     ack_manager,
                                     extend_info.mqtt5_addr,
                                     metadata_cache,
                                     share_sub,
                                     stop_sx,
-                                    subscribe_manager,
+                                    subscribe_manager.clone(),
                                     response_queue_sx4,
                                     response_queue_sx5,
                                 )
@@ -154,6 +165,9 @@ impl SubscribeShareFollower {
                                     Ok(_) => {}
                                     Err(e) => error(e.to_string()),
                                 }
+                                subscribe_manager
+                                    .share_follower_resub_thread
+                                    .remove(&follower_resub_key);
                             }
                         });
                     }
@@ -189,7 +203,7 @@ async fn resub_sub_mqtt5(
     leader_addr: String,
     metadata_cache: Arc<MetadataCacheManager>,
     share_sub: ShareSubShareSub,
-    sx: Sender<bool>,
+    stop_sx: Sender<bool>,
     subscribe_manager: Arc<SubscribeCache>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
@@ -217,7 +231,7 @@ async fn resub_sub_mqtt5(
     let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
     let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
-    let ws = WriteStream::new(sx.clone());
+    let ws = WriteStream::new(stop_sx.clone());
     ws.add_write(write_frame_stream);
     let write_stream = Arc::new(ws);
 
@@ -229,10 +243,10 @@ async fn resub_sub_mqtt5(
     write_stream.write_frame(connect_pkg).await;
 
     // Continuously receive back packet information from the Server
-    let mut rx = sx.subscribe();
+    let mut stop_rx: broadcast::Receiver<bool> = stop_sx.subscribe();
     loop {
         select! {
-            val = rx.recv() =>{
+            val = stop_rx.recv() =>{
                 match val{
                     Ok(flag) => {
                         if flag {
@@ -261,7 +275,7 @@ async fn resub_sub_mqtt5(
                                 ack_manager.clone(),
                                 metadata_cache.clone(),
                                 share_sub.clone(),
-                                sx.clone(),
+                                stop_sx.clone(),
                                 response_queue_sx4.clone(),
                                 response_queue_sx5.clone(),
                                 packet,
@@ -286,10 +300,6 @@ async fn resub_sub_mqtt5(
             }
         }
     }
-
-    subscribe_manager
-        .share_follower_resub_thread
-        .remove(&follower_resub_key);
     return Ok(());
 }
 
@@ -297,7 +307,7 @@ async fn process_packet(
     ack_manager: Arc<AckManager>,
     metadata_cache: Arc<MetadataCacheManager>,
     share_sub: ShareSubShareSub,
-    sx: Sender<bool>,
+    stop_sx: Sender<bool>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
     packet: MQTTPacket,
@@ -312,7 +322,7 @@ async fn process_packet(
         MQTTPacket::ConnAck(connack, connack_properties) => {
             if connack.code == ConnectReturnCode::Success {
                 // start ping thread
-                start_ping_thread(write_stream.clone(), sx.clone());
+                start_ping_thread(write_stream.clone(), stop_sx.clone()).await;
 
                 // When the connection is successful, a subscription request is sent
                 let sub_packet =
@@ -355,7 +365,7 @@ async fn process_packet(
                         share_sub.protocol.clone(),
                         response_queue_sx4.clone(),
                         response_queue_sx5.clone(),
-                        sx.clone(),
+                        stop_sx.clone(),
                     )
                     .await;
                 }
@@ -382,7 +392,7 @@ async fn process_packet(
                         share_sub.protocol.clone(),
                         response_queue_sx4.clone(),
                         response_queue_sx5.clone(),
-                        sx.clone(),
+                        stop_sx.clone(),
                         wait_puback_sx,
                         write_stream.clone(),
                     )
@@ -435,7 +445,7 @@ async fn process_packet(
                         share_sub.protocol.clone(),
                         response_queue_sx4.clone(),
                         response_queue_sx5.clone(),
-                        sx.clone(),
+                        stop_sx.clone(),
                         wait_client_ack_sx,
                         wait_leader_ack_sx,
                         write_stream.clone(),
@@ -501,28 +511,33 @@ async fn process_packet(
 }
 
 async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>) {
-    info("start_ping_thread start".to_string());
-    loop {
-        let ping_packet = MQTTPacket::PingReq(PingReq {});
-        let mut rx = stop_sx.subscribe();
-        select! {
-            val = rx.recv() => {
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            info("start_ping_thread stop".to_string());
-                            break;
+    tokio::spawn(async move {
+        info("start_ping_thread start".to_string());
+        loop {
+            let mut stop_rx = stop_sx.subscribe();
+            select! {
+                val = stop_rx.recv() => {
+                    match val{
+                        Ok(flag) => {
+                            if flag {
+                                info("start_ping_thread stop".to_string());
+                                break;
+                            }
                         }
+                        Err(_) => {}
                     }
-                    Err(_) => {}
-                }
-            },
-            _ = write_stream.write_frame(ping_packet.clone()) => {
-                sleep(Duration::from_secs(20)).await;
-            }
+                },
+                _ = send_ping(write_stream.clone()) => {}
 
+            }
         }
-    }
+    });
+}
+
+async fn send_ping(write_stream: Arc<WriteStream>) {
+    let ping_packet = MQTTPacket::PingReq(PingReq {});
+    write_stream.write_frame(ping_packet.clone()).await;
+    sleep(Duration::from_secs(20)).await;
 }
 
 async fn resub_publish_message_qos1(

@@ -271,6 +271,15 @@ where
                         );
                         0
                     };
+                    if sub_list.len() == 0 {
+                        sub_list = build_share_leader_sub_list(
+                            subscribe_manager.clone(),
+                            share_leader_key.clone(),
+                        );
+                        sleep(Duration::from_micros(100)).await;
+                        continue;
+                    }
+
                     let subscribe = sub_list.get(current_point).unwrap();
 
                     cursor_point = current_point + 1;
@@ -302,6 +311,7 @@ where
                                 record.offset,
                             )
                             .await;
+                            break;
                         }
 
                         QoS::AtLeastOnce => {
@@ -641,7 +651,15 @@ fn build_share_leader_sub_list(
 }
 
 fn calc_record_num(sub_len: usize) -> usize {
-    return sub_len * 5;
+    if sub_len == 0 {
+        return 100;
+    }
+
+    let num = sub_len * 5;
+    if num > 1000 {
+        return 1000;
+    }
+    return num;
 }
 
 #[cfg(test)]

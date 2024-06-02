@@ -40,6 +40,8 @@ impl GrpcMqttService {
     }
 }
 
+impl GrpcMqttService {}
+
 #[tonic::async_trait]
 impl MqttService for GrpcMqttService {
     async fn get_share_sub_leader(
@@ -50,52 +52,16 @@ impl MqttService for GrpcMqttService {
         let cluster_name = req.cluster_name;
         let group_name = req.group_name;
         let mut reply = GetShareSubLeaderReply::default();
-        let leader_broker = if let Some(share_sub) = self
-            .mqtt_cache
-            .get_share_sub(cluster_name.clone(), group_name.clone())
-        {
-            share_sub.leader_broker
-        } else {
-            let key = format!("global_share_sub_lock");
-            let lock = Lock::new(key.clone(), self.rocksdb_engine_handler.clone());
-            lock.lock().unwrap();
-            let leader_broker =
-                match calc_share_sub_leader(cluster_name.clone(), self.cluster_cache.clone()) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        return Err(Status::cancelled(e.to_string()));
-                    }
-                };
-            info(format!(
-                " Leader node of the computed shared subscription [{}] is [{}]",
-                group_name, leader_broker
-            ));
-            let share_sub = ShareSub {
-                cluster_name: cluster_name.clone(),
-                group_name: group_name.clone(),
-                leader_broker,
-                create_time: now_second(),
-            };
 
-            self.mqtt_cache.add_share_sub(
-                cluster_name.clone(),
-                group_name.clone(),
-                share_sub.clone(),
-            );
-
-            match self
-                .placement_center_storage
-                .save_share_sub(share_sub)
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
+        let leader_broker = match calc_share_sub_leader(
+            cluster_name.clone(),
+            group_name.clone(),
+            self.cluster_cache.clone(),
+        ) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
             }
-
-            lock.un_lock().unwrap();
-            leader_broker
         };
         if let Some(node) = self.cluster_cache.get_node(cluster_name, leader_broker) {
             reply.broker_id = leader_broker;

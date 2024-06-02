@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 pub fn calc_share_sub_leader(
     cluster_name: String,
+    group_name: String,
     cluster_cache: Arc<ClusterCache>,
 ) -> Result<u64, RobustMQError> {
     if let Some(cluster) = cluster_cache.cluster_list.get(&cluster_name) {
