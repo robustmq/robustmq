@@ -224,7 +224,7 @@ pub fn share_sub_rewrite_publish_flag() -> (String, String) {
 }
 
 pub async fn wait_packet_ack(sx: Sender<AckPackageData>) -> Option<AckPackageData> {
-    let res = timeout(Duration::from_secs(30), async {
+    let res = timeout(Duration::from_secs(120), async {
         match sx.subscribe().recv().await {
             Ok(data) => {
                 return Some(data);
