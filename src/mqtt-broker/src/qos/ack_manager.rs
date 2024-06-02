@@ -7,7 +7,7 @@ pub struct AckPacketInfo {
     pub create_time: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone,Debug)]
 pub struct AckPackageData {
     pub ack_type: AckPackageType,
     pub pkid: u16,
