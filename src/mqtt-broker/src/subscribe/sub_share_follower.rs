@@ -123,9 +123,6 @@ impl SubscribeShareFollower {
                         }
 
                         let (stop_sx, _) = broadcast::channel(1);
-                        self.subscribe_manager
-                            .share_follower_resub_thread
-                            .insert(follower_resub_key.clone(), stop_sx.clone());
                         let subscribe_manager = self.subscribe_manager.clone();
 
                         // push thread
@@ -136,16 +133,30 @@ impl SubscribeShareFollower {
                                         .to_string(),
                                 );
                             } else if share_sub.protocol == MQTTProtocol::MQTT5 {
-                                let extend_info: MQTTNodeExtend =
-                                    serde_json::from_str(&reply.extend_info).unwrap();
+                                let extend_info: MQTTNodeExtend = match serde_json::from_str::<
+                                    MQTTNodeExtend,
+                                >(
+                                    &reply.extend_info
+                                ) {
+                                    Ok(da) => {
+                                        subscribe_manager
+                                            .share_follower_resub_thread
+                                            .insert(follower_resub_key.clone(), stop_sx.clone());
+                                        da
+                                    }
+                                    Err(e) => {
+                                        error(format!("Failed to obtain the Leader of GoupName from the Placement Center with error message {}",e.to_string()));
+                                        return;
+                                    }
+                                };
                                 match resub_sub_mqtt5(
-                                    follower_resub_key,
+                                    follower_resub_key.clone(),
                                     ack_manager,
                                     extend_info.mqtt5_addr,
                                     metadata_cache,
                                     share_sub,
                                     stop_sx,
-                                    subscribe_manager,
+                                    subscribe_manager.clone(),
                                     response_queue_sx4,
                                     response_queue_sx5,
                                 )
@@ -154,6 +165,9 @@ impl SubscribeShareFollower {
                                     Ok(_) => {}
                                     Err(e) => error(e.to_string()),
                                 }
+                                subscribe_manager
+                                    .share_follower_resub_thread
+                                    .remove(&follower_resub_key);
                             }
                         });
                     }
@@ -286,10 +300,6 @@ async fn resub_sub_mqtt5(
             }
         }
     }
-
-    subscribe_manager
-        .share_follower_resub_thread
-        .remove(&follower_resub_key);
     return Ok(());
 }
 
@@ -312,7 +322,7 @@ async fn process_packet(
         MQTTPacket::ConnAck(connack, connack_properties) => {
             if connack.code == ConnectReturnCode::Success {
                 // start ping thread
-                start_ping_thread(write_stream.clone(), sx.clone());
+                start_ping_thread(write_stream.clone(), sx.clone()).await;
 
                 // When the connection is successful, a subscription request is sent
                 let sub_packet =
