@@ -27,12 +27,6 @@ use tokio::{
     time::sleep,
 };
 
-const SHARED_SUBSCRIPTION_STRATEGY_ROUND_ROBIN: &str = "round_robin";
-const SHARED_SUBSCRIPTION_STRATEGY_RANDOM: &str = "random";
-const SHARED_SUBSCRIPTION_STRATEGY_STICKY: &str = "sticky";
-const SHARED_SUBSCRIPTION_STRATEGY_HASH: &str = "hash";
-const SHARED_SUBSCRIPTION_STRATEGY_LOCAL: &str = "local";
-
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
     pub subscribe_manager: Arc<SubscribeCache>,
@@ -547,7 +541,7 @@ where
         metadata_cache.clone(),
         client_id.clone(),
         publish.clone(),
-        publish_properties.clone(),
+        Some(publish_properties.clone()),
         protocol.clone(),
         response_queue_sx4.clone(),
         response_queue_sx5.clone(),

@@ -64,7 +64,7 @@ mod subscribe;
 
 pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
-    let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+    let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
 
     // let metadata_storage_adapter = Arc::new(PlacementStorageAdapter::new(
     //     client_poll.clone(),

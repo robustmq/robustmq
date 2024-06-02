@@ -527,27 +527,27 @@ where
             .await;
 
         // Reservation messages are processed when a subscription is created
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-        match save_retain_message(
-            connect_id,
-            subscribe.clone(),
-            subscribe_properties.clone(),
-            message_storage,
-            self.metadata_cache.clone(),
-            response_queue_sx.clone(),
-            true,
-            false,
-        )
-        .await
-        {
-            Ok(()) => {}
-            Err(e) => {
-                error(e.to_string());
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
-            }
-        }
+        // let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
+        // match save_retain_message(
+        //     connect_id,
+        //     subscribe.clone(),
+        //     subscribe_properties.clone(),
+        //     message_storage,
+        //     self.metadata_cache.clone(),
+        //     response_queue_sx.clone(),
+        //     true,
+        //     false,
+        // )
+        // .await
+        // {
+        //     Ok(()) => {}
+        //     Err(e) => {
+        //         error(e.to_string());
+        //         return self
+        //             .ack_build
+        //             .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+        //     }
+        // }
 
         let pkid = subscribe.packet_identifier;
         return self.ack_build.sub_ack(pkid, return_codes);

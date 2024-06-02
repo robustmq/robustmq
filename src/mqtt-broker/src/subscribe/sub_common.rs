@@ -6,6 +6,7 @@ use bytes::Bytes;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
     MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
@@ -18,6 +19,7 @@ use regex::Regex;
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
+use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
 
@@ -222,7 +224,7 @@ pub fn share_sub_rewrite_publish_flag() -> (String, String) {
 }
 
 pub async fn wait_packet_ack(sx: Sender<AckPackageData>) -> Option<AckPackageData> {
-    let res = timeout(Duration::from_secs(30), async {
+    let res = timeout(Duration::from_secs(120), async {
         match sx.subscribe().recv().await {
             Ok(data) => {
                 return Some(data);
@@ -265,23 +267,15 @@ pub async fn qos2_send_publish(
     metadata_cache: Arc<MetadataCacheManager>,
     client_id: String,
     mut publish: Publish,
-    publish_properties: PublishProperties,
+    publish_properties: Option<PublishProperties>,
     protocol: MQTTProtocol,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let mut retry_times = 0;
+    let mut stop_rx = stop_sx.subscribe();
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    return;
-                }
-            }
-            Err(_) => {}
-        }
-
         let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
             id
         } else {
@@ -294,26 +288,38 @@ pub async fn qos2_send_publish(
 
         let resp = ResponsePackage {
             connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+            packet: MQTTPacket::Publish(publish.clone(), publish_properties.clone()),
         };
 
-        match publish_to_response_queue(
-            protocol.clone(),
-            resp.clone(),
-            response_queue_sx4.clone(),
-            response_queue_sx5.clone(),
-        )
-        .await
-        {
-            Ok(_) => {
-                break;
+        select! {
+            val = stop_rx.recv() => {
+                match val{
+                    Ok(flag) => {
+                        if flag {
+                            return;
+                        }
+                    }
+                    Err(_) => {}
+                }
             }
-            Err(e) => {
-                error(format!(
-                    "Failed to write QOS2 Publish message to response queue, failure message: {}",
-                    e.to_string()
-                ));
-                sleep(Duration::from_millis(1)).await;
+            val = publish_to_response_queue(
+                protocol.clone(),
+                resp.clone(),
+                response_queue_sx4.clone(),
+                response_queue_sx5.clone(),
+            ) =>{
+                match val{
+                    Ok(_) => {
+                        break;
+                    }
+                    Err(e) => {
+                        error(format!(
+                            "Failed to write QOS2 Publish message to response queue, failure message: {}",
+                            e.to_string()
+                        ));
+                        sleep(Duration::from_millis(1)).await;
+                    }
+                }
             }
         }
     }
@@ -328,16 +334,9 @@ pub async fn qos2_send_pubrel(
     response_queue_sx5: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
 ) {
-    loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    return;
-                }
-            }
-            Err(_) => {}
-        }
+    let mut stop_rx = stop_sx.subscribe();
 
+    loop {
         let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
             id
         } else {
@@ -355,23 +354,37 @@ pub async fn qos2_send_pubrel(
             packet: MQTTPacket::PubRel(pubrel, None),
         };
 
-        match publish_to_response_queue(
-            protocol.clone(),
-            pubrel_resp.clone(),
-            response_queue_sx4.clone(),
-            response_queue_sx5.clone(),
-        )
-        .await
-        {
-            Ok(_) => {
-                break;
+        select! {
+            val = stop_rx.recv() => {
+                match val{
+                    Ok(flag) => {
+                        if flag {
+                            return;
+                        }
+                    }
+                    Err(_) => {}
+                }
             }
-            Err(e) => {
-                error(format!(
-                    "Failed to write PubRel message to response queue, failure message: {}",
-                    e.to_string()
-                ));
+
+            val = publish_to_response_queue(
+                protocol.clone(),
+                pubrel_resp.clone(),
+                response_queue_sx4.clone(),
+                response_queue_sx5.clone(),
+            ) =>{
+                match val{
+                    Ok(_) => {
+                        break;
+                    }
+                    Err(e) => {
+                        error(format!(
+                            "Failed to write PubRel message to response queue, failure message: {}",
+                            e.to_string()
+                        ));
+                    }
+                }
             }
+
         }
     }
 }
