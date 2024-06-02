@@ -166,7 +166,7 @@ impl SubscribeCache {
                         if let Some(sx) = self.exclusive_push_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
-                                Err(_) => {}
+                                Err(e) => error(e.to_string()),
                             }
                             self.exclusive_subscribe.remove(&key);
                         }
@@ -185,11 +185,10 @@ impl SubscribeCache {
                     }
 
                     if flag {
-                        self.share_follower_subscribe.remove(&key);
                         if let Some(sx) = self.share_leader_push_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
-                                Err(_) => {}
+                                Err(e) => error(e.to_string()),
                             }
                         }
                     }
