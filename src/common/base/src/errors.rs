@@ -62,8 +62,8 @@ pub enum RobustMQError {
     #[error("Connection pool connecting to IP {0} is missing connections")]
     MissingConnectionAvailable(String),
 
-    #[error("No connection information available, {0}")]
-    NoAvailableConnection(String),
+    #[error("{0} connection pool has no connection information available. {1}")]
+    NoAvailableConnection(String, String),
 
     #[error("Parameter cannot be empty, parameter name: {0}")]
     ParameterCannotBeNull(String),
@@ -107,9 +107,10 @@ pub enum RobustMQError {
     #[error("Bad subscription Path")]
     BadSubscriptionPath,
 
-    #[error("Subscribe to push, send QOS2 message to client {0}, wait for PubRec message timeout.")]
+    #[error(
+        "Subscribe to push, send QOS2 message to client {0}, wait for PubRec message timeout."
+    )]
     SubPublishWaitPubRecTimeout(String),
-
 }
 
 #[cfg(test)]

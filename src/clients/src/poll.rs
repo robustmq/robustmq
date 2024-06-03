@@ -36,68 +36,81 @@ impl ClientPool {
         &self,
         addr: String,
     ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
-        if !self.placement_service_pools.contains_key(&addr) {
+        let module = "PlacementService".to_string();
+        let key = format!("{}_{}_{}", "PlacementServer", module, addr);
+        if !self.placement_service_pools.contains_key(&key) {
             let manager = PlacementServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
-            self.placement_service_pools
-                .insert(addr.clone(), pool);
+            self.placement_service_pools.insert(key.clone(), pool);
         }
-        if let Some(poll) = self.placement_service_pools.get(&addr) {
+        if let Some(poll) = self.placement_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => return Ok(conn.into_inner()),
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(e.to_string()));
+                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
                 }
             };
         }
         return Err(RobustMQError::NoAvailableConnection(
-            "Placement service client connection pool in the placement center has no connections available".to_string(),));
+            module,
+            "connection pool is not initialized".to_string(),
+        ));
     }
 
     pub async fn get_journal_services_client(
         &self,
         addr: String,
     ) -> Result<EngineServiceClient<Channel>, RobustMQError> {
-        if !self.journal_service_pools.contains_key(&addr) {
+        let module = "JournalService".to_string();
+        let key = format!("{}_{}_{}", "JournalServer", module, addr);
+        if !self.journal_service_pools.contains_key(&key) {
             let manager = JournalServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
-            self.journal_service_pools.insert(addr.clone(), pool);
+            self.journal_service_pools.insert(key.clone(), pool);
         }
-        if let Some(poll) = self.journal_service_pools.get(&addr) {
+        if let Some(poll) = self.journal_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(e.to_string()));
+                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
                 }
             };
         }
         return Err(RobustMQError::NoAvailableConnection(
-            "Journal service client connection pool in the placement center has no connections available".to_string(),));
+            module,
+            "connection pool is not initialized".to_string(),
+        ));
     }
 
     pub async fn get_kv_services_client(
         &self,
         addr: String,
     ) -> Result<KvServiceClient<Channel>, RobustMQError> {
-        if !self.kv_service_pools.contains_key(&addr) {
+        let module = "KvServices".to_string();
+        let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
+
+        if !self.kv_service_pools.contains_key(&key) {
             let manager = KvServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
-            self.kv_service_pools.insert(addr.clone(), pool);
+            self.kv_service_pools.insert(key.clone(), pool);
         }
-        if let Some(poll) = self.kv_service_pools.get(&addr) {
+
+        if let Some(poll) = self.kv_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(e.to_string()));
+                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
                 }
             };
         }
+
         return Err(RobustMQError::NoAvailableConnection(
-            "Kv service client connection pool in the placement center has no connections available".to_string(),
+            module,
+            "connection pool is not initialized".to_string(),
         ));
     }
 
@@ -105,23 +118,28 @@ impl ClientPool {
         &self,
         addr: String,
     ) -> Result<MqttServiceClient<Channel>, RobustMQError> {
-        if !self.kv_service_pools.contains_key(&addr) {
+        let module = "MqttServices".to_string();
+        let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
+
+        if !self.kv_service_pools.contains_key(&key) {
             let manager = MQTTServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
-            self.mqtt_service_pools.insert(addr.clone(), pool);
+            self.mqtt_service_pools.insert(key.clone(), pool);
         }
-        if let Some(poll) = self.mqtt_service_pools.get(&addr) {
+
+        if let Some(poll) = self.mqtt_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(e.to_string()));
+                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
                 }
             };
         }
         return Err(RobustMQError::NoAvailableConnection(
-            "Mqtt service client connection pool in the placement center has no connections available".to_string(),
+            module,
+            "connection pool is not initialized".to_string(),
         ));
     }
 }
