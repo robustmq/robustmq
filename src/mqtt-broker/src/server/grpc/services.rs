@@ -166,7 +166,7 @@ mod tests {
         let request = SetClusterConfigRequest {
             session_expiry_interval: 1800000,
             topic_alias_max: 256,
-            max_qos: 1,
+            max_qos: 2,
             retain_available: Available::Disable.into(),
             wildcard_subscription_available: Available::Disable.into(),
             max_packet_size: 1024 * 1024,

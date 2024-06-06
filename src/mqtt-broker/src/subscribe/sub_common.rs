@@ -6,7 +6,6 @@ use bytes::Bytes;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::log::info;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::{
     MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
@@ -24,8 +23,6 @@ use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
 
 const SHARE_SUB_PREFIX: &str = "$share";
-const SHARE_SUB_REWRITE_PUBLISH_FLAG: &str = "$system_ssrpf";
-const SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE: &str = "True";
 
 pub fn sub_path_validator(sub_path: String) -> bool {
     let regex = Regex::new(r"^[\$a-zA-Z0-9_#+/]+$").unwrap();
@@ -66,7 +63,7 @@ pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
     }
 
     if path.contains("#") {
-        if path.split("#").last().unwrap() != "#".to_string() {
+        if path.split("/").last().unwrap() != "#".to_string() {
             return false;
         }
         let sub_regex = path.replace("#", "[^+#]+");
@@ -182,20 +179,6 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
     return (group_name, sub_name);
 }
 
-pub fn is_contain_rewrite_flag(user_properties: Vec<(String, String)>) -> bool {
-    // source IP
-
-    //
-    for (k, v) in user_properties {
-        if k == SHARE_SUB_REWRITE_PUBLISH_FLAG
-            && v == SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string()
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
 
 pub async fn get_share_sub_leader(
     client_poll: Arc<ClientPool>,
@@ -530,6 +513,10 @@ mod tests {
     }
     #[test]
     fn path_regex_match_test() {
+        let topic_name = "/loboxu/test".to_string();
+        let sub_regex = "/loboxu/#".to_string();
+        assert!(path_regex_match(topic_name, sub_regex));
+
         let topic_name = "/topic/test".to_string();
         let sub_regex = "/topic/test".to_string();
         assert!(path_regex_match(topic_name, sub_regex));
@@ -552,7 +539,7 @@ mod tests {
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"/sensor/#".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+        assert_eq!(path_regex_match(topic_name, sub_regex), true);
 
         let topic_name = "/topic/test".to_string();
         let sub_regex = "$share/groupname/topic/test".to_string();
@@ -576,7 +563,7 @@ mod tests {
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"$share/groupname/sensor/#".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+        assert_eq!(path_regex_match(topic_name, sub_regex), true);
     }
 
     #[test]
