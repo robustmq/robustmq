@@ -75,7 +75,7 @@ pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
 }
 
 // Reservation messages are processed when a subscription is created
-pub async fn save_retain_message<S>(
+pub async fn send_retain_message<S>(
     connect_id: u64,
     subscribe: Subscribe,
     subscribe_properties: Option<SubscribeProperties>,
@@ -465,7 +465,7 @@ mod tests {
         metadata::{message::Message, topic::Topic},
         storage::message::MessageStorage,
         subscribe::sub_common::{
-            get_sub_topic_id_list, min_qos, path_regex_match, save_retain_message,
+            get_sub_topic_id_list, min_qos, path_regex_match, send_retain_message,
         },
     };
 
@@ -670,7 +670,7 @@ mod tests {
             }
         }
 
-        match save_retain_message(
+        match send_retain_message(
             connect_id,
             subscribe,
             subscribe_properties,

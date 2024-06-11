@@ -6,7 +6,7 @@ use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
 use crate::qos::QosDataManager;
-use crate::subscribe::sub_common::{min_qos, save_retain_message, sub_path_validator};
+use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
@@ -16,16 +16,14 @@ use crate::{
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
-use common_base::log::{debug, info};
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
-    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties,
-    PubRecReason, PubRel, PubRelProperties, PubRelReason, Publish, PublishProperties, QoS,
-    Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
+    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,
+    PubRelProperties, PubRelReason, Publish, PublishProperties, QoS, Subscribe,
+    SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
-use regex::Regex;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
@@ -119,6 +117,7 @@ where
         );
 
         let contain_last_will = !last_will.is_none();
+        
         // save session data
         let (session, new_session) = match get_session_info(
             connect_id,
@@ -453,7 +452,6 @@ where
         connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
-        response_queue_sx: Sender<ResponsePackage>,
         pkid_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
@@ -527,27 +525,27 @@ where
             .await;
 
         // Reservation messages are processed when a subscription is created
-        // let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-        // match save_retain_message(
-        //     connect_id,
-        //     subscribe.clone(),
-        //     subscribe_properties.clone(),
-        //     message_storage,
-        //     self.metadata_cache.clone(),
-        //     response_queue_sx.clone(),
-        //     true,
-        //     false,
-        // )
-        // .await
-        // {
-        //     Ok(()) => {}
-        //     Err(e) => {
-        //         error(e.to_string());
-        //         return self
-        //             .ack_build
-        //             .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
-        //     }
-        // }
+        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
+        match send_retain_message(
+            connect_id,
+            subscribe.clone(),
+            subscribe_properties.clone(),
+            message_storage,
+            self.metadata_cache.clone(),
+            response_queue_sx.clone(),
+            true,
+            false,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                error(e.to_string());
+                return self
+                    .ack_build
+                    .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+            }
+        }
 
         let pkid = subscribe.packet_identifier;
         return self.ack_build.sub_ack(pkid, return_codes);
