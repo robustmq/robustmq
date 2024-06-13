@@ -11,7 +11,7 @@ use tokio::sync::broadcast::Sender;
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_CACHE: &str = "/caches";
-pub const ROUTE_METRICS: &str = "/ßmetrics";
+pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {

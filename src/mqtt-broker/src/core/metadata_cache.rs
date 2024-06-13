@@ -8,13 +8,12 @@ use crate::{
 };
 use common_base::log::warn;
 use dashmap::DashMap;
-use protocol::mqtt::{Subscribe, SubscribeProperties, Unsubscribe};
+use protocol::mqtt::{Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::time::sleep;
-use tonic::client;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {

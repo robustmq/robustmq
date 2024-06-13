@@ -26,7 +26,7 @@ use core::{
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
-use metadata::user::User;
+use metadata::{cluster::Cluster, user::User};
 use qos::{ack_manager::AckManager, memory::QosMemory};
 use server::{
     grpc::server::GrpcServer,
@@ -336,7 +336,7 @@ where
             // metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);
             let (cluster, user_info, topic_info) =
                 load_metadata_cache(metadata_storage_adapter).await;
-            metadata_cache.set_cluster_info(cluster);
+            metadata_cache.set_cluster_info(Cluster::new());
 
             for (_, user) in user_info {
                 metadata_cache.add_user(user);

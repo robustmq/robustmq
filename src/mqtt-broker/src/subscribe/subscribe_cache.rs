@@ -238,7 +238,6 @@ impl SubscribeCache {
                 nolocal: filter.nolocal,
                 preserve_retain: filter.preserve_retain,
                 subscription_identifier: sub_identifier,
-                is_contain_rewrite_flag: false,
                 sub_path: filter.path.clone(),
             };
             if is_share_sub(filter.path.clone()) {

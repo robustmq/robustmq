@@ -476,7 +476,10 @@ async fn share_leader_publish_message_qos1(
     let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
         id
     } else {
-        return Err(RobustMQError::NoAvailableConnection(client_id.clone()));
+        return Err(RobustMQError::CommmonError(format!(
+            "Client [{}] failed to get connect id, no connection available.",
+            client_id.clone()
+        )));
     };
 
     let resp = ResponsePackage {

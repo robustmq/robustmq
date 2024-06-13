@@ -1,10 +1,15 @@
 use std::{
-    fs, mem::replace, path::Path, time::{SystemTime, UNIX_EPOCH}
+    fs,
+    mem::replace,
+    path::Path,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use local_ip_address::local_ip;
 use snowflake::ProcessUniqueId;
 use uuid::Uuid;
+
+use crate::log::warn;
 
 pub fn create_fold(fold: String) {
     if !Path::new(&fold).exists() {
@@ -37,10 +42,11 @@ pub fn get_local_ip() -> String {
             return data.to_string();
         }
         Err(e) => {
-            panic!(
+            warn(format!(
                 "If the local IP fails, stop the process.error message:{}",
                 e.to_string()
-            );
+            ));
+            return "127.0.0.1".to_string();
         }
     }
 }

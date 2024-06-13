@@ -14,7 +14,6 @@ pub struct Subscriber {
     pub qos: QoS,
     pub nolocal: bool,
     pub preserve_retain: bool,
-    pub is_contain_rewrite_flag: bool,
     pub subscription_identifier: Option<usize>,
 }
 
