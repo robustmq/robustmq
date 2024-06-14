@@ -1,7 +1,7 @@
 use super::{
     sub_common::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_to_response_queue,
-        qos2_send_publish, qos2_send_pubrel, share_sub_rewrite_publish_flag, wait_packet_ack,
+        qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
     subscribe_cache::SubscribeCache,
 };
@@ -442,18 +442,13 @@ pub fn build_publish(
         payload: msg.payload,
     };
 
-    let mut user_properteis = Vec::new();
-    if subscribe.is_contain_rewrite_flag {
-        user_properteis.push(share_sub_rewrite_publish_flag());
-    }
-
     let properties = PublishProperties {
         payload_format_indicator: None,
         message_expiry_interval: None,
         topic_alias: None,
         response_topic: None,
         correlation_data: None,
-        user_properties: user_properteis,
+        user_properties: Vec::new(),
         subscription_identifiers: sub_id.clone(),
         content_type: None,
     };

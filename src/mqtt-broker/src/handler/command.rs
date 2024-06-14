@@ -8,7 +8,7 @@ use crate::qos::memory::QosMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
 use crate::subscribe::subscribe_cache::SubscribeCache;
-use common_base::log::{debug, info};
+use common_base::log::{info};
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
 use std::net::SocketAddr;
 use std::sync::Arc;

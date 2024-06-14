@@ -17,8 +17,8 @@
 syntax = "proto3";
 package mqtt;
 service MqttBrokerService {
-    rpc updateCache(UpdateCacheRequest) returns(CommonReply){}
     rpc createUser(CreateUserRequest) returns(CommonReply){}
+    rpc updateCache(UpdateCacheRequest) returns(CommonReply){}
     rpc SetClusterConfig(SetClusterConfigRequest) returns(CommonReply){}
 }
 

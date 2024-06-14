@@ -452,6 +452,7 @@ where
         connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
+        response_queue_sx: Sender<ResponsePackage>,
         pkid_manager: Arc<QosMemory>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
