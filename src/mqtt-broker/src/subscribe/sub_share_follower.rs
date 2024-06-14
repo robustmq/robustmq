@@ -1,7 +1,7 @@
 use super::{
     sub_common::{
         get_share_sub_leader, publish_message_qos0, publish_to_response_queue, qos2_send_publish,
-        qos2_send_pubrel, share_sub_rewrite_publish_flag, wait_packet_ack,
+        qos2_send_pubrel, wait_packet_ack,
     },
     subscribe_cache::SubscribeCache,
 };
@@ -771,7 +771,7 @@ fn build_resub_connect_pkg(client_id: String) -> MQTTPacket {
 
     let mut properties = ConnectProperties::default();
     properties.session_expiry_interval = Some(60);
-    properties.user_properties = vec![share_sub_rewrite_publish_flag()];
+    properties.user_properties = Vec::new();
 
     let login = Login {
         username: conf.system.system_user.clone(),
@@ -792,7 +792,7 @@ fn build_resub_subscribe_pkg(
 
     let subscribe_poperties = SubscribeProperties {
         subscription_identifier: share_sub.subscription_identifier,
-        user_properties: vec![share_sub_rewrite_publish_flag()],
+        user_properties: Vec::new(),
     };
 
     return MQTTPacket::Subscribe(subscribe, Some(subscribe_poperties));
@@ -808,7 +808,7 @@ fn build_resub_unsubscribe_pkg(
             filters: vec![rewrite_sub.filter.path],
         },
         Some(UnsubscribeProperties {
-            user_properties: vec![share_sub_rewrite_publish_flag()],
+            user_properties: Vec::new(),
         }),
     );
 }

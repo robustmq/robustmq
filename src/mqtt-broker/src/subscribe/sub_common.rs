@@ -199,13 +199,6 @@ pub async fn get_share_sub_leader(
     }
 }
 
-pub fn share_sub_rewrite_publish_flag() -> (String, String) {
-    return (
-        SHARE_SUB_REWRITE_PUBLISH_FLAG.to_string(),
-        SHARE_SUB_REWRITE_PUBLISH_FLAG_VALUE.to_string(),
-    );
-}
-
 pub async fn wait_packet_ack(sx: Sender<AckPackageData>) -> Option<AckPackageData> {
     let res = timeout(Duration::from_secs(120), async {
         match sx.subscribe().recv().await {

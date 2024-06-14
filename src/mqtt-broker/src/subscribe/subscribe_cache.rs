@@ -1,5 +1,5 @@
 use super::sub_common::{
-    decode_share_info, get_share_sub_leader, is_contain_rewrite_flag, is_share_sub,
+    decode_share_info, get_share_sub_leader, is_share_sub,
     path_regex_match,
 };
 use crate::core::metadata_cache::MetadataCacheManager;
@@ -262,11 +262,6 @@ impl SubscribeCache {
                                 let share_sub_leader =
                                     self.share_leader_subscribe.get_mut(&leader_key).unwrap();
 
-                                if let Some(properties) = subscribe_properties.clone() {
-                                    if is_contain_rewrite_flag(properties.user_properties) {
-                                        sub.is_contain_rewrite_flag = true;
-                                    }
-                                }
                                 sub.group_name = Some(group_name);
                                 let leader_sub_key = self
                                     .share_leader_sub_key(client_id.clone(), filter.path.clone());
