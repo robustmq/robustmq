@@ -24,6 +24,7 @@ use std::path::Path;
 
 pub const DB_COLUMN_FAMILY_CLUSTER: &str = "meta";
 pub const DB_COLUMN_FAMILY_DATA: &str = "mqtt";
+pub const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
 
 fn column_family_list() -> Vec<String> {
     let mut list = Vec::new();
@@ -202,6 +203,10 @@ impl RocksDBEngine {
 
     pub fn cf_cluster(&self) -> &ColumnFamily {
         return self.db.cf_handle(&DB_COLUMN_FAMILY_CLUSTER).unwrap();
+    }
+
+    pub fn cf_mqtt(&self) -> &ColumnFamily {
+        return self.db.cf_handle(&DB_COLUMN_FAMILY_MQTT).unwrap();
     }
 
     pub fn cf_data(&self) -> &ColumnFamily {

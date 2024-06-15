@@ -7,7 +7,7 @@ use common_base::errors::RobustMQError;
 use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
-    mqtt::{DeleteShareSubLeaderRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest},
+    mqtt::{GetShareSubLeaderReply, GetShareSubLeaderRequest},
 };
 use std::sync::Arc;
 
@@ -27,31 +27,6 @@ pub async fn placement_get_share_sub_leader(
     .await
     {
         Ok(data) => match GetShareSubLeaderReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
-        },
-        Err(e) => {
-            return Err(e);
-        }
-    }
-}
-
-pub async fn placement_delete_share_sub_leader(
-    client_poll: Arc<ClientPool>,
-    addrs: Vec<String>,
-    request: DeleteShareSubLeaderRequest,
-) -> Result<CommonReply, RobustMQError> {
-    let request_data = DeleteShareSubLeaderRequest::encode_to_vec(&request);
-    match retry_call(
-        PlacementCenterService::Mqtt,
-        PlacementCenterInterface::DeleteShareSub,
-        client_poll,
-        addrs,
-        request_data,
-    )
-    .await
-    {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         },

@@ -190,28 +190,6 @@ pub mod mqtt_broker_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        pub async fn update_cache(
-            &mut self,
-            request: impl tonic::IntoRequest<super::UpdateCacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttBrokerService/updateCache",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("mqtt.MqttBrokerService", "updateCache"));
-            self.inner.unary(req, path, codec).await
-        }
         pub async fn create_user(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateUserRequest>,
@@ -232,6 +210,28 @@ pub mod mqtt_broker_service_client {
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttBrokerService", "createUser"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn update_cache(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UpdateCacheRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttBrokerService/updateCache",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttBrokerService", "updateCache"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn set_cluster_config(
@@ -265,13 +265,13 @@ pub mod mqtt_broker_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with MqttBrokerServiceServer.
     #[async_trait]
     pub trait MqttBrokerService: Send + Sync + 'static {
-        async fn update_cache(
-            &self,
-            request: tonic::Request<super::UpdateCacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
         async fn create_user(
             &self,
             request: tonic::Request<super::CreateUserRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        async fn update_cache(
+            &self,
+            request: tonic::Request<super::UpdateCacheRequest>,
         ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
         async fn set_cluster_config(
             &self,
@@ -357,6 +357,52 @@ pub mod mqtt_broker_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
+                "/mqtt.MqttBrokerService/createUser" => {
+                    #[allow(non_camel_case_types)]
+                    struct createUserSvc<T: MqttBrokerService>(pub Arc<T>);
+                    impl<
+                        T: MqttBrokerService,
+                    > tonic::server::UnaryService<super::CreateUserRequest>
+                    for createUserSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateUserRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttBrokerService>::create_user(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = createUserSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 "/mqtt.MqttBrokerService/updateCache" => {
                     #[allow(non_camel_case_types)]
                     struct updateCacheSvc<T: MqttBrokerService>(pub Arc<T>);
@@ -389,52 +435,6 @@ pub mod mqtt_broker_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = updateCacheSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/mqtt.MqttBrokerService/createUser" => {
-                    #[allow(non_camel_case_types)]
-                    struct createUserSvc<T: MqttBrokerService>(pub Arc<T>);
-                    impl<
-                        T: MqttBrokerService,
-                    > tonic::server::UnaryService<super::CreateUserRequest>
-                    for createUserSvc<T> {
-                        type Response = super::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::CreateUserRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as MqttBrokerService>::create_user(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = createUserSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
