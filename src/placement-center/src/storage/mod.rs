@@ -14,13 +14,32 @@
  * limitations under the License.
  */
 
-pub mod shard;
+use common_base::tools::now_second;
+use serde::{Deserialize, Serialize};
+
+pub mod cluster;
+pub mod global_id;
 pub mod keys;
-pub mod rocksdb;
+pub mod kv;
+pub mod mqtt;
 pub mod node;
 pub mod raft;
-pub mod cluster;
+pub mod rocksdb;
 pub mod segment;
-pub mod kv;
-pub mod global_id;
-pub mod share_sub;
+pub mod shard;
+pub mod keys_prefix;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StorageDataWrap {
+    pub data: Vec<u8>,
+    pub create_time: u64,
+}
+
+impl StorageDataWrap {
+    pub fn new(data: Vec<u8>) -> Self {
+        return StorageDataWrap {
+            data,
+            create_time: now_second(),
+        };
+    }
+}

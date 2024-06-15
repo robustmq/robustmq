@@ -1,3 +1,5 @@
+use super::keys_prefix::{storeage_key_prefix_mqtt_user, storeage_key_prefix_share_sub_leader};
+
 pub fn key_name_by_first_index() -> String {
     return "metasrv_first_index".to_string();
 }
@@ -54,6 +56,20 @@ pub fn uniq_key_id() -> String {
     return "generage_uniq_int_id".to_string();
 }
 
-pub fn share_sub_key(cluster_name: String,group_name:String) -> String {
-    return "mqtt_share_sub_".to_string();
+pub fn share_sub_key(cluster_name: String, group_name: String) -> String {
+    return format!(
+        "{}/{}/{}",
+        storeage_key_prefix_share_sub_leader(),
+        cluster_name,
+        group_name
+    );
+}
+
+pub fn storage_key_mqtt_user(cluster_name: String, user_name: String) -> String {
+    return format!(
+        "{}/{}/{}",
+        storeage_key_prefix_mqtt_user(),
+        cluster_name,
+        user_name
+    );
 }

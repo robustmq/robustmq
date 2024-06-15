@@ -1,17 +1,18 @@
-use super::storage::{StorageData, StorageDataType};
+use super::{
+    route::{kv::DataRouteKv, mqtt::DataRouteMQTT},
+    storage::{StorageData, StorageDataType},
+};
 use crate::{
     cache::{cluster::ClusterCache, journal::JournalCache},
     controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
         cluster::ClusterStorage,
-        kv::KvStorage,
         node::NodeStorage,
         rocksdb::RocksDBEngine,
         segment::{SegmentInfo, SegmentStatus, SegmentStorage},
         shard::{ShardInfo, ShardStorage},
-        share_sub::ShareSubStorage,
     },
-    structs::{cluster::ClusterInfo, node::Node, share_sub::ShareSub},
+    structs::{cluster::ClusterInfo, node::Node},
 };
 use bincode::deserialize;
 use common_base::{
@@ -20,7 +21,8 @@ use common_base::{
 };
 use prost::Message as _;
 use protocol::placement_center::generate::{
-    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest}, kv::{DeleteRequest, SetRequest}, mqtt::DeleteShareSubLeaderRequest, placement::{RegisterNodeRequest, UnRegisterNodeRequest}
+    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest},
+    placement::{RegisterNodeRequest, UnRegisterNodeRequest},
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -32,8 +34,8 @@ pub struct DataRoute {
     cluster_storage: ClusterStorage,
     shard_storage: ShardStorage,
     segment_storage: SegmentStorage,
-    kv_storage: KvStorage,
-    share_sub_storage: ShareSubStorage,
+    route_kv: DataRouteKv,
+    route_mqtt: DataRouteMQTT,
     repcli_algo: SegmentReplicaAlgorithm,
 }
 
@@ -47,8 +49,8 @@ impl DataRoute {
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
         let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
         let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
-        let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
-        let share_sub_storage = ShareSubStorage::new(rocksdb_engine_handler.clone());
+        let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
+        let route_mqtt = DataRouteMQTT::new(rocksdb_engine_handler.clone());
         let repcli_algo = SegmentReplicaAlgorithm::new(cluster_cache.clone(), engine_cache.clone());
         return DataRoute {
             cluster_cache,
@@ -57,8 +59,8 @@ impl DataRoute {
             cluster_storage,
             shard_storage,
             segment_storage,
-            kv_storage,
-            share_sub_storage,
+            route_kv,
+            route_mqtt,
             repcli_algo,
         };
     }
@@ -68,10 +70,10 @@ impl DataRoute {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
             StorageDataType::RegisterNode => {
-                return self.register_node(storage_data.value);
+                return self.cluster_register_node(storage_data.value);
             }
             StorageDataType::UngisterNode => {
-                return self.unregister_node(storage_data.value);
+                return self.cluster_unregister_node(storage_data.value);
             }
             StorageDataType::CreateShard => {
                 return self.create_shard(storage_data.value);
@@ -87,23 +89,25 @@ impl DataRoute {
                 return self.delete_segment(storage_data.value);
             }
             StorageDataType::Set => {
-                return self.set(storage_data.value);
+                return self.route_kv.set(storage_data.value);
             }
             StorageDataType::Delete => {
-                return self.delete(storage_data.value);
+                return self.route_kv.delete(storage_data.value);
             }
-            StorageDataType::CreateShareSub => {
-                return self.create_share_sub(storage_data.value);
+            StorageDataType::MQTTCreateUser => {
+                return self.route_mqtt.create_user(storage_data.value);
             }
-            StorageDataType::DeleteShareSub => {
-                return self.delete_share_sub(storage_data.value);
+            StorageDataType::MQTTDeleteUser => {
+                return self.route_mqtt.delete_user(storage_data.value);
             }
         }
     }
+}
 
+impl DataRoute {
     //BrokerServer or StorageEngine clusters register node information with the PCC.
     //You need to persist storage node information, update caches, and so on.
-    pub fn register_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn cluster_register_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
@@ -150,7 +154,7 @@ impl DataRoute {
 
     // If a node is removed from the cluster,
     // the client may leave the cluster voluntarily or the node is removed because the heartbeat detection fails.
-    pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn cluster_unregister_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
@@ -163,7 +167,9 @@ impl DataRoute {
             .remove_cluster_node(&cluster_name, node_id);
         return Ok(());
     }
+}
 
+impl DataRoute {
     pub fn create_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
@@ -268,36 +274,8 @@ impl DataRoute {
         return Ok(());
     }
 
-    pub fn set(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: SetRequest = SetRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
-        self.kv_storage.set(req.key, req.value);
-        return Ok(());
-    }
-
-    pub fn delete(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: DeleteRequest = DeleteRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
-        self.kv_storage.delete(req.key);
-        return Ok(());
-    }
-
     pub fn pre_create_segment(&self) -> Result<(), RobustMQError> {
         return Ok(());
-    }
-
-    pub fn create_share_sub(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let data: ShareSub = serde_json::from_slice(&value).unwrap();
-        return self.share_sub_storage.save(data);
-    }
-
-    pub fn delete_share_sub(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: DeleteShareSubLeaderRequest = DeleteShareSubLeaderRequest::decode(value.as_ref())
-        .map_err(|e| Status::invalid_argument(e.to_string()))
-        .unwrap();
-    return self.share_sub_storage.delete(req.cluster_name,req.group_name);
     }
 }
 
@@ -339,7 +317,7 @@ mod tests {
         let engine_cache = Arc::new(JournalCache::new());
 
         let mut route = DataRoute::new(rocksdb_engine.clone(), cluster_cache, engine_cache);
-        let _ = route.register_node(data);
+        let _ = route.cluster_register_node(data);
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());

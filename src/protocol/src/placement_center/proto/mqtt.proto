@@ -60,6 +60,7 @@ message GetShareSubLeaderReply{
 
 message ListUserRequest{
     string cluster_name = 1;
+    string username = 2;
 }
 
 message ListUserReply{
@@ -68,9 +69,7 @@ message ListUserReply{
 
 message CreateUserRequest{
     string cluster_name = 1;
-    string username = 2;
-    string password = 3;
-    bool super_user =4;
+    User user = 2;
 }
 
 message DeleteUserRequest{
@@ -82,11 +81,6 @@ message User{
     string username = 2;
     string password = 3;
     bool super_user =4;
-}
-
-message DeleteUserRequest{
-    string cluster_name = 1;
-    string username = 2;
 }
 
 

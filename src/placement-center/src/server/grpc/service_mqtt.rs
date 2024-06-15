@@ -1,20 +1,18 @@
-use std::sync::Arc;
-
 use crate::{
     cache::{cluster::ClusterCache, mqtt::MqttCache},
-    core::{lock::Lock, share_sub::calc_share_sub_leader},
-    raft::storage::PlacementCenterStorage,
-    storage::rocksdb::RocksDBEngine,
-    structs::share_sub::ShareSub,
+    core::share_sub::calc_share_sub_leader,
+    raft::storage::{PlacementCenterStorage, StorageData, StorageDataType},
+    storage::{mqtt::user::MQTTUserStorage, rocksdb::RocksDBEngine},
 };
-use common_base::{errors::RobustMQError, log::info, tools::now_second};
+use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, DeleteShareSubLeaderRequest, GetShareSubLeaderReply,
-        GetShareSubLeaderRequest,
+        mqtt_service_server::MqttService, CreateUserRequest, DeleteUserRequest,
+        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListUserReply, ListUserRequest,
     },
 };
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
@@ -71,34 +69,65 @@ impl MqttService for GrpcMqttService {
         return Ok(Response::new(reply));
     }
 
-    async fn delete_share_sub_leader(
+    async fn list_user(
         &self,
-        request: Request<DeleteShareSubLeaderRequest>,
+        request: Request<ListUserRequest>,
+    ) -> Result<Response<ListUserReply>, Status> {
+        let req = request.into_inner();
+        let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.list(req.cluster_name, req.username) {
+            Ok(data) => {
+                return Ok(Response::new(ListUserReply::default()));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn create_user(
+        &self,
+        request: Request<CreateUserRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        let cluster_name = req.cluster_name.clone();
-        let group_name = req.group_name.clone();
 
-        let reply = CommonReply::default();
+        let data = StorageData::new(
+            StorageDataType::MQTTCreateUser,
+            CreateUserRequest::encode_to_vec(&req),
+        );
 
-        if let Some(_) = self
-            .mqtt_cache
-            .get_share_sub(cluster_name.clone(), group_name.clone())
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "create_user".to_string())
+            .await
         {
-            self.mqtt_cache
-                .remove_share_sub(cluster_name.clone(), group_name.clone());
-
-            match self.placement_center_storage.delete_share_sub(req).await {
-                Ok(_) => {}
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
             }
-
-            return Ok(Response::new(reply));
         }
-        return Err(Status::cancelled(
-            RobustMQError::ResourceDoesNotExist.to_string(),
-        ));
+    }
+
+    async fn delete_user(
+        &self,
+        request: Request<DeleteUserRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+
+        let data = StorageData::new(
+            StorageDataType::MQTTDeleteUser,
+            DeleteUserRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_user".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 }

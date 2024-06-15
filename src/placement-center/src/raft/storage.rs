@@ -11,7 +11,6 @@ use protocol::placement_center::generate::journal::DeleteSegmentRequest;
 use protocol::placement_center::generate::journal::DeleteShardRequest;
 use protocol::placement_center::generate::kv::DeleteRequest;
 use protocol::placement_center::generate::kv::SetRequest;
-use protocol::placement_center::generate::mqtt::DeleteShareSubLeaderRequest;
 use protocol::placement_center::generate::placement::RegisterNodeRequest;
 use protocol::placement_center::generate::placement::UnRegisterNodeRequest;
 use raft::eraftpb::ConfChange;
@@ -62,46 +61,8 @@ pub enum StorageDataType {
     DeleteSegment,
     Set,
     Delete,
-    CreateShareSub,
-    DeleteShareSub,
-}
-
-impl fmt::Display for StorageDataType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            StorageDataType::RegisterNode => {
-                write!(f, "RegisterNode")
-            }
-            StorageDataType::UngisterNode => {
-                write!(f, "UngisterNode")
-            }
-            StorageDataType::CreateShard => {
-                write!(f, "CreateShard")
-            }
-            StorageDataType::DeleteShard => {
-                write!(f, "DeleteShard")
-            }
-            StorageDataType::CreateSegment => {
-                write!(f, "CreateSegment")
-            }
-            StorageDataType::DeleteSegment => {
-                write!(f, "DeleteSegment")
-            }
-            StorageDataType::Set => {
-                write!(f, "Set")
-            }
-            StorageDataType::Delete => {
-                write!(f, "Delete")
-            }
-
-            StorageDataType::CreateShareSub => {
-                write!(f, "CreateShareSub")
-            }
-            StorageDataType::DeleteShareSub => {
-                write!(f, "DeleteShareSub")
-            }
-        }
-    }
+    MQTTCreateUser,
+    MQTTDeleteUser,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -121,7 +82,7 @@ impl StorageData {
 
 impl fmt::Display for StorageData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {:?})", self.data_type, self.value)
+        write!(f, "({:?}, {:?})", self.data_type, self.value)
     }
 }
 pub struct PlacementCenterStorage {
@@ -203,28 +164,7 @@ impl PlacementCenterStorage {
 
     pub async fn delete(&self, data: DeleteRequest) -> Result<(), RobustMQError> {
         let data = StorageData::new(StorageDataType::Delete, DeleteRequest::encode_to_vec(&data));
-        return self.apply_propose_message(data, "set".to_string()).await;
-    }
-
-    pub async fn save_share_sub(&self, data: ShareSub) -> Result<(), RobustMQError> {
-        let data = StorageData::new(
-            StorageDataType::CreateShareSub,
-            serde_json::to_vec(&data).unwrap(),
-        );
-        return self
-            .apply_propose_message(data, "save_share_sub".to_string())
-            .await;
-    }
-
-    pub async fn delete_share_sub(&self, data: DeleteShareSubLeaderRequest) -> Result<(), RobustMQError> {
-        let data = StorageData::new(
-            StorageDataType::DeleteShareSub,
-            DeleteShareSubLeaderRequest::encode_to_vec(&data),
-        );
-
-        return self
-            .apply_propose_message(data, "delete_share_sub".to_string())
-            .await;
+        return self.apply_propose_message(data, "delete".to_string()).await;
     }
 
     pub async fn save_raft_message(
@@ -264,8 +204,7 @@ impl PlacementCenterStorage {
         return self.raft_status_machine_sender.clone();
     }
 
-    //
-    async fn apply_propose_message(
+    pub async fn apply_propose_message(
         &self,
         data: StorageData,
         action: String,
@@ -302,7 +241,6 @@ impl PlacementCenterStorage {
             .await;
     }
 
-    //
     async fn apply_conf_raft_message(
         &self,
         change: ConfChange,
@@ -331,7 +269,6 @@ impl PlacementCenterStorage {
         return Ok(());
     }
 
-    //
     async fn wait_recv_chan_resp(&self, rx: Receiver<RaftResponseMesage>) -> bool {
         let res = timeout(Duration::from_secs(30), async {
             match rx.await {
