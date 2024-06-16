@@ -48,10 +48,9 @@ impl MQTTUserStorage {
         let mut results = Vec::new();
         for raw in data_list {
             for (_, v) in raw {
-                match deserialize::<StorageDataWrap>(v.as_ref()) {
+                match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
                     Ok(v) => results.push(v),
-                    Err(e) => {
-                        println!("DDD:{}",e.to_string());
+                    Err(_) => {
                         continue;
                     }
                 }
