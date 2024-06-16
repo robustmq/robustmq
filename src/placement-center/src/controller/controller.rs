@@ -1,7 +1,7 @@
 use crate::{
     cache::cluster::ClusterCache,
     controller::heartbeat::StorageEngineNodeHeartBeat,
-    raft::storage::PlacementCenterStorage,
+    raft::apply::RaftMachineApply,
     storage::{
         cluster::{cluster::ClusterStorage, node::NodeStorage},
         rocksdb::RocksDBEngine,
@@ -13,7 +13,7 @@ use tokio::sync::broadcast;
 
 pub struct ClusterController {
     cluster_cache: Arc<ClusterCache>,
-    placement_center_storage: Arc<PlacementCenterStorage>,
+    placement_center_storage: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
 }
@@ -21,7 +21,7 @@ pub struct ClusterController {
 impl ClusterController {
     pub fn new(
         cluster_cache: Arc<ClusterCache>,
-        placement_center_storage: Arc<PlacementCenterStorage>,
+        placement_center_storage: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_send: broadcast::Sender<bool>,
     ) -> ClusterController {

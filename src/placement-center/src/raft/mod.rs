@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-pub mod status_machine;
+pub mod machine;
+pub mod apply;
 pub mod storage;
-pub mod rocksdb_storage;
 pub mod peer;
 pub mod route;

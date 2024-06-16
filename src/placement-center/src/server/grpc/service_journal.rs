@@ -13,10 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::{cache::placement::PlacementCache, raft::storage::PlacementCenterStorage};
-use clients::{placement::journal::call::{
-    create_segment, create_shard, delete_segment, delete_shard,
-}, poll::ClientPool};
+use crate::{
+    cache::placement::PlacementCache,
+    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+};
+use clients::{
+    placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard},
+    poll::ClientPool,
+};
+use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     journal::{
@@ -28,14 +33,14 @@ use std::sync::{Arc, RwLock};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
-    placement_center_storage: Arc<PlacementCenterStorage>,
+    placement_center_storage: Arc<RaftMachineApply>,
     placement_cache: Arc<RwLock<PlacementCache>>,
     client_poll: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
     pub fn new(
-        placement_center_storage: Arc<PlacementCenterStorage>,
+        placement_center_storage: Arc<RaftMachineApply>,
         placement_cache: Arc<RwLock<PlacementCache>>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
@@ -70,7 +75,15 @@ impl EngineService for GrpcEngineService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        match self.placement_center_storage.save_shard(req).await {
+        let data = StorageData::new(
+            StorageDataType::JournalCreateShard,
+            CreateShardRequest::encode_to_vec(&req),
+        );
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "create_shard".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -94,7 +107,15 @@ impl EngineService for GrpcEngineService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        match self.placement_center_storage.delete_shard(req).await {
+        let data = StorageData::new(
+            StorageDataType::JournalDeleteShard,
+            DeleteShardRequest::encode_to_vec(&req),
+        );
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_shard".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -139,7 +160,15 @@ impl EngineService for GrpcEngineService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        match self.placement_center_storage.create_segment(req).await {
+        let data = StorageData::new(
+            StorageDataType::JournalCreateSegment,
+            CreateSegmentRequest::encode_to_vec(&req),
+        );
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "create_segment".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -163,7 +192,16 @@ impl EngineService for GrpcEngineService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        match self.placement_center_storage.delete_segment(req).await {
+        let data = StorageData::new(
+            StorageDataType::JournalDeleteSegment,
+            DeleteSegmentRequest::encode_to_vec(&req),
+        );
+        
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_segment".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

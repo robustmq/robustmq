@@ -1,6 +1,6 @@
-use super::rocksdb_storage::RaftRocksDBStorage;
+use super::storage::RaftRocksDBStorage;
 use super::route::DataRoute;
-use super::storage::{RaftMessage, RaftResponseMesage};
+use super::apply::{RaftMessage, RaftResponseMesage};
 use crate::cache::placement::PlacementCache;
 use crate::raft::peer::PeerMessage;
 use crate::storage::common::raft::RaftMachineStorage;

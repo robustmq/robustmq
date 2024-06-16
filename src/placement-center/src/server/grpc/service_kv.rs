@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 use crate::{
-    raft::storage::PlacementCenterStorage,
+    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{common::kv::KvStorage, rocksdb::RocksDBEngine},
 };
 use common_base::errors::RobustMQError;
+use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     kv::{
@@ -29,13 +30,13 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcKvService {
-    placement_center_storage: Arc<PlacementCenterStorage>,
+    placement_center_storage: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcKvService {
     pub fn new(
-        placement_center_storage: Arc<PlacementCenterStorage>,
+        placement_center_storage: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcKvService {
@@ -57,7 +58,12 @@ impl KvService for GrpcKvService {
         }
 
         // Raft state machine is used to store Node data
-        match self.placement_center_storage.set(req).await {
+        let data = StorageData::new(StorageDataType::KvSet, SetRequest::encode_to_vec(&req));
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "set".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -97,7 +103,12 @@ impl KvService for GrpcKvService {
         }
 
         // Raft state machine is used to store Node data
-        match self.placement_center_storage.delete(req).await {
+        let data = StorageData::new(StorageDataType::KvDelete, DeleteRequest::encode_to_vec(&req));
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

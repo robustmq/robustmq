@@ -48,23 +48,6 @@ pub fn key_segment(cluster_name: &String, shard_name: &String, segement_seq: u64
     );
 }
 
-pub fn key_all_cluster() -> String {
-    return "all_cluster".to_string();
-}
-
-pub fn key_all_shard(cluster_name: &String) -> String {
-    return format!("all_shard_{}", cluster_name);
-}
-
 pub fn storage_key_mqtt_user(cluster_name: String, user_name: String) -> String {
-    return format!(
-        "{}/{}/{}",
-        storeage_key_prefix_mqtt_user(),
-        cluster_name,
-        user_name
-    );
-}
-
-pub fn storeage_key_prefix_mqtt_user() -> String {
-    return "/mqtt/user".to_string();
+    return format!("/mqtt/{}/user/{}", cluster_name, user_name);
 }

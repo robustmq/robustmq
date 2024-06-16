@@ -54,7 +54,6 @@ impl DataRouteJournal {
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
         // persist
         shard_storage.save(shard_info.clone());
-        shard_storage.save_all_shard(cluster_name.clone(), shard_info.shard_name.clone());
 
         // upate cache
         self.engine_cache.add_shard(shard_info);
