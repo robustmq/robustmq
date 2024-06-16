@@ -3,7 +3,7 @@ use std::sync::Arc;
 use common_base::log::error_meta;
 use serde::{Deserialize, Serialize};
 
-use super::{keys::key_segment, rocksdb::RocksDBEngine};
+use crate::storage::{keys::key_segment, rocksdb::RocksDBEngine};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct SegmentInfo {

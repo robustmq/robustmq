@@ -7,14 +7,11 @@ use tonic::Status;
 
 pub struct DataRouteMQTT {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
-    mqtt_user_storage: MQTTUserStorage,
 }
 impl DataRouteMQTT {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let mqtt_user_storage = MQTTUserStorage::new(rocksdb_engine_handler.clone());
         return DataRouteMQTT {
             rocksdb_engine_handler,
-            mqtt_user_storage,
         };
     }
 

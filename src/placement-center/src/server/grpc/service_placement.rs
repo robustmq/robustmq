@@ -16,7 +16,7 @@
 use crate::cache::cluster::ClusterCache;
 use crate::cache::placement::PlacementCache;
 use crate::raft::storage::PlacementCenterStorage;
-use crate::storage::global_id::GlobalId;
+use crate::storage::common::global_id::GlobalId;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
 use clients::poll::ClientPool;

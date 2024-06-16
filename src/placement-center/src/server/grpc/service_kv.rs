@@ -15,7 +15,7 @@
  */
 use crate::{
     raft::storage::PlacementCenterStorage,
-    storage::{kv::KvStorage, rocksdb::RocksDBEngine},
+    storage::{common::kv::KvStorage, rocksdb::RocksDBEngine},
 };
 use common_base::errors::RobustMQError;
 use protocol::placement_center::generate::{

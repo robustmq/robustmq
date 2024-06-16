@@ -1,10 +1,7 @@
 use super::preferred_election::PreferredElection;
 use crate::{
     cache::journal::JournalCache,
-    raft::storage::PlacementCenterStorage,
-    storage::{
-        cluster::ClusterStorage, node::NodeStorage, rocksdb::RocksDBEngine, shard::ShardStorage,
-    },
+    raft::storage::PlacementCenterStorage, storage::{cluster::{cluster::ClusterStorage, node::NodeStorage}, journal::shard::ShardStorage, rocksdb::RocksDBEngine},
 };
 use common_base::log::info_meta;
 use std::sync::{Arc, RwLock};

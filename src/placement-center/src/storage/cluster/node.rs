@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use crate::structs::node::Node;
-
-use super::{cluster::ClusterStorage, keys::key_node, rocksdb::RocksDBEngine};
+use crate::{storage::{keys::key_node, rocksdb::RocksDBEngine}, structs::node::Node};
 use common_base::{config::placement_center::placement_center_conf, log::error_meta};
+
+use super::cluster::ClusterStorage;
 
 pub struct NodeStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,

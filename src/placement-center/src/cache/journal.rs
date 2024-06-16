@@ -1,6 +1,7 @@
-use crate::storage::{segment::SegmentInfo, shard::ShardInfo};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+
+use crate::storage::journal::{segment::SegmentInfo, shard::ShardInfo};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct JournalCache {
