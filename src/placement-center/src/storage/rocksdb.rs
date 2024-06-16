@@ -18,9 +18,7 @@ use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
-
 use std::collections::HashMap;
-use std::hash::Hash;
 use std::path::Path;
 
 pub const DB_COLUMN_FAMILY_CLUSTER: &str = "meta";
@@ -124,9 +122,13 @@ impl RocksDBEngine {
     }
 
     // Search data by prefix
-    pub fn read_prefix(&self, cf: &ColumnFamily, key: &str) -> Vec<HashMap<String, Vec<u8>>> {
+    pub fn read_prefix(
+        &self,
+        cf: &ColumnFamily,
+        search_key: &str,
+    ) -> Vec<HashMap<String, Vec<u8>>> {
         let mut iter = self.db.raw_iterator_cf(cf);
-        iter.seek(key);
+        iter.seek(search_key);
 
         let mut result = Vec::new();
         while iter.valid() {
@@ -141,6 +143,10 @@ impl RocksDBEngine {
                 Ok(s) => s,
                 Err(_) => continue,
             };
+
+            if !result_key.starts_with(search_key) {
+                break;
+            }
             raw.insert(result_key, value.unwrap().to_vec());
             result.push(raw);
             iter.next();
@@ -382,12 +388,16 @@ mod tests {
         rs.write_str(rs.cf_cluster(), "/v4/tmp_test/s2", "3".to_string())
             .unwrap();
 
+        let result = rs.read_prefix(rs.cf_cluster(), "/v1");
+        assert_eq!(result.len(), 3);
+
         let result = rs.read_prefix(rs.cf_cluster(), "/v2");
-        for raw in result.clone() {
-            for (k, v) in raw {
-                println!("{}={:?}", k, String::from_utf8(v).unwrap());
-            }
-        }
-        println!("size:{}", result.len());
+        assert_eq!(result.len(), 3);
+
+        let result = rs.read_prefix(rs.cf_cluster(), "/v3");
+        assert_eq!(result.len(), 2);
+
+        let result = rs.read_prefix(rs.cf_cluster(), "/v4");
+        assert_eq!(result.len(), 1);
     }
 }

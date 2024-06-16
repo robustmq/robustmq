@@ -20,7 +20,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.set(req.cluster_name, req.user.unwrap()) {
+        match storage.save(req.cluster_name, req.user.unwrap()) {
             Ok(_) => {
                 return Ok(());
             }
