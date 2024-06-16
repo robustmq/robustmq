@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use common_base::log::error_meta;
-
-use super::rocksdb::RocksDBEngine;
+use std::sync::Arc;
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct KvStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,

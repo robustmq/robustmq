@@ -18,16 +18,11 @@ use common_base::tools::now_second;
 use serde::{Deserialize, Serialize};
 
 pub mod cluster;
-pub mod global_id;
 pub mod keys;
-pub mod kv;
+pub mod common;
 pub mod mqtt;
-pub mod node;
-pub mod raft;
 pub mod rocksdb;
-pub mod segment;
-pub mod shard;
-pub mod keys_prefix;
+pub mod journal;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StorageDataWrap {

@@ -1,6 +1,6 @@
+use crate::storage::{keys::{key_all_shard, key_shard}, rocksdb::RocksDBEngine};
+
 use super::{
-    keys::{key_all_shard, key_shard},
-    rocksdb::RocksDBEngine,
     segment::{SegmentInfo, SegmentStorage},
 };
 use common_base::log::error_meta;

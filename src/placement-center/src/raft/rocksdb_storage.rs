@@ -13,7 +13,7 @@ use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
-use crate::storage::raft::RaftMachineStorage;
+use crate::storage::common::raft::RaftMachineStorage;
 
 pub struct RaftRocksDBStorage {
     core: Arc<RwLock<RaftMachineStorage>>,

@@ -16,6 +16,5 @@
 pub mod status_machine;
 pub mod storage;
 pub mod rocksdb_storage;
-pub mod data_route;
 pub mod peer;
 pub mod route;

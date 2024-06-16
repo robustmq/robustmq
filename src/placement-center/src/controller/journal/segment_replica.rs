@@ -1,6 +1,5 @@
 use crate::{
-    cache::{cluster::ClusterCache, journal::JournalCache},
-    storage::segment::Replica,
+    cache::{cluster::ClusterCache, journal::JournalCache}, storage::journal::segment::Replica,
 };
 use std::sync::Arc;
 

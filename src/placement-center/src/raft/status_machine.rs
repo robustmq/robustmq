@@ -1,9 +1,9 @@
 use super::rocksdb_storage::RaftRocksDBStorage;
+use super::route::DataRoute;
 use super::storage::{RaftMessage, RaftResponseMesage};
 use crate::cache::placement::PlacementCache;
-use crate::raft::data_route::DataRoute;
 use crate::raft::peer::PeerMessage;
-use crate::storage::raft::RaftMachineStorage;
+use crate::storage::common::raft::RaftMachineStorage;
 use crate::structs::node::Node;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
