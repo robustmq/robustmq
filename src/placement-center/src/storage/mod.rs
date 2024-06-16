@@ -22,7 +22,6 @@ pub mod keys;
 pub mod common;
 pub mod mqtt;
 pub mod rocksdb;
-pub mod keys_prefix;
 pub mod journal;
 
 #[derive(Serialize, Deserialize, Debug)]
