@@ -1,12 +1,5 @@
 use bincode::serialize;
 use common_base::errors::RobustMQError;
-use prost::Message;
-use protocol::placement_center::generate::journal::CreateSegmentRequest;
-use protocol::placement_center::generate::journal::CreateShardRequest;
-use protocol::placement_center::generate::journal::DeleteSegmentRequest;
-use protocol::placement_center::generate::journal::DeleteShardRequest;
-use protocol::placement_center::generate::kv::DeleteRequest;
-use protocol::placement_center::generate::kv::SetRequest;
 use raft::eraftpb::ConfChange;
 use raft::eraftpb::Message as raftPreludeMessage;
 use serde::Deserialize;
@@ -48,14 +41,21 @@ pub enum RaftMessage {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum StorageDataType {
-    RegisterNode,
-    UngisterNode,
-    CreateShard,
-    DeleteShard,
-    CreateSegment,
-    DeleteSegment,
-    Set,
-    Delete,
+    // Cluster
+    ClusterRegisterNode,
+    ClusterUngisterNode,
+
+    // Journal
+    JournalCreateShard,
+    JournalDeleteShard,
+    JournalCreateSegment,
+    JournalDeleteSegment,
+    
+    // kv
+    KvSet,
+    KvDelete,
+
+    // mqtt
     MQTTCreateUser,
     MQTTDeleteUser,
 }

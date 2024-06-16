@@ -58,7 +58,7 @@ impl KvService for GrpcKvService {
         }
 
         // Raft state machine is used to store Node data
-        let data = StorageData::new(StorageDataType::Set, SetRequest::encode_to_vec(&req));
+        let data = StorageData::new(StorageDataType::KvSet, SetRequest::encode_to_vec(&req));
         match self
             .placement_center_storage
             .apply_propose_message(data, "set".to_string())
@@ -103,7 +103,7 @@ impl KvService for GrpcKvService {
         }
 
         // Raft state machine is used to store Node data
-        let data = StorageData::new(StorageDataType::Delete, DeleteRequest::encode_to_vec(&req));
+        let data = StorageData::new(StorageDataType::KvDelete, DeleteRequest::encode_to_vec(&req));
         match self
             .placement_center_storage
             .apply_propose_message(data, "delete".to_string())

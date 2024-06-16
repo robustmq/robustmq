@@ -20,6 +20,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
 
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::path::Path;
 
 pub const DB_COLUMN_FAMILY_CLUSTER: &str = "meta";
@@ -123,24 +124,25 @@ impl RocksDBEngine {
     }
 
     // Search data by prefix
-    pub fn read_prefix(&self, cf: &ColumnFamily, key: &str) -> Vec<Vec<Vec<u8>>> {
+    pub fn read_prefix(&self, cf: &ColumnFamily, key: &str) -> Vec<HashMap<String, Vec<u8>>> {
         let mut iter = self.db.raw_iterator_cf(cf);
         iter.seek(key);
-        println!("key={}", key);
-        let mut result: Vec<Vec<Vec<u8>>> = Vec::new();
+
+        let mut result = Vec::new();
         while iter.valid() {
             let key = iter.key();
             let value = iter.value();
 
-            let mut raw: Vec<Vec<u8>> = Vec::new();
+            let mut raw = HashMap::new();
             if key == None || value == None {
                 continue;
             }
-            raw.push(key.unwrap().to_vec());
-            raw.push(value.unwrap().to_vec());
-
+            let result_key = match String::from_utf8(key.unwrap().to_vec()) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            raw.insert(result_key, value.unwrap().to_vec());
             result.push(raw);
-
             iter.next();
         }
         return result;
@@ -241,7 +243,7 @@ impl RocksDBEngine {
     pub fn get_column_family(&self, family: String) -> &ColumnFamily {
         let cf = if family == DB_COLUMN_FAMILY_CLUSTER {
             self.cf_cluster()
-        }  else {
+        } else {
             self.cf_data()
         };
         return cf;
@@ -250,11 +252,11 @@ impl RocksDBEngine {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Duration};
-    use crate::storage::keys::key_name_by_last_index;
     use super::RocksDBEngine;
+    use crate::storage::keys::key_name_by_last_index;
     use common_base::config::placement_center::PlacementCenterConfig;
     use serde::{Deserialize, Serialize};
+    use std::{sync::Arc, time::Duration};
     use tokio::{fs::remove_dir, time::sleep};
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
@@ -361,9 +363,30 @@ mod tests {
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
         let rs = RocksDBEngine::new(&config);
-        let result = rs.read_prefix(rs.cf_cluster(), "metasrv_conf");
+        rs.write_str(rs.cf_cluster(), "/v1/v1", "v11".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v1/v2", "v12".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v1/v3", "v13".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v2/tmp_test/s1", "1".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v2/tmp_test/s3", "2".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v2/tmp_test/s2", "3".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v3/tmp_test/s1", "1".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v3/tmp_test/s3", "2".to_string())
+            .unwrap();
+        rs.write_str(rs.cf_cluster(), "/v4/tmp_test/s2", "3".to_string())
+            .unwrap();
+
+        let result = rs.read_prefix(rs.cf_cluster(), "/v2");
         for raw in result.clone() {
-            println!("{:?}", raw);
+            for (k, v) in raw {
+                println!("{}={:?}", k, String::from_utf8(v).unwrap());
+            }
         }
         println!("size:{}", result.len());
     }

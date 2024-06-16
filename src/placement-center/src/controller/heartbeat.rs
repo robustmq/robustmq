@@ -68,7 +68,7 @@ impl StorageEngineNodeHeartBeat {
                             req.cluster_type = ClusterType::StorageEngine.into();
                             let pcs = self.placement_center_storage.clone();
                             let data = StorageData::new(
-                                StorageDataType::UngisterNode,
+                                StorageDataType::ClusterUngisterNode,
                                 UnRegisterNodeRequest::encode_to_vec(&req),
                             );
                             tokio::spawn(async move {

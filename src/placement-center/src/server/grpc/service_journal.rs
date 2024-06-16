@@ -76,7 +76,7 @@ impl EngineService for GrpcEngineService {
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
-            StorageDataType::CreateShard,
+            StorageDataType::JournalCreateShard,
             CreateShardRequest::encode_to_vec(&req),
         );
         match self
@@ -108,7 +108,7 @@ impl EngineService for GrpcEngineService {
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
-            StorageDataType::DeleteShard,
+            StorageDataType::JournalDeleteShard,
             DeleteShardRequest::encode_to_vec(&req),
         );
         match self
@@ -161,7 +161,7 @@ impl EngineService for GrpcEngineService {
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
-            StorageDataType::CreateSegment,
+            StorageDataType::JournalCreateSegment,
             CreateSegmentRequest::encode_to_vec(&req),
         );
         match self
@@ -193,7 +193,7 @@ impl EngineService for GrpcEngineService {
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
-            StorageDataType::DeleteSegment,
+            StorageDataType::JournalDeleteSegment,
             DeleteSegmentRequest::encode_to_vec(&req),
         );
         

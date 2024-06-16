@@ -1,8 +1,6 @@
-use crate::storage::{keys::{key_all_shard, key_shard}, rocksdb::RocksDBEngine};
+use crate::storage::{keys::key_shard, rocksdb::RocksDBEngine};
 
-use super::{
-    segment::{SegmentInfo, SegmentStorage},
-};
+use super::segment::{SegmentInfo, SegmentStorage};
 use common_base::log::error_meta;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -75,32 +73,9 @@ impl ShardStorage {
         }
     }
 
-    pub fn save_all_shard(&self, cluster_name: String, shard_name: String) {
-        let mut all_shard = self.get_all_shard(&cluster_name);
-        if !all_shard.contains(&cluster_name) {
-            all_shard.push(shard_name);
-            let cf = self.rocksdb_engine_handler.cf_cluster();
-            let key = key_all_shard(&cluster_name);
-            match self.rocksdb_engine_handler.write(cf, &key, &all_shard) {
-                Ok(_) => {}
-                Err(e) => {
-                    error_meta(&e);
-                }
-            }
-        }
-    }
-
     pub fn get_all_shard(&self, cluster_name: &String) -> Vec<String> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-        let key = key_all_shard(cluster_name);
-        match self.rocksdb_engine_handler.read::<Vec<String>>(cf, &key) {
-            Ok(data) => {
-                if let Some(da) = data {
-                    return da;
-                }
-            }
-            Err(_) => {}
-        };
+
         return Vec::new();
     }
 

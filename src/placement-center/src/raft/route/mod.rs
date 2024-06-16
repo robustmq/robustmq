@@ -51,30 +51,30 @@ impl DataRoute {
     pub fn route(&self, data: Vec<u8>) -> Result<(), RobustMQError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
-            StorageDataType::RegisterNode => {
+            StorageDataType::ClusterRegisterNode => {
                 return self.route_cluster.cluster_register_node(storage_data.value);
             }
-            StorageDataType::UngisterNode => {
+            StorageDataType::ClusterUngisterNode => {
                 return self
                     .route_cluster
                     .cluster_unregister_node(storage_data.value);
             }
-            StorageDataType::CreateShard => {
+            StorageDataType::JournalCreateShard => {
                 return self.route_journal.create_shard(storage_data.value);
             }
-            StorageDataType::DeleteShard => {
+            StorageDataType::JournalDeleteShard => {
                 return self.route_journal.delete_shard(storage_data.value);
             }
-            StorageDataType::CreateSegment => {
+            StorageDataType::JournalCreateSegment => {
                 return self.route_journal.create_segment(storage_data.value);
             }
-            StorageDataType::DeleteSegment => {
+            StorageDataType::JournalDeleteSegment => {
                 return self.route_journal.delete_segment(storage_data.value);
             }
-            StorageDataType::Set => {
+            StorageDataType::KvSet => {
                 return self.route_kv.set(storage_data.value);
             }
-            StorageDataType::Delete => {
+            StorageDataType::KvDelete => {
                 return self.route_kv.delete(storage_data.value);
             }
             StorageDataType::MQTTCreateUser => {

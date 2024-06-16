@@ -1,4 +1,7 @@
-use crate::{storage::{keys::{key_all_cluster, key_cluster}, rocksdb::RocksDBEngine}, structs::cluster::ClusterInfo};
+use crate::{
+    storage::{keys::key_cluster, rocksdb::RocksDBEngine},
+    structs::cluster::ClusterInfo,
+};
 use common_base::log::error_meta;
 use std::sync::Arc;
 
@@ -42,35 +45,6 @@ impl ClusterStorage {
         return None;
     }
 
-    pub fn save_all_cluster(&self, cluster_name: String) {
-        let mut all_cluster = self.get_all_cluster();
-        if !all_cluster.contains(&cluster_name) {
-            all_cluster.push(cluster_name);
-            let cf = self.rocksdb_engine_handler.cf_cluster();
-            let key = key_all_cluster();
-            match self.rocksdb_engine_handler.write(cf, &key, &all_cluster) {
-                Ok(_) => {}
-                Err(e) => {
-                    error_meta(&e);
-                }
-            }
-        }
-    }
-
-    pub fn get_all_cluster(&self) -> Vec<String> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
-        let key = key_all_cluster();
-        match self.rocksdb_engine_handler.read::<Vec<String>>(cf, &key) {
-            Ok(data) => {
-                if let Some(da) = data {
-                    return da;
-                }
-            }
-            Err(_) => {}
-        };
-        return Vec::new();
-    }
-
     pub fn add_cluster_node(&self, cluster_name: &String, node_id: u64) {
         if let Some(mut cluster_info) = self.get(&cluster_name) {
             if !cluster_info.nodes.contains(&node_id) {
@@ -93,14 +67,8 @@ impl ClusterStorage {
     }
 
     pub fn all_cluster(&self) -> Vec<ClusterInfo> {
-        let all_cluster = self.get_all_cluster();
-
         let mut result = Vec::new();
-        for cluster_name in all_cluster {
-            if let Some(cluster_info) = self.get(&cluster_name) {
-                result.push(cluster_info);
-            }
-        }
+
         return result;
     }
 }

@@ -60,7 +60,6 @@ impl DataRouteCluster {
             };
             self.cluster_cache.add_cluster(cluster_info.clone());
             cluster_storage.save(cluster_info);
-            cluster_storage.save_all_cluster(cluster_name.clone());
         } else {
             cluster_storage.add_cluster_node(&cluster_name, node.node_id);
         }

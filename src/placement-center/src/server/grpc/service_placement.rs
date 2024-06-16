@@ -84,7 +84,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
-            StorageDataType::RegisterNode,
+            StorageDataType::ClusterRegisterNode,
             RegisterNodeRequest::encode_to_vec(&req),
         );
         match self
@@ -117,7 +117,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
-            StorageDataType::UngisterNode,
+            StorageDataType::ClusterUngisterNode,
             UnRegisterNodeRequest::encode_to_vec(&req),
         );
         match self
