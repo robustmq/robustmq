@@ -15,7 +15,7 @@
  */
 use crate::cache::cluster::ClusterCache;
 use crate::cache::placement::PlacementCache;
-use crate::raft::storage::PlacementCenterStorage;
+use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
 use crate::storage::common::global_id::GlobalId;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
@@ -35,7 +35,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
-    placement_center_storage: Arc<PlacementCenterStorage>,
+    placement_center_storage: Arc<RaftMachineApply>,
     placement_cache: Arc<RwLock<PlacementCache>>,
     cluster_cache: Arc<ClusterCache>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -44,7 +44,7 @@ pub struct GrpcPlacementService {
 
 impl GrpcPlacementService {
     pub fn new(
-        placement_center_storage: Arc<PlacementCenterStorage>,
+        placement_center_storage: Arc<RaftMachineApply>,
         placement_cache: Arc<RwLock<PlacementCache>>,
         cluster_cache: Arc<ClusterCache>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -83,7 +83,15 @@ impl PlacementCenterService for GrpcPlacementService {
         // Params validate
 
         // Raft state machine is used to store Node data
-        match self.placement_center_storage.save_node(req).await {
+        let data = StorageData::new(
+            StorageDataType::RegisterNode,
+            RegisterNodeRequest::encode_to_vec(&req),
+        );
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "register_node".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -108,8 +116,15 @@ impl PlacementCenterService for GrpcPlacementService {
         // Params validate
 
         // Raft state machine is used to store Node data
-
-        match self.placement_center_storage.delete_node(req).await {
+        let data = StorageData::new(
+            StorageDataType::UngisterNode,
+            UnRegisterNodeRequest::encode_to_vec(&req),
+        );
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "un_register_node".to_string())
+            .await
+        {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -153,7 +168,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         match self
             .placement_center_storage
-            .save_raft_message(message)
+            .apply_raft_message(message, "send_raft_message".to_string())
             .await
         {
             Ok(_) => return Ok(Response::new(SendRaftMessageReply::default())),
@@ -174,7 +189,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         match self
             .placement_center_storage
-            .save_conf_raft_message(change)
+            .apply_conf_raft_message(change, "send_conf_raft_message".to_string())
             .await
         {
             Ok(_) => return Ok(Response::new(SendRaftConfChangeReply::default())),

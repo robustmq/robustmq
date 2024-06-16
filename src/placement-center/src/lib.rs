@@ -28,9 +28,9 @@ use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::route::DataRoute;
-use raft::status_machine::RaftMachine;
-use raft::storage::{PlacementCenterStorage, RaftMessage};
-use server::grpc::service_engine::GrpcEngineService;
+use raft::machine::RaftMachine;
+use raft::apply::{RaftMachineApply, RaftMessage};
+use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
@@ -109,7 +109,7 @@ impl PlacementCenter {
     pub fn start(&mut self, stop_send: broadcast::Sender<bool>) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
-        let placement_center_storage = Arc::new(PlacementCenterStorage::new(raft_message_send));
+        let placement_center_storage = Arc::new(RaftMachineApply::new(raft_message_send));
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
@@ -138,7 +138,7 @@ impl PlacementCenter {
     }
 
     // Start Grpc Server
-    pub fn start_grpc_server(&self, placement_center_storage: Arc<PlacementCenterStorage>) {
+    pub fn start_grpc_server(&self, placement_center_storage: Arc<RaftMachineApply>) {
         let config = placement_center_conf();
         let ip = format!("0.0.0.0:{}", config.grpc_port).parse().unwrap();
         let placement_handler = GrpcPlacementService::new(
@@ -186,7 +186,7 @@ impl PlacementCenter {
     // Start Storage Engine Cluster Controller
     pub fn start_controller(
         &self,
-        placement_center_storage: Arc<PlacementCenterStorage>,
+        placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) {
         let ctrl = ClusterController::new(

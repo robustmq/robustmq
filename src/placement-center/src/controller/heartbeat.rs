@@ -1,8 +1,9 @@
 use crate::{
     cache::cluster::{node_key, ClusterCache},
-    raft::storage::PlacementCenterStorage,
+    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
 };
 use common_base::log::{error_meta, info_meta};
+use prost::Message;
 use protocol::placement_center::generate::{common::ClusterType, placement::UnRegisterNodeRequest};
 use std::{
     sync::Arc,
@@ -15,7 +16,7 @@ pub struct StorageEngineNodeHeartBeat {
     timeout_ms: u128,
     check_time_ms: u64,
     cluster_cache: Arc<ClusterCache>,
-    placement_center_storage: Arc<PlacementCenterStorage>,
+    placement_center_storage: Arc<RaftMachineApply>,
     stop_recv: broadcast::Receiver<bool>,
 }
 
@@ -24,7 +25,7 @@ impl StorageEngineNodeHeartBeat {
         timeout_ms: u128,
         check_time_ms: u64,
         cluster_cache: Arc<ClusterCache>,
-        placement_center_storage: Arc<PlacementCenterStorage>,
+        placement_center_storage: Arc<RaftMachineApply>,
         stop_recv: broadcast::Receiver<bool>,
     ) -> Self {
         return StorageEngineNodeHeartBeat {
@@ -66,9 +67,15 @@ impl StorageEngineNodeHeartBeat {
                             req.cluster_name = node.cluster_name.clone();
                             req.cluster_type = ClusterType::StorageEngine.into();
                             let pcs = self.placement_center_storage.clone();
-
+                            let data = StorageData::new(
+                                StorageDataType::UngisterNode,
+                                UnRegisterNodeRequest::encode_to_vec(&req),
+                            );
                             tokio::spawn(async move {
-                                match pcs.delete_node(req).await {
+                                match pcs
+                                    .apply_propose_message(data, "heartbeat_remove_node".to_string())
+                                    .await
+                                {
                                     Ok(_) => {
                                         info_meta(
                                             &format!("The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
