@@ -26,17 +26,17 @@ service MqttService {
 
   rpc DeleteUser(DeleteUserRequest) returns(common.CommonReply){}
 
-  // rpc GetSession(GetSessionRequest) returns(GetSessionReply){}
+  rpc ListSession(ListSessionRequest) returns(ListSessionReply){}
   
-  // rpc CreateSession(CreateSessionRequest) returns(common.CommonReply){}
+  rpc CreateSession(CreateSessionRequest) returns(common.CommonReply){}
  
-  // rpc DeleteSession(DeleteSessionRequest) returns(common.CommonReply){}
+  rpc DeleteSession(DeleteSessionRequest) returns(common.CommonReply){}
 
-  // rpc ListTopic(ListTopicRequest) returns(ListUserReply){}
+  rpc ListTopic(ListTopicRequest) returns(ListTopicReply){}
 
-  // rpc CreateTopic(CreateTopicRequest) returns(common.CommonReply){}
+  rpc CreateTopic(CreateTopicRequest) returns(common.CommonReply){}
 
-  // rpc DeleteTopic(DeleteTopicRequest) returns(common.CommonReply){}
+  rpc DeleteTopic(DeleteTopicRequest) returns(common.CommonReply){}
 
   // rpc GetClusterConfig(GetClusterConfigRequest) returns(GetClusterConfigReply){}
 
@@ -64,34 +64,57 @@ message ListUserRequest{
 }
 
 message ListUserReply{
-    repeated User users = 1;
+    repeated string users = 1;
 }
 
 message CreateUserRequest{
     string cluster_name = 1;
-    User user = 2;
+    string user_name = 2;
+    string content = 3;
 }
 
 message DeleteUserRequest{
     string cluster_name = 1;
-    string username = 2;
+    string user_name = 2;
 }
 
-message User{
-    string username = 2;
-    string password = 3;
-    bool super_user =4;
+message ListTopicRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
+}
+
+message ListTopicReply{
+    repeated string topics = 1;
+}
+
+message CreateTopicRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
+    string content = 3;
 }
 
 
-message Topic{
-
+message DeleteTopicRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
 }
 
-message Session{
-
+message ListSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
 }
 
-message Cluster{
-    
+message ListSessionReply{
+    repeated string sessions = 1;
+}
+
+message CreateSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+    string session = 3;
+}
+
+message DeleteSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
 }

@@ -1,31 +1,12 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::storage::topic::TopicStorage;
-use common_base::{
-    errors::RobustMQError,
-    tools::{now_mills, unique_id},
-};
+use clients::poll::ClientPool;
+use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::{Publish, PublishProperties};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Topic {
-    pub topic_id: String,
-    pub topic_name: String,
-    pub create_time: u128,
-}
-
-impl Topic {
-    pub fn new(topic_name: &String) -> Self {
-        return Topic {
-            topic_id: unique_id(),
-            topic_name: topic_name.clone(),
-            create_time: now_mills(),
-        };
-    }
-}
 
 pub fn topic_name_validator(topic_name: String) -> Result<(), RobustMQError> {
     if topic_name.is_empty() {
@@ -87,29 +68,26 @@ pub fn publish_get_topic_name(
     return Ok(topic_name);
 }
 
-pub async fn get_topic_info<T, S>(
+pub async fn get_topic_info<S>(
     topic_name: String,
     metadata_cache: Arc<MetadataCacheManager>,
-    metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
-) -> Result<Topic, RobustMQError>
+    client_poll: Arc<ClientPool>,
+) -> Result<MQTTTopic, RobustMQError>
 where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name.clone()) {
         tp
     } else {
-        // Persisting the topic information
-        let topic = Topic::new(&topic_name);
-        metadata_cache.add_topic(&topic_name, &topic);
-        let topic_storage = TopicStorage::new(metadata_storage_adapter.clone());
-        match topic_storage.save_topic(&topic_name, &topic).await {
-            Ok(_) => {}
+        let topic_storage = TopicStorage::new(client_poll.clone());
+        let topic = MQTTTopic::new(&topic_name);
+        match topic_storage.save_topic(topic_name.clone()).await {
+            Ok(topic_id) => topic_id,
             Err(e) => {
                 return Err(RobustMQError::CommmonError(e.to_string()));
             }
-        }
+        };
 
         // Create the resource object of the storage layer
         let shard_name = topic.topic_id.clone();
@@ -123,7 +101,7 @@ where
                 return Err(RobustMQError::CommmonError(e.to_string()));
             }
         }
-        topic
+        return Ok(topic);
     };
     return Ok(topic);
 }

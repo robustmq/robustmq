@@ -1,13 +1,13 @@
 pub mod cluster;
-pub mod mqtt;
 pub mod journal;
 pub mod kv;
+pub mod mqtt;
 
 use super::{
+    apply::{StorageData, StorageDataType},
     route::{
         cluster::DataRouteCluster, journal::DataRouteJournal, kv::DataRouteKv, mqtt::DataRouteMQTT,
     },
-    apply::{StorageData, StorageDataType},
 };
 use crate::{
     cache::{cluster::ClusterCache, journal::JournalCache},
@@ -82,6 +82,12 @@ impl DataRoute {
             }
             StorageDataType::MQTTDeleteUser => {
                 return self.route_mqtt.delete_user(storage_data.value);
+            }
+            StorageDataType::MQTTCreateTopic => {
+                return self.route_mqtt.create_topic(storage_data.value);
+            }
+            StorageDataType::MQTTDeleteTopic => {
+                return self.route_mqtt.delete_topic(storage_data.value);
             }
         }
     }

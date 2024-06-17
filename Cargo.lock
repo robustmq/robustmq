@@ -1736,7 +1736,9 @@ checksum = "523dc4f511e55ab87b694dc30d0f820d60906ef06413f93d4d7a1385599cc149"
 name = "metadata-struct"
 version = "0.0.1"
 dependencies = [
+ "common-base",
  "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -2247,6 +2249,7 @@ dependencies = [
  "futures",
  "futures-util",
  "lazy_static",
+ "metadata-struct",
  "prost 0.12.3",
  "protocol",
  "raft",

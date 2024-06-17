@@ -7,7 +7,7 @@ use common_base::{
     log::{debug, error, info},
     tools::get_local_ip,
 };
-use metadata_struct::mqtt_node_extend::MQTTNodeExtend;
+use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
 use protocol::placement_center::generate::{
     common::ClusterType,
     placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},

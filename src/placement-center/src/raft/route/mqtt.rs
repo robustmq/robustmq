@@ -1,7 +1,12 @@
-use crate::storage::{mqtt::user::MQTTUserStorage, rocksdb::RocksDBEngine};
+use crate::storage::{
+    mqtt::{topic::MQTTTopicStorage, user::MQTTUserStorage},
+    rocksdb::RocksDBEngine,
+};
 use common_base::errors::RobustMQError;
 use prost::Message as _;
-use protocol::placement_center::generate::mqtt::{CreateUserRequest, DeleteUserRequest};
+use protocol::placement_center::generate::mqtt::{
+    CreateTopicRequest, CreateUserRequest, DeleteTopicRequest, DeleteUserRequest
+};
 use std::sync::Arc;
 use tonic::Status;
 
@@ -20,7 +25,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.set(req.cluster_name, req.user.unwrap()) {
+        match storage.save(req.cluster_name, req.user_name, req.content) {
             Ok(_) => {
                 return Ok(());
             }
@@ -35,7 +40,38 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.delete(req.cluster_name, req.username) {
+        match storage.delete(req.cluster_name, req.user_name) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    pub fn create_topic(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = CreateTopicRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
+
+        match storage.save(req.cluster_name, req.topic_name, req.content) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    pub fn delete_topic(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = DeleteTopicRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.delete(req.cluster_name, req.topic_name) {
             Ok(_) => {
                 return Ok(());
             }

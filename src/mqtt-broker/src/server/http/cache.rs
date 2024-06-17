@@ -2,14 +2,15 @@ use std::collections::HashMap;
 
 use super::server::HttpServerState;
 use crate::{
-    core::heartbeat_cache::HeartbeatShard, metadata::{
+    core::heartbeat_cache::HeartbeatShard,
+    metadata::{
         cluster::Cluster,
         connection::Connection,
         session::Session,
         subscriber::{SubscribeData, Subscriber},
-        topic::Topic,
-        user::User,
-    }, qos::{PublishQosMessageData, QosData}, subscribe::subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub}
+    },
+    qos::{PublishQosMessageData, QosData},
+    subscribe::subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
 };
 use axum::extract::State;
 use common_base::{
@@ -18,6 +19,7 @@ use common_base::{
     metrics::dump_metrics,
 };
 use dashmap::DashMap;
+use metadata_struct::mqtt::{topic::MQTTTopic, user::MQTTUser};
 use serde::{Deserialize, Serialize};
 
 pub async fn metrics() -> String {
@@ -70,10 +72,10 @@ pub struct MetadataCacheResult {
     // metadata_cache
     pub cluster_name: String,
     pub cluster_info: DashMap<String, Cluster>,
-    pub user_info: DashMap<String, User>,
+    pub user_info: DashMap<String, MQTTUser>,
     pub session_info: DashMap<String, Session>,
     pub connection_info: DashMap<u64, Connection>,
-    pub topic_info: DashMap<String, Topic>,
+    pub topic_info: DashMap<String, MQTTTopic>,
     pub topic_id_name: DashMap<String, String>,
     pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
     pub publish_pkid_info: DashMap<String, Vec<u16>>,

@@ -1,7 +1,7 @@
 use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::core::session::get_session_info;
+use crate::core::session::build_session;
 use crate::metadata::connection::{create_connection, get_client_id};
 use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
 use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
@@ -16,6 +16,7 @@ use crate::{
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
+use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -38,6 +39,7 @@ pub struct Mqtt5Service<T, S> {
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCache>,
     ack_manager: Arc<AckManager>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl<T, S> Mqtt5Service<T, S>
@@ -53,6 +55,7 @@ where
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCache>,
         ack_manager: Arc<AckManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,
@@ -62,6 +65,7 @@ where
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             ack_manager,
+            client_poll,
         };
     }
 
@@ -107,27 +111,16 @@ where
             }
         };
 
-        // build connection data
-        let connection = create_connection(
+        // save session data
+        let (session, new_session) = match build_session(
             connect_id,
             client_id.clone(),
-            &cluster,
+            cluster.clone(),
             connnect.clone(),
             connect_properties.clone(),
-        );
-
-        let contain_last_will = !last_will.is_none();
-        
-        // save session data
-        let (session, new_session) = match get_session_info(
-            connect_id,
-            client_id.clone(),
-            contain_last_will,
+            last_will.clone(),
             last_will_properties.clone(),
-            &cluster,
-            &connnect,
-            &connect_properties,
-            self.metadata_storage_adapter.clone(),
+            self.client_poll.clone(),
         )
         .await
         {
@@ -141,33 +134,17 @@ where
             }
         };
 
-        // save last will data
-        if contain_last_will {
-            let last_will = LastWillData {
-                last_will,
-                last_will_properties,
-            };
-
-            let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-            match message_storage
-                .save_lastwill(client_id.clone(), last_will)
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => {
-                    error(e.to_string());
-                    return packet_connect_fail(
-                        ConnectReturnCode::ServiceUnavailable,
-                        Some(e.to_string()),
-                    );
-                }
-            }
-        }
-
-        // update cache
-        // When working with locks, the default is to release them as soon as possible
         self.metadata_cache
             .add_session(client_id.clone(), session.clone());
+
+        // update connection cache
+        let connection = create_connection(
+            connect_id,
+            client_id.clone(),
+            &cluster,
+            connnect.clone(),
+            connect_properties.clone(),
+        );
         self.metadata_cache
             .add_connection(connect_id, connection.clone());
 
@@ -215,7 +192,7 @@ where
             topic_name,
             self.metadata_cache.clone(),
             self.metadata_storage_adapter.clone(),
-            self.message_storage_adapter.clone(),
+            self.client_poll.clone(),
         )
         .await
         {

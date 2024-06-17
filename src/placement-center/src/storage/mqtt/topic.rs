@@ -1,18 +1,18 @@
 use crate::storage::{
-    keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix},
+    keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix},
     rocksdb::RocksDBEngine,
     StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
 
-pub struct MQTTUserStorage {
+pub struct MQTTTopicStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl MQTTUserStorage {
+impl MQTTTopicStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        MQTTUserStorage {
+        MQTTTopicStorage {
             rocksdb_engine_handler,
         }
     }
@@ -20,11 +20,11 @@ impl MQTTUserStorage {
     pub fn list(
         &self,
         cluster_name: String,
-        username: Option<String>,
+        topicname: Option<String>,
     ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
-        if username != None {
-            let key: String = storage_key_mqtt_user(cluster_name, username.unwrap());
+        if topicname != None {
+            let key: String = storage_key_mqtt_topic(cluster_name, topicname.unwrap());
             match self
                 .rocksdb_engine_handler
                 .read::<StorageDataWrap>(cf, &key)
@@ -40,7 +40,7 @@ impl MQTTUserStorage {
                 }
             }
         }
-        let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
+        let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
         let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
         let mut results = Vec::new();
         for raw in data_list {
@@ -59,11 +59,11 @@ impl MQTTUserStorage {
     pub fn save(
         &self,
         cluster_name: String,
-        user_name: String,
+        topic_name: String,
         content: String,
     ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
-        let key = storage_key_mqtt_user(cluster_name, user_name);
+        let key = storage_key_mqtt_topic(cluster_name, topic_name);
         let data = StorageDataWrap::new(content);
         match self.rocksdb_engine_handler.write(cf, &key, &data) {
             Ok(_) => {
@@ -75,9 +75,9 @@ impl MQTTUserStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: String, user_name: String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: String, topic_name: String) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
-        let key: String = storage_key_mqtt_user(cluster_name, user_name);
+        let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         match self.rocksdb_engine_handler.delete(cf, &key) {
             Ok(_) => {
                 return Ok(());
@@ -91,53 +91,52 @@ impl MQTTUserStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::mqtt::user::MQTTUserStorage;
-    use crate::storage::rocksdb::RocksDBEngine;
-    use common_base::config::placement_center::PlacementCenterConfig;
-    use metadata_struct::mqtt::user::MQTTUser;
     use std::sync::Arc;
 
+    use crate::storage::mqtt::topic::MQTTTopicStorage;
+    use crate::storage::rocksdb::RocksDBEngine;
+    use common_base::config::placement_center::PlacementCenterConfig;
+    use metadata_struct::mqtt::topic::MQTTTopic;
+
     #[tokio::test]
-    async fn user_storage_test() {
+    async fn topic_storage_test() {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
         config.data_path = "/tmp/tmp_test".to_string();
         let rs = Arc::new(RocksDBEngine::new(&config));
-        let user_storage = MQTTUserStorage::new(rs);
+        let topic_storage = MQTTTopicStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
-        let username = "loboxu".to_string();
-        let user = MQTTUser {
-            username: username.clone(),
-            password: "pwd123".to_string(),
-            is_superuser: true,
+        let topic_name = "loboxu".to_string();
+        let topic = MQTTTopic {
+            topic_id: "xxx".to_string(),
+            topic_name: topic_name.clone(),
         };
-        user_storage
-            .save(cluster_name.clone(), username, user.encode())
+        topic_storage
+            .save(cluster_name.clone(), topic_name, topic.encode())
             .unwrap();
 
-        let username = "lobo1".to_string();
-        let user = MQTTUser {
-            username: username.clone(),
-            password: "pwd1231".to_string(),
-            is_superuser: true,
+        let topic_name = "lobo1".to_string();
+        let topic = MQTTTopic {
+            topic_id: "xxx".to_string(),
+            topic_name: topic_name.clone(),
         };
-        user_storage
-            .save(cluster_name.clone(), username, user.encode())
+        topic_storage
+            .save(cluster_name.clone(), topic_name, topic.encode())
             .unwrap();
 
-        let res = user_storage.list(cluster_name.clone(), None).unwrap();
+        let res = topic_storage.list(cluster_name.clone(), None).unwrap();
         assert_eq!(res.len(), 2);
 
-        let res = user_storage
+        let res = topic_storage
             .list(cluster_name.clone(), Some("lobo1".to_string()))
             .unwrap();
         assert_eq!(res.len(), 1);
 
-        user_storage
+        topic_storage
             .delete(cluster_name.clone(), "lobo1".to_string())
             .unwrap();
 
-        let res = user_storage
+        let res = topic_storage
             .list(cluster_name.clone(), Some("lobo1".to_string()))
             .unwrap();
         assert_eq!(res.len(), 0);

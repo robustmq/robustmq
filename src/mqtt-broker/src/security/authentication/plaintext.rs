@@ -1,5 +1,5 @@
 use super::Authentication;
-use crate::metadata::user::User;
+use metadata_struct::mqtt::user::MQTTUser;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use dashmap::DashMap;
@@ -7,11 +7,11 @@ use protocol::mqtt::Login;
 
 pub struct Plaintext<'a> {
     login: Login,
-    user_info: &'a DashMap<String, User>,
+    user_info: &'a DashMap<String, MQTTUser>,
 }
 
 impl<'a> Plaintext<'a> {
-    pub fn new(login: Login, user_info: &'a DashMap<String, User>) -> Self {
+    pub fn new(login: Login, user_info: &'a DashMap<String, MQTTUser>) -> Self {
         return Plaintext { login, user_info };
     }
 }
