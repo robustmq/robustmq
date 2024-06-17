@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 pub mod acl;
 pub mod cluster;
 pub mod connection;
-pub mod message;
 pub mod subscriber;
 pub mod topic;
 

@@ -60,6 +60,7 @@ pub enum StorageDataType {
     MQTTDeleteUser,
     MQTTCreateTopic,
     MQTTDeleteTopic,
+    MQTTSetTopicRetainMessage,
     MQTTCreateSession,
     MQTTDeleteSession,
 }

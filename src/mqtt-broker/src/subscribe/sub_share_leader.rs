@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    metadata::{message::Message, subscriber::Subscriber},
+    metadata::subscriber::Subscriber,
     qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
@@ -18,6 +18,7 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
@@ -237,7 +238,7 @@ where
                 return (cursor_point, sub_list);
             }
             for record in results {
-                let msg: Message = match Message::decode_record(record.clone()) {
+                let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
                     Err(e) => {
                         error(format!(
@@ -423,7 +424,7 @@ pub fn build_publish(
     metadata_cache: Arc<MetadataCacheManager>,
     subscribe: Subscriber,
     topic_name: String,
-    msg: Message,
+    msg: MQTTMessage,
 ) -> (Publish, PublishProperties) {
     let mut sub_id = Vec::new();
     if let Some(id) = subscribe.subscription_identifier {

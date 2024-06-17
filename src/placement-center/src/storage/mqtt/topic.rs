@@ -110,6 +110,7 @@ mod tests {
         let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
+            retain_message: None,
         };
         topic_storage
             .save(cluster_name.clone(), topic_name, topic.encode())
@@ -119,6 +120,7 @@ mod tests {
         let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
+            retain_message: None,
         };
         topic_storage
             .save(cluster_name.clone(), topic_name, topic.encode())

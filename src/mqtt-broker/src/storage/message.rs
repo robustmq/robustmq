@@ -1,6 +1,6 @@
 use super::keys::retain_message;
-use crate::metadata::message::Message as RetainMessage;
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::message::MQTTMessage;
 use std::sync::Arc;
 use storage_adapter::{record::Record, storage::StorageAdapter};
 
@@ -85,7 +85,7 @@ where
     pub async fn save_retain_message(
         &self,
         topic_id: String,
-        retail_message: RetainMessage,
+        retail_message: MQTTMessage,
     ) -> Result<(), RobustMQError> {
         let key = retain_message(topic_id);
         match serde_json::to_vec(&retail_message) {
@@ -102,7 +102,7 @@ where
     pub async fn get_retain_message(
         &self,
         topic_id: String,
-    ) -> Result<Option<RetainMessage>, RobustMQError> {
+    ) -> Result<Option<MQTTMessage>, RobustMQError> {
         let key = retain_message(topic_id);
         match self.storage_adapter.get(key).await {
             Ok(Some(data)) => match serde_json::from_slice(&data.data) {

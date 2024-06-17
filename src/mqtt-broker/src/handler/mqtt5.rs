@@ -10,7 +10,6 @@ use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_valida
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
-    metadata::message::Message,
     qos::memory::QosMemory,
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
@@ -18,6 +17,7 @@ use crate::{
 };
 use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
@@ -246,7 +246,7 @@ where
         // Persisting retain message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         if publish.retain {
-            let retain_message = Message::build_message(
+            let retain_message = MQTTMessage::build_message(
                 client_id.clone(),
                 publish.clone(),
                 publish_properties.clone(),
@@ -267,7 +267,7 @@ where
         }
 
         // Persisting stores message data
-        let offset = if let Some(record) = Message::build_record(
+        let offset = if let Some(record) = MQTTMessage::build_record(
             client_id.clone(),
             publish.clone(),
             publish_properties.clone(),

@@ -1,6 +1,5 @@
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    metadata::message::Message,
     qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
@@ -11,6 +10,7 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
@@ -161,7 +161,7 @@ where
                             }
 
                             for record in result.clone() {
-                                let msg = match Message::decode_record(record.clone()) {
+                                let msg = match MQTTMessage::decode_record(record.clone()) {
                                     Ok(msg) => msg,
                                     Err(e) => {
                                         error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));

@@ -15,6 +15,7 @@ use protocol::placement_center::generate::{
         CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
         GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest,
         ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+        SetTopicRetainMessageRequest,
     },
 };
 use std::sync::Arc;
@@ -264,6 +265,28 @@ impl MqttService for GrpcMqttService {
         match self
             .placement_center_storage
             .apply_propose_message(data, "delete_session".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn set_topic_retain_message(
+        &self,
+        request: Request<SetTopicRetainMessageRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTSetTopicRetainMessage,
+            SetTopicRetainMessageRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "set_topic_retain_message".to_string())
             .await
         {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
