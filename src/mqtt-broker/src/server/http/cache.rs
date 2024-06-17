@@ -6,10 +6,9 @@ use crate::{
     metadata::{
         cluster::Cluster,
         connection::Connection,
-        session::Session,
         subscriber::{SubscribeData, Subscriber},
     },
-    qos::{PublishQosMessageData, QosData},
+    qos::QosData,
     subscribe::subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
 };
 use axum::extract::State;
@@ -19,7 +18,7 @@ use common_base::{
     metrics::dump_metrics,
 };
 use dashmap::DashMap;
-use metadata_struct::mqtt::{topic::MQTTTopic, user::MQTTUser};
+use metadata_struct::mqtt::{session::MQTTSession, topic::MQTTTopic, user::MQTTUser};
 use serde::{Deserialize, Serialize};
 
 pub async fn metrics() -> String {
@@ -73,7 +72,7 @@ pub struct MetadataCacheResult {
     pub cluster_name: String,
     pub cluster_info: DashMap<String, Cluster>,
     pub user_info: DashMap<String, MQTTUser>,
-    pub session_info: DashMap<String, Session>,
+    pub session_info: DashMap<String, MQTTSession>,
     pub connection_info: DashMap<u64, Connection>,
     pub topic_info: DashMap<String, MQTTTopic>,
     pub topic_id_name: DashMap<String, String>,

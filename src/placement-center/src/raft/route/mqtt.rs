@@ -1,11 +1,12 @@
 use crate::storage::{
-    mqtt::{topic::MQTTTopicStorage, user::MQTTUserStorage},
+    mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
     rocksdb::RocksDBEngine,
 };
 use common_base::errors::RobustMQError;
 use prost::Message as _;
 use protocol::placement_center::generate::mqtt::{
-    CreateTopicRequest, CreateUserRequest, DeleteTopicRequest, DeleteUserRequest
+    CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
+    DeleteTopicRequest, DeleteUserRequest,
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -72,6 +73,37 @@ impl DataRouteMQTT {
             .unwrap();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
         match storage.delete(req.cluster_name, req.topic_name) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    pub fn create_session(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = CreateSessionRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+
+        match storage.save(req.cluster_name, req.client_id, req.session) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    pub fn delete_session(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = DeleteSessionRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.delete(req.cluster_name, req.client_id) {
             Ok(_) => {
                 return Ok(());
             }

@@ -3,7 +3,10 @@ use self::{
     placement::placement_interface_call,
 };
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::{errors::RobustMQError, log::{error, info}};
+use common_base::{
+    errors::RobustMQError,
+    log::{error, info},
+};
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -44,6 +47,9 @@ pub enum PlacementCenterInterface {
     CreateTopic,
     DeleteTopic,
     ListTopic,
+    CreateSession,
+    DeleteSession,
+    ListSession,
 }
 
 pub mod journal;

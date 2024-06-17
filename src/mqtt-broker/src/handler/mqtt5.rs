@@ -10,7 +10,7 @@ use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_valida
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
-    metadata::{message::Message, session::LastWillData},
+    metadata::message::Message,
     qos::memory::QosMemory,
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,

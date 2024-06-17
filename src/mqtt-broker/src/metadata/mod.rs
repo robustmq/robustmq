@@ -5,7 +5,6 @@ pub mod acl;
 pub mod cluster;
 pub mod connection;
 pub mod message;
-pub mod session;
 pub mod subscriber;
 pub mod topic;
 
@@ -31,3 +30,4 @@ pub fn available_flag(flag: Available) -> AvailableFlag {
         Available::Disable => return AvailableFlag::Disable,
     }
 }
+

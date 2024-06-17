@@ -3,7 +3,7 @@ use protocol::mqtt::{LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct Session {
+pub struct MQTTSession {
     pub client_id: String,
     pub last_will_delay_interval: u32,
     pub last_will: Option<LastWillData>,
@@ -12,14 +12,14 @@ pub struct Session {
     pub reconnect_time: Option<u64>,
 }
 
-impl Session {
+impl MQTTSession {
     pub fn new(
         client_id: String,
         session_expiry: u32,
         last_will: Option<LastWillData>,
         delay_interval: u32,
-    ) -> Session {
-        let mut session = Session::default();
+    ) -> MQTTSession {
+        let mut session = MQTTSession::default();
         session.client_id = client_id.clone();
         session.last_will = last_will;
         session.session_expiry = session_expiry;
@@ -33,6 +33,10 @@ impl Session {
 
     pub fn update_reconnect_time(&mut self) {
         self.reconnect_time = Some(now_second());
+    }
+
+    pub fn encode(&self) -> String {
+        return serde_json::to_string(&self).unwrap();
     }
 }
 

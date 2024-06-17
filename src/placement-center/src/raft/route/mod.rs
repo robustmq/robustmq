@@ -89,6 +89,12 @@ impl DataRoute {
             StorageDataType::MQTTDeleteTopic => {
                 return self.route_mqtt.delete_topic(storage_data.value);
             }
+            StorageDataType::MQTTCreateSession => {
+                return self.route_mqtt.create_session(storage_data.value);
+            }
+            StorageDataType::MQTTDeleteSession => {
+                return self.route_mqtt.delete_session(storage_data.value);
+            }
         }
     }
 }

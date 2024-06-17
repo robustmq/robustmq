@@ -50,7 +50,7 @@ pub enum StorageDataType {
     JournalDeleteShard,
     JournalCreateSegment,
     JournalDeleteSegment,
-    
+
     // kv
     KvSet,
     KvDelete,
@@ -60,6 +60,8 @@ pub enum StorageDataType {
     MQTTDeleteUser,
     MQTTCreateTopic,
     MQTTDeleteTopic,
+    MQTTCreateSession,
+    MQTTDeleteSession,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

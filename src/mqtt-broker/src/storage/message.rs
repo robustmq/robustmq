@@ -1,5 +1,5 @@
-use super::keys::{lastwill_key, retain_message};
-use crate::metadata::{message::Message as RetainMessage, session::LastWillData};
+use super::keys::retain_message;
+use crate::metadata::message::Message as RetainMessage;
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
 use storage_adapter::{record::Record, storage::StorageAdapter};
@@ -123,5 +123,4 @@ where
             }
         }
     }
-
 }

@@ -63,3 +63,11 @@ pub fn storage_key_mqtt_topic(cluster_name: String, user_name: String) -> String
 pub fn storage_key_mqtt_topic_cluster_prefix(cluster_name: String) -> String {
     return format!("/mqtt/{}/topic/", cluster_name);
 }
+
+pub fn storage_key_mqtt_session(cluster_name: String, user_name: String) -> String {
+    return format!("/mqtt/{}/session/{}", cluster_name, user_name);
+}
+
+pub fn storage_key_mqtt_session_cluster_prefix(cluster_name: String) -> String {
+    return format!("/mqtt/{}/session/", cluster_name);
+}

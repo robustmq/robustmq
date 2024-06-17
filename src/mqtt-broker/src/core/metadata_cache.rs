@@ -1,5 +1,5 @@
 use crate::metadata::{
-    cluster::Cluster, connection::Connection, session::Session, subscriber::SubscribeData,
+    cluster::Cluster, connection::Connection,subscriber::SubscribeData,
 };
 use crate::storage::user::UserStorage;
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::log::warn;
 use dashmap::DashMap;
+use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
 use protocol::mqtt::{Subscribe, SubscribeProperties};
@@ -50,7 +51,7 @@ pub struct MetadataCacheManager {
     pub user_info: DashMap<String, MQTTUser>,
 
     // (client_id, Session)
-    pub session_info: DashMap<String, Session>,
+    pub session_info: DashMap<String, MQTTSession>,
 
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, Connection>,
@@ -168,7 +169,7 @@ impl MetadataCacheManager {
         self.user_info.remove(&data.username);
     }
 
-    pub fn add_session(&self, client_id: String, session: Session) {
+    pub fn add_session(&self, client_id: String, session: MQTTSession) {
         self.session_info.insert(client_id, session);
     }
 
