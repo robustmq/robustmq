@@ -19,14 +19,13 @@ impl TopicStorage {
         return TopicStorage { client_poll };
     }
 
-    pub async fn save_topic(&self, topic_name: String) -> Result<String, RobustMQError> {
+    pub async fn save_topic(&self, topic_name: String) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
+        let topic = MQTTTopic::new(&topic_name);
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
-            topic: Some(protocol::placement_center::generate::mqtt::Topic {
-                topic_id: "".to_string(),
-                topic_name: topic_name.clone(),
-            }),
+            topic_name: topic_name.clone(),
+            content: topic.encode(),
         };
         match placement_create_topic(
             self.client_poll.clone(),
@@ -35,8 +34,8 @@ impl TopicStorage {
         )
         .await
         {
-            Ok(reply) => {
-                return Ok(reply.topic_id);
+            Ok(_) => {
+                return Ok(());
             }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(format!(
@@ -88,13 +87,14 @@ impl TopicStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.topics {
-                    results.insert(
-                        raw.topic_name.clone(),
-                        MQTTTopic {
-                            topic_id: raw.topic_id.clone(),
-                            topic_name: raw.topic_name.clone(),
-                        },
-                    );
+                    match serde_json::from_str::<MQTTTopic>(&raw) {
+                        Ok(data) => {
+                            results.insert(data.topic_name.clone(), data);
+                        }
+                        Err(_) => {
+                            continue;
+                        }
+                    }
                 }
                 return Ok(results);
             }
@@ -122,10 +122,12 @@ impl TopicStorage {
                     return Ok(None);
                 }
                 let raw = reply.topics.get(0).unwrap();
-                return Ok(Some(MQTTTopic {
-                    topic_id: raw.topic_id.clone(),
-                    topic_name: raw.topic_name.clone(),
-                }));
+                match serde_json::from_str::<MQTTTopic>(&raw) {
+                    Ok(data) => return Ok(Some(data)),
+                    Err(e) => {
+                        return Err(RobustMQError::CommmonError(e.to_string()));
+                    }
+                }
             }
             Err(e) => {
                 return Err(e);

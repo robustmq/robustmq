@@ -146,7 +146,7 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<CreateTopicRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        let mut req = request.into_inner();
+        let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTCreateTopic,
             CreateTopicRequest::encode_to_vec(&req),
@@ -196,14 +196,7 @@ impl MqttService for GrpcMqttService {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {
-                    match Topic::decode(raw.data.as_ref()) {
-                        Ok(user) => {
-                            result.push(user);
-                        }
-                        Err(_) => {
-                            continue;
-                        }
-                    }
+                    result.push(raw.data);
                 }
                 let reply = ListTopicReply { topics: result };
 

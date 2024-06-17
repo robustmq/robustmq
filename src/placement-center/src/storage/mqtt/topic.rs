@@ -4,8 +4,6 @@ use crate::storage::{
     StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
-use prost::Message as _;
-use protocol::placement_center::generate::mqtt::Topic;
 use std::sync::Arc;
 
 pub struct MQTTTopicStorage {
@@ -58,11 +56,15 @@ impl MQTTTopicStorage {
         return Ok(results);
     }
 
-    pub fn save(&self, cluster_name: String, topic: Topic) -> Result<(), RobustMQError> {
+    pub fn save(
+        &self,
+        cluster_name: String,
+        topic_name: String,
+        content: String,
+    ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
-        let key = storage_key_mqtt_topic(cluster_name, topic.topic_name.clone());
-        let val = Topic::encode_to_vec(&topic);
-        let data = StorageDataWrap::new(val);
+        let key = storage_key_mqtt_topic(cluster_name, topic_name);
+        let data = StorageDataWrap::new(content);
         match self.rocksdb_engine_handler.write(cf, &key, &data) {
             Ok(_) => {
                 return Ok(());
@@ -94,7 +96,7 @@ mod tests {
     use crate::storage::mqtt::topic::MQTTTopicStorage;
     use crate::storage::rocksdb::RocksDBEngine;
     use common_base::config::placement_center::PlacementCenterConfig;
-    use protocol::placement_center::generate::mqtt::Topic;
+    use metadata_struct::mqtt::topic::MQTTTopic;
 
     #[tokio::test]
     async fn topic_storage_test() {
@@ -104,17 +106,23 @@ mod tests {
         let rs = Arc::new(RocksDBEngine::new(&config));
         let topic_storage = MQTTTopicStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
-        let topic = Topic {
+        let topic_name = "loboxu".to_string();
+        let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
-            topic_name: "loboxu".to_string(),
+            topic_name: topic_name.clone(),
         };
-        topic_storage.save(cluster_name.clone(), topic).unwrap();
+        topic_storage
+            .save(cluster_name.clone(), topic_name, topic.encode())
+            .unwrap();
 
-        let topic = Topic {
+        let topic_name = "lobo1".to_string();
+        let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
-            topic_name: "lobo1".to_string(),
+            topic_name: topic_name.clone(),
         };
-        topic_storage.save(cluster_name.clone(), topic).unwrap();
+        topic_storage
+            .save(cluster_name.clone(), topic_name, topic.encode())
+            .unwrap();
 
         let res = topic_storage.list(cluster_name.clone(), None).unwrap();
         assert_eq!(res.len(), 2);

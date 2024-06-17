@@ -1,10 +1,10 @@
-use metadata_struct::mqtt::user::MQTTUser;
 use clients::{
     placement::mqtt::call::{placement_create_user, placement_delete_user, placement_list_user},
     poll::ClientPool,
 };
 use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
 use dashmap::DashMap;
+use metadata_struct::mqtt::user::MQTTUser;
 use protocol::placement_center::generate::mqtt::{
     CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
@@ -22,11 +22,8 @@ impl UserStorage {
         let config = broker_mqtt_conf();
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
-            user: Some(protocol::placement_center::generate::mqtt::User {
-                username: user_info.username,
-                password: user_info.password,
-                super_user: user_info.is_superuser,
-            }),
+            user_name: user_info.username.clone(),
+            content: user_info.encode(),
         };
         match placement_create_user(
             self.client_poll.clone(),
@@ -47,11 +44,11 @@ impl UserStorage {
         }
     }
 
-    pub async fn delete_user(&self, username: String) -> Result<(), RobustMQError> {
+    pub async fn delete_user(&self, user_name: String) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
         let request = DeleteUserRequest {
             cluster_name: config.cluster_name.clone(),
-            username,
+            user_name,
         };
         match placement_delete_user(
             self.client_poll.clone(),
@@ -90,11 +87,14 @@ impl UserStorage {
                     return Ok(None);
                 }
                 let raw = reply.users.get(0).unwrap();
-                return Ok(Some(MQTTUser {
-                    username: raw.username.clone(),
-                    password: raw.password.clone(),
-                    is_superuser: raw.super_user,
-                }));
+                match serde_json::from_str::<MQTTUser>(raw) {
+                    Ok(data) => {
+                        return Ok(Some(data));
+                    }
+                    Err(e) => {
+                        return Err(RobustMQError::CommmonError(e.to_string()));
+                    }
+                }
             }
             Err(e) => {
                 return Err(e);
@@ -118,14 +118,14 @@ impl UserStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.users {
-                    results.insert(
-                        raw.username.clone(),
-                        MQTTUser {
-                            username: raw.username.clone(),
-                            password: raw.password.clone(),
-                            is_superuser: raw.super_user,
-                        },
-                    );
+                    match serde_json::from_str::<MQTTUser>(&raw) {
+                        Ok(data) => {
+                            results.insert(data.username.clone(), data);
+                        }
+                        Err(_) => {
+                            continue;
+                        }
+                    }
                 }
                 return Ok(results);
             }

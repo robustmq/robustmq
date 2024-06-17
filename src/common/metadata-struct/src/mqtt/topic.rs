@@ -14,4 +14,8 @@ impl MQTTTopic {
             topic_name: topic_name.clone(),
         };
     }
+
+    pub fn encode(&self) -> String {
+        return serde_json::to_string(&self).unwrap();
+    }
 }

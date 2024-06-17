@@ -5,7 +5,7 @@ use crate::storage::{
 use common_base::errors::RobustMQError;
 use prost::Message as _;
 use protocol::placement_center::generate::mqtt::{
-    CreateTopicRequest, CreateUserRequest, DeleteTopicRequest, DeleteUserRequest,
+    CreateTopicRequest, CreateUserRequest, DeleteTopicRequest, DeleteUserRequest
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -25,7 +25,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.save(req.cluster_name, req.user) {
+        match storage.save(req.cluster_name, req.user_name, req.content) {
             Ok(_) => {
                 return Ok(());
             }
@@ -40,7 +40,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.delete(req.cluster_name, req.username) {
+        match storage.delete(req.cluster_name, req.user_name) {
             Ok(_) => {
                 return Ok(());
             }
@@ -56,7 +56,7 @@ impl DataRouteMQTT {
             .unwrap();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        match storage.save(req.cluster_name, topic) {
+        match storage.save(req.cluster_name, req.topic_name, req.content) {
             Ok(_) => {
                 return Ok(());
             }

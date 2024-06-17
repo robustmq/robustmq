@@ -81,7 +81,8 @@ where
         tp
     } else {
         let topic_storage = TopicStorage::new(client_poll.clone());
-        let topic_id = match topic_storage.save_topic(topic_name.clone()).await {
+        let topic = MQTTTopic::new(&topic_name);
+        match topic_storage.save_topic(topic_name.clone()).await {
             Ok(topic_id) => topic_id,
             Err(e) => {
                 return Err(RobustMQError::CommmonError(e.to_string()));
@@ -89,7 +90,7 @@ where
         };
 
         // Create the resource object of the storage layer
-        let shard_name = topic_id.clone();
+        let shard_name = topic.topic_id.clone();
         let shard_config = ShardConfig::default();
         match message_storage_adapter
             .create_shard(shard_name, shard_config)
@@ -100,10 +101,7 @@ where
                 return Err(RobustMQError::CommmonError(e.to_string()));
             }
         }
-        return Ok(MQTTTopic {
-            topic_id,
-            topic_name,
-        });
+        return Ok(topic);
     };
     return Ok(topic);
 }
