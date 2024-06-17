@@ -56,7 +56,7 @@ impl ClusterController {
             self.cluster_cache.add_cluster(cluster.clone());
 
             // load node cache
-            let node_list = node_handler.node_list(cluster_name.clone());
+            let node_list = node_handler.list(cluster_name.clone());
             for node in node_list {
                 self.cluster_cache.add_node(node);
             }

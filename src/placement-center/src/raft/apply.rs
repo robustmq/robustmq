@@ -58,6 +58,8 @@ pub enum StorageDataType {
     // mqtt
     MQTTCreateUser,
     MQTTDeleteUser,
+    MQTTCreateTopic,
+    MQTTDeleteTopic,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

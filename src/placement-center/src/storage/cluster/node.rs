@@ -1,6 +1,9 @@
+use crate::{
+    storage::{keys::key_node, rocksdb::RocksDBEngine},
+    structs::node::Node,
+};
+use common_base::log::error_meta;
 use std::sync::Arc;
-use crate::{storage::{keys::key_node, rocksdb::RocksDBEngine}, structs::node::Node};
-use common_base::{config::placement_center::placement_center_conf, log::error_meta};
 
 use super::cluster::ClusterStorage;
 
@@ -11,7 +14,6 @@ pub struct NodeStorage {
 
 impl NodeStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let config = placement_center_conf();
         let cluster_storage = ClusterStorage::new(rocksdb_engine_handler.clone());
         NodeStorage {
             rocksdb_engine_handler,
@@ -19,7 +21,7 @@ impl NodeStorage {
         }
     }
 
-    pub fn node_list(&self, cluster_name: String) -> Vec<Node> {
+    pub fn list(&self, cluster_name: String) -> Vec<Node> {
         let mut result = Vec::new();
         let cf = self.rocksdb_engine_handler.cf_cluster();
 
@@ -42,7 +44,7 @@ impl NodeStorage {
         return result;
     }
 
-    pub fn save_node(&self, cluster_name: String, cluster_type: String, node: Node) {
+    pub fn save(&self, cluster_name: String, cluster_type: String, node: Node) {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let node_key = key_node(&cluster_name, node.node_id);
         match self.rocksdb_engine_handler.write(cf, &node_key, &node) {
@@ -53,7 +55,7 @@ impl NodeStorage {
         }
     }
 
-    pub fn delete_node(&self, cluster_name: &String, node_id: u64) {
+    pub fn delete(&self, cluster_name: &String, node_id: u64) {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let node_key = key_node(&cluster_name, node_id);
         match self.rocksdb_engine_handler.delete(cf, &node_key) {
@@ -64,13 +66,10 @@ impl NodeStorage {
         }
     }
 
-    pub fn get_node(&self, cluster_name: String, node_id: u64) -> Option<Node> {
+    pub fn get(&self, cluster_name: String, node_id: u64) -> Option<Node> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let cluster_key = key_node(&cluster_name, node_id);
-        match self
-            .rocksdb_engine_handler
-            .read::<Node>(cf, &cluster_key)
-        {
+        match self.rocksdb_engine_handler.read::<Node>(cf, &cluster_key) {
             Ok(cluster_info) => {
                 return cluster_info;
             }

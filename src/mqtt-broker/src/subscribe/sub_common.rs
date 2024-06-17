@@ -448,6 +448,7 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
     use storage_adapter::memory::MemoryStorageAdapter;
     use tokio::sync::broadcast;
@@ -455,7 +456,7 @@ mod tests {
     use crate::core::metadata_cache::MetadataCacheManager;
     use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
     use crate::{
-        metadata::{message::Message, topic::Topic},
+        metadata::{message::Message},
         storage::message::MessageStorage,
         subscribe::sub_common::{
             get_sub_topic_id_list, min_qos, path_regex_match, send_retain_message,
@@ -575,7 +576,7 @@ mod tests {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
-        let topic = Topic::new(&topic_name);
+        let topic = MQTTTopic::new(&topic_name);
         metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();
@@ -640,7 +641,7 @@ mod tests {
 
         let topic_name = "/test/topic".to_string();
         let payload = "testtesttest".to_string();
-        let topic = Topic::new(&topic_name);
+        let topic = MQTTTopic::new(&topic_name);
 
         metadata_cache.add_topic(&topic_name, &topic);
 

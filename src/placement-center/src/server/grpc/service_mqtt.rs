@@ -2,14 +2,19 @@ use crate::{
     cache::{cluster::ClusterCache, mqtt::MqttCache},
     core::share_sub::calc_share_sub_leader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
-    storage::{mqtt::user::MQTTUserStorage, rocksdb::RocksDBEngine},
+    storage::{
+        mqtt::{topic::MQTTTopicStorage, user::MQTTUserStorage},
+        rocksdb::RocksDBEngine,
+    },
 };
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, CreateUserRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListUserReply, ListUserRequest,
+        mqtt_service_server::MqttService, CreateSessionRequest, CreateTopicRequest,
+        CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
+        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest,
+        ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
     },
 };
 use std::sync::Arc;
@@ -77,7 +82,13 @@ impl MqttService for GrpcMqttService {
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
         match storage.list(req.cluster_name, Some(req.username)) {
             Ok(data) => {
-                return Ok(Response::new(ListUserReply::default()));
+                let mut result = Vec::new();
+                for raw in data {
+                    result.push(raw.data);
+                }
+                let reply = ListUserReply { users: result };
+
+                return Ok(Response::new(reply));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -129,5 +140,99 @@ impl MqttService for GrpcMqttService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    async fn create_topic(
+        &self,
+        request: Request<CreateTopicRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let mut req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTCreateTopic,
+            CreateTopicRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "create_topic".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_topic(
+        &self,
+        request: Request<DeleteTopicRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTDeleteTopic,
+            DeleteTopicRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_topic".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn list_topic(
+        &self,
+        request: Request<ListTopicRequest>,
+    ) -> Result<Response<ListTopicReply>, Status> {
+        let req = request.into_inner();
+        let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.list(req.cluster_name, Some(req.topic_name)) {
+            Ok(data) => {
+                let mut result = Vec::new();
+                for raw in data {
+                    match Topic::decode(raw.data.as_ref()) {
+                        Ok(user) => {
+                            result.push(user);
+                        }
+                        Err(_) => {
+                            continue;
+                        }
+                    }
+                }
+                let reply = ListTopicReply { topics: result };
+
+                return Ok(Response::new(reply));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn list_session(
+        &self,
+        request: Request<ListSessionRequest>,
+    ) -> Result<Response<ListSessionReply>, Status> {
+        return Ok(Response::new(ListSessionReply::default()));
+    }
+
+    async fn create_session(
+        &self,
+        request: Request<CreateSessionRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        return Ok(Response::new(CommonReply::default()));
+    }
+
+    async fn delete_session(
+        &self,
+        request: Request<DeleteSessionRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        return Ok(Response::new(CommonReply::default()));
     }
 }

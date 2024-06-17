@@ -1,9 +1,11 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::{
-    metadata::{available_flag, user::User},
+    metadata::available_flag,
     storage::{cluster::ClusterStorage, user::UserStorage},
 };
+use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, tools::now_mills};
+use metadata_struct::mqtt::user::MQTTUser;
 use protocol::{
     broker_server::generate::mqtt::{
         mqtt_broker_service_server::MqttBrokerService, CommonReply, CreateUserRequest,
@@ -18,6 +20,7 @@ use tonic::{Request, Response, Status};
 pub struct GrpcBrokerServices<T> {
     metadata_cache: Arc<MetadataCacheManager>,
     metadata_storage_adapter: Arc<T>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl<T> GrpcBrokerServices<T>
@@ -27,10 +30,13 @@ where
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
         metadata_storage_adapter: Arc<T>,
+
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         return GrpcBrokerServices {
             metadata_cache,
             metadata_storage_adapter,
+            client_poll,
         };
     }
 }
@@ -65,14 +71,12 @@ where
                     .to_string(),
             ));
         }
-        let user_info = User {
+        let user_info = MQTTUser {
             username: req.username.clone(),
             password: req.password,
-            salt: crate::metadata::user::UserSalt::Md5,
             is_superuser: true,
-            create_time: now_mills(),
         };
-        let user_storage = UserStorage::new(self.metadata_storage_adapter.clone());
+        let user_storage = UserStorage::new(self.client_poll.clone());
         match user_storage.save_user(user_info.clone()).await {
             Ok(_) => {
                 let mut reply = CommonReply::default();

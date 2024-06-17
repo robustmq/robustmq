@@ -1,17 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct User {
+pub struct MQTTUser {
     pub username: String,
     pub password: String,
-    pub salt: UserSalt,
     pub is_superuser: bool,
-    pub create_time: u128,
 }
 
-
-#[derive(Clone, Serialize, Deserialize)]
-pub enum UserSalt {
-    Md5,
-    Sha256,
+impl MQTTUser {
+    pub fn encode(&self) -> String {
+        return serde_json::to_string(&self).unwrap();
+    }
 }

@@ -1,97 +1,131 @@
-use super::{
-    all::AllInfoStorage,
-    keys::{all_topic_key, topic_key},
+use clients::{
+    placement::mqtt::call::{placement_create_topic, placement_delete_topic, placement_list_topic},
+    poll::ClientPool,
 };
-use crate::metadata::topic::Topic;
-use common_base::errors::RobustMQError;
+use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
 use dashmap::DashMap;
-use std::{collections::HashMap, sync::Arc};
-use storage_adapter::{record::Record, storage::StorageAdapter};
+use metadata_struct::mqtt::topic::MQTTTopic;
+use protocol::placement_center::generate::mqtt::{
+    CreateTopicRequest, DeleteTopicRequest, ListTopicRequest,
+};
+use std::sync::Arc;
 
-pub struct TopicStorage<T> {
-    storage_adapter: Arc<T>,
-    all_info_storage: AllInfoStorage<T>,
+pub struct TopicStorage {
+    client_poll: Arc<ClientPool>,
 }
 
-impl<T> TopicStorage<T>
-where
-    T: StorageAdapter,
-{
-    pub fn new(storage_adapter: Arc<T>) -> Self {
-        let all_info_storage = AllInfoStorage::new(all_topic_key(), storage_adapter.clone());
-        return TopicStorage {
-            storage_adapter,
-            all_info_storage,
-        };
+impl TopicStorage {
+    pub fn new(client_poll: Arc<ClientPool>) -> Self {
+        return TopicStorage { client_poll };
     }
-    // Persistence holds the session information of the connection dimension
-    pub async fn save_topic(
-        &self,
-        topic_name: &String,
-        topic: &Topic,
-    ) -> Result<(), RobustMQError> {
-        let key = topic_key(topic_name.clone());
-        match serde_json::to_vec(topic) {
-            Ok(data) => {
-                match self
-                    .all_info_storage
-                    .add_info_for_all(topic_name.clone())
-                    .await
-                {
-                    Ok(_) => {}
-                    Err(e) => return Err(e),
-                }
-                return self.storage_adapter.set(key, Record::build_b(data)).await;
+
+    pub async fn save_topic(&self, topic_name: String) -> Result<String, RobustMQError> {
+        let config = broker_mqtt_conf();
+        let request = CreateTopicRequest {
+            cluster_name: config.cluster_name.clone(),
+            topic: Some(protocol::placement_center::generate::mqtt::Topic {
+                topic_id: "".to_string(),
+                topic_name: topic_name.clone(),
+            }),
+        };
+        match placement_create_topic(
+            self.client_poll.clone(),
+            config.placement.server.clone(),
+            request,
+        )
+        .await
+        {
+            Ok(reply) => {
+                return Ok(reply.topic_id);
             }
             Err(e) => {
                 return Err(common_base::errors::RobustMQError::CommmonError(format!(
-                    "save topic error, error messsage:{}",
+                    "save user config error, error messsage:{}",
                     e.to_string()
                 )))
             }
         }
     }
 
-    // Getting a list of users
-    pub async fn topic_list(&self) -> Result<DashMap<String, Topic>, RobustMQError> {
-        match self.all_info_storage.get_all().await {
-            Ok(data) => {
-                let list = DashMap::with_capacity(256);
-                for username in data {
-                    match self.get_topic(username.clone()).await {
-                        Ok(user) => {
-                            if let Some(t) = user {
-                                list.insert(username, t);
-                            }
-                        }
-                        Err(e) => {
-                            return Err(e);
-                        }
-                    }
-                }
-                return Ok(list);
+    pub async fn delete_topic(&self, topic_name: String) -> Result<(), RobustMQError> {
+        let config = broker_mqtt_conf();
+        let request = DeleteTopicRequest {
+            cluster_name: config.cluster_name.clone(),
+            topic_name,
+        };
+        match placement_delete_topic(
+            self.client_poll.clone(),
+            config.placement.server.clone(),
+            request,
+        )
+        .await
+        {
+            Ok(_) => {
+                return Ok(());
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                return Err(common_base::errors::RobustMQError::CommmonError(format!(
+                    "save user config error, error messsage:{}",
+                    e.to_string()
+                )))
+            }
         }
     }
 
-    // Get session information for the connection dimension
-    pub async fn get_topic(&self, client_id: String) -> Result<Option<Topic>, RobustMQError> {
-        let key = topic_key(client_id);
-        match self.storage_adapter.get(key).await {
-            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
-                Ok(da) => {
-                    return Ok(Some(da));
+    pub async fn topic_list(&self) -> Result<DashMap<String, MQTTTopic>, RobustMQError> {
+        let config = broker_mqtt_conf();
+        let request = ListTopicRequest {
+            cluster_name: config.cluster_name.clone(),
+            topic_name: "".to_string(),
+        };
+        match placement_list_topic(
+            self.client_poll.clone(),
+            config.placement.server.clone(),
+            request,
+        )
+        .await
+        {
+            Ok(reply) => {
+                let results = DashMap::with_capacity(2);
+                for raw in reply.topics {
+                    results.insert(
+                        raw.topic_name.clone(),
+                        MQTTTopic {
+                            topic_id: raw.topic_id.clone(),
+                            topic_name: raw.topic_name.clone(),
+                        },
+                    );
                 }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(format!(
-                        "get topic config error, error messsage:{}",
-                        e.to_string()
-                    )))
+                return Ok(results);
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MQTTTopic>, RobustMQError> {
+        let config = broker_mqtt_conf();
+        let request = ListTopicRequest {
+            cluster_name: config.cluster_name.clone(),
+            topic_name,
+        };
+        match placement_list_topic(
+            self.client_poll.clone(),
+            config.placement.server.clone(),
+            request,
+        )
+        .await
+        {
+            Ok(reply) => {
+                if reply.topics.len() == 0 {
+                    return Ok(None);
                 }
-            },
-            Ok(None) => {
-                return Ok(None);
+                let raw = reply.topics.get(0).unwrap();
+                return Ok(Some(MQTTTopic {
+                    topic_id: raw.topic_id.clone(),
+                    topic_name: raw.topic_name.clone(),
+                }));
             }
             Err(e) => {
                 return Err(e);

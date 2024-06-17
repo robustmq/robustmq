@@ -1,13 +1,16 @@
 use crate::metadata::{
     cluster::Cluster, connection::Connection, session::Session, subscriber::SubscribeData,
-    topic::Topic, user::User,
 };
+use crate::storage::user::UserStorage;
 use crate::{
     server::MQTTProtocol,
-    storage::{cluster::ClusterStorage, topic::TopicStorage, user::UserStorage},
+    storage::{cluster::ClusterStorage, topic::TopicStorage},
 };
+use clients::poll::ClientPool;
 use common_base::log::warn;
 use dashmap::DashMap;
+use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::user::MQTTUser;
 use protocol::mqtt::{Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -44,7 +47,7 @@ pub struct MetadataCacheManager {
     pub cluster_info: DashMap<String, Cluster>,
 
     // (username, User)
-    pub user_info: DashMap<String, User>,
+    pub user_info: DashMap<String, MQTTUser>,
 
     // (client_id, Session)
     pub session_info: DashMap<String, Session>,
@@ -53,7 +56,7 @@ pub struct MetadataCacheManager {
     pub connection_info: DashMap<u64, Connection>,
 
     // (topic_name, Topic)
-    pub topic_info: DashMap<String, Topic>,
+    pub topic_info: DashMap<String, MQTTTopic>,
 
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
@@ -132,7 +135,7 @@ impl MetadataCacheManager {
         match data.data_type {
             MetadataCacheType::User => match data.action {
                 MetadataCacheAction::Set => {
-                    let user: User = serde_json::from_str(&data.value).unwrap();
+                    let user: MQTTUser = serde_json::from_str(&data.value).unwrap();
                     self.add_user(user);
                 }
                 MetadataCacheAction::Del => self.del_user(data.value),
@@ -156,12 +159,12 @@ impl MetadataCacheManager {
         return self.cluster_info.get(&self.cluster_name).unwrap().clone();
     }
 
-    pub fn add_user(&self, user: User) {
+    pub fn add_user(&self, user: MQTTUser) {
         self.user_info.insert(user.username.clone(), user);
     }
 
     pub fn del_user(&self, value: String) {
-        let data: User = serde_json::from_str(&value).unwrap();
+        let data: MQTTUser = serde_json::from_str(&value).unwrap();
         self.user_info.remove(&data.username);
     }
 
@@ -173,7 +176,7 @@ impl MetadataCacheManager {
         self.connection_info.insert(connect_id, conn);
     }
 
-    pub fn add_topic(&self, topic_name: &String, topic: &Topic) {
+    pub fn add_topic(&self, topic_name: &String, topic: &MQTTTopic) {
         let t = topic.clone();
         self.topic_info.insert(topic_name.clone(), t.clone());
         self.topic_id_name.insert(t.topic_id, topic_name.clone());
@@ -203,7 +206,7 @@ impl MetadataCacheManager {
         return None;
     }
 
-    pub fn get_topic_by_name(&self, topic_name: String) -> Option<Topic> {
+    pub fn get_topic_by_name(&self, topic_name: String) -> Option<MQTTTopic> {
         if let Some(topic) = self.topic_info.get(&topic_name) {
             return Some(topic.clone());
         }
@@ -281,7 +284,8 @@ impl MetadataCacheManager {
 
 pub async fn load_metadata_cache<T>(
     metadata_storage_adapter: Arc<T>,
-) -> (Cluster, DashMap<String, User>, DashMap<String, Topic>)
+    client_poll: Arc<ClientPool>,
+) -> (Cluster, DashMap<String, MQTTUser>, DashMap<String, MQTTTopic>)
 where
     T: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -299,7 +303,7 @@ where
     };
 
     // load all user
-    let user_storage = UserStorage::new(metadata_storage_adapter.clone());
+    let user_storage = UserStorage::new(client_poll.clone());
     let user_list = match user_storage.user_list().await {
         Ok(list) => list,
         Err(e) => {
@@ -316,7 +320,7 @@ where
     }
 
     // load topic info
-    let topic_storage = TopicStorage::new(metadata_storage_adapter.clone());
+    let topic_storage = TopicStorage::new(client_poll.clone());
     let topic_list = match topic_storage.topic_list().await {
         Ok(list) => list,
         Err(e) => {

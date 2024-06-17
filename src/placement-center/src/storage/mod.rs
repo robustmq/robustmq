@@ -18,20 +18,20 @@ use common_base::tools::now_second;
 use serde::{Deserialize, Serialize};
 
 pub mod cluster;
-pub mod keys;
 pub mod common;
+pub mod journal;
+pub mod keys;
 pub mod mqtt;
 pub mod rocksdb;
-pub mod journal;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StorageDataWrap {
-    pub data: Vec<u8>,
+    pub data: String,
     pub create_time: u64,
 }
 
 impl StorageDataWrap {
-    pub fn new(data: Vec<u8>) -> Self {
+    pub fn new(data:String) -> Self {
         return StorageDataWrap {
             data,
             create_time: now_second(),

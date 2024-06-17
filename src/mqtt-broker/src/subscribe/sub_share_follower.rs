@@ -20,7 +20,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
-use metadata_struct::mqtt_node_extend::MQTTNodeExtend;
+use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
 use protocol::{
     mqtt::{
         Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PingReq, PubAck,

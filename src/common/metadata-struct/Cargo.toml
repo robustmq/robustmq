@@ -7,3 +7,5 @@ license.workspace = true
 [dependencies]
 thiserror.workspace = true
 serde.workspace = true
+common-base.workspace = true
+serde_json.workspace = true

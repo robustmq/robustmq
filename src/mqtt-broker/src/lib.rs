@@ -16,7 +16,6 @@ use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
     runtime::create_runtime,
-    tools::now_mills,
 };
 use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
@@ -26,7 +25,8 @@ use core::{
     session_expiry::SessionExpiry,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
-use metadata::{cluster::Cluster, user::User};
+use metadata::cluster::Cluster;
+use metadata_struct::mqtt::user::MQTTUser;
 use qos::{ack_manager::AckManager, memory::QosMemory};
 use server::{
     grpc::server::GrpcServer,
@@ -169,6 +169,7 @@ where
         let idempotent_manager = self.idempotent_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let ack_manager = self.ack_manager.clone();
+        let client_poll = self.client_poll.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
         let request_queue_sx5 = self.request_queue_sx5.clone();
@@ -184,6 +185,7 @@ where
                 message_storage_adapter,
                 idempotent_manager,
                 ack_manager,
+                client_poll,
                 request_queue_sx4,
                 request_queue_sx5,
                 response_queue_sx4,
@@ -198,6 +200,7 @@ where
             self.conf.grpc_port.clone(),
             self.metadata_cache_manager.clone(),
             self.metadata_storage_adapter.clone(),
+            self.client_poll.clone(),
         );
         self.runtime.spawn(async move {
             server.start().await;
@@ -313,17 +316,16 @@ where
     fn register_node(&self) {
         let metadata_cache = self.metadata_cache_manager.clone();
         let metadata_storage_adapter = self.metadata_storage_adapter.clone();
+        let client_poll = self.client_poll.clone();
         self.runtime.block_on(async move {
             // init system user
             let conf = broker_mqtt_conf();
-            let system_user_info = User {
+            let system_user_info = MQTTUser {
                 username: conf.system.system_user.clone(),
                 password: conf.system.system_password.clone(),
-                salt: crate::metadata::user::UserSalt::Md5,
                 is_superuser: true,
-                create_time: now_mills(),
             };
-            let user_storage = UserStorage::new(metadata_storage_adapter.clone());
+            let user_storage = UserStorage::new(client_poll.clone());
             match user_storage.save_user(system_user_info.clone()).await {
                 Ok(_) => {
                     metadata_cache.add_user(system_user_info);
@@ -335,7 +337,7 @@ where
 
             // metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);
             let (cluster, user_info, topic_info) =
-                load_metadata_cache(metadata_storage_adapter).await;
+                load_metadata_cache(metadata_storage_adapter, client_poll.clone()).await;
             metadata_cache.set_cluster_info(Cluster::new());
 
             for (_, user) in user_info {

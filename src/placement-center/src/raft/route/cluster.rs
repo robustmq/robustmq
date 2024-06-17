@@ -67,7 +67,7 @@ impl DataRouteCluster {
         // update node
         self.cluster_cache.add_node(node.clone());
 
-        node_storage.save_node(
+        node_storage.save(
             cluster_name.clone(),
             cluster_type.as_str_name().to_string(),
             node,
@@ -89,7 +89,7 @@ impl DataRouteCluster {
 
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
-        node_storage.delete_node(&cluster_name, node_id);
+        node_storage.delete(&cluster_name, node_id);
         cluster_storage.remove_cluster_node(&cluster_name, node_id);
         return Ok(());
     }
@@ -144,13 +144,13 @@ mod tests {
         assert_eq!(cl.cluster_name, cluster_name);
         assert_eq!(cl.nodes, vec![node_id]);
 
-        let node = node_storage.get_node(cluster_name.clone(), node_id);
+        let node = node_storage.get(cluster_name.clone(), node_id);
         let nd = node.unwrap();
         assert_eq!(nd.node_id, node_id);
         assert_eq!(nd.node_ip, node_ip);
 
-        let _ = node_storage.delete_node(&cluster_name, node_id);
-        let res = node_storage.get_node(cluster_name.clone(), node_id);
+        let _ = node_storage.delete(&cluster_name, node_id);
+        let res = node_storage.get(cluster_name.clone(), node_id);
         assert!(res.is_none());
 
         let cluster = cluster_storage.get(&cluster_name);

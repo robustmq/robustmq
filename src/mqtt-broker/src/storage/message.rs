@@ -124,46 +124,4 @@ where
         }
     }
 
-    // Persistence holds the will message of the connection dimension
-    pub async fn save_lastwill(
-        &self,
-        client_id: String,
-        last_will_data: LastWillData,
-    ) -> Result<(), RobustMQError> {
-        let key = lastwill_key(client_id);
-        match serde_json::to_vec(&last_will_data) {
-            Ok(data) => return self.storage_adapter.set(key, Record::build_b(data)).await,
-            Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(
-                    e.to_string(),
-                ))
-            }
-        }
-    }
-
-    // Get the will message of the connection dimension
-    pub async fn get_lastwill(
-        &self,
-        client_id: String,
-    ) -> Result<Option<LastWillData>, RobustMQError> {
-        let key = lastwill_key(client_id);
-        match self.storage_adapter.get(key).await {
-            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
-                Ok(da) => {
-                    return Ok(da);
-                }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
-            Ok(None) => {
-                return Ok(None);
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
 }

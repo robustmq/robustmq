@@ -8,7 +8,8 @@ use crate::qos::memory::QosMemory;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
 use crate::subscribe::subscribe_cache::SubscribeCache;
-use common_base::log::{info};
+use clients::poll::ClientPool;
+use common_base::log::info;
 use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -26,6 +27,7 @@ pub struct Command<T, S> {
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     idempotent_manager: Arc<QosMemory>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl<T, S> Command<T, S>
@@ -43,6 +45,7 @@ where
         idempotent_manager: Arc<QosMemory>,
         sucscribe_manager: Arc<SubscribeCache>,
         ack_manager: Arc<AckManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
         let mqtt4_service = Mqtt4Service::new(
@@ -58,6 +61,7 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             ack_manager.clone(),
+            client_poll.clone(),
         );
         return Command {
             protocol,
@@ -67,6 +71,7 @@ where
             metadata_cache,
             response_queue_sx,
             idempotent_manager,
+            client_poll,
         };
     }
 

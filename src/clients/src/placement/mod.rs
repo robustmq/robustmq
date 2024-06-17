@@ -38,7 +38,12 @@ pub enum PlacementCenterInterface {
 
     // mqtt service interface
     GetShareSub,
-    DeleteShareSub,
+    CreateUser,
+    DeleteUser,
+    ListUser,
+    CreateTopic,
+    DeleteTopic,
+    ListTopic,
 }
 
 pub mod journal;

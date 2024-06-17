@@ -3,6 +3,10 @@ use crate::poll::ClientPool;
 use self::inner::inner_get_share_sub_leader;
 use super::PlacementCenterInterface;
 use common_base::errors::RobustMQError;
+use inner::{
+    inner_create_topic, inner_create_user, inner_delete_topic, inner_delete_user, inner_list_topic,
+    inner_list_user,
+};
 use mobc::Manager;
 use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
 use std::sync::Arc;
@@ -36,6 +40,24 @@ pub(crate) async fn mqtt_interface_call(
             let result = match interface {
                 PlacementCenterInterface::GetShareSub => {
                     inner_get_share_sub_leader(client, request.clone()).await
+                }
+                PlacementCenterInterface::ListUser => {
+                    inner_list_user(client, request.clone()).await
+                }
+                PlacementCenterInterface::CreateUser => {
+                    inner_create_user(client, request.clone()).await
+                }
+                PlacementCenterInterface::DeleteUser => {
+                    inner_delete_user(client, request.clone()).await
+                }
+                PlacementCenterInterface::ListTopic => {
+                    inner_list_topic(client, request.clone()).await
+                }
+                PlacementCenterInterface::CreateTopic => {
+                    inner_create_topic(client, request.clone()).await
+                }
+                PlacementCenterInterface::DeleteTopic => {
+                    inner_delete_topic(client, request.clone()).await
                 }
                 _ => {
                     return Err(RobustMQError::CommmonError(format!(
