@@ -17,13 +17,15 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
-use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
     client_keep_alive::ClientKeepAlive, heartbeat_cache::HeartbeatCache,
-    session_expiry::SessionExpiry, HEART_CONNECT_SHARD_HASH_NUM,
+    HEART_CONNECT_SHARD_HASH_NUM,
+};
+use core::{
+    metadata_cache::{load_metadata_cache, MetadataCacheManager},
+    qos_manager::QosManager,
 };
 use metadata_struct::mqtt::{cluster::MQTTCluster, user::MQTTUser};
-use qos::{ack_manager::AckManager, memory::QosMemory};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -51,8 +53,8 @@ use tokio::{
 
 mod core;
 mod handler;
+
 mod metrics;
-mod qos;
 mod security;
 mod server;
 mod storage;
@@ -75,7 +77,6 @@ pub struct MqttBroker<'a, S> {
     conf: &'a BrokerMQTTConfig,
     metadata_cache_manager: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatCache>,
-    idempotent_manager: Arc<QosMemory>,
     runtime: Runtime,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
@@ -84,7 +85,7 @@ pub struct MqttBroker<'a, S> {
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeCache>,
-    ack_manager: Arc<AckManager>,
+    qos_manager: Arc<QosManager>,
 }
 
 impl<'a, S> MqttBroker<'a, S>
@@ -106,8 +107,7 @@ where
 
         let heartbeat_manager = Arc::new(HeartbeatCache::new(HEART_CONNECT_SHARD_HASH_NUM));
 
-        let idempotent_manager: Arc<QosMemory> = Arc::new(QosMemory::new());
-        let ack_manager: Arc<AckManager> = Arc::new(AckManager::new());
+        let qos_manager: Arc<QosManager> = Arc::new(QosManager::new());
         let subscribe_manager = Arc::new(SubscribeCache::new(
             metadata_cache.clone(),
             client_poll.clone(),
@@ -118,7 +118,6 @@ where
             runtime,
             metadata_cache_manager: metadata_cache,
             heartbeat_manager,
-            idempotent_manager,
             request_queue_sx4,
             request_queue_sx5,
             response_queue_sx4,
@@ -126,7 +125,7 @@ where
             client_poll,
             message_storage_adapter,
             subscribe_manager,
-            ack_manager,
+            qos_manager,
         };
     }
 
@@ -136,7 +135,6 @@ where
         self.start_mqtt_server();
         self.start_http_server();
         self.start_keep_alive_thread(stop_send.subscribe());
-        self.start_session_expiry_thread();
         self.start_cluster_heartbeat_report(stop_send.subscribe());
         self.start_push_server();
         self.awaiting_stop(stop_send);
@@ -146,9 +144,9 @@ where
         let cache = self.metadata_cache_manager.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
-        let idempotent_manager = self.idempotent_manager.clone();
+        let idempotent_manager = self.qos_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
-        let ack_manager = self.ack_manager.clone();
+        let ack_manager = self.qos_manager.clone();
         let client_poll = self.client_poll.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
@@ -192,7 +190,7 @@ where
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.subscribe_manager.clone(),
-            self.idempotent_manager.clone(),
+            self.qos_manager.clone(),
         );
         self.runtime
             .spawn(async move { start_http_server(http_state).await });
@@ -231,7 +229,7 @@ where
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.subscribe_manager.clone(),
-            self.ack_manager.clone(),
+            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -244,7 +242,7 @@ where
             self.response_queue_sx4.clone(),
             self.response_queue_sx5.clone(),
             self.metadata_cache_manager.clone(),
-            self.ack_manager.clone(),
+            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -257,7 +255,7 @@ where
             self.response_queue_sx5.clone(),
             self.metadata_cache_manager.clone(),
             self.client_poll.clone(),
-            self.ack_manager.clone(),
+            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -275,13 +273,6 @@ where
         );
         self.runtime.spawn(async move {
             keep_alive.start_heartbeat_check().await;
-        });
-    }
-
-    fn start_session_expiry_thread(&self) {
-        let sesssion_expiry = SessionExpiry::new();
-        self.runtime.spawn(async move {
-            sesssion_expiry.start_session_expire_check().await;
         });
     }
 

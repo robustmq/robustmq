@@ -3,9 +3,8 @@ use self::tcp::{
     tcp_server::TcpServer,
 };
 use crate::{
-    core::heartbeat_cache::HeartbeatCache,
-    handler::command::Command,
-    qos::{ack_manager::AckManager, memory::QosMemory},
+    core::qos_manager::QosManager, core::heartbeat_cache::HeartbeatCache,
+    handler::command::Command, qos::memory::QosMemory,
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager, subscribe::subscribe_cache::SubscribeCache,
@@ -48,7 +47,7 @@ pub async fn start_mqtt_server<S>(
     heartbeat_manager: Arc<HeartbeatCache>,
     message_storage_adapter: Arc<S>,
     idempotent_manager: Arc<QosMemory>,
-    ack_manager: Arc<AckManager>,
+    ack_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,

@@ -51,7 +51,7 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         share_leader_push_thread: state.subscribe_cache.share_leader_push_thread_keys(),
         share_follower_resub_thread: state.subscribe_cache.share_follower_resub_thread_keys(),
 
-        qos_pkid_data: state.qos_memory.qos_pkid_data.clone(),
+        qos_pkid_data: state.qos_memory.client_pkid.clone(),
         sub_pkid_data: state.qos_memory.sub_pkid_data.clone(),
     };
 

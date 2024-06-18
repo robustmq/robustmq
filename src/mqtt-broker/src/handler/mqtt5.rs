@@ -4,14 +4,12 @@ use crate::core::connection::{create_connection, get_client_id};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, publish_get_topic_name};
-use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
-use crate::qos::QosDataManager;
+use crate::core::qos_manager::{QosManager, QosAckPackageData, QosAckPackageType};
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
-    qos::memory::QosMemory,
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
@@ -38,7 +36,7 @@ pub struct Mqtt5Service<S> {
     heartbeat_manager: Arc<HeartbeatCache>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCache>,
-    ack_manager: Arc<AckManager>,
+    ack_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -52,7 +50,7 @@ where
         heartbeat_manager: Arc<HeartbeatCache>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCache>,
-        ack_manager: Arc<AckManager>,
+        ack_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         return Mqtt5Service {
@@ -168,7 +166,7 @@ where
         connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
-        idempotent_manager: Arc<QosMemory>,
+        qos_manager: Arc<QosManager>,
     ) -> Option<MQTTPacket> {
         let topic_name = match publish_get_topic_name(
             connect_id,
@@ -229,7 +227,7 @@ where
             ));
         };
 
-        if !idempotent_manager
+        if !qos_manager
             .get_qos_pkid_data(client_id.clone(), publish.pkid)
             .await
             .is_none()
@@ -318,9 +316,9 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
-            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(AckPackageData {
-                    ack_type: AckPackageType::PubAck,
+            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+                match data.sx.send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
                     Ok(_) => {}
@@ -346,9 +344,9 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
-            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(AckPackageData {
-                    ack_type: AckPackageType::PubRec,
+            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+                match data.sx.send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
                     Ok(_) => return None,
@@ -374,9 +372,9 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
-            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(AckPackageData {
-                    ack_type: AckPackageType::PubComp,
+            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+                match data.sx.send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
                     Ok(_) => return None,

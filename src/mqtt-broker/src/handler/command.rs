@@ -3,8 +3,7 @@ use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
 use crate::core::heartbeat_cache::HeartbeatCache;
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::qos::ack_manager::AckManager;
-use crate::qos::memory::QosMemory;
+use crate::core::qos_manager::QosManager;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::server::MQTTProtocol;
 use crate::subscribe::subscribe_cache::SubscribeCache;
@@ -25,7 +24,7 @@ pub struct Command<S> {
     mqtt5_service: Mqtt5Service<S>,
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
-    idempotent_manager: Arc<QosMemory>,
+    qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -39,9 +38,9 @@ where
         heartbeat_manager: Arc<HeartbeatCache>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
-        idempotent_manager: Arc<QosMemory>,
+        qos_manager: Arc<QosManager>,
         sucscribe_manager: Arc<SubscribeCache>,
-        ack_manager: Arc<AckManager>,
+        ack_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
@@ -54,7 +53,6 @@ where
             metadata_cache.clone(),
             ack_build.clone(),
             heartbeat_manager.clone(),
-
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             ack_manager.clone(),
@@ -67,7 +65,7 @@ where
             mqtt5_service,
             metadata_cache,
             response_queue_sx,
-            idempotent_manager,
+            qos_manager,
             client_poll,
         };
     }
@@ -131,7 +129,7 @@ where
                             connect_id,
                             publish,
                             publish_properties,
-                            self.idempotent_manager.clone(),
+                            self.qos_manager.clone(),
                         )
                         .await;
                 }
@@ -182,7 +180,7 @@ where
                                 connect_id,
                                 pub_rel,
                                 pub_rel_properties,
-                                self.idempotent_manager.clone(),
+                                self.qos_manager.clone(),
                             )
                             .await,
                     );
@@ -221,7 +219,7 @@ where
                                 subscribe,
                                 subscribe_properties,
                                 self.response_queue_sx.clone(),
-                                self.idempotent_manager.clone(),
+                                self.qos_manager.clone(),
                             )
                             .await,
                     );
@@ -257,7 +255,7 @@ where
                                 connect_id,
                                 unsubscribe,
                                 unsubscribe_properties,
-                                self.idempotent_manager.clone(),
+                                self.qos_manager.clone(),
                             )
                             .await,
                     );

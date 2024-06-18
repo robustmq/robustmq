@@ -1,5 +1,5 @@
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::qos::ack_manager::AckPackageData;
+use crate::core::qos_manager::QosAckPackageData;
 use crate::server::MQTTProtocol;
 use crate::storage::topic::TopicStorage;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
@@ -196,7 +196,7 @@ pub async fn get_share_sub_leader(
     }
 }
 
-pub async fn wait_packet_ack(sx: Sender<AckPackageData>) -> Option<AckPackageData> {
+pub async fn wait_packet_ack(sx: Sender<QosAckPackageData>) -> Option<QosAckPackageData> {
     let res = timeout(Duration::from_secs(120), async {
         match sx.subscribe().recv().await {
             Ok(data) => {
