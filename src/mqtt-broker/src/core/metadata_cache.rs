@@ -1,7 +1,6 @@
-use crate::metadata::{
-    cluster::Cluster, connection::Connection, session::Session, subscriber::SubscribeData,
-};
+use crate::core::connection::Connection;
 use crate::storage::user::UserStorage;
+use crate::subscribe::subscriber::SubscribeData;
 use crate::{
     server::MQTTProtocol,
     storage::{cluster::ClusterStorage, topic::TopicStorage},
@@ -9,13 +8,14 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::log::warn;
 use dashmap::DashMap;
+use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
 use protocol::mqtt::{Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use storage_adapter::storage::StorageAdapter;
 use tokio::time::sleep;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -44,13 +44,13 @@ pub struct MetadataCacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, Cluster>,
+    pub cluster_info: DashMap<String, MQTTCluster>,
 
     // (username, User)
     pub user_info: DashMap<String, MQTTUser>,
 
     // (client_id, Session)
-    pub session_info: DashMap<String, Session>,
+    pub session_info: DashMap<String, MQTTSession>,
 
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, Connection>,
@@ -151,11 +151,11 @@ impl MetadataCacheManager {
         }
     }
 
-    pub fn set_cluster_info(&self, cluster: Cluster) {
+    pub fn set_cluster_info(&self, cluster: MQTTCluster) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);
     }
 
-    pub fn get_cluster_info(&self) -> Cluster {
+    pub fn get_cluster_info(&self) -> MQTTCluster {
         return self.cluster_info.get(&self.cluster_name).unwrap().clone();
     }
 
@@ -168,7 +168,7 @@ impl MetadataCacheManager {
         self.user_info.remove(&data.username);
     }
 
-    pub fn add_session(&self, client_id: String, session: Session) {
+    pub fn add_session(&self, client_id: String, session: MQTTSession) {
         self.session_info.insert(client_id, session);
     }
 
@@ -282,18 +282,18 @@ impl MetadataCacheManager {
     }
 }
 
-pub async fn load_metadata_cache<T>(
-    metadata_storage_adapter: Arc<T>,
+pub async fn load_metadata_cache(
     client_poll: Arc<ClientPool>,
-) -> (Cluster, DashMap<String, MQTTUser>, DashMap<String, MQTTTopic>)
-where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
-{
+) -> (
+    MQTTCluster,
+    DashMap<String, MQTTUser>,
+    DashMap<String, MQTTTopic>,
+) {
     // load cluster config
-    let cluster_storage = ClusterStorage::new(metadata_storage_adapter.clone());
+    let cluster_storage = ClusterStorage::new(client_poll.clone());
     let cluster = match cluster_storage.get_cluster_config().await {
         Ok(Some(cluster)) => cluster,
-        Ok(None) => Cluster::new(),
+        Ok(None) => MQTTCluster::new(),
         Err(e) => {
             panic!(
                 "Failed to load the cluster configuration with error message:{}",

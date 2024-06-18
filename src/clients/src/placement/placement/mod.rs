@@ -1,4 +1,5 @@
 use common_base::errors::RobustMQError;
+use inner::{inner_delete_resource_config, inner_get_resource_config, inner_set_resource_config};
 use mobc::Manager;
 use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
 use std::sync::Arc;
@@ -39,6 +40,15 @@ pub(crate) async fn placement_interface_call(
                 }
                 PlacementCenterInterface::SendRaftConfChange => {
                     inner_send_raft_conf_change(client, request.clone()).await
+                }
+                PlacementCenterInterface::SetReourceConfig => {
+                    inner_set_resource_config(client, request.clone()).await
+                }
+                PlacementCenterInterface::GetReourceConfig => {
+                    inner_get_resource_config(client, request.clone()).await
+                }
+                PlacementCenterInterface::DeleteReourceConfig => {
+                    inner_delete_resource_config(client, request.clone()).await
                 }
                 _ => {
                     return Err(RobustMQError::CommmonError(format!(

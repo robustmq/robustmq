@@ -1,23 +1,22 @@
 use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
+use crate::core::connection::{create_connection, get_client_id};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::build_session;
-use crate::metadata::connection::{create_connection, get_client_id};
-use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
-use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
-use crate::qos::QosDataManager;
+use crate::core::topic::{get_topic_info, publish_get_topic_name};
+use crate::core::qos_manager::{QosManager, QosAckPackageData, QosAckPackageType};
+use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
-    metadata::{message::Message, session::LastWillData},
-    qos::memory::QosMemory,
     security::authentication::authentication_login,
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
 use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
@@ -31,37 +30,33 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
-pub struct Mqtt5Service<T, S> {
+pub struct Mqtt5Service<S> {
     metadata_cache: Arc<MetadataCacheManager>,
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<HeartbeatCache>,
-    metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCache>,
-    ack_manager: Arc<AckManager>,
+    ack_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
 
-impl<T, S> Mqtt5Service<T, S>
+impl<S> Mqtt5Service<S>
 where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<HeartbeatCache>,
-        metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCache>,
-        ack_manager: Arc<AckManager>,
+        ack_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         return Mqtt5Service {
             metadata_cache,
             ack_build,
             heartbeat_manager,
-            metadata_storage_adapter,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             ack_manager,
@@ -171,7 +166,7 @@ where
         connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
-        idempotent_manager: Arc<QosMemory>,
+        qos_manager: Arc<QosManager>,
     ) -> Option<MQTTPacket> {
         let topic_name = match publish_get_topic_name(
             connect_id,
@@ -191,7 +186,7 @@ where
         let topic = match get_topic_info(
             topic_name,
             self.metadata_cache.clone(),
-            self.metadata_storage_adapter.clone(),
+            self.message_storage_adapter.clone(),
             self.client_poll.clone(),
         )
         .await
@@ -232,7 +227,7 @@ where
             ));
         };
 
-        if !idempotent_manager
+        if !qos_manager
             .get_qos_pkid_data(client_id.clone(), publish.pkid)
             .await
             .is_none()
@@ -244,14 +239,14 @@ where
         };
 
         // Persisting retain message data
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
+        let topic_storage = TopicStorage::new(self.client_poll.clone());
         if publish.retain {
-            let retain_message = Message::build_message(
+            let retain_message = MQTTMessage::build_message(
                 client_id.clone(),
                 publish.clone(),
                 publish_properties.clone(),
             );
-            match message_storage
+            match topic_storage
                 .save_retain_message(topic.topic_id.clone(), retain_message)
                 .await
             {
@@ -267,7 +262,8 @@ where
         }
 
         // Persisting stores message data
-        let offset = if let Some(record) = Message::build_record(
+        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
+        let offset = if let Some(record) = MQTTMessage::build_record(
             client_id.clone(),
             publish.clone(),
             publish_properties.clone(),
@@ -320,9 +316,9 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
-            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(AckPackageData {
-                    ack_type: AckPackageType::PubAck,
+            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+                match data.sx.send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
                 }) {
                     Ok(_) => {}
@@ -348,9 +344,9 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
-            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(AckPackageData {
-                    ack_type: AckPackageType::PubRec,
+            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+                match data.sx.send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
                 }) {
                     Ok(_) => return None,
@@ -376,9 +372,9 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
-            if let Some(data) = self.ack_manager.get(client_id.clone(), pkid) {
-                match data.sx.send(AckPackageData {
-                    ack_type: AckPackageType::PubComp,
+            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+                match data.sx.send(QosAckPackageData {
+                    ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
                 }) {
                     Ok(_) => return None,
@@ -503,12 +499,11 @@ where
             .await;
 
         // Reservation messages are processed when a subscription is created
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         match send_retain_message(
             connect_id,
             subscribe.clone(),
             subscribe_properties.clone(),
-            message_storage,
+            self.client_poll.clone(),
             self.metadata_cache.clone(),
             response_queue_sx.clone(),
             true,

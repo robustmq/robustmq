@@ -8,9 +8,10 @@ use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        CreateTopicRequest, CreateUserRequest, DeleteTopicRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListTopicReply, ListTopicRequest,
-        ListUserReply, ListUserRequest,
+        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
+        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+        ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
+        ListUserRequest, SetTopicRetainMessageRequest,
     },
 };
 use std::sync::Arc;
@@ -180,6 +181,106 @@ pub async fn placement_list_topic(
     .await
     {
         Ok(data) => match ListTopicReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn placement_set_topic_retain_message(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: SetTopicRetainMessageRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = SetTopicRetainMessageRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::SetTopicRetainMessage,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn placement_create_session(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: CreateSessionRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = CreateSessionRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::CreateSession,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn placement_delete_session(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteSessionRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = DeleteSessionRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::DeleteSession,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn placement_list_session(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListSessionRequest,
+) -> Result<ListSessionReply, RobustMQError> {
+    let request_data = ListSessionRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::ListSession,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListSessionReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         },

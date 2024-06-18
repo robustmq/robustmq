@@ -15,7 +15,7 @@
  */
 use crate::{
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
-    storage::{common::kv::KvStorage, rocksdb::RocksDBEngine},
+    storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine},
 };
 use common_base::errors::RobustMQError;
 use prost::Message;

@@ -92,6 +92,9 @@ pub enum RobustMQError {
     #[error("Cluster does not exist")]
     ClusterDoesNotExist,
 
+    #[error("Topic does not exist")]
+    TopicDoesNotExist,
+
     #[error("Resource does not exist")]
     ResourceDoesNotExist,
 

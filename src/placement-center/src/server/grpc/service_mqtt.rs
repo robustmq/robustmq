@@ -3,7 +3,7 @@ use crate::{
     core::share_sub::calc_share_sub_leader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
-        mqtt::{topic::MQTTTopicStorage, user::MQTTUserStorage},
+        mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
         rocksdb::RocksDBEngine,
     },
 };
@@ -15,6 +15,7 @@ use protocol::placement_center::generate::{
         CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
         GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest,
         ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+        SetTopicRetainMessageRequest,
     },
 };
 use std::sync::Arc;
@@ -212,20 +213,86 @@ impl MqttService for GrpcMqttService {
         &self,
         request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
-        return Ok(Response::new(ListSessionReply::default()));
+        let req = request.into_inner();
+        let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.list(req.cluster_name, Some(req.client_id)) {
+            Ok(data) => {
+                let mut result = Vec::new();
+                for raw in data {
+                    result.push(raw.data);
+                }
+                let reply = ListSessionReply { sessions: result };
+                return Ok(Response::new(reply));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn create_session(
         &self,
         request: Request<CreateSessionRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        return Ok(Response::new(CommonReply::default()));
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTCreateSession,
+            CreateSessionRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "create_session".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn delete_session(
         &self,
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        return Ok(Response::new(CommonReply::default()));
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTDeleteSession,
+            DeleteSessionRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_session".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn set_topic_retain_message(
+        &self,
+        request: Request<SetTopicRetainMessageRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTSetTopicRetainMessage,
+            SetTopicRetainMessageRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "set_topic_retain_message".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 }

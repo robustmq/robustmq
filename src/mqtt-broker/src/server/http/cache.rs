@@ -3,14 +3,12 @@ use std::collections::HashMap;
 use super::server::HttpServerState;
 use crate::{
     core::heartbeat_cache::HeartbeatShard,
-    metadata::{
-        cluster::Cluster,
-        connection::Connection,
-        session::Session,
+    core::connection::Connection,
+    qos::QosData,
+    subscribe::{
+        subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},
     },
-    qos::{PublishQosMessageData, QosData},
-    subscribe::subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
 };
 use axum::extract::State;
 use common_base::{
@@ -19,7 +17,9 @@ use common_base::{
     metrics::dump_metrics,
 };
 use dashmap::DashMap;
-use metadata_struct::mqtt::{topic::MQTTTopic, user::MQTTUser};
+use metadata_struct::mqtt::{
+    cluster::MQTTCluster, session::MQTTSession, topic::MQTTTopic, user::MQTTUser,
+};
 use serde::{Deserialize, Serialize};
 
 pub async fn metrics() -> String {
@@ -51,7 +51,7 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         share_leader_push_thread: state.subscribe_cache.share_leader_push_thread_keys(),
         share_follower_resub_thread: state.subscribe_cache.share_follower_resub_thread_keys(),
 
-        qos_pkid_data: state.qos_memory.qos_pkid_data.clone(),
+        qos_pkid_data: state.qos_memory.client_pkid.clone(),
         sub_pkid_data: state.qos_memory.sub_pkid_data.clone(),
     };
 
@@ -71,9 +71,9 @@ pub struct MetadataCacheResult {
 
     // metadata_cache
     pub cluster_name: String,
-    pub cluster_info: DashMap<String, Cluster>,
+    pub cluster_info: DashMap<String, MQTTCluster>,
     pub user_info: DashMap<String, MQTTUser>,
-    pub session_info: DashMap<String, Session>,
+    pub session_info: DashMap<String, MQTTSession>,
     pub connection_info: DashMap<u64, Connection>,
     pub topic_info: DashMap<String, MQTTTopic>,
     pub topic_id_name: DashMap<String, String>,

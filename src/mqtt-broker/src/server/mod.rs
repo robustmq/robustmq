@@ -3,9 +3,8 @@ use self::tcp::{
     tcp_server::TcpServer,
 };
 use crate::{
-    core::heartbeat_cache::HeartbeatCache,
-    handler::command::Command,
-    qos::{ack_manager::AckManager, memory::QosMemory},
+    core::qos_manager::QosManager, core::heartbeat_cache::HeartbeatCache,
+    handler::command::Command, qos::memory::QosMemory,
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager, subscribe::subscribe_cache::SubscribeCache,
@@ -42,21 +41,19 @@ impl From<MQTTProtocol> for String {
     }
 }
 
-pub async fn start_mqtt_server<T, S>(
+pub async fn start_mqtt_server<S>(
     sucscribe_manager: Arc<SubscribeCache>,
     cache: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatCache>,
-    metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     idempotent_manager: Arc<QosMemory>,
-    ack_manager: Arc<AckManager>,
+    ack_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
 ) where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let conf = broker_mqtt_conf();
@@ -65,7 +62,6 @@ pub async fn start_mqtt_server<T, S>(
             MQTTProtocol::MQTT4,
             cache.clone(),
             heartbeat_manager.clone(),
-            metadata_storage_adapter.clone(),
             message_storage_adapter.clone(),
             response_queue_sx4.clone(),
             idempotent_manager.clone(),
@@ -81,7 +77,6 @@ pub async fn start_mqtt_server<T, S>(
             MQTTProtocol::MQTT5,
             cache.clone(),
             heartbeat_manager.clone(),
-            metadata_storage_adapter.clone(),
             message_storage_adapter.clone(),
             response_queue_sx5.clone(),
             idempotent_manager.clone(),
@@ -93,18 +88,17 @@ pub async fn start_mqtt_server<T, S>(
     }
 }
 
-async fn start_mqtt4_server<T, U>(
+async fn start_mqtt4_server<S>(
     conf: &BrokerMQTTConfig,
-    command: Command<T, U>,
+    command: Command<S>,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
 ) where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
-    U: StorageAdapter + Sync + Send + 'static + Clone,
+    S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let port = conf.mqtt.mqtt4_port;
     let codec = Mqtt4Codec::new();
-    let server = TcpServer::<Mqtt4Codec, T, U>::new(
+    let server = TcpServer::<Mqtt4Codec, S>::new(
         MQTTProtocol::MQTT4,
         command,
         conf.network_tcp.accept_thread_num,
@@ -124,18 +118,17 @@ async fn start_mqtt4_server<T, U>(
     ));
 }
 
-async fn start_mqtt5_server<T, U>(
+async fn start_mqtt5_server<S>(
     conf: &BrokerMQTTConfig,
-    command: Command<T, U>,
+    command: Command<S>,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
 ) where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
-    U: StorageAdapter + Sync + Send + 'static + Clone,
+    S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let codec = Mqtt5Codec::new();
     let port = conf.mqtt.mqtt5_port;
-    let server = TcpServer::<Mqtt5Codec, T, U>::new(
+    let server = TcpServer::<Mqtt5Codec, S>::new(
         MQTTProtocol::MQTT5,
         command,
         conf.network_tcp.accept_thread_num,

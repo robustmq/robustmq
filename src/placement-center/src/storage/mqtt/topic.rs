@@ -4,6 +4,7 @@ use crate::storage::{
     StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use std::sync::Arc;
 
 pub struct MQTTTopicStorage {
@@ -87,6 +88,41 @@ impl MQTTTopicStorage {
             }
         }
     }
+
+    pub fn set_topic_retain_message(
+        &self,
+        cluster_name: String,
+        topic_name: String,
+        retain_message: Vec<u8>,
+    ) -> Result<(), RobustMQError> {
+        let results = match self.list(cluster_name.clone(), Some(topic_name.clone())) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        if results.is_empty() {
+            return Err(RobustMQError::TopicDoesNotExist);
+        }
+
+        let topic = results.get(0).unwrap();
+        match serde_json::from_str::<MQTTTopic>(&topic.data) {
+            Ok(mut mqtt_topic) => {
+                mqtt_topic.retain_message = Some(retain_message);
+                match self.save(cluster_name, topic_name, mqtt_topic.encode()) {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -110,6 +146,7 @@ mod tests {
         let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
+            retain_message: None,
         };
         topic_storage
             .save(cluster_name.clone(), topic_name, topic.encode())
@@ -119,6 +156,7 @@ mod tests {
         let topic = MQTTTopic {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
+            retain_message: None,
         };
         topic_storage
             .save(cluster_name.clone(), topic_name, topic.encode())

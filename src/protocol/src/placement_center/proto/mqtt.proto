@@ -37,12 +37,8 @@ service MqttService {
   rpc CreateTopic(CreateTopicRequest) returns(common.CommonReply){}
 
   rpc DeleteTopic(DeleteTopicRequest) returns(common.CommonReply){}
-
-  // rpc GetClusterConfig(GetClusterConfigRequest) returns(GetClusterConfigReply){}
-
-  // rpc SetClusterConfig(SetClusterConfigRequest) returns(SetClusterConfigReply){}
-
-  // rpc DeleteClusterConfig(SetClusterConfigRequest) returns(DeleteClusterConfigReply){}
+  
+  rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(common.CommonReply){}
 
   rpc GetShareSubLeader(GetShareSubLeaderRequest) returns(GetShareSubLeaderReply){}
 }
@@ -97,6 +93,12 @@ message CreateTopicRequest{
 message DeleteTopicRequest{
     string cluster_name = 1;
     string topic_name = 2;
+}
+
+message SetTopicRetainMessageRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
+    bytes retain_message = 3;
 }
 
 message ListSessionRequest{

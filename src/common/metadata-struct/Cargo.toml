@@ -9,3 +9,6 @@ thiserror.workspace = true
 serde.workspace = true
 common-base.workspace = true
 serde_json.workspace = true
+protocol.workspace = true
+bytes.workspace = true
+storage-adapter.workspace = true

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     cache::{cluster::ClusterCache, journal::JournalCache, placement::PlacementCache},
-    storage::common::raft::RaftMachineStorage,
+    storage::placement::raft::RaftMachineStorage,
 };
 use axum::routing::get;
 use axum::Router;

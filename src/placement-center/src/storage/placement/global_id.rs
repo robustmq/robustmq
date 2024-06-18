@@ -1,10 +1,10 @@
+use crate::{core::lock::Lock, storage::rocksdb::RocksDBEngine};
 use common_base::{errors::RobustMQError, log::error_meta, tools::unique_id};
 use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
 use tokio::time::sleep;
-use crate::{core::lock::Lock, storage::rocksdb::RocksDBEngine};
 
 pub struct GlobalId {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -83,7 +83,7 @@ impl GlobalId {
 mod tests {
     use std::sync::Arc;
 
-    use crate::storage::common::global_id::GlobalId;
+    use crate::storage::placement::global_id::GlobalId;
     use crate::storage::rocksdb::RocksDBEngine;
     use common_base::config::placement_center::PlacementCenterConfig;
 

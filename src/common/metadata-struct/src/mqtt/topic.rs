@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct MQTTTopic {
     pub topic_id: String,
     pub topic_name: String,
+    pub retain_message: Option<Vec<u8>>,
 }
 
 impl MQTTTopic {
@@ -12,6 +13,7 @@ impl MQTTTopic {
         return MQTTTopic {
             topic_id: unique_id(),
             topic_name: topic_name.clone(),
+            retain_message: None,
         };
     }
 

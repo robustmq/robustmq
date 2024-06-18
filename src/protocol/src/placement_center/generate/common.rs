@@ -5,7 +5,7 @@ pub struct CommonReply {}
 #[repr(i32)]
 pub enum ClusterType {
     PlacementCenter = 0,
-    StorageEngine = 1,
+    JournalServer = 1,
     MqttBrokerServer = 2,
     AmqpBrokerServer = 3,
 }
@@ -17,7 +17,7 @@ impl ClusterType {
     pub fn as_str_name(&self) -> &'static str {
         match self {
             ClusterType::PlacementCenter => "PlacementCenter",
-            ClusterType::StorageEngine => "StorageEngine",
+            ClusterType::JournalServer => "JournalServer",
             ClusterType::MqttBrokerServer => "MQTTBrokerServer",
             ClusterType::AmqpBrokerServer => "AMQPBrokerServer",
         }
@@ -26,7 +26,7 @@ impl ClusterType {
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
             "PlacementCenter" => Some(Self::PlacementCenter),
-            "StorageEngine" => Some(Self::StorageEngine),
+            "JournalServer" => Some(Self::JournalServer),
             "MQTTBrokerServer" => Some(Self::MqttBrokerServer),
             "AMQPBrokerServer" => Some(Self::AmqpBrokerServer),
             _ => None,

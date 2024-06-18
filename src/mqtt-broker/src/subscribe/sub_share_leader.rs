@@ -7,8 +7,8 @@ use super::{
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    metadata::{message::Message, subscriber::Subscriber},
-    qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo},
+    subscribe::subscriber::Subscriber,
+    core::qos_manager::{QosManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
@@ -18,6 +18,7 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
@@ -34,7 +35,7 @@ pub struct SubscribeShareLeader<S> {
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
     metadata_cache: Arc<MetadataCacheManager>,
-    ack_manager: Arc<AckManager>,
+    ack_manager: Arc<QosManager>,
 }
 
 impl<S> SubscribeShareLeader<S>
@@ -47,7 +48,7 @@ where
         response_queue_sx4: broadcast::Sender<ResponsePackage>,
         response_queue_sx5: broadcast::Sender<ResponsePackage>,
         metadata_cache: Arc<MetadataCacheManager>,
-        ack_manager: Arc<AckManager>,
+        ack_manager: Arc<QosManager>,
     ) -> Self {
         return SubscribeShareLeader {
             subscribe_manager,
@@ -219,7 +220,7 @@ async fn read_message_process<S>(
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
     metadata_cache: Arc<MetadataCacheManager>,
-    ack_manager: Arc<AckManager>,
+    ack_manager: Arc<QosManager>,
     stop_sx: Sender<bool>,
 ) -> (usize, Vec<Subscriber>)
 where
@@ -237,7 +238,7 @@ where
                 return (cursor_point, sub_list);
             }
             for record in results {
-                let msg: Message = match Message::decode_record(record.clone()) {
+                let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
                     Err(e) => {
                         error(format!(
@@ -314,10 +315,10 @@ where
                             publish.pkid = pkid;
 
                             let (wait_puback_sx, _) = broadcast::channel(1);
-                            ack_manager.add(
+                            ack_manager.add_ack_packet(
                                 subscribe.client_id.clone(),
                                 pkid,
-                                AckPacketInfo {
+                                QosAckPacketInfo {
                                     sx: wait_puback_sx.clone(),
                                     create_time: now_second(),
                                 },
@@ -349,7 +350,7 @@ where
                                     // remove data
                                     metadata_cache
                                         .remove_pkid_info(subscribe.client_id.clone(), pkid);
-                                    ack_manager.remove(subscribe.client_id.clone(), pkid);
+                                    ack_manager.remove_ack_packet(subscribe.client_id.clone(), pkid);
                                     break;
                                 }
                                 Err(e) => {
@@ -365,10 +366,10 @@ where
                             publish.pkid = pkid;
 
                             let (wait_ack_sx, _) = broadcast::channel(1);
-                            ack_manager.add(
+                            ack_manager.add_ack_packet(
                                 subscribe.client_id.clone(),
                                 pkid,
-                                AckPacketInfo {
+                                QosAckPacketInfo {
                                     sx: wait_ack_sx.clone(),
                                     create_time: now_second(),
                                 },
@@ -423,7 +424,7 @@ pub fn build_publish(
     metadata_cache: Arc<MetadataCacheManager>,
     subscribe: Subscriber,
     topic_name: String,
-    msg: Message,
+    msg: MQTTMessage,
 ) -> (Publish, PublishProperties) {
     let mut sub_id = Vec::new();
     if let Some(id) = subscribe.subscription_identifier {
@@ -466,7 +467,7 @@ async fn share_leader_publish_message_qos1(
     protocol: MQTTProtocol,
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
-    wait_puback_sx: broadcast::Sender<AckPackageData>,
+    wait_puback_sx: broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), RobustMQError> {
     let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
         id
@@ -492,7 +493,7 @@ async fn share_leader_publish_message_qos1(
     {
         Ok(_) => {
             if let Some(data) = wait_packet_ack(wait_puback_sx.clone()).await {
-                if data.ack_type == AckPackageType::PubAck && data.pkid == pkid {
+                if data.ack_type == QosAckPackageType::PubAck && data.pkid == pkid {
                     return Ok(());
                 }
             }
@@ -515,7 +516,7 @@ async fn share_leader_publish_message_qos1(
 // send pubrel message
 // wait pubcomp message
 async fn share_leader_publish_message_qos2<S>(
-    ack_manager: Arc<AckManager>,
+    ack_manager: Arc<QosManager>,
     metadata_cache: Arc<MetadataCacheManager>,
     client_id: String,
     publish: Publish,
@@ -525,7 +526,7 @@ async fn share_leader_publish_message_qos2<S>(
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
-    wait_ack_sx: broadcast::Sender<AckPackageData>,
+    wait_ack_sx: broadcast::Sender<QosAckPackageData>,
     topic_id: String,
     group_id: String,
     offset: u128,
@@ -558,7 +559,7 @@ where
             Err(_) => {}
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
-            if data.ack_type == AckPackageType::PubRec && data.pkid == pkid {
+            if data.ack_type == QosAckPackageType::PubRec && data.pkid == pkid {
                 // When sending a QOS2 message, as long as the pubrec is received, the offset can be submitted,
                 // the pubrel is sent asynchronously, and the pubcomp is waited for. Push the next message at the same time.
                 loop_commit_offset(
@@ -602,9 +603,9 @@ where
                 Err(_) => {}
             }
             if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
-                if data.ack_type == AckPackageType::PubComp && data.pkid == pkid {
+                if data.ack_type == QosAckPackageType::PubComp && data.pkid == pkid {
                     metadata_cache.remove_pkid_info(client_id.clone(), pkid);
-                    ack_manager.remove(client_id.clone(), pkid);
+                    ack_manager.remove_ack_packet(client_id.clone(), pkid);
                     break;
                 }
             } else {

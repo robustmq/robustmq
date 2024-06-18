@@ -35,7 +35,7 @@ use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
-use storage::common::raft::RaftMachineStorage;
+use storage::placement::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
 use tokio::runtime::Runtime;
 use tokio::signal;
@@ -48,7 +48,6 @@ mod core;
 mod raft;
 mod server;
 mod storage;
-mod structs;
 
 pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,

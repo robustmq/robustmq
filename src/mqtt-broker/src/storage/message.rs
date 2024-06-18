@@ -1,5 +1,3 @@
-use super::keys::{lastwill_key, retain_message};
-use crate::metadata::{message::Message as RetainMessage, session::LastWillData};
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
 use storage_adapter::{record::Record, storage::StorageAdapter};
@@ -80,48 +78,4 @@ where
             }
         }
     }
-
-    // Saves the most recent reserved message for the Topic dimension
-    pub async fn save_retain_message(
-        &self,
-        topic_id: String,
-        retail_message: RetainMessage,
-    ) -> Result<(), RobustMQError> {
-        let key = retain_message(topic_id);
-        match serde_json::to_vec(&retail_message) {
-            Ok(data) => return self.storage_adapter.set(key, Record::build_b(data)).await,
-            Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(
-                    e.to_string(),
-                ))
-            }
-        }
-    }
-
-    // Get the latest reserved message for the Topic dimension
-    pub async fn get_retain_message(
-        &self,
-        topic_id: String,
-    ) -> Result<Option<RetainMessage>, RobustMQError> {
-        let key = retain_message(topic_id);
-        match self.storage_adapter.get(key).await {
-            Ok(Some(data)) => match serde_json::from_slice(&data.data) {
-                Ok(da) => {
-                    return Ok(da);
-                }
-                Err(e) => {
-                    return Err(common_base::errors::RobustMQError::CommmonError(
-                        e.to_string(),
-                    ))
-                }
-            },
-            Ok(None) => {
-                return Ok(None);
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
-    }
-
 }

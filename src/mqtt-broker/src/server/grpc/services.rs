@@ -1,10 +1,8 @@
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::{
-    metadata::available_flag,
-    storage::{cluster::ClusterStorage, user::UserStorage},
-};
+use crate::storage::{cluster::ClusterStorage, user::UserStorage};
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, tools::now_mills};
+use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::cluster::available_flag;
 use metadata_struct::mqtt::user::MQTTUser;
 use protocol::{
     broker_server::generate::mqtt::{
@@ -14,38 +12,24 @@ use protocol::{
     mqtt::{qos, QoS},
 };
 use std::sync::Arc;
-use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
 
-pub struct GrpcBrokerServices<T> {
+pub struct GrpcBrokerServices {
     metadata_cache: Arc<MetadataCacheManager>,
-    metadata_storage_adapter: Arc<T>,
     client_poll: Arc<ClientPool>,
 }
 
-impl<T> GrpcBrokerServices<T>
-where
-    T: StorageAdapter,
-{
-    pub fn new(
-        metadata_cache: Arc<MetadataCacheManager>,
-        metadata_storage_adapter: Arc<T>,
-
-        client_poll: Arc<ClientPool>,
-    ) -> Self {
+impl GrpcBrokerServices {
+    pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
         return GrpcBrokerServices {
             metadata_cache,
-            metadata_storage_adapter,
             client_poll,
         };
     }
 }
 
 #[tonic::async_trait]
-impl<T> MqttBrokerService for GrpcBrokerServices<T>
-where
-    T: StorageAdapter + Send + Sync + 'static,
-{
+impl MqttBrokerService for GrpcBrokerServices {
     async fn update_cache(
         &self,
         request: Request<UpdateCacheRequest>,
@@ -122,8 +106,8 @@ where
 
         self.metadata_cache.set_cluster_info(cluster.clone());
 
-        let cluster_storage = ClusterStorage::new(self.metadata_storage_adapter.clone());
-        match cluster_storage.save_cluster(cluster.clone()).await {
+        let cluster_storage = ClusterStorage::new(self.client_poll.clone());
+        match cluster_storage.set_cluster_config(cluster.clone()).await {
             Ok(_) => {
                 return Ok(Response::new(CommonReply::default()));
             }

@@ -44,13 +44,15 @@ pub enum StorageDataType {
     // Cluster
     ClusterRegisterNode,
     ClusterUngisterNode,
+    ClusterSetResourceConfig,
+    ClusterDeleteResourceConfig,
 
     // Journal
     JournalCreateShard,
     JournalDeleteShard,
     JournalCreateSegment,
     JournalDeleteSegment,
-    
+
     // kv
     KvSet,
     KvDelete,
@@ -60,6 +62,9 @@ pub enum StorageDataType {
     MQTTDeleteUser,
     MQTTCreateTopic,
     MQTTDeleteTopic,
+    MQTTSetTopicRetainMessage,
+    MQTTCreateSession,
+    MQTTDeleteSession,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

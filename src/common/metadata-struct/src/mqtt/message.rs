@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use storage_adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
-pub struct Message {
+pub struct MQTTMessage {
     pub client_id: String,
     pub dup: bool,
     pub qos: QoS,
@@ -23,13 +23,13 @@ pub struct Message {
     pub create_time: u128,
 }
 
-impl Message {
+impl MQTTMessage {
     pub fn build_message(
         client_id: String,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
-    ) -> Message {
-        let mut message = Message::default();
+    ) -> MQTTMessage {
+        let mut message = MQTTMessage::default();
         message.client_id = client_id;
         message.dup = publish.dup;
         message.qos = publish.qos;
@@ -55,7 +55,7 @@ impl Message {
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<Record> {
-        let msg = Message::build_message(client_id, publish, publish_properties);
+        let msg = MQTTMessage::build_message(client_id, publish, publish_properties);
         match serde_json::to_vec(&msg) {
             Ok(data) => {
                 return Some(Record::build_b(data));
@@ -67,8 +67,8 @@ impl Message {
         }
     }
 
-    pub fn decode_record(record: Record) -> Result<Message, RobustMQError> {
-        let data: Message = match serde_json::from_slice(record.data.as_slice()) {
+    pub fn decode_record(record: Record) -> Result<MQTTMessage, RobustMQError> {
+        let data: MQTTMessage = match serde_json::from_slice(record.data.as_slice()) {
             Ok(da) => da,
             Err(e) => {
                 return Err(RobustMQError::CommmonError(e.to_string()));
@@ -76,4 +76,9 @@ impl Message {
         };
         return Ok(data);
     }
+
+    pub fn encode(&self) -> Vec<u8> {
+        return serde_json::to_vec(&self).unwrap();
+    }
+
 }

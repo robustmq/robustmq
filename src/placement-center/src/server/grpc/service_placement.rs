@@ -16,7 +16,8 @@
 use crate::cache::cluster::ClusterCache;
 use crate::cache::placement::PlacementCache;
 use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
-use crate::storage::common::global_id::GlobalId;
+use crate::storage::placement::config::ResourceConfigStorage;
+use crate::storage::placement::global_id::GlobalId;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
 use clients::poll::ClientPool;
@@ -25,9 +26,10 @@ use prost::Message;
 use protocol::placement_center::generate::common::{CommonReply, GenerageIdType};
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::generate::placement::{
-    GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest, HeartbeatRequest, RegisterNodeRequest,
+    DeleteResourceConfigRequest, GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, RegisterNodeRequest,
     ReportMonitorRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-    SendRaftMessageRequest, UnRegisterNodeRequest,
+    SendRaftMessageRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
@@ -226,5 +228,71 @@ impl PlacementCenterService for GrpcPlacementService {
             }
         }
         return Ok(Response::new(resp));
+    }
+
+    async fn set_resource_config(
+        &self,
+        request: Request<SetResourceConfigRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::ClusterSetResourceConfig,
+            SetResourceConfigRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "set_resource_config".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn get_resource_config(
+        &self,
+        request: Request<GetResourceConfigRequest>,
+    ) -> Result<Response<GetResourceConfigReply>, Status> {
+        let req = request.into_inner();
+        let storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.get(req.cluster_name, req.resources) {
+            Ok(data) => {
+                if let Some(res) = data {
+                    let reply = GetResourceConfigReply { config: res };
+                    return Ok(Response::new(reply));
+                }
+                return Err(Status::cancelled(
+                    RobustMQError::ResourceDoesNotExist.to_string(),
+                ));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_resource_config(
+        &self,
+        request: Request<DeleteResourceConfigRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::ClusterDeleteResourceConfig,
+            DeleteResourceConfigRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_resource_config".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 }

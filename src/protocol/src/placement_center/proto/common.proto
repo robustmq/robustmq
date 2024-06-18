@@ -3,7 +3,7 @@ package common;
 
 enum ClusterType{
     PlacementCenter = 0;
-    StorageEngine = 1;
+    JournalServer = 1;
     MQTTBrokerServer = 2;
     AMQPBrokerServer = 3;
 }

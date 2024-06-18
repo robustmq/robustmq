@@ -82,6 +82,38 @@ pub struct GenerateUniqueNodeIdReply {
     #[prost(string, tag = "2")]
     pub id_str: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SetResourceConfigRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
+    pub resources: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "3")]
+    pub config: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetResourceConfigRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
+    pub resources: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetResourceConfigReply {
+    #[prost(string, tag = "1")]
+    pub config: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteResourceConfigRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
+    pub resources: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
 /// Generated client implementations.
 pub mod placement_center_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -169,7 +201,6 @@ pub mod placement_center_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        ///
         pub async fn register_node(
             &mut self,
             request: impl tonic::IntoRequest<super::RegisterNodeRequest>,
@@ -197,7 +228,6 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        ///
         pub async fn un_register_node(
             &mut self,
             request: impl tonic::IntoRequest<super::UnRegisterNodeRequest>,
@@ -225,7 +255,6 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
         pub async fn heartbeat(
             &mut self,
             request: impl tonic::IntoRequest<super::HeartbeatRequest>,
@@ -253,7 +282,6 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        ///
         pub async fn report_monitor(
             &mut self,
             request: impl tonic::IntoRequest<super::ReportMonitorRequest>,
@@ -281,7 +309,6 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        /// Raft messages are sent between nodes
         pub async fn send_raft_message(
             &mut self,
             request: impl tonic::IntoRequest<super::SendRaftMessageRequest>,
@@ -312,7 +339,6 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        /// Send ConfChange messages to Raft with other nodes
         pub async fn send_raft_conf_change(
             &mut self,
             request: impl tonic::IntoRequest<super::SendRaftConfChangeRequest>,
@@ -343,7 +369,6 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
-        ///
         pub async fn generate_unique_id(
             &mut self,
             request: impl tonic::IntoRequest<super::GenerateUniqueNodeIdRequest>,
@@ -374,6 +399,96 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        pub async fn set_resource_config(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SetResourceConfigRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/SetResourceConfig",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "SetResourceConfig",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_resource_config(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetResourceConfigRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetResourceConfigReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/GetResourceConfig",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "GetResourceConfig",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn delete_resource_config(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteResourceConfigRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/DeleteResourceConfig",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "DeleteResourceConfig",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -383,7 +498,6 @@ pub mod placement_center_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with PlacementCenterServiceServer.
     #[async_trait]
     pub trait PlacementCenterService: Send + Sync + 'static {
-        ///
         async fn register_node(
             &self,
             request: tonic::Request<super::RegisterNodeRequest>,
@@ -391,7 +505,6 @@ pub mod placement_center_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
-        ///
         async fn un_register_node(
             &self,
             request: tonic::Request<super::UnRegisterNodeRequest>,
@@ -399,7 +512,6 @@ pub mod placement_center_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
-        /// Broker node reports a heartbeat, notifying Meta Server that the node is alive
         async fn heartbeat(
             &self,
             request: tonic::Request<super::HeartbeatRequest>,
@@ -407,7 +519,6 @@ pub mod placement_center_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
-        ///
         async fn report_monitor(
             &self,
             request: tonic::Request<super::ReportMonitorRequest>,
@@ -415,7 +526,6 @@ pub mod placement_center_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
-        /// Raft messages are sent between nodes
         async fn send_raft_message(
             &self,
             request: tonic::Request<super::SendRaftMessageRequest>,
@@ -423,7 +533,6 @@ pub mod placement_center_service_server {
             tonic::Response<super::SendRaftMessageReply>,
             tonic::Status,
         >;
-        /// Send ConfChange messages to Raft with other nodes
         async fn send_raft_conf_change(
             &self,
             request: tonic::Request<super::SendRaftConfChangeRequest>,
@@ -431,12 +540,32 @@ pub mod placement_center_service_server {
             tonic::Response<super::SendRaftConfChangeReply>,
             tonic::Status,
         >;
-        ///
         async fn generate_unique_id(
             &self,
             request: tonic::Request<super::GenerateUniqueNodeIdRequest>,
         ) -> std::result::Result<
             tonic::Response<super::GenerateUniqueNodeIdReply>,
+            tonic::Status,
+        >;
+        async fn set_resource_config(
+            &self,
+            request: tonic::Request<super::SetResourceConfigRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn get_resource_config(
+            &self,
+            request: tonic::Request<super::GetResourceConfigRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetResourceConfigReply>,
+            tonic::Status,
+        >;
+        async fn delete_resource_config(
+            &self,
+            request: tonic::Request<super::DeleteResourceConfigRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
     }
@@ -852,6 +981,158 @@ pub mod placement_center_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GenerateUniqueIdSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/SetResourceConfig" => {
+                    #[allow(non_camel_case_types)]
+                    struct SetResourceConfigSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::SetResourceConfigRequest>
+                    for SetResourceConfigSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SetResourceConfigRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::set_resource_config(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = SetResourceConfigSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/GetResourceConfig" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetResourceConfigSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::GetResourceConfigRequest>
+                    for GetResourceConfigSvc<T> {
+                        type Response = super::GetResourceConfigReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetResourceConfigRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::get_resource_config(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetResourceConfigSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/DeleteResourceConfig" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteResourceConfigSvc<T: PlacementCenterService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::DeleteResourceConfigRequest>
+                    for DeleteResourceConfigSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteResourceConfigRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::delete_resource_config(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DeleteResourceConfigSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

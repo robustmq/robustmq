@@ -1,14 +1,14 @@
-use super::storage::RaftRocksDBStorage;
-use super::route::DataRoute;
 use super::apply::{RaftMessage, RaftResponseMesage};
+use super::route::DataRoute;
+use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCache;
 use crate::raft::peer::PeerMessage;
-use crate::storage::common::raft::RaftMachineStorage;
-use crate::structs::node::Node;
+use crate::storage::placement::raft::RaftMachineStorage;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
 use common_base::errors::RobustMQError;
 use common_base::log::{error_meta, info_meta};
+use metadata_struct::placement::broker_node::BrokerNode;
 use prost::Message as _;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
@@ -263,7 +263,7 @@ impl RaftMachine {
                         let change_type = change.get_change_type();
                         match change_type {
                             ConfChangeType::AddNode => {
-                                match deserialize::<Node>(change.get_context()) {
+                                match deserialize::<BrokerNode>(change.get_context()) {
                                     Ok(node) => {
                                         let mut cls = self.placement_cluster.write().unwrap();
                                         cls.add_peer(id, node);

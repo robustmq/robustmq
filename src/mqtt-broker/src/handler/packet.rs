@@ -1,5 +1,6 @@
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::{metadata::cluster::Cluster, server::MQTTProtocol};
+use crate::server::MQTTProtocol;
+use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
@@ -24,7 +25,7 @@ impl MQTTAckBuild {
 
     pub fn packet_connect_success(
         &self,
-        cluster: &Cluster,
+        cluster: &MQTTCluster,
         client_id: String,
         auto_client_id: bool,
         session_expiry_interval: u32,

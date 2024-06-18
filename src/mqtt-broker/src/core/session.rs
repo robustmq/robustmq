@@ -1,26 +1,21 @@
 use std::sync::Arc;
 
-use crate::{
-    metadata::{
-        cluster::Cluster,
-        session::{LastWillData, Session},
-    },
-    storage::session::SessionStorage,
-};
+use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::{cluster::MQTTCluster, session::{LastWillData, MQTTSession}};
 use protocol::mqtt::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
 pub async fn build_session(
     connect_id: u64,
     client_id: String,
-    cluster: Cluster,
+    cluster: MQTTCluster,
     connnect: Connect,
     connect_properties: Option<ConnectProperties>,
     last_will: Option<LastWill>,
     last_will_properties: Option<LastWillProperties>,
     client_poll: Arc<ClientPool>,
-) -> Result<(Session, bool), RobustMQError> {
+) -> Result<(MQTTSession, bool), RobustMQError> {
     let session_expiry = session_expiry_interval(cluster, connect_properties);
 
     let delay_interval = if let Some(properties) = last_will_properties.clone() {
@@ -44,13 +39,13 @@ pub async fn build_session(
 
     let (mut session, new_session) = if connnect.clean_session {
         let session_storage = SessionStorage::new(client_poll.clone());
-        match session_storage.get_session(&client_id).await {
+        match session_storage.get_session(client_id.clone()).await {
             Ok(Some(mut session)) => {
                 session.update_reconnect_time();
                 (session, false)
             }
             Ok(None) => (
-                Session::new(client_id.clone(), session_expiry, last_will, delay_interval),
+                MQTTSession::new(client_id.clone(), session_expiry, last_will, delay_interval),
                 true,
             ),
             Err(e) => {
@@ -59,7 +54,7 @@ pub async fn build_session(
         }
     } else {
         (
-            Session::new(client_id.clone(), session_expiry, last_will, delay_interval),
+            MQTTSession::new(client_id.clone(), session_expiry, last_will, delay_interval),
             true,
         )
     };
@@ -70,7 +65,10 @@ pub async fn build_session(
     }
 
     let session_storage = SessionStorage::new(client_poll);
-    match session_storage.save_session(client_id, &session).await {
+    match session_storage
+        .save_session(client_id, session.clone())
+        .await
+    {
         Ok(_) => {}
         Err(e) => {
             return Err(e);
@@ -79,7 +77,10 @@ pub async fn build_session(
     return Ok((session, new_session));
 }
 
-fn session_expiry_interval(cluster: Cluster, connect_properties: Option<ConnectProperties>) -> u32 {
+fn session_expiry_interval(
+    cluster: MQTTCluster,
+    connect_properties: Option<ConnectProperties>,
+) -> u32 {
     let session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
             ck

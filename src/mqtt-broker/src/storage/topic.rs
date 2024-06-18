@@ -1,12 +1,15 @@
 use clients::{
-    placement::mqtt::call::{placement_create_topic, placement_delete_topic, placement_list_topic},
+    placement::mqtt::call::{
+        placement_create_topic, placement_delete_topic, placement_list_topic,
+        placement_set_topic_retain_message,
+    },
     poll::ClientPool,
 };
 use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
 use dashmap::DashMap;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
 use protocol::placement_center::generate::mqtt::{
-    CreateTopicRequest, DeleteTopicRequest, ListTopicRequest,
+    CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
 use std::sync::Arc;
 
@@ -37,12 +40,7 @@ impl TopicStorage {
             Ok(_) => {
                 return Ok(());
             }
-            Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(format!(
-                    "save user config error, error messsage:{}",
-                    e.to_string()
-                )))
-            }
+            Err(e) => return Err(e),
         }
     }
 
@@ -62,12 +60,7 @@ impl TopicStorage {
             Ok(_) => {
                 return Ok(());
             }
-            Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(format!(
-                    "save user config error, error messsage:{}",
-                    e.to_string()
-                )))
-            }
+            Err(e) => return Err(e),
         }
     }
 
@@ -133,5 +126,54 @@ impl TopicStorage {
                 return Err(e);
             }
         }
+    }
+
+    pub async fn save_retain_message(
+        &self,
+        topic_name: String,
+        retail_message: MQTTMessage,
+    ) -> Result<(), RobustMQError> {
+        let config = broker_mqtt_conf();
+        let request = SetTopicRetainMessageRequest {
+            cluster_name: config.cluster_name.clone(),
+            topic_name: topic_name.clone(),
+            retain_message: retail_message.encode(),
+        };
+        match placement_set_topic_retain_message(
+            self.client_poll.clone(),
+            config.placement.server.clone(),
+            request,
+        )
+        .await
+        {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => return Err(e),
+        }
+    }
+
+    // Get the latest reserved message for the Topic dimension
+    pub async fn get_retain_message(
+        &self,
+        topic_name: String,
+    ) -> Result<MQTTMessage, RobustMQError> {
+        let topic = match self.get_topic(topic_name).await {
+            Ok(Some(data)) => data,
+            Ok(None) => {
+                return Err(RobustMQError::TopicDoesNotExist);
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        let message =
+            match serde_json::from_slice::<MQTTMessage>(topic.retain_message.unwrap().as_slice()) {
+                Ok(data) => data,
+                Err(e) => {
+                    return Err(RobustMQError::CommmonError(e.to_string()));
+                }
+            };
+        return Ok(message);
     }
 }

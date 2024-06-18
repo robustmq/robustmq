@@ -3,7 +3,7 @@ use super::sub_common::{
     path_regex_match,
 };
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::metadata::subscriber::Subscriber;
+use crate::subscribe::subscriber::Subscriber;
 use crate::server::MQTTProtocol;
 use clients::poll::ClientPool;
 use common_base::{

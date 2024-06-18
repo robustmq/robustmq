@@ -3,10 +3,9 @@ use common_base::{
     tools::{now_second, unique_id},
 };
 use dashmap::DashMap;
+use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::{Connect, ConnectProperties};
 use serde::{Deserialize, Serialize};
-
-use super::cluster::Cluster;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Connection {
@@ -53,7 +52,7 @@ impl Connection {
 pub fn create_connection(
     connect_id: u64,
     client_id: String,
-    cluster: &Cluster,
+    cluster: &MQTTCluster,
     connect: Connect,
     connect_properties: Option<ConnectProperties>,
 ) -> Connection {
