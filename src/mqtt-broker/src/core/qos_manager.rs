@@ -64,7 +64,7 @@ impl QosManager {
         return None;
     }
 
-    async fn add_client_pkid(&self, client_id: String, pkid: u16) {
+    pub async fn add_client_pkid(&self, client_id: String, pkid: u16) {
         let key = self.key(client_id.clone(), pkid);
         self.client_pkid_data.insert(
             key,
@@ -75,12 +75,12 @@ impl QosManager {
         );
     }
 
-    async fn delete_client_pkid(&self, client_id: String, pkid: u16) {
+    pub async fn delete_client_pkid(&self, client_id: String, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.client_pkid_data.remove(&key);
     }
 
-    async fn get_client_pkid(&self, client_id: String, pkid: u16) -> Option<ClientPkidData> {
+    pub async fn get_client_pkid(&self, client_id: String, pkid: u16) -> Option<ClientPkidData> {
         let key = self.key(client_id, pkid);
         if let Some(data) = self.client_pkid_data.get(&key) {
             return Some(data.clone());

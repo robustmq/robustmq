@@ -144,7 +144,7 @@ where
         let cache = self.metadata_cache_manager.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
-        let idempotent_manager = self.qos_manager.clone();
+        let qos_manager = self.qos_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let ack_manager = self.qos_manager.clone();
         let client_poll = self.client_poll.clone();
@@ -160,8 +160,7 @@ where
                 cache,
                 heartbeat_manager,
                 message_storage_adapter,
-                idempotent_manager,
-                ack_manager,
+                qos_manager,
                 client_poll,
                 request_queue_sx4,
                 request_queue_sx5,

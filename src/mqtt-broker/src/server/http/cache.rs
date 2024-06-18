@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use super::server::HttpServerState;
 use crate::{
-    core::heartbeat_cache::HeartbeatShard,
-    core::connection::Connection,
-    qos::QosData,
+    core::{connection::Connection, heartbeat_cache::HeartbeatShard, qos_manager::ClientPkidData},
     subscribe::{
         subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},
@@ -50,9 +48,7 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         exclusive_push_thread: state.subscribe_cache.exclusive_push_thread_keys(),
         share_leader_push_thread: state.subscribe_cache.share_leader_push_thread_keys(),
         share_follower_resub_thread: state.subscribe_cache.share_follower_resub_thread_keys(),
-
-        qos_pkid_data: state.qos_memory.client_pkid.clone(),
-        sub_pkid_data: state.qos_memory.sub_pkid_data.clone(),
+        client_pkid_data: state.qos_manager.client_pkid_data.clone(),
     };
 
     return success_response(result);
@@ -94,6 +90,5 @@ pub struct MetadataCacheResult {
     pub share_follower_resub_thread: Vec<String>,
 
     // QosMemory
-    pub qos_pkid_data: DashMap<String, QosData>,
-    pub sub_pkid_data: DashMap<String, u64>,
+    pub client_pkid_data: DashMap<String, ClientPkidData>,
 }

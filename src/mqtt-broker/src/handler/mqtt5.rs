@@ -2,9 +2,9 @@ use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use crate::core::connection::{create_connection, get_client_id};
 use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::qos_manager::{QosAckPackageData, QosAckPackageType, QosManager};
 use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, publish_get_topic_name};
-use crate::core::qos_manager::{QosManager, QosAckPackageData, QosAckPackageType};
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCache;
@@ -36,7 +36,7 @@ pub struct Mqtt5Service<S> {
     heartbeat_manager: Arc<HeartbeatCache>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCache>,
-    ack_manager: Arc<QosManager>,
+    qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -50,7 +50,7 @@ where
         heartbeat_manager: Arc<HeartbeatCache>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCache>,
-        ack_manager: Arc<QosManager>,
+        qos_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         return Mqtt5Service {
@@ -59,7 +59,7 @@ where
             heartbeat_manager,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
-            ack_manager,
+            qos_manager,
             client_poll,
         };
     }
@@ -228,7 +228,7 @@ where
         };
 
         if !qos_manager
-            .get_qos_pkid_data(client_id.clone(), publish.pkid)
+            .get_client_pkid(client_id.clone(), publish.pkid)
             .await
             .is_none()
         {
@@ -299,8 +299,8 @@ where
                 return Some(self.ack_build.pub_ack(pkid, None, user_properties));
             }
             QoS::ExactlyOnce => {
-                idempotent_manager
-                    .save_qos_pkid_data(connection.client_id, pkid)
+                qos_manager
+                    .add_client_pkid(connection.client_id, pkid)
                     .await;
                 return Some(self.ack_build.pub_rec(pkid, user_properties));
             }
@@ -316,7 +316,7 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
-            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.qos_manager.get_ack_packet(client_id.clone(), pkid) {
                 match data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
@@ -344,7 +344,7 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
-            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.qos_manager.get_ack_packet(client_id.clone(), pkid) {
                 match data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
@@ -372,7 +372,7 @@ where
         if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
-            if let Some(data) = self.ack_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.qos_manager.get_ack_packet(client_id.clone(), pkid) {
                 match data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
@@ -395,7 +395,7 @@ where
         connect_id: u64,
         pub_rel: PubRel,
         _: Option<PubRelProperties>,
-        idempotent_manager: Arc<QosMemory>,
+        qos_manager: Arc<QosManager>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             conn.client_id.clone()
@@ -406,16 +406,16 @@ where
             );
         };
 
-        if idempotent_manager
-            .get_qos_pkid_data(client_id.clone(), pub_rel.pkid)
+        if qos_manager
+            .get_client_pkid(client_id.clone(), pub_rel.pkid)
             .await
             .is_none()
         {
             return publish_comp_fail(pub_rel.pkid);
         };
 
-        idempotent_manager
-            .delete_qos_pkid_data(client_id, pub_rel.pkid)
+        qos_manager
+            .delete_client_pkid(client_id, pub_rel.pkid)
             .await;
         return publish_comp_success(pub_rel.pkid);
     }
@@ -426,7 +426,7 @@ where
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
-        pkid_manager: Arc<QosMemory>,
+        qos_manager: Arc<QosManager>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.metadata_cache.connection_info.get(&connect_id) {
             conn.client_id.clone()
@@ -437,8 +437,8 @@ where
             );
         };
 
-        if !pkid_manager
-            .get_sub_pkid_data(client_id.clone(), subscribe.packet_identifier)
+        if !qos_manager
+            .get_client_pkid(client_id.clone(), subscribe.packet_identifier)
             .await
             .is_none()
         {
@@ -477,8 +477,8 @@ where
             );
         }
 
-        pkid_manager
-            .save_sub_pkid_data(client_id.clone(), subscribe.packet_identifier)
+        qos_manager
+            .add_client_pkid(client_id.clone(), subscribe.packet_identifier)
             .await;
 
         // Saving subscriptions
@@ -549,7 +549,7 @@ where
         connect_id: u64,
         un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
-        idempotent_manager: Arc<QosMemory>,
+        qos_manager: Arc<QosManager>,
     ) -> MQTTPacket {
         let connection = if let Some(se) = self.metadata_cache.connection_info.get(&connect_id) {
             se.clone()
@@ -560,8 +560,8 @@ where
             );
         };
 
-        idempotent_manager
-            .delete_sub_pkid_data(connection.client_id.clone(), un_subscribe.pkid)
+        qos_manager
+            .delete_client_pkid(connection.client_id.clone(), un_subscribe.pkid)
             .await;
 
         self.sucscribe_cache
