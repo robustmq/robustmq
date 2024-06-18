@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use crate::{metadata::cluster::Cluster, storage::session::SessionStorage};
+use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
-use metadata_struct::mqtt::session::{LastWillData, MQTTSession};
+use metadata_struct::mqtt::{cluster::MQTTCluster, session::{LastWillData, MQTTSession}};
 use protocol::mqtt::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
 pub async fn build_session(
     connect_id: u64,
     client_id: String,
-    cluster: Cluster,
+    cluster: MQTTCluster,
     connnect: Connect,
     connect_properties: Option<ConnectProperties>,
     last_will: Option<LastWill>,
@@ -77,7 +77,10 @@ pub async fn build_session(
     return Ok((session, new_session));
 }
 
-fn session_expiry_interval(cluster: Cluster, connect_properties: Option<ConnectProperties>) -> u32 {
+fn session_expiry_interval(
+    cluster: MQTTCluster,
+    connect_properties: Option<ConnectProperties>,
+) -> u32 {
     let session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
             ck

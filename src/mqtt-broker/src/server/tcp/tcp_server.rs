@@ -22,11 +22,10 @@ use tokio::{io, sync::broadcast::Sender};
 use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
 
 // U: codec: encoder + decoder
-// T: metadata storage adapter
 // S: message storage adapter
-pub struct TcpServer<U, T, S> {
+pub struct TcpServer<U, S> {
     protocol: MQTTProtocol,
-    command: Command<T, S>,
+    command: Command<S>,
     connection_manager: Arc<ConnectionManager<U>>,
     accept_thread_num: usize,
     handler_process_num: usize,
@@ -36,18 +35,17 @@ pub struct TcpServer<U, T, S> {
     codec: U,
 }
 
-impl<U, T, S> TcpServer<U, T, S>
+impl<U, S> TcpServer<U, S>
 where
     U: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static + Debug,
     MQTTPacket: From<<U as tokio_util::codec::Decoder>::Item>,
     <U as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
     <U as tokio_util::codec::Decoder>::Error: Debug,
-    T: StorageAdapter + Clone + Send + Sync + 'static,
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     pub fn new(
         protocol: MQTTProtocol,
-        command: Command<T, S>,
+        command: Command<S>,
         accept_thread_num: usize,
         max_connection_num: usize,
         handler_process_num: usize,

@@ -147,7 +147,7 @@ mod tests {
     }
 
     fn cluster_type() -> i32 {
-        return ClusterType::StorageEngine.into();
+        return ClusterType::JournalServer.into();
     }
     fn cluster_name() -> String {
         return "tokio-test2".to_string();

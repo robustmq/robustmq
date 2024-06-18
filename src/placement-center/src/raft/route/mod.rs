@@ -52,12 +52,18 @@ impl DataRoute {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
             StorageDataType::ClusterRegisterNode => {
-                return self.route_cluster.cluster_register_node(storage_data.value);
+                return self.route_cluster.add_node(storage_data.value);
             }
             StorageDataType::ClusterUngisterNode => {
+                return self.route_cluster.delete_node(storage_data.value);
+            }
+            StorageDataType::ClusterSetResourceConfig => {
+                return self.route_cluster.set_resource_config(storage_data.value);
+            }
+            StorageDataType::ClusterDeleteResourceConfig => {
                 return self
                     .route_cluster
-                    .cluster_unregister_node(storage_data.value);
+                    .delete_resource_config(storage_data.value);
             }
             StorageDataType::JournalCreateShard => {
                 return self.route_journal.create_shard(storage_data.value);
@@ -96,7 +102,7 @@ impl DataRoute {
                 return self.route_mqtt.delete_session(storage_data.value);
             }
             StorageDataType::MQTTSetTopicRetainMessage => {
-                return self.route_mqtt.delete_session(storage_data.value);
+                return self.route_mqtt.set_topic_retain_message(storage_data.value);
             }
         }
     }

@@ -65,7 +65,7 @@ impl StorageEngineNodeHeartBeat {
                             let mut req = UnRegisterNodeRequest::default();
                             req.node_id = node.node_id;
                             req.cluster_name = node.cluster_name.clone();
-                            req.cluster_type = ClusterType::StorageEngine.into();
+                            req.cluster_type = ClusterType::JournalServer.into();
                             let pcs = self.placement_center_storage.clone();
                             let data = StorageData::new(
                                 StorageDataType::ClusterUngisterNode,

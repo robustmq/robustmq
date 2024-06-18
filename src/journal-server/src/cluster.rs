@@ -19,7 +19,7 @@ pub async fn register_storage_engine_node(
     config: JournalServerConfig,
 ) {
     let mut req = RegisterNodeRequest::default();
-    req.cluster_type = ClusterType::StorageEngine.into();
+    req.cluster_type = ClusterType::JournalServer.into();
     req.cluster_name = config.cluster_name;
     req.node_id = config.node_id;
     req.node_ip = get_local_ip();
@@ -42,7 +42,7 @@ pub async fn unregister_storage_engine_node(
     config: JournalServerConfig,
 ) {
     let mut req = UnRegisterNodeRequest::default();
-    req.cluster_type = ClusterType::StorageEngine.into();
+    req.cluster_type = ClusterType::JournalServer.into();
     req.cluster_name = config.cluster_name;
     req.node_id = config.node_id;
 
@@ -60,7 +60,7 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, config: JournalServe
     loop {
         let mut req = HeartbeatRequest::default();
         req.cluster_name = config.cluster_name.clone();
-        req.cluster_type = ClusterType::StorageEngine.into();
+        req.cluster_type = ClusterType::JournalServer.into();
         req.node_id = config.node_id;
         match heartbeat(
             client_poll.clone(),

@@ -1,13 +1,8 @@
-use common_base::{
-    config::placement_center::placement_center_conf, log::info_meta, tools::get_local_ip,
-};
+use common_base::{config::placement_center::placement_center_conf, log::info_meta};
+use metadata_struct::placement::broker_node::BrokerNode;
 use protocol::placement_center::generate::common::ClusterType;
 use raft::StateRole;
-
 use std::collections::HashMap;
-use toml::Table;
-
-use crate::structs::node::Node;
 
 #[derive(PartialEq, Default, Debug, Eq, PartialOrd, Ord, Clone)]
 pub enum NodeState {
@@ -20,17 +15,17 @@ pub enum NodeState {
 
 #[derive(Clone, Default, Debug)]
 pub struct PlacementCache {
-    pub local: Node,
-    pub leader: Option<Node>,
+    pub local: BrokerNode,
+    pub leader: Option<BrokerNode>,
     pub state: NodeState,
     pub raft_role: StateRole,
-    pub peers: HashMap<u64, Node>,
+    pub peers: HashMap<u64, BrokerNode>,
 }
 
 impl PlacementCache {
     pub fn new() -> PlacementCache {
         let config = placement_center_conf();
-        let mut local = Node::default();
+        let mut local = BrokerNode::default();
         local.cluster_type = ClusterType::PlacementCenter.as_str_name().to_string();
         local.cluster_name = config.cluster_name.clone();
         local.node_inner_addr = format!("{}:{}", config.addr.clone(), config.grpc_port);
@@ -41,7 +36,7 @@ impl PlacementCache {
         for (node_id, addr) in config.nodes.clone() {
             let (ip, _) = addr.as_str().unwrap().split_once(":").unwrap();
             let id: u64 = node_id.to_string().trim().parse().unwrap();
-            let mut node = Node::default();
+            let mut node = BrokerNode::default();
 
             node.cluster_type = ClusterType::PlacementCenter.as_str_name().to_string();
             node.cluster_name = config.cluster_name.clone();
@@ -61,7 +56,7 @@ impl PlacementCache {
     }
 
     // Add Meta node
-    pub fn add_peer(&mut self, id: u64, node: Node) {
+    pub fn add_peer(&mut self, id: u64, node: BrokerNode) {
         info_meta(&format!("add peer node:{:?}", node));
         self.peers.insert(id, node);
     }
@@ -80,11 +75,11 @@ impl PlacementCache {
         self.raft_role = role;
     }
 
-    pub fn set_leader(&mut self, leader: Node) {
+    pub fn set_leader(&mut self, leader: BrokerNode) {
         self.leader = Some(leader);
     }
 
-    pub fn get_node_by_id(&self, id: u64) -> Option<&Node> {
+    pub fn get_node_by_id(&self, id: u64) -> Option<&BrokerNode> {
         self.peers.get(&id)
     }
 

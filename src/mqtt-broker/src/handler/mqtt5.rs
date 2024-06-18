@@ -1,11 +1,12 @@
 use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
+use crate::core::connection::{create_connection, get_client_id};
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::session::build_session;
-use crate::metadata::connection::{create_connection, get_client_id};
-use crate::metadata::topic::{get_topic_info, publish_get_topic_name};
+use crate::core::topic::{get_topic_info, publish_get_topic_name};
 use crate::qos::ack_manager::{AckManager, AckPackageData, AckPackageType};
 use crate::qos::QosDataManager;
+use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use crate::{
@@ -31,27 +32,24 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
-pub struct Mqtt5Service<T, S> {
+pub struct Mqtt5Service<S> {
     metadata_cache: Arc<MetadataCacheManager>,
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<HeartbeatCache>,
-    metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCache>,
     ack_manager: Arc<AckManager>,
     client_poll: Arc<ClientPool>,
 }
 
-impl<T, S> Mqtt5Service<T, S>
+impl<S> Mqtt5Service<S>
 where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<HeartbeatCache>,
-        metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCache>,
         ack_manager: Arc<AckManager>,
@@ -61,7 +59,6 @@ where
             metadata_cache,
             ack_build,
             heartbeat_manager,
-            metadata_storage_adapter,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             ack_manager,
@@ -191,7 +188,7 @@ where
         let topic = match get_topic_info(
             topic_name,
             self.metadata_cache.clone(),
-            self.metadata_storage_adapter.clone(),
+            self.message_storage_adapter.clone(),
             self.client_poll.clone(),
         )
         .await
@@ -244,14 +241,14 @@ where
         };
 
         // Persisting retain message data
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
+        let topic_storage = TopicStorage::new(self.client_poll.clone());
         if publish.retain {
             let retain_message = MQTTMessage::build_message(
                 client_id.clone(),
                 publish.clone(),
                 publish_properties.clone(),
             );
-            match message_storage
+            match topic_storage
                 .save_retain_message(topic.topic_id.clone(), retain_message)
                 .await
             {
@@ -267,6 +264,7 @@ where
         }
 
         // Persisting stores message data
+        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         let offset = if let Some(record) = MQTTMessage::build_record(
             client_id.clone(),
             publish.clone(),
@@ -503,12 +501,11 @@ where
             .await;
 
         // Reservation messages are processed when a subscription is created
-        let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
         match send_retain_message(
             connect_id,
             subscribe.clone(),
             subscribe_properties.clone(),
-            message_storage,
+            self.client_poll.clone(),
             self.metadata_cache.clone(),
             response_queue_sx.clone(),
             true,

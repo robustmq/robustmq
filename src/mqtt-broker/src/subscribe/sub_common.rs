@@ -1,6 +1,7 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::qos::ack_manager::AckPackageData;
 use crate::server::MQTTProtocol;
+use crate::storage::topic::TopicStorage;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
@@ -75,19 +76,16 @@ pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
 }
 
 // Reservation messages are processed when a subscription is created
-pub async fn send_retain_message<S>(
+pub async fn send_retain_message(
     connect_id: u64,
     subscribe: Subscribe,
     subscribe_properties: Option<SubscribeProperties>,
-    message_storage: MessageStorage<S>,
+    client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     new_sub: bool,
     dup_msg: bool,
-) -> Result<(), RobustMQError>
-where
-    S: StorageAdapter + Send + Sync + 'static,
-{
+) -> Result<(), RobustMQError> {
     let mut sub_id = Vec::new();
     if let Some(properties) = subscribe_properties {
         if let Some(id) = properties.subscription_identifier {
@@ -105,9 +103,10 @@ where
         }
 
         let topic_id_list = get_sub_topic_id_list(metadata_cache.clone(), filter.path).await;
+        let topic_storage = TopicStorage::new(client_poll.clone());
         for topic_id in topic_id_list {
-            match message_storage.get_retain_message(topic_id.clone()).await {
-                Ok(Some(msg)) => {
+            match topic_storage.get_retain_message(topic_id.clone()).await {
+                Ok(msg) => {
                     if let Some(topic_name) = metadata_cache.topic_name_by_id(topic_id) {
                         let publish = Publish {
                             dup: dup_msg,
@@ -139,7 +138,6 @@ where
                         }
                     }
                 }
-                Ok(None) => {}
                 Err(e) => return Err(e),
             }
         }
@@ -178,7 +176,6 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
     let sub_name = format!("/{}", str_slice.join("/"));
     return (group_name, sub_name);
 }
-
 
 pub async fn get_share_sub_leader(
     client_poll: Arc<ClientPool>,
@@ -448,6 +445,7 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
+    use clients::poll::ClientPool;
     use metadata_struct::mqtt::message::MQTTMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
@@ -455,6 +453,7 @@ mod tests {
     use tokio::sync::broadcast;
 
     use crate::core::metadata_cache::MetadataCacheManager;
+    use crate::storage::topic::TopicStorage;
     use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
     use crate::{
         storage::message::MessageStorage,
@@ -635,7 +634,9 @@ mod tests {
             filters,
         };
         let subscribe_properties = Some(SubscribeProperties::default());
-        let message_storage = MessageStorage::new(storage_adapter.clone());
+
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let topic_storage = TopicStorage::new(client_poll.clone());
         let new_sub = true;
         let dup_msg = true;
 
@@ -653,7 +654,7 @@ mod tests {
         retain_message.topic = Bytes::from(topic_name.clone());
         retain_message.payload = Bytes::from(payload);
 
-        match message_storage
+        match topic_storage
             .save_retain_message(topic.topic_id, retain_message.clone())
             .await
         {
@@ -668,7 +669,7 @@ mod tests {
             connect_id,
             subscribe,
             subscribe_properties,
-            message_storage,
+            client_poll,
             metadata_cache.clone(),
             response_queue_sx.clone(),
             new_sub,

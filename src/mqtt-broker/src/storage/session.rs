@@ -42,12 +42,7 @@ impl SessionStorage {
             Ok(_) => {
                 return Ok(());
             }
-            Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(format!(
-                    "save user config error, error messsage:{}",
-                    e.to_string()
-                )))
-            }
+            Err(e) => return Err(e),
         }
     }
 
@@ -68,10 +63,7 @@ impl SessionStorage {
                 return Ok(());
             }
             Err(e) => {
-                return Err(common_base::errors::RobustMQError::CommmonError(format!(
-                    "save user config error, error messsage:{}",
-                    e.to_string()
-                )))
+                return Err(e)
             }
         }
     }

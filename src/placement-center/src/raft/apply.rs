@@ -44,6 +44,8 @@ pub enum StorageDataType {
     // Cluster
     ClusterRegisterNode,
     ClusterUngisterNode,
+    ClusterSetResourceConfig,
+    ClusterDeleteResourceConfig,
 
     // Journal
     JournalCreateShard,

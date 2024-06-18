@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    metadata::subscriber::Subscriber,
+    subscribe::subscriber::Subscriber,
     qos::ack_manager::{AckManager, AckPackageData, AckPackageType, AckPacketInfo},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,

@@ -38,15 +38,3 @@ pub trait QosDataManager {
     async fn get_pub_qos_data(&self, client_id: String)
         -> Option<PublishQosMessageData>;
 }
-
-pub struct QosDataCleanManager {}
-
-impl QosDataCleanManager {
-    pub fn new() -> QosDataCleanManager {
-        return QosDataCleanManager {};
-    }
-
-    pub fn start(&self) {
-        info("Idempotent message data cleaning thread started successfully".to_string());
-    }
-}

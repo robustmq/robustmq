@@ -13,19 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-use crate::structs::node::Node;
-
 use super::server::HttpServerState;
 use axum::extract::State;
 use common_base::{http_response::success_response, metrics::dump_metrics};
+use metadata_struct::placement::broker_node::BrokerNode;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct IndexResponse {
-    pub local: Node,
-    pub node_lists: HashMap<u64, Node>,
+    pub local: BrokerNode,
+    pub node_lists: HashMap<u64, BrokerNode>,
     pub raft: RaftInfo,
 }
 

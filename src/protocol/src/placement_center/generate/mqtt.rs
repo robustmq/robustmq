@@ -87,8 +87,8 @@ pub struct SetTopicRetainMessageRequest {
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub topic_name: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub retain_message: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "3")]
+    pub retain_message: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

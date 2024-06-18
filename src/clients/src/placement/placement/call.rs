@@ -1,13 +1,16 @@
 use crate::{
-    placement::{retry_call, PlacementCenterInterface, PlacementCenterService}, poll::ClientPool,
+    placement::{retry_call, PlacementCenterInterface, PlacementCenterService},
+    poll::ClientPool,
 };
 use common_base::errors::RobustMQError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     placement::{
+        DeleteResourceConfigRequest, GetResourceConfigReply, GetResourceConfigRequest,
         HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-        SendRaftMessageReply, SendRaftMessageRequest, UnRegisterNodeRequest,
+        SendRaftMessageReply, SendRaftMessageRequest, SetResourceConfigRequest,
+        UnRegisterNodeRequest,
     },
 };
 use std::sync::Arc;
@@ -128,6 +131,81 @@ pub async fn send_raft_conf_change(
     .await
     {
         Ok(data) => match SendRaftConfChangeReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn set_resource_config(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: SetResourceConfigRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = SetResourceConfigRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::SetReourceConfig,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn delete_resource_config(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteResourceConfigRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = DeleteResourceConfigRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::DeleteReourceConfig,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn get_resource_config(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: GetResourceConfigRequest,
+) -> Result<GetResourceConfigReply, RobustMQError> {
+    let request_data = GetResourceConfigRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::GetReourceConfig,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match GetResourceConfigReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         },

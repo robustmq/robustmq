@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use common_base::tools::unique_id;
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct MQTTTopic {
     pub topic_id: String,
     pub topic_name: String,
-    pub retain_message: Option<Bytes>,
+    pub retain_message: Option<Vec<u8>>,
 }
 
 impl MQTTTopic {

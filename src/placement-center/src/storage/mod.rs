@@ -17,8 +17,7 @@
 use common_base::tools::now_second;
 use serde::{Deserialize, Serialize};
 
-pub mod cluster;
-pub mod common;
+pub mod placement;
 pub mod journal;
 pub mod keys;
 pub mod mqtt;

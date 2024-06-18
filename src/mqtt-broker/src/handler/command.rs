@@ -16,30 +16,27 @@ use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
 
-// T: metadata storage adapter
 // S: message storage adapter
 #[derive(Clone)]
-pub struct Command<T, S> {
+pub struct Command<S> {
     protocol: MQTTProtocol,
     ack_build: MQTTAckBuild,
     mqtt4_service: Mqtt4Service,
-    mqtt5_service: Mqtt5Service<T, S>,
+    mqtt5_service: Mqtt5Service<S>,
     metadata_cache: Arc<MetadataCacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     idempotent_manager: Arc<QosMemory>,
     client_poll: Arc<ClientPool>,
 }
 
-impl<T, S> Command<T, S>
+impl<S> Command<S>
 where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
         protocol: MQTTProtocol,
         metadata_cache: Arc<MetadataCacheManager>,
         heartbeat_manager: Arc<HeartbeatCache>,
-        metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
         idempotent_manager: Arc<QosMemory>,
@@ -57,7 +54,7 @@ where
             metadata_cache.clone(),
             ack_build.clone(),
             heartbeat_manager.clone(),
-            metadata_storage_adapter.clone(),
+
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             ack_manager.clone(),

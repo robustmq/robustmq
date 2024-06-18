@@ -47,9 +47,13 @@ pub enum PlacementCenterInterface {
     CreateTopic,
     DeleteTopic,
     ListTopic,
+    SetTopicRetainMessage,
     CreateSession,
     DeleteSession,
     ListSession,
+    SetReourceConfig,
+    GetReourceConfig,
+    DeleteReourceConfig,
 }
 
 pub mod journal;

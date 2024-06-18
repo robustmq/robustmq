@@ -3,13 +3,12 @@ use std::collections::HashMap;
 use super::server::HttpServerState;
 use crate::{
     core::heartbeat_cache::HeartbeatShard,
-    metadata::{
-        cluster::Cluster,
-        connection::Connection,
+    core::connection::Connection,
+    qos::QosData,
+    subscribe::{
+        subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},
     },
-    qos::QosData,
-    subscribe::subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
 };
 use axum::extract::State;
 use common_base::{
@@ -18,7 +17,9 @@ use common_base::{
     metrics::dump_metrics,
 };
 use dashmap::DashMap;
-use metadata_struct::mqtt::{session::MQTTSession, topic::MQTTTopic, user::MQTTUser};
+use metadata_struct::mqtt::{
+    cluster::MQTTCluster, session::MQTTSession, topic::MQTTTopic, user::MQTTUser,
+};
 use serde::{Deserialize, Serialize};
 
 pub async fn metrics() -> String {
@@ -70,7 +71,7 @@ pub struct MetadataCacheResult {
 
     // metadata_cache
     pub cluster_name: String,
-    pub cluster_info: DashMap<String, Cluster>,
+    pub cluster_info: DashMap<String, MQTTCluster>,
     pub user_info: DashMap<String, MQTTUser>,
     pub session_info: DashMap<String, MQTTSession>,
     pub connection_info: DashMap<u64, Connection>,

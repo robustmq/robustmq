@@ -1,10 +1,8 @@
-use protocol::mqtt::QoS;
+use protocol::{broker_server::generate::mqtt::Available, mqtt::QoS};
 use serde::{Deserialize, Serialize};
 
-use super::AvailableFlag;
-
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct Cluster {
+pub struct MQTTCluster {
     pub session_expiry_interval: u32,
     pub topic_alias_max: u16,
     pub max_qos: QoS,
@@ -18,9 +16,9 @@ pub struct Cluster {
     pub secret_free_login: bool,
 }
 
-impl Cluster {
+impl MQTTCluster {
     pub fn new() -> Self {
-        return Cluster {
+        return MQTTCluster {
             session_expiry_interval: 1800,
             topic_alias_max: 65535,
             max_qos: QoS::ExactlyOnce,
@@ -72,5 +70,32 @@ impl Cluster {
 
     pub fn secret_free_login(&self) -> bool {
         return self.secret_free_login;
+    }
+
+    pub fn encode(&self) -> String {
+        return serde_json::to_string(&self).unwrap();
+    }
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub enum AvailableFlag {
+    Enable,
+    #[default]
+    Disable,
+}
+
+impl From<AvailableFlag> for u8 {
+    fn from(flag: AvailableFlag) -> Self {
+        match flag {
+            AvailableFlag::Enable => 1,
+            AvailableFlag::Disable => 0,
+        }
+    }
+}
+
+pub fn available_flag(flag: Available) -> AvailableFlag {
+    match flag {
+        Available::Enable => return AvailableFlag::Enable,
+        Available::Disable => return AvailableFlag::Disable,
     }
 }

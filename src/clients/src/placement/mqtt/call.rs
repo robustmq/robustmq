@@ -11,7 +11,7 @@ use protocol::placement_center::generate::{
         CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
         DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
         ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
-        ListUserRequest,
+        ListUserRequest, SetTopicRetainMessageRequest,
     },
 };
 use std::sync::Arc;
@@ -181,6 +181,31 @@ pub async fn placement_list_topic(
     .await
     {
         Ok(data) => match ListTopicReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn placement_set_topic_retain_message(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: SetTopicRetainMessageRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = SetTopicRetainMessageRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::SetTopicRetainMessage,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         },

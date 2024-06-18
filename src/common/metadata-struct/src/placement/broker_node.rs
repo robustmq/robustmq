@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
-pub struct Node {
+pub struct BrokerNode {
     pub cluster_name: String,
     pub cluster_type: String,
     pub node_id: u64,

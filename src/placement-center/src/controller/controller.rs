@@ -3,11 +3,12 @@ use crate::{
     controller::heartbeat::StorageEngineNodeHeartBeat,
     raft::apply::RaftMachineApply,
     storage::{
-        cluster::{cluster::ClusterStorage, node::NodeStorage},
+        placement::{cluster::ClusterStorage, node::NodeStorage},
         rocksdb::RocksDBEngine,
     },
 };
 use common_base::{config::placement_center::placement_center_conf, log::info_meta};
+use protocol::placement_center::generate::common::ClusterType;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -44,23 +45,24 @@ impl ClusterController {
     pub fn controller_manager_thread(&self) {}
 
     pub fn load_cache(&self) {
-        let cluster_handler = ClusterStorage::new(self.rocksdb_engine_handler.clone());
-        let cluster_list = cluster_handler.all_cluster();
+        // let cluster_handler = ClusterStorage::new(self.rocksdb_engine_handler.clone());
+        // let cluster_list = cluster_handler
+        //     .list(Some(ClusterType::JournalServer.as_str_name().to_string()));
 
-        let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        // let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
 
-        for cluster in cluster_list {
-            let cluster_name = cluster.cluster_name.clone();
+        // for cluster in cluster_list {
+        //     let cluster_name = cluster.cluster_name.clone();
 
-            // load cluster cache
-            self.cluster_cache.add_cluster(cluster.clone());
+        //     // load cluster cache
+        //     self.cluster_cache.add_cluster(cluster.clone());
 
-            // load node cache
-            let node_list = node_handler.list(cluster_name.clone());
-            for node in node_list {
-                self.cluster_cache.add_node(node);
-            }
-        }
+        //     // load node cache
+        //     let node_list = node_handler.list(cluster_name.clone());
+        //     for node in node_list {
+        //         self.cluster_cache.add_node(node);
+        //     }
+        // }
     }
 
     // Start the heartbeat detection thread of the Storage Engine node

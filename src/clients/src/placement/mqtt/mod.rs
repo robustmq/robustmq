@@ -5,6 +5,7 @@ use common_base::errors::RobustMQError;
 use inner::{
     inner_create_session, inner_create_topic, inner_create_user, inner_delete_session,
     inner_delete_topic, inner_delete_user, inner_list_session, inner_list_topic, inner_list_user,
+    inner_set_topic_retain_message,
 };
 use mobc::Manager;
 use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
@@ -57,6 +58,9 @@ pub(crate) async fn mqtt_interface_call(
                 }
                 PlacementCenterInterface::DeleteTopic => {
                     inner_delete_topic(client, request.clone()).await
+                }
+                PlacementCenterInterface::SetTopicRetainMessage => {
+                    inner_set_topic_retain_message(client, request.clone()).await
                 }
                 PlacementCenterInterface::ListSession => {
                     inner_list_session(client, request.clone()).await

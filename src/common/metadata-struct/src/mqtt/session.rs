@@ -45,3 +45,9 @@ pub struct LastWillData {
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
 }
+
+impl LastWillData {
+    pub fn encode(&self) -> Vec<u8> {
+        return serde_json::to_vec(&self).unwrap();
+    }
+}

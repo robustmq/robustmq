@@ -19,14 +19,10 @@ use common_base::{
 };
 use core::metadata_cache::{load_metadata_cache, MetadataCacheManager};
 use core::{
-    client_keep_alive::ClientKeepAlive,
-    heartbeat_cache::HeartbeatCache,
-    placement_drive::{register_broker_node, report_heartbeat, unregister_broker_node},
-    session_expiry::SessionExpiry,
-    HEART_CONNECT_SHARD_HASH_NUM,
+    client_keep_alive::ClientKeepAlive, heartbeat_cache::HeartbeatCache,
+    session_expiry::SessionExpiry, HEART_CONNECT_SHARD_HASH_NUM,
 };
-use metadata::cluster::Cluster;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::mqtt::{cluster::MQTTCluster, user::MQTTUser};
 use qos::{ack_manager::AckManager, memory::QosMemory};
 use server::{
     grpc::server::GrpcServer,
@@ -34,8 +30,8 @@ use server::{
     start_mqtt_server,
     tcp::packet::{RequestPackage, ResponsePackage},
 };
-use std::sync::Arc;
-use storage::user::UserStorage;
+use std::{sync::Arc, time::Duration};
+use storage::{cluster::ClusterStorage, user::UserStorage};
 use storage_adapter::{
     // memory::MemoryStorageAdapter,
     mysql::{build_mysql_conn_pool, MySQLStorageAdapter},
@@ -50,11 +46,11 @@ use tokio::{
     runtime::Runtime,
     signal,
     sync::broadcast::{self, Sender},
+    time,
 };
 
 mod core;
 mod handler;
-mod metadata;
 mod metrics;
 mod qos;
 mod security;
@@ -66,27 +62,16 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
     let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
 
-    // let metadata_storage_adapter = Arc::new(PlacementStorageAdapter::new(
-    //     client_poll.clone(),
-    //     conf.placement_center.clone(),
-    // ));
-
-    // let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+    // build message storage driver
     let pool = build_mysql_conn_pool(&conf.mysql.server).unwrap();
-    let metadata_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
     let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
-    let metadata_cache = Arc::new(MetadataCacheManager::new(conf.cluster_name.clone()));
 
-    let server = MqttBroker::new(
-        client_poll,
-        metadata_storage_adapter,
-        message_storage_adapter,
-        metadata_cache,
-    );
+    let metadata_cache = Arc::new(MetadataCacheManager::new(conf.cluster_name.clone()));
+    let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
     server.start(stop_send)
 }
 
-pub struct MqttBroker<'a, T, S> {
+pub struct MqttBroker<'a, S> {
     conf: &'a BrokerMQTTConfig,
     metadata_cache_manager: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatCache>,
@@ -97,20 +82,17 @@ pub struct MqttBroker<'a, T, S> {
     response_queue_sx4: Sender<ResponsePackage>,
     response_queue_sx5: Sender<ResponsePackage>,
     client_poll: Arc<ClientPool>,
-    metadata_storage_adapter: Arc<T>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeCache>,
     ack_manager: Arc<AckManager>,
 }
 
-impl<'a, T, S> MqttBroker<'a, T, S>
+impl<'a, S> MqttBroker<'a, S>
 where
-    T: StorageAdapter + Sync + Send + 'static + Clone,
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
         client_poll: Arc<ClientPool>,
-        metadata_storage_adapter: Arc<T>,
         message_storage_adapter: Arc<S>,
         metadata_cache: Arc<MetadataCacheManager>,
     ) -> Self {
@@ -142,7 +124,6 @@ where
             response_queue_sx4,
             response_queue_sx5,
             client_poll,
-            metadata_storage_adapter,
             message_storage_adapter,
             subscribe_manager,
             ack_manager,
@@ -164,7 +145,6 @@ where
     fn start_mqtt_server(&self) {
         let cache = self.metadata_cache_manager.clone();
         let heartbeat_manager = self.heartbeat_manager.clone();
-        let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         let idempotent_manager = self.idempotent_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
@@ -181,7 +161,6 @@ where
                 subscribe_manager,
                 cache,
                 heartbeat_manager,
-                metadata_storage_adapter,
                 message_storage_adapter,
                 idempotent_manager,
                 ack_manager,
@@ -199,7 +178,6 @@ where
         let server = GrpcServer::new(
             self.conf.grpc_port.clone(),
             self.metadata_cache_manager.clone(),
-            self.metadata_storage_adapter.clone(),
             self.client_poll.clone(),
         );
         self.runtime.spawn(async move {
@@ -220,10 +198,25 @@ where
             .spawn(async move { start_http_server(http_state).await });
     }
 
-    fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Receiver<bool>) {
+    fn start_cluster_heartbeat_report(&self, mut stop_send: broadcast::Receiver<bool>) {
         let client_poll = self.client_poll.clone();
-        self.runtime
-            .spawn(async move { report_heartbeat(client_poll, stop_send).await });
+        self.runtime.spawn(async move {
+            time::sleep(Duration::from_millis(5000)).await;
+            let cluster_storage = ClusterStorage::new(client_poll);
+            loop {
+                match stop_send.try_recv() {
+                    Ok(flag) => {
+                        if flag {
+                            info("ReportClusterHeartbeat thread stopped successfully".to_string());
+                            break;
+                        }
+                    }
+                    Err(_) => {}
+                }
+                cluster_storage.heartbeat().await;
+                time::sleep(Duration::from_millis(1000)).await;
+            }
+        });
     }
 
     fn start_push_server(&self) {
@@ -315,7 +308,6 @@ where
 
     fn register_node(&self) {
         let metadata_cache = self.metadata_cache_manager.clone();
-        let metadata_storage_adapter = self.metadata_storage_adapter.clone();
         let client_poll = self.client_poll.clone();
         self.runtime.block_on(async move {
             // init system user
@@ -336,9 +328,8 @@ where
             }
 
             // metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);
-            let (cluster, user_info, topic_info) =
-                load_metadata_cache(metadata_storage_adapter, client_poll.clone()).await;
-            metadata_cache.set_cluster_info(Cluster::new());
+            let (cluster, user_info, topic_info) = load_metadata_cache(client_poll.clone()).await;
+            metadata_cache.set_cluster_info(MQTTCluster::new());
 
             for (_, user) in user_info {
                 metadata_cache.add_user(user);
@@ -347,13 +338,14 @@ where
             for (topic_name, topic) in topic_info {
                 metadata_cache.add_topic(&topic_name, &topic);
             }
-
-            register_broker_node(self.client_poll.clone()).await;
+            let cluster_storage = ClusterStorage::new(client_poll.clone());
+            cluster_storage.register_node().await;
         });
     }
 
     async fn stop_server(&self) {
         // unregister node
-        unregister_broker_node(self.client_poll.clone()).await;
+        let cluster_storage = ClusterStorage::new(self.client_poll.clone());
+        cluster_storage.unregister_node().await;
     }
 }
