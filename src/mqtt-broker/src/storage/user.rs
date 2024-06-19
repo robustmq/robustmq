@@ -35,9 +35,7 @@ impl UserStorage {
             Ok(_) => {
                 return Ok(());
             }
-            Err(e) => {
-                return Err(e)
-            }
+            Err(e) => return Err(e),
         }
     }
 
@@ -57,9 +55,7 @@ impl UserStorage {
             Ok(_) => {
                 return Ok(());
             }
-            Err(e) => {
-                return Err(e)
-            }
+            Err(e) => return Err(e),
         }
     }
 
@@ -129,3 +125,4 @@ impl UserStorage {
         }
     }
 }
+

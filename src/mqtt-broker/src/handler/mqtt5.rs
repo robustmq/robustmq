@@ -247,10 +247,13 @@ where
                 publish_properties.clone(),
             );
             match topic_storage
-                .save_retain_message(topic.topic_id.clone(), retain_message)
+                .save_retain_message(topic.topic_id.clone(), retain_message.clone())
                 .await
             {
-                Ok(_) => {}
+                Ok(_) => {
+                    self.metadata_cache
+                        .update_topic_retain_message(&topic.topic_name, &retain_message);
+                }
                 Err(e) => {
                     error(e.to_string());
                     return Some(

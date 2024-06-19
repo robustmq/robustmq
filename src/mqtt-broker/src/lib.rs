@@ -21,11 +21,8 @@ use core::{
     client_keep_alive::ClientKeepAlive, heartbeat_cache::HeartbeatCache,
     HEART_CONNECT_SHARD_HASH_NUM,
 };
-use core::{
-    metadata_cache::{load_metadata_cache, MetadataCacheManager},
-    qos_manager::QosManager,
-};
-use metadata_struct::mqtt::{cluster::MQTTCluster, user::MQTTUser};
+use core::{metadata_cache::MetadataCacheManager, qos_manager::QosManager};
+use metadata_struct::mqtt::user::MQTTUser;
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -57,7 +54,7 @@ mod handler;
 mod metrics;
 mod security;
 mod server;
-mod storage;
+pub mod storage;
 mod subscribe;
 
 pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
@@ -68,7 +65,10 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let pool = build_mysql_conn_pool(&conf.mysql.server).unwrap();
     let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
 
-    let metadata_cache = Arc::new(MetadataCacheManager::new(conf.cluster_name.clone()));
+    let metadata_cache = Arc::new(MetadataCacheManager::new(
+        client_poll.clone(),
+        conf.cluster_name.clone(),
+    ));
     let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
     server.start(stop_send)
 }
@@ -146,7 +146,6 @@ where
         let message_storage_adapter = self.message_storage_adapter.clone();
         let qos_manager = self.qos_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
-        let ack_manager = self.qos_manager.clone();
         let client_poll = self.client_poll.clone();
 
         let request_queue_sx4 = self.request_queue_sx4.clone();
@@ -300,34 +299,9 @@ where
         let metadata_cache = self.metadata_cache_manager.clone();
         let client_poll = self.client_poll.clone();
         self.runtime.block_on(async move {
-            // init system user
-            let conf = broker_mqtt_conf();
-            let system_user_info = MQTTUser {
-                username: conf.system.system_user.clone(),
-                password: conf.system.system_password.clone(),
-                is_superuser: true,
-            };
-            let user_storage = UserStorage::new(client_poll.clone());
-            match user_storage.save_user(system_user_info.clone()).await {
-                Ok(_) => {
-                    metadata_cache.add_user(system_user_info);
-                }
-                Err(e) => {
-                    panic!("{}", e.to_string());
-                }
-            }
+            metadata_cache.init_system_user().await;
+            metadata_cache.load_metadata_cache().await;
 
-            // metadata_cache.init_metadata_data(load_metadata_cache(metadata_storage_adapter).await);
-            let (cluster, user_info, topic_info) = load_metadata_cache(client_poll.clone()).await;
-            metadata_cache.set_cluster_info(MQTTCluster::new());
-
-            for (_, user) in user_info {
-                metadata_cache.add_user(user);
-            }
-
-            for (topic_name, topic) in topic_info {
-                metadata_cache.add_topic(&topic_name, &topic);
-            }
             let cluster_storage = ClusterStorage::new(client_poll.clone());
             cluster_storage.register_node().await;
         });

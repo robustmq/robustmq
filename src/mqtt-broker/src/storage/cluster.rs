@@ -116,11 +116,15 @@ impl ClusterStorage {
         }
     }
 
-    pub async fn set_cluster_config(&self, cluster: MQTTCluster) -> Result<(), RobustMQError> {
+    pub async fn set_cluster_config(
+        &self,
+        cluster_name: String,
+        cluster: MQTTCluster,
+    ) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(config.cluster_name.clone());
+        let resources = self.cluster_config_resources(cluster_name.clone());
         let request = SetResourceConfigRequest {
-            cluster_name: config.cluster_name.clone(),
+            cluster_name: cluster_name.clone(),
             resources,
             config: cluster.encode(),
         };
@@ -139,11 +143,11 @@ impl ClusterStorage {
         }
     }
 
-    pub async fn delete_cluster_config(&self) -> Result<(), RobustMQError> {
+    pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(config.cluster_name.clone());
+        let resources = self.cluster_config_resources(cluster_name.clone());
         let request = DeleteResourceConfigRequest {
-            cluster_name: config.cluster_name.clone(),
+            cluster_name: cluster_name.clone(),
             resources,
         };
 
@@ -161,11 +165,14 @@ impl ClusterStorage {
         }
     }
 
-    pub async fn get_cluster_config(&self) -> Result<Option<MQTTCluster>, RobustMQError> {
+    pub async fn get_cluster_config(
+        &self,
+        cluster_name: String,
+    ) -> Result<Option<MQTTCluster>, RobustMQError> {
         let config = broker_mqtt_conf();
-        let resources = self.cluster_config_resources(config.cluster_name.clone());
+        let resources = self.cluster_config_resources(cluster_name.clone());
         let request = GetResourceConfigRequest {
-            cluster_name: config.cluster_name.clone(),
+            cluster_name: cluster_name.clone(),
             resources,
         };
 

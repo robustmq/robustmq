@@ -95,8 +95,8 @@ pub enum RobustMQError {
     #[error("Topic does not exist")]
     TopicDoesNotExist,
 
-    #[error("Resource does not exist")]
-    ResourceDoesNotExist,
+    #[error("Resource Config does not exist")]
+    ResourceConfigDoesNotExist,
 
     #[error("Topic name cannot be empty")]
     TopicNameIsEmpty,

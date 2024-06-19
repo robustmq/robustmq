@@ -263,10 +263,12 @@ impl PlacementCenterService for GrpcPlacementService {
                 if let Some(res) = data {
                     let reply = GetResourceConfigReply { config: res };
                     return Ok(Response::new(reply));
+                } else {
+                    let reply = GetResourceConfigReply {
+                        config: "".to_string(),
+                    };
+                    return Ok(Response::new(reply));
                 }
-                return Err(Status::cancelled(
-                    RobustMQError::ResourceDoesNotExist.to_string(),
-                ));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

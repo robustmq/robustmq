@@ -88,6 +88,7 @@ where
                 return Err(RobustMQError::CommmonError(e.to_string()));
             }
         };
+        metadata_cache.add_topic(&topic_name, &topic);
 
         // Create the resource object of the storage layer
         let shard_name = topic.topic_id.clone();

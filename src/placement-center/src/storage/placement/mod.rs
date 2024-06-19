@@ -1,3 +1,4 @@
+pub mod acl;
 pub mod cluster;
 pub mod config;
 pub mod global_id;

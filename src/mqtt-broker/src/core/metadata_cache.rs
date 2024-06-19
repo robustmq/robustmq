@@ -6,9 +6,11 @@ use crate::{
     storage::{cluster::ClusterStorage, topic::TopicStorage},
 };
 use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::log::warn;
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::message::MQTTMessage;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
@@ -38,8 +40,10 @@ pub struct MetadataChangeData {
     pub value: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct MetadataCacheManager {
+    pub client_poll: Arc<ClientPool>,
+
     // cluster_name
     pub cluster_name: String,
 
@@ -52,6 +56,12 @@ pub struct MetadataCacheManager {
     // (client_id, Session)
     pub session_info: DashMap<String, MQTTSession>,
 
+    // (client_id, <pkid,SubscribeData>)
+    pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
+
+    // (client_id, vec<pkid>)
+    pub publish_pkid_info: DashMap<String, Vec<u16>>,
+
     // (connect_id, Connection)
     pub connection_info: DashMap<u64, Connection>,
 
@@ -60,17 +70,12 @@ pub struct MetadataCacheManager {
 
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
-
-    // (client_id, <pkid,SubscribeData>)
-    pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
-
-    // (client_id, vec<pkid>)
-    pub publish_pkid_info: DashMap<String, Vec<u16>>,
 }
 
 impl MetadataCacheManager {
-    pub fn new(cluster_name: String) -> Self {
+    pub fn new(client_poll: Arc<ClientPool>, cluster_name: String) -> Self {
         let cache = MetadataCacheManager {
+            client_poll,
             cluster_name,
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(256),
@@ -182,6 +187,12 @@ impl MetadataCacheManager {
         self.topic_id_name.insert(t.topic_id, topic_name.clone());
     }
 
+    pub fn update_topic_retain_message(&self, topic_name: &String, message: &MQTTMessage) {
+        if let Some(mut topic) = self.topic_info.get_mut(topic_name) {
+            topic.retain_message = Some(message.encode());
+        }
+    }
+
     pub fn login_success(&self, connect_id: u64) {
         if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
             conn.login = true;
@@ -189,7 +200,7 @@ impl MetadataCacheManager {
     }
 
     pub fn is_login(&self, connect_id: u64) -> bool {
-        if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
+        if let Some(conn) = self.connection_info.get(&connect_id) {
             return conn.login;
         }
         return false;
@@ -274,67 +285,74 @@ impl MetadataCacheManager {
         }
     }
 
-    pub fn client_pkid_size(&self, client_id: String, pkid: u16) -> usize {
-        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
-            return pkid_list.len();
+    pub async fn load_metadata_cache(&self) {
+        let conf = broker_mqtt_conf();
+        // load cluster config
+        let cluster_storage = ClusterStorage::new(self.client_poll.clone());
+        let cluster = match cluster_storage
+            .get_cluster_config(conf.cluster_name.clone())
+            .await
+        {
+            Ok(Some(cluster)) => cluster,
+            Ok(None) => MQTTCluster::new(),
+            Err(e) => {
+                panic!(
+                    "Failed to load the cluster configuration with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+        self.set_cluster_info(cluster);
+
+        // load all user
+        let user_storage = UserStorage::new(self.client_poll.clone());
+        let user_list = match user_storage.user_list().await {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the user list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+
+        for (_, user) in user_list {
+            self.add_user(user);
         }
-        return 0;
+
+        // load all topic
+        let topic_storage = TopicStorage::new(self.client_poll.clone());
+        let topic_list = match topic_storage.topic_list().await {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the topic list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+
+        for (_, topic) in topic_list {
+            self.add_topic(&topic.topic_name, &topic);
+        }
     }
-}
 
-pub async fn load_metadata_cache(
-    client_poll: Arc<ClientPool>,
-) -> (
-    MQTTCluster,
-    DashMap<String, MQTTUser>,
-    DashMap<String, MQTTTopic>,
-) {
-    // load cluster config
-    let cluster_storage = ClusterStorage::new(client_poll.clone());
-    let cluster = match cluster_storage.get_cluster_config().await {
-        Ok(Some(cluster)) => cluster,
-        Ok(None) => MQTTCluster::new(),
-        Err(e) => {
-            panic!(
-                "Failed to load the cluster configuration with error message:{}",
-                e.to_string()
-            );
+    pub async fn init_system_user(&self) {
+        // init system user
+        let conf = broker_mqtt_conf();
+        let system_user_info = MQTTUser {
+            username: conf.system.system_user.clone(),
+            password: conf.system.system_password.clone(),
+            is_superuser: true,
+        };
+        let user_storage = UserStorage::new(self.client_poll.clone());
+        match user_storage.save_user(system_user_info.clone()).await {
+            Ok(_) => {
+                self.add_user(system_user_info);
+            }
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
         }
-    };
-
-    // load all user
-    let user_storage = UserStorage::new(client_poll.clone());
-    let user_list = match user_storage.user_list().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!(
-                "Failed to load the user list with error message:{}",
-                e.to_string()
-            );
-        }
-    };
-
-    let user_info = DashMap::with_capacity(8);
-    for (username, user) in user_list {
-        user_info.insert(username, user);
     }
-
-    // load topic info
-    let topic_storage = TopicStorage::new(client_poll.clone());
-    let topic_list = match topic_storage.topic_list().await {
-        Ok(list) => list,
-        Err(e) => {
-            panic!(
-                "Failed to load the topic list with error message:{}",
-                e.to_string()
-            );
-        }
-    };
-
-    let topic_info = DashMap::with_capacity(8);
-
-    for (topic_name, topic) in topic_list {
-        topic_info.insert(topic_name.clone(), topic.clone());
-    }
-    return (cluster, user_info, topic_info);
 }

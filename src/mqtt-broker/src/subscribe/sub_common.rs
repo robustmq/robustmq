@@ -46,7 +46,7 @@ pub fn sub_path_validator(sub_path: String) -> bool {
 
 pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
     let path = if is_share_sub(sub_path.clone()) {
-        let (group_name, group_path) = decode_share_info(sub_path);
+        let (_, group_path) = decode_share_info(sub_path);
         group_path
     } else {
         sub_path
@@ -106,7 +106,7 @@ pub async fn send_retain_message(
         let topic_storage = TopicStorage::new(client_poll.clone());
         for topic_id in topic_id_list {
             match topic_storage.get_retain_message(topic_id.clone()).await {
-                Ok(msg) => {
+                Ok(Some(msg)) => {
                     if let Some(topic_name) = metadata_cache.topic_name_by_id(topic_id) {
                         let publish = Publish {
                             dup: dup_msg,
@@ -137,6 +137,9 @@ pub async fn send_retain_message(
                             Err(e) => error(format!("{}", e.to_string())),
                         }
                     }
+                }
+                Ok(None) => {
+                    continue;
                 }
                 Err(e) => return Err(e),
             }
@@ -455,11 +458,8 @@ mod tests {
     use crate::core::metadata_cache::MetadataCacheManager;
     use crate::storage::topic::TopicStorage;
     use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
-    use crate::{
-        storage::message::MessageStorage,
-        subscribe::sub_common::{
-            get_sub_topic_id_list, min_qos, path_regex_match, send_retain_message,
-        },
+    use crate::subscribe::sub_common::{
+        get_sub_topic_id_list, min_qos, path_regex_match, send_retain_message,
     };
 
     #[tokio::test]
@@ -573,7 +573,11 @@ mod tests {
     #[tokio::test]
     async fn get_sub_topic_list_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
+            client_poll,
+            "test-cluster".to_string(),
+        ));
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(&topic_name);
         metadata_cache.add_topic(&topic_name, &topic);
@@ -616,8 +620,11 @@ mod tests {
 
     #[tokio::test]
     async fn send_retain_message_test() {
-        let storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let metadata_cache = Arc::new(MetadataCacheManager::new("test-cluster".to_string()));
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+        let metadata_cache = Arc::new(MetadataCacheManager::new(
+            client_poll,
+            "test-cluster".to_string(),
+        ));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;
         let mut filters = Vec::new();

@@ -1,6 +1,7 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::storage::{cluster::ClusterStorage, user::UserStorage};
 use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::cluster::available_flag;
 use metadata_struct::mqtt::user::MQTTUser;
@@ -107,7 +108,11 @@ impl MqttBrokerService for GrpcBrokerServices {
         self.metadata_cache.set_cluster_info(cluster.clone());
 
         let cluster_storage = ClusterStorage::new(self.client_poll.clone());
-        match cluster_storage.set_cluster_config(cluster.clone()).await {
+        let conf = broker_mqtt_conf();
+        match cluster_storage
+            .set_cluster_config(conf.cluster_name.clone(), cluster.clone())
+            .await
+        {
             Ok(_) => {
                 return Ok(Response::new(CommonReply::default()));
             }

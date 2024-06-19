@@ -29,7 +29,8 @@ use log4rs::{
 };
 
 use crate::config::{
-    broker_mqtt::broker_mqtt_conf, journal_server::journal_server_conf, placement_center::placement_center_conf
+    broker_mqtt::broker_mqtt_conf, journal_server::journal_server_conf,
+    placement_center::placement_center_conf,
 };
 
 pub fn info(msg: String) -> () {
@@ -168,7 +169,12 @@ pub fn init_log(path: String, segment_log_size: u64, log_fie_count: u32) {
         .build(Root::builder().appender("stdout").build(LevelFilter::Info))
         .unwrap();
 
-    let _ = log4rs::init_config(config).unwrap();
+    match log4rs::init_config(config) {
+        Ok(_) => {}
+        Err(_) => {
+            // error(e.to_string());
+        }
+    }
 }
 
 pub fn init_placement_center_log() {
