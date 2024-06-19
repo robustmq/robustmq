@@ -1856,6 +1856,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "metadata-struct",
+ "placement-center",
  "prometheus",
  "protocol",
  "regex",

@@ -48,6 +48,10 @@ pub fn key_resource_config(cluster_name: String, resource_key: String) -> String
     return format!("/config/{}/{}", cluster_name, resource_key);
 }
 
+pub fn key_resource_acl(cluster_name: String, resource_key: String) -> String {
+    return format!("/acl/{}/{}", cluster_name, resource_key);
+}
+
 /** ===========Journal========== */
 pub fn key_shard(cluster_name: &String, shard_name: String) -> String {
     return format!("/journal/{}/shard/{}", cluster_name, shard_name);

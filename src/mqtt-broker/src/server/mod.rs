@@ -4,7 +4,7 @@ use self::tcp::{
 };
 use crate::{
     core::qos_manager::QosManager, core::heartbeat_cache::HeartbeatCache,
-    handler::command::Command, qos::memory::QosMemory,
+    handler::command::Command,
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager, subscribe::subscribe_cache::SubscribeCache,
@@ -46,8 +46,7 @@ pub async fn start_mqtt_server<S>(
     cache: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatCache>,
     message_storage_adapter: Arc<S>,
-    idempotent_manager: Arc<QosMemory>,
-    ack_manager: Arc<QosManager>,
+    qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
     request_queue_sx4: Sender<RequestPackage>,
     request_queue_sx5: Sender<RequestPackage>,
@@ -64,9 +63,8 @@ pub async fn start_mqtt_server<S>(
             heartbeat_manager.clone(),
             message_storage_adapter.clone(),
             response_queue_sx4.clone(),
-            idempotent_manager.clone(),
+            qos_manager.clone(),
             sucscribe_manager.clone(),
-            ack_manager.clone(),
             client_poll.clone(),
         );
         start_mqtt4_server(conf, command.clone(), request_queue_sx4, response_queue_sx4).await;
@@ -79,9 +77,8 @@ pub async fn start_mqtt_server<S>(
             heartbeat_manager.clone(),
             message_storage_adapter.clone(),
             response_queue_sx5.clone(),
-            idempotent_manager.clone(),
+            qos_manager.clone(),
             sucscribe_manager.clone(),
-            ack_manager.clone(),
             client_poll.clone(),
         );
         start_mqtt5_server(conf, command.clone(), request_queue_sx5, response_queue_sx5).await;

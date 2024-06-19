@@ -40,7 +40,6 @@ where
         response_queue_sx: Sender<ResponsePackage>,
         qos_manager: Arc<QosManager>,
         sucscribe_manager: Arc<SubscribeCache>,
-        ack_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(protocol.clone(), metadata_cache.clone());
@@ -55,7 +54,7 @@ where
             heartbeat_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
-            ack_manager.clone(),
+            qos_manager.clone(),
             client_poll.clone(),
         );
         return Command {

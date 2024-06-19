@@ -131,13 +131,13 @@ impl TopicStorage {
     pub async fn save_retain_message(
         &self,
         topic_name: String,
-        retail_message: MQTTMessage,
+        retain_message: MQTTMessage,
     ) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name: topic_name.clone(),
-            retain_message: retail_message.encode(),
+            retain_message: retain_message.encode(),
         };
         match placement_set_topic_retain_message(
             self.client_poll.clone(),
@@ -157,7 +157,7 @@ impl TopicStorage {
     pub async fn get_retain_message(
         &self,
         topic_name: String,
-    ) -> Result<MQTTMessage, RobustMQError> {
+    ) -> Result<Option<MQTTMessage>, RobustMQError> {
         let topic = match self.get_topic(topic_name).await {
             Ok(Some(data)) => data,
             Ok(None) => {
@@ -167,6 +167,10 @@ impl TopicStorage {
                 return Err(e);
             }
         };
+
+        if topic.retain_message.is_none() {
+            return Ok(None);
+        }
         let message =
             match serde_json::from_slice::<MQTTMessage>(topic.retain_message.unwrap().as_slice()) {
                 Ok(data) => data,
@@ -174,6 +178,6 @@ impl TopicStorage {
                     return Err(RobustMQError::CommmonError(e.to_string()));
                 }
             };
-        return Ok(message);
+        return Ok(Some(message));
     }
 }

@@ -24,7 +24,7 @@ impl MQTTTopicStorage {
         topicname: Option<String>,
     ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
-        if topicname != None {
+        if topicname != None{
             let key: String = storage_key_mqtt_topic(cluster_name, topicname.unwrap());
             match self
                 .rocksdb_engine_handler

@@ -81,7 +81,12 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListUserReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.list(req.cluster_name, Some(req.username)) {
+        let username = if req.username.is_empty() {
+            None
+        } else {
+            Some(req.username)
+        };
+        match storage.list(req.cluster_name, username) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {
@@ -193,7 +198,12 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListTopicReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.list(req.cluster_name, Some(req.topic_name)) {
+        let topic_name = if req.topic_name.is_empty() {
+            None
+        } else {
+            Some(req.topic_name)
+        };
+        match storage.list(req.cluster_name, topic_name) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {
@@ -215,7 +225,12 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListSessionReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.list(req.cluster_name, Some(req.client_id)) {
+        let client_id = if req.client_id.is_empty() {
+            None
+        } else {
+            Some(req.client_id)
+        };
+        match storage.list(req.cluster_name, client_id) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {
