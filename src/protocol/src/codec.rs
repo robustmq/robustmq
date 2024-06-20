@@ -8,7 +8,7 @@ pub struct MqttCodec {
 }
 
 impl MqttCodec {
-    pub fn new() -> MqttCodec {
+    pub fn new(protocol_version:Option<u8>) -> MqttCodec {
         return MqttCodec {
             protocol_version: None,
         };
@@ -29,7 +29,7 @@ impl codec::Encoder<MQTTPacket> for MqttCodec {
 
         let protocol_version = self.protocol_version.unwrap();
 
-        if protocol_version == 4{
+        if protocol_version == 4 || protocol_version == 3{
             let size = match packet {
                 MQTTPacket::Connect(connect, None, last_will, None, login) => {
                     crate::mqttv4::connect::write(&connect, &login, &last_will, buffer)?
@@ -93,20 +93,26 @@ impl codec::Decoder for MqttCodec {
         let packet = packet.freeze();
         
         if packet_type == PacketType::Connect{
-            let (protocol_version,connect, properties, last_will, last_will_properties, login) =
-                    connect_read(fixed_header, packet)?;
-            self.protocol_version = Some(protocol_version);
-
-            if protocol_version == 4{
-                let packet = MQTTPacket::Connect(connect, None, last_will, None, login);
-                return Ok(Some(packet));
+            match  connect_read(fixed_header, packet.clone()){
+                Ok((protocol_version,connect, properties, last_will, last_will_properties, login)) => {
+                    self.protocol_version = Some(protocol_version);
+                    println!("xxx{:?}",self.protocol_version);
+                    if protocol_version == 4 || protocol_version == 3{
+                        let packet = MQTTPacket::Connect(connect, None, last_will, None, login);
+                        return Ok(Some(packet));
+                    }
+        
+                    if protocol_version == 5{
+                        let packet = MQTTPacket::Connect(connect, properties, last_will, last_will_properties, login);
+                        return Ok(Some(packet));
+                    }
+                }
+                Err(e) => {
+                    println!("{}",e.to_string());
+                    return Err(Error::InvalidProtocol);
+                }
             }
-
-            if protocol_version == 5{
-                let packet = MQTTPacket::Connect(connect, properties, last_will, last_will_properties, login);
-                return Ok(Some(packet));
-            }
-            return Err(Error::InvalidProtocol);
+            
         }
 
         if self.protocol_version.is_none(){
@@ -115,7 +121,7 @@ impl codec::Decoder for MqttCodec {
 
         let protocol_version = self.protocol_version.unwrap();
 
-        if protocol_version == 4{
+        if protocol_version == 4 || protocol_version == 3{
             let packet = match packet_type {
                 PacketType::ConnAck => MQTTPacket::ConnAck(crate::mqttv4::connack::read(fixed_header, packet)?, None),
                 PacketType::Publish => MQTTPacket::Publish(crate::mqttv4::publish::read(fixed_header, packet)?, None),

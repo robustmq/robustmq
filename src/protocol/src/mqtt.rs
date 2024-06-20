@@ -1109,7 +1109,7 @@ pub fn connect_read(
     // variable header
     let protocol_name = read_mqtt_string(&mut bytes)?;
     let protocol_level = read_u8(&mut bytes)?;
-    if protocol_name != "MQTT" {
+    if protocol_name != "MQTT" && protocol_name != "MQIsdp" {
         return Err(Error::InvalidProtocol);
     }
 
@@ -1139,7 +1139,7 @@ pub fn connect_read(
         ));
     }
 
-    if protocol_level == 4 {
+    if protocol_level == 4 || protocol_level == 3 {
         let connect_flags = read_u8(&mut bytes)?;
         let clean_session = (connect_flags & 0b10) != 0;
         let keep_alive = read_u16(&mut bytes)?;
