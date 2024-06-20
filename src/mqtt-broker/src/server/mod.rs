@@ -25,9 +25,11 @@ pub mod http;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
+
 #[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MQTTProtocol {
     #[default]
+    MQTT3,
     MQTT4,
     MQTT5,
 }
@@ -35,6 +37,7 @@ pub enum MQTTProtocol {
 impl From<MQTTProtocol> for String {
     fn from(protocol: MQTTProtocol) -> Self {
         match protocol {
+            MQTTProtocol::MQTT3 => "MQTT3".into(),
             MQTTProtocol::MQTT4 => "MQTT4".into(),
             MQTTProtocol::MQTT5 => "MQTT5".into(),
         }
