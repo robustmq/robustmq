@@ -1,7 +1,6 @@
+use crate::mqtt::LastWillProperties;
 use bytes::BytesMut;
 use tokio_util::codec;
-
-use crate::mqtt::LastWillProperties;
 
 use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,

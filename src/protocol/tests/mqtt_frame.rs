@@ -3,6 +3,7 @@ mod tests {
     use bytes::{Bytes, BytesMut};
     use futures::{SinkExt, StreamExt};
     use protocol::{
+        codec::MqttCodec,
         mqtt::{
             ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
             Login, MQTTPacket,
@@ -12,6 +13,27 @@ mod tests {
     };
     use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::Framed;
+
+    #[tokio::test]
+    async fn mqtt_frame_server() {
+        let ip = "127.0.0.1:1884";
+        let listener = TcpListener::bind(ip).await.unwrap();
+        loop {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut stream = Framed::new(stream, MqttCodec::new());
+            tokio::spawn(async move {
+                while let Some(Ok(data)) = stream.next().await {
+                    println!("Got: {:?}", data);
+
+                    // 发送的消息也只需要发送消息主体，不需要提供长度
+                    // Framed/LengthDelimitedCodec 会自动计算并添加
+                    //    let response = &data[0..5];
+                    stream.send(build_mqtt4_pg_connect_ack()).await.unwrap();
+                    break;
+                }
+            });
+        }
+    }
 
     #[tokio::test]
     async fn mqtt4_frame_server() {
@@ -48,7 +70,7 @@ mod tests {
                     println!("{:?}", da);
                 }
                 Err(e) => {
-                    println!("{}",e.to_string());
+                    println!("{}", e.to_string());
                 }
             }
         }
@@ -79,8 +101,8 @@ mod tests {
     /// Build the connect content package for the mqtt4 protocol
     fn build_mqtt4_pg_connect_ack() -> MQTTPacket {
         let ack: ConnAck = ConnAck {
-            session_present: true,
-            code: ConnectReturnCode::Success,
+            session_present: false,
+            code: ConnectReturnCode::BadAuthenticationMethod,
         };
         return MQTTPacket::ConnAck(ack, None);
     }
