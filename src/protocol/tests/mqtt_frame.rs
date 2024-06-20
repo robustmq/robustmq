@@ -20,7 +20,7 @@ mod tests {
         let listener = TcpListener::bind(ip).await.unwrap();
         loop {
             let (stream, _) = listener.accept().await.unwrap();
-            let mut stream = Framed::new(stream, MqttCodec::new());
+            let mut stream = Framed::new(stream, MqttCodec::new(None));
             tokio::spawn(async move {
                 while let Some(Ok(data)) = stream.next().await {
                     println!("Got: {:?}", data);
@@ -67,10 +67,10 @@ mod tests {
         if let Some(data) = stream.next().await {
             match data {
                 Ok(da) => {
-                    println!("{:?}", da);
+                    println!("success:{:?}", da);
                 }
                 Err(e) => {
-                    println!("{}", e.to_string());
+                    println!("error:{}", e.to_string());
                 }
             }
         }
@@ -102,7 +102,7 @@ mod tests {
     fn build_mqtt4_pg_connect_ack() -> MQTTPacket {
         let ack: ConnAck = ConnAck {
             session_present: false,
-            code: ConnectReturnCode::BadAuthenticationMethod,
+            code: ConnectReturnCode::Success,
         };
         return MQTTPacket::ConnAck(ack, None);
     }
