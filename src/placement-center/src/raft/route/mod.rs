@@ -10,7 +10,7 @@ use super::{
     },
 };
 use crate::{
-    cache::{cluster::ClusterCache, journal::JournalCache},
+    cache::{placement::PlacementCacheManager, journal::JournalCacheManager},
     storage::rocksdb::RocksDBEngine,
 };
 use bincode::deserialize;
@@ -27,8 +27,8 @@ pub struct DataRoute {
 impl DataRoute {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cluster_cache: Arc<ClusterCache>,
-        engine_cache: Arc<JournalCache>,
+        cluster_cache: Arc<PlacementCacheManager>,
+        engine_cache: Arc<JournalCacheManager>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
         let route_mqtt = DataRouteMQTT::new(rocksdb_engine_handler.clone());

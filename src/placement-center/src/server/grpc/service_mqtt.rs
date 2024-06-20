@@ -1,5 +1,5 @@
 use crate::{
-    cache::{cluster::ClusterCache, mqtt::MqttCache},
+    cache::{placement::PlacementCacheManager, mqtt::MqttCacheManager},
     core::share_sub::calc_share_sub_leader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
@@ -22,16 +22,16 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
-    cluster_cache: Arc<ClusterCache>,
-    mqtt_cache: Arc<MqttCache>,
+    cluster_cache: Arc<PlacementCacheManager>,
+    mqtt_cache: Arc<MqttCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcMqttService {
     pub fn new(
-        cluster_cache: Arc<ClusterCache>,
-        mqtt_cache: Arc<MqttCache>,
+        cluster_cache: Arc<PlacementCacheManager>,
+        mqtt_cache: Arc<MqttCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {

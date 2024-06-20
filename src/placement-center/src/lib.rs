@@ -13,29 +13,29 @@
 // limitations under the License.
 
 use self::raft::peer::{PeerMessage, PeersManager};
+use crate::raft::metadata::RaftGroupMetadata;
 use crate::server::http::server::{start_http_server, HttpServerState};
-use cache::cluster::ClusterCache;
-use cache::journal::JournalCache;
-use cache::mqtt::MqttCache;
-use cache::placement::PlacementCache;
+use cache::placement::PlacementCacheManager;
+use cache::journal::JournalCacheManager;
+use cache::mqtt::MqttCacheManager;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
-use common_base::log::{info, info_meta};
+use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
 use controller::controller::ClusterController;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raft::route::DataRoute;
-use raft::machine::RaftMachine;
 use raft::apply::{RaftMachineApply, RaftMessage};
+use raft::machine::RaftMachine;
+use raft::route::DataRoute;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
-use storage::placement::raft::RaftMachineStorage;
 use std::sync::{Arc, RwLock};
+use storage::placement::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
 use tokio::runtime::Runtime;
 use tokio::signal;
@@ -53,12 +53,12 @@ pub struct PlacementCenter {
     server_runtime: Arc<Runtime>,
     daemon_runtime: Arc<Runtime>,
     // Cache metadata information for the Storage Engine cluster
-    cluster_cache: Arc<ClusterCache>,
+    cluster_cache: Arc<PlacementCacheManager>,
     // Cache metadata information for the Broker Server cluster
-    engine_cache: Arc<JournalCache>,
-    mqtt_cache: Arc<MqttCache>,
+    engine_cache: Arc<JournalCacheManager>,
+    mqtt_cache: Arc<MqttCacheManager>,
     // Cache metadata information for the Placement Cluster cluster
-    placement_cache: Arc<RwLock<PlacementCache>>,
+    placement_cache: Arc<RwLock<RaftGroupMetadata>>,
     // Global implementation of Raft state machine data storage
     raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
     // Raft Global read and write pointer
@@ -79,10 +79,10 @@ impl PlacementCenter {
             config.runtime_work_threads,
         ));
 
-        let engine_cache = Arc::new(JournalCache::new());
-        let cluster_cache: Arc<ClusterCache> = Arc::new(ClusterCache::new());
-        let mqtt_cache: Arc<MqttCache> = Arc::new(MqttCache::new());
-        let placement_cache = Arc::new(RwLock::new(PlacementCache::new()));
+        let engine_cache = Arc::new(JournalCacheManager::new());
+        let cluster_cache: Arc<PlacementCacheManager> = Arc::new(PlacementCacheManager::new());
+        let mqtt_cache: Arc<MqttCacheManager> = Arc::new(MqttCacheManager::new());
+        let placement_cache = Arc::new(RwLock::new(RaftGroupMetadata::new()));
 
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
 

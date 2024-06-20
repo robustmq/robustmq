@@ -1,17 +1,17 @@
 use crate::{
-    cache::{cluster::ClusterCache, journal::JournalCache}, storage::journal::segment::Replica,
+    cache::{placement::PlacementCacheManager, journal::JournalCacheManager}, storage::journal::segment::Replica,
 };
 use std::sync::Arc;
 
 pub struct SegmentReplicaAlgorithm {
-    cluster_cache: Arc<ClusterCache>,
-    engine_cache: Arc<JournalCache>,
+    cluster_cache: Arc<PlacementCacheManager>,
+    engine_cache: Arc<JournalCacheManager>,
 }
 
 impl SegmentReplicaAlgorithm {
     pub fn new(
-        cluster_cache: Arc<ClusterCache>,
-        engine_cache: Arc<JournalCache>,
+        cluster_cache: Arc<PlacementCacheManager>,
+        engine_cache: Arc<JournalCacheManager>,
     ) -> SegmentReplicaAlgorithm {
         return SegmentReplicaAlgorithm {
             cluster_cache,

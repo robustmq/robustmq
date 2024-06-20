@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 use crate::storage::journal::{segment::SegmentInfo, shard::ShardInfo};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct JournalCache {
+pub struct JournalCacheManager {
     pub shard_list: DashMap<String, ShardInfo>,
     pub segment_list: DashMap<String, SegmentInfo>,
 }
 
-impl JournalCache {
-    pub fn new() -> JournalCache {
-        return JournalCache {
+impl JournalCacheManager {
+    pub fn new() -> JournalCacheManager {
+        return JournalCacheManager {
             shard_list: DashMap::with_capacity(8),
             segment_list: DashMap::with_capacity(256),
         };

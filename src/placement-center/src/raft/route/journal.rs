@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use crate::{
-    cache::{cluster::ClusterCache, journal::JournalCache},
+    cache::{placement::PlacementCacheManager, journal::JournalCacheManager},
     controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
         journal::{segment::{SegmentInfo, SegmentStatus, SegmentStorage}, shard::{ShardInfo, ShardStorage}}, rocksdb::RocksDBEngine
@@ -18,15 +18,15 @@ use tonic::Status;
 
 pub struct DataRouteJournal {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    engine_cache: Arc<JournalCache>,
-    cluster_cache: Arc<ClusterCache>,
+    engine_cache: Arc<JournalCacheManager>,
+    cluster_cache: Arc<PlacementCacheManager>,
 }
 
 impl DataRouteJournal {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        engine_cache: Arc<JournalCache>,
-        cluster_cache: Arc<ClusterCache>,
+        engine_cache: Arc<JournalCacheManager>,
+        cluster_cache: Arc<PlacementCacheManager>,
     ) -> Self {
         return DataRouteJournal {
             rocksdb_engine_handler,

@@ -1,19 +1,13 @@
 use crate::{
-    cache::cluster::ClusterCache,
-    controller::heartbeat::StorageEngineNodeHeartBeat,
-    raft::apply::RaftMachineApply,
-    storage::{
-        placement::{cluster::ClusterStorage, node::NodeStorage},
-        rocksdb::RocksDBEngine,
-    },
+    cache::placement::PlacementCacheManager, controller::heartbeat::StorageEngineNodeHeartBeat,
+    raft::apply::RaftMachineApply, storage::rocksdb::RocksDBEngine,
 };
 use common_base::{config::placement_center::placement_center_conf, log::info_meta};
-use protocol::placement_center::generate::common::ClusterType;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
 pub struct ClusterController {
-    cluster_cache: Arc<ClusterCache>,
+    cluster_cache: Arc<PlacementCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
@@ -21,7 +15,7 @@ pub struct ClusterController {
 
 impl ClusterController {
     pub fn new(
-        cluster_cache: Arc<ClusterCache>,
+        cluster_cache: Arc<PlacementCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_send: broadcast::Sender<bool>,

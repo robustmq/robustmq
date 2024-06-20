@@ -13,10 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::{
-    cache::placement::PlacementCache,
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
-};
+use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
+use crate::raft::metadata::RaftGroupMetadata;
 use clients::{
     placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard},
     poll::ClientPool,
@@ -34,14 +32,14 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
     placement_center_storage: Arc<RaftMachineApply>,
-    placement_cache: Arc<RwLock<PlacementCache>>,
+    placement_cache: Arc<RwLock<RaftGroupMetadata>>,
     client_poll: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
     pub fn new(
         placement_center_storage: Arc<RaftMachineApply>,
-        placement_cache: Arc<RwLock<PlacementCache>>,
+        placement_cache: Arc<RwLock<RaftGroupMetadata>>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
@@ -196,7 +194,7 @@ impl EngineService for GrpcEngineService {
             StorageDataType::JournalDeleteSegment,
             DeleteSegmentRequest::encode_to_vec(&req),
         );
-        
+
         match self
             .placement_center_storage
             .apply_propose_message(data, "delete_segment".to_string())
