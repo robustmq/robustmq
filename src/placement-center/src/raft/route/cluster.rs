@@ -1,5 +1,5 @@
 use crate::{
-    cache::cluster::ClusterCache,
+    cache::placement::PlacementCacheManager,
     storage::{
         placement::{cluster::ClusterStorage, config::ResourceConfigStorage, node::NodeStorage},
         rocksdb::RocksDBEngine,
@@ -20,13 +20,13 @@ use tonic::Status;
 
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    cluster_cache: Arc<ClusterCache>,
+    cluster_cache: Arc<PlacementCacheManager>,
 }
 
 impl DataRouteCluster {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        cluster_cache: Arc<ClusterCache>,
+        cluster_cache: Arc<PlacementCacheManager>,
     ) -> Self {
         return DataRouteCluster {
             rocksdb_engine_handler,
@@ -110,7 +110,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        cache::cluster::ClusterCache,
+        cache::placement::PlacementCacheManager,
         raft::route::cluster::DataRouteCluster,
         storage::{
             placement::cluster::ClusterStorage, placement::node::NodeStorage,
@@ -137,7 +137,7 @@ mod tests {
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);
         let rocksdb_engine = Arc::new(RocksDBEngine::new(&PlacementCenterConfig::default()));
-        let cluster_cache = Arc::new(ClusterCache::new());
+        let cluster_cache = Arc::new(PlacementCacheManager::new());
 
         let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
         let _ = route.add_node(data);

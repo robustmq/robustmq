@@ -135,7 +135,7 @@ pub fn read(
     Ok((connect, properties, will, willproperties, login))
 }
 
-mod properties {
+pub mod properties {
     use super::*;
 
     pub fn read(mut bytes: &mut Bytes) -> Result<Option<ConnectProperties>, Error> {
@@ -313,7 +313,7 @@ mod properties {
         len
     }
 }
-mod will {
+pub mod will {
     use super::*;
 
     pub fn len(will: &LastWill, properties: &Option<LastWillProperties>) -> usize {
@@ -538,7 +538,7 @@ mod willproperties {
     }
 }
 
-mod login {
+pub mod login {
     use super::*;
 
     pub fn new<U: Into<String>, P: Into<String>>(u: U, p: P) -> Login {

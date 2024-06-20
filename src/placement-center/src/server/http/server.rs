@@ -3,9 +3,10 @@ use super::{
     storage_engine::{clusters, shard_info, shard_list, storage_engine},
 };
 use crate::{
-    cache::{cluster::ClusterCache, journal::JournalCache, placement::PlacementCache},
+    cache::{placement::PlacementCacheManager, journal::JournalCacheManager},
     storage::placement::raft::RaftMachineStorage,
 };
+use crate::raft::metadata::RaftGroupMetadata;
 use axum::routing::get;
 use axum::Router;
 use common_base::{config::placement_center::placement_center_conf, log::info_meta};
@@ -20,18 +21,18 @@ pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
 pub struct HttpServerState {
-    pub placement_cache: Arc<RwLock<PlacementCache>>,
+    pub placement_cache: Arc<RwLock<RaftGroupMetadata>>,
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
-    pub cluster_cache: Arc<ClusterCache>,
-    pub engine_cache: Arc<JournalCache>,
+    pub cluster_cache: Arc<PlacementCacheManager>,
+    pub engine_cache: Arc<JournalCacheManager>,
 }
 
 impl HttpServerState {
     pub fn new(
-        placement_cache: Arc<RwLock<PlacementCache>>,
+        placement_cache: Arc<RwLock<RaftGroupMetadata>>,
         raft_storage: Arc<RwLock<RaftMachineStorage>>,
-        cluster_cache: Arc<ClusterCache>,
-        engine_cache: Arc<JournalCache>,
+        cluster_cache: Arc<PlacementCacheManager>,
+        engine_cache: Arc<JournalCacheManager>,
     ) -> Self {
         return Self {
             placement_cache,

@@ -26,6 +26,14 @@ use std::{fmt, io, slice::Iter, str::Utf8Error, string::FromUtf8Error};
 // TODO: Handle the cases when there are no properties using Inner struct, so
 // handling of properties can be made simplier internally
 
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum MQTTProtocolVersion {
+    // mqtt 3.1 && mqtt 3.1.1
+    MQTT4,
+    // mqtt 5.0
+    MQTT5,
+}
+
 ///MQTT packet type
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -750,7 +758,7 @@ pub enum PubRelReason {
     PacketIdentifierNotFound,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq,Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PubRelProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,
@@ -1079,4 +1087,75 @@ pub enum Error {
 pub trait Protocol {
     fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<MQTTPacket, Error>;
     fn write(&self, packet: MQTTPacket, write: &mut BytesMut) -> Result<usize, Error>;
+}
+
+pub fn connect_read(
+    fixed_header: FixedHeader,
+    mut bytes: Bytes,
+) -> Result<
+    (
+        u8,
+        Connect,
+        Option<ConnectProperties>,
+        Option<LastWill>,
+        Option<LastWillProperties>,
+        Option<Login>,
+    ),
+    Error,
+> {
+    let variable_header_index = fixed_header.fixed_header_len;
+    bytes.advance(variable_header_index);
+
+    // variable header
+    let protocol_name = read_mqtt_string(&mut bytes)?;
+    let protocol_level = read_u8(&mut bytes)?;
+    if protocol_name != "MQTT" {
+        return Err(Error::InvalidProtocol);
+    }
+
+    if protocol_level == 5 {
+        let connect_flags = read_u8(&mut bytes)?;
+        let clean_session = (connect_flags & 0b10) != 0;
+        let keep_alive = read_u16(&mut bytes)?;
+
+        let properties = crate::mqttv5::connect::properties::read(&mut bytes)?;
+        let client_id = read_mqtt_string(&mut bytes)?;
+        let (will, willproperties) = crate::mqttv5::connect::will::read(connect_flags, &mut bytes)?;
+        let login = crate::mqttv5::connect::login::read(connect_flags, &mut bytes)?;
+
+        let connect = Connect {
+            keep_alive,
+            client_id,
+            clean_session,
+        };
+
+        return Ok((
+            protocol_level,
+            connect,
+            properties,
+            will,
+            willproperties,
+            login,
+        ));
+    }
+
+    if protocol_level == 4 {
+        let connect_flags = read_u8(&mut bytes)?;
+        let clean_session = (connect_flags & 0b10) != 0;
+        let keep_alive = read_u16(&mut bytes)?;
+        let client_id = read_mqtt_bytes(&mut bytes)?;
+        let client_id = std::str::from_utf8(&client_id)?.to_owned();
+        let last_will = crate::mqttv4::connect::will::read(connect_flags, &mut bytes)?;
+        let login = crate::mqttv4::connect::login::read(connect_flags, &mut bytes)?;
+
+        let connect = Connect {
+            keep_alive,
+            client_id,
+            clean_session,
+        };
+
+        return Ok((protocol_level, connect, None, last_will, None, login));
+    }
+
+    return Err(Error::InvalidProtocol);
 }

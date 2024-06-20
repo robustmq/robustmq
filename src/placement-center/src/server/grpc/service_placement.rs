@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::cache::cluster::ClusterCache;
-use crate::cache::placement::PlacementCache;
+use crate::cache::placement::PlacementCacheManager;
+use crate::raft::metadata::RaftGroupMetadata;
 use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::global_id::GlobalId;
@@ -38,8 +38,8 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
     placement_center_storage: Arc<RaftMachineApply>,
-    placement_cache: Arc<RwLock<PlacementCache>>,
-    cluster_cache: Arc<ClusterCache>,
+    placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+    cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_poll: Arc<ClientPool>,
 }
@@ -47,8 +47,8 @@ pub struct GrpcPlacementService {
 impl GrpcPlacementService {
     pub fn new(
         placement_center_storage: Arc<RaftMachineApply>,
-        placement_cache: Arc<RwLock<PlacementCache>>,
-        cluster_cache: Arc<ClusterCache>,
+        placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+        cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_poll: Arc<ClientPool>,
     ) -> Self {

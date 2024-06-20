@@ -1,7 +1,7 @@
 use super::apply::{RaftMessage, RaftResponseMesage};
 use super::route::DataRoute;
 use super::storage::RaftRocksDBStorage;
-use crate::cache::placement::PlacementCache;
+use crate::raft::metadata::RaftGroupMetadata;
 use crate::raft::peer::PeerMessage;
 use crate::storage::placement::raft::RaftMachineStorage;
 use bincode::{deserialize, serialize};
@@ -28,7 +28,7 @@ use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
 pub struct RaftMachine {
-    placement_cluster: Arc<RwLock<PlacementCache>>,
+    placement_cluster: Arc<RwLock<RaftGroupMetadata>>,
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
@@ -41,7 +41,7 @@ pub struct RaftMachine {
 
 impl RaftMachine {
     pub fn new(
-        placement_cluster: Arc<RwLock<PlacementCache>>,
+        placement_cluster: Arc<RwLock<RaftGroupMetadata>>,
         data_route: Arc<RwLock<DataRoute>>,
         peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,

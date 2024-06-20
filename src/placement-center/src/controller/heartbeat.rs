@@ -1,5 +1,5 @@
 use crate::{
-    cache::cluster::{node_key, ClusterCache},
+    cache::placement::{node_key, PlacementCacheManager},
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
 };
 use common_base::log::{error_meta, info_meta};
@@ -15,7 +15,7 @@ use tokio::sync::broadcast;
 pub struct StorageEngineNodeHeartBeat {
     timeout_ms: u128,
     check_time_ms: u64,
-    cluster_cache: Arc<ClusterCache>,
+    cluster_cache: Arc<PlacementCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
     stop_recv: broadcast::Receiver<bool>,
 }
@@ -24,7 +24,7 @@ impl StorageEngineNodeHeartBeat {
     pub fn new(
         timeout_ms: u128,
         check_time_ms: u64,
-        cluster_cache: Arc<ClusterCache>,
+        cluster_cache: Arc<PlacementCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
         stop_recv: broadcast::Receiver<bool>,
     ) -> Self {

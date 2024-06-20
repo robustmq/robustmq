@@ -118,7 +118,7 @@ pub fn write(
     Ok(len)
 }
 
-mod will {
+pub mod will {
 
     use super::*;
 
@@ -171,7 +171,7 @@ mod will {
     }
 }
 
-mod login {
+pub mod login {
 
     use super::*;
 
