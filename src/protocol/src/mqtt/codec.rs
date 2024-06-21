@@ -23,6 +23,7 @@ impl codec::Encoder<MQTTPacket> for MqttCodec {
         buffer: &mut BytesMut,
     ) -> Result<(), Self::Error> {
 
+        println!("xxx encode {:?}",self.protocol_version);
         if self.protocol_version.is_none(){
             return Err(Error::InvalidProtocol);
         }
@@ -96,7 +97,8 @@ impl codec::Decoder for MqttCodec {
             match  connect_read(fixed_header, packet.clone()){
                 Ok((protocol_version,connect, properties, last_will, last_will_properties, login)) => {
                     self.protocol_version = Some(protocol_version);
-                    println!("xxx{:?}",self.protocol_version);
+
+                    println!("xxx decode {:?}",self.protocol_version);
                     if protocol_version == 4 || protocol_version == 3{
                         let packet = MQTTPacket::Connect(connect, None, last_will, None, login);
                         return Ok(Some(packet));

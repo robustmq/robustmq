@@ -37,7 +37,7 @@ pub struct ShareLeaderSubscribeData {
 }
 
 #[derive(Clone)]
-pub struct SubscribeCache {
+pub struct SubscribeCacheManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
 
@@ -63,9 +63,9 @@ pub struct SubscribeCache {
     pub share_follower_identifier_id: DashMap<usize, String>,
 }
 
-impl SubscribeCache {
+impl SubscribeCacheManager {
     pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
-        return SubscribeCache {
+        return SubscribeCacheManager {
             client_poll,
             metadata_cache,
             exclusive_subscribe: DashMap::with_capacity(8),

@@ -18,15 +18,11 @@ server=[]
 server = ["127.0.0.1:1228"]
 
 [mqtt]
-mqtt4_enable = true
-mqtt5_enable = true
-websocket_enable = true
-mqtt4_port = 1883
-mqtts4_port = 8883
-mqtt5_port = 1884
-mqtts5_port = 8884
+tcp_port = 1883
+tcps_port = 1883
 websocket_port = 8083
 websockets_port = 8084
+quic_port = 8883
 
 [system]
 system_user = "admin"
@@ -45,10 +41,6 @@ response_queue_size = 2000
 lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
 
-[subscribe]
-share_model = "rewrite"
-# random, round_robin, sticky, hash
-shared_subscription_strategy = "round_robin"
 
 [log]
 log_path = "/tmp/logs"

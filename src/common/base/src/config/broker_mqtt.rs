@@ -33,21 +33,16 @@ pub struct BrokerMQTTConfig {
     pub mysql: Mysql,
     pub placement: Placement,
     pub journal: Journal,
-    pub subscribe: Subscribe,
     pub system: SystemConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MQTT {
-    pub mqtt4_enable: bool,
-    pub mqtt5_enable: bool,
-    pub websocket_enable: bool,
-    pub mqtt4_port: u32,
-    pub mqtts4_port: u32,
-    pub mqtt5_port: u32,
-    pub mqtts5_port: u32,
+    pub tcp_port: u32,
+    pub tcps_port: u32,
     pub websocket_port: u32,
     pub websockets_port: u32,
+    pub quic_port: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -70,12 +65,6 @@ pub struct Runtime {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Mysql {
     pub server: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Subscribe {
-    pub share_model: String,
-    pub shared_subscription_strategy: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

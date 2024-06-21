@@ -4,10 +4,9 @@ use serde::{Deserialize, Serialize};
 pub struct MQTTNodeExtend {
     pub grpc_addr: String,
     pub http_addr: String,
-    pub mqtt4_addr: String,
-    pub mqtt4s_addr: String,
-    pub mqtt5_addr: String,
-    pub mqtt5s_addr: String,
+    pub mqtt_addr: String,
+    pub mqtts_addr: String,
     pub websocket_addr: String,
     pub websockets_addr: String,
+    pub quic_addr: String,
 }

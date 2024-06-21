@@ -1,12 +1,12 @@
-use super::connection::Connection;
+use super::connection::TCPConnection;
 use crate::{metrics::metrics_connection_num, server::MQTTProtocol};
 use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
-use protocol::mqtt::common::MQTTPacket;
+use protocol::mqtt::{codec::MqttCodec, common::MQTTPacket};
 use std::{fmt::Debug, time::Duration};
 use tokio::time::sleep;
-use tokio_util::codec::{Decoder, Encoder, FramedWrite};
+use tokio_util::codec::FramedWrite;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -14,26 +14,22 @@ pub enum Error {
     ConnectionExceed { total: usize },
 }
 
-pub struct ConnectionManager<T> {
+pub struct ConnectionManager {
     protocol: MQTTProtocol,
-    connections: DashMap<u64, Connection>,
-    write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>>,
+    connections: DashMap<u64, TCPConnection>,
+    write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>>,
     max_connection_num: usize,
     max_try_mut_times: u64,
     try_mut_sleep_time_ms: u64,
 }
 
-impl<T> ConnectionManager<T>
-where
-    T: Decoder + Encoder<MQTTPacket>,
-    <T as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
-{
+impl ConnectionManager {
     pub fn new(
         protocol: MQTTProtocol,
         max_connection_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-    ) -> ConnectionManager<T> {
+    ) -> ConnectionManager {
         let connections = DashMap::with_capacity_and_shard_amount(1000, 64);
         let write_list = DashMap::with_capacity_and_shard_amount(1000, 64);
         ConnectionManager {
@@ -46,7 +42,7 @@ where
         }
     }
 
-    pub fn add(&self, connection: Connection) -> u64 {
+    pub fn add(&self, connection: TCPConnection) -> u64 {
         let connection_id = connection.connection_id();
         self.connections.insert(connection_id, connection);
         let lable: String = self.protocol.clone().into();
@@ -57,7 +53,7 @@ where
     pub fn add_write(
         &self,
         connection_id: u64,
-        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, T>,
+        write: FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
     ) {
         self.write_list.insert(connection_id, write);
     }
@@ -91,7 +87,7 @@ where
                         Err(e) => {
                             if times > self.max_try_mut_times {
                                 error(format!(
-                                    "Failed to write data to the response queue, error message: {:?}",
+                                    "Failed to write data to the mqtt client, error message: {:?}",
                                     e
                                 ));
                                 break;
@@ -127,5 +123,12 @@ where
 
         // authentication
         return Ok(());
+    }
+
+    pub fn get_connect(&self, connect_id: u64) -> Option<TCPConnection> {
+        if let Some(connec) = self.connections.get(&connect_id) {
+            return Some(connec.clone());
+        }
+        return None;
     }
 }

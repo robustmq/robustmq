@@ -1,6 +1,6 @@
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    core::qos_manager::{QosManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+    core::qos_manager::{QosAckPackageData, QosAckPackageType, QosAckPacketInfo, QosManager},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
 };
@@ -24,14 +24,13 @@ use super::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_to_response_queue,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_cache::SubscribeCache,
+    subscribe_cache::SubscribeCacheManager,
 };
 
 pub struct SubscribeExclusive<S> {
     metadata_cache: Arc<MetadataCacheManager>,
-    response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_sx5: Sender<ResponsePackage>,
-    subscribe_manager: Arc<SubscribeCache>,
+    response_queue_sx: Sender<ResponsePackage>,
+    subscribe_manager: Arc<SubscribeCacheManager>,
     message_storage: Arc<S>,
     ack_manager: Arc<QosManager>,
 }
@@ -43,16 +42,14 @@ where
     pub fn new(
         message_storage: Arc<S>,
         metadata_cache: Arc<MetadataCacheManager>,
-        response_queue_sx4: Sender<ResponsePackage>,
-        response_queue_sx5: Sender<ResponsePackage>,
-        subscribe_manager: Arc<SubscribeCache>,
+        response_queue_sx: Sender<ResponsePackage>,
+        subscribe_manager: Arc<SubscribeCacheManager>,
         ack_manager: Arc<QosManager>,
     ) -> Self {
         return SubscribeExclusive {
             message_storage,
             metadata_cache,
-            response_queue_sx4,
-            response_queue_sx5,
+            response_queue_sx,
             subscribe_manager,
             ack_manager,
         };
@@ -102,8 +99,7 @@ where
             }
 
             let (stop_sx, mut stop_rx) = broadcast::channel(2);
-            let response_queue_sx4 = self.response_queue_sx4.clone();
-            let response_queue_sx5 = self.response_queue_sx5.clone();
+            let response_queue_sx = self.response_queue_sx.clone();
             let metadata_cache = self.metadata_cache.clone();
             let message_storage = self.message_storage.clone();
             let ack_manager = self.ack_manager.clone();
@@ -219,8 +215,8 @@ where
                                             client_id.clone(),
                                             publish,
                                             subscribe.protocol.clone(),
-                                            response_queue_sx4.clone(),
-                                            response_queue_sx5.clone(),
+                                            response_queue_sx.clone(),
+                                            response_queue_sx.clone(),
                                             stop_sx.clone(),
                                         )
                                         .await;
@@ -248,8 +244,8 @@ where
                                             properties,
                                             pkid,
                                             subscribe.protocol.clone(),
-                                            response_queue_sx4.clone(),
-                                            response_queue_sx5.clone(),
+                                            response_queue_sx.clone(),
+                                            response_queue_sx.clone(),
                                             stop_sx.clone(),
                                             wait_puback_sx,
                                         )
@@ -258,7 +254,8 @@ where
                                             Ok(()) => {
                                                 metadata_cache
                                                     .remove_pkid_info(client_id.clone(), pkid);
-                                                ack_manager.remove_ack_packet(client_id.clone(), pkid);
+                                                ack_manager
+                                                    .remove_ack_packet(client_id.clone(), pkid);
                                             }
                                             Err(e) => {
                                                 error(e.to_string());
@@ -287,8 +284,8 @@ where
                                             properties,
                                             pkid,
                                             subscribe.protocol.clone(),
-                                            response_queue_sx4.clone(),
-                                            response_queue_sx5.clone(),
+                                            response_queue_sx.clone(),
+                                            response_queue_sx.clone(),
                                             stop_sx.clone(),
                                             wait_ack_sx,
                                         )
@@ -297,7 +294,8 @@ where
                                             Ok(()) => {
                                                 metadata_cache
                                                     .remove_pkid_info(client_id.clone(), pkid);
-                                                ack_manager.remove_ack_packet(client_id.clone(), pkid);
+                                                ack_manager
+                                                    .remove_ack_packet(client_id.clone(), pkid);
                                             }
                                             Err(e) => {
                                                 error(e.to_string());

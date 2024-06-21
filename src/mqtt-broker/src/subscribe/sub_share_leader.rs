@@ -3,14 +3,14 @@ use super::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_to_response_queue,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_cache::SubscribeCache,
+    subscribe_cache::SubscribeCacheManager,
 };
 use crate::{
     core::metadata_cache::MetadataCacheManager,
-    subscribe::subscriber::Subscriber,
-    core::qos_manager::{QosManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+    core::qos_manager::{QosAckPackageData, QosAckPackageType, QosAckPacketInfo, QosManager},
     server::{tcp::packet::ResponsePackage, MQTTProtocol},
     storage::message::MessageStorage,
+    subscribe::subscriber::Subscriber,
 };
 use bytes::Bytes;
 use common_base::{
@@ -30,10 +30,9 @@ use tokio::{
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
-    pub subscribe_manager: Arc<SubscribeCache>,
+    pub subscribe_manager: Arc<SubscribeCacheManager>,
     message_storage: Arc<S>,
-    response_queue_sx4: broadcast::Sender<ResponsePackage>,
-    response_queue_sx5: broadcast::Sender<ResponsePackage>,
+    response_queue_sx: broadcast::Sender<ResponsePackage>,
     metadata_cache: Arc<MetadataCacheManager>,
     ack_manager: Arc<QosManager>,
 }
@@ -43,18 +42,16 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        subscribe_manager: Arc<SubscribeCache>,
+        subscribe_manager: Arc<SubscribeCacheManager>,
         message_storage: Arc<S>,
-        response_queue_sx4: broadcast::Sender<ResponsePackage>,
-        response_queue_sx5: broadcast::Sender<ResponsePackage>,
+        response_queue_sx: broadcast::Sender<ResponsePackage>,
         metadata_cache: Arc<MetadataCacheManager>,
         ack_manager: Arc<QosManager>,
     ) -> Self {
         return SubscribeShareLeader {
             subscribe_manager,
             message_storage,
-            response_queue_sx4,
-            response_queue_sx5,
+            response_queue_sx,
             metadata_cache,
             ack_manager,
         };
@@ -138,15 +135,14 @@ where
         group_name: String,
         topic_id: String,
         topic_name: String,
-        subscribe_manager: Arc<SubscribeCache>,
+        subscribe_manager: Arc<SubscribeCacheManager>,
     ) {
         let (stop_sx, mut stop_rx) = broadcast::channel(1);
         self.subscribe_manager
             .share_leader_push_thread
             .insert(share_leader_key.clone(), stop_sx.clone());
 
-        let response_queue_sx4 = self.response_queue_sx4.clone();
-        let response_queue_sx5 = self.response_queue_sx5.clone();
+        let response_queue_sx = self.response_queue_sx.clone();
         let metadata_cache = self.metadata_cache.clone();
         let message_storage = self.message_storage.clone();
         let ack_manager = self.ack_manager.clone();
@@ -189,8 +185,8 @@ where
                         sub_list.clone(),
                         group_id.clone(),
                         cursor_point,
-                        response_queue_sx4.clone(),
-                        response_queue_sx5.clone(),
+                        response_queue_sx.clone(),
+                        response_queue_sx.clone(),
                         metadata_cache.clone(),
                         ack_manager.clone(),
                         stop_sx.clone()
@@ -210,7 +206,7 @@ where
 
 async fn read_message_process<S>(
     share_leader_key: String,
-    subscribe_manager: Arc<SubscribeCache>,
+    subscribe_manager: Arc<SubscribeCacheManager>,
     topic_id: String,
     topic_name: String,
     message_storage: MessageStorage<S>,
@@ -350,7 +346,8 @@ where
                                     // remove data
                                     metadata_cache
                                         .remove_pkid_info(subscribe.client_id.clone(), pkid);
-                                    ack_manager.remove_ack_packet(subscribe.client_id.clone(), pkid);
+                                    ack_manager
+                                        .remove_ack_packet(subscribe.client_id.clone(), pkid);
                                     break;
                                 }
                                 Err(e) => {
@@ -627,7 +624,7 @@ where
 }
 
 fn build_share_leader_sub_list(
-    subscribe_manager: Arc<SubscribeCache>,
+    subscribe_manager: Arc<SubscribeCacheManager>,
     key: String,
 ) -> Vec<Subscriber> {
     let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(&key) {

@@ -7,7 +7,7 @@ use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, publish_get_topic_name};
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
-use crate::subscribe::subscribe_cache::SubscribeCache;
+use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
     security::authentication::authentication_login,
@@ -35,7 +35,7 @@ pub struct Mqtt5Service<S> {
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<HeartbeatCache>,
     message_storage_adapter: Arc<S>,
-    sucscribe_cache: Arc<SubscribeCache>,
+    sucscribe_cache: Arc<SubscribeCacheManager>,
     qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
@@ -49,7 +49,7 @@ where
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<HeartbeatCache>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeCache>,
+        sucscribe_manager: Arc<SubscribeCacheManager>,
         qos_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {

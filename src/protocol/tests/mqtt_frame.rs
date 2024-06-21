@@ -11,8 +11,8 @@ mod tests {
         mqttv4::{self, codec::Mqtt4Codec},
         mqttv5::codec::Mqtt5Codec,
     };
-    use tokio::net::{TcpListener, TcpStream};
-    use tokio_util::codec::Framed;
+    use tokio::{io, net::{TcpListener, TcpStream}};
+    use tokio_util::codec::{Framed, FramedRead, FramedWrite};
 
     #[tokio::test]
     async fn mqtt_frame_server() {
@@ -20,15 +20,18 @@ mod tests {
         let listener = TcpListener::bind(ip).await.unwrap();
         loop {
             let (stream, _) = listener.accept().await.unwrap();
-            let mut stream = Framed::new(stream, MqttCodec::new(None));
+            let (r_stream, w_stream) = io::split(stream);
+            let codec = MqttCodec::new(None);
+            let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
+            let mut write_frame_stream = FramedWrite::new(w_stream, codec.clone());
             tokio::spawn(async move {
-                while let Some(Ok(data)) = stream.next().await {
+                while let Some(Ok(data)) = read_frame_stream.next().await {
                     println!("Got: {:?}", data);
 
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
-                    stream.send(build_mqtt4_pg_connect_ack()).await.unwrap();
+                    write_frame_stream.send(build_mqtt4_pg_connect_ack()).await.unwrap();
                     break;
                 }
             });
