@@ -1,10 +1,7 @@
 use crate::core::connection::Connection;
 use crate::storage::user::UserStorage;
+use crate::storage::{cluster::ClusterStorage, topic::TopicStorage};
 use crate::subscribe::subscriber::SubscribeData;
-use crate::{
-    server::MQTTProtocol,
-    storage::{cluster::ClusterStorage, topic::TopicStorage},
-};
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::log::warn;
@@ -14,7 +11,7 @@ use metadata_struct::mqtt::message::MQTTMessage;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
-use protocol::mqtt::common::{Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{MQTTProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;

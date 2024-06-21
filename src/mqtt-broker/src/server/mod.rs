@@ -10,7 +10,7 @@ use crate::{
 };
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
-use serde::{Deserialize, Serialize};
+use protocol::mqtt::common::MQTTProtocol;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::Sender;
@@ -20,24 +20,6 @@ pub mod http;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;
-
-#[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
-pub enum MQTTProtocol {
-    #[default]
-    MQTT3,
-    MQTT4,
-    MQTT5,
-}
-
-impl From<MQTTProtocol> for String {
-    fn from(protocol: MQTTProtocol) -> Self {
-        match protocol {
-            MQTTProtocol::MQTT3 => "MQTT3".into(),
-            MQTTProtocol::MQTT4 => "MQTT4".into(),
-            MQTTProtocol::MQTT5 => "MQTT5".into(),
-        }
-    }
-}
 
 pub async fn start_tcp_server<S>(
     sucscribe_cache_manager: Arc<SubscribeCacheManager>,

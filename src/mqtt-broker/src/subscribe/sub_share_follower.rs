@@ -8,7 +8,7 @@ use super::{
 use crate::{
     core::metadata_cache::MetadataCacheManager,
     core::qos_manager::{QosAckPackageData, QosAckPackageType, QosAckPacketInfo, QosManager},
-    server::{tcp::packet::ResponsePackage, MQTTProtocol},
+    server::tcp::packet::ResponsePackage,
     subscribe::subscribe_cache::ShareSubShareSub,
 };
 use clients::poll::ClientPool;
@@ -23,10 +23,7 @@ use futures::{SinkExt, StreamExt};
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
 use protocol::mqtt::{
     common::{
-        Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PingReq, PubAck,
-        PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
-        PubRecProperties, PubRecReason, Publish, PublishProperties, Subscribe, SubscribeProperties,
-        SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
+        Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, MQTTProtocol, PingReq, PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec, PubRecProperties, PubRecReason, Publish, PublishProperties, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties
     },
     mqttv5::codec::Mqtt5Codec,
 };
@@ -233,7 +230,11 @@ async fn resub_sub_mqtt5(
     let follower_sub_leader_pkid: u16 = 1;
 
     // Create a connection to GroupName
-    let connect_pkg = build_resub_connect_pkg(follower_sub_leader_client_id.clone()).clone();
+    let connect_pkg = build_resub_connect_pkg(
+        MQTTProtocol::MQTT5.into(),
+        follower_sub_leader_client_id.clone(),
+    )
+    .clone();
     write_stream.write_frame(connect_pkg).await;
 
     // Continuously receive back packet information from the Server
@@ -769,7 +770,7 @@ pub async fn resub_publish_message_qos2(
     return Ok(());
 }
 
-fn build_resub_connect_pkg(client_id: String) -> MQTTPacket {
+fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MQTTPacket {
     let conf = broker_mqtt_conf();
     let connect = Connect {
         keep_alive: 6000,
@@ -786,7 +787,14 @@ fn build_resub_connect_pkg(client_id: String) -> MQTTPacket {
         password: conf.system.system_password.clone(),
     };
 
-    return MQTTPacket::Connect(connect, Some(properties), None, None, Some(login));
+    return MQTTPacket::Connect(
+        protocol_level,
+        connect,
+        Some(properties),
+        None,
+        None,
+        Some(login),
+    );
 }
 
 fn build_resub_subscribe_pkg(

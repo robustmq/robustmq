@@ -1,7 +1,8 @@
-use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, MQTTProtocolVersion, PacketType};
+use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, PacketType};
 use bytes::BytesMut;
 use tokio_util::codec;
 
+#[derive(Debug,Clone)]
 pub struct MQTTPacketWrapper{
     pub protocol_version: u8,
     pub packet:MQTTPacket
@@ -32,7 +33,7 @@ impl codec::Encoder<MQTTPacketWrapper> for MqttCodec {
 
         if protocol_version == 4 || protocol_version == 3{
             let size = match packet {
-                MQTTPacket::Connect(connect, None, last_will, None, login) => {
+                MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login) => {
                     crate::mqtt::mqttv4::connect::write(&connect, &login, &last_will, buffer)?
                 }
                 MQTTPacket::ConnAck(connack, _) => crate::mqtt::mqttv4::connack::write(&connack, buffer)?,
@@ -56,7 +57,7 @@ impl codec::Encoder<MQTTPacketWrapper> for MqttCodec {
             };
         }else if protocol_version == 5 {
             let size = match packet {
-                MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
+                MQTTPacket::Connect(protocol_version,connect, properties, last_will, last_will_peoperties, login) => {
                     crate::mqtt::mqttv5::connect::write(&connect, &properties, &last_will,  &last_will_peoperties, &login, buffer)?
                 }
                 MQTTPacket::ConnAck(connack, conn_ack_properties) => crate::mqtt::mqttv5::connack::write(&connack,&conn_ack_properties, buffer)?,
@@ -100,12 +101,12 @@ impl codec::Decoder for MqttCodec {
 
                     println!("xxx decode {:?}",self.protocol_version);
                     if protocol_version == 4 || protocol_version == 3{
-                        let packet = MQTTPacket::Connect(connect, None, last_will, None, login);
+                        let packet = MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login);
                         return Ok(Some(packet));
                     }
         
                     if protocol_version == 5{
-                        let packet = MQTTPacket::Connect(connect, properties, last_will, last_will_properties, login);
+                        let packet = MQTTPacket::Connect(protocol_version, connect, properties, last_will, last_will_properties, login);
                         return Ok(Some(packet));
                     }
                 }

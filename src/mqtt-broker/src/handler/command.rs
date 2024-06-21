@@ -6,6 +6,7 @@ use crate::core::heartbeat_cache::HeartbeatCache;
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::qos_manager::QosManager;
 use crate::server::tcp::connection::TCPConnection;
+use crate::server::tcp::connection_manager::ConnectionManager;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use clients::poll::ClientPool;
@@ -76,22 +77,33 @@ where
 
     pub async fn apply(
         &mut self,
+        connect_manager: Arc<ConnectionManager>,
         tcp_connection: TCPConnection,
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
         info(format!("revc packet:{:?}", packet));
         match packet {
-            MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
-                let ack_pkg = if tcp_connection.is_mqtt3() {
+            MQTTPacket::Connect(
+                protocol_version,
+                connect,
+                properties,
+                last_will,
+                last_will_peoperties,
+                login,
+            ) => {
+                connect_manager
+                    .set_connect_protocol(tcp_connection.connection_id, protocol_version);
+
+                let ack_pkg = if protocol_version == 3 {
                     self.mqtt3_service
                         .connect(connect.clone(), last_will.clone(), login.clone())
                         .await
-                } else if tcp_connection.is_mqtt4() {
+                } else if protocol_version == 4 {
                     self.mqtt4_service
                         .connect(connect.clone(), last_will.clone(), login.clone())
                         .await
-                } else if tcp_connection.is_mqtt5() {
+                } else if protocol_version == 5 {
                     self.mqtt5_service
                         .connect(
                             tcp_connection.connection_id,

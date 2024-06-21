@@ -19,9 +19,9 @@ use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
-    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
-    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,
-    PubRelProperties, PubRelReason, Publish, PublishProperties, QoS, Subscribe,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
+    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties,
+    PubRel, PubRelProperties, PubRelReason, Publish, PublishProperties, QoS, Subscribe,
     SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use std::net::SocketAddr;
@@ -145,7 +145,7 @@ where
 
         // Record heartbeat information
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
-            protobol: crate::server::MQTTProtocol::MQTT5,
+            protobol: MQTTProtocol::MQTT5,
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
@@ -487,7 +487,7 @@ where
         // Saving subscriptions
         self.metadata_cache.add_client_subscribe(
             client_id.clone(),
-            crate::server::MQTTProtocol::MQTT5,
+            MQTTProtocol::MQTT5,
             subscribe.clone(),
             subscribe_properties.clone(),
         );
@@ -495,7 +495,7 @@ where
         self.sucscribe_cache
             .add_subscribe(
                 client_id.clone(),
-                crate::server::MQTTProtocol::MQTT5,
+                MQTTProtocol::MQTT5,
                 subscribe.clone(),
                 subscribe_properties.clone(),
             )
@@ -538,7 +538,7 @@ where
         };
 
         let live_time = ConnectionLiveTime {
-            protobol: crate::server::MQTTProtocol::MQTT5,
+            protobol: MQTTProtocol::MQTT5,
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };

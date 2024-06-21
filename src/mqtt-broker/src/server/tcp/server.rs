@@ -7,13 +7,13 @@ use crate::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
         metrics_response_queue,
     },
-    server::{tcp::packet::RequestPackage, MQTTProtocol},
+    server::tcp::packet::RequestPackage,
 };
 use common_base::log::{debug, error, info};
 use futures::StreamExt;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
-    common::{DisconnectReasonCode, MQTTPacket},
+    common::{DisconnectReasonCode, MQTTPacket, MQTTProtocol},
 };
 use std::{fmt::Error, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
@@ -169,7 +169,10 @@ where
             while let Ok(packet) = request_queue_rx.recv().await {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
                 if let Some(connect) = connect_manager.get_connect(packet.connection_id) {
-                    if let Some(resp) = command.apply(connect, packet.addr, packet.packet).await {
+                    if let Some(resp) = command
+                        .apply(connect_manager.clone(), connect, packet.addr, packet.packet)
+                        .await
+                    {
                         // Close the client connection
                         if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
                             if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
@@ -208,10 +211,11 @@ where
                     "response packet:{:?}",
                     response_package.packet.clone()
                 ));
-
-                if let Some(connect) = connect_manager.get_connect(response_package.connection_id) {
+                if let Some(protocol) =
+                    connect_manager.get_connect_protocol(response_package.connection_id)
+                {
                     let packet_wrapper = MQTTPacketWrapper {
-                        protocol_version: connect.protocol.unwrap(),
+                        protocol_version: protocol.into(),
                         packet: response_package.packet,
                     };
                     connect_manager

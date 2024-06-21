@@ -48,7 +48,7 @@ fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usi
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(Connect, Option<Login>, Option<LastWill>), Error> {
+) -> Result<(u8, Connect, Option<Login>, Option<LastWill>), Error> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -79,7 +79,7 @@ pub fn read(
         clean_session,
     };
 
-    Ok((connect, login, last_will))
+    Ok((protocol_level,connect, login, last_will))
 }
 
 pub fn write(
@@ -303,7 +303,7 @@ mod tests {
         assert_eq!(fixheader.fixed_header_len, 2);
         assert!(fixheader.remaining_len == 26);
         // test read function, x gets connect, y gets login and z gets will
-        let (x, y, z) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
+        let (l, x, y, z) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
         // only check connect value in this case as login and will being none
         assert_eq!(x.client_id, "test_client_id");
         assert_eq!(x.keep_alive, 30);

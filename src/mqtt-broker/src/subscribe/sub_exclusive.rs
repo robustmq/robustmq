@@ -1,7 +1,7 @@
 use crate::{
     core::metadata_cache::MetadataCacheManager,
     core::qos_manager::{QosAckPackageData, QosAckPackageType, QosAckPacketInfo, QosManager},
-    server::{tcp::packet::ResponsePackage, MQTTProtocol},
+    server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
@@ -11,7 +11,7 @@ use common_base::{
     tools::now_second,
 };
 use metadata_struct::mqtt::message::MQTTMessage;
-use protocol::mqtt::common::{MQTTPacket, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{

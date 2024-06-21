@@ -4,14 +4,13 @@ use super::sub_common::{
 };
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::subscribe::subscriber::Subscriber;
-use crate::server::MQTTProtocol;
 use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     log::{error, info},
 };
 use dashmap::DashMap;
-use protocol::mqtt::common::{Filter, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{Filter, MQTTProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::broadcast::Sender, time::sleep};

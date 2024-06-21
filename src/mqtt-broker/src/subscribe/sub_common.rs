@@ -1,6 +1,5 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::qos_manager::QosAckPackageData;
-use crate::server::MQTTProtocol;
 use crate::storage::topic::TopicStorage;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
@@ -9,8 +8,8 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::common::{
-    MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
-    SubscribeProperties,
+    MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS, RetainForwardRule,
+    Subscribe, SubscribeProperties,
 };
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,

@@ -1,13 +1,12 @@
 use super::heartbeat_cache::HeartbeatCache;
-use crate::{
-    metrics::metrics_heartbeat_keep_alive_run_info,
-    server::{tcp::packet::RequestPackage, MQTTProtocol},
-};
+use crate::{metrics::metrics_heartbeat_keep_alive_run_info, server::tcp::packet::RequestPackage};
 use common_base::{
     log::{debug, error, info},
     tools::{now_mills, now_second},
 };
-use protocol::mqtt::common::{Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket};
+use protocol::mqtt::common::{
+    Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
+};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -81,33 +80,28 @@ impl ClientKeepAlive {
                                             user_properties: vec![("heartbeat_close".to_string(), "true".to_string())],
                                             server_reference: None,
                                         });
-                            if time.protobol == MQTTProtocol::MQTT4 {
-                                let req = RequestPackage {
+                            let req = if time.protobol == MQTTProtocol::MQTT4
+                                || time.protobol == MQTTProtocol::MQTT3
+                            {
+                                RequestPackage {
                                     connection_id: connect_id,
                                     addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect.clone(), None),
-                                };
-                                match request_queue_sx.send(req) {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        error(e.to_string());
-                                    }
-                                };
-                            }
-                            if time.protobol == MQTTProtocol::MQTT5 {
-                                let req = RequestPackage {
+                                }
+                            } else {
+                                RequestPackage {
                                     connection_id: connect_id,
                                     addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect, properties),
-                                };
+                                }
+                            };
 
-                                match request_queue_sx.send(req) {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        error(e.to_string());
-                                    }
-                                };
-                            }
+                            match request_queue_sx.send(req) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error(e.to_string());
+                                }
+                            };
                         }
                     }
                 });

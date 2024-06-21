@@ -1,17 +1,20 @@
 #[cfg(test)]
 mod tests {
-    use bytes::{Bytes, BytesMut};
+    use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
     use protocol::mqtt::{
-        codec::MqttCodec,
+        codec::{MQTTPacketWrapper, MqttCodec},
         common::{
             ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
             Login, MQTTPacket,
         },
-        mqttv4::{self, codec::Mqtt4Codec},
+        mqttv4::codec::Mqtt4Codec,
         mqttv5::codec::Mqtt5Codec,
     };
-    use tokio::{io, net::{TcpListener, TcpStream}};
+    use tokio::{
+        io,
+        net::{TcpListener, TcpStream},
+    };
     use tokio_util::codec::{Framed, FramedRead, FramedWrite};
 
     #[tokio::test]
@@ -31,7 +34,10 @@ mod tests {
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
-                    write_frame_stream.send(build_mqtt4_pg_connect_ack()).await.unwrap();
+                    write_frame_stream
+                        .send(build_mqtt4_pg_connect_ack())
+                        .await
+                        .unwrap();
                     break;
                 }
             });
@@ -52,7 +58,7 @@ mod tests {
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
-                    stream.send(build_mqtt4_pg_connect_ack()).await.unwrap();
+                    //stream.send(build_mqtt4_pg_connect_ack()).await.unwrap();
                 }
             });
         }
@@ -98,16 +104,19 @@ mod tests {
             client_id: client_id,
             clean_session: true,
         };
-        return MQTTPacket::Connect(connect, None, lastwill, None, login);
+        return MQTTPacket::Connect(4, connect, None, lastwill, None, login);
     }
 
     /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect_ack() -> MQTTPacket {
+    fn build_mqtt4_pg_connect_ack() -> MQTTPacketWrapper {
         let ack: ConnAck = ConnAck {
             session_present: false,
             code: ConnectReturnCode::Success,
         };
-        return MQTTPacket::ConnAck(ack, None);
+        return MQTTPacketWrapper {
+            protocol_version: 4,
+            packet: MQTTPacket::ConnAck(ack, None),
+        };
     }
 
     #[tokio::test]
@@ -166,7 +175,7 @@ mod tests {
 
         let mut properties = ConnectProperties::default();
         properties.session_expiry_interval = Some(30);
-        return MQTTPacket::Connect(connect, Some(properties), lastwill, None, login);
+        return MQTTPacket::Connect(5, connect, Some(properties), lastwill, None, login);
     }
 
     /// Build the connect content package for the mqtt5 protocol

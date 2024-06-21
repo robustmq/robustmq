@@ -1,9 +1,9 @@
 use super::connection::TCPConnection;
-use crate::{metrics::metrics_connection_num, server::MQTTProtocol};
+use crate::metrics::metrics_connection_num;
 use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
-use protocol::mqtt::{codec::MqttCodec, common::MQTTPacket};
+use protocol::mqtt::{codec::{MQTTPacketWrapper, MqttCodec}, common::MQTTProtocol};
 use std::{fmt::Debug, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
@@ -75,7 +75,7 @@ impl ConnectionManager {
         }
     }
 
-    pub async fn write_frame(&self, connection_id: u64, resp: MQTTPacket) {
+    pub async fn write_frame(&self, connection_id: u64, resp: MQTTPacketWrapper) {
         let mut times = 0;
         loop {
             match self.write_list.try_get_mut(&connection_id) {
@@ -130,5 +130,23 @@ impl ConnectionManager {
             return Some(connec.clone());
         }
         return None;
+    }
+
+    pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MQTTProtocol> {
+        if let Some(connec) = self.connections.get(&connect_id) {
+            return connec.protocol.clone();
+        }
+        return None;
+    }
+
+    pub fn set_connect_protocol(&self, connect_id: u64, protocol: u8) {
+        if let Some(mut connec) = self.connections.get_mut(&connect_id) {
+            match protocol {
+                3 => connec.set_protocol(MQTTProtocol::MQTT3),
+                4 => connec.set_protocol(MQTTProtocol::MQTT4),
+                5 => connec.set_protocol(MQTTProtocol::MQTT5),
+                _ => {}
+            };
+        }
     }
 }
