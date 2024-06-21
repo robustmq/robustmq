@@ -1,5 +1,5 @@
 use super::{
-    connection::Connection, connection_manager::ConnectionManager, packet::ResponsePackage,
+    connection::TCPConnection, connection_manager::ConnectionManager, packet::ResponsePackage,
 };
 use crate::{
     handler::{command::Command, packet::packet_connect_fail},
@@ -7,40 +7,35 @@ use crate::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
         metrics_response_queue,
     },
-    server::{tcp::packet::RequestPackage, MQTTProtocol},
+    server::tcp::packet::RequestPackage,
 };
 use common_base::log::{debug, error, info};
 use futures::StreamExt;
-use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
-use std::{
-    fmt::{Debug, Error},
-    sync::Arc,
+use protocol::mqtt::{
+    codec::{MQTTPacketWrapper, MqttCodec},
+    common::{DisconnectReasonCode, MQTTPacket, MQTTProtocol},
 };
+use std::{fmt::Error, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 use tokio::net::TcpListener;
 use tokio::{io, sync::broadcast::Sender};
-use tokio_util::codec::{Decoder, Encoder, FramedRead, FramedWrite};
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 // U: codec: encoder + decoder
 // S: message storage adapter
-pub struct TcpServer<U, S> {
+pub struct TcpServer<S> {
     protocol: MQTTProtocol,
     command: Command<S>,
-    connection_manager: Arc<ConnectionManager<U>>,
+    connection_manager: Arc<ConnectionManager>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
-    codec: U,
 }
 
-impl<U, S> TcpServer<U, S>
+impl<S> TcpServer<S>
 where
-    U: Clone + Decoder + Encoder<MQTTPacket> + Send + Sync + 'static + Debug,
-    MQTTPacket: From<<U as tokio_util::codec::Decoder>::Item>,
-    <U as tokio_util::codec::Encoder<MQTTPacket>>::Error: Debug,
-    <U as tokio_util::codec::Decoder>::Error: Debug,
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     pub fn new(
@@ -52,11 +47,10 @@ where
         response_process_num: usize,
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
-        codec: U,
         request_queue_sx: Sender<RequestPackage>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> Self {
-        let connection_manager = Arc::new(ConnectionManager::<U>::new(
+        let connection_manager = Arc::new(ConnectionManager::new(
             protocol.clone(),
             max_connection_num,
             max_try_mut_times,
@@ -72,7 +66,6 @@ where
             response_process_num,
             request_queue_sx,
             response_queue_sx,
-            codec,
         }
     }
 
@@ -98,7 +91,6 @@ where
     async fn acceptor(&self, listener: Arc<TcpListener>) -> Result<(), Error> {
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
-        let codec = self.codec.clone();
         let protocol: String = self.protocol.clone().into();
         tokio::spawn(async move {
             loop {
@@ -108,6 +100,7 @@ where
                     Ok((stream, addr)) => {
                         // split stream
                         let (r_stream, w_stream) = io::split(stream);
+                        let codec = MqttCodec::new(None);
                         let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
                         let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
@@ -118,7 +111,7 @@ where
                                 let reason=format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string());
                                 error(reason.clone());
                                 packet_connect_fail(
-                                    protocol::mqtt::ConnectReturnCode::ServerBusy,
+                                    protocol::mqtt::common::ConnectReturnCode::ServerBusy,
                                     Some(reason),
                                 );
                                 continue;
@@ -126,7 +119,7 @@ where
                         }
 
                         // connection manager
-                        let connection_id = cm.add(Connection::new(addr));
+                        let connection_id = cm.add(TCPConnection::new(addr));
                         cm.add_write(connection_id, write_frame_stream);
                         let protocol_lable = protocol.clone();
 
@@ -175,27 +168,28 @@ where
         tokio::spawn(async move {
             while let Ok(packet) = request_queue_rx.recv().await {
                 metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
-
-                if let Some(resp) = command
-                    .apply(packet.connection_id, packet.addr, packet.packet)
-                    .await
-                {
-                    // Close the client connection
-                    if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
-                        if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
-                            connect_manager.clonse_connect(packet.connection_id).await;
-                            continue;
+                if let Some(connect) = connect_manager.get_connect(packet.connection_id) {
+                    if let Some(resp) = command
+                        .apply(connect_manager.clone(), connect, packet.addr, packet.packet)
+                        .await
+                    {
+                        // Close the client connection
+                        if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
+                            if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
+                                connect_manager.clonse_connect(packet.connection_id).await;
+                                continue;
+                            }
                         }
-                    }
 
-                    // Writes the result of the business logic processing to the return queue
-                    let response_package = ResponsePackage::new(packet.connection_id, resp);
-                    match response_queue_sx.send(response_package) {
-                        Ok(_) => {}
-                        Err(err) => error(format!(
-                            "Failed to write data to the response queue, error message: {:?}",
-                            err
-                        )),
+                        // Writes the result of the business logic processing to the return queue
+                        let response_package = ResponsePackage::new(packet.connection_id, resp);
+                        match response_queue_sx.send(response_package) {
+                            Ok(_) => {}
+                            Err(err) => error(format!(
+                                "Failed to write data to the response queue, error message: {:?}",
+                                err
+                            )),
+                        }
                     }
                 }
             }
@@ -217,9 +211,17 @@ where
                     "response packet:{:?}",
                     response_package.packet.clone()
                 ));
-                connect_manager
-                    .write_frame(response_package.connection_id, response_package.packet)
-                    .await;
+                if let Some(protocol) =
+                    connect_manager.get_connect_protocol(response_package.connection_id)
+                {
+                    let packet_wrapper = MQTTPacketWrapper {
+                        protocol_version: protocol.into(),
+                        packet: response_package.packet,
+                    };
+                    connect_manager
+                        .write_frame(response_package.connection_id, packet_wrapper)
+                        .await;
+                }
             }
         });
         return Ok(());

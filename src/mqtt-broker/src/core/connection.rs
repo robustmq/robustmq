@@ -4,7 +4,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
-use protocol::mqtt::{Connect, ConnectProperties};
+use protocol::mqtt::common::{Connect, ConnectProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]

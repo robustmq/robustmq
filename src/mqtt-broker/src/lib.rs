@@ -1,4 +1,3 @@
-use clients::poll::ClientPool;
 // Copyright 2023 RobustMQ Team
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +11,7 @@ use clients::poll::ClientPool;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
@@ -22,15 +22,14 @@ use core::{
     HEART_CONNECT_SHARD_HASH_NUM,
 };
 use core::{metadata_cache::MetadataCacheManager, qos_manager::QosManager};
-use metadata_struct::mqtt::user::MQTTUser;
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
-    start_mqtt_server,
+    start_tcp_server,
     tcp::packet::{RequestPackage, ResponsePackage},
 };
 use std::{sync::Arc, time::Duration};
-use storage::{cluster::ClusterStorage, user::UserStorage};
+use storage::cluster::ClusterStorage;
 use storage_adapter::{
     // memory::MemoryStorageAdapter,
     mysql::{build_mysql_conn_pool, MySQLStorageAdapter},
@@ -39,7 +38,7 @@ use storage_adapter::{
 };
 use subscribe::{
     sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
-    sub_share_leader::SubscribeShareLeader, subscribe_cache::SubscribeCache,
+    sub_share_leader::SubscribeShareLeader, subscribe_cache::SubscribeCacheManager,
 };
 use tokio::{
     runtime::Runtime,
@@ -50,7 +49,6 @@ use tokio::{
 
 mod core;
 mod handler;
-
 mod metrics;
 mod security;
 mod server;
@@ -78,13 +76,11 @@ pub struct MqttBroker<'a, S> {
     metadata_cache_manager: Arc<MetadataCacheManager>,
     heartbeat_manager: Arc<HeartbeatCache>,
     runtime: Runtime,
-    request_queue_sx4: Sender<RequestPackage>,
-    request_queue_sx5: Sender<RequestPackage>,
-    response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_sx5: Sender<ResponsePackage>,
+    request_queue_sx: Sender<RequestPackage>,
+    response_queue_sx: Sender<ResponsePackage>,
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
-    subscribe_manager: Arc<SubscribeCache>,
+    subscribe_manager: Arc<SubscribeCacheManager>,
     qos_manager: Arc<QosManager>,
 }
 
@@ -100,15 +96,13 @@ where
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
 
-        let (request_queue_sx4, _) = broadcast::channel(1000);
-        let (request_queue_sx5, _) = broadcast::channel(1000);
-        let (response_queue_sx4, _) = broadcast::channel(1000);
-        let (response_queue_sx5, _) = broadcast::channel(1000);
+        let (request_queue_sx, _) = broadcast::channel(1000);
+        let (response_queue_sx, _) = broadcast::channel(1000);
 
         let heartbeat_manager = Arc::new(HeartbeatCache::new(HEART_CONNECT_SHARD_HASH_NUM));
 
         let qos_manager: Arc<QosManager> = Arc::new(QosManager::new());
-        let subscribe_manager = Arc::new(SubscribeCache::new(
+        let subscribe_manager = Arc::new(SubscribeCacheManager::new(
             metadata_cache.clone(),
             client_poll.clone(),
         ));
@@ -118,10 +112,8 @@ where
             runtime,
             metadata_cache_manager: metadata_cache,
             heartbeat_manager,
-            request_queue_sx4,
-            request_queue_sx5,
-            response_queue_sx4,
-            response_queue_sx5,
+            request_queue_sx,
+            response_queue_sx,
             client_poll,
             message_storage_adapter,
             subscribe_manager,
@@ -148,23 +140,18 @@ where
         let subscribe_manager = self.subscribe_manager.clone();
         let client_poll = self.client_poll.clone();
 
-        let request_queue_sx4 = self.request_queue_sx4.clone();
-        let request_queue_sx5 = self.request_queue_sx5.clone();
-
-        let response_queue_sx4 = self.response_queue_sx4.clone();
-        let response_queue_sx5 = self.response_queue_sx5.clone();
+        let request_queue_sx = self.request_queue_sx.clone();
+        let response_queue_sx = self.response_queue_sx.clone();
         self.runtime.spawn(async move {
-            start_mqtt_server(
+            start_tcp_server(
                 subscribe_manager,
                 cache,
                 heartbeat_manager,
                 message_storage_adapter,
                 qos_manager,
                 client_poll,
-                request_queue_sx4,
-                request_queue_sx5,
-                response_queue_sx4,
-                response_queue_sx5,
+                request_queue_sx,
+                response_queue_sx,
             )
             .await
         });
@@ -185,8 +172,6 @@ where
         let http_state = HttpServerState::new(
             self.metadata_cache_manager.clone(),
             self.heartbeat_manager.clone(),
-            self.response_queue_sx4.clone(),
-            self.response_queue_sx5.clone(),
             self.subscribe_manager.clone(),
             self.qos_manager.clone(),
         );
@@ -224,8 +209,7 @@ where
         let exclusive_sub = SubscribeExclusive::new(
             self.message_storage_adapter.clone(),
             self.metadata_cache_manager.clone(),
-            self.response_queue_sx4.clone(),
-            self.response_queue_sx5.clone(),
+            self.response_queue_sx.clone(),
             self.subscribe_manager.clone(),
             self.qos_manager.clone(),
         );
@@ -237,8 +221,7 @@ where
         let leader_sub = SubscribeShareLeader::new(
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
-            self.response_queue_sx4.clone(),
-            self.response_queue_sx5.clone(),
+            self.response_queue_sx.clone(),
             self.metadata_cache_manager.clone(),
             self.qos_manager.clone(),
         );
@@ -249,8 +232,7 @@ where
 
         let follower_sub = SubscribeShareFollower::new(
             self.subscribe_manager.clone(),
-            self.response_queue_sx4.clone(),
-            self.response_queue_sx5.clone(),
+            self.response_queue_sx.clone(),
             self.metadata_cache_manager.clone(),
             self.client_poll.clone(),
             self.qos_manager.clone(),
@@ -265,8 +247,7 @@ where
         let mut keep_alive = ClientKeepAlive::new(
             HEART_CONNECT_SHARD_HASH_NUM,
             self.heartbeat_manager.clone(),
-            self.request_queue_sx4.clone(),
-            self.request_queue_sx5.clone(),
+            self.request_queue_sx.clone(),
             stop_send,
         );
         self.runtime.spawn(async move {

@@ -9,20 +9,20 @@ use protocol::mqtt::common::{
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub struct Mqtt4Service {
+pub struct Mqtt3Service {
     metadata_cache: Arc<MetadataCacheManager>,
     ack_build: MQTTAckBuild,
     login: bool,
     heartbeat_manager: Arc<HeartbeatCache>,
 }
 
-impl Mqtt4Service {
+impl Mqtt3Service {
     pub fn new(
         metadata_cache: Arc<MetadataCacheManager>,
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<HeartbeatCache>,
     ) -> Self {
-        return Mqtt4Service {
+        return Mqtt3Service {
             metadata_cache,
             ack_build,
             login: false,

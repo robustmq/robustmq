@@ -1,6 +1,5 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::core::qos_manager::QosAckPackageData;
-use crate::server::MQTTProtocol;
 use crate::storage::topic::TopicStorage;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
@@ -8,9 +7,9 @@ use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::{errors::RobustMQError, log::error};
-use protocol::mqtt::{
-    MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
-    SubscribeProperties,
+use protocol::mqtt::common::{
+    MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS, RetainForwardRule,
+    Subscribe, SubscribeProperties,
 };
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
@@ -322,7 +321,7 @@ pub async fn qos2_send_pubrel(
 
         let pubrel = PubRel {
             pkid,
-            reason: protocol::mqtt::PubRelReason::Success,
+            reason: protocol::mqtt::common::PubRelReason::Success,
         };
 
         let pubrel_resp = ResponsePackage {
@@ -451,7 +450,7 @@ mod tests {
     use clients::poll::ClientPool;
     use metadata_struct::mqtt::message::MQTTMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::mqtt::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
+    use protocol::mqtt::common::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
     use storage_adapter::memory::MemoryStorageAdapter;
     use tokio::sync::broadcast;
 
@@ -633,7 +632,7 @@ mod tests {
             qos: QoS::AtLeastOnce,
             nolocal: true,
             preserve_retain: true,
-            retain_forward_rule: protocol::mqtt::RetainForwardRule::OnEverySubscribe,
+            retain_forward_rule: protocol::mqtt::common::RetainForwardRule::OnEverySubscribe,
         };
         filters.push(flt);
         let subscribe = Subscribe {

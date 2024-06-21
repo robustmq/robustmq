@@ -1,13 +1,12 @@
 use super::heartbeat_cache::HeartbeatCache;
-use crate::{
-    metrics::metrics_heartbeat_keep_alive_run_info,
-    server::{tcp::packet::RequestPackage, MQTTProtocol},
-};
+use crate::{metrics::metrics_heartbeat_keep_alive_run_info, server::tcp::packet::RequestPackage};
 use common_base::{
     log::{debug, error, info},
     tools::{now_mills, now_second},
 };
-use protocol::mqtt::{Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket};
+use protocol::mqtt::common::{
+    Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
+};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -21,8 +20,7 @@ use tokio::{
 pub struct ClientKeepAlive {
     shard_num: u64,
     heartbeat_manager: Arc<HeartbeatCache>,
-    request_queue_sx4: Sender<RequestPackage>,
-    request_queue_sx5: Sender<RequestPackage>,
+    request_queue_sx: Sender<RequestPackage>,
     stop_send: broadcast::Receiver<bool>,
 }
 
@@ -30,15 +28,13 @@ impl ClientKeepAlive {
     pub fn new(
         shard_num: u64,
         heartbeat_manager: Arc<HeartbeatCache>,
-        request_queue_sx4: Sender<RequestPackage>,
-        request_queue_sx5: Sender<RequestPackage>,
+        request_queue_sx: Sender<RequestPackage>,
         stop_send: broadcast::Receiver<bool>,
     ) -> Self {
         return ClientKeepAlive {
             shard_num,
             heartbeat_manager,
-            request_queue_sx4,
-            request_queue_sx5,
+            request_queue_sx,
             stop_send,
         };
     }
@@ -61,8 +57,7 @@ impl ClientKeepAlive {
             let semaphore = Arc::new(Semaphore::new(self.shard_num as usize));
             for i in 0..self.shard_num {
                 let data = self.heartbeat_manager.get_shard_data(i);
-                let request_queue_sx4 = self.request_queue_sx4.clone();
-                let request_queue_sx5 = self.request_queue_sx5.clone();
+                let request_queue_sx = self.request_queue_sx.clone();
                 let sp = semaphore.clone();
                 tokio::spawn(async move {
                     match sp.acquire().await {
@@ -85,33 +80,28 @@ impl ClientKeepAlive {
                                             user_properties: vec![("heartbeat_close".to_string(), "true".to_string())],
                                             server_reference: None,
                                         });
-                            if time.protobol == MQTTProtocol::MQTT4 {
-                                let req = RequestPackage {
+                            let req = if time.protobol == MQTTProtocol::MQTT4
+                                || time.protobol == MQTTProtocol::MQTT3
+                            {
+                                RequestPackage {
                                     connection_id: connect_id,
                                     addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect.clone(), None),
-                                };
-                                match request_queue_sx4.send(req) {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        error(e.to_string());
-                                    }
-                                };
-                            }
-                            if time.protobol == MQTTProtocol::MQTT5 {
-                                let req = RequestPackage {
+                                }
+                            } else {
+                                RequestPackage {
                                     connection_id: connect_id,
                                     addr: "127.0.0.1:1000".parse().unwrap(),
                                     packet: MQTTPacket::Disconnect(disconnect, properties),
-                                };
+                                }
+                            };
 
-                                match request_queue_sx5.send(req) {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        error(e.to_string());
-                                    }
-                                };
-                            }
+                            match request_queue_sx.send(req) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    error(e.to_string());
+                                }
+                            };
                         }
                     }
                 });

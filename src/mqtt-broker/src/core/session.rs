@@ -4,7 +4,7 @@ use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::{cluster::MQTTCluster, session::{LastWillData, MQTTSession}};
-use protocol::mqtt::{Connect, ConnectProperties, LastWill, LastWillProperties};
+use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
 pub async fn build_session(
     connect_id: u64,

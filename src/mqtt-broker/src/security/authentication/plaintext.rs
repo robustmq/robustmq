@@ -3,7 +3,7 @@ use metadata_struct::mqtt::user::MQTTUser;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use dashmap::DashMap;
-use protocol::mqtt::Login;
+use protocol::mqtt::common::Login;
 
 pub struct Plaintext<'a> {
     login: Login,

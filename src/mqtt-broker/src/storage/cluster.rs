@@ -43,12 +43,11 @@ impl ClusterStorage {
         let node = MQTTNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
             http_addr: format!("{}:{}", local_ip, config.http_port),
-            mqtt4_addr: format!("{}:{}", local_ip, config.mqtt.mqtt4_port),
-            mqtt4s_addr: format!("{}:{}", local_ip, config.mqtt.mqtts4_port),
-            mqtt5_addr: format!("{}:{}", local_ip, config.mqtt.mqtt5_port),
-            mqtt5s_addr: format!("{}:{}", local_ip, config.mqtt.mqtts5_port),
+            mqtt_addr: format!("{}:{}", local_ip, config.mqtt.tcp_port),
+            mqtts_addr: format!("{}:{}", local_ip, config.mqtt.tcps_port),
             websocket_addr: format!("{}:{}", local_ip, config.mqtt.websocket_port),
             websockets_addr: format!("{}:{}", local_ip, config.mqtt.websockets_port),
+            quic_addr: format!("{}:{}", local_ip, config.mqtt.quic_port),
         };
         req.extend_info = serde_json::to_string(&node).unwrap();
 

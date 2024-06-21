@@ -7,7 +7,7 @@ mod tests {
     use mqtt_broker::storage::{
         cluster::ClusterStorage, session::SessionStorage, topic::TopicStorage, user::UserStorage,
     };
-    use protocol::mqtt::{Publish, PublishProperties};
+    use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;
     use crate::common::setup;
 

@@ -26,12 +26,32 @@ use std::{fmt, io, slice::Iter, str::Utf8Error, string::FromUtf8Error};
 // TODO: Handle the cases when there are no properties using Inner struct, so
 // handling of properties can be made simplier internally
 
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub enum MQTTProtocolVersion {
-    // mqtt 3.1 && mqtt 3.1.1
+#[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
+pub enum MQTTProtocol {
+    #[default]
+    MQTT3,
     MQTT4,
-    // mqtt 5.0
     MQTT5,
+}
+
+impl From<MQTTProtocol> for String {
+    fn from(protocol: MQTTProtocol) -> Self {
+        match protocol {
+            MQTTProtocol::MQTT3 => "MQTT3".into(),
+            MQTTProtocol::MQTT4 => "MQTT4".into(),
+            MQTTProtocol::MQTT5 => "MQTT5".into(),
+        }
+    }
+}
+
+impl From<MQTTProtocol> for u8 {
+    fn from(protocol: MQTTProtocol) -> Self {
+        match protocol {
+            MQTTProtocol::MQTT3 => 3,
+            MQTTProtocol::MQTT4 => 4,
+            MQTTProtocol::MQTT5 => 5,
+        }
+    }
 }
 
 ///MQTT packet type
@@ -57,6 +77,7 @@ pub enum PacketType {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MQTTPacket {
     Connect(
+        u8,
         Connect,
         Option<ConnectProperties>,
         Option<LastWill>,
@@ -1118,10 +1139,11 @@ pub fn connect_read(
         let clean_session = (connect_flags & 0b10) != 0;
         let keep_alive = read_u16(&mut bytes)?;
 
-        let properties = crate::mqttv5::connect::properties::read(&mut bytes)?;
+        let properties = crate::mqtt::mqttv5::connect::properties::read(&mut bytes)?;
         let client_id = read_mqtt_string(&mut bytes)?;
-        let (will, willproperties) = crate::mqttv5::connect::will::read(connect_flags, &mut bytes)?;
-        let login = crate::mqttv5::connect::login::read(connect_flags, &mut bytes)?;
+        let (will, willproperties) =
+            crate::mqtt::mqttv5::connect::will::read(connect_flags, &mut bytes)?;
+        let login = crate::mqtt::mqttv5::connect::login::read(connect_flags, &mut bytes)?;
 
         let connect = Connect {
             keep_alive,
@@ -1145,8 +1167,8 @@ pub fn connect_read(
         let keep_alive = read_u16(&mut bytes)?;
         let client_id = read_mqtt_bytes(&mut bytes)?;
         let client_id = std::str::from_utf8(&client_id)?.to_owned();
-        let last_will = crate::mqttv4::connect::will::read(connect_flags, &mut bytes)?;
-        let login = crate::mqttv4::connect::login::read(connect_flags, &mut bytes)?;
+        let last_will = crate::mqtt::mqttv4::connect::will::read(connect_flags, &mut bytes)?;
+        let login = crate::mqtt::mqttv4::connect::login::read(connect_flags, &mut bytes)?;
 
         let connect = Connect {
             keep_alive,

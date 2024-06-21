@@ -3,7 +3,7 @@ use crate::storage::topic::TopicStorage;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::topic::MQTTTopic;
-use protocol::mqtt::{Publish, PublishProperties};
+use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};

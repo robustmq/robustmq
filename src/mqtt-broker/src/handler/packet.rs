@@ -1,7 +1,6 @@
 use crate::core::metadata_cache::MetadataCacheManager;
-use crate::server::MQTTProtocol;
 use metadata_struct::mqtt::cluster::MQTTCluster;
-use protocol::mqtt::{
+use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
     PubCompReason, PubRec, PubRecProperties, PubRecReason, PubRel, PubRelReason, SubAck,
@@ -11,16 +10,12 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MQTTAckBuild {
-    protocol: MQTTProtocol,
     metadata_cache: Arc<MetadataCacheManager>,
 }
 
 impl MQTTAckBuild {
-    pub fn new(protocol: MQTTProtocol, metadata_cache: Arc<MetadataCacheManager>) -> Self {
-        return MQTTAckBuild {
-            protocol,
-            metadata_cache,
-        };
+    pub fn new(metadata_cache: Arc<MetadataCacheManager>) -> Self {
+        return MQTTAckBuild { metadata_cache };
     }
 
     pub fn packet_connect_success(

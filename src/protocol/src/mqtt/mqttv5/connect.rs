@@ -96,6 +96,7 @@ pub fn read(
     mut bytes: Bytes,
 ) -> Result<
     (
+        u8,
         Connect,
         Option<ConnectProperties>,
         Option<LastWill>,
@@ -132,7 +133,14 @@ pub fn read(
         clean_session,
     };
 
-    Ok((connect, properties, will, willproperties, login))
+    Ok((
+        protocol_level,
+        connect,
+        properties,
+        will,
+        willproperties,
+        login,
+    ))
 }
 
 pub mod properties {
@@ -676,9 +684,9 @@ mod tests {
         assert_eq!(fixedheader.fixed_header_len, 3);
         assert!(fixedheader.remaining_len == 273);
         // test the read method of connect packet in v5 and verify the result of the write method
-        let (connect, connectproperties, lastwill, lastwillproperties, login) =
+        let (protocol_level, connect, connectproperties, lastwill, lastwillproperties, login) =
             read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
-        
+
         assert_eq!(connect.client_id, "test_client_id");
         assert_eq!(connect.keep_alive, 30u16);
         assert_eq!(connect.clean_session, true);
@@ -690,39 +698,56 @@ mod tests {
         assert_eq!(connect_properties.topic_alias_max, Some(100u16));
         assert_eq!(connect_properties.request_response_info, Some(1u8));
         assert_eq!(connect_properties.request_problem_info, Some(1u8));
-        assert_eq!(connect_properties.user_properties.get(0).unwrap(), &("username".to_string(), "justin".to_string()));
-        assert_eq!(connect_properties.authentication_method, Some("SCRAM-SHA-256".to_string()));
-        assert_eq!(connect_properties.authentication_data, Some(Bytes::from("client-first-data")));
+        assert_eq!(
+            connect_properties.user_properties.get(0).unwrap(),
+            &("username".to_string(), "justin".to_string())
+        );
+        assert_eq!(
+            connect_properties.authentication_method,
+            Some("SCRAM-SHA-256".to_string())
+        );
+        assert_eq!(
+            connect_properties.authentication_data,
+            Some(Bytes::from("client-first-data"))
+        );
 
         let login_read = login.unwrap();
-        assert_eq!(login_read.username, "test_user" );
-        assert_eq!(login_read.password, "test_password" );
+        assert_eq!(login_read.username, "test_user");
+        assert_eq!(login_read.password, "test_password");
 
         let lastwill_read = lastwill.unwrap();
-        assert_eq!(lastwill_read.topic, "will_topic" );
-        assert_eq!(lastwill_read.message, "will_message" );
+        assert_eq!(lastwill_read.topic, "will_topic");
+        assert_eq!(lastwill_read.message, "will_message");
         assert_eq!(lastwill_read.qos, QoS::AtLeastOnce);
         assert_eq!(lastwill_read.retain, true);
 
         let lastwillproperties_read = lastwillproperties.unwrap();
         assert_eq!(lastwillproperties_read.delay_interval, Some(60u32));
-        assert_eq!(lastwillproperties_read.payload_format_indicator, Some(1u8) );
+        assert_eq!(lastwillproperties_read.payload_format_indicator, Some(1u8));
         assert_eq!(lastwillproperties_read.message_expiry_interval, Some(60u32));
-        assert_eq!(lastwillproperties_read.content_type, Some("content-type".to_string()));
-        assert_eq!(lastwillproperties_read.response_topic, Some("response-topic".to_string()));
-        assert_eq!(lastwillproperties_read.correlation_data, Some(Bytes::from("correlation-data")));
-        assert_eq!(lastwillproperties_read.user_properties.get(0).unwrap(), &("will_user".to_string(), "peter".to_string()));
-        
+        assert_eq!(
+            lastwillproperties_read.content_type,
+            Some("content-type".to_string())
+        );
+        assert_eq!(
+            lastwillproperties_read.response_topic,
+            Some("response-topic".to_string())
+        );
+        assert_eq!(
+            lastwillproperties_read.correlation_data,
+            Some(Bytes::from("correlation-data"))
+        );
+        assert_eq!(
+            lastwillproperties_read.user_properties.get(0).unwrap(),
+            &("will_user".to_string(), "peter".to_string())
+        );
 
         println!("connect in v5 display starts...........................");
         print!("{}", connect_properties);
         print!("{}", login_read);
         print!("{}", connect);
         print!("{}", lastwill_read);
-        println!("{}", lastwillproperties_read); 
+        println!("{}", lastwillproperties_read);
         println!("connect in v5 display ends.............................");
-        
-
-
     }
 }

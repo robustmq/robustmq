@@ -1,4 +1,4 @@
-use crate::mqtt::LastWillProperties;
+use crate::mqtt::common::LastWillProperties;
 use bytes::BytesMut;
 use tokio_util::codec;
 
@@ -20,7 +20,7 @@ impl codec::Encoder<MQTTPacket> for Mqtt5Codec {
     type Error = super::Error;
     fn encode(&mut self, packet: MQTTPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         let size = match packet {
-            MQTTPacket::Connect(connect, properties, last_will, last_will_peoperties, login) => {
+            MQTTPacket::Connect(protocol_level,connect, properties, last_will, last_will_peoperties, login) => {
                 connect::write(&connect, &properties, &last_will,  &last_will_peoperties, &login, buffer)?
             }
             MQTTPacket::ConnAck(connack, conn_ack_properties) => connack::write(&connack,&conn_ack_properties, buffer)?,
@@ -57,9 +57,16 @@ impl codec::Decoder for Mqtt5Codec {
         let packet = packet.freeze();
         let packet = match packet_type {
             PacketType::Connect => {
-                let (connect, properties, last_will, last_will_properties, login) =
+                let (protocol_level, connect, properties, last_will, last_will_properties, login) =
                     connect::read(fixed_header, packet)?;
-                MQTTPacket::Connect(connect, properties, last_will, last_will_properties, login)
+                MQTTPacket::Connect(
+                    protocol_level,
+                    connect,
+                    properties,
+                    last_will,
+                    last_will_properties,
+                    login,
+                )
             }
             PacketType::ConnAck => {
                 let (conn_ack, conn_ack_properties) = connack::read(fixed_header, packet)?;

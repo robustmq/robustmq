@@ -4,14 +4,13 @@ use super::sub_common::{
 };
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::subscribe::subscriber::Subscriber;
-use crate::server::MQTTProtocol;
 use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     log::{error, info},
 };
 use dashmap::DashMap;
-use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{Filter, MQTTProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::broadcast::Sender, time::sleep};
@@ -37,7 +36,7 @@ pub struct ShareLeaderSubscribeData {
 }
 
 #[derive(Clone)]
-pub struct SubscribeCache {
+pub struct SubscribeCacheManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<MetadataCacheManager>,
 
@@ -63,9 +62,9 @@ pub struct SubscribeCache {
     pub share_follower_identifier_id: DashMap<usize, String>,
 }
 
-impl SubscribeCache {
+impl SubscribeCacheManager {
     pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
-        return SubscribeCache {
+        return SubscribeCacheManager {
             client_poll,
             metadata_cache,
             exclusive_subscribe: DashMap::with_capacity(8),

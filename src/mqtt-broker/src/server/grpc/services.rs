@@ -10,7 +10,7 @@ use protocol::{
         mqtt_broker_service_server::MqttBrokerService, CommonReply, CreateUserRequest,
         SetClusterConfigRequest, UpdateCacheRequest,
     },
-    mqtt::{qos, QoS},
+    mqtt::common::{qos, QoS},
 };
 use std::sync::Arc;
 use tonic::{Request, Response, Status};

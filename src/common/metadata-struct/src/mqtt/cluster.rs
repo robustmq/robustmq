@@ -1,4 +1,4 @@
-use protocol::{broker_server::generate::mqtt::Available, mqtt::QoS};
+use protocol::{broker_server::generate::mqtt::Available, mqtt::common::QoS};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]

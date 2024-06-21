@@ -1,5 +1,5 @@
-use crate::server::MQTTProtocol;
 use dashmap::DashMap;
+use protocol::mqtt::common::MQTTProtocol;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]

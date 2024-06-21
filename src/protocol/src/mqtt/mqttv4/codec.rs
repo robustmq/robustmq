@@ -19,7 +19,7 @@ impl codec::Encoder<MQTTPacket> for Mqtt4Codec {
     type Error = super::Error;
     fn encode(&mut self, packet: MQTTPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         match packet {
-            MQTTPacket::Connect(connect, None, last_will, None, login) => {
+            MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login) => {
                 connect::write(&connect, &login, &last_will, buffer)?
             }
             MQTTPacket::ConnAck(connack, _) => connack::write(&connack, buffer)?,
@@ -56,8 +56,8 @@ impl codec::Decoder for Mqtt4Codec {
         let packet = packet.freeze();
         let packet = match packet_type {
             PacketType::Connect => {
-                let (connect, login, lastwill) = connect::read(fixed_header, packet)?;
-                MQTTPacket::Connect(connect, None, lastwill, None, login)
+                let (protocol_level,connect, login, lastwill) = connect::read(fixed_header, packet)?;
+                MQTTPacket::Connect(protocol_level, connect, None, lastwill, None, login)
             }
             PacketType::ConnAck => MQTTPacket::ConnAck(connack::read(fixed_header, packet)?, None),
             PacketType::Publish => MQTTPacket::Publish(publish::read(fixed_header, packet)?, None),

@@ -7,7 +7,7 @@ use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, publish_get_topic_name};
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
-use crate::subscribe::subscribe_cache::SubscribeCache;
+use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use crate::{
     core::heartbeat_cache::{ConnectionLiveTime, HeartbeatCache},
     security::authentication::authentication_login,
@@ -17,11 +17,11 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
-use protocol::mqtt::{
+use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
-    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
-    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,
-    PubRelProperties, PubRelReason, Publish, PublishProperties, QoS, Subscribe,
+    DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
+    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties,
+    PubRel, PubRelProperties, PubRelReason, Publish, PublishProperties, QoS, Subscribe,
     SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
 use std::net::SocketAddr;
@@ -35,7 +35,7 @@ pub struct Mqtt5Service<S> {
     ack_build: MQTTAckBuild,
     heartbeat_manager: Arc<HeartbeatCache>,
     message_storage_adapter: Arc<S>,
-    sucscribe_cache: Arc<SubscribeCache>,
+    sucscribe_cache: Arc<SubscribeCacheManager>,
     qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
@@ -49,7 +49,7 @@ where
         ack_build: MQTTAckBuild,
         heartbeat_manager: Arc<HeartbeatCache>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeCache>,
+        sucscribe_manager: Arc<SubscribeCacheManager>,
         qos_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
@@ -145,7 +145,7 @@ where
 
         // Record heartbeat information
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
-            protobol: crate::server::MQTTProtocol::MQTT5,
+            protobol: MQTTProtocol::MQTT5,
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
@@ -487,7 +487,7 @@ where
         // Saving subscriptions
         self.metadata_cache.add_client_subscribe(
             client_id.clone(),
-            crate::server::MQTTProtocol::MQTT5,
+            MQTTProtocol::MQTT5,
             subscribe.clone(),
             subscribe_properties.clone(),
         );
@@ -495,7 +495,7 @@ where
         self.sucscribe_cache
             .add_subscribe(
                 client_id.clone(),
-                crate::server::MQTTProtocol::MQTT5,
+                MQTTProtocol::MQTT5,
                 subscribe.clone(),
                 subscribe_properties.clone(),
             )
@@ -538,7 +538,7 @@ where
         };
 
         let live_time = ConnectionLiveTime {
-            protobol: crate::server::MQTTProtocol::MQTT5,
+            protobol: MQTTProtocol::MQTT5,
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
