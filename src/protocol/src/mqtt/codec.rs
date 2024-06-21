@@ -2,6 +2,11 @@ use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPa
 use bytes::BytesMut;
 use tokio_util::codec;
 
+pub struct MQTTPacketWrapper{
+    pub protocol_version: u8,
+    pub packet:MQTTPacket
+}
+
 #[derive(Clone, Debug)]
 pub struct MqttCodec {
     pub protocol_version: Option<u8>,
@@ -15,20 +20,15 @@ impl MqttCodec {
     }
 }
 
-impl codec::Encoder<MQTTPacket> for MqttCodec {
+impl codec::Encoder<MQTTPacketWrapper> for MqttCodec {
     type Error = crate::mqtt::common::Error;
     fn encode(
         &mut self,
-        packet: MQTTPacket,
+        packet_wrapper: MQTTPacketWrapper,
         buffer: &mut BytesMut,
     ) -> Result<(), Self::Error> {
-
-        println!("xxx encode {:?}",self.protocol_version);
-        if self.protocol_version.is_none(){
-            return Err(Error::InvalidProtocol);
-        }
-
-        let protocol_version = self.protocol_version.unwrap();
+        let packet = packet_wrapper.packet;
+        let protocol_version = packet_wrapper.protocol_version;
 
         if protocol_version == 4 || protocol_version == 3{
             let size = match packet {

@@ -12,7 +12,7 @@ use crate::{
 use common_base::log::{debug, error, info};
 use futures::StreamExt;
 use protocol::mqtt::{
-    codec::MqttCodec,
+    codec::{MQTTPacketWrapper, MqttCodec},
     common::{DisconnectReasonCode, MQTTPacket},
 };
 use std::{fmt::Error, sync::Arc};
@@ -208,9 +208,16 @@ where
                     "response packet:{:?}",
                     response_package.packet.clone()
                 ));
-                connect_manager
-                    .write_frame(response_package.connection_id, response_package.packet)
-                    .await;
+
+                if let Some(connect) = connect_manager.get_connect(response_package.connection_id) {
+                    let packet_wrapper = MQTTPacketWrapper {
+                        protocol_version: connect.protocol.unwrap(),
+                        packet: response_package.packet,
+                    };
+                    connect_manager
+                        .write_frame(response_package.connection_id, packet_wrapper)
+                        .await;
+                }
             }
         });
         return Ok(());
