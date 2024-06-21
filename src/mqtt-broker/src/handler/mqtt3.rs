@@ -2,7 +2,7 @@ use super::packet::MQTTAckBuild;
 use crate::core::heartbeat_cache::HeartbeatCache;
 use crate::core::metadata_cache::MetadataCacheManager;
 use common_base::tools::unique_id;
-use protocol::mqtt::{
+use protocol::mqtt::common::{
     Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
     Publish, Subscribe, Unsubscribe,
 };
@@ -88,6 +88,6 @@ impl Mqtt3Service {
     fn un_login_err(&self) -> MQTTPacket {
         return self
             .ack_build
-            .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized, None);
+            .distinct(protocol::mqtt::common::DisconnectReasonCode::NotAuthorized, None);
     }
 }

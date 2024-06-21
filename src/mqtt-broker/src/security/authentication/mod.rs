@@ -3,7 +3,7 @@ use crate::core::metadata_cache::MetadataCacheManager;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::cluster::MQTTCluster;
-use protocol::mqtt::{ConnectProperties, Login};
+use protocol::mqtt::common::{ConnectProperties, Login};
 use std::{net::SocketAddr, sync::Arc};
 
 pub mod plaintext;

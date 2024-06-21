@@ -1,5 +1,5 @@
 use common_base::tools::now_second;
-use protocol::mqtt::{LastWill, LastWillProperties};
+use protocol::mqtt::common::{LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]

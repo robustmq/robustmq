@@ -21,8 +21,8 @@ use common_base::{
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
-use protocol::{
-    mqtt::{
+use protocol::mqtt::{
+    common::{
         Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, PingReq, PubAck,
         PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
         PubRecProperties, PubRecReason, Publish, PublishProperties, Subscribe, SubscribeProperties,
@@ -339,9 +339,9 @@ async fn process_packet(
         MQTTPacket::SubAck(suback, _) => {
             let mut is_success = true;
             for reason in suback.return_codes.clone() {
-                if !(reason == SubscribeReasonCode::Success(protocol::mqtt::QoS::AtLeastOnce)
-                    || reason == SubscribeReasonCode::Success(protocol::mqtt::QoS::AtMostOnce)
-                    || reason == SubscribeReasonCode::Success(protocol::mqtt::QoS::ExactlyOnce)
+                if !(reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtLeastOnce)
+                    || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::AtMostOnce)
+                    || reason == SubscribeReasonCode::Success(protocol::mqtt::common::QoS::ExactlyOnce)
                     || reason == SubscribeReasonCode::QoS0
                     || reason == SubscribeReasonCode::QoS1
                     || reason == SubscribeReasonCode::QoS2)
@@ -356,7 +356,7 @@ async fn process_packet(
             tokio::spawn(async move {
                 match publish.qos {
                     // 1. leader publish to resub thread
-                    protocol::mqtt::QoS::AtMostOnce => {
+                    protocol::mqtt::common::QoS::AtMostOnce => {
                         publish.dup = false;
                         publish_message_qos0(
                             metadata_cache.clone(),
@@ -370,7 +370,7 @@ async fn process_packet(
                         .await;
                     }
 
-                    protocol::mqtt::QoS::AtLeastOnce => {
+                    protocol::mqtt::common::QoS::AtLeastOnce => {
                         let publish_to_client_pkid: u16 =
                             metadata_cache.get_pkid(mqtt_client_id.clone()).await;
 
@@ -411,7 +411,7 @@ async fn process_packet(
                         }
                     }
 
-                    protocol::mqtt::QoS::ExactlyOnce => {
+                    protocol::mqtt::common::QoS::ExactlyOnce => {
                         let publish_to_client_pkid: u16 =
                             metadata_cache.get_pkid(mqtt_client_id.clone()).await;
 

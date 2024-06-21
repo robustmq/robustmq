@@ -1,4 +1,4 @@
-use protocol::mqtt::{Filter, QoS, SubscribeProperties};
+use protocol::mqtt::common::{Filter, QoS, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use crate::server::MQTTProtocol;
 

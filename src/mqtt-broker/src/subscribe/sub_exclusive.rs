@@ -11,7 +11,7 @@ use common_base::{
     tools::now_second,
 };
 use metadata_struct::mqtt::message::MQTTMessage;
-use protocol::mqtt::{MQTTPacket, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{

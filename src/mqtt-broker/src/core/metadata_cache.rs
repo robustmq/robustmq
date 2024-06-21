@@ -14,7 +14,7 @@ use metadata_struct::mqtt::message::MQTTMessage;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
-use protocol::mqtt::{Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;

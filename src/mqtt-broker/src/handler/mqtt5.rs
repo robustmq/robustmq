@@ -17,7 +17,7 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
-use protocol::mqtt::{
+use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, PingReq, PubAck,
     PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties, PubRel,

@@ -58,7 +58,7 @@ pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt::PubAckReason;
+    use crate::mqtt::common::PubAckReason;
 
     #[test]
     fn test_puback() {

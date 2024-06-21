@@ -11,7 +11,7 @@ use crate::{
 };
 use common_base::log::{debug, error, info};
 use futures::StreamExt;
-use protocol::mqtt::{DisconnectReasonCode, MQTTPacket};
+use protocol::mqtt::common::{DisconnectReasonCode, MQTTPacket};
 use std::{
     fmt::{Debug, Error},
     sync::Arc,
@@ -118,7 +118,7 @@ where
                                 let reason=format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string());
                                 error(reason.clone());
                                 packet_connect_fail(
-                                    protocol::mqtt::ConnectReturnCode::ServerBusy,
+                                    protocol::mqtt::common::ConnectReturnCode::ServerBusy,
                                     Some(reason),
                                 );
                                 continue;

@@ -14,7 +14,7 @@ use common_base::{
     config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
     log::info,
 };
-use protocol::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
+use protocol::mqtt::{mqttv4::codec::Mqtt4Codec, mqttv5::codec::Mqtt5Codec};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;

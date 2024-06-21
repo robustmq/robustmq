@@ -1,4 +1,4 @@
-use crate::mqtt::LastWillProperties;
+use crate::mqtt::common::LastWillProperties;
 use bytes::BytesMut;
 use tokio_util::codec;
 

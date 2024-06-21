@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use super::*;
-use crate::mqtt::*;
+use crate::mqtt::common::*;
 use std::{str::Utf8Error, slice::Iter, fmt};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 

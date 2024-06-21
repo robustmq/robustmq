@@ -16,7 +16,7 @@
 
 use super::*;
 
-use crate::mqtt::SubAckProperties;
+use crate::mqtt::common::SubAckProperties;
 
 pub fn len(suback: &SubAck, properties: &Option<SubAckProperties>) -> usize {
     let mut len = 2 + suback.return_codes.len();
@@ -86,7 +86,7 @@ pub fn read(
 mod properties {
     use bytes::Buf;
 
-    use crate::{mqttv5::PropertyType, mqtt::read_mqtt_string};
+    use crate::mqtt::{mqttv5::PropertyType, common::read_mqtt_string};
 
     use super::*;
 

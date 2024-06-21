@@ -7,7 +7,7 @@ use common_base::{
     log::{debug, error, info},
     tools::{now_mills, now_second},
 };
-use protocol::mqtt::{Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket};
+use protocol::mqtt::common::{Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{

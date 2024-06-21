@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use common_base::{errors::RobustMQError, tools::now_mills};
-use protocol::mqtt::{Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use storage_adapter::record::Record;
 

@@ -1118,10 +1118,10 @@ pub fn connect_read(
         let clean_session = (connect_flags & 0b10) != 0;
         let keep_alive = read_u16(&mut bytes)?;
 
-        let properties = crate::mqttv5::connect::properties::read(&mut bytes)?;
+        let properties = crate::mqtt::mqttv5::connect::properties::read(&mut bytes)?;
         let client_id = read_mqtt_string(&mut bytes)?;
-        let (will, willproperties) = crate::mqttv5::connect::will::read(connect_flags, &mut bytes)?;
-        let login = crate::mqttv5::connect::login::read(connect_flags, &mut bytes)?;
+        let (will, willproperties) = crate::mqtt::mqttv5::connect::will::read(connect_flags, &mut bytes)?;
+        let login = crate::mqtt::mqttv5::connect::login::read(connect_flags, &mut bytes)?;
 
         let connect = Connect {
             keep_alive,
@@ -1145,8 +1145,8 @@ pub fn connect_read(
         let keep_alive = read_u16(&mut bytes)?;
         let client_id = read_mqtt_bytes(&mut bytes)?;
         let client_id = std::str::from_utf8(&client_id)?.to_owned();
-        let last_will = crate::mqttv4::connect::will::read(connect_flags, &mut bytes)?;
-        let login = crate::mqttv4::connect::login::read(connect_flags, &mut bytes)?;
+        let last_will = crate::mqtt::mqttv4::connect::will::read(connect_flags, &mut bytes)?;
+        let login = crate::mqtt::mqttv4::connect::login::read(connect_flags, &mut bytes)?;
 
         let connect = Connect {
             keep_alive,

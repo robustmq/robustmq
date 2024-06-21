@@ -11,7 +11,7 @@ use common_base::{
     log::{error, info},
 };
 use dashmap::DashMap;
-use protocol::mqtt::{Filter, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{Filter, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{sync::broadcast::Sender, time::sleep};

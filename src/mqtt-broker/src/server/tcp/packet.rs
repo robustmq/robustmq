@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use protocol::mqtt::MQTTPacket;
+use protocol::mqtt::common::MQTTPacket;
 
 #[derive(Clone, Debug)]
 pub struct RequestPackage {

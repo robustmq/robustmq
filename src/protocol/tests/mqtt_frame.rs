@@ -2,9 +2,9 @@
 mod tests {
     use bytes::{Bytes, BytesMut};
     use futures::{SinkExt, StreamExt};
-    use protocol::{
+    use protocol::mqtt::{
         codec::MqttCodec,
-        mqtt::{
+        common::{
             ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
             Login, MQTTPacket,
         },
@@ -86,7 +86,7 @@ mod tests {
         let lastwill = Some(LastWill {
             topic: Bytes::from("topic1"),
             message: Bytes::from("connection content"),
-            qos: protocol::mqtt::QoS::AtLeastOnce,
+            qos: protocol::mqtt::common::QoS::AtLeastOnce,
             retain: true,
         });
 
@@ -151,7 +151,7 @@ mod tests {
         let lastwill = Some(LastWill {
             topic: Bytes::from("topic1"),
             message: Bytes::from("connection content"),
-            qos: protocol::mqtt::QoS::AtLeastOnce,
+            qos: protocol::mqtt::common::QoS::AtLeastOnce,
             retain: true,
         });
 

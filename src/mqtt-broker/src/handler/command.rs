@@ -9,7 +9,7 @@ use crate::server::MQTTProtocol;
 use crate::subscribe::subscribe_cache::SubscribeCache;
 use clients::poll::ClientPool;
 use common_base::log::info;
-use protocol::mqtt::{ConnectReturnCode, MQTTPacket};
+use protocol::mqtt::common::{ConnectReturnCode, MQTTPacket};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
@@ -279,13 +279,13 @@ where
 
             _ => {
                 return Some(self.ack_build.distinct(
-                    protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError,
+                    protocol::mqtt::common::DisconnectReasonCode::ImplementationSpecificError,
                     None,
                 ));
             }
         }
         return Some(self.ack_build.distinct(
-            protocol::mqtt::DisconnectReasonCode::ImplementationSpecificError,
+            protocol::mqtt::common::DisconnectReasonCode::ImplementationSpecificError,
             None,
         ));
     }
@@ -294,7 +294,7 @@ where
         info(format!("connect id [{}] Not logged in", connect_id));
         return self
             .ack_build
-            .distinct(protocol::mqtt::DisconnectReasonCode::NotAuthorized, None);
+            .distinct(protocol::mqtt::common::DisconnectReasonCode::NotAuthorized, None);
     }
 
     pub async fn auth_login(&self, connect_id: u64) -> bool {

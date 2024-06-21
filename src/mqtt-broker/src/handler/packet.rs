@@ -1,7 +1,7 @@
 use crate::core::metadata_cache::MetadataCacheManager;
 use crate::server::MQTTProtocol;
 use metadata_struct::mqtt::cluster::MQTTCluster;
-use protocol::mqtt::{
+use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties, PubAckReason, PubComp,
     PubCompReason, PubRec, PubRecProperties, PubRecReason, PubRel, PubRelReason, SubAck,

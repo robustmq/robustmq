@@ -3,7 +3,7 @@ use crate::{metrics::metrics_connection_num, server::MQTTProtocol};
 use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
-use protocol::mqtt::MQTTPacket;
+use protocol::mqtt::common::MQTTPacket;
 use std::{fmt::Debug, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::{Decoder, Encoder, FramedWrite};
