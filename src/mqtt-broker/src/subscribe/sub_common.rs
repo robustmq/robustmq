@@ -1,5 +1,5 @@
 use crate::core::cache_manager::CacheManager;
-use crate::core::qos_manager::QosAckPackageData;
+use crate::core::cache_manager::QosAckPackageData;
 use crate::storage::topic::TopicStorage;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use bytes::Bytes;
@@ -8,8 +8,8 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::common::{
-    MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS, RetainForwardRule,
-    Subscribe, SubscribeProperties,
+    MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
+    SubscribeProperties,
 };
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
@@ -219,22 +219,14 @@ pub async fn wait_packet_ack(sx: Sender<QosAckPackageData>) -> Option<QosAckPack
 }
 
 pub async fn publish_to_response_queue(
-    protocol: MQTTProtocol,
     resp: ResponsePackage,
-    response_queue_sx4: broadcast::Sender<ResponsePackage>,
-    response_queue_sx5: broadcast::Sender<ResponsePackage>,
+    response_queue_sx: broadcast::Sender<ResponsePackage>,
 ) -> Result<(), RobustMQError> {
-    if protocol == MQTTProtocol::MQTT4 {
-        match response_queue_sx4.send(resp) {
-            Ok(_) => {}
-            Err(e) => return Err(RobustMQError::CommmonError(format!("{}", e.to_string()))),
-        }
-    } else if protocol == MQTTProtocol::MQTT5 {
-        match response_queue_sx5.send(resp) {
-            Ok(_) => {}
-            Err(e) => return Err(RobustMQError::CommmonError(format!("{}", e.to_string()))),
-        }
+    match response_queue_sx.send(resp) {
+        Ok(_) => {}
+        Err(e) => return Err(RobustMQError::CommmonError(format!("{}", e.to_string()))),
     }
+
     return Ok(());
 }
 
@@ -243,9 +235,7 @@ pub async fn qos2_send_publish(
     client_id: String,
     mut publish: Publish,
     publish_properties: Option<PublishProperties>,
-    protocol: MQTTProtocol,
-    response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_sx5: Sender<ResponsePackage>,
+    response_queue_sx: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let mut retry_times = 0;
@@ -278,10 +268,8 @@ pub async fn qos2_send_publish(
                 }
             }
             val = publish_to_response_queue(
-                protocol.clone(),
                 resp.clone(),
-                response_queue_sx4.clone(),
-                response_queue_sx5.clone(),
+                response_queue_sx.clone(),
             ) =>{
                 match val{
                     Ok(_) => {
@@ -304,9 +292,7 @@ pub async fn qos2_send_pubrel(
     metadata_cache: Arc<CacheManager>,
     client_id: String,
     pkid: u16,
-    protocol: MQTTProtocol,
-    response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_sx5: Sender<ResponsePackage>,
+    response_queue_sx: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let mut stop_rx = stop_sx.subscribe();
@@ -342,10 +328,8 @@ pub async fn qos2_send_pubrel(
             }
 
             val = publish_to_response_queue(
-                protocol.clone(),
                 pubrel_resp.clone(),
-                response_queue_sx4.clone(),
-                response_queue_sx5.clone(),
+                response_queue_sx.clone(),
             ) =>{
                 match val{
                     Ok(_) => {
@@ -393,9 +377,7 @@ pub async fn publish_message_qos0(
     metadata_cache: Arc<CacheManager>,
     mqtt_client_id: String,
     publish: Publish,
-    protocol: MQTTProtocol,
-    response_queue_sx4: Sender<ResponsePackage>,
-    response_queue_sx5: Sender<ResponsePackage>,
+    response_queue_sx: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let connect_id;
@@ -424,14 +406,7 @@ pub async fn publish_message_qos0(
     };
 
     // 2. publish to mqtt client
-    match publish_to_response_queue(
-        protocol.clone(),
-        resp.clone(),
-        response_queue_sx4.clone(),
-        response_queue_sx5.clone(),
-    )
-    .await
-    {
+    match publish_to_response_queue(resp.clone(), response_queue_sx.clone()).await {
         Ok(_) => {}
         Err(e) => {
             error(format!(

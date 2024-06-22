@@ -5,6 +5,7 @@ use crate::subscribe::subscriber::SubscribeData;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::log::warn;
+use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use metadata_struct::mqtt::message::MQTTMessage;
@@ -16,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
+use tokio::sync::broadcast::Sender;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -42,6 +44,32 @@ pub struct ConnectionLiveTime {
     pub protobol: MQTTProtocol,
     pub keep_live: u16,
     pub heartbeat: u64,
+}
+
+#[derive(Clone)]
+pub struct QosAckPacketInfo {
+    pub sx: Sender<QosAckPackageData>,
+    pub create_time: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct QosAckPackageData {
+    pub ack_type: QosAckPackageType,
+    pub pkid: u16,
+}
+
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
+pub enum QosAckPackageType {
+    PubAck,
+    PubComp,
+    PubRel,
+    PubRec,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ClientPkidData {
+    pub client_id: String,
+    pub create_time: u64,
 }
 
 #[derive(Clone)]
@@ -80,6 +108,12 @@ pub struct CacheManager {
 
     // (connect_id, HeartbeatShard)
     pub heartbeat_shard_data: DashMap<u64, HeartbeatShard>,
+
+    //(client_id_pkid, AckPacketInfo)
+    pub qos_ack_packet: DashMap<String, QosAckPacketInfo>,
+
+    // (client_id_pkid, QosPkidData)
+    pub client_pkid_data: DashMap<String, ClientPkidData>,
 }
 
 impl CacheManager {
@@ -97,6 +131,8 @@ impl CacheManager {
             publish_pkid_info: DashMap::with_capacity(8),
             heartbeat_shard_num: shard_num,
             heartbeat_shard_data: DashMap::with_capacity(256),
+            qos_ack_packet: DashMap::with_capacity(8),
+            client_pkid_data: DashMap::with_capacity(8),
         };
         return cache;
     }
@@ -392,6 +428,52 @@ impl CacheManager {
 
     pub fn calc_shard_hash_num(&self, connect_id: u64) -> u64 {
         return connect_id % self.heartbeat_shard_num;
+    }
+
+    pub fn add_ack_packet(&self, client_id: String, pkid: u16, packet: QosAckPacketInfo) {
+        let key = self.key(client_id, pkid);
+        self.qos_ack_packet.insert(key, packet);
+    }
+
+    pub fn remove_ack_packet(&self, client_id: String, pkid: u16) {
+        let key = self.key(client_id, pkid);
+        self.qos_ack_packet.remove(&key);
+    }
+
+    pub fn get_ack_packet(&self, client_id: String, pkid: u16) -> Option<QosAckPacketInfo> {
+        let key = self.key(client_id, pkid);
+        if let Some(data) = self.qos_ack_packet.get(&key) {
+            return Some(data.clone());
+        }
+        return None;
+    }
+
+    pub async fn add_client_pkid(&self, client_id: String, pkid: u16) {
+        let key = self.key(client_id.clone(), pkid);
+        self.client_pkid_data.insert(
+            key,
+            ClientPkidData {
+                client_id,
+                create_time: now_second(),
+            },
+        );
+    }
+
+    pub async fn delete_client_pkid(&self, client_id: String, pkid: u16) {
+        let key = self.key(client_id, pkid);
+        self.client_pkid_data.remove(&key);
+    }
+
+    pub async fn get_client_pkid(&self, client_id: String, pkid: u16) -> Option<ClientPkidData> {
+        let key = self.key(client_id, pkid);
+        if let Some(data) = self.client_pkid_data.get(&key) {
+            return Some(data.clone());
+        }
+        return None;
+    }
+
+    fn key(&self, client_id: String, pkid: u16) -> String {
+        return format!("{}_{}", client_id, pkid);
     }
 }
 

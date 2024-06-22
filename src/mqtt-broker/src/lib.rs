@@ -17,7 +17,7 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
-use core::{cache_manager::CacheManager, qos_manager::QosManager};
+use core::cache_manager::CacheManager;
 use core::{client_keep_alive::ClientKeepAlive, HEART_CONNECT_SHARD_HASH_NUM};
 use server::{
     grpc::server::GrpcServer,
@@ -78,7 +78,6 @@ pub struct MqttBroker<'a, S> {
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeCacheManager>,
-    qos_manager: Arc<QosManager>,
 }
 
 impl<'a, S> MqttBroker<'a, S>
@@ -95,7 +94,6 @@ where
 
         let (request_queue_sx, _) = broadcast::channel(1000);
         let (response_queue_sx, _) = broadcast::channel(1000);
-        let qos_manager: Arc<QosManager> = Arc::new(QosManager::new());
         let subscribe_manager = Arc::new(SubscribeCacheManager::new(
             metadata_cache.clone(),
             client_poll.clone(),
@@ -110,7 +108,6 @@ where
             client_poll,
             message_storage_adapter,
             subscribe_manager,
-            qos_manager,
         };
     }
 
@@ -128,7 +125,6 @@ where
     fn start_mqtt_server(&self) {
         let cache = self.cache_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
-        let qos_manager = self.qos_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let client_poll = self.client_poll.clone();
 
@@ -139,7 +135,6 @@ where
                 subscribe_manager,
                 cache,
                 message_storage_adapter,
-                qos_manager,
                 client_poll,
                 request_queue_sx,
                 response_queue_sx,
@@ -160,11 +155,8 @@ where
     }
 
     fn start_http_server(&self) {
-        let http_state = HttpServerState::new(
-            self.cache_manager.clone(),
-            self.subscribe_manager.clone(),
-            self.qos_manager.clone(),
-        );
+        let http_state =
+            HttpServerState::new(self.cache_manager.clone(), self.subscribe_manager.clone());
         self.runtime
             .spawn(async move { start_http_server(http_state).await });
     }
@@ -201,7 +193,6 @@ where
             self.cache_manager.clone(),
             self.response_queue_sx.clone(),
             self.subscribe_manager.clone(),
-            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -213,7 +204,6 @@ where
             self.message_storage_adapter.clone(),
             self.response_queue_sx.clone(),
             self.cache_manager.clone(),
-            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -225,7 +215,6 @@ where
             self.response_queue_sx.clone(),
             self.cache_manager.clone(),
             self.client_poll.clone(),
-            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {

@@ -1,8 +1,8 @@
 use super::packet::MQTTAckBuild;
 use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
+use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
-use crate::core::qos_manager::{QosAckPackageData, QosAckPackageType, QosManager};
 use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, publish_get_topic_name};
 use crate::storage::topic::TopicStorage;
@@ -33,7 +33,6 @@ pub struct Mqtt5Service<S> {
     ack_build: MQTTAckBuild,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
-    qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -46,7 +45,6 @@ where
         ack_build: MQTTAckBuild,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
-        qos_manager: Arc<QosManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         return Mqtt5Service {
@@ -54,7 +52,6 @@ where
             ack_build,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
-            qos_manager,
             client_poll,
         };
     }
@@ -160,7 +157,6 @@ where
         connect_id: u64,
         publish: Publish,
         publish_properties: Option<PublishProperties>,
-        qos_manager: Arc<QosManager>,
     ) -> Option<MQTTPacket> {
         let topic_name = match publish_get_topic_name(
             connect_id,
@@ -221,7 +217,8 @@ where
             ));
         };
 
-        if !qos_manager
+        if !self
+            .cache_manager
             .get_client_pkid(client_id.clone(), publish.pkid)
             .await
             .is_none()
@@ -296,7 +293,7 @@ where
                 return Some(self.ack_build.pub_ack(pkid, None, user_properties));
             }
             QoS::ExactlyOnce => {
-                qos_manager
+                self.cache_manager
                     .add_client_pkid(connection.client_id, pkid)
                     .await;
                 return Some(self.ack_build.pub_rec(pkid, user_properties));
@@ -313,7 +310,7 @@ where
         if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_ack.pkid;
-            if let Some(data) = self.qos_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
                 match data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubAck,
                     pkid: pub_ack.pkid,
@@ -341,7 +338,7 @@ where
         if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_rec.pkid;
-            if let Some(data) = self.qos_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
                 match data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRec,
                     pkid: pub_rec.pkid,
@@ -369,7 +366,7 @@ where
         if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             let client_id = conn.client_id.clone();
             let pkid = pub_comp.pkid;
-            if let Some(data) = self.qos_manager.get_ack_packet(client_id.clone(), pkid) {
+            if let Some(data) = self.cache_manager.get_ack_packet(client_id.clone(), pkid) {
                 match data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubComp,
                     pkid: pub_comp.pkid,
@@ -392,7 +389,6 @@ where
         connect_id: u64,
         pub_rel: PubRel,
         _: Option<PubRelProperties>,
-        qos_manager: Arc<QosManager>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             conn.client_id.clone()
@@ -403,7 +399,8 @@ where
             );
         };
 
-        if qos_manager
+        if self
+            .cache_manager
             .get_client_pkid(client_id.clone(), pub_rel.pkid)
             .await
             .is_none()
@@ -411,7 +408,7 @@ where
             return publish_comp_fail(pub_rel.pkid);
         };
 
-        qos_manager
+        self.cache_manager
             .delete_client_pkid(client_id, pub_rel.pkid)
             .await;
         return publish_comp_success(pub_rel.pkid);
@@ -423,7 +420,6 @@ where
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
-        qos_manager: Arc<QosManager>,
     ) -> MQTTPacket {
         let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             conn.client_id.clone()
@@ -434,7 +430,8 @@ where
             );
         };
 
-        if !qos_manager
+        if !self
+            .cache_manager
             .get_client_pkid(client_id.clone(), subscribe.packet_identifier)
             .await
             .is_none()
@@ -474,7 +471,7 @@ where
             );
         }
 
-        qos_manager
+        self.cache_manager
             .add_client_pkid(client_id.clone(), subscribe.packet_identifier)
             .await;
 
@@ -545,7 +542,6 @@ where
         connect_id: u64,
         un_subscribe: Unsubscribe,
         _: Option<UnsubscribeProperties>,
-        qos_manager: Arc<QosManager>,
     ) -> MQTTPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
@@ -556,7 +552,7 @@ where
             );
         };
 
-        qos_manager
+        self.cache_manager
             .delete_client_pkid(connection.client_id.clone(), un_subscribe.pkid)
             .await;
 

@@ -2,8 +2,8 @@ use self::tcp::{
     packet::{RequestPackage, ResponsePackage},
     server::TcpServer,
 };
+use crate::handler::command::Command;
 use crate::{core::cache_manager::CacheManager, subscribe::subscribe_cache::SubscribeCacheManager};
-use crate::{core::qos_manager::QosManager, handler::command::Command};
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
 use protocol::mqtt::common::MQTTProtocol;
@@ -18,10 +18,9 @@ pub mod tcp;
 pub mod websocket;
 
 pub async fn start_tcp_server<S>(
-    sucscribe_cache_manager: Arc<SubscribeCacheManager>,
+    sucscribe_manager: Arc<SubscribeCacheManager>,
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
-    qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
@@ -33,8 +32,7 @@ pub async fn start_tcp_server<S>(
         cache_manager.clone(),
         message_storage_adapter.clone(),
         response_queue_sx.clone(),
-        qos_manager.clone(),
-        sucscribe_cache_manager.clone(),
+        sucscribe_manager.clone(),
         client_poll.clone(),
     );
 

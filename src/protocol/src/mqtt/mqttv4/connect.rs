@@ -16,7 +16,6 @@
 
 use super::*;
 
-
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
     /*
      * len is the vairable header length which consists of four fields in the following order:
@@ -60,7 +59,7 @@ pub fn read(
         return Err(Error::InvalidProtocol);
     }
 
-    if protocol_level != 4 {
+    if protocol_level != 4 && protocol_level != 3 {
         return Err(Error::InvalidProtocolLevel(protocol_level));
     }
 
@@ -79,7 +78,7 @@ pub fn read(
         clean_session,
     };
 
-    Ok((protocol_level,connect, login, last_will))
+    Ok((protocol_level, connect, login, last_will))
 }
 
 pub fn write(
@@ -233,8 +232,6 @@ pub mod login {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
 
@@ -299,7 +296,7 @@ mod tests {
         // test the display of fixheader
         println!("fixheader: {}", fixheader);
         // read first byte and check its packet type which should be connect
-        assert_eq!(fixheader.byte1, 0b0001_0000); 
+        assert_eq!(fixheader.byte1, 0b0001_0000);
         assert_eq!(fixheader.fixed_header_len, 2);
         assert!(fixheader.remaining_len == 26);
         // test read function, x gets connect, y gets login and z gets will
@@ -308,30 +305,28 @@ mod tests {
         assert_eq!(x.client_id, "test_client_id");
         assert_eq!(x.keep_alive, 30);
         assert_eq!(x.clean_session, true);
-        
     }
 
     #[test]
-    fn test_display(){
-
+    fn test_display() {
         use super::*;
 
         let client_id = String::from("test_client_id");
         let client_id_length = client_id.len();
         let mut buff_write = BytesMut::new();
-    
+
         let login: Login = Login {
             username: String::from("test_user"),
             password: String::from("test_password"),
         };
-        
+
         let will_topic = Bytes::from("will_topic");
         let will_message = Bytes::from("will_message");
-        let lastwill: LastWill = LastWill { 
-            topic: will_topic, 
-            message: will_message, 
-            qos: QoS::AtLeastOnce, 
-            retain: true, 
+        let lastwill: LastWill = LastWill {
+            topic: will_topic,
+            message: will_message,
+            qos: QoS::AtLeastOnce,
+            retain: true,
         };
 
         let connect: Connect = Connect {
@@ -344,6 +339,5 @@ mod tests {
         print!("{}", connect);
         println!("{}", lastwill);
         println!("connect display ends.............................");
-
     }
 }

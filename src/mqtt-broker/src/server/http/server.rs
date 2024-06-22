@@ -1,6 +1,5 @@
 use super::cache::{cache_info, index, metrics};
 use crate::core::cache_manager::CacheManager;
-use crate::core::qos_manager::QosManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use axum::routing::get;
 use axum::Router;
@@ -15,19 +14,16 @@ pub const ROUTE_METRICS: &str = "/metrics";
 pub struct HttpServerState {
     pub cache_metadata: Arc<CacheManager>,
     pub subscribe_cache: Arc<SubscribeCacheManager>,
-    pub qos_manager: Arc<QosManager>,
 }
 
 impl HttpServerState {
     pub fn new(
         cache_metadata: Arc<CacheManager>,
         subscribe_cache: Arc<SubscribeCacheManager>,
-        qos_manager: Arc<QosManager>,
     ) -> Self {
         return Self {
             cache_metadata,
             subscribe_cache,
-            qos_manager,
         };
     }
 }

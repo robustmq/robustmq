@@ -207,11 +207,6 @@ where
                 metrics_response_queue(&protocol_lable, response_queue_rx.len() as i64);
                 metrics_response_packet_incr(&protocol_lable);
 
-                info(format!(
-                    "response packet:{:?}",
-                    response_package.packet.clone()
-                ));
-                
                 if let Some(protocol) =
                     connect_manager.get_connect_protocol(response_package.connection_id)
                 {
@@ -219,6 +214,10 @@ where
                         protocol_version: protocol.into(),
                         packet: response_package.packet,
                     };
+                    info(format!(
+                        "response packet:{:?}",
+                        packet_wrapper.clone()
+                    ));
                     connect_manager
                         .write_frame(response_package.connection_id, packet_wrapper)
                         .await;

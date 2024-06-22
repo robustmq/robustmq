@@ -2,8 +2,8 @@ use super::packet::MQTTAckBuild;
 use crate::core::cache_manager::CacheManager;
 use common_base::tools::unique_id;
 use protocol::mqtt::common::{
-    Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
-    Publish, Subscribe, Unsubscribe,
+    ConnAck, Connect, ConnectReturnCode, Disconnect, DisconnectReasonCode, LastWill, Login,
+    MQTTPacket, PingReq, PubAck, PubAckReason, Publish, Subscribe, Unsubscribe,
 };
 use std::sync::Arc;
 
@@ -15,10 +15,7 @@ pub struct Mqtt4Service {
 }
 
 impl Mqtt4Service {
-    pub fn new(
-        cache_manager: Arc<CacheManager>,
-        ack_build: MQTTAckBuild,
-    ) -> Self {
+    pub fn new(cache_manager: Arc<CacheManager>, ack_build: MQTTAckBuild) -> Self {
         return Mqtt4Service {
             cache_manager,
             ack_build,
@@ -39,9 +36,12 @@ impl Mqtt4Service {
         let response_information = Some("".to_string());
         let server_reference = Some("".to_string());
 
-        return self.ack_build.pub_ack(0, None, Vec::new());
+        return build_connack_success(true);
     }
 
+    pub fn disconnect(&self, disconnect: Disconnect) -> MQTTPacket {
+        return build_distinct(DisconnectReasonCode::NormalDisconnection);
+    }
     pub fn publish(&self, publish: Publish) -> MQTTPacket {
         if self.login {
             return self.un_login_err();
@@ -55,7 +55,7 @@ impl Mqtt4Service {
         if self.login {
             return self.un_login_err();
         }
-        return self.ack_build.sub_ack(0,Vec::new());
+        return self.ack_build.sub_ack(0, Vec::new());
     }
 
     pub fn ping(&self, ping: PingReq) -> MQTTPacket {
@@ -72,18 +72,23 @@ impl Mqtt4Service {
         return self.ack_build.unsub_ack(0, None, Vec::new());
     }
 
-    pub fn disconnect(&self, disconnect: Disconnect) -> MQTTPacket {
-        if self.login {
-            return self.un_login_err();
-        }
-        return self
-            .ack_build
-            .distinct(DisconnectReasonCode::NormalDisconnection, None);
-    }
-
     fn un_login_err(&self) -> MQTTPacket {
-        return self
-            .ack_build
-            .distinct(protocol::mqtt::common::DisconnectReasonCode::NotAuthorized, None);
+        return self.ack_build.distinct(
+            protocol::mqtt::common::DisconnectReasonCode::NotAuthorized,
+            None,
+        );
     }
+}
+
+fn build_connack_success(session_present: bool) -> MQTTPacket {
+    let conn_ack = ConnAck {
+        session_present,
+        code: ConnectReturnCode::Success,
+    };
+    return MQTTPacket::ConnAck(conn_ack, None);
+}
+
+fn build_distinct(reason_code: DisconnectReasonCode) -> MQTTPacket {
+    let disconnect = Disconnect { reason_code };
+    return MQTTPacket::Disconnect(disconnect, None);
 }
