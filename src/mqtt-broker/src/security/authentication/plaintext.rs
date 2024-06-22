@@ -1,25 +1,30 @@
+use std::sync::Arc;
+
+use crate::core::cache_manager::CacheManager;
+
 use super::Authentication;
-use metadata_struct::mqtt::user::MQTTUser;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
-use dashmap::DashMap;
 use protocol::mqtt::common::Login;
 
-pub struct Plaintext<'a> {
+pub struct Plaintext {
     login: Login,
-    user_info: &'a DashMap<String, MQTTUser>,
+    cache_manager: Arc<CacheManager>,
 }
 
-impl<'a> Plaintext<'a> {
-    pub fn new(login: Login, user_info: &'a DashMap<String, MQTTUser>) -> Self {
-        return Plaintext { login, user_info };
+impl Plaintext {
+    pub fn new(login: Login, cache_manager: Arc<CacheManager>) -> Self {
+        return Plaintext {
+            login,
+            cache_manager,
+        };
     }
 }
 
 #[async_trait]
-impl<'a> Authentication for Plaintext<'a> {
+impl Authentication for Plaintext {
     async fn apply(&self) -> Result<bool, RobustMQError> {
-        if let Some(user) = self.user_info.get(&self.login.username) {
+        if let Some(user) = self.cache_manager.user_info.get(&self.login.username) {
             return Ok(user.password == self.login.password);
         }
         return Ok(false);

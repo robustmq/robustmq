@@ -3,20 +3,24 @@ use std::sync::Arc;
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
-use metadata_struct::mqtt::{cluster::MQTTCluster, session::{LastWillData, MQTTSession}};
+use metadata_struct::mqtt::session::{LastWillData, MQTTSession};
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
+use super::cache_manager::CacheManager;
 
 pub async fn build_session(
     connect_id: u64,
     client_id: String,
-    cluster: MQTTCluster,
     connnect: Connect,
     connect_properties: Option<ConnectProperties>,
     last_will: Option<LastWill>,
     last_will_properties: Option<LastWillProperties>,
     client_poll: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
 ) -> Result<(MQTTSession, bool), RobustMQError> {
-    let session_expiry = session_expiry_interval(cluster, connect_properties);
+    let session_expiry = session_expiry_interval(
+        cache_manager.get_cluster_info().session_expiry_interval,
+        connect_properties,
+    );
 
     let delay_interval = if let Some(properties) = last_will_properties.clone() {
         if let Some(value) = properties.delay_interval {
@@ -78,10 +82,10 @@ pub async fn build_session(
 }
 
 fn session_expiry_interval(
-    cluster: MQTTCluster,
+    cluster_session_expiry_interval: u32,
     connect_properties: Option<ConnectProperties>,
 ) -> u32 {
-    let session_expiry_interval = if let Some(properties) = connect_properties {
+    let connection_session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
             ck
         } else {
@@ -90,5 +94,8 @@ fn session_expiry_interval(
     } else {
         u32::MAX
     };
-    return std::cmp::min(cluster.session_expiry_interval, session_expiry_interval);
+    return std::cmp::min(
+        cluster_session_expiry_interval,
+        connection_session_expiry_interval,
+    );
 }

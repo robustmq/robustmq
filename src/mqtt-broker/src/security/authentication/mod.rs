@@ -2,7 +2,6 @@ use self::plaintext::Plaintext;
 use crate::core::cache_manager::CacheManager;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
-use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{ConnectProperties, Login};
 use std::{net::SocketAddr, sync::Arc};
 
@@ -14,26 +13,24 @@ pub trait Authentication {
 }
 
 pub async fn authentication_login(
-    metadata_cache: Arc<CacheManager>,
-    cluster: &MQTTCluster,
+    cache_manager: Arc<CacheManager>,
     login: Option<Login>,
-    _: &Option<ConnectProperties>,
+    connect_properties: &Option<ConnectProperties>,
     addr: SocketAddr,
 ) -> Result<bool, RobustMQError> {
+    let cluster = cache_manager.get_cluster_info();
     // Supports non-secret login
-    if cluster.secret_free_login() {
+    if cluster.is_secret_free_login() {
         return Ok(true);
     }
 
-    // Connections between nodes within the cluster without login
-
     // Basic authentication mode
     if let Some(info) = login {
-        let plaintext = Plaintext::new(info, &metadata_cache.user_info);
+        let plaintext = Plaintext::new(info, cache_manager.clone());
         return plaintext.apply().await;
     }
 
-    // Extended authentication mode
+    // todoExtended authentication mode
 
     return Ok(false);
 }

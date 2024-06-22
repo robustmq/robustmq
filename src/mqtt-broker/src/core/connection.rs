@@ -118,6 +118,7 @@ pub fn get_client_id(client_id: String) -> Result<(String, bool), RobustMQError>
     } else {
         (client_id.clone(), false)
     };
+    
     if !client_id_validator() {
         return Err(RobustMQError::ClientIdFormatError(client_id));
     }

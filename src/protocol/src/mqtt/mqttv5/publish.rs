@@ -208,6 +208,7 @@ mod properties {
 
         let (properties_len_len, properties_len) = length(bytes.iter())?;
         bytes.advance(properties_len_len);
+        println!("properties_len:{}", properties_len);
         if properties_len == 0 {
             return Ok(None);
         }

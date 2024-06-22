@@ -124,6 +124,7 @@ impl codec::Decoder for MqttCodec {
 
         let protocol_version = self.protocol_version.unwrap();
 
+        println!("decode:{}",protocol_version);
         if protocol_version == 4 || protocol_version == 3{
             let packet = match packet_type {
                 PacketType::ConnAck => MQTTPacket::ConnAck(crate::mqtt::mqttv4::connack::read(fixed_header, packet)?, None),
@@ -160,6 +161,8 @@ impl codec::Decoder for MqttCodec {
                 }
                 PacketType::Publish => {
                     let (publish, publish_properties) = crate::mqtt::mqttv5::publish::read(fixed_header, packet)?;
+                    println!("1:{:?}",publish);
+                    println!("2:{:?}",publish_properties);
                     MQTTPacket::Publish(publish, publish_properties)
                 }
                 PacketType::PubAck => {

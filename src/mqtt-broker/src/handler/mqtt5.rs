@@ -4,7 +4,7 @@ use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
 use crate::core::session::build_session;
-use crate::core::topic::{get_topic_info, publish_get_topic_name};
+use crate::core::topic::{get_topic_info, publish_get_topic_name, save_topic_alias};
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -15,6 +15,7 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::topic;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
@@ -66,16 +67,9 @@ where
         login: Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
-        let cluster = self.cache_manager.get_cluster_info();
         // connect for authentication
-        match authentication_login(
-            self.cache_manager.clone(),
-            &cluster,
-            login,
-            &connect_properties,
-            addr,
-        )
-        .await
+        match authentication_login(self.cache_manager.clone(), login, &connect_properties, addr)
+            .await
         {
             Ok(flag) => {
                 if !flag {
@@ -102,12 +96,12 @@ where
         let (session, new_session) = match build_session(
             connect_id,
             client_id.clone(),
-            cluster.clone(),
             connnect.clone(),
             connect_properties.clone(),
             last_will.clone(),
             last_will_properties.clone(),
             self.client_poll.clone(),
+            self.cache_manager.clone(),
         )
         .await
         {
@@ -125,6 +119,7 @@ where
             .add_session(client_id.clone(), session.clone());
 
         // update connection cache
+        let cluster = self.cache_manager.get_cluster_info();
         let connection = create_connection(
             connect_id,
             client_id.clone(),
@@ -173,6 +168,13 @@ where
             }
         };
 
+        save_topic_alias(
+            connect_id,
+            topic_name.clone(),
+            self.cache_manager.clone(),
+            publish_properties.clone(),
+        );
+
         let topic = match get_topic_info(
             topic_name,
             self.cache_manager.clone(),
@@ -203,7 +205,7 @@ where
             || publish.payload.len() > (connection.max_packet_size as usize)
         {
             return Some(self.ack_build.pub_ack_fail(
-                PubAckReason::PayloadFormatInvalid,
+                PubAckReason::QuotaExceeded,
                 Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         };

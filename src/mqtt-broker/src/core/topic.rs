@@ -8,6 +8,8 @@ use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
 
+use super::cache_manager;
+
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
 pub const SYSTEM_TOPIC_BROKERS_VERSION: &str = "$SYS/brokers/${node}/version";
 pub const SYSTEM_TOPIC_BROKERS_UPTIME: &str = "$SYS/brokers/${node}/uptime";
@@ -15,12 +17,9 @@ pub const SYSTEM_TOPIC_BROKERS_DATETIME: &str = "$SYS/brokers/${node}/datetime";
 pub const SYSTEM_TOPIC_BROKERS_SYSDESCR: &str = "$SYS/brokers/${node}/sysdescr";
 pub const SYSTEM_TOPIC_BROKERS_CLIENTS: &str = "$SYS/brokers/${node}/clients";
 
-
 pub fn is_system_topic(topic_name: String) -> bool {
-    
     return true;
 }
-
 
 pub fn topic_name_validator(topic_name: String) -> Result<(), RobustMQError> {
     if topic_name.is_empty() {
@@ -80,6 +79,19 @@ pub fn publish_get_topic_name(
     }
 
     return Ok(topic_name);
+}
+
+pub fn save_topic_alias(
+    connect_id: u64,
+    topic_name: String,
+    cache_manager: Arc<CacheManager>,
+    publish_properties: Option<PublishProperties>,
+) {
+    if let Some(properties) = publish_properties {
+        if let Some(alias) = properties.topic_alias {
+            cache_manager.add_topic_alias(connect_id, topic_name, alias);
+        }
+    }
 }
 
 pub async fn get_topic_info<S>(
