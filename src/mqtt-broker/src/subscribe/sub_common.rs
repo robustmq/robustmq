@@ -1,4 +1,4 @@
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use crate::core::qos_manager::QosAckPackageData;
 use crate::storage::topic::TopicStorage;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
@@ -80,7 +80,7 @@ pub async fn send_retain_message(
     subscribe: Subscribe,
     subscribe_properties: Option<SubscribeProperties>,
     client_poll: Arc<ClientPool>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     new_sub: bool,
     dup_msg: bool,
@@ -155,7 +155,7 @@ pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
 }
 
 pub async fn get_sub_topic_id_list(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     sub_path: String,
 ) -> Vec<String> {
     let mut result = Vec::new();
@@ -239,7 +239,7 @@ pub async fn publish_to_response_queue(
 }
 
 pub async fn qos2_send_publish(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_id: String,
     mut publish: Publish,
     publish_properties: Option<PublishProperties>,
@@ -301,7 +301,7 @@ pub async fn qos2_send_publish(
 }
 
 pub async fn qos2_send_pubrel(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_id: String,
     pkid: u16,
     protocol: MQTTProtocol,
@@ -390,7 +390,7 @@ pub async fn loop_commit_offset<S>(
 // When the subscription QOS is 0,
 // the message can be pushed directly to the request return queue without the need for a retry mechanism.
 pub async fn publish_message_qos0(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     mqtt_client_id: String,
     publish: Publish,
     protocol: MQTTProtocol,
@@ -454,7 +454,7 @@ mod tests {
     use storage_adapter::memory::MemoryStorageAdapter;
     use tokio::sync::broadcast;
 
-    use crate::core::metadata_cache::MetadataCacheManager;
+    use crate::core::cache_manager::CacheManager;
     use crate::storage::topic::TopicStorage;
     use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
     use crate::subscribe::sub_common::{
@@ -573,9 +573,10 @@ mod tests {
     async fn get_sub_topic_list_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(MetadataCacheManager::new(
+        let metadata_cache = Arc::new(CacheManager::new(
             client_poll,
             "test-cluster".to_string(),
+            4,
         ));
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(&topic_name);
@@ -620,9 +621,10 @@ mod tests {
     #[tokio::test]
     async fn send_retain_message_test() {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(MetadataCacheManager::new(
+        let metadata_cache = Arc::new(CacheManager::new(
             client_poll,
             "test-cluster".to_string(),
+            4,
         ));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;

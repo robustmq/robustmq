@@ -211,6 +211,7 @@ where
                     "response packet:{:?}",
                     response_package.packet.clone()
                 ));
+                
                 if let Some(protocol) =
                     connect_manager.get_connect_protocol(response_package.connection_id)
                 {

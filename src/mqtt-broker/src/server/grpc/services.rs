@@ -1,4 +1,4 @@
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use crate::storage::{cluster::ClusterStorage, user::UserStorage};
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -16,12 +16,12 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcBrokerServices {
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_poll: Arc<ClientPool>,
 }
 
 impl GrpcBrokerServices {
-    pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
+    pub fn new(metadata_cache: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> Self {
         return GrpcBrokerServices {
             metadata_cache,
             client_poll,

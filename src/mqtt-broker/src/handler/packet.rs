@@ -1,4 +1,4 @@
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -10,11 +10,11 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct MQTTAckBuild {
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
 }
 
 impl MQTTAckBuild {
-    pub fn new(metadata_cache: Arc<MetadataCacheManager>) -> Self {
+    pub fn new(metadata_cache: Arc<CacheManager>) -> Self {
         return MQTTAckBuild { metadata_cache };
     }
 

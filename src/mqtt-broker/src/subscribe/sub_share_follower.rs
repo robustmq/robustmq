@@ -6,7 +6,7 @@ use super::{
     subscribe_cache::SubscribeCacheManager,
 };
 use crate::{
-    core::metadata_cache::MetadataCacheManager,
+    core::cache_manager::CacheManager,
     core::qos_manager::{QosAckPackageData, QosAckPackageType, QosAckPacketInfo, QosManager},
     server::tcp::packet::ResponsePackage,
     subscribe::subscribe_cache::ShareSubShareSub,
@@ -44,7 +44,7 @@ pub struct SubscribeShareFollower {
     pub subscribe_manager: Arc<SubscribeCacheManager>,
     pub ack_manager: Arc<QosManager>,
     response_queue_sx: broadcast::Sender<ResponsePackage>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -52,7 +52,7 @@ impl SubscribeShareFollower {
     pub fn new(
         subscribe_manager: Arc<SubscribeCacheManager>,
         response_queue_sx: broadcast::Sender<ResponsePackage>,
-        metadata_cache: Arc<MetadataCacheManager>,
+        metadata_cache: Arc<CacheManager>,
         client_poll: Arc<ClientPool>,
         ack_manager: Arc<QosManager>,
     ) -> Self {
@@ -193,7 +193,7 @@ impl SubscribeShareFollower {
 async fn resub_sub_mqtt5(
     ack_manager: Arc<QosManager>,
     leader_addr: String,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     share_sub: ShareSubShareSub,
     stop_sx: Sender<bool>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
@@ -300,7 +300,7 @@ async fn resub_sub_mqtt5(
 
 async fn process_packet(
     ack_manager: Arc<QosManager>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     share_sub: ShareSubShareSub,
     stop_sx: Sender<bool>,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
@@ -554,7 +554,7 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
 }
 
 async fn resub_publish_message_qos1(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     mqtt_client_id: String,
     mut publish: Publish,
     publish_to_client_pkid: u16,
@@ -634,7 +634,7 @@ async fn resub_publish_message_qos1(
 // send pubrel message
 // wait pubcomp message
 pub async fn resub_publish_message_qos2(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     mqtt_client_id: String,
     publish: Publish,
     publish_to_client_pkid: u16,

@@ -6,7 +6,7 @@ use super::{
     subscribe_cache::SubscribeCacheManager,
 };
 use crate::{
-    core::metadata_cache::MetadataCacheManager,
+    core::cache_manager::CacheManager,
     core::qos_manager::{QosAckPackageData, QosAckPackageType, QosAckPacketInfo, QosManager},
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
@@ -33,7 +33,7 @@ pub struct SubscribeShareLeader<S> {
     pub subscribe_manager: Arc<SubscribeCacheManager>,
     message_storage: Arc<S>,
     response_queue_sx: broadcast::Sender<ResponsePackage>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     ack_manager: Arc<QosManager>,
 }
 
@@ -45,7 +45,7 @@ where
         subscribe_manager: Arc<SubscribeCacheManager>,
         message_storage: Arc<S>,
         response_queue_sx: broadcast::Sender<ResponsePackage>,
-        metadata_cache: Arc<MetadataCacheManager>,
+        metadata_cache: Arc<CacheManager>,
         ack_manager: Arc<QosManager>,
     ) -> Self {
         return SubscribeShareLeader {
@@ -215,7 +215,7 @@ async fn read_message_process<S>(
     mut cursor_point: usize,
     response_queue_sx4: broadcast::Sender<ResponsePackage>,
     response_queue_sx5: broadcast::Sender<ResponsePackage>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     ack_manager: Arc<QosManager>,
     stop_sx: Sender<bool>,
 ) -> (usize, Vec<Subscriber>)
@@ -418,7 +418,7 @@ where
 }
 
 pub fn build_publish(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     subscribe: Subscriber,
     topic_name: String,
     msg: MQTTMessage,
@@ -456,7 +456,7 @@ pub fn build_publish(
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
 async fn share_leader_publish_message_qos1(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_id: String,
     publish: Publish,
     publish_properties: PublishProperties,
@@ -514,7 +514,7 @@ async fn share_leader_publish_message_qos1(
 // wait pubcomp message
 async fn share_leader_publish_message_qos2<S>(
     ack_manager: Arc<QosManager>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_id: String,
     publish: Publish,
     publish_properties: PublishProperties,

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use super::server::HttpServerState;
 use crate::{
-    core::{connection::Connection, heartbeat_cache::HeartbeatShard, qos_manager::ClientPkidData},
+    core::{cache_manager::HeartbeatShard, connection::Connection, qos_manager::ClientPkidData},
     subscribe::{
         subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},
@@ -28,17 +28,17 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
     let result = MetadataCacheResult {
         config: broker_mqtt_conf().clone(),
 
-        cluster_name: state.metadata_cache.cluster_name.clone(),
-        cluster_info: state.metadata_cache.cluster_info.clone(),
-        user_info: state.metadata_cache.user_info.clone(),
-        session_info: state.metadata_cache.session_info.clone(),
-        connection_info: state.metadata_cache.connection_info.clone(),
-        topic_info: state.metadata_cache.topic_info.clone(),
-        topic_id_name: state.metadata_cache.topic_id_name.clone(),
-        subscribe_filter: state.metadata_cache.subscribe_filter.clone(),
-        publish_pkid_info: state.metadata_cache.publish_pkid_info.clone(),
+        cluster_name: state.cache_metadata.cluster_name.clone(),
+        cluster_info: state.cache_metadata.cluster_info.clone(),
+        user_info: state.cache_metadata.user_info.clone(),
+        session_info: state.cache_metadata.session_info.clone(),
+        connection_info: state.cache_metadata.connection_info.clone(),
+        topic_info: state.cache_metadata.topic_info.clone(),
+        topic_id_name: state.cache_metadata.topic_id_name.clone(),
+        subscribe_filter: state.cache_metadata.subscribe_filter.clone(),
+        publish_pkid_info: state.cache_metadata.publish_pkid_info.clone(),
 
-        heartbeat_data: state.heartbeat_manager.shard_data.clone(),
+        heartbeat_data: state.cache_metadata.heartbeat_shard_data.clone(),
 
         exclusive_subscribe: state.subscribe_cache.exclusive_subscribe.clone(),
         share_leader_subscribe: state.subscribe_cache.share_leader_subscribe.clone(),

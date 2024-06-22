@@ -1,5 +1,5 @@
 use crate::{
-    core::metadata_cache::MetadataCacheManager,
+    core::cache_manager::CacheManager,
     core::qos_manager::{QosAckPackageData, QosAckPackageType, QosAckPacketInfo, QosManager},
     server::tcp::packet::ResponsePackage,
     storage::message::MessageStorage,
@@ -28,7 +28,7 @@ use super::{
 };
 
 pub struct SubscribeExclusive<S> {
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     subscribe_manager: Arc<SubscribeCacheManager>,
     message_storage: Arc<S>,
@@ -41,7 +41,7 @@ where
 {
     pub fn new(
         message_storage: Arc<S>,
-        metadata_cache: Arc<MetadataCacheManager>,
+        metadata_cache: Arc<CacheManager>,
         response_queue_sx: Sender<ResponsePackage>,
         subscribe_manager: Arc<SubscribeCacheManager>,
         ack_manager: Arc<QosManager>,
@@ -339,7 +339,7 @@ where
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
 async fn exclusive_publish_message_qos1(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_id: String,
     mut publish: Publish,
     publish_properties: PublishProperties,
@@ -407,7 +407,7 @@ async fn exclusive_publish_message_qos1(
 // send pubrel message
 // wait pubcomp message
 async fn exclusive_publish_message_qos2(
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_id: String,
     publish: Publish,
     publish_properties: PublishProperties,

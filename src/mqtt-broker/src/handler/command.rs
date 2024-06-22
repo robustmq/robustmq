@@ -2,8 +2,7 @@ use super::mqtt3::Mqtt3Service;
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
-use crate::core::heartbeat_cache::HeartbeatCache;
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use crate::core::qos_manager::QosManager;
 use crate::server::tcp::connection::TCPConnection;
 use crate::server::tcp::connection_manager::ConnectionManager;
@@ -24,7 +23,7 @@ pub struct Command<S> {
     mqtt3_service: Mqtt3Service,
     mqtt4_service: Mqtt4Service,
     mqtt5_service: Mqtt5Service<S>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
     qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
@@ -35,40 +34,36 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        metadata_cache: Arc<MetadataCacheManager>,
-        heartbeat_manager: Arc<HeartbeatCache>,
+        cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
         qos_manager: Arc<QosManager>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
-        let ack_build = MQTTAckBuild::new(metadata_cache.clone());
+        let ack_build = MQTTAckBuild::new(cache_manager.clone());
         let mqtt4_service = Mqtt4Service::new(
-            metadata_cache.clone(),
+            cache_manager.clone(),
             ack_build.clone(),
-            heartbeat_manager.clone(),
         );
         let mqtt5_service = Mqtt5Service::new(
-            metadata_cache.clone(),
+            cache_manager.clone(),
             ack_build.clone(),
-            heartbeat_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             qos_manager.clone(),
             client_poll.clone(),
         );
         let mqtt3_service = Mqtt3Service::new(
-            metadata_cache.clone(),
+            cache_manager.clone(),
             ack_build.clone(),
-            heartbeat_manager.clone(),
         );
         return Command {
             ack_build,
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
-            metadata_cache,
+            metadata_cache: cache_manager,
             response_queue_sx,
             qos_manager,
             client_poll,

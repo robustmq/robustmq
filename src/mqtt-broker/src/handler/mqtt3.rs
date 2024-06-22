@@ -1,6 +1,5 @@
 use super::packet::MQTTAckBuild;
-use crate::core::heartbeat_cache::HeartbeatCache;
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use common_base::tools::unique_id;
 use protocol::mqtt::common::{
     Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
@@ -10,23 +9,20 @@ use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Mqtt3Service {
-    metadata_cache: Arc<MetadataCacheManager>,
+    cache_manager: Arc<CacheManager>,
     ack_build: MQTTAckBuild,
     login: bool,
-    heartbeat_manager: Arc<HeartbeatCache>,
 }
 
 impl Mqtt3Service {
     pub fn new(
-        metadata_cache: Arc<MetadataCacheManager>,
+        metadata_cache: Arc<CacheManager>,
         ack_build: MQTTAckBuild,
-        heartbeat_manager: Arc<HeartbeatCache>,
     ) -> Self {
         return Mqtt3Service {
-            metadata_cache,
+            cache_manager: metadata_cache,
             ack_build,
             login: false,
-            heartbeat_manager,
         };
     }
 
