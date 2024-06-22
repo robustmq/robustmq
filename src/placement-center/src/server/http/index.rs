@@ -43,7 +43,7 @@ pub struct RaftInfo {
     pub uncommit_index: HashMap<u64, i8>,
 }
 
-pub async fn placement_center(State(state): State<HttpServerState>) -> String {
+pub async fn index(State(state): State<HttpServerState>) -> String {
     let storage = state.raft_storage.read().unwrap();
     let placement_cache = state.placement_cache.read().unwrap();
     let hs = storage.hard_state();

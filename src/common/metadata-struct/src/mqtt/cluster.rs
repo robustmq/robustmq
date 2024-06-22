@@ -68,7 +68,7 @@ impl MQTTCluster {
         return self.shared_subscription_available.clone() as u8;
     }
 
-    pub fn secret_free_login(&self) -> bool {
+    pub fn is_secret_free_login(&self) -> bool {
         return self.secret_free_login;
     }
 

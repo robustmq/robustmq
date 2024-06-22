@@ -1,2 +1,2 @@
-pub mod server;
 mod cache;
+pub mod server;
