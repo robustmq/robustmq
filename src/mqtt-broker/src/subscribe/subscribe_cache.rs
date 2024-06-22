@@ -2,7 +2,7 @@ use super::sub_common::{
     decode_share_info, get_share_sub_leader, is_share_sub,
     path_regex_match,
 };
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use crate::subscribe::subscriber::Subscriber;
 use clients::poll::ClientPool;
 use common_base::{
@@ -38,7 +38,7 @@ pub struct ShareLeaderSubscribeData {
 #[derive(Clone)]
 pub struct SubscribeCacheManager {
     client_poll: Arc<ClientPool>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
 
     // (client_id_topic_id, Subscriber)
     pub exclusive_subscribe: DashMap<String, Subscriber>,
@@ -63,7 +63,7 @@ pub struct SubscribeCacheManager {
 }
 
 impl SubscribeCacheManager {
-    pub fn new(metadata_cache: Arc<MetadataCacheManager>, client_poll: Arc<ClientPool>) -> Self {
+    pub fn new(metadata_cache: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> Self {
         return SubscribeCacheManager {
             client_poll,
             metadata_cache,

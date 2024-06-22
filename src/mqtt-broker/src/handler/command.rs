@@ -2,9 +2,7 @@ use super::mqtt3::Mqtt3Service;
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::{packet_connect_fail, MQTTAckBuild};
-use crate::core::heartbeat_cache::HeartbeatCache;
-use crate::core::metadata_cache::MetadataCacheManager;
-use crate::core::qos_manager::QosManager;
+use crate::core::cache_manager::CacheManager;
 use crate::server::tcp::connection::TCPConnection;
 use crate::server::tcp::connection_manager::ConnectionManager;
 use crate::server::tcp::packet::ResponsePackage;
@@ -24,9 +22,8 @@ pub struct Command<S> {
     mqtt3_service: Mqtt3Service,
     mqtt4_service: Mqtt4Service,
     mqtt5_service: Mqtt5Service<S>,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
-    qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -35,42 +32,29 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        metadata_cache: Arc<MetadataCacheManager>,
-        heartbeat_manager: Arc<HeartbeatCache>,
+        cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
         response_queue_sx: Sender<ResponsePackage>,
-        qos_manager: Arc<QosManager>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
-        let ack_build = MQTTAckBuild::new(metadata_cache.clone());
-        let mqtt4_service = Mqtt4Service::new(
-            metadata_cache.clone(),
-            ack_build.clone(),
-            heartbeat_manager.clone(),
-        );
+        let ack_build = MQTTAckBuild::new(cache_manager.clone());
+        let mqtt4_service = Mqtt4Service::new(cache_manager.clone(), ack_build.clone());
         let mqtt5_service = Mqtt5Service::new(
-            metadata_cache.clone(),
+            cache_manager.clone(),
             ack_build.clone(),
-            heartbeat_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
-            qos_manager.clone(),
             client_poll.clone(),
         );
-        let mqtt3_service = Mqtt3Service::new(
-            metadata_cache.clone(),
-            ack_build.clone(),
-            heartbeat_manager.clone(),
-        );
+        let mqtt3_service = Mqtt3Service::new(cache_manager.clone(), ack_build.clone());
         return Command {
             ack_build,
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
-            metadata_cache,
+            metadata_cache: cache_manager,
             response_queue_sx,
-            qos_manager,
             client_poll,
         };
     }
@@ -151,12 +135,7 @@ where
                 if tcp_connection.is_mqtt5() {
                     return self
                         .mqtt5_service
-                        .publish(
-                            tcp_connection.connection_id,
-                            publish,
-                            publish_properties,
-                            self.qos_manager.clone(),
-                        )
+                        .publish(tcp_connection.connection_id, publish, publish_properties)
                         .await;
                 }
             }
@@ -214,12 +193,7 @@ where
                 if tcp_connection.is_mqtt5() {
                     return Some(
                         self.mqtt5_service
-                            .publish_rel(
-                                tcp_connection.connection_id,
-                                pub_rel,
-                                pub_rel_properties,
-                                self.qos_manager.clone(),
-                            )
+                            .publish_rel(tcp_connection.connection_id, pub_rel, pub_rel_properties)
                             .await,
                     );
                 }
@@ -263,7 +237,6 @@ where
                                 subscribe,
                                 subscribe_properties,
                                 self.response_queue_sx.clone(),
-                                self.qos_manager.clone(),
                             )
                             .await,
                     );
@@ -312,7 +285,6 @@ where
                                 tcp_connection.connection_id,
                                 unsubscribe,
                                 unsubscribe_properties,
-                                self.qos_manager.clone(),
                             )
                             .await,
                     );
@@ -320,12 +292,8 @@ where
             }
 
             MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
-
                 if tcp_connection.is_mqtt3() {
-                    return None;
+                    return Some(self.mqtt3_service.disconnect(disconnect));
                 }
 
                 if tcp_connection.is_mqtt4() {

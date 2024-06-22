@@ -1,5 +1,5 @@
 use super::services::GrpcBrokerServices;
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
@@ -8,14 +8,14 @@ use tonic::transport::Server;
 
 pub struct GrpcServer {
     port: u32,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     client_poll: Arc<ClientPool>,
 }
 
 impl GrpcServer {
     pub fn new(
         port: u32,
-        metadata_cache: Arc<MetadataCacheManager>,
+        metadata_cache: Arc<CacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         return Self {

@@ -17,11 +17,8 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
-use core::{
-    client_keep_alive::ClientKeepAlive, heartbeat_cache::HeartbeatCache,
-    HEART_CONNECT_SHARD_HASH_NUM,
-};
-use core::{metadata_cache::MetadataCacheManager, qos_manager::QosManager};
+use core::cache_manager::CacheManager;
+use core::{client_keep_alive::ClientKeepAlive, HEART_CONNECT_SHARD_HASH_NUM};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -63,9 +60,10 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let pool = build_mysql_conn_pool(&conf.mysql.server).unwrap();
     let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
 
-    let metadata_cache = Arc::new(MetadataCacheManager::new(
+    let metadata_cache = Arc::new(CacheManager::new(
         client_poll.clone(),
         conf.cluster_name.clone(),
+        HEART_CONNECT_SHARD_HASH_NUM,
     ));
     let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
     server.start(stop_send)
@@ -73,15 +71,13 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 
 pub struct MqttBroker<'a, S> {
     conf: &'a BrokerMQTTConfig,
-    metadata_cache_manager: Arc<MetadataCacheManager>,
-    heartbeat_manager: Arc<HeartbeatCache>,
+    cache_manager: Arc<CacheManager>,
     runtime: Runtime,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeCacheManager>,
-    qos_manager: Arc<QosManager>,
 }
 
 impl<'a, S> MqttBroker<'a, S>
@@ -91,17 +87,13 @@ where
     pub fn new(
         client_poll: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
-        metadata_cache: Arc<MetadataCacheManager>,
+        metadata_cache: Arc<CacheManager>,
     ) -> Self {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
 
         let (request_queue_sx, _) = broadcast::channel(1000);
         let (response_queue_sx, _) = broadcast::channel(1000);
-
-        let heartbeat_manager = Arc::new(HeartbeatCache::new(HEART_CONNECT_SHARD_HASH_NUM));
-
-        let qos_manager: Arc<QosManager> = Arc::new(QosManager::new());
         let subscribe_manager = Arc::new(SubscribeCacheManager::new(
             metadata_cache.clone(),
             client_poll.clone(),
@@ -110,14 +102,12 @@ where
         return MqttBroker {
             conf,
             runtime,
-            metadata_cache_manager: metadata_cache,
-            heartbeat_manager,
+            cache_manager: metadata_cache,
             request_queue_sx,
             response_queue_sx,
             client_poll,
             message_storage_adapter,
             subscribe_manager,
-            qos_manager,
         };
     }
 
@@ -133,10 +123,8 @@ where
     }
 
     fn start_mqtt_server(&self) {
-        let cache = self.metadata_cache_manager.clone();
-        let heartbeat_manager = self.heartbeat_manager.clone();
+        let cache = self.cache_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
-        let qos_manager = self.qos_manager.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let client_poll = self.client_poll.clone();
 
@@ -146,9 +134,7 @@ where
             start_tcp_server(
                 subscribe_manager,
                 cache,
-                heartbeat_manager,
                 message_storage_adapter,
-                qos_manager,
                 client_poll,
                 request_queue_sx,
                 response_queue_sx,
@@ -160,7 +146,7 @@ where
     fn start_grpc_server(&self) {
         let server = GrpcServer::new(
             self.conf.grpc_port.clone(),
-            self.metadata_cache_manager.clone(),
+            self.cache_manager.clone(),
             self.client_poll.clone(),
         );
         self.runtime.spawn(async move {
@@ -169,12 +155,8 @@ where
     }
 
     fn start_http_server(&self) {
-        let http_state = HttpServerState::new(
-            self.metadata_cache_manager.clone(),
-            self.heartbeat_manager.clone(),
-            self.subscribe_manager.clone(),
-            self.qos_manager.clone(),
-        );
+        let http_state =
+            HttpServerState::new(self.cache_manager.clone(), self.subscribe_manager.clone());
         self.runtime
             .spawn(async move { start_http_server(http_state).await });
     }
@@ -208,10 +190,9 @@ where
 
         let exclusive_sub = SubscribeExclusive::new(
             self.message_storage_adapter.clone(),
-            self.metadata_cache_manager.clone(),
+            self.cache_manager.clone(),
             self.response_queue_sx.clone(),
             self.subscribe_manager.clone(),
-            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -222,8 +203,7 @@ where
             self.subscribe_manager.clone(),
             self.message_storage_adapter.clone(),
             self.response_queue_sx.clone(),
-            self.metadata_cache_manager.clone(),
-            self.qos_manager.clone(),
+            self.cache_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -233,9 +213,8 @@ where
         let follower_sub = SubscribeShareFollower::new(
             self.subscribe_manager.clone(),
             self.response_queue_sx.clone(),
-            self.metadata_cache_manager.clone(),
+            self.cache_manager.clone(),
             self.client_poll.clone(),
-            self.qos_manager.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -246,7 +225,7 @@ where
     fn start_keep_alive_thread(&self, stop_send: broadcast::Receiver<bool>) {
         let mut keep_alive = ClientKeepAlive::new(
             HEART_CONNECT_SHARD_HASH_NUM,
-            self.heartbeat_manager.clone(),
+            self.cache_manager.clone(),
             self.request_queue_sx.clone(),
             stop_send,
         );
@@ -277,7 +256,7 @@ where
     }
 
     fn register_node(&self) {
-        let metadata_cache = self.metadata_cache_manager.clone();
+        let metadata_cache = self.cache_manager.clone();
         let client_poll = self.client_poll.clone();
         self.runtime.block_on(async move {
             metadata_cache.init_system_user().await;

@@ -1,32 +1,25 @@
 use super::packet::MQTTAckBuild;
-use crate::core::heartbeat_cache::HeartbeatCache;
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use common_base::tools::unique_id;
 use protocol::mqtt::common::{
-    Connect, Disconnect, DisconnectReasonCode, LastWill, Login, MQTTPacket, PingReq, PubAck,
-    Publish, Subscribe, Unsubscribe,
+    ConnAck, Connect, ConnectReturnCode, Disconnect, DisconnectReasonCode, LastWill, Login,
+    MQTTPacket, PingReq, PubAck, PubAckReason, Publish, Subscribe, Unsubscribe,
 };
 use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Mqtt3Service {
-    metadata_cache: Arc<MetadataCacheManager>,
+    cache_manager: Arc<CacheManager>,
     ack_build: MQTTAckBuild,
     login: bool,
-    heartbeat_manager: Arc<HeartbeatCache>,
 }
 
 impl Mqtt3Service {
-    pub fn new(
-        metadata_cache: Arc<MetadataCacheManager>,
-        ack_build: MQTTAckBuild,
-        heartbeat_manager: Arc<HeartbeatCache>,
-    ) -> Self {
+    pub fn new(metadata_cache: Arc<CacheManager>, ack_build: MQTTAckBuild) -> Self {
         return Mqtt3Service {
-            metadata_cache,
+            cache_manager: metadata_cache,
             ack_build,
             login: false,
-            heartbeat_manager,
         };
     }
 
@@ -43,7 +36,11 @@ impl Mqtt3Service {
         let response_information = Some("".to_string());
         let server_reference = Some("".to_string());
 
-        return self.ack_build.pub_ack(0, None, Vec::new());
+        return build_connack_success(false);
+    }
+
+    pub fn disconnect(&self, disconnect: Disconnect) -> MQTTPacket {
+        return build_distinct(DisconnectReasonCode::NormalDisconnection);
     }
 
     pub fn publish(&self, publish: Publish) -> MQTTPacket {
@@ -59,7 +56,7 @@ impl Mqtt3Service {
         if self.login {
             return self.un_login_err();
         }
-        return self.ack_build.sub_ack(0,Vec::new());
+        return self.ack_build.sub_ack(0, Vec::new());
     }
 
     pub fn ping(&self, ping: PingReq) -> MQTTPacket {
@@ -76,18 +73,23 @@ impl Mqtt3Service {
         return self.ack_build.unsub_ack(0, None, Vec::new());
     }
 
-    pub fn disconnect(&self, disconnect: Disconnect) -> MQTTPacket {
-        if self.login {
-            return self.un_login_err();
-        }
-        return self
-            .ack_build
-            .distinct(DisconnectReasonCode::NormalDisconnection, None);
-    }
-
     fn un_login_err(&self) -> MQTTPacket {
-        return self
-            .ack_build
-            .distinct(protocol::mqtt::common::DisconnectReasonCode::NotAuthorized, None);
+        return self.ack_build.distinct(
+            protocol::mqtt::common::DisconnectReasonCode::NotAuthorized,
+            None,
+        );
     }
+}
+
+fn build_connack_success(session_present: bool) -> MQTTPacket {
+    let conn_ack = ConnAck {
+        session_present,
+        code: ConnectReturnCode::Success,
+    };
+    return MQTTPacket::ConnAck(conn_ack, None);
+}
+
+fn build_distinct(reason_code: DisconnectReasonCode) -> MQTTPacket {
+    let disconnect = Disconnect { reason_code };
+    return MQTTPacket::Disconnect(disconnect, None);
 }

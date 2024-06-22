@@ -2,12 +2,8 @@ use self::tcp::{
     packet::{RequestPackage, ResponsePackage},
     server::TcpServer,
 };
-use crate::{
-    core::heartbeat_cache::HeartbeatCache, core::qos_manager::QosManager, handler::command::Command,
-};
-use crate::{
-    core::metadata_cache::MetadataCacheManager, subscribe::subscribe_cache::SubscribeCacheManager,
-};
+use crate::handler::command::Command;
+use crate::{core::cache_manager::CacheManager, subscribe::subscribe_cache::SubscribeCacheManager};
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
 use protocol::mqtt::common::MQTTProtocol;
@@ -22,11 +18,9 @@ pub mod tcp;
 pub mod websocket;
 
 pub async fn start_tcp_server<S>(
-    sucscribe_cache_manager: Arc<SubscribeCacheManager>,
-    metadata_cache_manager: Arc<MetadataCacheManager>,
-    heartbeat_manager: Arc<HeartbeatCache>,
+    sucscribe_manager: Arc<SubscribeCacheManager>,
+    cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
-    qos_manager: Arc<QosManager>,
     client_poll: Arc<ClientPool>,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
@@ -35,12 +29,10 @@ pub async fn start_tcp_server<S>(
 {
     let conf = broker_mqtt_conf();
     let command = Command::new(
-        metadata_cache_manager.clone(),
-        heartbeat_manager.clone(),
+        cache_manager.clone(),
         message_storage_adapter.clone(),
         response_queue_sx.clone(),
-        qos_manager.clone(),
-        sucscribe_cache_manager.clone(),
+        sucscribe_manager.clone(),
         client_poll.clone(),
     );
 

@@ -144,7 +144,11 @@ impl codec::Decoder for MqttCodec {
                 PacketType::PingResp => MQTTPacket::PingResp(crate::mqtt::common::PingResp),
                 // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
                 // hit when Disconnect packet has properties which are only valid for MQTT V5
-                PacketType::Disconnect => return Err(Error::InvalidProtocol),
+                // PacketType::Disconnect => return Err(Error::InvalidProtocol),
+                PacketType::Disconnect => {
+                    let (disconnect, _) =  crate::mqtt::mqttv5::disconnect::read(fixed_header, packet)?;
+                    MQTTPacket::Disconnect(disconnect, None)
+                }
                 _ => unreachable!(),
             };
             return Ok(Some(packet));

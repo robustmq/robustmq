@@ -1,4 +1,4 @@
-use crate::core::metadata_cache::MetadataCacheManager;
+use crate::core::cache_manager::CacheManager;
 use crate::storage::topic::TopicStorage;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
@@ -7,6 +7,20 @@ use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
+
+pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
+pub const SYSTEM_TOPIC_BROKERS_VERSION: &str = "$SYS/brokers/${node}/version";
+pub const SYSTEM_TOPIC_BROKERS_UPTIME: &str = "$SYS/brokers/${node}/uptime";
+pub const SYSTEM_TOPIC_BROKERS_DATETIME: &str = "$SYS/brokers/${node}/datetime";
+pub const SYSTEM_TOPIC_BROKERS_SYSDESCR: &str = "$SYS/brokers/${node}/sysdescr";
+pub const SYSTEM_TOPIC_BROKERS_CLIENTS: &str = "$SYS/brokers/${node}/clients";
+
+
+pub fn is_system_topic(topic_name: String) -> bool {
+    
+    return true;
+}
+
 
 pub fn topic_name_validator(topic_name: String) -> Result<(), RobustMQError> {
     if topic_name.is_empty() {
@@ -32,7 +46,7 @@ pub fn topic_name_validator(topic_name: String) -> Result<(), RobustMQError> {
 pub fn publish_get_topic_name(
     connect_id: u64,
     publish: Publish,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     publish_properties: Option<PublishProperties>,
 ) -> Result<String, RobustMQError> {
     let topic_alias = if let Some(pub_properties) = publish_properties {
@@ -70,7 +84,7 @@ pub fn publish_get_topic_name(
 
 pub async fn get_topic_info<S>(
     topic_name: String,
-    metadata_cache: Arc<MetadataCacheManager>,
+    metadata_cache: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
     client_poll: Arc<ClientPool>,
 ) -> Result<MQTTTopic, RobustMQError>

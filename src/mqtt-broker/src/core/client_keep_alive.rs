@@ -1,4 +1,3 @@
-use super::heartbeat_cache::HeartbeatCache;
 use crate::{metrics::metrics_heartbeat_keep_alive_run_info, server::tcp::packet::RequestPackage};
 use common_base::{
     log::{debug, error, info},
@@ -17,9 +16,11 @@ use tokio::{
     time::sleep,
 };
 
+use super::cache_manager::CacheManager;
+
 pub struct ClientKeepAlive {
     shard_num: u64,
-    heartbeat_manager: Arc<HeartbeatCache>,
+    cache_manager: Arc<CacheManager>,
     request_queue_sx: Sender<RequestPackage>,
     stop_send: broadcast::Receiver<bool>,
 }
@@ -27,13 +28,13 @@ pub struct ClientKeepAlive {
 impl ClientKeepAlive {
     pub fn new(
         shard_num: u64,
-        heartbeat_manager: Arc<HeartbeatCache>,
+        heartbeat_manager: Arc<CacheManager>,
         request_queue_sx: Sender<RequestPackage>,
         stop_send: broadcast::Receiver<bool>,
     ) -> Self {
         return ClientKeepAlive {
             shard_num,
-            heartbeat_manager,
+            cache_manager: heartbeat_manager,
             request_queue_sx,
             stop_send,
         };
@@ -56,7 +57,7 @@ impl ClientKeepAlive {
 
             let semaphore = Arc::new(Semaphore::new(self.shard_num as usize));
             for i in 0..self.shard_num {
-                let data = self.heartbeat_manager.get_shard_data(i);
+                let data = self.cache_manager.get_shard_data(i);
                 let request_queue_sx = self.request_queue_sx.clone();
                 let sp = semaphore.clone();
                 tokio::spawn(async move {
