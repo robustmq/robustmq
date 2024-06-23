@@ -15,7 +15,6 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
-use metadata_struct::mqtt::topic;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
@@ -153,6 +152,21 @@ where
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<MQTTPacket> {
+        match save_topic_alias(
+            connect_id,
+            publish.topic.clone(),
+            self.cache_manager.clone(),
+            publish_properties.clone(),
+        ) {
+            Ok(()) => {}
+            Err(e) => {
+                return Some(
+                    self.ack_build
+                        .pub_ack_fail(PubAckReason::TopicNameInvalid, Some(e.to_string())),
+                );
+            }
+        }
+
         let topic_name = match publish_get_topic_name(
             connect_id,
             publish.clone(),
@@ -163,17 +177,10 @@ where
             Err(e) => {
                 return Some(
                     self.ack_build
-                        .pub_ack_fail(PubAckReason::UnspecifiedError, Some(e.to_string())),
+                        .pub_ack_fail(PubAckReason::TopicNameInvalid, Some(e.to_string())),
                 );
             }
         };
-
-        save_topic_alias(
-            connect_id,
-            topic_name.clone(),
-            self.cache_manager.clone(),
-            publish_properties.clone(),
-        );
 
         let topic = match get_topic_info(
             topic_name,

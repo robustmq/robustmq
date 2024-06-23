@@ -1,5 +1,6 @@
-use crate::core::cache_manager::CacheManager;
+use crate::core::{cache_manager::CacheManager, error::MQTTBrokerError};
 use crate::storage::topic::TopicStorage;
+use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -21,23 +22,23 @@ pub fn is_system_topic(topic_name: String) -> bool {
     return true;
 }
 
-pub fn topic_name_validator(topic_name: String) -> Result<(), RobustMQError> {
+pub fn topic_name_validator(topic_name: String) -> Result<(), MQTTBrokerError> {
     if topic_name.is_empty() {
-        return Err(RobustMQError::TopicNameIsEmpty);
+        return Err(MQTTBrokerError::TopicNameIsEmpty);
     }
     let topic_slice: Vec<&str> = topic_name.split("/").collect();
     if topic_slice.first().unwrap().to_string() == "/".to_string() {
-        return Err(RobustMQError::TopicNameIncorrectlyFormatted);
+        return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted);
     }
 
     if topic_slice.last().unwrap().to_string() == "/".to_string() {
-        return Err(RobustMQError::TopicNameIncorrectlyFormatted);
+        return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted);
     }
 
     let format_str = "^[A-Za-z0-9+#/]+$".to_string();
     let re = Regex::new(&format!("{}", format_str)).unwrap();
     if !re.is_match(&topic_name) {
-        return Err(RobustMQError::TopicNameIncorrectlyFormatted);
+        return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted);
     }
     return Ok(());
 }
@@ -74,7 +75,7 @@ pub fn publish_get_topic_name(
     match topic_name_validator(topic_name.clone()) {
         Ok(_) => {}
         Err(e) => {
-            return Err(e);
+            return Err(RobustMQError::CommmonError(e.to_string()));
         }
     }
 
@@ -83,15 +84,41 @@ pub fn publish_get_topic_name(
 
 pub fn save_topic_alias(
     connect_id: u64,
-    topic_name: String,
+    topic_name: Bytes,
     cache_manager: Arc<CacheManager>,
     publish_properties: Option<PublishProperties>,
-) {
+) -> Result<(), MQTTBrokerError> {
+    if topic_name.is_empty() {
+        return Ok(());
+    }
+
+    let topic = match String::from_utf8(topic_name.to_vec()) {
+        Ok(da) => da,
+        Err(e) => return Err(MQTTBrokerError::CommmonError(e.to_string())),
+    };
+
+    if topic.is_empty() {
+        return Ok(());
+    }
+
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
-            cache_manager.add_topic_alias(connect_id, topic_name, alias);
+            let cluster = cache_manager.get_cluster_info();
+            if alias > cluster.topic_alias_max {
+                return Err(MQTTBrokerError::TopicAliasTooLong);
+            }
+
+            if let Some(current_topic) = cache_manager.get_topic_alias(connect_id, alias) {
+                // update mapping for topic&alias
+                if current_topic != topic {
+                    cache_manager.add_topic_alias(connect_id, topic, alias);
+                }
+            } else {
+                cache_manager.add_topic_alias(connect_id, topic, alias);
+            }
         }
     }
+    return Ok(());
 }
 
 pub async fn get_topic_info<S>(
@@ -137,6 +164,8 @@ where
 mod test {
     use common_base::errors::RobustMQError;
 
+    use crate::core::error::MQTTBrokerError;
+
     use super::topic_name_validator;
 
     #[test]
@@ -145,7 +174,7 @@ mod test {
         match topic_name_validator(topic_name) {
             Ok(_) => {}
             Err(e) => {
-                assert!(e.to_string() == RobustMQError::TopicNameIsEmpty.to_string())
+                assert!(e.to_string() == MQTTBrokerError::TopicNameIsEmpty.to_string())
             }
         }
 
@@ -153,7 +182,7 @@ mod test {
         match topic_name_validator(topic_name) {
             Ok(_) => {}
             Err(e) => {
-                assert!(e.to_string() == RobustMQError::TopicNameIncorrectlyFormatted.to_string())
+                assert!(e.to_string() == MQTTBrokerError::TopicNameIncorrectlyFormatted.to_string())
             }
         }
 
@@ -161,7 +190,7 @@ mod test {
         match topic_name_validator(topic_name) {
             Ok(_) => {}
             Err(e) => {
-                assert!(e.to_string() == RobustMQError::TopicNameIncorrectlyFormatted.to_string())
+                assert!(e.to_string() == MQTTBrokerError::TopicNameIncorrectlyFormatted.to_string())
             }
         }
 
@@ -169,7 +198,7 @@ mod test {
         match topic_name_validator(topic_name) {
             Ok(_) => {}
             Err(e) => {
-                assert!(e.to_string() == RobustMQError::TopicNameIncorrectlyFormatted.to_string())
+                assert!(e.to_string() == MQTTBrokerError::TopicNameIncorrectlyFormatted.to_string())
             }
         }
 

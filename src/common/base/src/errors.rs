@@ -98,12 +98,6 @@ pub enum RobustMQError {
     #[error("Resource Config does not exist")]
     ResourceConfigDoesNotExist,
 
-    #[error("Topic name cannot be empty")]
-    TopicNameIsEmpty,
-
-    #[error("Topic name is incorrectly formatted")]
-    TopicNameIncorrectlyFormatted,
-
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,
 

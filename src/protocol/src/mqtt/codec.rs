@@ -161,8 +161,6 @@ impl codec::Decoder for MqttCodec {
                 }
                 PacketType::Publish => {
                     let (publish, publish_properties) = crate::mqtt::mqttv5::publish::read(fixed_header, packet)?;
-                    println!("1:{:?}",publish);
-                    println!("2:{:?}",publish_properties);
                     MQTTPacket::Publish(publish, publish_properties)
                 }
                 PacketType::PubAck => {

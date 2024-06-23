@@ -294,6 +294,13 @@ impl CacheManager {
         return None;
     }
 
+    pub fn topic_alias_exists(&self, connect_id: u64, topic_alias: u16) -> bool {
+        if let Some(conn) = self.connection_info.get(&connect_id) {
+            return conn.topic_alias.contains_key(&topic_alias);
+        }
+        return false;
+    }
+
     pub fn add_topic_alias(&self, connect_id: u64, topic_name: String, topic_alias: u16) {
         if let Some(conn) = self.connection_info.get_mut(&connect_id) {
             conn.topic_alias.insert(topic_alias, topic_name);
