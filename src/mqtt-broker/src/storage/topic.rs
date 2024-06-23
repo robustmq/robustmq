@@ -22,12 +22,11 @@ impl TopicStorage {
         return TopicStorage { client_poll };
     }
 
-    pub async fn save_topic(&self, topic_name: String) -> Result<(), RobustMQError> {
+    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
-        let topic = MQTTTopic::new(&topic_name);
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name: topic_name.clone(),
+            topic_name: topic.topic_name.clone(),
             content: topic.encode(),
         };
         match placement_create_topic(
@@ -139,6 +138,7 @@ impl TopicStorage {
             topic_name: topic_name.clone(),
             retain_message: retain_message.encode(),
         };
+        println!("{:?}", request);
         match placement_set_topic_retain_message(
             self.client_poll.clone(),
             config.placement.server.clone(),

@@ -1,15 +1,18 @@
 mod common;
 #[cfg(test)]
 mod tests {
+    use crate::common::setup;
     use bytes::Bytes;
     use clients::poll::ClientPool;
-    use metadata_struct::mqtt::{cluster::MQTTCluster, message::MQTTMessage, session::MQTTSession};
+    use common_base::tools::unique_id;
+    use metadata_struct::mqtt::{
+        cluster::MQTTCluster, message::MQTTMessage, session::MQTTSession, topic::MQTTTopic,
+    };
     use mqtt_broker::storage::{
         cluster::ClusterStorage, session::SessionStorage, topic::TopicStorage, user::UserStorage,
     };
     use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;
-    use crate::common::setup;
 
     #[tokio::test]
     async fn user_test() {
@@ -52,7 +55,8 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);
         let topic_name: String = "test_password".to_string();
-        topic_storage.save_topic(topic_name.clone()).await.unwrap();
+        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
+        topic_storage.save_topic(topic).await.unwrap();
 
         let result = topic_storage
             .get_topic(topic_name.clone())
@@ -78,7 +82,8 @@ mod tests {
         assert_eq!(result.len(), prefix_len - 1);
 
         let topic_name: String = "test_password".to_string();
-        topic_storage.save_topic(topic_name.clone()).await.unwrap();
+        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
+        topic_storage.save_topic(topic).await.unwrap();
 
         let result_message = topic_storage
             .get_retain_message(topic_name.clone())

@@ -247,7 +247,7 @@ where
                 publish_properties.clone(),
             );
             match topic_storage
-                .save_retain_message(topic.topic_id.clone(), retain_message.clone())
+                .save_retain_message(topic.topic_name.clone(), retain_message.clone())
                 .await
             {
                 Ok(_) => {

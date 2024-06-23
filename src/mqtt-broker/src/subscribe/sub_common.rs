@@ -423,6 +423,7 @@ mod tests {
 
     use bytes::Bytes;
     use clients::poll::ClientPool;
+    use common_base::tools::unique_id;
     use metadata_struct::mqtt::message::MQTTMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
@@ -554,7 +555,7 @@ mod tests {
             4,
         ));
         let topic_name = "/test/topic".to_string();
-        let topic = MQTTTopic::new(&topic_name);
+        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();
@@ -625,7 +626,7 @@ mod tests {
 
         let topic_name = "/test/topic".to_string();
         let payload = "testtesttest".to_string();
-        let topic = MQTTTopic::new(&topic_name);
+        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
 
         metadata_cache.add_topic(&topic_name, &topic);
 
