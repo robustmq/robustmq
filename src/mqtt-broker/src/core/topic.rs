@@ -4,6 +4,7 @@ use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use common_base::tools::unique_id;
+use metadata_struct::mqtt::message::MQTTMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
@@ -81,6 +82,40 @@ pub fn get_topic_name(
     }
 
     return Ok(topic_name);
+}
+
+pub async fn save_topic_retain_message(
+    topic_name: String,
+    client_id: String,
+    publish: Publish,
+    publish_properties: Option<PublishProperties>,
+    client_poll: Arc<ClientPool>,
+) -> Result<(), MQTTBrokerError> {
+    if publish.retain {
+        let topic_storage = TopicStorage::new(client_poll.clone());
+        let retain_message = MQTTMessage::build_message(
+            client_id.clone(),
+            publish.clone(),
+            publish_properties.clone(),
+        );
+        match topic_storage
+            .save_retain_message(topic_name.clone(), retain_message.clone())
+            .await
+        {
+            Ok(_) => {
+                self.cache_manager
+                    .update_topic_retain_message(&topic_name, &retain_message);
+            }
+            Err(e) => {
+                error(e.to_string());
+                return Some(
+                    self.ack_build
+                        .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
+                );
+            }
+        }
+    }
+    return Ok(());
 }
 
 pub fn save_topic_alias(

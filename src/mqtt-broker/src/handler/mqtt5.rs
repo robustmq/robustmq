@@ -239,30 +239,7 @@ where
         };
 
         // Persisting retain message data
-        let topic_storage = TopicStorage::new(self.client_poll.clone());
-        if publish.retain {
-            let retain_message = MQTTMessage::build_message(
-                client_id.clone(),
-                publish.clone(),
-                publish_properties.clone(),
-            );
-            match topic_storage
-                .save_retain_message(topic.topic_name.clone(), retain_message.clone())
-                .await
-            {
-                Ok(_) => {
-                    self.cache_manager
-                        .update_topic_retain_message(&topic.topic_name, &retain_message);
-                }
-                Err(e) => {
-                    error(e.to_string());
-                    return Some(
-                        self.ack_build
-                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
-                    );
-                }
-            }
-        }
+
 
         // Persisting stores message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
