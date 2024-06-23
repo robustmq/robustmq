@@ -4,7 +4,7 @@ use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
 use crate::core::session::build_session;
-use crate::core::topic::{get_topic_info, publish_get_topic_name, save_topic_alias};
+use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
 use crate::storage::topic::TopicStorage;
 use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -167,7 +167,7 @@ where
             }
         }
 
-        let topic_name = match publish_get_topic_name(
+        let topic_name = match get_topic_name(
             connect_id,
             publish.clone(),
             self.cache_manager.clone(),

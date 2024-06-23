@@ -43,7 +43,7 @@ pub fn topic_name_validator(topic_name: String) -> Result<(), MQTTBrokerError> {
     return Ok(());
 }
 
-pub fn publish_get_topic_name(
+pub fn get_topic_name(
     connect_id: u64,
     publish: Publish,
     metadata_cache: Arc<CacheManager>,
