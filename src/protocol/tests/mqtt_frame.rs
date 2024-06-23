@@ -35,10 +35,9 @@ mod tests {
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
                     write_frame_stream
-                        .send(build_mqtt4_pg_connect_ack())
+                        .send(build_mqtt5_pg_connect_ack())
                         .await
                         .unwrap();
-                    break;
                 }
             });
         }
@@ -133,7 +132,7 @@ mod tests {
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
-                    stream.send(build_mqtt5_pg_connect_ack()).await.unwrap();
+                    // stream.send(build_mqtt5_pg_connect_ack()).await.unwrap();
                 }
             });
         }
@@ -179,13 +178,16 @@ mod tests {
     }
 
     /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect_ack() -> MQTTPacket {
+    fn build_mqtt5_pg_connect_ack() -> MQTTPacketWrapper {
         let ack: ConnAck = ConnAck {
             session_present: true,
             code: ConnectReturnCode::Success,
         };
         let mut properties = ConnAckProperties::default();
         properties.max_qos = Some(10u8);
-        return MQTTPacket::ConnAck(ack, Some(properties));
+        return MQTTPacketWrapper {
+            protocol_version: 5,
+            packet: MQTTPacket::ConnAck(ack, Some(properties)),
+        };
     }
 }
