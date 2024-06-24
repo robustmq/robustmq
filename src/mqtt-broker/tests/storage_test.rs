@@ -99,7 +99,7 @@ mod tests {
         let retain_message =
             MQTTMessage::build_message(client_id, publish, Some(publish_properties));
         topic_storage
-            .save_retain_message(topic_name.clone(), retain_message)
+            .set_retain_message(topic_name.clone(), retain_message)
             .await
             .unwrap();
 

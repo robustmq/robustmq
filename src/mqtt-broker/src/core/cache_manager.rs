@@ -235,9 +235,13 @@ impl CacheManager {
         self.topic_id_name.insert(t.topic_id, topic_name.clone());
     }
 
-    pub fn update_topic_retain_message(&self, topic_name: &String, message: &MQTTMessage) {
+    pub fn update_topic_retain_message(
+        &self,
+        topic_name: &String,
+        retain_message: Option<Vec<u8>>,
+    ) {
         if let Some(mut topic) = self.topic_info.get_mut(topic_name) {
-            topic.retain_message = Some(message.encode());
+            topic.retain_message = retain_message;
         }
     }
 

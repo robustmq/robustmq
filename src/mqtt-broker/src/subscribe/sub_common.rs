@@ -1,16 +1,11 @@
 use crate::core::cache_manager::CacheManager;
 use crate::core::cache_manager::QosAckPackageData;
-use crate::storage::topic::TopicStorage;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
-use bytes::Bytes;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::{errors::RobustMQError, log::error};
-use protocol::mqtt::common::{
-    MQTTPacket, PubRel, Publish, PublishProperties, QoS, RetainForwardRule, Subscribe,
-    SubscribeProperties,
-};
+use protocol::mqtt::common::{MQTTPacket, PubRel, Publish, PublishProperties, QoS};
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
@@ -72,79 +67,6 @@ pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
     }
 
     return false;
-}
-
-// Reservation messages are processed when a subscription is created
-pub async fn send_retain_message(
-    connect_id: u64,
-    subscribe: Subscribe,
-    subscribe_properties: Option<SubscribeProperties>,
-    client_poll: Arc<ClientPool>,
-    metadata_cache: Arc<CacheManager>,
-    response_queue_sx: Sender<ResponsePackage>,
-    new_sub: bool,
-    dup_msg: bool,
-) -> Result<(), RobustMQError> {
-    let mut sub_id = Vec::new();
-    if let Some(properties) = subscribe_properties {
-        if let Some(id) = properties.subscription_identifier {
-            sub_id.push(id);
-        }
-    }
-
-    for filter in subscribe.filters {
-        if filter.retain_forward_rule == RetainForwardRule::Never {
-            continue;
-        }
-
-        if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !new_sub {
-            continue;
-        }
-
-        let topic_id_list = get_sub_topic_id_list(metadata_cache.clone(), filter.path).await;
-        let topic_storage = TopicStorage::new(client_poll.clone());
-        for topic_id in topic_id_list {
-            match topic_storage.get_retain_message(topic_id.clone()).await {
-                Ok(Some(msg)) => {
-                    if let Some(topic_name) = metadata_cache.topic_name_by_id(topic_id) {
-                        let publish = Publish {
-                            dup: dup_msg,
-                            qos: min_qos(msg.qos, filter.qos),
-                            pkid: subscribe.packet_identifier,
-                            retain: false,
-                            topic: Bytes::from(topic_name),
-                            payload: msg.payload,
-                        };
-                        let properties = PublishProperties {
-                            payload_format_indicator: None,
-                            message_expiry_interval: None,
-                            topic_alias: None,
-                            response_topic: None,
-                            correlation_data: None,
-                            user_properties: Vec::new(),
-                            subscription_identifiers: sub_id.clone(),
-                            content_type: None,
-                        };
-
-                        let resp = ResponsePackage {
-                            connection_id: connect_id,
-                            packet: MQTTPacket::Publish(publish, Some(properties)),
-                        };
-                        // todo send retain
-                        match response_queue_sx.send(resp) {
-                            Ok(_) => {}
-                            Err(e) => error(format!("{}", e.to_string())),
-                        }
-                    }
-                }
-                Ok(None) => {
-                    continue;
-                }
-                Err(e) => return Err(e),
-            }
-        }
-    }
-    return Ok(());
 }
 
 pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
@@ -419,23 +341,15 @@ pub async fn publish_message_qos0(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use bytes::Bytes;
+    use crate::core::cache_manager::CacheManager;
+    use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
+    use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, path_regex_match};
     use clients::poll::ClientPool;
     use common_base::tools::unique_id;
-    use metadata_struct::mqtt::message::MQTTMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::mqtt::common::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
+    use protocol::mqtt::common::QoS;
+    use std::sync::Arc;
     use storage_adapter::memory::MemoryStorageAdapter;
-    use tokio::sync::broadcast;
-
-    use crate::core::cache_manager::CacheManager;
-    use crate::storage::topic::TopicStorage;
-    use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
-    use crate::subscribe::sub_common::{
-        get_sub_topic_id_list, min_qos, path_regex_match, send_retain_message,
-    };
 
     #[tokio::test]
     async fn is_share_sub_test() {
@@ -592,98 +506,5 @@ mod tests {
 
         let path = "$share/loboxu/*test".to_string();
         assert!(!sub_path_validator(path));
-    }
-
-    #[tokio::test]
-    async fn send_retain_message_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(
-            client_poll,
-            "test-cluster".to_string(),
-            4,
-        ));
-        let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
-        let connect_id = 1;
-        let mut filters = Vec::new();
-        let flt = Filter {
-            path: "/test/topic".to_string(),
-            qos: QoS::AtLeastOnce,
-            nolocal: true,
-            preserve_retain: true,
-            retain_forward_rule: protocol::mqtt::common::RetainForwardRule::OnEverySubscribe,
-        };
-        filters.push(flt);
-        let subscribe = Subscribe {
-            packet_identifier: 1,
-            filters,
-        };
-        let subscribe_properties = Some(SubscribeProperties::default());
-
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let topic_storage = TopicStorage::new(client_poll.clone());
-        let new_sub = true;
-        let dup_msg = true;
-
-        let topic_name = "/test/topic".to_string();
-        let payload = "testtesttest".to_string();
-        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
-
-        metadata_cache.add_topic(&topic_name, &topic);
-
-        let mut retain_message = MQTTMessage::default();
-        retain_message.dup = false;
-        retain_message.qos = QoS::AtLeastOnce;
-        retain_message.pkid = 1;
-        retain_message.retain = true;
-        retain_message.topic = Bytes::from(topic_name.clone());
-        retain_message.payload = Bytes::from(payload);
-
-        match topic_storage
-            .save_retain_message(topic.topic_id, retain_message.clone())
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
-        }
-
-        match send_retain_message(
-            connect_id,
-            subscribe,
-            subscribe_properties,
-            client_poll,
-            metadata_cache.clone(),
-            response_queue_sx.clone(),
-            new_sub,
-            dup_msg,
-        )
-        .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
-        }
-
-        loop {
-            match response_queue_rx.recv().await {
-                Ok(packet) => {
-                    if let MQTTPacket::Publish(publish, _) = packet.packet {
-                        assert_eq!(publish.topic, retain_message.topic);
-                        assert_eq!(publish.payload, retain_message.payload);
-                    } else {
-                        println!("Package does not exist");
-                        assert!(false);
-                    }
-                    break;
-                }
-                Err(e) => {
-                    println!("{}", e)
-                }
-            }
-        }
     }
 }

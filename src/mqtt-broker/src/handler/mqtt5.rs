@@ -3,10 +3,10 @@ use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
+use crate::core::retain_message::{save_topic_retain_message, save_retain_message};
 use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
-use crate::storage::topic::TopicStorage;
-use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
+use crate::subscribe::sub_common::{min_qos, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use crate::{
     security::authentication::authentication_login, server::tcp::packet::ResponsePackage,
@@ -183,7 +183,7 @@ where
         };
 
         let topic = match get_topic_info(
-            topic_name,
+            topic_name.clone(),
             self.cache_manager.clone(),
             self.message_storage_adapter.clone(),
             self.client_poll.clone(),
@@ -239,7 +239,24 @@ where
         };
 
         // Persisting retain message data
-
+        match save_topic_retain_message(
+            topic_name.clone(),
+            client_id.clone(),
+            publish.clone(),
+            self.cache_manager.clone(),
+            publish_properties.clone(),
+            self.client_poll.clone(),
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                return Some(
+                    self.ack_build
+                        .pub_ack_fail(PubAckReason::UnspecifiedError, Some(e.to_string())),
+                );
+            }
+        }
 
         // Persisting stores message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
@@ -425,6 +442,7 @@ where
             return self.ack_build.sub_ack(
                 subscribe.packet_identifier,
                 vec![SubscribeReasonCode::PkidInUse],
+                None,
             );
         }
 
@@ -454,6 +472,7 @@ where
             return self.ack_build.sub_ack(
                 subscribe.packet_identifier,
                 vec![SubscribeReasonCode::TopicFilterInvalid],
+                None,
             );
         }
 
@@ -479,29 +498,31 @@ where
             .await;
 
         // Reservation messages are processed when a subscription is created
-        match send_retain_message(
+        match save_retain_message(
             connect_id,
+            client_id.clone(),
             subscribe.clone(),
             subscribe_properties.clone(),
             self.client_poll.clone(),
             self.cache_manager.clone(),
             response_queue_sx.clone(),
             true,
-            false,
+            
         )
         .await
         {
             Ok(()) => {}
             Err(e) => {
-                error(e.to_string());
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
+                return self.ack_build.sub_ack(
+                    subscribe.packet_identifier,
+                    vec![SubscribeReasonCode::Failure],
+                    Some(e.to_string()),
+                );
             }
         }
 
         let pkid = subscribe.packet_identifier;
-        return self.ack_build.sub_ack(pkid, return_codes);
+        return self.ack_build.sub_ack(pkid, return_codes, None);
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {

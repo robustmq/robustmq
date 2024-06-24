@@ -107,10 +107,15 @@ impl MQTTAckBuild {
         return MQTTPacket::PingResp(PingResp {});
     }
 
-    pub fn sub_ack(&self, pkid: u16, return_codes: Vec<SubscribeReasonCode>) -> MQTTPacket {
+    pub fn sub_ack(
+        &self,
+        pkid: u16,
+        return_codes: Vec<SubscribeReasonCode>,
+        reason_string: Option<String>,
+    ) -> MQTTPacket {
         let sub_ack = SubAck { pkid, return_codes };
         let properties = SubAckProperties {
-            reason_string: None,
+            reason_string,
             user_properties: Vec::new(),
         };
         return MQTTPacket::SubAck(sub_ack, Some(properties));

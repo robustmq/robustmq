@@ -56,7 +56,7 @@ impl Mqtt3Service {
         if self.login {
             return self.un_login_err();
         }
-        return self.ack_build.sub_ack(0, Vec::new());
+        return self.ack_build.sub_ack(0, Vec::new(), None);
     }
 
     pub fn ping(&self, ping: PingReq) -> MQTTPacket {
