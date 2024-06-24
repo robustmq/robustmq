@@ -3,7 +3,7 @@ use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
-use crate::core::retain_message::{save_topic_retain_message, save_retain_message};
+use crate::core::message_retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
 use crate::subscribe::sub_common::{min_qos, sub_path_validator};
@@ -25,7 +25,7 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast::{self, Sender};
 
 #[derive(Clone)]
 pub struct Mqtt5Service<S> {
@@ -34,6 +34,7 @@ pub struct Mqtt5Service<S> {
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
     client_poll: Arc<ClientPool>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl<S> Mqtt5Service<S>
@@ -46,6 +47,7 @@ where
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return Mqtt5Service {
             cache_manager,
@@ -53,6 +55,7 @@ where
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             client_poll,
+            stop_sx,
         };
     }
 
@@ -497,9 +500,7 @@ where
             )
             .await;
 
-        // Reservation messages are processed when a subscription is created
-        match save_retain_message(
-            connect_id,
+        send_retain_message(
             client_id.clone(),
             subscribe.clone(),
             subscribe_properties.clone(),
@@ -507,19 +508,9 @@ where
             self.cache_manager.clone(),
             response_queue_sx.clone(),
             true,
-            
+            self.stop_sx.clone(),
         )
-        .await
-        {
-            Ok(()) => {}
-            Err(e) => {
-                return self.ack_build.sub_ack(
-                    subscribe.packet_identifier,
-                    vec![SubscribeReasonCode::Failure],
-                    Some(e.to_string()),
-                );
-            }
-        }
+        .await;
 
         let pkid = subscribe.packet_identifier;
         return self.ack_build.sub_ack(pkid, return_codes, None);

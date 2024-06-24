@@ -8,7 +8,6 @@ use common_base::log::warn;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
-use metadata_struct::mqtt::message::MQTTMessage;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;

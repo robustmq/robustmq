@@ -4,7 +4,7 @@ mod tests {
     use crate::common::setup;
     use bytes::Bytes;
     use clients::poll::ClientPool;
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
     use metadata_struct::mqtt::{
         cluster::MQTTCluster, message::MQTTMessage, session::MQTTSession, topic::MQTTTopic,
     };
@@ -99,7 +99,7 @@ mod tests {
         let retain_message =
             MQTTMessage::build_message(client_id, publish, Some(publish_properties));
         topic_storage
-            .set_retain_message(topic_name.clone(), retain_message)
+            .set_retain_message(topic_name.clone(), retain_message, now_second() + 3600)
             .await
             .unwrap();
 

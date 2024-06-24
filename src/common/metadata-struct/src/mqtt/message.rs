@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use common_base::{errors::RobustMQError, tools::now_mills};
+use common_base::{errors::RobustMQError, tools::{now_mills, now_second}};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use storage_adapter::record::Record;
@@ -20,7 +20,7 @@ pub struct MQTTMessage {
     pub user_properties: Vec<(String, String)>,
     pub subscription_identifiers: Vec<usize>,
     pub content_type: Option<String>,
-    pub create_time: u128,
+    pub create_time: u64,
 }
 
 impl MQTTMessage {
@@ -46,7 +46,7 @@ impl MQTTMessage {
             message.subscription_identifiers = properties.subscription_identifiers;
             message.content_type = properties.content_type;
         }
-        message.create_time = now_mills();
+        message.create_time = now_second();
         return message;
     }
 

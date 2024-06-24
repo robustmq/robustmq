@@ -131,12 +131,14 @@ impl TopicStorage {
         &self,
         topic_name: String,
         retain_message: MQTTMessage,
+        retain_message_expired_at: u64,
     ) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
             topic_name: topic_name.clone(),
             retain_message: retain_message.encode(),
+            retain_message_expired_at,
         };
         match placement_set_topic_retain_message(
             self.client_poll.clone(),
@@ -158,6 +160,7 @@ impl TopicStorage {
             cluster_name: config.cluster_name.clone(),
             topic_name: topic_name.clone(),
             retain_message: Vec::new(),
+            retain_message_expired_at: 0,
         };
         match placement_set_topic_retain_message(
             self.client_poll.clone(),

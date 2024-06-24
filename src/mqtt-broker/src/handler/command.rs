@@ -13,7 +13,7 @@ use protocol::mqtt::common::{ConnectReturnCode, MQTTPacket};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast::{self, Sender};
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -37,6 +37,7 @@ where
         response_queue_sx: Sender<ResponsePackage>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         let ack_build = MQTTAckBuild::new(cache_manager.clone());
         let mqtt4_service = Mqtt4Service::new(cache_manager.clone(), ack_build.clone());
@@ -46,6 +47,7 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
+            stop_sx.clone(),
         );
         let mqtt3_service = Mqtt3Service::new(cache_manager.clone(), ack_build.clone());
         return Command {
