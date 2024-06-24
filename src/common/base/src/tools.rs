@@ -1,12 +1,10 @@
 use std::{
     fs,
-    mem::replace,
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use local_ip_address::local_ip;
-use snowflake::ProcessUniqueId;
 use uuid::Uuid;
 
 use crate::log::warn;

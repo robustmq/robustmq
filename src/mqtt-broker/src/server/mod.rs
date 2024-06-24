@@ -9,7 +9,7 @@ use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
 use protocol::mqtt::common::MQTTProtocol;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast::{self, Sender};
 
 pub mod grpc;
 pub mod http;
@@ -24,6 +24,7 @@ pub async fn start_tcp_server<S>(
     client_poll: Arc<ClientPool>,
     request_queue_sx: Sender<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
+    stop_sx: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -34,6 +35,7 @@ pub async fn start_tcp_server<S>(
         response_queue_sx.clone(),
         sucscribe_manager.clone(),
         client_poll.clone(),
+        stop_sx.clone(),
     );
 
     let server = TcpServer::<S>::new(
@@ -47,6 +49,7 @@ pub async fn start_tcp_server<S>(
         conf.network_tcp.lock_try_mut_sleep_time_ms,
         request_queue_sx,
         response_queue_sx,
+        stop_sx.clone(),
     );
 
     server.start(conf.mqtt.tcp_port).await;

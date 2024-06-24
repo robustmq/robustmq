@@ -3,10 +3,10 @@ use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
+use crate::core::message_retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
-use crate::storage::topic::TopicStorage;
-use crate::subscribe::sub_common::{min_qos, send_retain_message, sub_path_validator};
+use crate::subscribe::sub_common::{min_qos, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use crate::{
     security::authentication::authentication_login, server::tcp::packet::ResponsePackage,
@@ -25,7 +25,7 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::Sender;
+use tokio::sync::broadcast::{self, Sender};
 
 #[derive(Clone)]
 pub struct Mqtt5Service<S> {
@@ -34,6 +34,7 @@ pub struct Mqtt5Service<S> {
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
     client_poll: Arc<ClientPool>,
+    stop_sx: broadcast::Sender<bool>,
 }
 
 impl<S> Mqtt5Service<S>
@@ -46,6 +47,7 @@ where
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
+        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return Mqtt5Service {
             cache_manager,
@@ -53,6 +55,7 @@ where
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             client_poll,
+            stop_sx,
         };
     }
 
@@ -183,7 +186,7 @@ where
         };
 
         let topic = match get_topic_info(
-            topic_name,
+            topic_name.clone(),
             self.cache_manager.clone(),
             self.message_storage_adapter.clone(),
             self.client_poll.clone(),
@@ -239,28 +242,22 @@ where
         };
 
         // Persisting retain message data
-        let topic_storage = TopicStorage::new(self.client_poll.clone());
-        if publish.retain {
-            let retain_message = MQTTMessage::build_message(
-                client_id.clone(),
-                publish.clone(),
-                publish_properties.clone(),
-            );
-            match topic_storage
-                .save_retain_message(topic.topic_id.clone(), retain_message.clone())
-                .await
-            {
-                Ok(_) => {
-                    self.cache_manager
-                        .update_topic_retain_message(&topic.topic_name, &retain_message);
-                }
-                Err(e) => {
-                    error(e.to_string());
-                    return Some(
-                        self.ack_build
-                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
-                    );
-                }
+        match save_topic_retain_message(
+            topic_name.clone(),
+            client_id.clone(),
+            publish.clone(),
+            self.cache_manager.clone(),
+            publish_properties.clone(),
+            self.client_poll.clone(),
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                return Some(
+                    self.ack_build
+                        .pub_ack_fail(PubAckReason::UnspecifiedError, Some(e.to_string())),
+                );
             }
         }
 
@@ -448,6 +445,7 @@ where
             return self.ack_build.sub_ack(
                 subscribe.packet_identifier,
                 vec![SubscribeReasonCode::PkidInUse],
+                None,
             );
         }
 
@@ -477,6 +475,7 @@ where
             return self.ack_build.sub_ack(
                 subscribe.packet_identifier,
                 vec![SubscribeReasonCode::TopicFilterInvalid],
+                None,
             );
         }
 
@@ -501,30 +500,20 @@ where
             )
             .await;
 
-        // Reservation messages are processed when a subscription is created
-        match send_retain_message(
-            connect_id,
+        send_retain_message(
+            client_id.clone(),
             subscribe.clone(),
             subscribe_properties.clone(),
             self.client_poll.clone(),
             self.cache_manager.clone(),
             response_queue_sx.clone(),
             true,
-            false,
+            self.stop_sx.clone(),
         )
-        .await
-        {
-            Ok(()) => {}
-            Err(e) => {
-                error(e.to_string());
-                return self
-                    .ack_build
-                    .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string()));
-            }
-        }
+        .await;
 
         let pkid = subscribe.packet_identifier;
-        return self.ack_build.sub_ack(pkid, return_codes);
+        return self.ack_build.sub_ack(pkid, return_codes, None);
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {

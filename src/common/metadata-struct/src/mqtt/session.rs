@@ -10,6 +10,7 @@ pub struct MQTTSession {
     pub session_expiry: u32,
     pub connection_id: Option<u64>,
     pub reconnect_time: Option<u64>,
+    pub broker_id: Option<u64>,
 }
 
 impl MQTTSession {

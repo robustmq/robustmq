@@ -114,7 +114,7 @@ where
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         self.register_node();
         self.start_grpc_server();
-        self.start_mqtt_server();
+        self.start_mqtt_server(stop_send.clone());
         self.start_http_server();
         self.start_keep_alive_thread(stop_send.subscribe());
         self.start_cluster_heartbeat_report(stop_send.subscribe());
@@ -122,7 +122,7 @@ where
         self.awaiting_stop(stop_send);
     }
 
-    fn start_mqtt_server(&self) {
+    fn start_mqtt_server(&self, stop_send: broadcast::Sender<bool>) {
         let cache = self.cache_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         let subscribe_manager = self.subscribe_manager.clone();
@@ -138,6 +138,7 @@ where
                 client_poll,
                 request_queue_sx,
                 response_queue_sx,
+                stop_send,
             )
             .await
         });

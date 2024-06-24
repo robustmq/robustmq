@@ -89,6 +89,8 @@ pub struct SetTopicRetainMessageRequest {
     pub topic_name: ::prost::alloc::string::String,
     #[prost(bytes = "vec", tag = "3")]
     pub retain_message: ::prost::alloc::vec::Vec<u8>,
+    #[prost(uint64, tag = "4")]
+    pub retain_message_expired_at: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

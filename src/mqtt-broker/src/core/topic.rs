@@ -3,6 +3,8 @@ use crate::storage::topic::TopicStorage;
 use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
+use common_base::tools::unique_id;
+use metadata_struct::mqtt::message::MQTTMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
@@ -134,8 +136,9 @@ where
         tp
     } else {
         let topic_storage = TopicStorage::new(client_poll.clone());
-        let topic = MQTTTopic::new(&topic_name);
-        match topic_storage.save_topic(topic_name.clone()).await {
+        let topic_id = unique_id();
+        let topic = MQTTTopic::new(topic_id, topic_name.clone());
+        match topic_storage.save_topic(topic.clone()).await {
             Ok(topic_id) => topic_id,
             Err(e) => {
                 return Err(RobustMQError::CommmonError(e.to_string()));
@@ -162,8 +165,6 @@ where
 
 #[cfg(test)]
 mod test {
-    use common_base::errors::RobustMQError;
-
     use crate::core::error::MQTTBrokerError;
 
     use super::topic_name_validator;

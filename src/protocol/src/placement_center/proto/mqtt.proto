@@ -99,6 +99,7 @@ message SetTopicRetainMessageRequest{
     string cluster_name = 1;
     string topic_name = 2;
     bytes retain_message = 3;
+    uint64 retain_message_expired_at = 4;
 }
 
 message ListSessionRequest{

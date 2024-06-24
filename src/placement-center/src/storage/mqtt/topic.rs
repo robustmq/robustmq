@@ -24,7 +24,7 @@ impl MQTTTopicStorage {
         topicname: Option<String>,
     ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
-        if topicname != None{
+        if topicname != None {
             let key: String = storage_key_mqtt_topic(cluster_name, topicname.unwrap());
             match self
                 .rocksdb_engine_handler
@@ -147,6 +147,7 @@ mod tests {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
             retain_message: None,
+            retain_message_expired_at: None,
         };
         topic_storage
             .save(cluster_name.clone(), topic_name, topic.encode())
@@ -157,6 +158,7 @@ mod tests {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
             retain_message: None,
+            retain_message_expired_at: None,
         };
         topic_storage
             .save(cluster_name.clone(), topic_name, topic.encode())

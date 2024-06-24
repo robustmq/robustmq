@@ -329,7 +329,7 @@ where
 // When the subscribed QOS is 1, we need to keep retrying to send the message to the client.
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
-async fn exclusive_publish_message_qos1(
+pub async fn exclusive_publish_message_qos1(
     metadata_cache: Arc<CacheManager>,
     client_id: String,
     mut publish: Publish,
@@ -388,7 +388,7 @@ async fn exclusive_publish_message_qos1(
 // wait pubrec message
 // send pubrel message
 // wait pubcomp message
-async fn exclusive_publish_message_qos2(
+pub async fn exclusive_publish_message_qos2(
     metadata_cache: Arc<CacheManager>,
     client_id: String,
     publish: Publish,
