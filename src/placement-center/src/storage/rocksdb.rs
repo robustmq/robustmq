@@ -33,7 +33,7 @@ fn column_family_list() -> Vec<String> {
 }
 
 pub struct RocksDBEngine {
-    db: DB,
+    pub db: DB,
 }
 
 impl RocksDBEngine {

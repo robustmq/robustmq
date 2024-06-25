@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use super::cache_manager::CacheManager;
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::{
+    config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError, tools::now_second,
+};
 use metadata_struct::mqtt::session::{LastWillData, MQTTSession};
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
-use super::cache_manager::CacheManager;
 
 pub async fn build_session(
     connect_id: u64,
@@ -22,15 +24,7 @@ pub async fn build_session(
         connect_properties,
     );
 
-    let delay_interval = if let Some(properties) = last_will_properties.clone() {
-        if let Some(value) = properties.delay_interval {
-            value
-        } else {
-            0
-        }
-    } else {
-        0
-    };
+    let last_will_delay_interval = last_will_delay_interval(session_expiry, &last_will_properties);
 
     let last_will = if last_will.is_none() {
         None
@@ -42,35 +36,45 @@ pub async fn build_session(
     };
 
     let (mut session, new_session) = if connnect.clean_session {
-        let session_storage = SessionStorage::new(client_poll.clone());
-        match session_storage.get_session(client_id.clone()).await {
-            Ok(Some(mut session)) => {
-                session.update_reconnect_time();
-                (session, false)
-            }
-            Ok(None) => (
-                MQTTSession::new(client_id.clone(), session_expiry, last_will, delay_interval),
-                true,
-            ),
-            Err(e) => {
-                return Err(e);
+        if let Some(data) = cache_manager.get_session_info(&client_id) {
+            (data, true)
+        } else {
+            let session_storage = SessionStorage::new(client_poll.clone());
+            match session_storage.get_session(client_id.clone()).await {
+                Ok(Some(session)) => (session, false),
+                Ok(None) => (
+                    MQTTSession::new(
+                        client_id.clone(),
+                        session_expiry,
+                        last_will,
+                        last_will_delay_interval,
+                    ),
+                    true,
+                ),
+                Err(e) => {
+                    return Err(e);
+                }
             }
         }
     } else {
         (
-            MQTTSession::new(client_id.clone(), session_expiry, last_will, delay_interval),
+            MQTTSession::new(
+                client_id.clone(),
+                session_expiry,
+                last_will,
+                last_will_delay_interval,
+            ),
             true,
         )
     };
 
-    session.update_connnction_id(connect_id);
-    if !new_session {
-        session.update_reconnect_time();
-    }
-
+    let conf = broker_mqtt_conf();
+    session.update_connnction_id(Some(connect_id));
+    session.update_reconnect_time();
+    session.update_broker_id(Some(conf.broker_id));
     let session_storage = SessionStorage::new(client_poll);
     match session_storage
-        .save_session(client_id, session.clone())
+        .set_session(client_id, session.clone())
         .await
     {
         Ok(_) => {}
@@ -84,7 +88,7 @@ pub async fn build_session(
 fn session_expiry_interval(
     cluster_session_expiry_interval: u32,
     connect_properties: Option<ConnectProperties>,
-) -> u32 {
+) -> u64 {
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
             ck
@@ -94,8 +98,26 @@ fn session_expiry_interval(
     } else {
         u32::MAX
     };
-    return std::cmp::min(
+    let expiry = std::cmp::min(
         cluster_session_expiry_interval,
         connection_session_expiry_interval,
     );
+    return now_second() + expiry as u64;
+}
+
+fn last_will_delay_interval(
+    session_expiry: u64,
+    last_will_properties: &Option<LastWillProperties>,
+) -> u64 {
+    let delay_interval = if let Some(properties) = last_will_properties.clone() {
+        if let Some(value) = properties.delay_interval {
+            value
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+
+    return session_expiry + delay_interval as u64;
 }

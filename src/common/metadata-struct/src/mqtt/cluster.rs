@@ -1,4 +1,4 @@
-use protocol::{broker_server::generate::mqtt::Available, mqtt::common::QoS};
+use protocol::mqtt::common::QoS;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -95,6 +95,11 @@ impl From<AvailableFlag> for u8 {
             AvailableFlag::Disable => 0,
         }
     }
+}
+
+pub enum Available {
+    Enable,
+    Disable,
 }
 
 pub fn available_flag(flag: Available) -> AvailableFlag {

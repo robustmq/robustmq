@@ -1,5 +1,5 @@
 pub mod cache_manager;
-pub mod client_keep_alive;
+pub mod keep_alive;
 pub mod connection;
 pub mod error;
 pub mod message_retain;

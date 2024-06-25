@@ -1,23 +1,23 @@
-use crate::cache::placement::PlacementCacheManager;
-use std::sync::{Arc, RwLock};
+use crate::storage::rocksdb::RocksDBEngine;
+use std::sync::Arc;
 
 use super::{
-    retain_message_expire::start_retain_message_expire_check,
-    session_expire::start_session_expire_check,
+    retain_message_expire::start_retain_message_expire_check, session_expire::SessionExpire,
 };
 
-#[derive(Default, Clone)]
-pub struct BrokerServerController {
-    pub cluster_cache: Arc<RwLock<PlacementCacheManager>>,
+pub struct MQTTController {
+    session_expire: SessionExpire,
 }
 
-impl BrokerServerController {
-    pub fn new(cluster_cache: Arc<RwLock<PlacementCacheManager>>) -> BrokerServerController {
-        return BrokerServerController { cluster_cache };
+impl MQTTController {
+    pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> MQTTController {
+        return MQTTController {
+            session_expire: SessionExpire::new(rocksdb_engine_handler),
+        };
     }
 
     pub async fn start(&self) {
         start_retain_message_expire_check().await;
-        start_session_expire_check().await;
+        self.session_expire.start().await;
     }
 }

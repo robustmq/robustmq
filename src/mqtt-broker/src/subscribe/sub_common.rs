@@ -466,7 +466,6 @@ mod tests {
         let metadata_cache = Arc::new(CacheManager::new(
             client_poll,
             "test-cluster".to_string(),
-            4,
         ));
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(unique_id(), topic_name.clone());

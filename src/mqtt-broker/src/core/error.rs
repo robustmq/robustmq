@@ -6,6 +6,9 @@ pub enum MQTTBrokerError {
     CommmonError(String),
     
     #[error("topic alias is too long")]
+    TopicAliasTo,
+
+    #[error("topic alias is too long")]
     TopicAliasTooLong,
 
     #[error("Topic name cannot be empty")]
