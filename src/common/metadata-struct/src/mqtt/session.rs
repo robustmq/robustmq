@@ -43,6 +43,7 @@ impl MQTTSession {
     pub fn encode(&self) -> String {
         return serde_json::to_string(&self).unwrap();
     }
+
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]

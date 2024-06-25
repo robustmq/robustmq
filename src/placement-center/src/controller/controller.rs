@@ -26,7 +26,6 @@ impl ClusterController {
             rocksdb_engine_handler,
             stop_send,
         };
-        controller.load_cache();
         return controller;
     }
 
@@ -37,27 +36,6 @@ impl ClusterController {
     }
 
     pub fn controller_manager_thread(&self) {}
-
-    pub fn load_cache(&self) {
-        // let cluster_handler = ClusterStorage::new(self.rocksdb_engine_handler.clone());
-        // let cluster_list = cluster_handler
-        //     .list(Some(ClusterType::JournalServer.as_str_name().to_string()));
-
-        // let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
-
-        // for cluster in cluster_list {
-        //     let cluster_name = cluster.cluster_name.clone();
-
-        //     // load cluster cache
-        //     self.cluster_cache.add_cluster(cluster.clone());
-
-        //     // load node cache
-        //     let node_list = node_handler.list(cluster_name.clone());
-        //     for node in node_list {
-        //         self.cluster_cache.add_node(node);
-        //     }
-        // }
-    }
 
     // Start the heartbeat detection thread of the Storage Engine node
     pub fn start_node_heartbeat_check(&self) {
