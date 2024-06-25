@@ -21,7 +21,7 @@ impl SessionStorage {
         return SessionStorage { client_poll };
     }
 
-    pub async fn save_session(
+    pub async fn set_session(
         &self,
         client_id: String,
         session: MQTTSession,

@@ -6,6 +6,7 @@ use crate::core::connection::{create_connection, get_client_id};
 use crate::core::message_retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::build_session;
 use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
+use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use crate::{
@@ -117,9 +118,6 @@ where
             }
         };
 
-        self.cache_manager
-            .add_session(client_id.clone(), session.clone());
-
         // update connection cache
         let cluster = self.cache_manager.get_cluster_info();
         let connection = create_connection(
@@ -129,8 +127,6 @@ where
             connnect.clone(),
             connect_properties.clone(),
         );
-        self.cache_manager
-            .add_connection(connect_id, connection.clone());
 
         // Record heartbeat information
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
@@ -138,13 +134,18 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager.report_hearbeat(connect_id, live_time);
+        self.cache_manager
+            .report_heartbeat(client_id.clone(), live_time);
+        self.cache_manager
+            .add_session(client_id.clone(), session.clone());
+        self.cache_manager
+            .add_connection(connect_id, connection.clone());
 
         return self.ack_build.packet_connect_success(
             &cluster,
             client_id.clone(),
             new_client_id,
-            session.session_expiry,
+            session.session_expiry as u32,
             new_session,
         );
     }
@@ -531,7 +532,8 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager.report_hearbeat(connect_id, live_time);
+        self.cache_manager
+            .report_heartbeat(connection.client_id.clone(), live_time);
         return self.ack_build.ping_resp();
     }
 
@@ -577,11 +579,23 @@ where
             return None;
         };
 
-        self.cache_manager
-            .remove_connection(connect_id, connection.client_id.clone());
+        self.cache_manager.remove_connection(connect_id);
 
-        self.sucscribe_cache
-            .remove_client(connection.client_id.clone());
+        if let Some(mut session) = self.cache_manager.get_session_info(&connection.client_id) {
+            session.update_broker_id(None);
+            session.update_connnction_id(None);
+            session.update_reconnect_time();
+            let session_storage = SessionStorage::new(self.client_poll.clone());
+            match session_storage
+                .set_session(connection.client_id, session)
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => {
+                    error(e.to_string());
+                }
+            }
+        }
 
         return Some(
             self.ack_build

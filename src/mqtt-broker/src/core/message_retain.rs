@@ -261,7 +261,6 @@ mod tests {
         let metadata_cache = Arc::new(CacheManager::new(
             client_poll,
             "test-cluster".to_string(),
-            4,
         ));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;

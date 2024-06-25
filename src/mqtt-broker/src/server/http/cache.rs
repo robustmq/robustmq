@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::server::HttpServerState;
 use crate::{
     core::{
-        cache_manager::{ClientPkidData, HeartbeatShard},
+        cache_manager::{ClientPkidData, ConnectionLiveTime},
         connection::Connection,
     },
     subscribe::{
@@ -41,7 +41,7 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         subscribe_filter: state.cache_metadata.subscribe_filter.clone(),
         publish_pkid_info: state.cache_metadata.publish_pkid_info.clone(),
 
-        heartbeat_data: state.cache_metadata.heartbeat_shard_data.clone(),
+        heartbeat_data: state.cache_metadata.heartbeat_data.clone(),
 
         exclusive_subscribe: state.subscribe_cache.exclusive_subscribe.clone(),
         share_leader_subscribe: state.subscribe_cache.share_leader_subscribe.clone(),
@@ -80,7 +80,7 @@ pub struct MetadataCacheResult {
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
 
     // heartbeat data
-    pub heartbeat_data: DashMap<u64, HeartbeatShard>,
+    pub heartbeat_data: DashMap<String, ConnectionLiveTime>,
 
     // subscribe data
     pub exclusive_subscribe: DashMap<String, Subscriber>,

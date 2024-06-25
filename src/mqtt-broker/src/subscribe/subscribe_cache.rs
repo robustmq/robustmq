@@ -1,7 +1,4 @@
-use super::sub_common::{
-    decode_share_info, get_share_sub_leader, is_share_sub,
-    path_regex_match,
-};
+use super::sub_common::{decode_share_info, get_share_sub_leader, is_share_sub, path_regex_match};
 use crate::core::cache_manager::CacheManager;
 use crate::subscribe::subscriber::Subscriber;
 use clients::poll::ClientPool;
@@ -129,16 +126,16 @@ impl SubscribeCacheManager {
         }
     }
 
-    pub fn remove_client(&self, client_id: String) {
+    pub fn remove_client(&self, client_id: &String) {
         for (key, subscriber) in self.exclusive_subscribe.clone() {
-            if subscriber.client_id == client_id {
+            if subscriber.client_id == *client_id {
                 self.exclusive_subscribe.remove(&key);
             }
         }
 
         for (key, share_sub) in self.share_leader_subscribe.clone() {
             for (sub_key, subscriber) in share_sub.sub_list {
-                if subscriber.client_id == client_id {
+                if subscriber.client_id == *client_id {
                     let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
                     mut_data.sub_list.remove(&sub_key);
                 }
@@ -146,7 +143,7 @@ impl SubscribeCacheManager {
         }
 
         for (key, share_sub) in self.share_follower_subscribe.clone() {
-            if share_sub.client_id == client_id {
+            if share_sub.client_id == *client_id {
                 self.share_follower_subscribe.remove(&key);
             }
         }

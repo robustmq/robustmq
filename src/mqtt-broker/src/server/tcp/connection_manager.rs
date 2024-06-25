@@ -3,7 +3,10 @@ use crate::metrics::metrics_connection_num;
 use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
-use protocol::mqtt::{codec::{MQTTPacketWrapper, MqttCodec}, common::MQTTProtocol};
+use protocol::mqtt::{
+    codec::{MQTTPacketWrapper, MqttCodec},
+    common::MQTTProtocol,
+};
 use std::{fmt::Debug, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
@@ -59,9 +62,10 @@ impl ConnectionManager {
     }
 
     pub async fn clonse_connect(&self, connection_id: u64) {
-        self.connections.remove(&connection_id);
-        let lable: String = self.protocol.clone().into();
-        metrics_connection_num(&lable, self.connections.len() as i64);
+        if let Some((_, connection)) = self.connections.remove(&connection_id) {
+            connection.stop_connection();
+        }
+
         if let Some((id, mut stream)) = self.write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
@@ -70,9 +74,11 @@ impl ConnectionManager {
                         id
                     ));
                 }
-                Err(_) => {}
+                Err(e) => error(e.to_string()),
             }
         }
+        let lable: String = self.protocol.clone().into();
+        metrics_connection_num(&lable, self.connections.len() as i64);
     }
 
     pub async fn write_frame(&self, connection_id: u64, resp: MQTTPacketWrapper) {

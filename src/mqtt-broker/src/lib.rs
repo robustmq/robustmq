@@ -18,7 +18,7 @@ use common_base::{
     runtime::create_runtime,
 };
 use core::cache_manager::CacheManager;
-use core::{client_keep_alive::ClientKeepAlive, HEART_CONNECT_SHARD_HASH_NUM};
+use core::{keep_alive::ClientKeepAlive, HEART_CONNECT_SHARD_HASH_NUM};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -63,7 +63,6 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let metadata_cache = Arc::new(CacheManager::new(
         client_poll.clone(),
         conf.cluster_name.clone(),
-        HEART_CONNECT_SHARD_HASH_NUM,
     ));
     let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
     server.start(stop_send)
@@ -116,8 +115,8 @@ where
         self.start_grpc_server();
         self.start_mqtt_server(stop_send.clone());
         self.start_http_server();
-        self.start_keep_alive_thread(stop_send.subscribe());
-        self.start_cluster_heartbeat_report(stop_send.subscribe());
+        self.start_keep_alive_thread(stop_send.clone());
+        self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_push_server();
         self.awaiting_stop(stop_send);
     }
@@ -148,6 +147,7 @@ where
         let server = GrpcServer::new(
             self.conf.grpc_port.clone(),
             self.cache_manager.clone(),
+            self.subscribe_manager.clone(),
             self.client_poll.clone(),
         );
         self.runtime.spawn(async move {
@@ -162,13 +162,13 @@ where
             .spawn(async move { start_http_server(http_state).await });
     }
 
-    fn start_cluster_heartbeat_report(&self, mut stop_send: broadcast::Receiver<bool>) {
+    fn start_cluster_heartbeat_report(&self, mut stop_send: broadcast::Sender<bool>) {
         let client_poll = self.client_poll.clone();
         self.runtime.spawn(async move {
             time::sleep(Duration::from_millis(5000)).await;
             let cluster_storage = ClusterStorage::new(client_poll);
             loop {
-                match stop_send.try_recv() {
+                match stop_send.subscribe().try_recv() {
                     Ok(flag) => {
                         if flag {
                             info("ReportClusterHeartbeat thread stopped successfully".to_string());
@@ -223,10 +223,10 @@ where
         });
     }
 
-    fn start_keep_alive_thread(&self, stop_send: broadcast::Receiver<bool>) {
+    fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
         let mut keep_alive = ClientKeepAlive::new(
-            HEART_CONNECT_SHARD_HASH_NUM,
             self.cache_manager.clone(),
+            self.subscribe_manager.clone(),
             self.request_queue_sx.clone(),
             stop_send,
         );

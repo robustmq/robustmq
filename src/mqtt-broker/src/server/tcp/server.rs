@@ -137,30 +137,46 @@ where
                                 }
 
                                 // connection manager
-                                let connection_id = cm.add(TCPConnection::new(addr));
+                                let (connection_stop_sx,mut connection_stop_rx) = broadcast::channel::<bool>(1);
+                                let connection_id = cm.add(TCPConnection::new(addr,connection_stop_sx.clone()));
                                 cm.add_write(connection_id, write_frame_stream);
                                 let protocol_lable = protocol.clone();
 
                                 // request is processed by a separate thread, placing the request packet in the request queue.
                                 tokio::spawn(async move {
                                     loop {
-                                        if let Some(pkg) = read_frame_stream.next().await {
-                                            match pkg {
-                                                Ok(data) => {
-                                                    metrics_request_packet_incr(&protocol_lable);
-                                                    let pack: MQTTPacket = data.try_into().unwrap();
-                                                    let package =
-                                                        RequestPackage::new(connection_id, addr, pack);
-                                                    match request_queue_sx.send(package) {
-                                                        Ok(_) => {}
-                                                        Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                        select! {
+                                            val = connection_stop_rx.recv() =>{
+                                                match val{
+                                                    Ok(flag) => {
+                                                        if flag {
+                                                            info(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection_id));
+                                                            break;
+                                                        }
                                                     }
+                                                    Err(_) => {}
                                                 }
-                                                Err(e) => {
-                                                    debug(format!(
-                                                        "read_frame_stream decode error,error info: {:?}",
-                                                        e
-                                                    ));
+                                            }
+                                            val = read_frame_stream.next()=>{
+                                                if let Some(pkg) = val {
+                                                    match pkg {
+                                                        Ok(data) => {
+                                                            metrics_request_packet_incr(&protocol_lable);
+                                                            let pack: MQTTPacket = data.try_into().unwrap();
+                                                            let package =
+                                                                RequestPackage::new(connection_id, addr, pack);
+                                                            match request_queue_sx.send(package) {
+                                                                Ok(_) => {}
+                                                                Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                                            }
+                                                        }
+                                                        Err(e) => {
+                                                            debug(format!(
+                                                                "read_frame_stream decode error,error info: {:?}",
+                                                                e
+                                                            ));
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

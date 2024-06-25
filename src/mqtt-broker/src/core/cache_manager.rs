@@ -102,11 +102,8 @@ pub struct CacheManager {
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
 
-    // heartbeat shard_num
-    pub heartbeat_shard_num: u64,
-
-    // (connect_id, HeartbeatShard)
-    pub heartbeat_shard_data: DashMap<u64, HeartbeatShard>,
+    // (client_id, HeartbeatShard)
+    pub heartbeat_data: DashMap<String, ConnectionLiveTime>,
 
     //(client_id_pkid, AckPacketInfo)
     pub qos_ack_packet: DashMap<String, QosAckPacketInfo>,
@@ -116,7 +113,7 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    pub fn new(client_poll: Arc<ClientPool>, cluster_name: String, shard_num: u64) -> Self {
+    pub fn new(client_poll: Arc<ClientPool>, cluster_name: String) -> Self {
         let cache = CacheManager {
             client_poll,
             cluster_name,
@@ -128,8 +125,7 @@ impl CacheManager {
             connection_info: DashMap::with_capacity(256),
             subscribe_filter: DashMap::with_capacity(8),
             publish_pkid_info: DashMap::with_capacity(8),
-            heartbeat_shard_num: shard_num,
-            heartbeat_shard_data: DashMap::with_capacity(256),
+            heartbeat_data: DashMap::with_capacity(256),
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
         };
@@ -180,6 +176,13 @@ impl CacheManager {
 
     pub fn remove_filter_by_client_id(&self, client_id: String) {
         self.subscribe_filter.remove(&client_id);
+    }
+
+    pub fn get_session_info(&self, client_id: &String) -> Option<MQTTSession> {
+        if let Some(session) = self.session_info.get(client_id) {
+            return Some(session.clone());
+        }
+        return None;
     }
 
     pub fn apply(&self, data: String) {
@@ -275,15 +278,27 @@ impl CacheManager {
         return None;
     }
 
-    pub fn remove_connection(&self, connect_id: u64, client_id: String) {
-        self.session_info.remove(&client_id);
-        self.connection_info.remove(&connect_id);
-        self.subscribe_filter.remove(&client_id);
-        self.publish_pkid_info.remove(&client_id);
-        let hash_num = self.calc_shard_hash_num(connect_id);
-        if let Some(row) = self.heartbeat_shard_data.get(&hash_num) {
-            row.remove_connect(connect_id);
+    pub fn remove_session(&self, client_id: &String) {
+        self.session_info.remove(client_id);
+        self.subscribe_filter.remove(client_id);
+        self.publish_pkid_info.remove(client_id);
+        self.heartbeat_data.remove(client_id);
+
+        for (key, _) in self.qos_ack_packet.clone() {
+            if key.starts_with(client_id) {
+                self.qos_ack_packet.remove(&key);
+            }
         }
+
+        for (key, _) in self.client_pkid_data.clone() {
+            if key.starts_with(client_id) {
+                self.qos_ack_packet.remove(&key);
+            }
+        }
+    }
+
+    pub fn remove_connection(&self, connect_id: u64) {
+        self.connection_info.remove(&connect_id);
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
@@ -424,26 +439,12 @@ impl CacheManager {
         }
     }
 
-    pub fn report_hearbeat(&self, connect_id: u64, live_time: ConnectionLiveTime) {
-        let hash_num = self.calc_shard_hash_num(connect_id);
-        if let Some(row) = self.heartbeat_shard_data.get(&hash_num) {
-            row.report_hearbeat(connect_id, live_time);
-        } else {
-            let row = HeartbeatShard::new();
-            row.report_hearbeat(connect_id, live_time);
-            self.heartbeat_shard_data.insert(connect_id, row);
-        }
+    pub fn report_heartbeat(&self, client_id: String, live_time: ConnectionLiveTime) {
+        self.heartbeat_data.insert(client_id, live_time);
     }
 
-    pub fn get_shard_data(&self, seq: u64) -> HeartbeatShard {
-        if let Some(data) = self.heartbeat_shard_data.get(&seq) {
-            return data.clone();
-        }
-        return HeartbeatShard::new();
-    }
-
-    pub fn calc_shard_hash_num(&self, connect_id: u64) -> u64 {
-        return connect_id % self.heartbeat_shard_num;
+    pub fn remove_heartbeat(&self, client_id: &String) {
+        self.heartbeat_data.remove(client_id);
     }
 
     pub fn add_ack_packet(&self, client_id: String, pkid: u16, packet: QosAckPacketInfo) {
@@ -490,26 +491,5 @@ impl CacheManager {
 
     fn key(&self, client_id: String, pkid: u16) -> String {
         return format!("{}_{}", client_id, pkid);
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct HeartbeatShard {
-    pub heartbeat_data: DashMap<u64, ConnectionLiveTime>,
-}
-
-impl HeartbeatShard {
-    pub fn new() -> Self {
-        return HeartbeatShard {
-            heartbeat_data: DashMap::with_capacity(256),
-        };
-    }
-
-    pub fn report_hearbeat(&self, connect_id: u64, live_time: ConnectionLiveTime) {
-        self.heartbeat_data.insert(connect_id, live_time);
-    }
-
-    pub fn remove_connect(&self, connect_id: u64) {
-        self.heartbeat_data.remove(&connect_id);
     }
 }
