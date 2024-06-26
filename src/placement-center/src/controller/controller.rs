@@ -6,6 +6,8 @@ use common_base::{config::placement_center::placement_center_conf, log::info_met
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
+use super::mqtt::controller::MQTTController;
+
 pub struct ClusterController {
     cluster_cache: Arc<PlacementCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
@@ -31,11 +33,14 @@ impl ClusterController {
 
     pub async fn start(&self) {
         self.start_node_heartbeat_check();
-        self.controller_manager_thread();
+        self.start_mqtt_broker_controller().await;
         info_meta("Cluster Controller started successfully");
     }
 
-    pub fn controller_manager_thread(&self) {}
+    pub async fn start_mqtt_broker_controller(&self) {
+        let controller = MQTTController::new(self.rocksdb_engine_handler.clone());
+        controller.start().await;
+    }
 
     // Start the heartbeat detection thread of the Storage Engine node
     pub fn start_node_heartbeat_check(&self) {

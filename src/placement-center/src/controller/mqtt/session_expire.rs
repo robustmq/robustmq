@@ -2,7 +2,6 @@ use common_base::tools::now_second;
 use metadata_struct::mqtt::session::MQTTSession;
 
 use crate::storage::{keys::storage_key_all_session_prefix, rocksdb::RocksDBEngine};
-use core::slice::SlicePattern;
 use std::sync::Arc;
 
 pub struct SessionExpire {
