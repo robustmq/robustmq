@@ -14,7 +14,7 @@ async fn kv_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<KvServiceClient<Channel>, RobustMQError> {
-    match client_poll.get_kv_services_client(addr).await {
+    match client_poll.placement_center_kv_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }

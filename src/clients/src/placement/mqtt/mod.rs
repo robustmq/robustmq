@@ -19,7 +19,7 @@ async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<MqttServiceClient<Channel>, RobustMQError> {
-    match client_poll.get_mqtt_services_client(addr).await {
+    match client_poll.placement_center_mqtt_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }

@@ -55,9 +55,10 @@ impl MqttBrokerService for GrpcBrokerServices {
         if req.client_id.is_empty() {
             return Err(Status::cancelled("Client ID cannot be empty".to_string()));
         }
-
-        self.cache_manager.remove_session(&req.client_id);
-        self.subscribe_manager.remove_client(&req.client_id);
+        for client_id in req.client_id {
+            self.cache_manager.remove_session(&client_id);
+            self.subscribe_manager.remove_client(&client_id);
+        }
 
         return Ok(Response::new(CommonReply::default()));
     }

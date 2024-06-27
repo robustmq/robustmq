@@ -74,7 +74,7 @@ async fn placement_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
-    match client_poll.get_placement_services_client(addr).await {
+    match client_poll.get_placement_center_inner_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }

@@ -59,7 +59,7 @@ pub async fn journal_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<EngineServiceClient<Channel>, RobustMQError> {
-    match client_poll.get_journal_services_client(addr).await {
+    match client_poll.placement_center_journal_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }
