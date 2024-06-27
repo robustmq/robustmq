@@ -68,6 +68,7 @@ pub async fn build_session(
         )
     };
 
+    
     let conf = broker_mqtt_conf();
     session.update_connnction_id(Some(connect_id));
     session.update_reconnect_time();

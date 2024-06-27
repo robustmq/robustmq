@@ -6,8 +6,8 @@ pub struct UpdateCacheRequest {}
 pub struct DeleteSessionRequest {
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub client_id: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
+    pub client_id: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

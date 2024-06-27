@@ -29,6 +29,8 @@ service MqttService {
   rpc ListSession(ListSessionRequest) returns(ListSessionReply){}
   
   rpc CreateSession(CreateSessionRequest) returns(common.CommonReply){}
+
+  rpc UpdateSession(UpdateSessionRequest) returns(common.CommonReply){}
  
   rpc DeleteSession(DeleteSessionRequest) returns(common.CommonReply){}
 
@@ -41,6 +43,8 @@ service MqttService {
   rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(common.CommonReply){}
 
   rpc GetShareSubLeader(GetShareSubLeaderRequest) returns(GetShareSubLeaderReply){}
+
+  rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns(common.CommonReply){}
 }
 
 message GetShareSubLeaderRequest{
@@ -117,7 +121,22 @@ message CreateSessionRequest{
     string session = 3;
 }
 
+message UpdateSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+    uint64 connection_id = 3;
+    uint64 broker_id = 4;
+    uint64 reconnect_time = 5;
+    uint64 distinct_time = 6;
+}
+
 message DeleteSessionRequest{
     string cluster_name = 1;
     string client_id = 2;
+}
+
+message SaveLastWillMessageRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+    bytes  last_will_message = 3;
 }

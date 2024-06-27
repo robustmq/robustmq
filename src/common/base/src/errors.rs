@@ -95,6 +95,9 @@ pub enum RobustMQError {
     #[error("Topic does not exist")]
     TopicDoesNotExist,
 
+    #[error("Session does not exist")]
+    SessionDoesNotExist,
+
     #[error("Resource Config does not exist")]
     ResourceConfigDoesNotExist,
 
