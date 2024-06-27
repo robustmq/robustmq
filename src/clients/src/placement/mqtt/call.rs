@@ -290,6 +290,31 @@ pub async fn placement_list_session(
     }
 }
 
+pub async fn placement_update_session(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListSessionRequest,
+) -> Result<ListSessionReply, RobustMQError> {
+    let request_data = ListSessionRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::ListSession,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListSessionReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;

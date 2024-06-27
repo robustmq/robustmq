@@ -10,7 +10,7 @@ use super::{
     },
 };
 use crate::{
-    cache::{placement::PlacementCacheManager, journal::JournalCacheManager},
+    cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
     storage::rocksdb::RocksDBEngine,
 };
 use bincode::deserialize;
@@ -101,8 +101,14 @@ impl DataRoute {
             StorageDataType::MQTTDeleteSession => {
                 return self.route_mqtt.delete_session(storage_data.value);
             }
+            StorageDataType::MQTTUpdateSession => {
+                return self.route_mqtt.update_session(storage_data.value);
+            }
             StorageDataType::MQTTSetTopicRetainMessage => {
                 return self.route_mqtt.set_topic_retain_message(storage_data.value);
+            }
+            StorageDataType::MQTTSaveLastWillMessage => {
+                return self.route_mqtt.save_last_will_message(storage_data.value);
             }
         }
     }

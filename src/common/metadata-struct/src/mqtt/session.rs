@@ -1,30 +1,31 @@
 use common_base::tools::now_second;
-use protocol::mqtt::common::{LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MQTTSession {
     pub client_id: String,
-    pub last_will_delay_interval: u64,
-    pub last_will: Option<LastWillData>,
     pub session_expiry: u64,
+    pub is_contain_last_will: bool,
+    pub last_will_delay_interval: Option<u64>,
     pub connection_id: Option<u64>,
-    pub reconnect_time: Option<u64>,
     pub broker_id: Option<u64>,
+    pub create_time: Option<u64>,
+    pub reconnect_time: Option<u64>,
+    pub distinct_time: Option<u64>,
 }
 
 impl MQTTSession {
     pub fn new(
         client_id: String,
         session_expiry: u64,
-        last_will: Option<LastWillData>,
-        delay_interval: u64,
+        is_contain_last_will: bool,
+        last_will_delay_interval: Option<u64>,
     ) -> MQTTSession {
         let mut session = MQTTSession::default();
         session.client_id = client_id.clone();
-        session.last_will = last_will;
         session.session_expiry = session_expiry;
-        session.last_will_delay_interval = delay_interval;
+        session.is_contain_last_will = is_contain_last_will;
+        session.last_will_delay_interval = last_will_delay_interval;
         return session;
     }
 
@@ -32,28 +33,19 @@ impl MQTTSession {
         self.connection_id = connection_id;
     }
 
-    pub fn update_reconnect_time(&mut self) {
-        self.reconnect_time = Some(now_second());
-    }
-
     pub fn update_broker_id(&mut self, broker_id: Option<u64>) {
         self.broker_id = broker_id;
     }
 
-    pub fn encode(&self) -> String {
-        return serde_json::to_string(&self).unwrap();
+    pub fn update_update_time(&mut self) {
+        self.reconnect_time = Some(now_second());
     }
 
-}
+    pub fn update_reconnect_time(&mut self) {
+        self.reconnect_time = Some(now_second());
+    }
 
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub struct LastWillData {
-    pub last_will: Option<LastWill>,
-    pub last_will_properties: Option<LastWillProperties>,
-}
-
-impl LastWillData {
-    pub fn encode(&self) -> Vec<u8> {
-        return serde_json::to_vec(&self).unwrap();
+    pub fn encode(&self) -> String {
+        return serde_json::to_string(&self).unwrap();
     }
 }

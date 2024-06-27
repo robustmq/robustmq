@@ -1,5 +1,5 @@
 use crate::{
-    cache::{placement::PlacementCacheManager, mqtt::MqttCacheManager},
+    cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
     core::share_sub::calc_share_sub_leader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
@@ -15,7 +15,7 @@ use protocol::placement_center::generate::{
         CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
         GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest,
         ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-        SetTopicRetainMessageRequest,
+        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
 };
 use std::sync::Arc;
@@ -302,6 +302,50 @@ impl MqttService for GrpcMqttService {
         match self
             .placement_center_storage
             .apply_propose_message(data, "set_topic_retain_message".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn update_session(
+        &self,
+        request: Request<UpdateSessionRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTUpdateSession,
+            UpdateSessionRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "update_session".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn save_last_will_message(
+        &self,
+        request: Request<SaveLastWillMessageRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTSaveLastWillMessage,
+            SaveLastWillMessageRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "save_last_will_message".to_string())
             .await
         {
             Ok(_) => return Ok(Response::new(CommonReply::default())),

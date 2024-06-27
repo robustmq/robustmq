@@ -6,10 +6,12 @@ use crate::{
     },
 };
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::session::MQTTSession;
 use prost::Message as _;
 use protocol::placement_center::generate::mqtt::{
     CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
-    DeleteTopicRequest, DeleteUserRequest, SetTopicRetainMessageRequest,
+    DeleteTopicRequest, DeleteUserRequest, SaveLastWillMessageRequest,
+    SetTopicRetainMessageRequest, UpdateSessionRequest,
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -102,6 +104,22 @@ impl DataRouteMQTT {
         }
     }
 
+    pub fn save_last_will_message(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = SaveLastWillMessageRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.save_last_will_message(req.cluster_name, req.client_id, req.last_will_message)
+        {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
     pub fn create_session(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req = CreateSessionRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
@@ -109,6 +127,50 @@ impl DataRouteMQTT {
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
 
         match storage.save(req.cluster_name, req.client_id, req.session) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    pub fn update_session(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = UpdateSessionRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+        let result = match storage.list(req.cluster_name.clone(), Some(req.client_id.clone())) {
+            Ok(data) => {
+                if data.len() == 0 {
+                    return Err(RobustMQError::SessionDoesNotExist);
+                }
+                data
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        let session = result.get(0).unwrap();
+        let mut session = serde_json::from_str::<MQTTSession>(&session.data).unwrap();
+        if req.connection_id > 0 {
+            session.update_connnction_id(Some(req.connection_id));
+        }
+
+        if req.broker_id > 0 {
+            session.update_broker_id(Some(req.broker_id));
+        }
+
+        if req.reconnect_time > 0 {
+            session.reconnect_time = Some(req.reconnect_time);
+        }
+
+        if req.distinct_time > 0 {
+            session.distinct_time = Some(req.reconnect_time);
+        }
+
+        match storage.save(req.cluster_name, req.client_id, session.encode()) {
             Ok(_) => {
                 return Ok(());
             }
