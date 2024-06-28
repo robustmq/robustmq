@@ -99,7 +99,7 @@ message GenerateUniqueNodeIdReply{
 message SetResourceConfigRequest{
     string cluster_name = 1;
     repeated string resources = 2;
-    string config = 3;
+    bytes config = 3;
 }
 
 message GetResourceConfigRequest{
@@ -108,7 +108,7 @@ message GetResourceConfigRequest{
 }
 
 message GetResourceConfigReply{
-    string config = 1;
+    bytes config = 1;
 }
 
 message DeleteResourceConfigRequest{

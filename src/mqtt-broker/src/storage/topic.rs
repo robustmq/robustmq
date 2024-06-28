@@ -79,7 +79,7 @@ impl TopicStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.topics {
-                    match serde_json::from_str::<MQTTTopic>(&raw) {
+                    match serde_json::from_slice::<MQTTTopic>(&raw) {
                         Ok(data) => {
                             results.insert(data.topic_name.clone(), data);
                         }
@@ -114,7 +114,7 @@ impl TopicStorage {
                     return Ok(None);
                 }
                 let raw = reply.topics.get(0).unwrap();
-                match serde_json::from_str::<MQTTTopic>(&raw) {
+                match serde_json::from_slice::<MQTTTopic>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
                         return Err(RobustMQError::CommmonError(e.to_string()));

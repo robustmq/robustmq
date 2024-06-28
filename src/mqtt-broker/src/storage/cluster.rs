@@ -186,7 +186,7 @@ impl ClusterStorage {
                 if data.config.is_empty() {
                     return Ok(None);
                 } else {
-                    match serde_json::from_str::<MQTTCluster>(&data.config) {
+                    match serde_json::from_slice::<MQTTCluster>(&data.config) {
                         Ok(data) => {
                             return Ok(Some(data));
                         }

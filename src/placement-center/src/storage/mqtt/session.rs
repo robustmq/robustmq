@@ -62,7 +62,7 @@ impl MQTTSessionStorage {
         &self,
         cluster_name: String,
         client_id: String,
-        content: String,
+        content: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_session(cluster_name, client_id);
@@ -108,7 +108,7 @@ impl MQTTSessionStorage {
 
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        let data = StorageDataWrap::new(String::from_utf8(last_will_message).unwrap());
+        let data = StorageDataWrap::new(last_will_message);
         match self.rocksdb_engine_handler.write(cf, &key, &data) {
             Ok(_) => {
                 return Ok(());

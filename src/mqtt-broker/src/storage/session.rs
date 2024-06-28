@@ -89,7 +89,7 @@ impl SessionStorage {
                     return Ok(None);
                 }
                 let raw = reply.sessions.get(0).unwrap();
-                match serde_json::from_str::<MQTTSession>(&raw) {
+                match serde_json::from_slice::<MQTTSession>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
                         return Err(RobustMQError::CommmonError(e.to_string()));
@@ -118,7 +118,7 @@ impl SessionStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.sessions {
-                    match serde_json::from_str::<MQTTSession>(&raw) {
+                    match serde_json::from_slice::<MQTTSession>(&raw) {
                         Ok(data) => {
                             results.insert(data.client_id.clone(), data);
                         }

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 use crate::cache::placement::PlacementCacheManager;
-use crate::raft::metadata::RaftGroupMetadata;
 use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
+use crate::raft::metadata::RaftGroupMetadata;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::global_id::GlobalId;
 use crate::storage::rocksdb::RocksDBEngine;
@@ -261,12 +261,12 @@ impl PlacementCenterService for GrpcPlacementService {
         match storage.get(req.cluster_name, req.resources) {
             Ok(data) => {
                 if let Some(res) = data {
-                    let reply = GetResourceConfigReply { config: res };
+                    let reply = GetResourceConfigReply {
+                        config: res.data.to_vec(),
+                    };
                     return Ok(Response::new(reply));
                 } else {
-                    let reply = GetResourceConfigReply {
-                        config: "".to_string(),
-                    };
+                    let reply = GetResourceConfigReply { config: Vec::new() };
                     return Ok(Response::new(reply));
                 }
             }

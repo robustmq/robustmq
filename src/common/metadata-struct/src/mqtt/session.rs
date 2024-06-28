@@ -45,7 +45,7 @@ impl MQTTSession {
         self.reconnect_time = Some(now_second());
     }
 
-    pub fn encode(&self) -> String {
-        return serde_json::to_string(&self).unwrap();
+    pub fn encode(&self) -> Vec<u8> {
+        return serde_json::to_vec(&self).unwrap();
     }
 }

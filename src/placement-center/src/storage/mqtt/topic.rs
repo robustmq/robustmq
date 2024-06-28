@@ -5,7 +5,7 @@ use crate::storage::{
 };
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::topic::MQTTTopic;
-use std::sync::Arc;
+use std::{sync::Arc, vec};
 
 pub struct MQTTTopicStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -61,7 +61,7 @@ impl MQTTTopicStorage {
         &self,
         cluster_name: String,
         topic_name: String,
-        content: String,
+        content: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
@@ -106,7 +106,7 @@ impl MQTTTopicStorage {
         }
 
         let topic = results.get(0).unwrap();
-        match serde_json::from_str::<MQTTTopic>(&topic.data) {
+        match serde_json::from_slice::<MQTTTopic>(&topic.data.as_slice()) {
             Ok(mut mqtt_topic) => {
                 mqtt_topic.retain_message = Some(retain_message);
                 match self.save(cluster_name, topic_name, mqtt_topic.encode()) {

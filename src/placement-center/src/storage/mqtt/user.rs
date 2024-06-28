@@ -60,7 +60,7 @@ impl MQTTUserStorage {
         &self,
         cluster_name: String,
         user_name: String,
-        content: String,
+        content: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_user(cluster_name, user_name);

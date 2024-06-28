@@ -76,8 +76,8 @@ impl MQTTCluster {
         return self.secret_free_login;
     }
 
-    pub fn encode(&self) -> String {
-        return serde_json::to_string(&self).unwrap();
+    pub fn encode(&self) -> Vec<u8> {
+        return serde_json::to_vec(&self).unwrap();
     }
 }
 
