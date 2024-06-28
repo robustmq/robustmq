@@ -3,8 +3,9 @@ use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
-use crate::core::message_retain::{save_topic_retain_message, send_retain_message};
-use crate::core::session::build_session;
+use crate::core::lastwill_message::save_last_will_message;
+use crate::core::retain_messge::{save_topic_retain_message, send_retain_message};
+use crate::core::session::save_session;
 use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, sub_path_validator};
@@ -96,7 +97,7 @@ where
         };
 
         // save session data
-        let (session, new_session) = match build_session(
+        let (session, new_session) = match save_session(
             connect_id,
             client_id.clone(),
             connnect.clone(),
@@ -117,6 +118,25 @@ where
                 );
             }
         };
+
+        // save last will
+        match save_last_will_message(
+            client_id.clone(),
+            last_will.clone(),
+            last_will_properties.clone(),
+            self.client_poll.clone(),
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                error(e.to_string());
+                return packet_connect_fail(
+                    ConnectReturnCode::ServiceUnavailable,
+                    Some(e.to_string()),
+                );
+            }
+        }
 
         // update connection cache
         let cluster = self.cache_manager.get_cluster_info();
@@ -581,19 +601,14 @@ where
 
         self.cache_manager.remove_connection(connect_id);
 
-        if let Some(mut session) = self.cache_manager.get_session_info(&connection.client_id) {
-            session.update_broker_id(None);
-            session.update_connnction_id(None);
-            session.update_reconnect_time();
-            let session_storage = SessionStorage::new(self.client_poll.clone());
-            match session_storage
-                .set_session(connection.client_id, session)
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => {
-                    error(e.to_string());
-                }
+        let session_storage = SessionStorage::new(self.client_poll.clone());
+        match session_storage
+            .update_session(connection.client_id, 0, 0, 0, now_second())
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error(e.to_string());
             }
         }
 

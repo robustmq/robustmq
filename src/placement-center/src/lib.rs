@@ -15,14 +15,15 @@
 use self::raft::peer::{PeerMessage, PeersManager};
 use crate::raft::metadata::RaftGroupMetadata;
 use crate::server::http::server::{start_http_server, HttpServerState};
-use cache::placement::PlacementCacheManager;
 use cache::journal::JournalCacheManager;
 use cache::mqtt::MqttCacheManager;
+use cache::placement::PlacementCacheManager;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
-use controller::controller::ClusterController;
+use controller::mqtt::MQTTController;
+use controller::placement::controller::ClusterController;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
@@ -79,17 +80,19 @@ impl PlacementCenter {
             config.runtime_work_threads,
         ));
 
+        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
+
         let engine_cache = Arc::new(JournalCacheManager::new());
         let cluster_cache: Arc<PlacementCacheManager> = Arc::new(PlacementCacheManager::new());
-        let mqtt_cache: Arc<MqttCacheManager> = Arc::new(MqttCacheManager::new());
+        let mqtt_cache: Arc<MqttCacheManager> = Arc::new(MqttCacheManager::new(
+            rocksdb_engine_handler.clone(),
+            cluster_cache.clone(),
+        ));
         let placement_cache = Arc::new(RwLock::new(RaftGroupMetadata::new()));
-
-        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
 
         let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new(
             rocksdb_engine_handler.clone(),
         )));
-
         let client_poll = Arc::new(ClientPool::new(3));
 
         return PlacementCenter {
@@ -194,9 +197,10 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             stop_send,
         );
-        self.daemon_runtime.spawn(async move {
-            ctrl.start().await;
-        });
+        ctrl.start();
+
+        let mqtt_controller = MQTTController::new(self.rocksdb_engine_handler.clone());
+        mqtt_controller.start();
     }
 
     // Start Raft Status Machine

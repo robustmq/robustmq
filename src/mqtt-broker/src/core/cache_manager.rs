@@ -271,8 +271,8 @@ impl CacheManager {
         return None;
     }
 
-    pub fn get_topic_by_name(&self, topic_name: String) -> Option<MQTTTopic> {
-        if let Some(topic) = self.topic_info.get(&topic_name) {
+    pub fn get_topic_by_name(&self, topic_name: &String) -> Option<MQTTTopic> {
+        if let Some(topic) = self.topic_info.get(topic_name) {
             return Some(topic.clone());
         }
         return None;

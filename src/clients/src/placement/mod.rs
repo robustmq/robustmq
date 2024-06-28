@@ -52,6 +52,7 @@ pub enum PlacementCenterInterface {
     DeleteSession,
     ListSession,
     UpdateSession,
+    SaveLastWillMessage,
     SetReourceConfig,
     GetReourceConfig,
     DeleteReourceConfig,

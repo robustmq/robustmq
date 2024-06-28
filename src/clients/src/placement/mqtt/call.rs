@@ -8,10 +8,7 @@ use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
-        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-        ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
-        ListUserRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
+        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest
     },
 };
 use std::sync::Arc;
@@ -318,12 +315,12 @@ pub async fn placement_update_session(
 pub async fn placement_save_last_will_message(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
-    request: UpdateSessionRequest,
+    request: SaveLastWillMessageRequest,
 ) -> Result<CommonReply, RobustMQError> {
-    let request_data = UpdateSessionRequest::encode_to_vec(&request);
+    let request_data = SaveLastWillMessageRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
-        PlacementCenterInterface::UpdateSession,
+        PlacementCenterInterface::SaveLastWillMessage,
         client_poll,
         addrs,
         request_data,

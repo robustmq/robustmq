@@ -1,15 +1,14 @@
 use std::sync::Arc;
-
-use super::cache_manager::CacheManager;
+use super::{cache_manager::CacheManager, lastwill_message::last_will_delay_interval};
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError, tools::now_second,
 };
-use metadata_struct::mqtt::session::{LastWillData, MQTTSession};
+use metadata_struct::mqtt::session::MQTTSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
-pub async fn build_session(
+pub async fn save_session(
     connect_id: u64,
     client_id: String,
     connnect: Connect,
@@ -23,17 +22,8 @@ pub async fn build_session(
         cache_manager.get_cluster_info().session_expiry_interval,
         connect_properties,
     );
-
-    let last_will_delay_interval = last_will_delay_interval(session_expiry, &last_will_properties);
-
-    let last_will = if last_will.is_none() {
-        None
-    } else {
-        Some(LastWillData {
-            last_will,
-            last_will_properties,
-        })
-    };
+    let is_contain_last_will = !last_will.is_none();
+    let last_will_delay_interval = last_will_delay_interval(&last_will_properties);
 
     let (mut session, new_session) = if connnect.clean_session {
         if let Some(data) = cache_manager.get_session_info(&client_id) {
@@ -46,7 +36,7 @@ pub async fn build_session(
                     MQTTSession::new(
                         client_id.clone(),
                         session_expiry,
-                        last_will,
+                        is_contain_last_will,
                         last_will_delay_interval,
                     ),
                     true,
@@ -61,28 +51,40 @@ pub async fn build_session(
             MQTTSession::new(
                 client_id.clone(),
                 session_expiry,
-                last_will,
+                is_contain_last_will,
                 last_will_delay_interval,
             ),
             true,
         )
     };
 
-    
     let conf = broker_mqtt_conf();
-    session.update_connnction_id(Some(connect_id));
-    session.update_reconnect_time();
-    session.update_broker_id(Some(conf.broker_id));
     let session_storage = SessionStorage::new(client_poll);
-    match session_storage
-        .set_session(client_id, session.clone())
-        .await
-    {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(e);
+    if new_session {
+        session.update_connnction_id(Some(connect_id));
+        session.update_reconnect_time();
+        session.update_broker_id(Some(conf.broker_id));
+        match session_storage
+            .set_session(client_id, session.clone())
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    } else {
+        match session_storage
+            .update_session(client_id, connect_id, conf.broker_id, now_second(), 0)
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(e);
+            }
         }
     }
+
     return Ok((session, new_session));
 }
 
@@ -94,31 +96,14 @@ fn session_expiry_interval(
         if let Some(ck) = properties.session_expiry_interval {
             ck
         } else {
-            u32::MAX
+            cluster_session_expiry_interval
         }
     } else {
-        u32::MAX
+        cluster_session_expiry_interval
     };
     let expiry = std::cmp::min(
         cluster_session_expiry_interval,
         connection_session_expiry_interval,
     );
-    return now_second() + expiry as u64;
-}
-
-fn last_will_delay_interval(
-    session_expiry: u64,
-    last_will_properties: &Option<LastWillProperties>,
-) -> u64 {
-    let delay_interval = if let Some(properties) = last_will_properties.clone() {
-        if let Some(value) = properties.delay_interval {
-            value
-        } else {
-            0
-        }
-    } else {
-        0
-    };
-
-    return session_expiry + delay_interval as u64;
+    return expiry as u64;
 }

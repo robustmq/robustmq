@@ -19,6 +19,7 @@ package mqtt;
 service MqttBrokerService {
     rpc updateCache(UpdateCacheRequest) returns(CommonReply){}
     rpc deleteSession(DeleteSessionRequest) returns(CommonReply){}
+    rpc sendLastWillMessage(SendLastWillMessageRequest) returns(CommonReply){}
 }
 
 message UpdateCacheRequest{
@@ -32,4 +33,9 @@ message DeleteSessionRequest{
 message CommonReply{
     bool code = 1;
     string data = 2;
+}
+
+message SendLastWillMessageRequest{
+    string client_id = 1;
+    bytes last_will_message =2 ;
 }

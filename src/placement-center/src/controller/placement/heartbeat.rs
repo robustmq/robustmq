@@ -12,7 +12,7 @@ use std::{
 };
 use tokio::sync::broadcast;
 
-pub struct StorageEngineNodeHeartBeat {
+pub struct BrokerHeartbeat {
     timeout_ms: u128,
     check_time_ms: u64,
     cluster_cache: Arc<PlacementCacheManager>,
@@ -20,7 +20,7 @@ pub struct StorageEngineNodeHeartBeat {
     stop_recv: broadcast::Receiver<bool>,
 }
 
-impl StorageEngineNodeHeartBeat {
+impl BrokerHeartbeat {
     pub fn new(
         timeout_ms: u128,
         check_time_ms: u64,
@@ -28,7 +28,7 @@ impl StorageEngineNodeHeartBeat {
         placement_center_storage: Arc<RaftMachineApply>,
         stop_recv: broadcast::Receiver<bool>,
     ) -> Self {
-        return StorageEngineNodeHeartBeat {
+        return BrokerHeartbeat {
             timeout_ms,
             check_time_ms,
             cluster_cache,

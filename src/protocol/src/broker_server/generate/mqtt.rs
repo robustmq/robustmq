@@ -17,6 +17,14 @@ pub struct CommonReply {
     #[prost(string, tag = "2")]
     pub data: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SendLastWillMessageRequest {
+    #[prost(string, tag = "1")]
+    pub client_id: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "2")]
+    pub last_will_message: ::prost::alloc::vec::Vec<u8>,
+}
 /// Generated client implementations.
 pub mod mqtt_broker_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -146,6 +154,30 @@ pub mod mqtt_broker_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttBrokerService", "deleteSession"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn send_last_will_message(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SendLastWillMessageRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttBrokerService/sendLastWillMessage",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("mqtt.MqttBrokerService", "sendLastWillMessage"),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -162,6 +194,10 @@ pub mod mqtt_broker_service_server {
         async fn delete_session(
             &self,
             request: tonic::Request<super::DeleteSessionRequest>,
+        ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
+        async fn send_last_will_message(
+            &self,
+            request: tonic::Request<super::SendLastWillMessageRequest>,
         ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
     }
     #[derive(Debug)]
@@ -322,6 +358,56 @@ pub mod mqtt_broker_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = deleteSessionSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttBrokerService/sendLastWillMessage" => {
+                    #[allow(non_camel_case_types)]
+                    struct sendLastWillMessageSvc<T: MqttBrokerService>(pub Arc<T>);
+                    impl<
+                        T: MqttBrokerService,
+                    > tonic::server::UnaryService<super::SendLastWillMessageRequest>
+                    for sendLastWillMessageSvc<T> {
+                        type Response = super::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SendLastWillMessageRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttBrokerService>::send_last_will_message(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = sendLastWillMessageSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

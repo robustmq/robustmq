@@ -5,7 +5,7 @@ use common_base::errors::RobustMQError;
 use inner::{
     inner_create_session, inner_create_topic, inner_create_user, inner_delete_session,
     inner_delete_topic, inner_delete_user, inner_list_session, inner_list_topic, inner_list_user,
-    inner_set_topic_retain_message,
+    inner_save_last_will_message, inner_set_topic_retain_message, inner_update_session,
 };
 use mobc::Manager;
 use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
@@ -19,7 +19,10 @@ async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<MqttServiceClient<Channel>, RobustMQError> {
-    match client_poll.placement_center_mqtt_services_client(addr).await {
+    match client_poll
+        .placement_center_mqtt_services_client(addr)
+        .await
+    {
         Ok(client) => {
             return Ok(client);
         }
@@ -70,6 +73,12 @@ pub(crate) async fn mqtt_interface_call(
                 }
                 PlacementCenterInterface::DeleteSession => {
                     inner_delete_session(client, request.clone()).await
+                }
+                PlacementCenterInterface::UpdateSession => {
+                    inner_update_session(client, request.clone()).await
+                }
+                PlacementCenterInterface::SaveLastWillMessage => {
+                    inner_save_last_will_message(client, request.clone()).await
                 }
                 _ => {
                     return Err(RobustMQError::CommmonError(format!(
