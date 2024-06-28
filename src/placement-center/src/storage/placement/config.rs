@@ -1,5 +1,5 @@
+use crate::storage::{keys::key_resource_config, rocksdb::RocksDBEngine, StorageDataWrap};
 use common_base::errors::RobustMQError;
-use crate::storage::{keys::key_resource_config, rocksdb::RocksDBEngine};
 use std::sync::Arc;
 
 pub struct ResourceConfigStorage {
@@ -16,11 +16,12 @@ impl ResourceConfigStorage {
         &self,
         cluster_name: String,
         resource_key: Vec<String>,
-        config: String,
+        config: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        match self.rocksdb_engine_handler.write(cf, &key, &config) {
+        let data = StorageDataWrap::new(config);
+        match self.rocksdb_engine_handler.write(cf, &key, &data) {
             Ok(_) => {
                 return Ok(());
             }
@@ -51,10 +52,13 @@ impl ResourceConfigStorage {
         &self,
         cluster_name: String,
         resource_key: Vec<String>,
-    ) -> Result<Option<String>, RobustMQError> {
+    ) -> Result<Option<StorageDataWrap>, RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        match self.rocksdb_engine_handler.read::<String>(cf, &key) {
+        match self
+            .rocksdb_engine_handler
+            .read::<StorageDataWrap>(cf, &key)
+        {
             Ok(cluster_info) => {
                 return Ok(cluster_info);
             }

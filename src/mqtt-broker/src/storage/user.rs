@@ -77,7 +77,7 @@ impl UserStorage {
                     return Ok(None);
                 }
                 let raw = reply.users.get(0).unwrap();
-                match serde_json::from_str::<MQTTUser>(raw) {
+                match serde_json::from_slice::<MQTTUser>(raw) {
                     Ok(data) => {
                         return Ok(Some(data));
                     }
@@ -108,7 +108,7 @@ impl UserStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.users {
-                    match serde_json::from_str::<MQTTUser>(&raw) {
+                    match serde_json::from_slice::<MQTTUser>(&raw) {
                         Ok(data) => {
                             results.insert(data.username.clone(), data);
                         }

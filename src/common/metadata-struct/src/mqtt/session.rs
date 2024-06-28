@@ -7,9 +7,10 @@ pub struct MQTTSession {
     pub session_expiry: u64,
     pub is_contain_last_will: bool,
     pub last_will_delay_interval: Option<u64>,
+    pub create_time: u64,
+
     pub connection_id: Option<u64>,
     pub broker_id: Option<u64>,
-    pub create_time: Option<u64>,
     pub reconnect_time: Option<u64>,
     pub distinct_time: Option<u64>,
 }
@@ -26,6 +27,7 @@ impl MQTTSession {
         session.session_expiry = session_expiry;
         session.is_contain_last_will = is_contain_last_will;
         session.last_will_delay_interval = last_will_delay_interval;
+        session.create_time = now_second();
         return session;
     }
 
@@ -45,7 +47,7 @@ impl MQTTSession {
         self.reconnect_time = Some(now_second());
     }
 
-    pub fn encode(&self) -> String {
-        return serde_json::to_string(&self).unwrap();
+    pub fn encode(&self) -> Vec<u8> {
+        return serde_json::to_vec(&self).unwrap();
     }
 }

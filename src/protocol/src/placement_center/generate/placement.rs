@@ -89,8 +89,8 @@ pub struct SetResourceConfigRequest {
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, repeated, tag = "2")]
     pub resources: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(string, tag = "3")]
-    pub config: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "3")]
+    pub config: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -103,8 +103,8 @@ pub struct GetResourceConfigRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetResourceConfigReply {
-    #[prost(string, tag = "1")]
-    pub config: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "1")]
+    pub config: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -64,13 +64,13 @@ message ListUserRequest{
 }
 
 message ListUserReply{
-    repeated string users = 1;
+    repeated bytes users = 1;
 }
 
 message CreateUserRequest{
     string cluster_name = 1;
     string user_name = 2;
-    string content = 3;
+    bytes content = 3;
 }
 
 message DeleteUserRequest{
@@ -84,13 +84,13 @@ message ListTopicRequest{
 }
 
 message ListTopicReply{
-    repeated string topics = 1;
+    repeated bytes topics = 1;
 }
 
 message CreateTopicRequest{
     string cluster_name = 1;
     string topic_name = 2;
-    string content = 3;
+    bytes content = 3;
 }
 
 
@@ -112,13 +112,13 @@ message ListSessionRequest{
 }
 
 message ListSessionReply{
-    repeated string sessions = 1;
+    repeated bytes sessions = 1;
 }
 
 message CreateSessionRequest{
     string cluster_name = 1;
     string client_id = 2;
-    string session = 3;
+    bytes session = 3;
 }
 
 message UpdateSessionRequest{

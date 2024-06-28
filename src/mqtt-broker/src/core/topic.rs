@@ -4,14 +4,11 @@ use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use common_base::tools::unique_id;
-use metadata_struct::mqtt::message::MQTTMessage;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use std::sync::Arc;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
-
-use super::cache_manager;
 
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";
 pub const SYSTEM_TOPIC_BROKERS_VERSION: &str = "$SYS/brokers/${node}/version";
@@ -132,7 +129,7 @@ pub async fn get_topic_info<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name.clone()) {
+    let topic = if let Some(tp) = metadata_cache.get_topic_by_name(&topic_name) {
         tp
     } else {
         let topic_storage = TopicStorage::new(client_poll.clone());

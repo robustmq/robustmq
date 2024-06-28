@@ -149,6 +149,7 @@ where
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             self.client_poll.clone(),
+            self.message_storage_adapter.clone(),
         );
         self.runtime.spawn(async move {
             server.start().await;
@@ -226,7 +227,6 @@ where
     fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
         let mut keep_alive = ClientKeepAlive::new(
             self.cache_manager.clone(),
-            self.subscribe_manager.clone(),
             self.request_queue_sx.clone(),
             stop_send,
         );

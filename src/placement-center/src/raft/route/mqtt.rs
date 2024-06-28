@@ -1,9 +1,6 @@
-use crate::{
-    core::lock::Lock,
-    storage::{
-        mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
-        rocksdb::RocksDBEngine,
-    },
+use crate::storage::{
+    mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
+    rocksdb::RocksDBEngine,
 };
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::session::MQTTSession;
@@ -153,7 +150,7 @@ impl DataRouteMQTT {
             }
         };
         let session = result.get(0).unwrap();
-        let mut session = serde_json::from_str::<MQTTSession>(&session.data).unwrap();
+        let mut session = serde_json::from_slice::<MQTTSession>(&session.data).unwrap();
         if req.connection_id > 0 {
             session.update_connnction_id(Some(req.connection_id));
         }

@@ -19,22 +19,19 @@ use tokio::{
 
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
-    sucscribe_cache: Arc<SubscribeCacheManager>,
-    response_queue_sx: Sender<RequestPackage>,
+    request_queue_sx: Sender<RequestPackage>,
     stop_send: broadcast::Sender<bool>,
 }
 
 impl ClientKeepAlive {
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        sucscribe_cache: Arc<SubscribeCacheManager>,
-        response_queue_sx: Sender<RequestPackage>,
+        request_queue_sx: Sender<RequestPackage>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         return ClientKeepAlive {
             cache_manager,
-            sucscribe_cache,
-            response_queue_sx,
+            request_queue_sx,
             stop_send,
         };
     }
@@ -93,7 +90,7 @@ impl ClientKeepAlive {
                         }
                     };
 
-                    match self.response_queue_sx.send(response) {
+                    match self.request_queue_sx.send(response) {
                         Ok(_) => {}
                         Err(e) => {
                             error(e.to_string());

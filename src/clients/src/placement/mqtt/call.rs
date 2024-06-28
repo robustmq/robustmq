@@ -8,10 +8,7 @@ use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
-        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-        ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
-        ListUserRequest, SetTopicRetainMessageRequest,
+        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest
     },
 };
 use std::sync::Arc;
@@ -293,19 +290,44 @@ pub async fn placement_list_session(
 pub async fn placement_update_session(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
-    request: ListSessionRequest,
-) -> Result<ListSessionReply, RobustMQError> {
-    let request_data = ListSessionRequest::encode_to_vec(&request);
+    request: UpdateSessionRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = UpdateSessionRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
-        PlacementCenterInterface::ListSession,
+        PlacementCenterInterface::UpdateSession,
         client_poll,
         addrs,
         request_data,
     )
     .await
     {
-        Ok(data) => match ListSessionReply::decode(data.as_ref()) {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn placement_save_last_will_message(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: SaveLastWillMessageRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = SaveLastWillMessageRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::SaveLastWillMessage,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         },

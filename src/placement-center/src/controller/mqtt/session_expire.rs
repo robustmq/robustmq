@@ -1,7 +1,9 @@
+use crate::storage::{
+    keys::{storage_key_all_session_prefix, storage_key_mqtt_session_cluster_prefix},
+    rocksdb::RocksDBEngine,
+};
 use common_base::tools::now_second;
 use metadata_struct::mqtt::session::MQTTSession;
-
-use crate::storage::{keys::storage_key_all_session_prefix, rocksdb::RocksDBEngine};
 use std::sync::Arc;
 
 pub struct SessionExpire {
@@ -15,8 +17,8 @@ impl SessionExpire {
         };
     }
 
-    pub async fn start(&self) {
-        let search_key = storage_key_all_session_prefix();
+    pub async fn session_expire(&self, cluster_name: String) {
+        let search_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
         loop {
             let cf = self.rocksdb_engine_handler.cf_mqtt();
             let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
@@ -46,4 +48,6 @@ impl SessionExpire {
             }
         }
     }
+
+    pub async fn last_will_message_sender(&self) {}
 }

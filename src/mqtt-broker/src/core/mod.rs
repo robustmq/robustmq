@@ -2,8 +2,8 @@ pub mod cache_manager;
 pub mod keep_alive;
 pub mod connection;
 pub mod error;
-pub mod message_retain;
-pub mod message_will;
+pub mod retain_messge;
+pub mod lastwill_message;
 pub mod session;
 pub mod topic;
 
