@@ -1,6 +1,6 @@
 use common_base::tools::now_mills;
 use dashmap::DashMap;
-use metadata_struct::placement::{cluster::ClusterInfo, broker_node::BrokerNode};
+use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -42,6 +42,16 @@ impl PlacementCacheManager {
             return Some(value.clone());
         }
         return None;
+    }
+
+    pub fn get_cluster_node_addr(&self, cluster_name: &String) -> Vec<String> {
+        let mut results = Vec::new();
+        for (_, node) in self.node_list.clone() {
+            if node.cluster_name.eq(cluster_name) {
+                results.push(node.node_inner_addr);
+            }
+        }
+        return results;
     }
 
     pub fn heart_time(&self, node_id: String, time: u128) {

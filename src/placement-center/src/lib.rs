@@ -80,6 +80,7 @@ impl PlacementCenter {
             config.runtime_work_threads,
         ));
 
+        let client_poll = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
 
         let engine_cache = Arc::new(JournalCacheManager::new());
@@ -93,7 +94,6 @@ impl PlacementCenter {
         let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new(
             rocksdb_engine_handler.clone(),
         )));
-        let client_poll = Arc::new(ClientPool::new(3));
 
         return PlacementCenter {
             server_runtime,
@@ -199,7 +199,12 @@ impl PlacementCenter {
         );
         ctrl.start();
 
-        let mqtt_controller = MQTTController::new(self.rocksdb_engine_handler.clone());
+        let mqtt_controller = MQTTController::new(
+            self.rocksdb_engine_handler.clone(),
+            self.cluster_cache.clone(),
+            self.mqtt_cache.clone(),
+            self.client_poll.clone(),
+        );
         mqtt_controller.start();
     }
 

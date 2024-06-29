@@ -56,7 +56,7 @@ impl MQTTSessionStorage {
                 }
             }
         }
-        let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
+        let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
         let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
         let mut results = Vec::new();
         for raw in data_list {
