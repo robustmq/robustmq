@@ -2,7 +2,7 @@ use common_base::errors::RobustMQError;
 use prost::Message;
 use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_client::MqttBrokerServiceClient, CommonReply, DeleteSessionRequest,
-    UpdateCacheRequest,
+    SendLastWillMessageRequest, UpdateCacheRequest,
 };
 use tonic::transport::Channel;
 
@@ -29,6 +29,23 @@ pub(crate) async fn inner_update_cache(
 ) -> Result<Vec<u8>, RobustMQError> {
     match UpdateCacheRequest::decode(request.as_ref()) {
         Ok(request) => match client.update_cache(request).await {
+            Ok(result) => {
+                return Ok(CommonReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+        },
+        Err(e) => {
+            return Err(RobustMQError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_send_last_will_message(
+    mut client: MqttBrokerServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, RobustMQError> {
+    match SendLastWillMessageRequest::decode(request.as_ref()) {
+        Ok(request) => match client.send_last_will_message(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }

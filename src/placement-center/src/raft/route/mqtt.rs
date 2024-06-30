@@ -1,5 +1,8 @@
 use crate::storage::{
-    mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
+    mqtt::{
+        lastwill::MQTTLastWillStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
+        user::MQTTUserStorage,
+    },
     rocksdb::RocksDBEngine,
 };
 use common_base::errors::RobustMQError;
@@ -105,9 +108,8 @@ impl DataRouteMQTT {
         let req = SaveLastWillMessageRequest::decode(value.as_ref())
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
-        let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.save_last_will_message(req.cluster_name, req.client_id, req.last_will_message)
-        {
+        let storage = MQTTLastWillStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.save(req.cluster_name, req.client_id, req.last_will_message) {
             Ok(_) => {
                 return Ok(());
             }

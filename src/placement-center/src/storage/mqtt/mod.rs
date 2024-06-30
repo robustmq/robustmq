@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod user;
-pub mod topic;
+pub mod lastwill;
 pub mod session;
+pub mod topic;
+pub mod user;

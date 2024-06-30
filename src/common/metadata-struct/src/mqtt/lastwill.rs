@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct LastWillData {
+    pub client_id:String,
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
 }
