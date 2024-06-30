@@ -159,7 +159,7 @@ pub async fn qos2_send_publish(
     publish_properties: Option<PublishProperties>,
     response_queue_sx: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
-) {
+) -> Result<(), RobustMQError> {
     let mut retry_times = 0;
     let mut stop_rx = stop_sx.subscribe();
     loop {
@@ -169,6 +169,12 @@ pub async fn qos2_send_publish(
             sleep(Duration::from_secs(1)).await;
             continue;
         };
+
+        if let Some(conn) = metadata_cache.get_connection(connect_id) {
+            if publish.payload.len() > (conn.max_packet_size as usize) {
+                return Err(RobustMQError::PacketLenthError(publish.payload.len()));
+            }
+        }
 
         retry_times = retry_times + 1;
         publish.dup = retry_times >= 2;
@@ -183,7 +189,7 @@ pub async fn qos2_send_publish(
                 match val{
                     Ok(flag) => {
                         if flag {
-                            return;
+                            return Ok(());
                         }
                     }
                     Err(_) => {}
@@ -208,6 +214,7 @@ pub async fn qos2_send_publish(
             }
         }
     }
+    return Ok(());
 }
 
 pub async fn qos2_send_pubrel(
@@ -320,6 +327,12 @@ pub async fn publish_message_qos0(
             sleep(Duration::from_secs(1)).await;
             continue;
         };
+    }
+
+    if let Some(conn) = metadata_cache.get_connection(connect_id) {
+        if publish.payload.len() > (conn.max_packet_size as usize) {
+            return;
+        }
     }
 
     let resp = ResponsePackage {
@@ -463,10 +476,7 @@ mod tests {
     async fn get_sub_topic_list_test() {
         let storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(
-            client_poll,
-            "test-cluster".to_string(),
-        ));
+        let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
         let topic = MQTTTopic::new(unique_id(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);

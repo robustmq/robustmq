@@ -71,7 +71,6 @@ pub async fn send_retain_message(
     client_poll: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
-    new_sub: bool,
     stop_sx: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
@@ -87,7 +86,9 @@ pub async fn send_retain_message(
                 continue;
             }
 
-            if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !new_sub {
+            let is_new_sub = cache_manager.is_new_sub(&client_id, &filter.path);
+
+            if filter.retain_forward_rule == RetainForwardRule::OnNewSubscribe && is_new_sub {
                 continue;
             }
 
@@ -119,14 +120,14 @@ pub async fn send_retain_message(
                                 payload: msg.payload,
                             };
                             let properties = PublishProperties {
-                                payload_format_indicator: None,
-                                message_expiry_interval: None,
+                                payload_format_indicator: msg.format_indicator,
+                                message_expiry_interval: msg.expiry_interval,
                                 topic_alias: None,
-                                response_topic: None,
-                                correlation_data: None,
-                                user_properties: Vec::new(),
+                                response_topic: msg.response_topic,
+                                correlation_data: msg.correlation_data,
+                                user_properties: msg.user_properties,
                                 subscription_identifiers: sub_id.clone(),
-                                content_type: None,
+                                content_type: msg.content_type,
                             };
 
                             tokio::spawn(async {});
@@ -227,6 +228,10 @@ pub async fn send_retain_message(
     });
 }
 
+pub fn is_new_sub() -> bool {
+    return true;
+}
+
 pub fn message_expiry_interval(
     cache_manager: Arc<CacheManager>,
     publish_properties: Option<PublishProperties>,
@@ -243,7 +248,7 @@ pub fn message_expiry_interval(
 #[cfg(test)]
 mod tests {
     use crate::core::cache_manager::CacheManager;
-    use crate::core::retain_messge::send_retain_message;
+    use crate::core::retain::send_retain_message;
     use crate::storage::topic::TopicStorage;
     use bytes::Bytes;
     use clients::poll::ClientPool;
@@ -313,7 +318,6 @@ mod tests {
             client_poll,
             metadata_cache.clone(),
             response_queue_sx.clone(),
-            new_sub,
             stop_send,
         )
         .await;

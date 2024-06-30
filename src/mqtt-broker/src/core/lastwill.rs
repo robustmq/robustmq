@@ -1,8 +1,11 @@
-use super::{cache_manager::CacheManager, retain_messge::save_topic_retain_message};
+use super::{cache_manager::CacheManager, retain::save_topic_retain_message};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
-use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
+use metadata_struct::{
+    mqtt::{cluster::MQTTCluster, lastwill::LastWillData, message::MQTTMessage},
+    placement::cluster::ClusterInfo,
+};
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
@@ -123,4 +126,16 @@ pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties
     };
 
     return Some(delay_interval as u64);
+}
+
+pub fn check_lastwill_payload(
+    cluster: &MQTTCluster,
+    last_will: &Option<LastWill>,
+) -> (bool, usize) {
+    if let Some(will) = last_will {
+        if will.message.len() > (cluster.max_packet_size() as usize) {
+            return (false, will.message.len());
+        }
+    }
+    return (true, 0);
 }
