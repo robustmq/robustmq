@@ -1,8 +1,11 @@
 use super::packet::MQTTAckBuild;
-use super::packet::{packet_connect_fail, publish_comp_fail, publish_comp_success};
+use super::packet::{publish_comp_fail, publish_comp_success};
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
-use crate::core::connection::{create_connection, get_client_id};
+use crate::core::connection::{
+    create_connection, get_client_id, response_packet_matt5_connect_fail,
+    response_packet_matt5_connect_success,
+};
 use crate::core::lastwill_message::save_last_will_message;
 use crate::core::retain_messge::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
@@ -77,12 +80,17 @@ where
         {
             Ok(flag) => {
                 if !flag {
-                    return packet_connect_fail(ConnectReturnCode::NotAuthorized, None);
+                    return response_packet_matt5_connect_fail(
+                        ConnectReturnCode::NotAuthorized,
+                        &connect_properties,
+                        None,
+                    );
                 }
             }
             Err(e) => {
-                return packet_connect_fail(
+                return response_packet_matt5_connect_fail(
                     ConnectReturnCode::ServiceUnavailable,
+                    &connect_properties,
                     Some(e.to_string()),
                 );
             }
@@ -92,7 +100,11 @@ where
         let (client_id, new_client_id) = match get_client_id(connnect.client_id.clone()) {
             Ok((client_id, new_client_id)) => (client_id, new_client_id),
             Err(e) => {
-                return packet_connect_fail(ConnectReturnCode::BadClientId, Some(e.to_string()));
+                return response_packet_matt5_connect_fail(
+                    ConnectReturnCode::BadClientId,
+                    &connect_properties,
+                    Some(e.to_string()),
+                );
             }
         };
 
@@ -112,8 +124,9 @@ where
             Ok(session) => session,
             Err(e) => {
                 error(e.to_string());
-                return packet_connect_fail(
+                return response_packet_matt5_connect_fail(
                     ConnectReturnCode::ServiceUnavailable,
+                    &connect_properties,
                     Some(e.to_string()),
                 );
             }
@@ -131,8 +144,9 @@ where
             Ok(()) => {}
             Err(e) => {
                 error(e.to_string());
-                return packet_connect_fail(
+                return response_packet_matt5_connect_fail(
                     ConnectReturnCode::ServiceUnavailable,
+                    &connect_properties,
                     Some(e.to_string()),
                 );
             }
@@ -161,12 +175,13 @@ where
         self.cache_manager
             .add_connection(connect_id, connection.clone());
 
-        return self.ack_build.packet_connect_success(
+        return response_packet_matt5_connect_success(
             &cluster,
             client_id.clone(),
             new_client_id,
             session.session_expiry as u32,
             new_session,
+            &connect_properties,
         );
     }
 

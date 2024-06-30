@@ -2,7 +2,7 @@ use super::{
     connection::TCPConnection, connection_manager::ConnectionManager, packet::ResponsePackage,
 };
 use crate::{
-    handler::{command::Command, packet::packet_connect_fail},
+    handler::command::Command,
     metrics::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
         metrics_response_queue,
@@ -128,10 +128,6 @@ where
                                     Err(e) => {
                                         let reason=format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string());
                                         error(reason.clone());
-                                        packet_connect_fail(
-                                            protocol::mqtt::common::ConnectReturnCode::ServerBusy,
-                                            Some(reason),
-                                        );
                                         continue;
                                     }
                                 }

@@ -425,14 +425,14 @@ pub fn build_publish(
     };
 
     let properties = PublishProperties {
-        payload_format_indicator: None,
-        message_expiry_interval: None,
+        payload_format_indicator: msg.format_indicator,
+        message_expiry_interval: msg.expiry_interval,
         topic_alias: None,
-        response_topic: None,
-        correlation_data: None,
-        user_properties: Vec::new(),
+        response_topic: msg.response_topic,
+        correlation_data: msg.correlation_data,
+        user_properties: msg.user_properties,
         subscription_identifiers: sub_id.clone(),
-        content_type: None,
+        content_type: msg.content_type,
     };
     return (publish, properties);
 }
