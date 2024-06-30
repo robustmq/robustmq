@@ -1,8 +1,8 @@
 use super::mqtt3::Mqtt3Service;
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
-use super::packet::{packet_connect_fail, MQTTAckBuild};
-use crate::core::cache_manager::CacheManager;
+use super::packet::MQTTAckBuild;
+use crate::core::{cache_manager::CacheManager, connection::response_packet_matt5_connect_fail};
 use crate::server::tcp::connection::TCPConnection;
 use crate::server::tcp::connection_manager::ConnectionManager;
 use crate::server::tcp::packet::ResponsePackage;
@@ -102,8 +102,9 @@ where
                         )
                         .await
                 } else {
-                    return Some(packet_connect_fail(
+                    return Some(response_packet_matt5_connect_fail(
                         ConnectReturnCode::UnsupportedProtocolVersion,
+                        &properties,
                         None,
                     ));
                 };
