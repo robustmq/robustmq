@@ -357,6 +357,12 @@ pub async fn exclusive_publish_message_qos1(
             continue;
         };
 
+        if let Some(conn) = metadata_cache.get_connection(connect_id) {
+            if publish.payload.len() > (conn.max_packet_size as usize) {
+                return Ok(());
+            }
+        }
+
         retry_times = retry_times + 1;
         publish.dup = retry_times >= 2;
 
@@ -399,7 +405,7 @@ pub async fn exclusive_publish_message_qos2(
     wait_ack_sx: broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), RobustMQError> {
     // 1. send Publish to Client
-    qos2_send_publish(
+    match qos2_send_publish(
         metadata_cache.clone(),
         client_id.clone(),
         publish.clone(),
@@ -407,7 +413,11 @@ pub async fn exclusive_publish_message_qos2(
         response_queue_sx.clone(),
         stop_sx.clone(),
     )
-    .await;
+    .await
+    {
+        Ok(()) => {}
+        Err(e) => return Err(e),
+    };
 
     // 2. wait PubRec ack
     loop {
@@ -424,7 +434,7 @@ pub async fn exclusive_publish_message_qos2(
                 break;
             }
         } else {
-            qos2_send_publish(
+            match qos2_send_publish(
                 metadata_cache.clone(),
                 client_id.clone(),
                 publish.clone(),
@@ -432,7 +442,10 @@ pub async fn exclusive_publish_message_qos2(
                 response_queue_sx.clone(),
                 stop_sx.clone(),
             )
-            .await;
+            .await{
+                Ok(()) => {}
+                Err(e) => return Err(e),
+            };
         }
         sleep(Duration::from_millis(1)).await;
     }

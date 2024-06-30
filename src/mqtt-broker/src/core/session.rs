@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use super::{cache_manager::CacheManager, lastwill_message::last_will_delay_interval};
+use super::{cache_manager::CacheManager, lastwill::last_will_delay_interval};
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::{

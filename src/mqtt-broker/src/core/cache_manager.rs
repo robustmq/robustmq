@@ -87,7 +87,7 @@ pub struct CacheManager {
     // (client_id, Session)
     pub session_info: DashMap<String, MQTTSession>,
 
-    // (client_id, <pkid,SubscribeData>)
+    // (client_id, <path,SubscribeData>)
     pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
 
     // (client_id, vec<pkid>)
@@ -334,6 +334,13 @@ impl CacheManager {
         return None;
     }
 
+    pub fn get_connection(&self, connect_id: u64) -> Option<Connection> {
+        if let Some(conn) = self.connection_info.get(&connect_id) {
+            return Some(conn.clone());
+        }
+        return None;
+    }
+
     pub async fn get_pkid(&self, client_id: String) -> u16 {
         let pkid = self.get_available_pkid(client_id.clone()).await;
         if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
@@ -366,6 +373,13 @@ impl CacheManager {
         if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
             pkid_list.retain(|x| *x == pkid);
         }
+    }
+
+    pub fn is_new_sub(&self, client_id: &String, path: &String) -> bool {
+        if let Some(sub) = self.subscribe_filter.get(client_id) {
+            return !sub.contains_key(path);
+        }
+        return true;
     }
 
     pub async fn load_metadata_cache(&self) {

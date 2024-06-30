@@ -566,6 +566,12 @@ async fn resub_publish_message_qos1(
             continue;
         };
 
+        if let Some(conn) = metadata_cache.get_connection(connect_id) {
+            if publish.payload.len() > (conn.max_packet_size as usize) {
+                return Ok(());
+            }
+        }
+
         retry_times = retry_times + 1;
         publish.pkid = publish_to_client_pkid;
         publish.dup = retry_times >= 2;
@@ -623,7 +629,7 @@ pub async fn resub_publish_message_qos2(
     let current_message_pkid = publish.pkid;
 
     // 2. Send publish message to mqtt client
-    qos2_send_publish(
+    match qos2_send_publish(
         metadata_cache.clone(),
         mqtt_client_id.clone(),
         publish.clone(),
@@ -631,7 +637,10 @@ pub async fn resub_publish_message_qos2(
         response_queue_sx.clone(),
         stop_sx.clone(),
     )
-    .await;
+    .await{
+        Ok(()) => {}
+        Err(e) => return Err(e),
+    };
 
     let mut stop_rx = stop_sx.subscribe();
     loop {

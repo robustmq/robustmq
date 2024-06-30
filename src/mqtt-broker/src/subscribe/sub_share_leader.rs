@@ -11,6 +11,7 @@ use crate::{
     storage::message::MessageStorage,
     subscribe::subscriber::Subscriber,
 };
+use axum::Error;
 use bytes::Bytes;
 use common_base::{
     errors::RobustMQError,
@@ -242,7 +243,7 @@ where
                         return (cursor_point, sub_list);
                     }
                 };
-
+                let mut loop_times = 0;
                 loop {
                     let current_point = if cursor_point < sub_list.len() {
                         cursor_point
@@ -262,128 +263,136 @@ where
                         continue;
                     }
 
+                    if loop_times > sub_list.len() {
+                        break;
+                    }
+
                     let subscribe = sub_list.get(current_point).unwrap();
 
                     cursor_point = current_point + 1;
-                    let (mut publish, properties) = build_publish(
+                    if let Some((mut publish, properties)) = build_publish(
                         cache_manager.clone(),
                         subscribe.clone(),
                         topic_name.clone(),
                         msg.clone(),
-                    );
+                    ) {
+                        match publish.qos {
+                            QoS::AtMostOnce => {
+                                publish_message_qos0(
+                                    cache_manager.clone(),
+                                    subscribe.client_id.clone(),
+                                    publish,
+                                    response_queue_sx.clone(),
+                                    stop_sx.clone(),
+                                )
+                                .await;
 
-                    match publish.qos {
-                        QoS::AtMostOnce => {
-                            publish_message_qos0(
-                                cache_manager.clone(),
-                                subscribe.client_id.clone(),
-                                publish,
-                                response_queue_sx.clone(),
-                                stop_sx.clone(),
-                            )
-                            .await;
+                                // commit offset
+                                loop_commit_offset(
+                                    message_storage.clone(),
+                                    topic_id.clone(),
+                                    group_id.clone(),
+                                    record.offset,
+                                )
+                                .await;
+                                break;
+                            }
 
-                            // commit offset
-                            loop_commit_offset(
-                                message_storage.clone(),
-                                topic_id.clone(),
-                                group_id.clone(),
-                                record.offset,
-                            )
-                            .await;
-                            break;
-                        }
+                            QoS::AtLeastOnce => {
+                                let pkid: u16 =
+                                    cache_manager.get_pkid(subscribe.client_id.clone()).await;
+                                publish.pkid = pkid;
 
-                        QoS::AtLeastOnce => {
-                            let pkid: u16 =
-                                cache_manager.get_pkid(subscribe.client_id.clone()).await;
-                            publish.pkid = pkid;
+                                let (wait_puback_sx, _) = broadcast::channel(1);
+                                cache_manager.add_ack_packet(
+                                    subscribe.client_id.clone(),
+                                    pkid,
+                                    QosAckPacketInfo {
+                                        sx: wait_puback_sx.clone(),
+                                        create_time: now_second(),
+                                    },
+                                );
 
-                            let (wait_puback_sx, _) = broadcast::channel(1);
-                            cache_manager.add_ack_packet(
-                                subscribe.client_id.clone(),
-                                pkid,
-                                QosAckPacketInfo {
-                                    sx: wait_puback_sx.clone(),
-                                    create_time: now_second(),
-                                },
-                            );
+                                match share_leader_publish_message_qos1(
+                                    cache_manager.clone(),
+                                    subscribe.client_id.clone(),
+                                    publish.clone(),
+                                    properties.clone(),
+                                    pkid,
+                                    response_queue_sx.clone(),
+                                    wait_puback_sx,
+                                )
+                                .await
+                                {
+                                    Ok(()) => {
+                                        // commit offset
+                                        loop_commit_offset(
+                                            message_storage.clone(),
+                                            topic_id.clone(),
+                                            group_id.clone(),
+                                            record.offset,
+                                        )
+                                        .await;
 
-                            match share_leader_publish_message_qos1(
-                                cache_manager.clone(),
-                                subscribe.client_id.clone(),
-                                publish.clone(),
-                                properties.clone(),
-                                pkid,
-                                response_queue_sx.clone(),
-                                wait_puback_sx,
-                            )
-                            .await
-                            {
-                                Ok(()) => {
-                                    // commit offset
-                                    loop_commit_offset(
-                                        message_storage.clone(),
-                                        topic_id.clone(),
-                                        group_id.clone(),
-                                        record.offset,
-                                    )
-                                    .await;
-
-                                    // remove data
-                                    cache_manager
-                                        .remove_pkid_info(subscribe.client_id.clone(), pkid);
-                                    cache_manager
-                                        .remove_ack_packet(subscribe.client_id.clone(), pkid);
-                                    break;
-                                }
-                                Err(e) => {
-                                    error(format!("SharSub Leader failed to send QOS1 message to {}, error message :{},
-                                     trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string()));
+                                        // remove data
+                                        cache_manager
+                                            .remove_pkid_info(subscribe.client_id.clone(), pkid);
+                                        cache_manager
+                                            .remove_ack_packet(subscribe.client_id.clone(), pkid);
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        error(format!("SharSub Leader failed to send QOS1 message to {}, error message :{},
+                                         trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string()));
+                                        loop_times = loop_times + 1;
+                                    }
                                 }
                             }
-                        }
 
-                        QoS::ExactlyOnce => {
-                            let pkid: u16 =
-                                cache_manager.get_pkid(subscribe.client_id.clone()).await;
-                            publish.pkid = pkid;
+                            QoS::ExactlyOnce => {
+                                let pkid: u16 =
+                                    cache_manager.get_pkid(subscribe.client_id.clone()).await;
+                                publish.pkid = pkid;
 
-                            let (wait_ack_sx, _) = broadcast::channel(1);
-                            cache_manager.add_ack_packet(
-                                subscribe.client_id.clone(),
-                                pkid,
-                                QosAckPacketInfo {
-                                    sx: wait_ack_sx.clone(),
-                                    create_time: now_second(),
-                                },
-                            );
+                                let (wait_ack_sx, _) = broadcast::channel(1);
+                                cache_manager.add_ack_packet(
+                                    subscribe.client_id.clone(),
+                                    pkid,
+                                    QosAckPacketInfo {
+                                        sx: wait_ack_sx.clone(),
+                                        create_time: now_second(),
+                                    },
+                                );
 
-                            match share_leader_publish_message_qos2(
-                                cache_manager.clone(),
-                                subscribe.client_id.clone(),
-                                publish,
-                                properties,
-                                pkid,
-                                response_queue_sx.clone(),
-                                stop_sx.clone(),
-                                wait_ack_sx,
-                                topic_id.clone(),
-                                group_id.clone(),
-                                record.offset,
-                                message_storage.clone(),
-                            )
-                            .await
-                            {
-                                Ok(()) => {
-                                    break;
-                                }
-                                Err(e) => {
-                                    error(e.to_string());
+                                match share_leader_publish_message_qos2(
+                                    cache_manager.clone(),
+                                    subscribe.client_id.clone(),
+                                    publish,
+                                    properties,
+                                    pkid,
+                                    response_queue_sx.clone(),
+                                    stop_sx.clone(),
+                                    wait_ack_sx,
+                                    topic_id.clone(),
+                                    group_id.clone(),
+                                    record.offset,
+                                    message_storage.clone(),
+                                )
+                                .await
+                                {
+                                    Ok(()) => {
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        error(e.to_string());
+                                        loop_times = loop_times + 1;
+                                    }
                                 }
                             }
-                        }
-                    };
+                        };
+                    } else {
+                        break;
+                    }
                 }
             }
             return (cursor_point, sub_list);
@@ -406,7 +415,7 @@ pub fn build_publish(
     subscribe: Subscriber,
     topic_name: String,
     msg: MQTTMessage,
-) -> (Publish, PublishProperties) {
+) -> Option<(Publish, PublishProperties)> {
     let mut sub_id = Vec::new();
     if let Some(id) = subscribe.subscription_identifier {
         sub_id.push(id);
@@ -415,11 +424,21 @@ pub fn build_publish(
     let cluster_qos = metadata_cache.get_cluster_info().max_qos();
     let qos = min_qos(cluster_qos, subscribe.qos);
 
+    let retain = if subscribe.preserve_retain {
+        msg.retain
+    } else {
+        false
+    };
+
+    if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
+        return None;
+    }
+
     let publish = Publish {
         dup: false,
         qos: qos.clone(),
         pkid: 0,
-        retain: false,
+        retain,
         topic: Bytes::from(topic_name.clone()),
         payload: msg.payload,
     };
@@ -434,7 +453,7 @@ pub fn build_publish(
         subscription_identifiers: sub_id.clone(),
         content_type: msg.content_type,
     };
-    return (publish, properties);
+    return Some((publish, properties));
 }
 
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
@@ -456,6 +475,12 @@ async fn share_leader_publish_message_qos1(
             client_id.clone()
         )));
     };
+
+    if let Some(conn) = metadata_cache.get_connection(connect_id) {
+        if publish.payload.len() > (conn.max_packet_size as usize) {
+            return Err(RobustMQError::PacketLenthError(publish.payload.len()));
+        }
+    }
 
     let resp = ResponsePackage {
         connection_id: connect_id,
@@ -505,7 +530,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     // 1. send Publish to Client
-    qos2_send_publish(
+    match qos2_send_publish(
         cache_manager.clone(),
         client_id.clone(),
         publish.clone(),
@@ -513,7 +538,10 @@ where
         response_queue_sx.clone(),
         stop_sx.clone(),
     )
-    .await;
+    .await{
+        Ok(()) => {}
+        Err(e) => return Err(e),
+    };
 
     // 2. wait pub rec
     loop {

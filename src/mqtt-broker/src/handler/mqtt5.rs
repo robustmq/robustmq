@@ -6,10 +6,12 @@ use crate::core::connection::{
     create_connection, get_client_id, response_packet_matt5_connect_fail,
     response_packet_matt5_connect_success,
 };
-use crate::core::lastwill_message::save_last_will_message;
-use crate::core::retain_messge::{save_topic_retain_message, send_retain_message};
+use crate::core::lastwill::{check_lastwill_payload, save_last_will_message};
+use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
-use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
+use crate::core::topic::{
+    get_topic_info, get_topic_name, payload_format_validator, save_topic_alias,
+};
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -74,6 +76,18 @@ where
         login: Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
+        let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
+            self.cache_manager.get_cluster_info();
+
+        // check last will length
+        let (will_res, will_len) = check_lastwill_payload(&cluster, &last_will);
+        if !will_res {
+            return self.ack_build.distinct(
+                DisconnectReasonCode::ReceiveMaximumExceeded,
+                Some(RobustMQError::PacketLenthError(will_len).to_string()),
+            );
+        }
+
         // connect for authentication
         match authentication_login(self.cache_manager.clone(), login, &connect_properties, addr)
             .await
@@ -153,7 +167,6 @@ where
         }
 
         // update connection cache
-        let cluster = self.cache_manager.get_cluster_info();
         let connection = create_connection(
             connect_id,
             client_id.clone(),
@@ -247,11 +260,9 @@ where
             ));
         };
 
-        if publish.payload.len() == 0
-            || publish.payload.len() > (connection.max_packet_size as usize)
-        {
-            return Some(self.ack_build.pub_ack_fail(
-                PubAckReason::QuotaExceeded,
+        if payload_format_validator(&publish, &publish_properties, &connection) {
+            return Some(self.ack_build.distinct(
+                DisconnectReasonCode::ReceiveMaximumExceeded,
                 Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         };
@@ -543,7 +554,6 @@ where
             self.client_poll.clone(),
             self.cache_manager.clone(),
             response_queue_sx.clone(),
-            true,
             self.stop_sx.clone(),
         )
         .await;
