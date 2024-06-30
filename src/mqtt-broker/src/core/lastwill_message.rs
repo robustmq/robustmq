@@ -1,3 +1,4 @@
+use super::{cache_manager::CacheManager, retain_messge::save_topic_retain_message};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
@@ -5,7 +6,6 @@ use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use super::{cache_manager::CacheManager, retain_messge::save_topic_retain_message};
 
 pub async fn send_last_will_message<S>(
     client_id: String,
@@ -102,6 +102,7 @@ pub async fn save_last_will_message(
 
     let session_storage = SessionStorage::new(client_poll);
     let lastwill = LastWillData {
+        client_id: client_id.clone(),
         last_will,
         last_will_properties,
     };

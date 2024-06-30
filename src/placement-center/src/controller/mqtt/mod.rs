@@ -34,7 +34,7 @@ impl MQTTController {
         };
     }
 
-    pub fn start(&self) {
+    pub async fn start(&self) {
         loop {
             for (cluster_name, _) in self.placement_center_cache.cluster_list.clone() {
                 // Periodically check if the session has expired
@@ -43,24 +43,38 @@ impl MQTTController {
                     self.mqtt_cache_manager.clone(),
                     self.placement_center_cache.clone(),
                     self.client_poll.clone(),
+                    cluster_name.clone(),
                 );
                 tokio::spawn(async move {
-                    session.session_expire(cluster_name).await;
+                    session.session_expire().await;
+                });
+
+                // Periodically check if the session has expired
+                let session = SessionExpire::new(
+                    self.rocksdb_engine_handler.clone(),
+                    self.mqtt_cache_manager.clone(),
+                    self.placement_center_cache.clone(),
+                    self.client_poll.clone(),
+                    cluster_name.clone(),
+                );
+                tokio::spawn(async move {
+                    session.sender_last_will_messsage().await;
                 });
 
                 // Whether the timed message expires
-                let message = MessageExpire::new();
+                let message =
+                    MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
                 tokio::spawn(async move {
                     message.retain_message_expire().await;
                 });
 
                 // Periodically detects whether a will message is sent
-                let message = MessageExpire::new();
+                let message = MessageExpire::new(cluster_name.clone(), self.rocksdb_engine_handler.clone());
                 tokio::spawn(async move {
                     message.last_will_message_expire().await;
                 });
             }
-            sleep(Duration::from_secs(1));
+            sleep(Duration::from_secs(1)).await;
         }
     }
 }

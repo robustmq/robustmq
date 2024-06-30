@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use crate::storage::{
-    keys::{
-        storage_key_mqtt_last_will, storage_key_mqtt_session,
-        storage_key_mqtt_session_cluster_prefix,
-    },
+    keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix},
     rocksdb::RocksDBEngine,
     StorageDataWrap,
 };
@@ -95,35 +92,6 @@ impl MQTTSessionStorage {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
-    }
-
-    pub fn save_last_will_message(
-        &self,
-        cluster_name: String,
-        client_id: String,
-        last_will_message: Vec<u8>,
-    ) -> Result<(), RobustMQError> {
-        let results = match self.list(cluster_name.clone(), Some(client_id.clone())) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(e);
-            }
-        };
-        if results.is_empty() {
-            return Err(RobustMQError::SessionDoesNotExist);
-        }
-
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
-        let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        let data = StorageDataWrap::new(last_will_message);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
             Ok(_) => {
                 return Ok(());
             }

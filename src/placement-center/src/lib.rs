@@ -205,7 +205,9 @@ impl PlacementCenter {
             self.mqtt_cache.clone(),
             self.client_poll.clone(),
         );
-        mqtt_controller.start();
+        self.daemon_runtime.spawn(async move {
+            mqtt_controller.start().await;
+        });
     }
 
     // Start Raft Status Machine

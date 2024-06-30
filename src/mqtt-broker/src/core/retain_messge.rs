@@ -45,8 +45,7 @@ pub async fn save_topic_retain_message(
                 publish.clone(),
                 publish_properties.clone(),
             );
-            let message_expire =
-                now_second() + message_expiry_interval(cache_manager.clone(), publish_properties);
+            let message_expire = message_expiry_interval(cache_manager.clone(), publish_properties);
             match topic_storage
                 .set_retain_message(topic_name.clone(), retain_message.clone(), message_expire)
                 .await
@@ -258,10 +257,7 @@ mod tests {
     #[tokio::test]
     async fn send_retain_message_test() {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(
-            client_poll,
-            "test-cluster".to_string(),
-        ));
+        let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
         let connect_id = 1;
         let mut filters = Vec::new();

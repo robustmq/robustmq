@@ -1,6 +1,6 @@
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
 use common_base::{errors::RobustMQError, log::error};
-use inner::{inner_delete_session, inner_update_cache};
+use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
 use mobc::Manager;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_client::MqttBrokerServiceClient;
 use std::{sync::Arc, time::Duration};
@@ -16,6 +16,7 @@ pub enum MQTTBrokerService {
 pub enum MQTTBrokerInterface {
     DeleteSession,
     UpdateCache,
+    SendLastWillMessage,
 }
 
 pub mod call;
@@ -85,6 +86,9 @@ pub(crate) async fn mqtt_interface_call(
             let result = match interface {
                 MQTTBrokerInterface::DeleteSession => inner_delete_session(client, request).await,
                 MQTTBrokerInterface::UpdateCache => inner_update_cache(client, request).await,
+                MQTTBrokerInterface::SendLastWillMessage => {
+                    inner_send_last_will_message(client, request).await
+                }
                 _ => {
                     return Err(RobustMQError::CommmonError(format!(
                         "mqtt service does not support service interfaces [{:?}]",

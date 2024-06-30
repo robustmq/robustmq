@@ -1,10 +1,16 @@
-use clients::{mqtt::call::broker_mqtt_delete_session, poll::ClientPool};
+use clients::{
+    mqtt::call::{broker_mqtt_delete_session, send_last_will_message},
+    poll::ClientPool,
+};
 use common_base::{
     log::{error, warn},
     tools::now_second,
 };
-use metadata_struct::mqtt::session::MQTTSession;
-use protocol::broker_server::generate::mqtt::DeleteSessionRequest;
+use metadata_struct::mqtt::{
+    lastwill::{self, LastWillData},
+    session::MQTTSession,
+};
+use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
 
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
@@ -86,6 +92,28 @@ impl MQTTBrokerCall {
                         Err(e) => error(e.to_string()),
                     }
                 }
+            }
+        }
+    }
+
+    pub async fn send_last_will_message(&self, client_id: String, lastwill: LastWillData) {
+        let request = SendLastWillMessageRequest {
+            client_id: client_id.clone(),
+            last_will_message: lastwill.encode(),
+        };
+        match send_last_will_message(
+            self.client_poll.clone(),
+            self.placement_cache_manager
+                .get_cluster_node_addr(&self.cluster_name),
+            request,
+        )
+        .await
+        {
+            Ok(_) => self
+                .mqtt_cache_manager
+                .remove_expire_last_will(&self.cluster_name, &client_id),
+            Err(e) => {
+                error(e.to_string());
             }
         }
     }
