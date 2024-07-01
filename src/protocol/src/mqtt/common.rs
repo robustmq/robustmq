@@ -502,10 +502,11 @@ impl fmt::Display for LastWillProperties {
 /// This contains return codes for both MQTT v4(3.11) and v5
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectReturnCode {
+    // MQTT 3/4/5 Common
     Success,
-    RefusedProtocolVersion,
-    BadClientId,
-    ServiceUnavailable,
+    NotAuthorized,
+    
+    // MQTT 5
     UnspecifiedError,
     MalformedPacket,
     ProtocolError,
@@ -513,7 +514,6 @@ pub enum ConnectReturnCode {
     UnsupportedProtocolVersion,
     ClientIdentifierNotValid,
     BadUserNamePassword,
-    NotAuthorized,
     ServerUnavailable,
     ServerBusy,
     Banned,
@@ -527,6 +527,11 @@ pub enum ConnectReturnCode {
     UseAnotherServer,
     ServerMoved,
     ConnectionRateExceeded,
+
+    // MQTT 3/4
+    RefusedProtocolVersion,
+    BadClientId,
+    ServiceUnavailable,
 }
 
 /// Acknowledgement to connect packet
@@ -977,25 +982,14 @@ pub struct Disconnect {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum DisconnectReasonCode {
-    /// Close the connection normally, don't send the will message.
     NormalDisconnection,
-    /// The client wishes to disconnect but requires that the server also publishes its
-    /// Will message.
     DisconnectWithWillMessage,
-    /// The Connection is closed but the sender either does not wish to reveal the reason,
-    /// or none of the other reason codes apply.
     UnspecifiedError,
-    /// The received packet does not conform to this specification.
     MalformedPacket,
-    /// An unexpected or out of order packet was received.
     ProtocolError,
-    /// The packet received is valid but cannot be processed by this implementation.
     ImplementationSpecificError,
-    /// The request is not authorized.
     NotAuthorized,
-    /// The Server is busy and cannot continue processing requests from this Client.
     ServerBusy,
-    /// The Server is shutting down.
     ServerShuttingDown,
     /// The Connection is closed because no packet has been received for 1.5 times the Keepalive time.
     KeepAliveTimeout,
