@@ -991,45 +991,25 @@ pub enum DisconnectReasonCode {
     NotAuthorized,
     ServerBusy,
     ServerShuttingDown,
-    /// The Connection is closed because no packet has been received for 1.5 times the Keepalive time.
     KeepAliveTimeout,
-    /// Another Connection using the same ClientID has connected causing this Connection to be closed.
     SessionTakenOver,
-    /// The Topic Filter is correctly formed, but is not accepted by this Sever.
     TopicFilterInvalid,
-    /// The Topic Name is correctly formed, but is not accepted by this Client or Server.
     TopicNameInvalid,
-    /// The Client or Server has received more than Receive Maximum publication for which it has not sent PUBACK or PUBCOMP.
     ReceiveMaximumExceeded,
-    /// The Client or Server has received a PUBLISH packet containing a Topic Alias which is greater than the Maximum Topic Alias it sent in the CONNECT or CONNACK packet.
     TopicAliasInvalid,
-    /// The packet size is greater than Maximum Packet Size for this Client or Server.
     PacketTooLarge,
-    /// The received data rate is too high.
     MessageRateTooHigh,
-    /// An implementation or administrative imposed limit has been exceeded.
     QuotaExceeded,
-    /// The Connection is closed due to an administrative action.
     AdministrativeAction,
-    /// The payload format does not match the one specified by the Payload Format Indicator.
     PayloadFormatInvalid,
-    /// The Server has does not support retained messages.
     RetainNotSupported,
-    /// The Client specified a QoS greater than the QoS specified in a Maximum QoS in the CONNACK.
     QoSNotSupported,
-    /// The Client should temporarily change its Server.
     UseAnotherServer,
-    /// The Server is moved and the Client should permanently change its server location.
     ServerMoved,
-    /// The Server does not support Shared Subscriptions.
     SharedSubscriptionNotSupported,
-    /// This connection is closed because the connection rate is too high.
     ConnectionRateExceeded,
-    /// The maximum connection time authorized for this connection has been exceeded.
     MaximumConnectTime,
-    /// The Server does not support Subscription Identifiers; the subscription is not accepted.
     SubscriptionIdentifiersNotSupported,
-    /// The Server does not support Wildcard subscription; the subscription is not accepted.
     WildcardSubscriptionsNotSupported,
 }
 
