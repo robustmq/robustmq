@@ -2,16 +2,15 @@ use super::packet::MQTTAckBuild;
 use super::packet::{publish_comp_fail, publish_comp_success};
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
-use crate::core::connection::{
-    create_connection, get_client_id, response_packet_matt5_connect_fail,
-    response_packet_matt5_connect_success,
+use crate::core::connection::{create_connection, get_client_id};
+use crate::core::lastwill::save_last_will_message;
+use crate::core::response_packet::{
+    response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
 };
-use crate::core::lastwill::{check_lastwill_payload, save_last_will_message};
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
-use crate::core::topic::{
-    get_topic_info, get_topic_name, payload_format_validator, save_topic_alias,
-};
+use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
+use crate::core::validator::connect_params_validator;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -79,16 +78,17 @@ where
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
             self.cache_manager.get_cluster_info();
 
-        // check last will length
-        let (will_res, will_len) = check_lastwill_payload(&cluster, &last_will);
-        if !will_res {
-            return self.ack_build.distinct(
-                DisconnectReasonCode::ReceiveMaximumExceeded,
-                Some(RobustMQError::PacketLenthError(will_len).to_string()),
-            );
+        if let Some(res) = connect_params_validator(
+            &cluster,
+            &connnect,
+            &connect_properties,
+            &last_will,
+            &last_will_properties,
+            &login,
+        ) {
+            return res;
         }
 
-        // connect for authentication
         match authentication_login(self.cache_manager.clone(), login, &connect_properties, addr)
             .await
         {
@@ -103,26 +103,15 @@ where
             }
             Err(e) => {
                 return response_packet_matt5_connect_fail(
-                    ConnectReturnCode::ServiceUnavailable,
+                    ConnectReturnCode::UnspecifiedError,
                     &connect_properties,
                     Some(e.to_string()),
                 );
             }
         }
 
-        // auto create client id
-        let (client_id, new_client_id) = match get_client_id(connnect.client_id.clone()) {
-            Ok((client_id, new_client_id)) => (client_id, new_client_id),
-            Err(e) => {
-                return response_packet_matt5_connect_fail(
-                    ConnectReturnCode::BadClientId,
-                    &connect_properties,
-                    Some(e.to_string()),
-                );
-            }
-        };
+        let (client_id, new_client_id) = get_client_id(connnect.client_id.clone());
 
-        // save session data
         let (session, new_session) = match save_session(
             connect_id,
             client_id.clone(),
@@ -137,16 +126,14 @@ where
         {
             Ok(session) => session,
             Err(e) => {
-                error(e.to_string());
                 return response_packet_matt5_connect_fail(
-                    ConnectReturnCode::ServiceUnavailable,
+                    ConnectReturnCode::MalformedPacket,
                     &connect_properties,
                     Some(e.to_string()),
                 );
             }
         };
 
-        // save last will
         match save_last_will_message(
             client_id.clone(),
             last_will.clone(),
@@ -159,14 +146,13 @@ where
             Err(e) => {
                 error(e.to_string());
                 return response_packet_matt5_connect_fail(
-                    ConnectReturnCode::ServiceUnavailable,
+                    ConnectReturnCode::UnspecifiedError,
                     &connect_properties,
                     Some(e.to_string()),
                 );
             }
         }
 
-        // update connection cache
         let connection = create_connection(
             connect_id,
             client_id.clone(),
@@ -175,7 +161,6 @@ where
             connect_properties.clone(),
         );
 
-        // Record heartbeat information
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
             protobol: MQTTProtocol::MQTT5,
             keep_live: connection.keep_alive as u16,
@@ -260,13 +245,6 @@ where
             ));
         };
 
-        if payload_format_validator(&publish, &publish_properties, &connection) {
-            return Some(self.ack_build.distinct(
-                DisconnectReasonCode::ReceiveMaximumExceeded,
-                Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
-            ));
-        };
-
         let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             conn.client_id.clone()
         } else {
@@ -276,17 +254,19 @@ where
             ));
         };
 
-        if !self
-            .cache_manager
-            .get_client_pkid(client_id.clone(), publish.pkid)
-            .await
-            .is_none()
-        {
-            return Some(
-                self.ack_build
-                    .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
-            );
-        };
+        if publish.qos == QoS::ExactlyOnce {
+            if !self
+                .cache_manager
+                .get_client_pkid(client_id.clone(), publish.pkid)
+                .await
+                .is_none()
+            {
+                return Some(
+                    self.ack_build
+                        .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
+                );
+            };
+        }
 
         // Persisting retain message data
         match save_topic_retain_message(

@@ -39,6 +39,12 @@ service PlacementCenterService {
   rpc GetResourceConfig(GetResourceConfigRequest) returns(GetResourceConfigReply) {}
 
   rpc DeleteResourceConfig(DeleteResourceConfigRequest) returns(common.CommonReply) {}
+
+  rpc SetIdempotentData(SetIdempotentDataRequest) returns(common.CommonReply) {}
+
+  rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns(ExistsIdempotentDataReply) {}
+
+  rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(common.CommonReply) {}
 }
 
 message HeartbeatRequest{
@@ -114,4 +120,25 @@ message GetResourceConfigReply{
 message DeleteResourceConfigRequest{
     string cluster_name = 1;
     repeated string resources = 2;
+}
+
+message SetIdempotentDataRequest{
+    string cluster_name = 1;
+    string producer_id = 2;
+    uint64 seq_num = 3;
+}
+
+message ExistsIdempotentDataRequest{
+    string cluster_name = 1;
+    string producer_id = 2;
+    uint64 seq_num = 3;
+}
+
+message ExistsIdempotentDataReply{
+    bool exists = 1;
+}
+
+message DeleteIdempotentDataRequest{
+    string cluster_name = 1;
+    string producer_id = 2;
 }

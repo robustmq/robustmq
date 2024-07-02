@@ -114,6 +114,40 @@ pub struct DeleteResourceConfigRequest {
     #[prost(string, repeated, tag = "2")]
     pub resources: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SetIdempotentDataRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub producer_id: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "3")]
+    pub seq_num: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsIdempotentDataRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub producer_id: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "3")]
+    pub seq_num: u64,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsIdempotentDataReply {
+    #[prost(bool, tag = "1")]
+    pub exists: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteIdempotentDataRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub producer_id: ::prost::alloc::string::String,
+}
 /// Generated client implementations.
 pub mod placement_center_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -489,6 +523,96 @@ pub mod placement_center_service_client {
                 );
             self.inner.unary(req, path, codec).await
         }
+        pub async fn set_idempotent_data(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SetIdempotentDataRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/SetIdempotentData",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "SetIdempotentData",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn exists_idempotent_data(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ExistsIdempotentDataRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ExistsIdempotentDataReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/ExistsIdempotentData",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "ExistsIdempotentData",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn delete_idempotent_data(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteIdempotentDataRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/DeleteIdempotentData",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "placement.PlacementCenterService",
+                        "DeleteIdempotentData",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -564,6 +688,27 @@ pub mod placement_center_service_server {
         async fn delete_resource_config(
             &self,
             request: tonic::Request<super::DeleteResourceConfigRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn set_idempotent_data(
+            &self,
+            request: tonic::Request<super::SetIdempotentDataRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn exists_idempotent_data(
+            &self,
+            request: tonic::Request<super::ExistsIdempotentDataRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ExistsIdempotentDataReply>,
+            tonic::Status,
+        >;
+        async fn delete_idempotent_data(
+            &self,
+            request: tonic::Request<super::DeleteIdempotentDataRequest>,
         ) -> std::result::Result<
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
@@ -1133,6 +1278,160 @@ pub mod placement_center_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = DeleteResourceConfigSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/SetIdempotentData" => {
+                    #[allow(non_camel_case_types)]
+                    struct SetIdempotentDataSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::SetIdempotentDataRequest>
+                    for SetIdempotentDataSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::SetIdempotentDataRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::set_idempotent_data(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = SetIdempotentDataSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/ExistsIdempotentData" => {
+                    #[allow(non_camel_case_types)]
+                    struct ExistsIdempotentDataSvc<T: PlacementCenterService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::ExistsIdempotentDataRequest>
+                    for ExistsIdempotentDataSvc<T> {
+                        type Response = super::ExistsIdempotentDataReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ExistsIdempotentDataRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::exists_idempotent_data(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ExistsIdempotentDataSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/placement.PlacementCenterService/DeleteIdempotentData" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteIdempotentDataSvc<T: PlacementCenterService>(
+                        pub Arc<T>,
+                    );
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::DeleteIdempotentDataRequest>
+                    for DeleteIdempotentDataSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteIdempotentDataRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::delete_idempotent_data(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DeleteIdempotentDataSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
