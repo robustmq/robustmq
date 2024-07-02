@@ -650,7 +650,19 @@ impl<S> Mqtt5Service<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    fn publish_validator(&self) -> Option<String> {
+    fn connect_params_validator(
+        &self,
+        connnect: Connect,
+        connect_properties: Option<ConnectProperties>,
+        last_will: Option<LastWill>,
+        last_will_properties: Option<LastWillProperties>,
+        login: Option<Login>,
+    ) -> Option<MQTTPacket> {
+
+        return None;
+    }
+
+    fn publish_params_validator(&self) -> Option<String> {
         return None;
     }
 }
