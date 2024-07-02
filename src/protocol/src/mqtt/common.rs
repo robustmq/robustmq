@@ -16,7 +16,7 @@
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
-use std::{fmt, io, slice::Iter, str::Utf8Error, string::FromUtf8Error};
+use std::{default, fmt, io, slice::Iter, str::Utf8Error, string::FromUtf8Error};
 
 /// This module is the place where all the protocal specifics gets abstracted
 /// out and creates structures which are common across protocols. Since, MQTT
@@ -505,7 +505,7 @@ pub enum ConnectReturnCode {
     // MQTT 3/4/5 Common
     Success,
     NotAuthorized,
-    
+
     // MQTT 5
     UnspecifiedError,
     MalformedPacket,
@@ -1013,7 +1013,7 @@ pub enum DisconnectReasonCode {
     WildcardSubscriptionsNotSupported,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DisconnectProperties {
     /// Session Expiry Interval in seconds
     pub session_expiry_interval: Option<u32>,

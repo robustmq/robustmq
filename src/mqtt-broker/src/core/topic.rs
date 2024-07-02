@@ -24,24 +24,22 @@ pub fn is_system_topic(topic_name: String) -> bool {
 }
 
 pub fn payload_format_validator(
-    publish: &Publish,
-    publish_properties: &Option<PublishProperties>,
-    connection: &Connection,
+    payload: &Bytes,
+    payload_format_indicator: u8,
+    max_packet_size: usize,
 ) -> bool {
-    if publish.payload.len() == 0 || publish.payload.len() > (connection.max_packet_size as usize) {
+    if payload.len() == 0 || payload.len() > max_packet_size {
         return false;
     }
-    if let Some(properties) = publish_properties {
-        if let Some(payload_format_indicator) = properties.payload_format_indicator {
-            if payload_format_indicator == 1 {
-                return std::str::from_utf8(publish.payload.to_vec().as_slice()).is_ok();
-            }
-        }
+
+    if payload_format_indicator == 1 {
+        return std::str::from_utf8(payload.to_vec().as_slice()).is_ok();
     }
+
     return false;
 }
 
-pub fn topic_name_validator(topic_name: String) -> Result<(), MQTTBrokerError> {
+pub fn topic_name_validator(topic_name: &String) -> Result<(), MQTTBrokerError> {
     if topic_name.is_empty() {
         return Err(MQTTBrokerError::TopicNameIsEmpty);
     }
@@ -91,7 +89,7 @@ pub fn get_topic_name(
         }
     };
 
-    match topic_name_validator(topic_name.clone()) {
+    match topic_name_validator(&topic_name) {
         Ok(_) => {}
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -189,7 +187,7 @@ mod test {
     #[test]
     pub fn topic_name_validator_test() {
         let topic_name = "".to_string();
-        match topic_name_validator(topic_name) {
+        match topic_name_validator(&topic_name) {
             Ok(_) => {}
             Err(e) => {
                 assert!(e.to_string() == MQTTBrokerError::TopicNameIsEmpty.to_string())
@@ -197,7 +195,7 @@ mod test {
         }
 
         let topic_name = "/test/test".to_string();
-        match topic_name_validator(topic_name) {
+        match topic_name_validator(&topic_name) {
             Ok(_) => {}
             Err(e) => {
                 assert!(e.to_string() == MQTTBrokerError::TopicNameIncorrectlyFormatted.to_string())
@@ -205,7 +203,7 @@ mod test {
         }
 
         let topic_name = "test/test/".to_string();
-        match topic_name_validator(topic_name) {
+        match topic_name_validator(&topic_name) {
             Ok(_) => {}
             Err(e) => {
                 assert!(e.to_string() == MQTTBrokerError::TopicNameIncorrectlyFormatted.to_string())
@@ -213,7 +211,7 @@ mod test {
         }
 
         let topic_name = "test/$1".to_string();
-        match topic_name_validator(topic_name) {
+        match topic_name_validator(&topic_name) {
             Ok(_) => {}
             Err(e) => {
                 assert!(e.to_string() == MQTTBrokerError::TopicNameIncorrectlyFormatted.to_string())
@@ -221,7 +219,7 @@ mod test {
         }
 
         let topic_name = "test/1".to_string();
-        match topic_name_validator(topic_name) {
+        match topic_name_validator(&topic_name) {
             Ok(_) => {}
             Err(_) => {}
         }

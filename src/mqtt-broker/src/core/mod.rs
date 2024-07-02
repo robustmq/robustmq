@@ -7,3 +7,5 @@ pub mod lastwill;
 pub mod retain;
 pub mod session;
 pub mod topic;
+pub mod validator;
+pub mod response_packet;
