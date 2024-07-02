@@ -34,3 +34,7 @@ pub async fn authentication_login(
 
     return Ok(false);
 }
+
+pub async fn is_ip_blacklist(addr: &SocketAddr) -> bool {
+    return false;
+}

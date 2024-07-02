@@ -3,6 +3,7 @@ use super::packet::{publish_comp_fail, publish_comp_success};
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
+use crate::core::flow_control::is_self_protection_status;
 use crate::core::lastwill::save_last_will_message;
 use crate::core::response_packet::{
     response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
@@ -11,6 +12,7 @@ use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
 use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
 use crate::core::validator::connect_params_validator;
+use crate::security::authentication::is_ip_blacklist;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -78,6 +80,14 @@ where
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
             self.cache_manager.get_cluster_info();
 
+        if is_self_protection_status() {
+            return response_packet_matt5_connect_fail(
+                ConnectReturnCode::ServerBusy,
+                &connect_properties,
+                None,
+            );
+        }
+
         if let Some(res) = connect_params_validator(
             &cluster,
             &connnect,
@@ -87,6 +97,14 @@ where
             &login,
         ) {
             return res;
+        }
+
+        if is_ip_blacklist(&addr).await {
+            return response_packet_matt5_connect_fail(
+                ConnectReturnCode::Banned,
+                &connect_properties,
+                None,
+            );
         }
 
         match authentication_login(self.cache_manager.clone(), login, &connect_properties, addr)

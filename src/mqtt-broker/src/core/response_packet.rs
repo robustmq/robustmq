@@ -1,6 +1,6 @@
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
-    ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, MQTTPacket,
+    ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectReasonCode, MQTTPacket
 };
 
 use super::{connection::response_information, validator::is_request_problem_info};
@@ -63,4 +63,18 @@ pub fn response_packet_matt5_connect_fail(
         },
         Some(ack_properties),
     );
+}
+
+pub fn response_packet_matt5_connect_fail_by_code(code: ConnectReturnCode) -> MQTTPacket {
+    return MQTTPacket::ConnAck(
+        ConnAck {
+            session_present: false,
+            code,
+        },
+        None,
+    );
+}
+
+pub fn response_packet_matt_distinct(code: DisconnectReasonCode) -> MQTTPacket {
+    return MQTTPacket::Disconnect(Disconnect { reason_code: code }, None);
 }

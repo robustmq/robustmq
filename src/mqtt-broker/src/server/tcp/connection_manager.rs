@@ -67,6 +67,10 @@ impl ConnectionManager {
         }
 
         if let Some((id, mut stream)) = self.write_list.remove(&connection_id) {
+            // match stream.send().await {
+            //     Ok(_) => {}
+            //     Err(e) => {}
+            // }
             match stream.close().await {
                 Ok(_) => {
                     info(format!(
@@ -119,16 +123,15 @@ impl ConnectionManager {
         }
     }
 
-    pub fn connect_check(&self) -> Result<(), Error> {
-        // Verify the connection limit
+    pub fn connect_num_check(&self) -> bool {
         if self.connections.len() >= self.max_connection_num {
-            return Err(Error::ConnectionExceed {
-                total: self.max_connection_num,
-            });
+            return true;
         }
+        return false;
+    }
 
-        // authentication
-        return Ok(());
+    pub fn connect_rate_check(&self) -> bool {
+        return false;
     }
 
     pub fn get_connect(&self, connect_id: u64) -> Option<TCPConnection> {
