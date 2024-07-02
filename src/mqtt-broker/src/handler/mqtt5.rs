@@ -88,6 +88,14 @@ where
             );
         }
 
+        if is_ip_blacklist(&addr).await {
+            return response_packet_matt5_connect_fail(
+                ConnectReturnCode::Banned,
+                &connect_properties,
+                None,
+            );
+        }
+
         if let Some(res) = connect_params_validator(
             &cluster,
             &connnect,
@@ -97,14 +105,6 @@ where
             &login,
         ) {
             return res;
-        }
-
-        if is_ip_blacklist(&addr).await {
-            return response_packet_matt5_connect_fail(
-                ConnectReturnCode::Banned,
-                &connect_properties,
-                None,
-            );
         }
 
         match authentication_login(self.cache_manager.clone(), login, &connect_properties, addr)

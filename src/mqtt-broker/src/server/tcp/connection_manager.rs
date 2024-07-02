@@ -130,10 +130,6 @@ impl ConnectionManager {
         return false;
     }
 
-    pub fn connect_rate_check(&self) -> bool {
-        return false;
-    }
-
     pub fn get_connect(&self, connect_id: u64) -> Option<TCPConnection> {
         if let Some(connec) = self.connections.get(&connect_id) {
             return Some(connec.clone());
