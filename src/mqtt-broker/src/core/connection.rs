@@ -5,7 +5,8 @@ use common_base::{
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
-    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, MQTTPacket,
+    ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, Disconnect,
+    DisconnectProperties, DisconnectReasonCode, MQTTPacket,
 };
 use serde::{Deserialize, Serialize};
 
@@ -211,4 +212,20 @@ pub fn response_packet_matt5_connect_fail(
         },
         Some(ack_properties),
     );
+}
+
+pub fn response_packet_matt5_distinct(
+    reason_code: DisconnectReasonCode,
+    reason_string: Option<String>,
+) -> MQTTPacket {
+    let disconnect = Disconnect { reason_code };
+    let properties = DisconnectProperties {
+        session_expiry_interval: None,
+        reason_string,
+        user_properties: Vec::new(),
+        server_reference: None,
+    };
+    return MQTTPacket::Disconnect(disconnect, Some(properties));
+
+    return MQTTPacket::Disconnect(disconnect, None);
 }

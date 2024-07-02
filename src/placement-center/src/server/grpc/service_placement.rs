@@ -26,10 +26,12 @@ use prost::Message;
 use protocol::placement_center::generate::common::{CommonReply, GenerageIdType};
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::generate::placement::{
-    DeleteResourceConfigRequest, GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest,
+    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
+    ExistsIdempotentDataRequest, GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest,
     GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, RegisterNodeRequest,
     ReportMonitorRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-    SendRaftMessageRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
+    UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
@@ -296,5 +298,26 @@ impl PlacementCenterService for GrpcPlacementService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    async fn set_idempotent_data(
+        &self,
+        request: Request<SetIdempotentDataRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        return Ok(Response::new(CommonReply::default()));
+    }
+
+    async fn exists_idempotent_data(
+        &self,
+        request: Request<ExistsIdempotentDataRequest>,
+    ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
+        return Ok(Response::new(ExistsIdempotentDataReply::default()));
+    }
+
+    async fn delete_idempotent_data(
+        &self,
+        request: Request<DeleteIdempotentDataRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        return Ok(Response::new(CommonReply::default()));
     }
 }

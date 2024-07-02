@@ -10,6 +10,7 @@ use crate::{
     server::tcp::packet::RequestPackage,
 };
 use common_base::log::{debug, error, info};
+use futures::SinkExt;
 use futures::StreamExt;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
@@ -117,7 +118,7 @@ where
                                 let (r_stream, w_stream) = io::split(stream);
                                 let codec = MqttCodec::new(None);
                                 let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                                let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+                                let mut write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
                                 let cm = connection_manager.clone();
                                 let request_queue_sx = request_queue_sx.clone();
@@ -126,8 +127,12 @@ where
                                 match cm.connect_check() {
                                     Ok(_) => {}
                                     Err(e) => {
-                                        let reason=format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string());
-                                        error(reason.clone());
+                                        match write_frame_stream.close().await {
+                                            Ok(_) => {
+                                                error(format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
+                                            }
+                                            Err(e) => error(e.to_string()),
+                                        }
                                         continue;
                                     }
                                 }
@@ -222,10 +227,8 @@ where
                             {
                                 // Close the client connection
                                 if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
-                                    if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection {
-                                        connect_manager.clonse_connect(packet.connection_id).await;
-                                        continue;
-                                    }
+                                    connect_manager.clonse_connect(packet.connection_id).await;
+                                    continue;
                                 }
 
                                 // Writes the result of the business logic processing to the return queue

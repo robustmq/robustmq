@@ -276,17 +276,19 @@ where
             ));
         };
 
-        if !self
-            .cache_manager
-            .get_client_pkid(client_id.clone(), publish.pkid)
-            .await
-            .is_none()
-        {
-            return Some(
-                self.ack_build
-                    .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
-            );
-        };
+        if publish.qos == QoS::ExactlyOnce {
+            if !self
+                .cache_manager
+                .get_client_pkid(client_id.clone(), publish.pkid)
+                .await
+                .is_none()
+            {
+                return Some(
+                    self.ack_build
+                        .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
+                );
+            };
+        }
 
         // Persisting retain message data
         match save_topic_retain_message(
@@ -641,5 +643,14 @@ where
             self.ack_build
                 .distinct(DisconnectReasonCode::NormalDisconnection, None),
         );
+    }
+}
+
+impl<S> Mqtt5Service<S>
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    fn publish_validator(&self) -> Option<String> {
+        return None;
     }
 }
