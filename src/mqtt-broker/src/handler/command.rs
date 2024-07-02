@@ -317,13 +317,13 @@ where
 
             _ => {
                 return Some(self.ack_build.distinct(
-                    protocol::mqtt::common::DisconnectReasonCode::ImplementationSpecificError,
+                    protocol::mqtt::common::DisconnectReasonCode::MalformedPacket,
                     None,
                 ));
             }
         }
         return Some(self.ack_build.distinct(
-            protocol::mqtt::common::DisconnectReasonCode::ImplementationSpecificError,
+            protocol::mqtt::common::DisconnectReasonCode::ProtocolError,
             None,
         ));
     }
