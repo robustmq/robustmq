@@ -18,7 +18,7 @@ use common_base::{
     runtime::create_runtime,
 };
 use core::cache_manager::CacheManager;
-use core::{keep_alive::ClientKeepAlive, HEART_CONNECT_SHARD_HASH_NUM};
+use core::keep_alive::ClientKeepAlive;
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},

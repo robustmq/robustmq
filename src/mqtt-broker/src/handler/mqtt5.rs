@@ -76,6 +76,17 @@ where
         login: Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
+        
+        if let Some(res) = self.connect_params_validator(
+            &connnect,
+            &connect_properties,
+            &last_will,
+            &last_will_properties,
+            &login,
+        ) {
+            return res;
+        }
+
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
             self.cache_manager.get_cluster_info();
 
@@ -652,13 +663,12 @@ where
 {
     fn connect_params_validator(
         &self,
-        connnect: Connect,
-        connect_properties: Option<ConnectProperties>,
-        last_will: Option<LastWill>,
-        last_will_properties: Option<LastWillProperties>,
-        login: Option<Login>,
+        connnect: &Connect,
+        connect_properties: &Option<ConnectProperties>,
+        last_will: &Option<LastWill>,
+        last_will_properties: &Option<LastWillProperties>,
+        login: &Option<Login>,
     ) -> Option<MQTTPacket> {
-
         return None;
     }
 
