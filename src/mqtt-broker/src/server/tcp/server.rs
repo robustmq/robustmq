@@ -2,6 +2,7 @@ use super::{
     connection::TCPConnection, connection_manager::ConnectionManager, packet::ResponsePackage,
 };
 use crate::{
+    core::validator::establish_connection_check,
     handler::command::Command,
     metrics::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
@@ -9,12 +10,11 @@ use crate::{
     },
     server::tcp::packet::RequestPackage,
 };
-use common_base::log::{debug, error, info};
-use futures::SinkExt;
+use common_base::log::{error, info};
 use futures::StreamExt;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
-    common::{DisconnectReasonCode, MQTTPacket, MQTTProtocol},
+    common::{MQTTPacket, MQTTProtocol},
 };
 use std::{fmt::Error, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
@@ -114,36 +114,23 @@ where
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                // split stream
                                 let (r_stream, w_stream) = io::split(stream);
                                 let codec = MqttCodec::new(None);
                                 let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                                let mut write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+                                let mut  write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
                                 let cm = connection_manager.clone();
                                 let request_queue_sx = request_queue_sx.clone();
 
-                                // connect check
-                                match cm.connect_check() {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        match write_frame_stream.close().await {
-                                            Ok(_) => {
-                                                error(format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
-                                            }
-                                            Err(e) => error(e.to_string()),
-                                        }
-                                        continue;
-                                    }
+                                if !establish_connection_check(&addr,&cm,&mut write_frame_stream).await{
+                                    continue;
                                 }
 
-                                // connection manager
                                 let (connection_stop_sx,mut connection_stop_rx) = broadcast::channel::<bool>(1);
                                 let connection_id = cm.add(TCPConnection::new(addr,connection_stop_sx.clone()));
                                 cm.add_write(connection_id, write_frame_stream);
                                 let protocol_lable = protocol.clone();
 
-                                // request is processed by a separate thread, placing the request packet in the request queue.
                                 tokio::spawn(async move {
                                     loop {
                                         select! {
@@ -172,10 +159,7 @@ where
                                                             }
                                                         }
                                                         Err(e) => {
-                                                            debug(format!(
-                                                                "read_frame_stream decode error,error info: {:?}",
-                                                                e
-                                                            ));
+                                                            error(format!("TCP connection parsing packet format error message :{:?}",e))
                                                         }
                                                     }
                                                 }
@@ -185,7 +169,7 @@ where
                                 });
                             }
                             Err(e) => {
-                                error(e.to_string());
+                                error(format!("TCP accept failed to create connection with error message :{:?}",e));
                             }
                         }
                     }
@@ -225,13 +209,6 @@ where
                                 .apply(connect_manager.clone(), connect, packet.addr, packet.packet)
                                 .await
                             {
-                                // Close the client connection
-                                if let MQTTPacket::Disconnect(disconnect, _) = resp.clone() {
-                                    connect_manager.clonse_connect(packet.connection_id).await;
-                                    continue;
-                                }
-
-                                // Writes the result of the business logic processing to the return queue
                                 let response_package = ResponsePackage::new(packet.connection_id, resp);
                                 match response_queue_sx.send(response_package) {
                                     Ok(_) => {}
@@ -280,12 +257,18 @@ where
                             {
                                 let packet_wrapper = MQTTPacketWrapper {
                                     protocol_version: protocol.into(),
-                                    packet: response_package.packet,
+                                    packet: response_package.packet.clone(),
                                 };
                                 info(format!("response packet:{:?}", packet_wrapper.clone()));
                                 connect_manager
                                     .write_frame(response_package.connection_id, packet_wrapper)
                                     .await;
+                            }
+
+
+                            if let MQTTPacket::Disconnect(_, _) = response_package.packet {
+                                connect_manager.clonse_connect(response_package.connection_id).await;
+                                continue;
                             }
                         }
                     }

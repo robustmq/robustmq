@@ -2,6 +2,7 @@ use super::mqtt3::Mqtt3Service;
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
 use super::packet::MQTTAckBuild;
+use crate::core::response_packet::response_packet_matt5_connect_fail_by_code;
 use crate::core::{
     cache_manager::CacheManager, response_packet::response_packet_matt5_connect_fail,
 };
@@ -26,7 +27,6 @@ pub struct Command<S> {
     mqtt5_service: Mqtt5Service<S>,
     metadata_cache: Arc<CacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
-    client_poll: Arc<ClientPool>,
 }
 
 impl<S> Command<S>
@@ -59,7 +59,6 @@ where
             mqtt5_service,
             metadata_cache: cache_manager,
             response_queue_sx,
-            client_poll,
         };
     }
 
@@ -104,10 +103,8 @@ where
                         )
                         .await
                 } else {
-                    return Some(response_packet_matt5_connect_fail(
+                    return Some(response_packet_matt5_connect_fail_by_code(
                         ConnectReturnCode::UnsupportedProtocolVersion,
-                        &properties,
-                        None,
                     ));
                 };
 
@@ -318,15 +315,13 @@ where
             }
 
             _ => {
-                return Some(self.ack_build.distinct(
-                    protocol::mqtt::common::DisconnectReasonCode::MalformedPacket,
-                    None,
+                return Some(response_packet_matt5_connect_fail_by_code(
+                    ConnectReturnCode::MalformedPacket,
                 ));
             }
         }
-        return Some(self.ack_build.distinct(
-            protocol::mqtt::common::DisconnectReasonCode::ProtocolError,
-            None,
+        return Some(response_packet_matt5_connect_fail_by_code(
+            ConnectReturnCode::UnsupportedProtocolVersion,
         ));
     }
 

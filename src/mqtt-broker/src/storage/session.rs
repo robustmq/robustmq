@@ -50,7 +50,7 @@ impl SessionStorage {
 
     pub async fn update_session(
         &self,
-        client_id: String,
+        client_id: &String,
         connection_id: u64,
         broker_id: u64,
         reconnect_time: u64,

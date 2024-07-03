@@ -185,6 +185,15 @@ impl CacheManager {
         return None;
     }
 
+    pub fn update_session_connect_id(&self, client_id: &String, connect_id: Option<u64>) {
+        if let Some(mut session) = self.session_info.get_mut(client_id) {
+            session.update_connnction_id(connect_id);
+            if connect_id.is_none() {
+                session.update_distinct_time()
+            }
+        }
+    }
+
     pub fn apply(&self, data: String) {
         let data: MetadataChangeData = serde_json::from_str(&data).unwrap();
         match data.data_type {

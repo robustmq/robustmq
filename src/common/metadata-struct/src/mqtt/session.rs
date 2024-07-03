@@ -7,9 +7,9 @@ pub struct MQTTSession {
     pub session_expiry: u64,
     pub is_contain_last_will: bool,
     pub last_will_delay_interval: Option<u64>,
+    pub connection_id: Option<u64>,
     pub create_time: u64,
 
-    pub connection_id: Option<u64>,
     pub broker_id: Option<u64>,
     pub reconnect_time: Option<u64>,
     pub distinct_time: Option<u64>,
@@ -45,6 +45,10 @@ impl MQTTSession {
 
     pub fn update_reconnect_time(&mut self) {
         self.reconnect_time = Some(now_second());
+    }
+
+    pub fn update_distinct_time(&mut self) {
+        self.distinct_time = Some(now_second());
     }
 
     pub fn encode(&self) -> Vec<u8> {

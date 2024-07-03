@@ -7,15 +7,9 @@ use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTProtocol,
 };
-use std::{fmt::Debug, time::Duration};
+use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Description The number of TCP connections on a node exceeded the upper limit. The maximum number of TCP connections was {total:?}")]
-    ConnectionExceed { total: usize },
-}
 
 pub struct ConnectionManager {
     protocol: MQTTProtocol,
@@ -119,16 +113,11 @@ impl ConnectionManager {
         }
     }
 
-    pub fn connect_check(&self) -> Result<(), Error> {
-        // Verify the connection limit
+    pub fn connect_num_check(&self) -> bool {
         if self.connections.len() >= self.max_connection_num {
-            return Err(Error::ConnectionExceed {
-                total: self.max_connection_num,
-            });
+            return true;
         }
-
-        // authentication
-        return Ok(());
+        return false;
     }
 
     pub fn get_connect(&self, connect_id: u64) -> Option<TCPConnection> {

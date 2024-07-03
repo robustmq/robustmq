@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use super::{cache_manager::CacheManager, lastwill::last_will_delay_interval};
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
@@ -7,6 +6,7 @@ use common_base::{
 };
 use metadata_struct::mqtt::session::MQTTSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
+use std::sync::Arc;
 
 pub async fn save_session(
     connect_id: u64,
@@ -60,10 +60,10 @@ pub async fn save_session(
 
     let conf = broker_mqtt_conf();
     let session_storage = SessionStorage::new(client_poll);
+    session.update_connnction_id(Some(connect_id));
+    session.update_broker_id(Some(conf.broker_id));
+
     if new_session {
-        session.update_connnction_id(Some(connect_id));
-        session.update_reconnect_time();
-        session.update_broker_id(Some(conf.broker_id));
         match session_storage
             .set_session(client_id, session.clone())
             .await
@@ -74,8 +74,9 @@ pub async fn save_session(
             }
         }
     } else {
+        session.update_reconnect_time();
         match session_storage
-            .update_session(client_id, connect_id, conf.broker_id, now_second(), 0)
+            .update_session(&client_id, connect_id, conf.broker_id, now_second(), 0)
             .await
         {
             Ok(_) => {}

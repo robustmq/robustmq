@@ -3,14 +3,17 @@ use super::packet::{publish_comp_fail, publish_comp_success};
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
+use crate::core::flow_control::is_self_protection_status;
 use crate::core::lastwill::save_last_will_message;
 use crate::core::response_packet::{
     response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
+    response_packet_matt5_distinct, response_packet_matt_distinct,
 };
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
 use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
 use crate::core::validator::connect_params_validator;
+use crate::security::authentication::is_ip_blacklist;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -77,6 +80,22 @@ where
     ) -> MQTTPacket {
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
             self.cache_manager.get_cluster_info();
+
+        if is_self_protection_status() {
+            return response_packet_matt5_connect_fail(
+                ConnectReturnCode::ServerBusy,
+                &connect_properties,
+                None,
+            );
+        }
+
+        if is_ip_blacklist(&addr).await {
+            return response_packet_matt5_connect_fail(
+                ConnectReturnCode::Banned,
+                &connect_properties,
+                None,
+            );
+        }
 
         if let Some(res) = connect_params_validator(
             &cluster,
@@ -605,21 +624,26 @@ where
         };
 
         self.cache_manager.remove_connection(connect_id);
+        self.cache_manager
+            .update_session_connect_id(&connection.client_id, None);
 
         let session_storage = SessionStorage::new(self.client_poll.clone());
         match session_storage
-            .update_session(connection.client_id, 0, 0, 0, now_second())
+            .update_session(&connection.client_id, 0, 0, 0, now_second())
             .await
         {
             Ok(_) => {}
             Err(e) => {
-                error(e.to_string());
+                return Some(response_packet_matt5_distinct(
+                    DisconnectReasonCode::UnspecifiedError,
+                    &connection,
+                    Some(e.to_string()),
+                ));
             }
         }
 
-        return Some(
-            self.ack_build
-                .distinct(DisconnectReasonCode::NormalDisconnection, None),
-        );
+        return Some(response_packet_matt_distinct(
+            DisconnectReasonCode::NormalDisconnection,
+        ));
     }
 }
