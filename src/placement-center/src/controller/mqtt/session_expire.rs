@@ -69,7 +69,16 @@ impl SessionExpire {
                 }
 
                 let result_value = value.unwrap().to_vec();
-                let session = serde_json::from_slice::<MQTTSession>(&result_value).unwrap();
+                let session = match serde_json::from_slice::<MQTTSession>(&result_value) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        error(format!(
+                            "Session expired, failed to parse Session data, error message :{}",
+                            e.to_string()
+                        ));
+                        continue;
+                    }
+                };
                 if self.is_session_expire(&session) {
                     sessions.push(session);
                 }
@@ -106,9 +115,18 @@ impl SessionExpire {
                         .get(self.cluster_name.clone(), lastwill.client_id.clone())
                     {
                         Ok(Some(data)) => {
-                            let value =
-                                serde_json::from_slice::<LastWillData>(data.data.as_slice())
-                                    .unwrap();
+                            let value = match serde_json::from_slice::<LastWillData>(
+                                data.data.as_slice(),
+                            ) {
+                                Ok(data) => data,
+                                Err(e) => {
+                                    error(format!(
+                                        "Sending Last will message process, failed to parse Session data, error message :{}",
+                                        e.to_string()
+                                    ));
+                                    continue;
+                                }
+                            };
                             call.send_last_will_message(lastwill.client_id.clone(), value)
                                 .await;
                         }

@@ -32,9 +32,9 @@ system_password = "pwd123"
 worker_threads = 16
 
 [network_tcp]
-accept_thread_num = 5
+accept_thread_num = 1
 handler_thread_num = 5
-response_thread_num = 5
+response_thread_num = 1
 max_connection_num = 1000
 request_queue_size = 2000
 response_queue_size = 2000
