@@ -30,13 +30,8 @@ impl ClusterController {
         return controller;
     }
 
-    pub fn start(&self) {
-        self.start_node_heartbeat_check();
-        info_meta("Cluster Controller started successfully");
-    }
-
     // Start the heartbeat detection thread of the Storage Engine node
-    pub fn start_node_heartbeat_check(&self) {
+    pub async fn start_node_heartbeat_check(&self) {
         let stop_recv = self.stop_send.subscribe();
         let config = placement_center_conf();
         let mut heartbeat = BrokerHeartbeat::new(
@@ -46,8 +41,7 @@ impl ClusterController {
             self.placement_center_storage.clone(),
             stop_recv,
         );
-        tokio::spawn(async move {
-            heartbeat.start().await;
-        });
+
+        heartbeat.start().await;
     }
 }

@@ -7,6 +7,7 @@ use crate::core::flow_control::is_self_protection_status;
 use crate::core::lastwill::save_last_will_message;
 use crate::core::response_packet::{
     response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
+    response_packet_matt5_distinct, response_packet_matt_distinct,
 };
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
@@ -623,21 +624,26 @@ where
         };
 
         self.cache_manager.remove_connection(connect_id);
+        self.cache_manager
+            .update_session_connect_id(&connection.client_id, None);
 
         let session_storage = SessionStorage::new(self.client_poll.clone());
         match session_storage
-            .update_session(connection.client_id, 0, 0, 0, now_second())
+            .update_session(&connection.client_id, 0, 0, 0, now_second())
             .await
         {
             Ok(_) => {}
             Err(e) => {
-                error(e.to_string());
+                return Some(response_packet_matt5_distinct(
+                    DisconnectReasonCode::UnspecifiedError,
+                    &connection,
+                    Some(e.to_string()),
+                ));
             }
         }
 
-        return Some(
-            self.ack_build
-                .distinct(DisconnectReasonCode::NormalDisconnection, None),
-        );
+        return Some(response_packet_matt_distinct(
+            DisconnectReasonCode::NormalDisconnection,
+        ));
     }
 }

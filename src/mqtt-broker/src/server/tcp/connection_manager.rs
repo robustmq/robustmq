@@ -7,15 +7,9 @@ use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTProtocol,
 };
-use std::{fmt::Debug, time::Duration};
+use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("Description The number of TCP connections on a node exceeded the upper limit. The maximum number of TCP connections was {total:?}")]
-    ConnectionExceed { total: usize },
-}
 
 pub struct ConnectionManager {
     protocol: MQTTProtocol,
@@ -67,10 +61,6 @@ impl ConnectionManager {
         }
 
         if let Some((id, mut stream)) = self.write_list.remove(&connection_id) {
-            // match stream.send().await {
-            //     Ok(_) => {}
-            //     Err(e) => {}
-            // }
             match stream.close().await {
                 Ok(_) => {
                     info(format!(

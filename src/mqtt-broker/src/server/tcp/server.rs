@@ -10,7 +10,7 @@ use crate::{
     },
     server::tcp::packet::RequestPackage,
 };
-use common_base::log::{debug, error, info};
+use common_base::log::{error, info};
 use futures::StreamExt;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
@@ -159,10 +159,7 @@ where
                                                             }
                                                         }
                                                         Err(e) => {
-                                                            debug(format!(
-                                                                "read_frame_stream decode error,error info: {:?}",
-                                                                e
-                                                            ));
+                                                            error(format!("TCP connection parsing packet format error message :{:?}",e))
                                                         }
                                                     }
                                                 }
@@ -172,7 +169,7 @@ where
                                 });
                             }
                             Err(e) => {
-                                error(e.to_string());
+                                error(format!("TCP accept failed to create connection with error message :{:?}",e));
                             }
                         }
                     }
@@ -212,13 +209,6 @@ where
                                 .apply(connect_manager.clone(), connect, packet.addr, packet.packet)
                                 .await
                             {
-                                // Close the client connection
-                                if let MQTTPacket::Disconnect(_, _) = resp.clone() {
-                                    connect_manager.clonse_connect(packet.connection_id).await;
-                                    continue;
-                                }
-
-                                // Writes the result of the business logic processing to the return queue
                                 let response_package = ResponsePackage::new(packet.connection_id, resp);
                                 match response_queue_sx.send(response_package) {
                                     Ok(_) => {}
@@ -267,12 +257,18 @@ where
                             {
                                 let packet_wrapper = MQTTPacketWrapper {
                                     protocol_version: protocol.into(),
-                                    packet: response_package.packet,
+                                    packet: response_package.packet.clone(),
                                 };
                                 info(format!("response packet:{:?}", packet_wrapper.clone()));
                                 connect_manager
                                     .write_frame(response_package.connection_id, packet_wrapper)
                                     .await;
+                            }
+
+
+                            if let MQTTPacket::Disconnect(_, _) = response_package.packet {
+                                connect_manager.clonse_connect(response_package.connection_id).await;
+                                continue;
                             }
                         }
                     }

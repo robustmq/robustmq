@@ -1,5 +1,10 @@
 use super::{
-    flow_control::is_connection_rate_exceeded, response_packet::{response_packet_matt5_connect_fail, response_packet_matt_distinct}, topic::topic_name_validator
+    flow_control::is_connection_rate_exceeded,
+    response_packet::{
+        response_packet_matt5_connect_fail,
+        response_packet_matt_distinct,
+    },
+    topic::topic_name_validator,
 };
 use crate::server::tcp::connection_manager::ConnectionManager;
 use common_base::log::error;
@@ -22,7 +27,7 @@ pub async fn establish_connection_check(
 ) -> bool {
     if connection_manager.connect_num_check() {
         let packet_wrapper = MQTTPacketWrapper {
-            protocol_version: MQTTProtocol::MQTT4.into(),
+            protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_matt_distinct(DisconnectReasonCode::QuotaExceeded),
         };
         match write_frame_stream.send(packet_wrapper).await {

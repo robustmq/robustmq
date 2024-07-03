@@ -51,8 +51,8 @@ mod server;
 mod storage;
 
 pub struct PlacementCenter {
-    server_runtime: Arc<Runtime>,
-    daemon_runtime: Arc<Runtime>,
+    server_runtime: Runtime,
+    daemon_runtime: Runtime,
     // Cache metadata information for the Storage Engine cluster
     cluster_cache: Arc<PlacementCacheManager>,
     // Cache metadata information for the Broker Server cluster
@@ -71,14 +71,8 @@ pub struct PlacementCenter {
 impl PlacementCenter {
     pub fn new() -> PlacementCenter {
         let config = placement_center_conf();
-        let server_runtime = Arc::new(create_runtime(
-            "server-runtime",
-            config.runtime_work_threads,
-        ));
-        let daemon_runtime = Arc::new(create_runtime(
-            "daemon-runtime",
-            config.runtime_work_threads,
-        ));
+        let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
+        let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
 
         let client_poll = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
@@ -197,7 +191,9 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             stop_send,
         );
-        ctrl.start();
+        self.daemon_runtime.spawn(async move {
+            ctrl.start_node_heartbeat_check().await;
+        });
 
         let mqtt_controller = MQTTController::new(
             self.rocksdb_engine_handler.clone(),
@@ -249,7 +245,7 @@ impl PlacementCenter {
     // Wait Stop Signal
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
         // Wait for the stop signal
-        self.daemon_runtime.block_on(async move {
+        self.server_runtime.block_on(async move {
             loop {
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match stop_send.send(true) {

@@ -27,7 +27,6 @@ pub struct Command<S> {
     mqtt5_service: Mqtt5Service<S>,
     metadata_cache: Arc<CacheManager>,
     response_queue_sx: Sender<ResponsePackage>,
-    client_poll: Arc<ClientPool>,
 }
 
 impl<S> Command<S>
@@ -60,7 +59,6 @@ where
             mqtt5_service,
             metadata_cache: cache_manager,
             response_queue_sx,
-            client_poll,
         };
     }
 
