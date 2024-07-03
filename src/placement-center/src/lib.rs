@@ -78,7 +78,8 @@ impl PlacementCenter {
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
 
         let engine_cache = Arc::new(JournalCacheManager::new());
-        let cluster_cache: Arc<PlacementCacheManager> = Arc::new(PlacementCacheManager::new());
+        let cluster_cache: Arc<PlacementCacheManager> =
+            Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let mqtt_cache: Arc<MqttCacheManager> = Arc::new(MqttCacheManager::new(
             rocksdb_engine_handler.clone(),
             cluster_cache.clone(),

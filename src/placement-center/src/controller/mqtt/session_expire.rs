@@ -7,7 +7,10 @@ use crate::{
     },
 };
 use clients::poll::ClientPool;
-use common_base::{log::error, tools::now_second};
+use common_base::{
+    log::{error, info},
+    tools::now_second,
+};
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
@@ -56,14 +59,18 @@ impl SessionExpire {
                 let value = iter.value();
 
                 if key == None || value == None {
+                    iter.next();
                     continue;
                 }
 
                 let result_key = match String::from_utf8(key.unwrap().to_vec()) {
                     Ok(s) => s,
-                    Err(_) => continue,
+                    Err(_) => {
+                        iter.next();
+                        continue;
+                    }
                 };
-
+                println!("{}", result_key);
                 if !result_key.starts_with(&search_key) {
                     break;
                 }
@@ -76,13 +83,16 @@ impl SessionExpire {
                             "Session expired, failed to parse Session data, error message :{}",
                             e.to_string()
                         ));
+                        iter.next();
                         continue;
                     }
                 };
                 if self.is_session_expire(&session) {
                     sessions.push(session);
                 }
+                iter.next();
             }
+            println!("size:{}", sessions.len());
             if sessions.len() > 0 {
                 let call = MQTTBrokerCall::new(
                     self.cluster_name.clone(),
@@ -95,7 +105,7 @@ impl SessionExpire {
                     call.delete_sessions(sessions).await;
                 });
             }
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(10)).await;
         }
     }
 
@@ -142,6 +152,8 @@ impl SessionExpire {
                     }
                 }
             }
+
+            sleep(Duration::from_secs(10)).await;
         }
     }
 

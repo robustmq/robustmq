@@ -1,7 +1,12 @@
+use std::sync::Arc;
+
 use common_base::tools::now_mills;
 use dashmap::DashMap;
 use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
+use protocol::placement_center::generate::common::ClusterType;
 use serde::{Deserialize, Serialize};
+
+use crate::storage::{placement::cluster::ClusterStorage, rocksdb::RocksDBEngine};
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct PlacementCacheManager {
@@ -11,12 +16,14 @@ pub struct PlacementCacheManager {
 }
 
 impl PlacementCacheManager {
-    pub fn new() -> PlacementCacheManager {
-        return PlacementCacheManager {
+    pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> PlacementCacheManager {
+        let cache = PlacementCacheManager {
             cluster_list: DashMap::with_capacity(2),
             node_heartbeat: DashMap::with_capacity(2),
             node_list: DashMap::with_capacity(2),
         };
+        cache.load_cache(rocksdb_engine_handler);
+        return cache;
     }
 
     pub fn add_cluster(&self, cluster: ClusterInfo) {
@@ -56,6 +63,18 @@ impl PlacementCacheManager {
 
     pub fn heart_time(&self, node_id: String, time: u128) {
         self.node_heartbeat.insert(node_id, time);
+    }
+
+    pub fn load_cache(&self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
+        let cluster = ClusterStorage::new(rocksdb_engine_handler.clone());
+        match cluster.list(None) {
+            Ok(result) => {
+                for cluster in result {
+                    self.add_cluster(cluster);
+                }
+            }
+            Err(_) => {}
+        }
     }
 }
 

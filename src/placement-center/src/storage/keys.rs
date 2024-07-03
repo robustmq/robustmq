@@ -28,12 +28,16 @@ pub fn key_name_snapshot() -> String {
 }
 
 /** ===========Cluster========== */
-pub fn key_cluster(cluster_name: String) -> String {
-    return format!("/clusters/{}", cluster_name);
+pub fn key_cluster(cluster_type: &String, cluster_name: &String) -> String {
+    return format!("/clusters/{}/{}", cluster_type, cluster_name);
 }
 
 pub fn key_cluster_prefix() -> String {
     return format!("/clusters/");
+}
+
+pub fn key_cluster_prefix_by_type(cluster_type: &String) -> String {
+    return format!("/clusters/{}", cluster_type);
 }
 
 pub fn key_node(cluster_name: String, node_id: u64) -> String {

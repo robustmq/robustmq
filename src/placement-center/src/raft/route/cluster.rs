@@ -137,7 +137,7 @@ mod tests {
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);
         let rocksdb_engine = Arc::new(RocksDBEngine::new(&PlacementCenterConfig::default()));
-        let cluster_cache = Arc::new(PlacementCacheManager::new());
+        let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
 
         let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
         let _ = route.add_node(data);
@@ -145,7 +145,12 @@ mod tests {
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
 
-        let cluster = cluster_storage.get(cluster_name.clone()).unwrap();
+        let cluster = cluster_storage
+            .get(
+                &ClusterType::MqttBrokerServer.as_str_name().to_string(),
+                &cluster_name,
+            )
+            .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
 
@@ -158,7 +163,12 @@ mod tests {
         let res = node_storage.get(cluster_name.clone(), node_id).unwrap();
         assert!(res.is_none());
 
-        let cluster = cluster_storage.get(cluster_name.clone()).unwrap();
+        let cluster = cluster_storage
+            .get(
+                &ClusterType::MqttBrokerServer.as_str_name().to_string(),
+                &cluster_name,
+            )
+            .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
     }
