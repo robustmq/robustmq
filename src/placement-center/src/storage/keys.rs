@@ -40,12 +40,16 @@ pub fn key_cluster_prefix_by_type(cluster_type: &String) -> String {
     return format!("/clusters/{}", cluster_type);
 }
 
-pub fn key_node(cluster_name: String, node_id: u64) -> String {
-    return format!("/clusters/{}/node/{}", cluster_name, node_id);
+pub fn key_node(cluster_name: &String, node_id: u64) -> String {
+    return format!("/clusters/node/{}/{}", cluster_name, node_id);
 }
 
-pub fn key_node_prefix(cluster_name: String) -> String {
-    return format!("/clusters/{}/node/", cluster_name);
+pub fn key_node_prefix(cluster_name: &String) -> String {
+    return format!("/clusters/node/{}", cluster_name);
+}
+
+pub fn key_node_prefix_all() -> String {
+    return format!("/clusters/node/");
 }
 
 pub fn key_resource_config(cluster_name: String, resource_key: String) -> String {
@@ -69,19 +73,19 @@ pub fn key_segment(cluster_name: &String, shard_name: &String, segement_seq: u64
 }
 
 /** ===========MQTT========== */
-pub fn storage_key_mqtt_user(cluster_name: String, user_name: String) -> String {
+pub fn storage_key_mqtt_user(cluster_name: &String, user_name: &String) -> String {
     return format!("/mqtt/user/{}/{}", cluster_name, user_name);
 }
 
-pub fn storage_key_mqtt_user_cluster_prefix(cluster_name: String) -> String {
+pub fn storage_key_mqtt_user_cluster_prefix(cluster_name: &String) -> String {
     return format!("/mqtt/user/{}", cluster_name);
 }
 
-pub fn storage_key_mqtt_topic(cluster_name: String, user_name: String) -> String {
+pub fn storage_key_mqtt_topic(cluster_name: &String, user_name: &String) -> String {
     return format!("/mqtt/topic/{}/{}", cluster_name, user_name);
 }
 
-pub fn storage_key_mqtt_topic_cluster_prefix(cluster_name: &String) -> String {
+pub fn storage_key_mqtt_topic_cluster_prefix(&cluster_name: &String) -> String {
     return format!("/mqtt/topic/{}", cluster_name);
 }
 

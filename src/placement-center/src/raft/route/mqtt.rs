@@ -31,7 +31,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.save(req.cluster_name, req.user_name, req.content) {
+        match storage.save(&req.cluster_name, &req.user_name, req.content) {
             Ok(_) => {
                 return Ok(());
             }
@@ -46,7 +46,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.delete(req.cluster_name, req.user_name) {
+        match storage.delete(&req.cluster_name, &req.user_name) {
             Ok(_) => {
                 return Ok(());
             }
@@ -62,7 +62,7 @@ impl DataRouteMQTT {
             .unwrap();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        match storage.save(req.cluster_name, req.topic_name, req.content) {
+        match storage.save(&req.cluster_name, &req.topic_name, req.content) {
             Ok(_) => {
                 return Ok(());
             }
@@ -77,7 +77,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.delete(req.cluster_name, req.topic_name) {
+        match storage.delete(&req.cluster_name, &req.topic_name) {
             Ok(_) => {
                 return Ok(());
             }
@@ -93,8 +93,11 @@ impl DataRouteMQTT {
                 .map_err(|e| Status::invalid_argument(e.to_string()))
                 .unwrap();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.set_topic_retain_message(req.cluster_name, req.topic_name, req.retain_message)
-        {
+        match storage.set_topic_retain_message(
+            &req.cluster_name,
+            &req.topic_name,
+            req.retain_message,
+        ) {
             Ok(_) => {
                 return Ok(());
             }

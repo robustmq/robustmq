@@ -119,7 +119,21 @@ impl SessionExpire {
             self.mqtt_cache_manager.clone(),
         );
         loop {
-            for (_, lastwill) in self.mqtt_cache_manager.expire_last_wills.clone() {
+            if !self
+                .mqtt_cache_manager
+                .expire_last_wills
+                .contains_key(&self.cluster_name)
+            {
+                break;
+            }
+
+            for (_, lastwill) in self
+                .mqtt_cache_manager
+                .expire_last_wills
+                .get(&self.cluster_name)
+                .unwrap()
+                .clone()
+            {
                 if self.is_send_last_will(&lastwill) {
                     match lastwill_storage
                         .get(self.cluster_name.clone(), lastwill.client_id.clone())

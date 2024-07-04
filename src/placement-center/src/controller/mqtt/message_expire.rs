@@ -58,7 +58,7 @@ impl MessageExpire {
                     };
                     if delete {
                         match topic_storage
-                            .delete(self.cluster_name.clone(), value.topic_name.clone())
+                            .delete(&self.cluster_name, &value.topic_name)
                         {
                             Ok(()) => {}
                             Err(e) => {

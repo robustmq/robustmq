@@ -67,7 +67,7 @@ impl MqttService for GrpcMqttService {
                 return Err(Status::cancelled(e.to_string()));
             }
         };
-        if let Some(node) = self.cluster_cache.get_node(cluster_name, leader_broker) {
+        if let Some(node) = self.cluster_cache.get_node(&cluster_name, leader_broker) {
             reply.broker_id = leader_broker;
             reply.broker_addr = node.node_inner_addr;
             reply.extend_info = node.extend;
@@ -86,7 +86,7 @@ impl MqttService for GrpcMqttService {
         } else {
             Some(req.username)
         };
-        match storage.list(req.cluster_name, username) {
+        match storage.list(&req.cluster_name, username) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {
@@ -203,7 +203,7 @@ impl MqttService for GrpcMqttService {
         } else {
             Some(req.topic_name)
         };
-        match storage.list(req.cluster_name, topic_name) {
+        match storage.list(&req.cluster_name, topic_name) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {

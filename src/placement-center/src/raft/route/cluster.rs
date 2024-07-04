@@ -72,7 +72,7 @@ impl DataRouteCluster {
 
         // update node
         self.cluster_cache.add_node(node.clone());
-        return node_storage.save(cluster_name.clone(), node);
+        return node_storage.save(&cluster_name, node);
     }
 
     pub fn delete_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
@@ -82,10 +82,10 @@ impl DataRouteCluster {
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
         self.cluster_cache
-            .remove_node(cluster_name.clone(), node_id);
+            .remove_node(&cluster_name, node_id);
 
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
-        return node_storage.delete(cluster_name.clone(), node_id);
+        return node_storage.delete(&cluster_name, node_id);
     }
 
     pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
@@ -154,13 +154,13 @@ mod tests {
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
 
-        let node = node_storage.get(cluster_name.clone(), node_id).unwrap();
+        let node = node_storage.get(&cluster_name, node_id).unwrap();
         let nd = node.unwrap();
         assert_eq!(nd.node_id, node_id);
         assert_eq!(nd.node_ip, node_ip);
 
-        let _ = node_storage.delete(cluster_name.clone(), node_id);
-        let res = node_storage.get(cluster_name.clone(), node_id).unwrap();
+        let _ = node_storage.delete(&cluster_name, node_id);
+        let res = node_storage.get(&cluster_name, node_id).unwrap();
         assert!(res.is_none());
 
         let cluster = cluster_storage
