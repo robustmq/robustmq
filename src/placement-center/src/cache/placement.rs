@@ -33,14 +33,15 @@ impl PlacementCacheManager {
     }
 
     pub fn add_node(&self, node: BrokerNode) {
+        self.heart_time(&node.cluster_name, node.node_id, now_second());
+        
         if let Some(data) = self.node_list.get_mut(&node.cluster_name) {
             data.insert(node.node_id, node);
         } else {
             let data = DashMap::with_capacity(2);
-            data.insert(node.node_id, node);
+            data.insert(node.node_id, node.clone());
             self.node_list.insert(node.cluster_name.clone(), data);
         }
-        self.heart_time(&node.cluster_name, node.node_id, now_second());
     }
 
     pub fn remove_node(&self, cluster_name: &String, node_id: u64) {

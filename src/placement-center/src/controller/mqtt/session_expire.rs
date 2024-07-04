@@ -92,7 +92,6 @@ impl SessionExpire {
                 }
                 iter.next();
             }
-            println!("size:{}", sessions.len());
             if sessions.len() > 0 {
                 let call = MQTTBrokerCall::new(
                     self.cluster_name.clone(),
