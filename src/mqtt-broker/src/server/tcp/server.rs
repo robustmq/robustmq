@@ -10,7 +10,7 @@ use crate::{
     },
     server::tcp::packet::RequestPackage,
 };
-use common_base::log::{error, info};
+use common_base::log::{error, info,debug};
 use futures::StreamExt;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
@@ -114,6 +114,7 @@ where
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
+                                info(format!("accept tcp connection:{:?}",addr));
                                 let (r_stream, w_stream) = io::split(stream);
                                 let codec = MqttCodec::new(None);
                                 let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
@@ -159,7 +160,7 @@ where
                                                             }
                                                         }
                                                         Err(e) => {
-                                                            error(format!("TCP connection parsing packet format error message :{:?}",e))
+                                                            debug(format!("TCP connection parsing packet format error message :{:?}",e))
                                                         }
                                                     }
                                                 }

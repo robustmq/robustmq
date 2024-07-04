@@ -19,12 +19,12 @@ impl MQTTUserStorage {
 
     pub fn list(
         &self,
-        cluster_name: String,
+        cluster_name: &String,
         username: Option<String>,
     ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         if username != None {
-            let key: String = storage_key_mqtt_user(cluster_name, username.unwrap());
+            let key: String = storage_key_mqtt_user(cluster_name, &username.unwrap());
             match self
                 .rocksdb_engine_handler
                 .read::<StorageDataWrap>(cf, &key)
@@ -58,8 +58,8 @@ impl MQTTUserStorage {
 
     pub fn save(
         &self,
-        cluster_name: String,
-        user_name: String,
+        cluster_name: &String,
+        user_name: &String,
         content: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
@@ -75,7 +75,7 @@ impl MQTTUserStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: String, user_name: String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, user_name: &String) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key: String = storage_key_mqtt_user(cluster_name, user_name);
         match self.rocksdb_engine_handler.delete(cf, &key) {
@@ -112,7 +112,7 @@ mod tests {
             is_superuser: true,
         };
         user_storage
-            .save(cluster_name.clone(), username, user.encode())
+            .save(&cluster_name, &username, user.encode())
             .unwrap();
 
         let username = "lobo1".to_string();
@@ -122,23 +122,22 @@ mod tests {
             is_superuser: true,
         };
         user_storage
-            .save(cluster_name.clone(), username, user.encode())
+            .save(&cluster_name, &username, user.encode())
             .unwrap();
 
-        let res = user_storage.list(cluster_name.clone(), None).unwrap();
+        let res = user_storage.list(&cluster_name, None).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = user_storage
-            .list(cluster_name.clone(), Some("lobo1".to_string()))
+            .list(&cluster_name, Some("lobo1".to_string()))
             .unwrap();
         assert_eq!(res.len(), 1);
 
-        user_storage
-            .delete(cluster_name.clone(), "lobo1".to_string())
-            .unwrap();
+        let name = "lobo1".to_string();
+        user_storage.delete(&cluster_name, &name).unwrap();
 
         let res = user_storage
-            .list(cluster_name.clone(), Some("lobo1".to_string()))
+            .list(&cluster_name, Some("lobo1".to_string()))
             .unwrap();
         assert_eq!(res.len(), 0);
     }

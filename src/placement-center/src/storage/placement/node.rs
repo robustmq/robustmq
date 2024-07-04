@@ -1,5 +1,5 @@
 use crate::storage::{
-    keys::{key_node, key_node_prefix},
+    keys::{key_node, key_node_prefix, key_node_prefix_all},
     rocksdb::RocksDBEngine,
 };
 use common_base::errors::RobustMQError;
@@ -17,13 +17,9 @@ impl NodeStorage {
         }
     }
 
-    pub fn save(
-        &self,
-        cluster_name: String,
-        node: BrokerNode,
-    ) -> Result<(), RobustMQError> {
+    pub fn save(&self, cluster_name: &String, node: BrokerNode) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-        let node_key = key_node(cluster_name, node.node_id);
+        let node_key = key_node(&cluster_name, node.node_id);
         match self.rocksdb_engine_handler.write(cf, &node_key, &node) {
             Ok(_) => {
                 return Ok(());
@@ -34,7 +30,7 @@ impl NodeStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: String, node_id: u64) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, node_id: u64) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let node_key = key_node(cluster_name, node_id);
         match self.rocksdb_engine_handler.delete(cf, &node_key) {
@@ -49,7 +45,7 @@ impl NodeStorage {
 
     pub fn get(
         &self,
-        cluster_name: String,
+        cluster_name: &String,
         node_id: u64,
     ) -> Result<Option<BrokerNode>, RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
@@ -67,9 +63,13 @@ impl NodeStorage {
         }
     }
 
-    pub fn list(&self, cluster_name: String) -> Result<Vec<BrokerNode>, RobustMQError> {
+    pub fn list(&self, cluster_name: Option<String>) -> Result<Vec<BrokerNode>, RobustMQError> {
         let mut result = Vec::new();
-        let prefix_key = key_node_prefix(cluster_name);
+        let prefix_key = if let Some(cn) = cluster_name {
+            key_node_prefix(&cn)
+        } else {
+            key_node_prefix_all()
+        };
         let cf = self.rocksdb_engine_handler.cf_cluster();
         let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
         let mut results = Vec::new();

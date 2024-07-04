@@ -20,12 +20,12 @@ impl MQTTTopicStorage {
 
     pub fn list(
         &self,
-        cluster_name: String,
+        cluster_name: &String,
         topicname: Option<String>,
     ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         if topicname != None {
-            let key: String = storage_key_mqtt_topic(cluster_name, topicname.unwrap());
+            let key: String = storage_key_mqtt_topic(cluster_name, &topicname.unwrap());
             match self
                 .rocksdb_engine_handler
                 .read::<StorageDataWrap>(cf, &key)
@@ -59,8 +59,8 @@ impl MQTTTopicStorage {
 
     pub fn save(
         &self,
-        cluster_name: String,
-        topic_name: String,
+        cluster_name: &String,
+        topic_name: &String,
         content: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
@@ -76,7 +76,7 @@ impl MQTTTopicStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: String, topic_name: String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, topic_name: &String) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         match self.rocksdb_engine_handler.delete(cf, &key) {
@@ -91,11 +91,11 @@ impl MQTTTopicStorage {
 
     pub fn set_topic_retain_message(
         &self,
-        cluster_name: String,
-        topic_name: String,
+        cluster_name: &String,
+        topic_name: &String,
         retain_message: Vec<u8>,
     ) -> Result<(), RobustMQError> {
-        let results = match self.list(cluster_name.clone(), Some(topic_name.clone())) {
+        let results = match self.list(cluster_name, Some(topic_name.clone())) {
             Ok(data) => data,
             Err(e) => {
                 return Err(e);
@@ -150,7 +150,7 @@ mod tests {
             retain_message_expired_at: None,
         };
         topic_storage
-            .save(cluster_name.clone(), topic_name, topic.encode())
+            .save(&cluster_name, &topic_name, topic.encode())
             .unwrap();
 
         let topic_name = "lobo1".to_string();
@@ -161,23 +161,22 @@ mod tests {
             retain_message_expired_at: None,
         };
         topic_storage
-            .save(cluster_name.clone(), topic_name, topic.encode())
+            .save(&cluster_name, &topic_name, topic.encode())
             .unwrap();
 
-        let res = topic_storage.list(cluster_name.clone(), None).unwrap();
+        let res = topic_storage.list(&cluster_name, None).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = topic_storage
-            .list(cluster_name.clone(), Some("lobo1".to_string()))
+            .list(&cluster_name, Some("lobo1".to_string()))
             .unwrap();
         assert_eq!(res.len(), 1);
 
-        topic_storage
-            .delete(cluster_name.clone(), "lobo1".to_string())
-            .unwrap();
+        let name = "lobo1".to_string();
+        topic_storage.delete(&cluster_name, &name).unwrap();
 
         let res = topic_storage
-            .list(cluster_name.clone(), Some("lobo1".to_string()))
+            .list(&cluster_name, Some("lobo1".to_string()))
             .unwrap();
         assert_eq!(res.len(), 0);
     }
