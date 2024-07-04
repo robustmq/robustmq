@@ -3,13 +3,10 @@ use clients::{
     poll::ClientPool,
 };
 use common_base::{
-    log::{error, warn},
+    log::{error, info, warn},
     tools::now_second,
 };
-use metadata_struct::mqtt::{
-    lastwill::{self, LastWillData},
-    session::MQTTSession,
-};
+use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
 
 use crate::{
@@ -53,6 +50,10 @@ impl MQTTBrokerCall {
         for raw in chunks {
             let client_ids: Vec<String> = raw.iter().map(|x| x.client_id.clone()).collect();
             let mut success = true;
+            info(format!(
+                "Session [{:?}] has expired. Call Broker to delete the Session information.",
+                client_ids
+            ));
             for addr in self
                 .placement_cache_manager
                 .get_cluster_node_addr(&self.cluster_name)

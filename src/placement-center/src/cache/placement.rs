@@ -34,7 +34,7 @@ impl PlacementCacheManager {
 
     pub fn add_node(&self, node: BrokerNode) {
         self.heart_time(&node.cluster_name, node.node_id, now_second());
-        
+
         if let Some(data) = self.node_list.get_mut(&node.cluster_name) {
             data.insert(node.node_id, node);
         } else {

@@ -158,10 +158,14 @@ impl DataRouteMQTT {
         let mut session = serde_json::from_slice::<MQTTSession>(&session.data).unwrap();
         if req.connection_id > 0 {
             session.update_connnction_id(Some(req.connection_id));
+        } else {
+            session.update_connnction_id(None);
         }
 
         if req.broker_id > 0 {
             session.update_broker_id(Some(req.broker_id));
+        } else {
+            session.update_broker_id(None);
         }
 
         if req.reconnect_time > 0 {
@@ -169,7 +173,9 @@ impl DataRouteMQTT {
         }
 
         if req.distinct_time > 0 {
-            session.distinct_time = Some(req.reconnect_time);
+            session.distinct_time = Some(req.distinct_time);
+        } else {
+            session.distinct_time = None;
         }
 
         match storage.save(req.cluster_name, req.client_id, session.encode()) {

@@ -3,7 +3,7 @@ use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
     storage::{
         keys::storage_key_mqtt_session_cluster_prefix, mqtt::lastwill::MQTTLastWillStorage,
-        rocksdb::RocksDBEngine,
+        rocksdb::RocksDBEngine, StorageDataWrap,
     },
 };
 use clients::poll::ClientPool;
@@ -12,6 +12,7 @@ use common_base::{
     tools::now_second,
 };
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
+use protocol::mqtt::codec::MQTTPacketWrapper;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -49,6 +50,10 @@ impl SessionExpire {
 
     pub async fn session_expire(&self) {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
+        info(format!(
+            "Cluster {} The Session expired thread was started successfully",
+            self.cluster_name
+        ));
         loop {
             let cf = self.rocksdb_engine_handler.cf_mqtt();
             let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
@@ -70,14 +75,23 @@ impl SessionExpire {
                         continue;
                     }
                 };
-                println!("{}", result_key);
+
                 if !result_key.starts_with(&search_key) {
                     break;
                 }
-
-                let result_value = value.unwrap().to_vec();
-                let session = match serde_json::from_slice::<MQTTSession>(&result_value) {
-                    Ok(data) => data,
+                let result_value = value.unwrap();
+                let session = match serde_json::from_slice::<StorageDataWrap>(&result_value) {
+                    Ok(data) => match serde_json::from_slice::<MQTTSession>(&data.data) {
+                        Ok(da) => da,
+                        Err(e) => {
+                            error(format!(
+                                "Session expired, failed to parse Session data, error message :{}",
+                                e.to_string()
+                            ));
+                            iter.next();
+                            continue;
+                        }
+                    },
                     Err(e) => {
                         error(format!(
                             "Session expired, failed to parse Session data, error message :{}",
@@ -92,6 +106,7 @@ impl SessionExpire {
                 }
                 iter.next();
             }
+
             if sessions.len() > 0 {
                 let call = MQTTBrokerCall::new(
                     self.cluster_name.clone(),

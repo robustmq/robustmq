@@ -26,24 +26,20 @@ pub async fn save_session(
     let last_will_delay_interval = last_will_delay_interval(&last_will_properties);
 
     let (mut session, new_session) = if connnect.clean_session {
-        if let Some(data) = cache_manager.get_session_info(&client_id) {
-            (data, true)
-        } else {
-            let session_storage = SessionStorage::new(client_poll.clone());
-            match session_storage.get_session(client_id.clone()).await {
-                Ok(Some(session)) => (session, false),
-                Ok(None) => (
-                    MQTTSession::new(
-                        client_id.clone(),
-                        session_expiry,
-                        is_contain_last_will,
-                        last_will_delay_interval,
-                    ),
-                    true,
+        let session_storage = SessionStorage::new(client_poll.clone());
+        match session_storage.get_session(client_id.clone()).await {
+            Ok(Some(session)) => (session, false),
+            Ok(None) => (
+                MQTTSession::new(
+                    client_id.clone(),
+                    session_expiry,
+                    is_contain_last_will,
+                    last_will_delay_interval,
                 ),
-                Err(e) => {
-                    return Err(e);
-                }
+                true,
+            ),
+            Err(e) => {
+                return Err(e);
             }
         }
     } else {
