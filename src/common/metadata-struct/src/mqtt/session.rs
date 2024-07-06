@@ -1,7 +1,7 @@
 use common_base::tools::now_second;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone,Debug)]
 pub struct MQTTSession {
     pub client_id: String,
     pub session_expiry: u64,

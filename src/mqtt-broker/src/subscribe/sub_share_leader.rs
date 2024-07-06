@@ -282,6 +282,7 @@ where
                                     cache_manager.clone(),
                                     subscribe.client_id.clone(),
                                     publish,
+                                    Some(properties),
                                     response_queue_sx.clone(),
                                     stop_sx.clone(),
                                 )
@@ -538,7 +539,8 @@ where
         response_queue_sx.clone(),
         stop_sx.clone(),
     )
-    .await{
+    .await
+    {
         Ok(()) => {}
         Err(e) => return Err(e),
     };

@@ -306,6 +306,7 @@ pub async fn publish_message_qos0(
     metadata_cache: Arc<CacheManager>,
     mqtt_client_id: String,
     publish: Publish,
+    properties: Option<PublishProperties>,
     response_queue_sx: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
 ) {
@@ -337,7 +338,7 @@ pub async fn publish_message_qos0(
 
     let resp = ResponsePackage {
         connection_id: connect_id,
-        packet: MQTTPacket::Publish(publish, None),
+        packet: MQTTPacket::Publish(publish, properties),
     };
 
     // 2. publish to mqtt client

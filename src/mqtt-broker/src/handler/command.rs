@@ -69,7 +69,6 @@ where
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
-        info(format!("revc packet:{:?}", packet));
         match packet {
             MQTTPacket::Connect(
                 protocol_version,

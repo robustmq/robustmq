@@ -11,10 +11,11 @@ use protocol::mqtt::common::{
     Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::{
     select,
     sync::broadcast::{self, Sender},
+    time::sleep,
 };
 
 pub struct ClientKeepAlive {
@@ -53,6 +54,7 @@ impl ClientKeepAlive {
                     }
                 }
                 _ = self.keep_alive()=>{
+                    sleep(Duration::from_secs(1)).await;
                 }
             }
         }

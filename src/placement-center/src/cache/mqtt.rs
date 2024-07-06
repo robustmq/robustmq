@@ -1,6 +1,9 @@
 use crate::{
     controller::mqtt::session_expire::ExpireLastWill,
-    storage::{mqtt::topic::MQTTTopicStorage, rocksdb::RocksDBEngine},
+    storage::{
+        mqtt::{topic::MQTTTopicStorage, user::MQTTUserStorage},
+        rocksdb::RocksDBEngine,
+    },
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::{topic::MQTTTopic, user::MQTTUser};
@@ -21,11 +24,13 @@ impl MqttCacheManager {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         placement_cache: Arc<PlacementCacheManager>,
     ) -> MqttCacheManager {
-        return MqttCacheManager {
+        let cache = MqttCacheManager {
             topic_list: DashMap::with_capacity(8),
             user_list: DashMap::with_capacity(8),
             expire_last_wills: DashMap::with_capacity(8),
         };
+        cache.load_cache(rocksdb_engine_handler, placement_cache);
+        return cache;
     }
 
     pub fn add_topic(&self, cluster_name: &String, topic: MQTTTopic) {
@@ -85,16 +90,39 @@ impl MqttCacheManager {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         placement_cache: Arc<PlacementCacheManager>,
     ) {
-        let topic = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
         for (_, cluster) in placement_cache.cluster_list.clone() {
             if cluster.cluster_type == ClusterType::MqttBrokerServer.as_str_name().to_string() {
                 let topic = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
                 match topic.list(&cluster.cluster_name, None) {
                     Ok(data) => {
-
+                        for dt in data {
+                            match serde_json::from_slice::<MQTTTopic>(&dt.data) {
+                                Ok(topic) => self.add_topic(&cluster.cluster_name, topic),
+                                Err(e) => {
+                                    panic!("{}", e.to_string())
+                                }
+                            }
+                        }
                     }
                     Err(e) => {
-                        
+                        panic!("{}", e.to_string())
+                    }
+                }
+
+                let user = MQTTUserStorage::new(rocksdb_engine_handler.clone());
+                match user.list(&cluster.cluster_name, None) {
+                    Ok(data) => {
+                        for dt in data {
+                            match serde_json::from_slice::<MQTTUser>(&dt.data) {
+                                Ok(user) => self.add_user(&cluster.cluster_name, user),
+                                Err(e) => {
+                                    panic!("{}", e.to_string())
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        panic!("{}", e.to_string())
                     }
                 }
             }

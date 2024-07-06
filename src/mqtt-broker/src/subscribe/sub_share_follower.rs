@@ -352,6 +352,7 @@ async fn process_packet(
                             cache_manager.clone(),
                             mqtt_client_id.clone(),
                             publish,
+                            publish_properties,
                             response_queue_sx.clone(),
                             stop_sx.clone(),
                         )
@@ -376,6 +377,7 @@ async fn process_packet(
                             cache_manager.clone(),
                             mqtt_client_id.clone(),
                             publish,
+                            publish_properties,
                             publish_to_client_pkid,
                             response_queue_sx.clone(),
                             stop_sx.clone(),
@@ -541,6 +543,7 @@ async fn resub_publish_message_qos1(
     metadata_cache: Arc<CacheManager>,
     mqtt_client_id: String,
     mut publish: Publish,
+    properties: Option<PublishProperties>,
     publish_to_client_pkid: u16,
     response_queue_sx: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
@@ -578,7 +581,7 @@ async fn resub_publish_message_qos1(
 
         let resp = ResponsePackage {
             connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish.clone(), None),
+            packet: MQTTPacket::Publish(publish.clone(), properties.clone()),
         };
 
         // 2. publish to mqtt client
@@ -637,7 +640,8 @@ pub async fn resub_publish_message_qos2(
         response_queue_sx.clone(),
         stop_sx.clone(),
     )
-    .await{
+    .await
+    {
         Ok(()) => {}
         Err(e) => return Err(e),
     };
