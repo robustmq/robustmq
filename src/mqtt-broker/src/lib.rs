@@ -17,8 +17,8 @@ use common_base::{
     log::info,
     runtime::create_runtime,
 };
-use core::cache_manager::CacheManager;
 use core::keep_alive::ClientKeepAlive;
+use core::{cache_manager::CacheManager, heartbreat::report_heartbeat};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -39,7 +39,7 @@ use subscribe::{
 };
 use tokio::{
     runtime::Runtime,
-    signal,
+    select, signal,
     sync::broadcast::{self, Sender},
     time,
 };
@@ -112,7 +112,7 @@ where
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         self.register_node();
-        self.start_grpc_server();
+        self.start_grpc_server(stop_send.clone());
         self.start_mqtt_server(stop_send.clone());
         self.start_http_server();
         self.start_keep_alive_thread(stop_send.clone());
@@ -143,7 +143,7 @@ where
         });
     }
 
-    fn start_grpc_server(&self) {
+    fn start_grpc_server(&self, stop_send: broadcast::Sender<bool>) {
         let server = GrpcServer::new(
             self.conf.grpc_port.clone(),
             self.cache_manager.clone(),
@@ -163,24 +163,10 @@ where
             .spawn(async move { start_http_server(http_state).await });
     }
 
-    fn start_cluster_heartbeat_report(&self, mut stop_send: broadcast::Sender<bool>) {
+    fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {
         let client_poll = self.client_poll.clone();
         self.runtime.spawn(async move {
-            time::sleep(Duration::from_millis(5000)).await;
-            let cluster_storage = ClusterStorage::new(client_poll);
-            loop {
-                match stop_send.subscribe().try_recv() {
-                    Ok(flag) => {
-                        if flag {
-                            info("ReportClusterHeartbeat thread stopped successfully".to_string());
-                            break;
-                        }
-                    }
-                    Err(_) => {}
-                }
-                cluster_storage.heartbeat().await;
-                time::sleep(Duration::from_millis(1000)).await;
-            }
+            report_heartbeat(client_poll, stop_send).await;
         });
     }
 

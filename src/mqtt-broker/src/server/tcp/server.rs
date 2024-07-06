@@ -10,8 +10,11 @@ use crate::{
     },
     server::tcp::packet::RequestPackage,
 };
-use common_base::log::{error, info,debug};
-use futures::StreamExt;
+use common_base::{
+    errors::RobustMQError,
+    log::{debug, error, info},
+};
+use futures::{future::err, StreamExt};
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::{MQTTPacket, MQTTProtocol},
@@ -148,6 +151,7 @@ where
                                             }
                                             val = read_frame_stream.next()=>{
                                                 if let Some(pkg) = val {
+                                                    info(format!("revc packet:{:?}", pkg));
                                                     match pkg {
                                                         Ok(data) => {
                                                             metrics_request_packet_incr(&protocol_lable);
@@ -155,7 +159,9 @@ where
                                                             let package =
                                                                 RequestPackage::new(connection_id, addr, pack);
                                                             match request_queue_sx.send(package) {
-                                                                Ok(_) => {}
+                                                                Ok(_) => {
+                                                                    info("request queue send success".to_string());
+                                                                }
                                                                 Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                                             }
                                                         }
@@ -204,6 +210,7 @@ where
                     }
                     val = request_queue_rx.recv()=>{
                        if let Ok(packet) = val{
+                        info(format!("process packet:{:?}", packet));
                         metrics_request_queue(&protocol_lable, response_queue_sx.len() as i64);
                         if let Some(connect) = connect_manager.get_connect(packet.connection_id) {
                             if let Some(resp) = command
@@ -211,6 +218,7 @@ where
                                 .await
                             {
                                 let response_package = ResponsePackage::new(packet.connection_id, resp);
+                                info(format!("response packet write queue:{:?}", response_package));
                                 match response_queue_sx.send(response_package) {
                                     Ok(_) => {}
                                     Err(err) => error(format!(
@@ -218,7 +226,11 @@ where
                                         err
                                     )),
                                 }
+                            }else{
+                                info("No backpacking is required for this request".to_string());
                             }
+                        }else{
+                            error(RobustMQError::NotFoundConnectionInCache(packet.connection_id).to_string());
                         }
                        }
                     }
