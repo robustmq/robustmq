@@ -3,7 +3,7 @@ use crate::storage::{message::MessageStorage, session::SessionStorage};
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use metadata_struct::{
-    mqtt::{cluster::MQTTCluster, lastwill::LastWillData, message::MQTTMessage},
+    mqtt::{cluster::MQTTCluster, lastwill::LastWillData, message::MQTTMessage, topic},
     placement::cluster::ClusterInfo,
 };
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
@@ -29,7 +29,7 @@ where
         let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
             tp
         } else {
-            return Err(RobustMQError::TopicDoesNotExist);
+            return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
         };
 
         let publish = Publish {

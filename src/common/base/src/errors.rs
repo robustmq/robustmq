@@ -89,11 +89,11 @@ pub enum RobustMQError {
     #[error("client id [{0}] Format error")]
     ClientIdFormatError(String),
 
-    #[error("Cluster does not exist")]
-    ClusterDoesNotExist,
+    #[error("Cluster [{0}]does not exist")]
+    ClusterDoesNotExist(String),
 
-    #[error("Topic does not exist")]
-    TopicDoesNotExist,
+    #[error("Topic [{0}] does not exist")]
+    TopicDoesNotExist(String),
 
     #[error("Session does not exist")]
     SessionDoesNotExist,

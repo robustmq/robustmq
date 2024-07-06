@@ -102,7 +102,7 @@ impl MQTTTopicStorage {
             }
         };
         if results.is_empty() {
-            return Err(RobustMQError::TopicDoesNotExist);
+            return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
         }
 
         let topic = results.get(0).unwrap();

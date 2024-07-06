@@ -96,19 +96,19 @@ pub async fn send_retain_message(
             let topic_storage = TopicStorage::new(client_poll.clone());
             let cluster = cache_manager.get_cluster_info();
             for topic_id in topic_id_list {
-                match topic_storage.get_retain_message(topic_id.clone()).await {
-                    Ok(Some(msg)) => {
-                        if filter.nolocal && client_id == msg.client_id {
-                            continue;
-                        }
+                if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
+                    match topic_storage.get_retain_message(topic_name.clone()).await {
+                        Ok(Some(msg)) => {
+                            if filter.nolocal && client_id == msg.client_id {
+                                continue;
+                            }
 
-                        let retain = if filter.preserve_retain {
-                            msg.retain
-                        } else {
-                            false
-                        };
+                            let retain = if filter.preserve_retain {
+                                msg.retain
+                            } else {
+                                false
+                            };
 
-                        if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {
                             let qos = min_qos(cluster.max_qos, filter.qos);
                             let pkid = 1;
                             let mut publish = Publish {
@@ -137,6 +137,7 @@ pub async fn send_retain_message(
                                         cache_manager.clone(),
                                         client_id.clone(),
                                         publish,
+                                        Some(properties),
                                         response_queue_sx.clone(),
                                         stop_sx.clone(),
                                     )
@@ -217,11 +218,11 @@ pub async fn send_retain_message(
                                 }
                             };
                         }
+                        Ok(None) => {
+                            continue;
+                        }
+                        Err(e) => error(e.to_string()),
                     }
-                    Ok(None) => {
-                        continue;
-                    }
-                    Err(e) => error(e.to_string()),
                 }
             }
         }

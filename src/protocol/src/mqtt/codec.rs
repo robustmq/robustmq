@@ -99,7 +99,6 @@ impl codec::Decoder for MqttCodec {
                 Ok((protocol_version,connect, properties, last_will, last_will_properties, login)) => {
                     self.protocol_version = Some(protocol_version);
 
-                    println!("xxx decode {:?}",self.protocol_version);
                     if protocol_version == 4 || protocol_version == 3{
                         let packet = MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login);
                         return Ok(Some(packet));
@@ -111,7 +110,6 @@ impl codec::Decoder for MqttCodec {
                     }
                 }
                 Err(e) => {
-                    println!("{}",e.to_string());
                     return Err(Error::InvalidProtocol);
                 }
             }
@@ -124,7 +122,6 @@ impl codec::Decoder for MqttCodec {
 
         let protocol_version = self.protocol_version.unwrap();
 
-        println!("decode:{}",protocol_version);
         if protocol_version == 4 || protocol_version == 3{
             let packet = match packet_type {
                 PacketType::ConnAck => MQTTPacket::ConnAck(crate::mqtt::mqttv4::connack::read(fixed_header, packet)?, None),

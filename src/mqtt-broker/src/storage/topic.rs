@@ -7,7 +7,10 @@ use clients::{
 };
 use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
 use dashmap::DashMap;
-use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
+use metadata_struct::mqtt::{
+    message::MQTTMessage,
+    topic::{self, MQTTTopic},
+};
 use protocol::placement_center::generate::mqtt::{
     CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
@@ -181,10 +184,10 @@ impl TopicStorage {
         &self,
         topic_name: String,
     ) -> Result<Option<MQTTMessage>, RobustMQError> {
-        let topic = match self.get_topic(topic_name).await {
+        let topic = match self.get_topic(topic_name.clone()).await {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(RobustMQError::TopicDoesNotExist);
+                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
             }
             Err(e) => {
                 return Err(e);

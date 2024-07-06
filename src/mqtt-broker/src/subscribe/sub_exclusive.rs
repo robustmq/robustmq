@@ -211,6 +211,7 @@ where
                                             metadata_cache.clone(),
                                             client_id.clone(),
                                             publish,
+                                            Some(properties),
                                             response_queue_sx.clone(),
                                             stop_sx.clone(),
                                         )
@@ -442,7 +443,8 @@ pub async fn exclusive_publish_message_qos2(
                 response_queue_sx.clone(),
                 stop_sx.clone(),
             )
-            .await{
+            .await
+            {
                 Ok(()) => {}
                 Err(e) => return Err(e),
             };
