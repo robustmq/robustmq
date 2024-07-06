@@ -85,8 +85,8 @@ impl MQTTCluster {
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AvailableFlag {
-    Enable,
     #[default]
+    Enable,
     Disable,
 }
 
