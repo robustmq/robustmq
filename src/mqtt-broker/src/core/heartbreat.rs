@@ -1,8 +1,7 @@
-use std::{sync::Arc, time::Duration};
-
 use crate::storage::cluster::ClusterStorage;
 use clients::poll::ClientPool;
-use common_base::log::info;
+use common_base::log::debug;
+use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
 
 pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
@@ -13,14 +12,14 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast
                 match val{
                     Ok(flag) => {
                         if flag {
-                            info(format!("Heartbeat reporting thread exited successfully"));
+                            debug(format!("Heartbeat reporting thread exited successfully"));
                             break;
                         }
                     }
                     Err(_) => {}
                 }
             }
-            val = report(client_poll.clone()) => {
+            _ = report(client_poll.clone()) => {
 
             }
         }

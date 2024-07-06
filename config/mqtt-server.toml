@@ -8,10 +8,10 @@ metadata = "memory"
 message = "memory"
 
 [mysql]
-server="mysql://root:123456@127.0.0.1:3306/mqtt"
+server = "mysql://root:123456@127.0.0.1:3306/mqtt"
 
 [journal]
-server=[]
+server = []
 
 [placement]
 # server = ["14.103.42.35:1228"]
@@ -32,9 +32,9 @@ system_password = "pwd123"
 worker_threads = 16
 
 [network_tcp]
-accept_thread_num = 1
-handler_thread_num = 1
-response_thread_num = 1
+accept_thread_num = 8
+handler_thread_num = 16
+response_thread_num = 8
 max_connection_num = 1000
 request_queue_size = 2000
 response_queue_size = 2000
