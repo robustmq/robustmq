@@ -7,10 +7,11 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     placement::{
-        DeleteResourceConfigRequest, GetResourceConfigReply, GetResourceConfigRequest,
+        DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
+        ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest,
         HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-        SendRaftMessageReply, SendRaftMessageRequest, SetResourceConfigRequest,
-        UnRegisterNodeRequest,
+        SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
+        SetResourceConfigRequest, UnRegisterNodeRequest,
     },
 };
 use std::sync::Arc;
@@ -206,6 +207,81 @@ pub async fn get_resource_config(
     .await
     {
         Ok(data) => match GetResourceConfigReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn set_idempotent_data(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: SetIdempotentDataRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = SetIdempotentDataRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::SetIdempotentData,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn delete_idempotent_data(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteIdempotentDataRequest,
+) -> Result<CommonReply, RobustMQError> {
+    let request_data = DeleteIdempotentDataRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::DeleteIdempotentData,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn exists_idempotent_data(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ExistsIdempotentDataRequest,
+) -> Result<ExistsIdempotentDataReply, RobustMQError> {
+    let request_data = ExistsIdempotentDataRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::ExistsIdempotentData,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ExistsIdempotentDataReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
             Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
         },

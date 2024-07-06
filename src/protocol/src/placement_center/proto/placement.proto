@@ -141,4 +141,5 @@ message ExistsIdempotentDataReply{
 message DeleteIdempotentDataRequest{
     string cluster_name = 1;
     string producer_id = 2;
+    uint64 seq_num = 3;
 }

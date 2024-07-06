@@ -56,6 +56,9 @@ pub enum PlacementCenterInterface {
     SetReourceConfig,
     GetReourceConfig,
     DeleteReourceConfig,
+    SetIdempotentData,
+    ExistsIdempotentData,
+    DeleteIdempotentData,
 }
 
 pub mod journal;

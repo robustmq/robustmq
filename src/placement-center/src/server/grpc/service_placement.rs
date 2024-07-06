@@ -18,6 +18,7 @@ use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
 use crate::raft::metadata::RaftGroupMetadata;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::global_id::GlobalId;
+use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
 use clients::poll::ClientPool;
@@ -300,20 +301,62 @@ impl PlacementCenterService for GrpcPlacementService {
         &self,
         request: Request<SetIdempotentDataRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        return Ok(Response::new(CommonReply::default()));
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::ClusterSetIdempotentData,
+            SetIdempotentDataRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "set_idempotent_data".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn exists_idempotent_data(
         &self,
         request: Request<ExistsIdempotentDataRequest>,
     ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
-        return Ok(Response::new(ExistsIdempotentDataReply::default()));
+        let req = request.into_inner();
+        let storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
+        match storage.get(&req.cluster_name, &req.producer_id, req.seq_num) {
+            Ok(Some(_)) => {
+                return Ok(Response::new(ExistsIdempotentDataReply { exists: true }));
+            }
+            Ok(None) => {
+                return Ok(Response::new(ExistsIdempotentDataReply { exists: false }));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn delete_idempotent_data(
         &self,
         request: Request<DeleteIdempotentDataRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        return Ok(Response::new(CommonReply::default()));
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::ClusterDeleteIdempotentData,
+            DeleteIdempotentDataRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_idempotent_data".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 }

@@ -471,40 +471,40 @@ impl CacheManager {
     }
 
     pub fn add_ack_packet(&self, client_id: String, pkid: u16, packet: QosAckPacketInfo) {
-        let key = self.key(client_id, pkid);
+        let key = self.key(&client_id, pkid);
         self.qos_ack_packet.insert(key, packet);
     }
 
     pub fn remove_ack_packet(&self, client_id: String, pkid: u16) {
-        let key = self.key(client_id, pkid);
+        let key = self.key(&client_id, pkid);
         self.qos_ack_packet.remove(&key);
     }
 
     pub fn get_ack_packet(&self, client_id: String, pkid: u16) -> Option<QosAckPacketInfo> {
-        let key = self.key(client_id, pkid);
+        let key = self.key(&client_id, pkid);
         if let Some(data) = self.qos_ack_packet.get(&key) {
             return Some(data.clone());
         }
         return None;
     }
 
-    pub async fn add_client_pkid(&self, client_id: String, pkid: u16) {
-        let key = self.key(client_id.clone(), pkid);
+    pub async fn add_client_pkid(&self, client_id: &String, pkid: u16) {
+        let key = self.key(client_id, pkid);
         self.client_pkid_data.insert(
             key,
             ClientPkidData {
-                client_id,
+                client_id: client_id.clone(),
                 create_time: now_second(),
             },
         );
     }
 
-    pub async fn delete_client_pkid(&self, client_id: String, pkid: u16) {
+    pub async fn delete_client_pkid(&self, client_id: &String, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.client_pkid_data.remove(&key);
     }
 
-    pub async fn get_client_pkid(&self, client_id: String, pkid: u16) -> Option<ClientPkidData> {
+    pub async fn get_client_pkid(&self, client_id: &String, pkid: u16) -> Option<ClientPkidData> {
         let key = self.key(client_id, pkid);
         if let Some(data) = self.client_pkid_data.get(&key) {
             return Some(data.clone());
@@ -512,7 +512,7 @@ impl CacheManager {
         return None;
     }
 
-    fn key(&self, client_id: String, pkid: u16) -> String {
+    fn key(&self, client_id: &String, pkid: u16) -> String {
         return format!("{}_{}", client_id, pkid);
     }
 }
