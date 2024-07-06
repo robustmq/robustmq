@@ -46,7 +46,7 @@ impl ClientKeepAlive {
                     match val{
                         Ok(flag) => {
                             if flag {
-                                info("TCP Server acceptor thread stopped successfully.".to_string());
+                                info("Heartbeat check thread stopped successfully.".to_string());
                                 break;
                             }
                         }
@@ -54,13 +54,13 @@ impl ClientKeepAlive {
                     }
                 }
                 _ = self.keep_alive()=>{
-                    sleep(Duration::from_secs(1)).await;
                 }
             }
         }
     }
 
     async fn keep_alive(&self) {
+        sleep(Duration::from_secs(1)).await;
         let start_time = now_mills();
         for (client_id, time) in self.cache_manager.heartbeat_data.clone() {
             // The server will decide that the connection has failed twice as long as the client-set expiration time.

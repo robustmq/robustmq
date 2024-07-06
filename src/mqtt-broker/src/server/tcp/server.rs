@@ -91,6 +91,7 @@ where
 
         self.handler_process().await;
         self.response_process().await;
+        self.wait_stop_server().await;
     }
 
     async fn acceptor(&self, listener: Arc<TcpListener>, index: usize) {
@@ -420,6 +421,28 @@ where
                             }else{
                                 error("No request packet processing thread available".to_string());
                             }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    async fn wait_stop_server(&self) {
+        let mut stop_rx = self.stop_sx.subscribe();
+        let connect_manager = self.connection_manager.clone();
+        tokio::spawn(async move {
+            loop {
+                select! {
+                    val = stop_rx.recv() =>{
+                        match val{
+                            Ok(flag) => {
+                                if flag {
+                                    connect_manager.close_all_connect().await;
+                                    break;
+                                }
+                            }
+                            Err(_) => {}
                         }
                     }
                 }
