@@ -5,6 +5,7 @@ use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::core::connection::{create_connection, get_client_id};
 use crate::core::flow_control::is_self_protection_status;
 use crate::core::lastwill::save_last_will_message;
+use crate::core::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::core::response_packet::{
     response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
     response_packet_matt5_distinct, response_packet_matt_distinct,
@@ -274,16 +275,28 @@ where
         };
 
         if publish.qos == QoS::ExactlyOnce {
-            if !self
-                .cache_manager
-                .get_client_pkid(client_id.clone(), publish.pkid)
-                .await
-                .is_none()
+            match pkid_exists(
+                &self.cache_manager,
+                &self.client_poll,
+                &client_id,
+                publish.pkid,
+            )
+            .await
             {
-                return Some(
-                    self.ack_build
-                        .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
-                );
+                Ok(res) => {
+                    if res {
+                        return Some(
+                            self.ack_build
+                                .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
+                        );
+                    }
+                }
+                Err(e) => {
+                    return Some(
+                        self.ack_build
+                            .pub_ack_fail(PubAckReason::UnspecifiedError, None),
+                    );
+                }
             };
         }
 
@@ -345,9 +358,16 @@ where
                 return Some(self.ack_build.pub_ack(pkid, None, user_properties));
             }
             QoS::ExactlyOnce => {
-                self.cache_manager
-                    .add_client_pkid(connection.client_id, pkid)
-                    .await;
+                match pkid_save(&self.cache_manager, &self.client_poll, &client_id, pkid).await {
+                    Ok(()) => {}
+                    Err(e) => {
+                        return Some(self.ack_build.distinct(
+                            DisconnectReasonCode::UnspecifiedError,
+                            Some(e.to_string()),
+                        ));
+                    }
+                }
+
                 return Some(self.ack_build.pub_rec(pkid, user_properties));
             }
         }
@@ -451,18 +471,37 @@ where
             );
         };
 
-        if self
-            .cache_manager
-            .get_client_pkid(client_id.clone(), pub_rel.pkid)
-            .await
-            .is_none()
+        match pkid_exists(
+            &self.cache_manager,
+            &self.client_poll,
+            &client_id,
+            pub_rel.pkid,
+        )
+        .await
         {
-            return publish_comp_fail(pub_rel.pkid);
+            Ok(res) => {
+                if !res {
+                    return publish_comp_fail(pub_rel.pkid);
+                }
+            }
+            Err(e) => {
+                return publish_comp_fail(pub_rel.pkid);
+            }
         };
 
-        self.cache_manager
-            .delete_client_pkid(client_id, pub_rel.pkid)
-            .await;
+        match pkid_delete(
+            &self.cache_manager,
+            &self.client_poll,
+            &client_id,
+            pub_rel.pkid,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                return publish_comp_fail(pub_rel.pkid);
+            }
+        }
         return publish_comp_success(pub_rel.pkid);
     }
 
@@ -482,18 +521,31 @@ where
             );
         };
 
-        if !self
-            .cache_manager
-            .get_client_pkid(client_id.clone(), subscribe.packet_identifier)
-            .await
-            .is_none()
+        match pkid_exists(
+            &self.cache_manager,
+            &self.client_poll,
+            &client_id,
+            subscribe.packet_identifier,
+        )
+        .await
         {
-            return self.ack_build.sub_ack(
-                subscribe.packet_identifier,
-                vec![SubscribeReasonCode::PkidInUse],
-                None,
-            );
-        }
+            Ok(res) => {
+                if res {
+                    return self.ack_build.sub_ack(
+                        subscribe.packet_identifier,
+                        vec![SubscribeReasonCode::PkidInUse],
+                        None,
+                    );
+                }
+            }
+            Err(e) => {
+                return self.ack_build.sub_ack(
+                    subscribe.packet_identifier,
+                    vec![SubscribeReasonCode::Unspecified],
+                    None,
+                );
+            }
+        };
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self.cache_manager.get_cluster_info().max_qos();
@@ -525,9 +577,23 @@ where
             );
         }
 
-        self.cache_manager
-            .add_client_pkid(client_id.clone(), subscribe.packet_identifier)
-            .await;
+        match pkid_save(
+            &self.cache_manager,
+            &self.client_poll,
+            &client_id,
+            subscribe.packet_identifier,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                return self.ack_build.sub_ack(
+                    subscribe.packet_identifier,
+                    vec![SubscribeReasonCode::Unspecified],
+                    None,
+                );
+            }
+        }
 
         // Saving subscriptions
         self.cache_manager.add_client_subscribe(
@@ -595,10 +661,22 @@ where
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
-
-        self.cache_manager
-            .delete_client_pkid(connection.client_id.clone(), un_subscribe.pkid)
-            .await;
+        match pkid_delete(
+            &self.cache_manager,
+            &self.client_poll,
+            &connection.client_id,
+            un_subscribe.pkid,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                return self.ack_build.distinct(
+                    DisconnectReasonCode::UnspecifiedError,
+                    Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+                );
+            }
+        }
 
         self.sucscribe_cache
             .remove_subscribe(connection.client_id.clone(), un_subscribe.filters.clone());

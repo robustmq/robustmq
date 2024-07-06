@@ -112,12 +112,12 @@ where
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         self.register_node();
-        self.start_grpc_server(stop_send.clone());
+        // self.start_grpc_server();
         self.start_mqtt_server(stop_send.clone());
-        self.start_http_server();
-        self.start_keep_alive_thread(stop_send.clone());
-        self.start_cluster_heartbeat_report(stop_send.clone());
-        self.start_push_server();
+        // self.start_http_server();
+        // self.start_keep_alive_thread(stop_send.clone());
+        // self.start_cluster_heartbeat_report(stop_send.clone());
+        // self.start_push_server();
         self.awaiting_stop(stop_send);
     }
 
@@ -143,7 +143,7 @@ where
         });
     }
 
-    fn start_grpc_server(&self, stop_send: broadcast::Sender<bool>) {
+    fn start_grpc_server(&self) {
         let server = GrpcServer::new(
             self.conf.grpc_port.clone(),
             self.cache_manager.clone(),

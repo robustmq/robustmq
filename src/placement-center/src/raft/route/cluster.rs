@@ -1,7 +1,10 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     storage::{
-        placement::{cluster::ClusterStorage, config::ResourceConfigStorage, node::NodeStorage},
+        placement::{
+            cluster::ClusterStorage, config::ResourceConfigStorage, idempotent::IdempotentStorage,
+            node::NodeStorage,
+        },
         rocksdb::RocksDBEngine,
     },
 };
@@ -12,8 +15,8 @@ use common_base::{
 use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
 use prost::Message as _;
 use protocol::placement_center::generate::placement::{
-    DeleteResourceConfigRequest, RegisterNodeRequest, SetResourceConfigRequest,
-    UnRegisterNodeRequest,
+    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
+    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use std::sync::Arc;
 use tonic::Status;
@@ -81,8 +84,7 @@ impl DataRouteCluster {
             .unwrap();
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
-        self.cluster_cache
-            .remove_node(&cluster_name, node_id);
+        self.cluster_cache.remove_node(&cluster_name, node_id);
 
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         return node_storage.delete(&cluster_name, node_id);
@@ -102,6 +104,22 @@ impl DataRouteCluster {
             .unwrap();
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         return config_storage.delete(req.cluster_name, req.resources);
+    }
+
+    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = SetIdempotentDataRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
+        return idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num);
+    }
+
+    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+        let req = DeleteIdempotentDataRequest::decode(value.as_ref())
+            .map_err(|e| Status::invalid_argument(e.to_string()))
+            .unwrap();
+        let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
+        return idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num);
     }
 }
 

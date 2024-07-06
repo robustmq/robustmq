@@ -1,5 +1,8 @@
 use common_base::errors::RobustMQError;
-use inner::{inner_delete_resource_config, inner_get_resource_config, inner_set_resource_config};
+use inner::{
+    inner_delete_idempotent, inner_delete_resource_config, inner_exist_idempotent,
+    inner_get_resource_config, inner_set_idempotent, inner_set_resource_config,
+};
 use mobc::Manager;
 use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
 use std::sync::Arc;
@@ -50,6 +53,15 @@ pub(crate) async fn placement_interface_call(
                 PlacementCenterInterface::DeleteReourceConfig => {
                     inner_delete_resource_config(client, request.clone()).await
                 }
+                PlacementCenterInterface::SetIdempotentData => {
+                    inner_set_idempotent(client, request.clone()).await
+                }
+                PlacementCenterInterface::ExistsIdempotentData => {
+                    inner_exist_idempotent(client, request.clone()).await
+                }
+                PlacementCenterInterface::DeleteIdempotentData => {
+                    inner_delete_idempotent(client, request.clone()).await
+                }
                 _ => {
                     return Err(RobustMQError::CommmonError(format!(
                         "placement service does not support service interfaces [{:?}]",
@@ -74,7 +86,10 @@ async fn placement_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
-    match client_poll.get_placement_center_inner_services_client(addr).await {
+    match client_poll
+        .get_placement_center_inner_services_client(addr)
+        .await
+    {
         Ok(client) => {
             return Ok(client);
         }

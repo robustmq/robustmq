@@ -147,6 +147,8 @@ pub struct DeleteIdempotentDataRequest {
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub producer_id: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "3")]
+    pub seq_num: u64,
 }
 /// Generated client implementations.
 pub mod placement_center_service_client {

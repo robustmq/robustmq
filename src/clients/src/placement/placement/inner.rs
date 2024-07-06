@@ -3,10 +3,12 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     placement::{
-        placement_center_service_client::PlacementCenterServiceClient, DeleteResourceConfigRequest,
+        placement_center_service_client::PlacementCenterServiceClient, DeleteIdempotentDataRequest,
+        DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
         GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, RegisterNodeRequest,
         SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-        SendRaftMessageRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+        SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
+        UnRegisterNodeRequest,
     },
 };
 use tonic::transport::Channel;
@@ -136,6 +138,59 @@ pub(crate) async fn inner_delete_resource_config(
 ) -> Result<Vec<u8>, RobustMQError> {
     match DeleteResourceConfigRequest::decode(request.as_ref()) {
         Ok(request) => match client.delete_resource_config(request).await {
+            Ok(result) => {
+                return Ok(CommonReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+        },
+        Err(e) => {
+            return Err(RobustMQError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_set_idempotent(
+    mut client: PlacementCenterServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, RobustMQError> {
+    match SetIdempotentDataRequest::decode(request.as_ref()) {
+        Ok(request) => match client.set_idempotent_data(request).await {
+            Ok(result) => {
+                return Ok(CommonReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+        },
+        Err(e) => {
+            return Err(RobustMQError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_exist_idempotent(
+    mut client: PlacementCenterServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, RobustMQError> {
+    match ExistsIdempotentDataRequest::decode(request.as_ref()) {
+        Ok(request) => match client.exists_idempotent_data(request).await {
+            Ok(result) => {
+                return Ok(ExistsIdempotentDataReply::encode_to_vec(
+                    &result.into_inner(),
+                ));
+            }
+            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+        },
+        Err(e) => {
+            return Err(RobustMQError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_delete_idempotent(
+    mut client: PlacementCenterServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, RobustMQError> {
+    match DeleteIdempotentDataRequest::decode(request.as_ref()) {
+        Ok(request) => match client.delete_idempotent_data(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }

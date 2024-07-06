@@ -65,6 +65,14 @@ impl DataRoute {
                     .route_cluster
                     .delete_resource_config(storage_data.value);
             }
+            StorageDataType::ClusterSetIdempotentData => {
+                return self.route_cluster.set_idempotent_data(storage_data.value);
+            }
+            StorageDataType::ClusterDeleteIdempotentData => {
+                return self
+                    .route_cluster
+                    .delete_idempotent_data(storage_data.value);
+            }
             StorageDataType::JournalCreateShard => {
                 return self.route_journal.create_shard(storage_data.value);
             }

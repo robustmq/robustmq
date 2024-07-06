@@ -56,6 +56,10 @@ pub fn key_resource_config(cluster_name: String, resource_key: String) -> String
     return format!("/config/{}/{}", cluster_name, resource_key);
 }
 
+pub fn key_resource_idempotent(cluster_name: &String, produce_id: &String, seq_num: u64) -> String {
+    return format!("/idempotent/{}/{}/{}", cluster_name, produce_id, seq_num);
+}
+
 pub fn key_resource_acl(cluster_name: String, resource_key: String) -> String {
     return format!("/acl/{}/{}", cluster_name, resource_key);
 }

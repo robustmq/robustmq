@@ -105,12 +105,7 @@ impl ClusterStorage {
         )
         .await
         {
-            Ok(_) => {
-                info(format!(
-                    "Node {} successfully reports the heartbeat communication",
-                    config.broker_id
-                ));
-            }
+            Ok(_) => {}
             Err(e) => error(e.to_string()),
         }
     }
