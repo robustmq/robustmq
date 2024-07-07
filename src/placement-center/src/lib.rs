@@ -108,7 +108,7 @@ impl PlacementCenter {
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
         let placement_center_storage = Arc::new(RaftMachineApply::new(raft_message_send));
 
-        self.start_controller(placement_center_storage.clone(), stop_send.clone());
+        // self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
         self.start_peers_manager(peer_message_recv);
 
@@ -190,7 +190,7 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             placement_center_storage,
             self.rocksdb_engine_handler.clone(),
-            stop_send,
+            stop_send.clone(),
         );
         self.daemon_runtime.spawn(async move {
             ctrl.start_node_heartbeat_check().await;
@@ -201,6 +201,7 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             self.mqtt_cache.clone(),
             self.client_poll.clone(),
+            stop_send.clone(),
         );
         self.daemon_runtime.spawn(async move {
             mqtt_controller.start().await;
