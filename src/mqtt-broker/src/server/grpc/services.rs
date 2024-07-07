@@ -80,11 +80,11 @@ where
             }
         };
         match send_last_will_message(
-            req.client_id,
-            self.cache_manager.clone(),
-            self.client_poll.clone(),
-            data.last_will,
-            data.last_will_properties,
+            &req.client_id,
+            &self.cache_manager,
+            &self.client_poll,
+            &data.last_will,
+            &data.last_will_properties,
             self.message_storage_adapter.clone(),
         )
         .await

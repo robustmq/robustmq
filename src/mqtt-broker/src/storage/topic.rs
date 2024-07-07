@@ -132,8 +132,8 @@ impl TopicStorage {
 
     pub async fn set_retain_message(
         &self,
-        topic_name: String,
-        retain_message: MQTTMessage,
+        topic_name: &String,
+        retain_message: &MQTTMessage,
         retain_message_expired_at: u64,
     ) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
@@ -157,7 +157,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn delete_retain_message(&self, topic_name: String) -> Result<(), RobustMQError> {
+    pub async fn delete_retain_message(&self, topic_name: &String) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),

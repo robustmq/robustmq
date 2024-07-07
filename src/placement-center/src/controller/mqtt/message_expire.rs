@@ -36,11 +36,15 @@ impl MessageExpire {
             let value = iter.value();
 
             if key == None || value == None {
+                iter.next();
                 continue;
             }
             let result_key = match String::from_utf8(key.unwrap().to_vec()) {
                 Ok(s) => s,
-                Err(_) => continue,
+                Err(_) => {
+                    iter.next();
+                    continue;
+                }
             };
 
             if !result_key.starts_with(&search_key) {
@@ -65,6 +69,7 @@ impl MessageExpire {
                     }
                 }
             }
+            iter.next();
         }
         sleep(Duration::from_secs(1)).await;
     }
@@ -81,14 +86,19 @@ impl MessageExpire {
             let value = iter.value();
 
             if key == None || value == None {
+                iter.next();
                 continue;
             }
             let result_key = match String::from_utf8(key.unwrap().to_vec()) {
                 Ok(s) => s,
-                Err(_) => continue,
+                Err(_) => {
+                    iter.next();
+                    continue;
+                }
             };
 
             if !result_key.starts_with(&search_key) {
+                iter.next();
                 break;
             }
 
@@ -116,6 +126,7 @@ impl MessageExpire {
                     }
                 }
             }
+            iter.next();
         }
         sleep(Duration::from_secs(1)).await;
     }

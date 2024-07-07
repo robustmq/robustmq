@@ -18,20 +18,17 @@ use std::sync::Arc;
 use tokio::sync::broadcast::{self, Sender};
 
 pub async fn save_topic_retain_message(
-    topic_name: String,
-    client_id: String,
-    publish: Publish,
-    cache_manager: Arc<CacheManager>,
-    publish_properties: Option<PublishProperties>,
-    client_poll: Arc<ClientPool>,
+    cache_manager: &Arc<CacheManager>,
+    client_poll: &Arc<ClientPool>,
+    topic_name: &String,
+    client_id: &String,
+    publish: &Publish,
+    publish_properties: &Option<PublishProperties>,
 ) -> Result<(), RobustMQError> {
     if publish.retain {
         let topic_storage = TopicStorage::new(client_poll.clone());
         if publish.payload.is_empty() {
-            match topic_storage
-                .delete_retain_message(topic_name.clone())
-                .await
-            {
+            match topic_storage.delete_retain_message(topic_name).await {
                 Ok(_) => {
                     cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
                 }
@@ -40,14 +37,10 @@ pub async fn save_topic_retain_message(
                 }
             }
         } else {
-            let retain_message = MQTTMessage::build_message(
-                client_id.clone(),
-                publish.clone(),
-                publish_properties.clone(),
-            );
-            let message_expire = message_expiry_interval(cache_manager.clone(), publish_properties);
+            let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
+            let message_expire = message_expiry_interval(cache_manager, publish_properties);
             match topic_storage
-                .set_retain_message(topic_name.clone(), retain_message.clone(), message_expire)
+                .set_retain_message(topic_name, &retain_message, message_expire)
                 .await
             {
                 Ok(_) => {
@@ -234,8 +227,8 @@ pub fn is_new_sub() -> bool {
 }
 
 pub fn message_expiry_interval(
-    cache_manager: Arc<CacheManager>,
-    publish_properties: Option<PublishProperties>,
+    cache_manager: &Arc<CacheManager>,
+    publish_properties: &Option<PublishProperties>,
 ) -> u64 {
     let cluster = cache_manager.get_cluster_info();
     if let Some(properties) = publish_properties {
@@ -301,7 +294,7 @@ mod tests {
         retain_message.payload = Bytes::from(payload);
 
         match topic_storage
-            .set_retain_message(topic.topic_id, retain_message.clone(), 10000)
+            .set_retain_message(&topic.topic_id, &retain_message, 10000)
             .await
         {
             Ok(_) => {}

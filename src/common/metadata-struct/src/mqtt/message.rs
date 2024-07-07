@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use common_base::{errors::RobustMQError, tools::{now_mills, now_second}};
+use common_base::{errors::RobustMQError, tools::now_second};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use storage_adapter::record::Record;
@@ -25,35 +25,35 @@ pub struct MQTTMessage {
 
 impl MQTTMessage {
     pub fn build_message(
-        client_id: String,
-        publish: Publish,
-        publish_properties: Option<PublishProperties>,
+        client_id: &String,
+        publish: &Publish,
+        publish_properties: &Option<PublishProperties>,
     ) -> MQTTMessage {
         let mut message = MQTTMessage::default();
-        message.client_id = client_id;
+        message.client_id = client_id.clone();
         message.dup = publish.dup;
         message.qos = publish.qos;
         message.pkid = publish.pkid;
         message.retain = publish.retain;
-        message.topic = publish.topic;
-        message.payload = publish.payload;
+        message.topic = publish.topic.clone();
+        message.payload = publish.payload.clone();
         if let Some(properties) = publish_properties {
             message.format_indicator = properties.payload_format_indicator;
             message.expiry_interval = properties.message_expiry_interval;
-            message.response_topic = properties.response_topic;
-            message.correlation_data = properties.correlation_data;
-            message.user_properties = properties.user_properties;
-            message.subscription_identifiers = properties.subscription_identifiers;
-            message.content_type = properties.content_type;
+            message.response_topic = properties.response_topic.clone();
+            message.correlation_data = properties.correlation_data.clone();
+            message.user_properties = properties.user_properties.clone();
+            message.subscription_identifiers = properties.subscription_identifiers.clone();
+            message.content_type = properties.content_type.clone();
         }
         message.create_time = now_second();
         return message;
     }
 
     pub fn build_record(
-        client_id: String,
-        publish: Publish,
-        publish_properties: Option<PublishProperties>,
+        client_id: &String,
+        publish: &Publish,
+        publish_properties: &Option<PublishProperties>,
     ) -> Option<Record> {
         let msg = MQTTMessage::build_message(client_id, publish, publish_properties);
         match serde_json::to_vec(&msg) {
@@ -80,5 +80,4 @@ impl MQTTMessage {
     pub fn encode(&self) -> Vec<u8> {
         return serde_json::to_vec(&self).unwrap();
     }
-
 }

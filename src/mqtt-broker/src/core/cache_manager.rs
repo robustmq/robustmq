@@ -11,7 +11,7 @@ use metadata_struct::mqtt::cluster::MQTTCluster;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
-use protocol::mqtt::common::{MQTTProtocol, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{MQTTProtocol, PublishProperties, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
@@ -328,9 +328,18 @@ impl CacheManager {
         return false;
     }
 
-    pub fn add_topic_alias(&self, connect_id: u64, topic_name: String, topic_alias: u16) {
-        if let Some(conn) = self.connection_info.get_mut(&connect_id) {
-            conn.topic_alias.insert(topic_alias, topic_name);
+    pub fn add_topic_alias(
+        &self,
+        connect_id: u64,
+        topic_name: &String,
+        publish_properties: &Option<PublishProperties>,
+    ) {
+        if let Some(properties) = publish_properties {
+            if let Some(alias) = properties.topic_alias {
+                if let Some(conn) = self.connection_info.get_mut(&connect_id) {
+                    conn.topic_alias.insert(alias, topic_name.clone());
+                }
+            }
         }
     }
 

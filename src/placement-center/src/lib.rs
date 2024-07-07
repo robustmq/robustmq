@@ -108,7 +108,7 @@ impl PlacementCenter {
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
         let placement_center_storage = Arc::new(RaftMachineApply::new(raft_message_send));
 
-        // self.start_controller(placement_center_storage.clone(), stop_send.clone());
+        self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
         self.start_peers_manager(peer_message_recv);
 
@@ -186,15 +186,15 @@ impl PlacementCenter {
         placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) {
-        let ctrl = ClusterController::new(
-            self.cluster_cache.clone(),
-            placement_center_storage,
-            self.rocksdb_engine_handler.clone(),
-            stop_send.clone(),
-        );
-        self.daemon_runtime.spawn(async move {
-            ctrl.start_node_heartbeat_check().await;
-        });
+        // let ctrl = ClusterController::new(
+        //     self.cluster_cache.clone(),
+        //     placement_center_storage,
+        //     self.rocksdb_engine_handler.clone(),
+        //     stop_send.clone(),
+        // );
+        // self.daemon_runtime.spawn(async move {
+        //     ctrl.start_node_heartbeat_check().await;
+        // });
 
         let mqtt_controller = MQTTController::new(
             self.rocksdb_engine_handler.clone(),

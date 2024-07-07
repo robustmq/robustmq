@@ -83,7 +83,6 @@ impl MQTTController {
                             match val{
                                 Ok(flag) => {
                                     if flag {
-
                                         break;
                                     }
                                 }
@@ -175,7 +174,6 @@ impl MQTTController {
                     }
                 }
             });
-
             self.thread_running_info.insert(cluster_name.clone(), true);
         }
         sleep(Duration::from_secs(5)).await;

@@ -19,6 +19,10 @@ use tokio::time::{sleep, timeout};
 
 const SHARE_SUB_PREFIX: &str = "$share";
 
+pub fn path_contain_sub(topic_name: &String) -> bool {
+    return true;
+}
+
 pub fn sub_path_validator(sub_path: String) -> bool {
     let regex = Regex::new(r"^[\$a-zA-Z0-9_#+/]+$").unwrap();
 
