@@ -1,10 +1,9 @@
 use super::mqtt3::Mqtt3Service;
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
-use super::packet::MQTTAckBuild;
-use crate::core::response_packet::response_packet_matt5_connect_fail_by_code;
-use crate::core::{
-    cache_manager::CacheManager, response_packet::response_packet_matt5_connect_fail,
+use crate::core::cache_manager::CacheManager;
+use crate::core::response_packet::{
+    response_packet_matt5_connect_fail_by_code, response_packet_matt_distinct,
 };
 use crate::server::tcp::connection::TCPConnection;
 use crate::server::tcp::connection_manager::ConnectionManager;
@@ -21,7 +20,6 @@ use tokio::sync::broadcast::{self, Sender};
 // S: message storage adapter
 #[derive(Clone)]
 pub struct Command<S> {
-    ack_build: MQTTAckBuild,
     mqtt3_service: Mqtt3Service,
     mqtt4_service: Mqtt4Service,
     mqtt5_service: Mqtt5Service<S>,
@@ -41,19 +39,16 @@ where
         client_poll: Arc<ClientPool>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        let ack_build = MQTTAckBuild::new(cache_manager.clone());
-        let mqtt4_service = Mqtt4Service::new(cache_manager.clone(), ack_build.clone());
+        let mqtt4_service = Mqtt4Service::new(cache_manager.clone());
         let mqtt5_service = Mqtt5Service::new(
             cache_manager.clone(),
-            ack_build.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
             stop_sx.clone(),
         );
-        let mqtt3_service = Mqtt3Service::new(cache_manager.clone(), ack_build.clone());
+        let mqtt3_service = Mqtt3Service::new(cache_manager.clone());
         return Command {
-            ack_build,
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
@@ -81,7 +76,7 @@ where
                 connect_manager
                     .set_connect_protocol(tcp_connection.connection_id, protocol_version);
 
-                let ack_pkg = if protocol_version == 3 {
+                let resp_pkg = if protocol_version == 3 {
                     self.mqtt3_service
                         .connect(connect.clone(), last_will.clone(), login.clone())
                         .await
@@ -90,23 +85,26 @@ where
                         .connect(connect.clone(), last_will.clone(), login.clone())
                         .await
                 } else if protocol_version == 5 {
-                    self.mqtt5_service
-                        .connect(
-                            tcp_connection.connection_id,
-                            connect,
-                            properties,
-                            last_will,
-                            last_will_peoperties,
-                            login,
-                            addr,
-                        )
-                        .await
+                    Some(
+                        self.mqtt5_service
+                            .connect(
+                                tcp_connection.connection_id,
+                                connect,
+                                properties,
+                                last_will,
+                                last_will_peoperties,
+                                login,
+                                addr,
+                            )
+                            .await,
+                    )
                 } else {
                     return Some(response_packet_matt5_connect_fail_by_code(
                         ConnectReturnCode::UnsupportedProtocolVersion,
                     ));
                 };
 
+                let ack_pkg = resp_pkg.unwrap();
                 if let MQTTPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
                         self.metadata_cache
@@ -126,11 +124,11 @@ where
                 }
 
                 if tcp_connection.is_mqtt3() {
-                    return Some(self.mqtt3_service.publish(publish));
+                    return self.mqtt3_service.publish(publish);
                 }
 
                 if tcp_connection.is_mqtt4() {
-                    return Some(self.mqtt4_service.publish(publish));
+                    return self.mqtt4_service.publish(publish);
                 }
 
                 if tcp_connection.is_mqtt5() {
@@ -224,10 +222,10 @@ where
                     return Some(self.un_login_err(tcp_connection.connection_id));
                 }
                 if tcp_connection.is_mqtt3() {
-                    return None;
+                    return self.mqtt3_service.subscribe(subscribe);
                 }
                 if tcp_connection.is_mqtt4() {
-                    return Some(self.mqtt4_service.subscribe(subscribe));
+                    return self.mqtt4_service.subscribe(subscribe);
                 }
 
                 if tcp_connection.is_mqtt5() {
@@ -250,11 +248,11 @@ where
                 }
 
                 if tcp_connection.is_mqtt3() {
-                    return None;
+                    return self.mqtt3_service.ping(ping);
                 }
 
                 if tcp_connection.is_mqtt4() {
-                    return Some(self.mqtt4_service.ping(ping));
+                    return self.mqtt4_service.ping(ping);
                 }
 
                 if tcp_connection.is_mqtt5() {
@@ -272,11 +270,11 @@ where
                 }
 
                 if tcp_connection.is_mqtt3() {
-                    return None;
+                    return self.mqtt3_service.un_subscribe(unsubscribe);
                 }
 
                 if tcp_connection.is_mqtt4() {
-                    return Some(self.mqtt4_service.un_subscribe(unsubscribe));
+                    return self.mqtt4_service.un_subscribe(unsubscribe);
                 }
 
                 if tcp_connection.is_mqtt5() {
@@ -294,11 +292,11 @@ where
 
             MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
                 if tcp_connection.is_mqtt3() {
-                    return Some(self.mqtt3_service.disconnect(disconnect));
+                    return self.mqtt3_service.disconnect(disconnect);
                 }
 
                 if tcp_connection.is_mqtt4() {
-                    return Some(self.mqtt4_service.disconnect(disconnect));
+                    return self.mqtt4_service.disconnect(disconnect);
                 }
 
                 if tcp_connection.is_mqtt5() {
@@ -326,7 +324,7 @@ where
 
     fn un_login_err(&self, connection_id: u64) -> MQTTPacket {
         info(format!("connect id [{}] Not logged in", connection_id));
-        return self.ack_build.distinct(
+        return response_packet_matt_distinct(
             protocol::mqtt::common::DisconnectReasonCode::NotAuthorized,
             None,
         );

@@ -35,9 +35,7 @@ pub async fn authentication_login(
     return Ok(false);
 }
 
-pub fn authentication_acl() -> bool {
-    return true;
-}
+
 
 pub fn is_ip_blacklist(addr: &SocketAddr) -> bool {
     return false;
