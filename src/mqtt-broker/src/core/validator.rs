@@ -416,6 +416,11 @@ pub async fn publish_validator(
 
     return None;
 }
+
+pub fn subscribe_validator() -> Option<MQTTPacket> {
+    return None;
+}
+
 pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -> bool {
     if let Some(properties) = connect_properties {
         if let Some(problem_info) = properties.request_problem_info {

@@ -16,7 +16,7 @@ use crate::core::response_packet::{
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
 use crate::core::topic::{get_topic_name, try_init_topic};
-use crate::core::validator::{connect_validator, publish_validator};
+use crate::core::validator::{connect_validator, publish_validator, subscribe_validator};
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -279,25 +279,7 @@ where
             }
         };
 
-        let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
-            conn.client_id.clone()
-        } else {
-            if is_puback {
-                return Some(response_packet_matt5_puback_fail(
-                    &connection,
-                    publish.pkid,
-                    PubAckReason::UnspecifiedError,
-                    Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-                ));
-            } else {
-                return Some(response_packet_matt5_pubrec_fail(
-                    &connection,
-                    publish.pkid,
-                    PubRecReason::UnspecifiedError,
-                    Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-                ));
-            }
-        };
+        let client_id = connection.client_id.clone();
 
         // Persisting retain message data
         match save_topic_retain_message(
@@ -525,14 +507,7 @@ where
             );
         };
 
-        let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
-            conn.client_id.clone()
-        } else {
-            return response_packet_matt_distinct(
-                DisconnectReasonCode::MaximumConnectTime,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-            );
-        };
+        let client_id = connection.client_id.clone();
 
         match pkid_exists(
             &self.cache_manager,
@@ -599,14 +574,11 @@ where
             );
         };
 
-        let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
-            conn.client_id.clone()
-        } else {
-            return response_packet_matt_distinct(
-                DisconnectReasonCode::MaximumConnectTime,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-            );
-        };
+        let client_id = connection.client_id.clone();
+
+        if let Some(packet) = subscribe_validator() {
+            return packet;
+        }
 
         match pkid_exists(
             &self.cache_manager,
