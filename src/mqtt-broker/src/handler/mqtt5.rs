@@ -2,21 +2,23 @@ use super::packet::MQTTAckBuild;
 use super::packet::{publish_comp_fail, publish_comp_success};
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
-use crate::core::connection::{create_connection, get_client_id};
-use crate::core::flow_control::is_self_protection_status;
+use crate::core::connection::{self, create_connection, get_client_id};
 use crate::core::lastwill::save_last_will_message;
 use crate::core::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::core::response_packet::{
     response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
-    response_packet_matt5_distinct, response_packet_matt_distinct,
+    response_packet_matt5_distinct, response_packet_matt5_puback_fail,
+    response_packet_matt5_puback_success, response_packet_matt5_pubcomp_fail,
+    response_packet_matt5_pubcomp_success, response_packet_matt5_pubrec_fail,
+    response_packet_matt5_pubrec_success, response_packet_matt5_suback,
+    response_packet_matt_distinct,
 };
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
-use crate::core::topic::{get_topic_info, get_topic_name, save_topic_alias};
-use crate::core::validator::connect_params_validator;
-use crate::security::authentication::is_ip_blacklist;
+use crate::core::topic::{get_topic_name, try_init_topic};
+use crate::core::validator::{connect_validator, publish_validator};
 use crate::storage::session::SessionStorage;
-use crate::subscribe::sub_common::{min_qos, sub_path_validator};
+use crate::subscribe::sub_common::{min_qos, path_contain_sub, sub_path_validator};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use crate::{
     security::authentication::authentication_login, server::tcp::packet::ResponsePackage,
@@ -28,9 +30,10 @@ use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
-    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubRec, PubRecProperties,
-    PubRel, PubRelProperties, PubRelReason, Publish, PublishProperties, QoS, Subscribe,
-    SubscribeProperties, SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
+    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
+    PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, Publish,
+    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe,
+    UnsubscribeProperties,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -82,29 +85,14 @@ where
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
             self.cache_manager.get_cluster_info();
 
-        if is_self_protection_status() {
-            return response_packet_matt5_connect_fail(
-                ConnectReturnCode::ServerBusy,
-                &connect_properties,
-                None,
-            );
-        }
-
-        if is_ip_blacklist(&addr).await {
-            return response_packet_matt5_connect_fail(
-                ConnectReturnCode::Banned,
-                &connect_properties,
-                None,
-            );
-        }
-
-        if let Some(res) = connect_params_validator(
+        if let Some(res) = connect_validator(
             &cluster,
             &connnect,
             &connect_properties,
             &last_will,
             &last_will_properties,
             &login,
+            &addr,
         ) {
             return res;
         }
@@ -188,6 +176,7 @@ where
         };
         self.cache_manager
             .report_heartbeat(client_id.clone(), live_time);
+
         self.cache_manager
             .add_session(client_id.clone(), session.clone());
         self.cache_manager
@@ -209,37 +198,60 @@ where
         publish: Publish,
         publish_properties: Option<PublishProperties>,
     ) -> Option<MQTTPacket> {
-        match save_topic_alias(
-            connect_id,
-            publish.topic.clone(),
-            self.cache_manager.clone(),
-            publish_properties.clone(),
-        ) {
-            Ok(()) => {}
-            Err(e) => {
-                return Some(
-                    self.ack_build
-                        .pub_ack_fail(PubAckReason::TopicNameInvalid, Some(e.to_string())),
-                );
+        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return Some(response_packet_matt_distinct(
+                DisconnectReasonCode::MaximumConnectTime,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            ));
+        };
+
+        let is_puback = publish.qos != QoS::ExactlyOnce;
+
+        if let Some(pkg) = publish_validator(
+            &self.cache_manager,
+            &self.client_poll,
+            &connection,
+            &publish,
+            &publish_properties,
+        )
+        .await
+        {
+            if publish.qos == QoS::AtMostOnce {
+                return None;
+            } else {
+                return Some(pkg);
             }
         }
 
         let topic_name = match get_topic_name(
             connect_id,
-            publish.clone(),
-            self.cache_manager.clone(),
-            publish_properties.clone(),
+            &self.cache_manager,
+            &publish,
+            &publish_properties,
         ) {
             Ok(da) => da,
             Err(e) => {
-                return Some(
-                    self.ack_build
-                        .pub_ack_fail(PubAckReason::TopicNameInvalid, Some(e.to_string())),
-                );
+                if is_puback {
+                    return Some(response_packet_matt5_puback_fail(
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_matt5_pubrec_fail(
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                }
             }
         };
 
-        let topic = match get_topic_info(
+        let topic = match try_init_topic(
             topic_name.clone(),
             self.cache_manager.clone(),
             self.message_storage_adapter.clone(),
@@ -249,84 +261,80 @@ where
         {
             Ok(tp) => tp,
             Err(e) => {
-                return Some(
-                    self.ack_build
-                        .pub_ack_fail(PubAckReason::UnspecifiedError, Some(e.to_string())),
-                );
+                if is_puback {
+                    return Some(response_packet_matt5_puback_fail(
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_matt5_pubrec_fail(
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                }
             }
-        };
-
-        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
-            se.clone()
-        } else {
-            return Some(self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-            ));
         };
 
         let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             conn.client_id.clone()
         } else {
-            return Some(self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
-            ));
+            if is_puback {
+                return Some(response_packet_matt5_puback_fail(
+                    &connection,
+                    publish.pkid,
+                    PubAckReason::UnspecifiedError,
+                    Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+                ));
+            } else {
+                return Some(response_packet_matt5_pubrec_fail(
+                    &connection,
+                    publish.pkid,
+                    PubRecReason::UnspecifiedError,
+                    Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+                ));
+            }
         };
-
-        if publish.qos == QoS::ExactlyOnce {
-            match pkid_exists(
-                &self.cache_manager,
-                &self.client_poll,
-                &client_id,
-                publish.pkid,
-            )
-            .await
-            {
-                Ok(res) => {
-                    if res {
-                        return Some(
-                            self.ack_build
-                                .pub_ack_fail(PubAckReason::PacketIdentifierInUse, None),
-                        );
-                    }
-                }
-                Err(e) => {
-                    return Some(
-                        self.ack_build
-                            .pub_ack_fail(PubAckReason::UnspecifiedError, None),
-                    );
-                }
-            };
-        }
 
         // Persisting retain message data
         match save_topic_retain_message(
-            topic_name.clone(),
-            client_id.clone(),
-            publish.clone(),
-            self.cache_manager.clone(),
-            publish_properties.clone(),
-            self.client_poll.clone(),
+            &self.cache_manager,
+            &self.client_poll,
+            &topic_name,
+            &client_id,
+            &publish,
+            &publish_properties,
         )
         .await
         {
             Ok(()) => {}
             Err(e) => {
-                return Some(
-                    self.ack_build
-                        .pub_ack_fail(PubAckReason::UnspecifiedError, Some(e.to_string())),
-                );
+                if is_puback {
+                    return Some(response_packet_matt5_puback_fail(
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_matt5_pubrec_fail(
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                }
             }
         }
 
         // Persisting stores message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
-        let offset = if let Some(record) = MQTTMessage::build_record(
-            client_id.clone(),
-            publish.clone(),
-            publish_properties.clone(),
-        ) {
+        let offset = if let Some(record) =
+            MQTTMessage::build_record(&client_id, &publish, &publish_properties)
+        {
             match message_storage
                 .append_topic_message(topic.topic_id.clone(), vec![record])
                 .await
@@ -335,40 +343,86 @@ where
                     format!("{:?}", da)
                 }
                 Err(e) => {
-                    error(e.to_string());
-                    return Some(
-                        self.ack_build
-                            .distinct(DisconnectReasonCode::UnspecifiedError, Some(e.to_string())),
-                    );
+                    if is_puback {
+                        return Some(response_packet_matt5_puback_fail(
+                            &connection,
+                            publish.pkid,
+                            PubAckReason::UnspecifiedError,
+                            Some(e.to_string()),
+                        ));
+                    } else {
+                        return Some(response_packet_matt5_pubrec_fail(
+                            &connection,
+                            publish.pkid,
+                            PubRecReason::UnspecifiedError,
+                            Some(e.to_string()),
+                        ));
+                    }
                 }
             }
         } else {
             "-1".to_string()
         };
-
-        // Pub Ack information is built
-        let pkid = publish.pkid;
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
-        //ontent is returned according to different QOS levels
+
+        self.cache_manager
+            .add_topic_alias(connect_id, &topic_name, &publish_properties);
+
         match publish.qos {
             QoS::AtMostOnce => {
                 return None;
             }
             QoS::AtLeastOnce => {
-                return Some(self.ack_build.pub_ack(pkid, None, user_properties));
+                let reason_code = if path_contain_sub(&topic_name) {
+                    PubAckReason::Success
+                } else {
+                    PubAckReason::NoMatchingSubscribers
+                };
+                return Some(response_packet_matt5_puback_success(
+                    reason_code,
+                    publish.pkid,
+                    user_properties,
+                ));
             }
             QoS::ExactlyOnce => {
-                match pkid_save(&self.cache_manager, &self.client_poll, &client_id, pkid).await {
+                match pkid_save(
+                    &self.cache_manager,
+                    &self.client_poll,
+                    &client_id,
+                    publish.pkid,
+                )
+                .await
+                {
                     Ok(()) => {}
                     Err(e) => {
-                        return Some(self.ack_build.distinct(
-                            DisconnectReasonCode::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
+                        if is_puback {
+                            return Some(response_packet_matt5_puback_fail(
+                                &connection,
+                                publish.pkid,
+                                PubAckReason::UnspecifiedError,
+                                Some(e.to_string()),
+                            ));
+                        } else {
+                            return Some(response_packet_matt5_pubrec_fail(
+                                &connection,
+                                publish.pkid,
+                                PubRecReason::UnspecifiedError,
+                                Some(e.to_string()),
+                            ));
+                        }
                     }
                 }
+                let reason_code = if path_contain_sub(&topic_name) {
+                    PubRecReason::Success
+                } else {
+                    PubRecReason::NoMatchingSubscribers
+                };
 
-                return Some(self.ack_build.pub_rec(pkid, user_properties));
+                return Some(response_packet_matt5_pubrec_success(
+                    reason_code,
+                    publish.pkid,
+                    user_properties,
+                ));
             }
         }
     }
@@ -462,11 +516,20 @@ where
         pub_rel: PubRel,
         _: Option<PubRelProperties>,
     ) -> MQTTPacket {
+        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return response_packet_matt_distinct(
+                DisconnectReasonCode::MaximumConnectTime,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
         let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             conn.client_id.clone()
         } else {
-            return self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
+            return response_packet_matt_distinct(
+                DisconnectReasonCode::MaximumConnectTime,
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
@@ -481,11 +544,21 @@ where
         {
             Ok(res) => {
                 if !res {
-                    return publish_comp_fail(pub_rel.pkid);
+                    return response_packet_matt5_pubcomp_fail(
+                        &connection,
+                        pub_rel.pkid,
+                        PubCompReason::PacketIdentifierNotFound,
+                        None,
+                    );
                 }
             }
             Err(e) => {
-                return publish_comp_fail(pub_rel.pkid);
+                return response_packet_matt5_pubcomp_fail(
+                    &connection,
+                    pub_rel.pkid,
+                    PubCompReason::PacketIdentifierNotFound,
+                    Some(e.to_string()),
+                );
             }
         };
 
@@ -499,10 +572,15 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return publish_comp_fail(pub_rel.pkid);
+                return response_packet_matt5_pubcomp_fail(
+                    &connection,
+                    pub_rel.pkid,
+                    PubCompReason::PacketIdentifierNotFound,
+                    Some(e.to_string()),
+                );
             }
         }
-        return publish_comp_success(pub_rel.pkid);
+        return response_packet_matt5_pubcomp_success(pub_rel.pkid);
     }
 
     pub async fn subscribe(
@@ -512,12 +590,21 @@ where
         subscribe_properties: Option<SubscribeProperties>,
         response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
+        let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
+            se.clone()
+        } else {
+            return response_packet_matt_distinct(
+                DisconnectReasonCode::MaximumConnectTime,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            );
+        };
+
         let client_id = if let Some(conn) = self.cache_manager.connection_info.get(&connect_id) {
             conn.client_id.clone()
         } else {
-            return self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id.clone()).to_string()),
+            return response_packet_matt_distinct(
+                DisconnectReasonCode::MaximumConnectTime,
+                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
 
@@ -531,7 +618,8 @@ where
         {
             Ok(res) => {
                 if res {
-                    return self.ack_build.sub_ack(
+                    return response_packet_matt5_suback(
+                        &connection,
                         subscribe.packet_identifier,
                         vec![SubscribeReasonCode::PkidInUse],
                         None,
@@ -722,6 +810,7 @@ where
 
         return Some(response_packet_matt_distinct(
             DisconnectReasonCode::NormalDisconnection,
+            None,
         ));
     }
 }

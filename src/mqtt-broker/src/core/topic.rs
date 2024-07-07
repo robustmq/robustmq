@@ -62,9 +62,9 @@ pub fn topic_name_validator(topic_name: &String) -> Result<(), MQTTBrokerError> 
 
 pub fn get_topic_name(
     connect_id: u64,
-    publish: Publish,
-    metadata_cache: Arc<CacheManager>,
-    publish_properties: Option<PublishProperties>,
+    metadata_cache: &Arc<CacheManager>,
+    publish: &Publish,
+    publish_properties: &Option<PublishProperties>,
 ) -> Result<String, RobustMQError> {
     let topic_alias = if let Some(pub_properties) = publish_properties {
         pub_properties.topic_alias
@@ -99,46 +99,7 @@ pub fn get_topic_name(
     return Ok(topic_name);
 }
 
-pub fn save_topic_alias(
-    connect_id: u64,
-    topic_name: Bytes,
-    cache_manager: Arc<CacheManager>,
-    publish_properties: Option<PublishProperties>,
-) -> Result<(), MQTTBrokerError> {
-    if topic_name.is_empty() {
-        return Ok(());
-    }
-
-    let topic = match String::from_utf8(topic_name.to_vec()) {
-        Ok(da) => da,
-        Err(e) => return Err(MQTTBrokerError::CommmonError(e.to_string())),
-    };
-
-    if topic.is_empty() {
-        return Ok(());
-    }
-
-    if let Some(properties) = publish_properties {
-        if let Some(alias) = properties.topic_alias {
-            let cluster = cache_manager.get_cluster_info();
-            if alias > cluster.topic_alias_max {
-                return Err(MQTTBrokerError::TopicAliasTooLong);
-            }
-
-            if let Some(current_topic) = cache_manager.get_topic_alias(connect_id, alias) {
-                // update mapping for topic&alias
-                if current_topic != topic {
-                    cache_manager.add_topic_alias(connect_id, topic, alias);
-                }
-            } else {
-                cache_manager.add_topic_alias(connect_id, topic, alias);
-            }
-        }
-    }
-    return Ok(());
-}
-
-pub async fn get_topic_info<S>(
+pub async fn try_init_topic<S>(
     topic_name: String,
     metadata_cache: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,

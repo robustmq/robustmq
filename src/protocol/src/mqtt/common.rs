@@ -924,7 +924,7 @@ pub enum SubscribeReasonCode {
     WildcardSubscriptionsNotSupported,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SubAckProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,

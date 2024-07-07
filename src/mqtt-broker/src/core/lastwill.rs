@@ -2,20 +2,17 @@ use super::{cache_manager::CacheManager, retain::save_topic_retain_message};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
-use metadata_struct::{
-    mqtt::{cluster::MQTTCluster, lastwill::LastWillData, message::MQTTMessage, topic},
-    placement::cluster::ClusterInfo,
-};
+use metadata_struct::mqtt::{cluster::MQTTCluster, lastwill::LastWillData, message::MQTTMessage};
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 
 pub async fn send_last_will_message<S>(
-    client_id: String,
-    cache_manager: Arc<CacheManager>,
-    client_poll: Arc<ClientPool>,
-    last_will: Option<LastWill>,
-    last_will_properties: Option<LastWillProperties>,
+    client_id: &String,
+    cache_manager: &Arc<CacheManager>,
+    client_poll: &Arc<ClientPool>,
+    last_will: &Option<LastWill>,
+    last_will_properties: &Option<LastWillProperties>,
     message_storage_adapter: Arc<S>,
 ) -> Result<(), RobustMQError>
 where
@@ -37,8 +34,8 @@ where
             qos: will.qos,
             pkid: 0,
             retain: will.retain,
-            topic: will.topic,
-            payload: will.message,
+            topic: will.topic.clone(),
+            payload: will.message.clone(),
         };
 
         let properties = if let Some(properties) = last_will_properties {
@@ -46,23 +43,23 @@ where
                 payload_format_indicator: properties.payload_format_indicator,
                 message_expiry_interval: properties.message_expiry_interval,
                 topic_alias: None,
-                response_topic: properties.response_topic,
+                response_topic: properties.response_topic.clone(),
                 user_properties: Vec::new(),
                 subscription_identifiers: Vec::new(),
-                correlation_data: properties.correlation_data,
-                content_type: properties.content_type,
+                correlation_data: properties.correlation_data.clone(),
+                content_type: properties.content_type.clone(),
             })
         } else {
             None
         };
         // Persisting retain message data
         match save_topic_retain_message(
-            topic_name.clone(),
-            client_id.clone(),
-            publish.clone(),
-            cache_manager.clone(),
-            properties.clone(),
-            client_poll.clone(),
+            cache_manager,
+            client_poll,
+            &topic_name,
+            client_id,
+            &publish,
+            &properties,
         )
         .await
         {
@@ -74,9 +71,7 @@ where
 
         // Persisting stores message data
         let message_storage = MessageStorage::new(message_storage_adapter.clone());
-        if let Some(record) =
-            MQTTMessage::build_record(client_id.clone(), publish.clone(), properties.clone())
-        {
+        if let Some(record) = MQTTMessage::build_record(client_id, &publish, &properties) {
             match message_storage
                 .append_topic_message(topic.topic_id.clone(), vec![record])
                 .await

@@ -186,21 +186,22 @@ impl PlacementCenter {
         placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) {
-        let ctrl = ClusterController::new(
-            self.cluster_cache.clone(),
-            placement_center_storage,
-            self.rocksdb_engine_handler.clone(),
-            stop_send,
-        );
-        self.daemon_runtime.spawn(async move {
-            ctrl.start_node_heartbeat_check().await;
-        });
+        // let ctrl = ClusterController::new(
+        //     self.cluster_cache.clone(),
+        //     placement_center_storage,
+        //     self.rocksdb_engine_handler.clone(),
+        //     stop_send.clone(),
+        // );
+        // self.daemon_runtime.spawn(async move {
+        //     ctrl.start_node_heartbeat_check().await;
+        // });
 
         let mqtt_controller = MQTTController::new(
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.mqtt_cache.clone(),
             self.client_poll.clone(),
+            stop_send.clone(),
         );
         self.daemon_runtime.spawn(async move {
             mqtt_controller.start().await;

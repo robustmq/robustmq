@@ -50,48 +50,34 @@ impl SessionExpire {
 
     pub async fn session_expire(&self) {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
-        info(format!(
-            "Cluster {} The Session expired thread was started successfully",
-            self.cluster_name
-        ));
-        loop {
-            let cf = self.rocksdb_engine_handler.cf_mqtt();
-            let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
-            iter.seek(search_key.clone());
-            let mut sessions = Vec::new();
-            while iter.valid() {
-                let key = iter.key();
-                let value = iter.value();
+        let cf = self.rocksdb_engine_handler.cf_mqtt();
+        let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
+        iter.seek(search_key.clone());
+        let mut sessions = Vec::new();
+        while iter.valid() {
+            let key = iter.key();
+            let value = iter.value();
 
-                if key == None || value == None {
+            if key == None || value == None {
+                iter.next();
+                continue;
+            }
+
+            let result_key = match String::from_utf8(key.unwrap().to_vec()) {
+                Ok(s) => s,
+                Err(_) => {
                     iter.next();
                     continue;
                 }
+            };
 
-                let result_key = match String::from_utf8(key.unwrap().to_vec()) {
-                    Ok(s) => s,
-                    Err(_) => {
-                        iter.next();
-                        continue;
-                    }
-                };
-
-                if !result_key.starts_with(&search_key) {
-                    break;
-                }
-                let result_value = value.unwrap();
-                let session = match serde_json::from_slice::<StorageDataWrap>(&result_value) {
-                    Ok(data) => match serde_json::from_slice::<MQTTSession>(&data.data) {
-                        Ok(da) => da,
-                        Err(e) => {
-                            error(format!(
-                                "Session expired, failed to parse Session data, error message :{}",
-                                e.to_string()
-                            ));
-                            iter.next();
-                            continue;
-                        }
-                    },
+            if !result_key.starts_with(&search_key) {
+                break;
+            }
+            let result_value = value.unwrap();
+            let session = match serde_json::from_slice::<StorageDataWrap>(&result_value) {
+                Ok(data) => match serde_json::from_slice::<MQTTSession>(&data.data) {
+                    Ok(da) => da,
                     Err(e) => {
                         error(format!(
                             "Session expired, failed to parse Session data, error message :{}",
@@ -100,27 +86,35 @@ impl SessionExpire {
                         iter.next();
                         continue;
                     }
-                };
-                if self.is_session_expire(&session) {
-                    sessions.push(session);
+                },
+                Err(e) => {
+                    error(format!(
+                        "Session expired, failed to parse Session data, error message :{}",
+                        e.to_string()
+                    ));
+                    iter.next();
+                    continue;
                 }
-                iter.next();
+            };
+            if self.is_session_expire(&session) {
+                sessions.push(session);
             }
-
-            if sessions.len() > 0 {
-                let call = MQTTBrokerCall::new(
-                    self.cluster_name.clone(),
-                    self.placement_cache_manager.clone(),
-                    self.rocksdb_engine_handler.clone(),
-                    self.client_poll.clone(),
-                    self.mqtt_cache_manager.clone(),
-                );
-                tokio::spawn(async move {
-                    call.delete_sessions(sessions).await;
-                });
-            }
-            sleep(Duration::from_secs(10)).await;
+            iter.next();
         }
+
+        if sessions.len() > 0 {
+            let call = MQTTBrokerCall::new(
+                self.cluster_name.clone(),
+                self.placement_cache_manager.clone(),
+                self.rocksdb_engine_handler.clone(),
+                self.client_poll.clone(),
+                self.mqtt_cache_manager.clone(),
+            );
+            tokio::spawn(async move {
+                call.delete_sessions(sessions).await;
+            });
+        }
+        sleep(Duration::from_secs(10)).await;
     }
 
     pub async fn sender_last_will_messsage(&self) {
@@ -132,57 +126,54 @@ impl SessionExpire {
             self.client_poll.clone(),
             self.mqtt_cache_manager.clone(),
         );
-        loop {
-            if !self
-                .mqtt_cache_manager
-                .expire_last_wills
-                .contains_key(&self.cluster_name)
-            {
-                break;
-            }
 
-            for (_, lastwill) in self
-                .mqtt_cache_manager
-                .expire_last_wills
-                .get(&self.cluster_name)
-                .unwrap()
-                .clone()
-            {
-                if self.is_send_last_will(&lastwill) {
-                    match lastwill_storage
-                        .get(self.cluster_name.clone(), lastwill.client_id.clone())
-                    {
-                        Ok(Some(data)) => {
-                            let value = match serde_json::from_slice::<LastWillData>(
-                                data.data.as_slice(),
-                            ) {
-                                Ok(data) => data,
-                                Err(e) => {
-                                    error(format!(
+        if !self
+            .mqtt_cache_manager
+            .expire_last_wills
+            .contains_key(&self.cluster_name)
+        {
+            return;
+        }
+
+        for (_, lastwill) in self
+            .mqtt_cache_manager
+            .expire_last_wills
+            .get(&self.cluster_name)
+            .unwrap()
+            .clone()
+        {
+            if self.is_send_last_will(&lastwill) {
+                match lastwill_storage.get(self.cluster_name.clone(), lastwill.client_id.clone()) {
+                    Ok(Some(data)) => {
+                        let value = match serde_json::from_slice::<LastWillData>(
+                            data.data.as_slice(),
+                        ) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                error(format!(
                                         "Sending Last will message process, failed to parse Session data, error message :{}",
                                         e.to_string()
                                     ));
-                                    continue;
-                                }
-                            };
-                            call.send_last_will_message(lastwill.client_id.clone(), value)
-                                .await;
-                        }
-                        Ok(None) => {
-                            self.mqtt_cache_manager
-                                .remove_expire_last_will(&self.cluster_name, &lastwill.client_id);
-                        }
-                        Err(e) => {
-                            sleep(Duration::from_millis(100)).await;
-                            error(e.to_string());
-                            continue;
-                        }
+                                continue;
+                            }
+                        };
+                        call.send_last_will_message(lastwill.client_id.clone(), value)
+                            .await;
+                    }
+                    Ok(None) => {
+                        self.mqtt_cache_manager
+                            .remove_expire_last_will(&self.cluster_name, &lastwill.client_id);
+                    }
+                    Err(e) => {
+                        sleep(Duration::from_millis(100)).await;
+                        error(e.to_string());
+                        continue;
                     }
                 }
             }
-
-            sleep(Duration::from_secs(10)).await;
         }
+
+        sleep(Duration::from_secs(10)).await;
     }
 
     fn is_session_expire(&self, session: &MQTTSession) -> bool {
