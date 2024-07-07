@@ -966,7 +966,7 @@ pub enum UnsubAckReason {
 }
 
 // UnsubAckProperties only valid in MQTT V5
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UnsubAckProperties {
     pub reason_string: Option<String>,
     pub user_properties: Vec<(String, String)>,

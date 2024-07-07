@@ -2,18 +2,22 @@ use super::{
     cache_manager::CacheManager,
     connection::Connection,
     error::MQTTBrokerError,
-    flow_control::{is_connection_rate_exceeded, is_self_protection_status},
+    flow_control::{
+        is_connection_rate_exceeded, is_self_protection_status, is_subscribe_rate_exceeded,
+    },
     pkid::pkid_exists,
     response_packet::{
         response_packet_matt5_connect_fail, response_packet_matt5_puback_fail,
-        response_packet_matt5_pubrec_fail, response_packet_matt_distinct,
+        response_packet_matt5_pubrec_fail, response_packet_matt5_suback,
+        response_packet_matt5_unsuback, response_packet_matt_distinct,
     },
     topic::topic_name_validator,
 };
 use crate::{
     core::flow_control::is_publish_rate_exceeded,
-    security::authentication::{authentication_acl, is_ip_blacklist},
+    security::{acl::authentication_acl, authentication::is_ip_blacklist},
     server::tcp::connection_manager::ConnectionManager,
+    subscribe::sub_common::sub_path_validator,
 };
 use clients::poll::ClientPool;
 use common_base::{errors::RobustMQError, log::error};
@@ -24,7 +28,8 @@ use protocol::mqtt::{
     common::{
         Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
         LastWillProperties, Login, MQTTPacket, MQTTProtocol, PubAckReason, PubRecReason, Publish,
-        PublishProperties, QoS,
+        PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode,
+        UnsubAckReason, Unsubscribe,
     },
 };
 use std::{cmp::min, net::SocketAddr, sync::Arc};
@@ -417,7 +422,138 @@ pub async fn publish_validator(
     return None;
 }
 
-pub fn subscribe_validator() -> Option<MQTTPacket> {
+pub async fn subscribe_validator(
+    cache_manager: &Arc<CacheManager>,
+    client_poll: &Arc<ClientPool>,
+    connection: &Connection,
+    subscribe: &Subscribe,
+) -> Option<MQTTPacket> {
+    match pkid_exists(
+        &cache_manager,
+        &client_poll,
+        &connection.client_id,
+        subscribe.packet_identifier,
+    )
+    .await
+    {
+        Ok(res) => {
+            if res {
+                return Some(response_packet_matt5_suback(
+                    &connection,
+                    subscribe.packet_identifier,
+                    vec![SubscribeReasonCode::PkidInUse],
+                    None,
+                ));
+            }
+        }
+        Err(e) => {
+            return Some(response_packet_matt5_suback(
+                &connection,
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::Unspecified],
+                Some(e.to_string()),
+            ));
+        }
+    };
+
+    let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
+    for filter in subscribe.filters.clone() {
+        if !sub_path_validator(filter.path) {
+            return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
+            continue;
+        }
+    }
+    if !return_codes.is_empty() {
+        return Some(response_packet_matt5_suback(
+            &connection,
+            subscribe.packet_identifier,
+            return_codes,
+            None,
+        ));
+    }
+
+    if authentication_acl() {
+        return Some(response_packet_matt5_suback(
+            &connection,
+            subscribe.packet_identifier,
+            vec![SubscribeReasonCode::NotAuthorized],
+            None,
+        ));
+    }
+
+    if is_subscribe_rate_exceeded() {
+        return Some(response_packet_matt5_suback(
+            &connection,
+            subscribe.packet_identifier,
+            vec![SubscribeReasonCode::QuotaExceeded],
+            None,
+        ));
+    }
+
+    return None;
+}
+
+pub async fn un_subscribe_validator(
+    cache_manager: &Arc<CacheManager>,
+    client_poll: &Arc<ClientPool>,
+    connection: &Connection,
+    un_subscribe: &Unsubscribe,
+) -> Option<MQTTPacket> {
+    match pkid_exists(
+        &cache_manager,
+        &client_poll,
+        &connection.client_id,
+        un_subscribe.pkid,
+    )
+    .await
+    {
+        Ok(res) => {
+            if res {
+                return Some(response_packet_matt5_unsuback(
+                    &connection,
+                    un_subscribe.pkid,
+                    vec![UnsubAckReason::PacketIdentifierInUse],
+                    None,
+                ));
+            }
+        }
+        Err(e) => {
+            return Some(response_packet_matt5_unsuback(
+                &connection,
+                un_subscribe.pkid,
+                vec![UnsubAckReason::UnspecifiedError],
+                Some(e.to_string()),
+            ));
+        }
+    };
+
+    let mut return_codes: Vec<UnsubAckReason> = Vec::new();
+    for filter in un_subscribe.filters.clone() {
+        if !sub_path_validator(filter) {
+            return_codes.push(UnsubAckReason::TopicFilterInvalid);
+            continue;
+        }
+    }
+    if !return_codes.is_empty() {
+        return Some(response_packet_matt5_unsuback(
+            &connection,
+            un_subscribe.pkid,
+            return_codes,
+            None,
+        ));
+    }
+
+    if authentication_acl() {
+        return Some(response_packet_matt5_unsuback(
+            &connection,
+            un_subscribe.pkid,
+            vec![UnsubAckReason::NotAuthorized],
+            None,
+        ));
+    }
+
+    
+
     return None;
 }
 

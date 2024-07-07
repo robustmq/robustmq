@@ -1,24 +1,24 @@
-use super::packet::MQTTAckBuild;
-use super::packet::{publish_comp_fail, publish_comp_success};
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
-use crate::core::connection::{self, create_connection, get_client_id};
+use crate::core::connection::{create_connection, get_client_id};
 use crate::core::lastwill::save_last_will_message;
 use crate::core::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::core::response_packet::{
     response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
-    response_packet_matt5_distinct, response_packet_matt5_puback_fail,
-    response_packet_matt5_puback_success, response_packet_matt5_pubcomp_fail,
-    response_packet_matt5_pubcomp_success, response_packet_matt5_pubrec_fail,
-    response_packet_matt5_pubrec_success, response_packet_matt5_suback,
-    response_packet_matt_distinct,
+    response_packet_matt5_puback_fail, response_packet_matt5_puback_success,
+    response_packet_matt5_pubcomp_fail, response_packet_matt5_pubcomp_success,
+    response_packet_matt5_pubrec_fail, response_packet_matt5_pubrec_success,
+    response_packet_matt5_pubrel_success, response_packet_matt5_suback,
+    response_packet_matt5_unsuback, response_packet_matt_distinct, response_packet_ping_resp,
 };
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::save_session;
 use crate::core::topic::{get_topic_name, try_init_topic};
-use crate::core::validator::{connect_validator, publish_validator, subscribe_validator};
+use crate::core::validator::{
+    connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
+};
 use crate::storage::session::SessionStorage;
-use crate::subscribe::sub_common::{min_qos, path_contain_sub, sub_path_validator};
+use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use crate::{
     security::authentication::authentication_login, server::tcp::packet::ResponsePackage,
@@ -32,8 +32,8 @@ use protocol::mqtt::common::{
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
     PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
     PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, Publish,
-    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, Unsubscribe,
-    UnsubscribeProperties,
+    PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
+    Unsubscribe, UnsubscribeProperties,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -43,7 +43,6 @@ use tokio::sync::broadcast::{self, Sender};
 #[derive(Clone)]
 pub struct Mqtt5Service<S> {
     cache_manager: Arc<CacheManager>,
-    ack_build: MQTTAckBuild,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
     client_poll: Arc<ClientPool>,
@@ -56,7 +55,6 @@ where
 {
     pub fn new(
         cache_manager: Arc<CacheManager>,
-        ack_build: MQTTAckBuild,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
@@ -64,7 +62,6 @@ where
     ) -> Self {
         return Mqtt5Service {
             cache_manager,
-            ack_build,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             client_poll,
@@ -462,7 +459,10 @@ where
             }
         }
 
-        return Some(self.ack_build.pub_rel(pub_rec.pkid, PubRelReason::Success));
+        return Some(response_packet_matt5_pubrel_success(
+            pub_rec.pkid,
+            PubRelReason::Success,
+        ));
     }
 
     pub async fn publish_comp(
@@ -576,46 +576,20 @@ where
 
         let client_id = connection.client_id.clone();
 
-        if let Some(packet) = subscribe_validator() {
-            return packet;
-        }
-
-        match pkid_exists(
+        if let Some(packet) = subscribe_validator(
             &self.cache_manager,
             &self.client_poll,
-            &client_id,
-            subscribe.packet_identifier,
+            &connection,
+            &subscribe,
         )
         .await
         {
-            Ok(res) => {
-                if res {
-                    return response_packet_matt5_suback(
-                        &connection,
-                        subscribe.packet_identifier,
-                        vec![SubscribeReasonCode::PkidInUse],
-                        None,
-                    );
-                }
-            }
-            Err(e) => {
-                return self.ack_build.sub_ack(
-                    subscribe.packet_identifier,
-                    vec![SubscribeReasonCode::Unspecified],
-                    None,
-                );
-            }
-        };
+            return packet;
+        }
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
         let cluster_qos = self.cache_manager.get_cluster_info().max_qos();
-        let mut contain_success = false;
         for filter in subscribe.filters.clone() {
-            if !sub_path_validator(filter.path) {
-                return_codes.push(SubscribeReasonCode::TopicFilterInvalid);
-                continue;
-            }
-            contain_success = true;
             match min_qos(cluster_qos, filter.qos) {
                 QoS::AtMostOnce => {
                     return_codes.push(SubscribeReasonCode::QoS0);
@@ -629,14 +603,6 @@ where
             }
         }
 
-        if !contain_success {
-            return self.ack_build.sub_ack(
-                subscribe.packet_identifier,
-                vec![SubscribeReasonCode::TopicFilterInvalid],
-                None,
-            );
-        }
-
         match pkid_save(
             &self.cache_manager,
             &self.client_poll,
@@ -647,15 +613,15 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return self.ack_build.sub_ack(
+                return response_packet_matt5_suback(
+                    &connection,
                     subscribe.packet_identifier,
                     vec![SubscribeReasonCode::Unspecified],
-                    None,
+                    Some(e.to_string()),
                 );
             }
         }
 
-        // Saving subscriptions
         self.cache_manager.add_client_subscribe(
             client_id.clone(),
             MQTTProtocol::MQTT5,
@@ -684,15 +650,15 @@ where
         .await;
 
         let pkid = subscribe.packet_identifier;
-        return self.ack_build.sub_ack(pkid, return_codes, None);
+        return response_packet_matt5_suback(&connection, pkid, return_codes, None);
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
+            return response_packet_matt_distinct(
+                DisconnectReasonCode::MaximumConnectTime,
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
@@ -704,7 +670,7 @@ where
         };
         self.cache_manager
             .report_heartbeat(connection.client_id.clone(), live_time);
-        return self.ack_build.ping_resp();
+        return response_packet_ping_resp();
     }
 
     pub async fn un_subscribe(
@@ -716,11 +682,23 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return self.ack_build.distinct(
-                DisconnectReasonCode::UnspecifiedError,
+            return response_packet_matt_distinct(
+                DisconnectReasonCode::MaximumConnectTime,
                 Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
             );
         };
+
+        if let Some(packet) = un_subscribe_validator(
+            &self.cache_manager,
+            &self.client_poll,
+            &connection,
+            &un_subscribe,
+        )
+        .await
+        {
+            return packet;
+        }
+
         match pkid_delete(
             &self.cache_manager,
             &self.client_poll,
@@ -731,9 +709,11 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return self.ack_build.distinct(
-                    DisconnectReasonCode::UnspecifiedError,
-                    Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+                return response_packet_matt5_unsuback(
+                    &connection,
+                    un_subscribe.pkid,
+                    vec![UnsubAckReason::UnspecifiedError],
+                    Some(e.to_string()),
                 );
             }
         }
@@ -744,9 +724,12 @@ where
         self.cache_manager
             .remove_filter_by_pkid(connection.client_id.clone(), un_subscribe.filters);
 
-        return self
-            .ack_build
-            .unsub_ack(un_subscribe.pkid, None, Vec::new());
+        return response_packet_matt5_unsuback(
+            &connection,
+            un_subscribe.pkid,
+            vec![UnsubAckReason::Success],
+            None,
+        );
     }
 
     pub async fn disconnect(
@@ -772,9 +755,8 @@ where
         {
             Ok(_) => {}
             Err(e) => {
-                return Some(response_packet_matt5_distinct(
-                    DisconnectReasonCode::UnspecifiedError,
-                    &connection,
+                return Some(response_packet_matt_distinct(
+                    DisconnectReasonCode::MaximumConnectTime,
                     Some(e.to_string()),
                 ));
             }

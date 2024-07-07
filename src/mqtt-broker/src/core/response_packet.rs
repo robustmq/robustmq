@@ -3,9 +3,10 @@ use std::{collections::HashMap, default};
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
-    DisconnectProperties, DisconnectReasonCode, MQTTPacket, PubAck, PubAckProperties, PubAckReason,
-    PubComp, PubCompProperties, PubCompReason, PubRec, PubRecProperties, PubRecReason, SubAck,
-    SubAckProperties, SubscribeReasonCode,
+    DisconnectProperties, DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties,
+    PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec, PubRecProperties,
+    PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck, SubAckProperties,
+    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 
 use super::{
@@ -159,6 +160,12 @@ pub fn response_packet_matt5_pubrec_fail(
     return MQTTPacket::PubRec(pub_ack, Some(properties));
 }
 
+pub fn response_packet_matt5_pubrel_success(pkid: u16, reason: PubRelReason) -> MQTTPacket {
+    let rel = PubRel { pkid, reason };
+    let properties = Some(PubRelProperties::default());
+    return MQTTPacket::PubRel(rel, properties);
+}
+
 pub fn response_packet_matt5_pubcomp_success(pkid: u16) -> MQTTPacket {
     let rec = PubComp {
         pkid,
@@ -194,4 +201,22 @@ pub fn response_packet_matt5_suback(
         properties.reason_string = reason_string;
     }
     return MQTTPacket::SubAck(sub_ack, Some(properties));
+}
+
+pub fn response_packet_ping_resp() -> MQTTPacket {
+    return MQTTPacket::PingResp(PingResp {});
+}
+
+pub fn response_packet_matt5_unsuback(
+    connection: &Connection,
+    pkid: u16,
+    reasons: Vec<UnsubAckReason>,
+    reason_string: Option<String>,
+) -> MQTTPacket {
+    let unsub_ack = UnsubAck { pkid, reasons };
+    let mut properties = UnsubAckProperties::default();
+    if connection.is_response_proplem_info() {
+        properties.reason_string = reason_string;
+    }
+    return MQTTPacket::UnsubAck(unsub_ack, None);
 }
