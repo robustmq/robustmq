@@ -562,7 +562,7 @@ async fn resub_publish_message_qos1(
             Err(_) => {}
         }
 
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id.clone()) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&mqtt_client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;
@@ -666,7 +666,7 @@ pub async fn resub_publish_message_qos2(
                     if data.ack_type == QosAckPackageType::PubRec && data.pkid == publish_to_client_pkid {
                         // 4. pubrec to leader
                         let connect_id =
-                            if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id.clone()) {
+                            if let Some(id) = metadata_cache.get_connect_id(&mqtt_client_id) {
                                 id
                             } else {
                                 sleep(Duration::from_secs(1)).await;

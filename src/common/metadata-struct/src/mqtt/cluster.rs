@@ -17,6 +17,7 @@ pub struct MQTTCluster {
     pub max_message_expiry_interval: u64,
     pub default_message_expiry_interval: u64,
     pub client_pkid_persistent: bool,
+    pub is_self_protection_status: bool,
 }
 
 impl MQTTCluster {
@@ -36,6 +37,7 @@ impl MQTTCluster {
             max_message_expiry_interval: 315360000,
             default_message_expiry_interval: 3600,
             client_pkid_persistent: false,
+            is_self_protection_status: false,
         };
     }
     pub fn receive_max(&self) -> u16 {

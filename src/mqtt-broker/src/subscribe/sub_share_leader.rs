@@ -11,7 +11,6 @@ use crate::{
     storage::message::MessageStorage,
     subscribe::subscriber::Subscriber,
 };
-use axum::Error;
 use bytes::Bytes;
 use common_base::{
     errors::RobustMQError,
@@ -468,7 +467,7 @@ async fn share_leader_publish_message_qos1(
     response_queue_sx: Sender<ResponsePackage>,
     wait_puback_sx: broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), RobustMQError> {
-    let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+    let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
         id
     } else {
         return Err(RobustMQError::CommmonError(format!(

@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use clients::poll::ClientPool;
-use common_base::{
-    config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig},
-    log::info,
-    runtime::create_runtime,
-};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::create_runtime};
 use core::keep_alive::ClientKeepAlive;
 use core::{cache_manager::CacheManager, heartbreat::report_heartbeat};
 use server::{
@@ -25,7 +21,7 @@ use server::{
     start_tcp_server,
     tcp::packet::{RequestPackage, ResponsePackage},
 };
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use storage::cluster::ClusterStorage;
 use storage_adapter::{
     // memory::MemoryStorageAdapter,
@@ -39,9 +35,8 @@ use subscribe::{
 };
 use tokio::{
     runtime::Runtime,
-    select, signal,
+    signal,
     sync::broadcast::{self, Sender},
-    time,
 };
 
 mod core;
@@ -68,8 +63,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     server.start(stop_send)
 }
 
-pub struct MqttBroker<'a, S> {
-    conf: &'a BrokerMQTTConfig,
+pub struct MqttBroker<S> {
     cache_manager: Arc<CacheManager>,
     runtime: Runtime,
     request_queue_sx: Sender<RequestPackage>,
@@ -79,7 +73,7 @@ pub struct MqttBroker<'a, S> {
     subscribe_manager: Arc<SubscribeCacheManager>,
 }
 
-impl<'a, S> MqttBroker<'a, S>
+impl<S> MqttBroker<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -99,7 +93,6 @@ where
         ));
 
         return MqttBroker {
-            conf,
             runtime,
             cache_manager: metadata_cache,
             request_queue_sx,
@@ -112,12 +105,12 @@ where
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
         self.register_node();
-        // self.start_grpc_server();
+        self.start_grpc_server();
         self.start_mqtt_server(stop_send.clone());
-        // self.start_http_server();
-        // self.start_keep_alive_thread(stop_send.clone());
-        // self.start_cluster_heartbeat_report(stop_send.clone());
-        // self.start_push_server();
+        self.start_http_server();
+        self.start_keep_alive_thread(stop_send.clone());
+        self.start_cluster_heartbeat_report(stop_send.clone());
+        self.start_push_server();
         self.awaiting_stop(stop_send);
     }
 
@@ -144,8 +137,9 @@ where
     }
 
     fn start_grpc_server(&self) {
+        let conf = broker_mqtt_conf();
         let server = GrpcServer::new(
-            self.conf.grpc_port.clone(),
+            conf.grpc_port.clone(),
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             self.client_poll.clone(),

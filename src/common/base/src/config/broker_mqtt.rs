@@ -19,7 +19,7 @@ use crate::tools::create_fold;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct BrokerMQTTConfig {
     pub cluster_name: String,
     pub broker_id: u64,
@@ -36,7 +36,7 @@ pub struct BrokerMQTTConfig {
     pub system: SystemConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MQTT {
     pub tcp_port: u32,
     pub tcps_port: u32,
@@ -45,7 +45,7 @@ pub struct MQTT {
     pub quic_port: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct NetworkTcp {
     pub accept_thread_num: usize,
     pub handler_thread_num: usize,
@@ -57,39 +57,39 @@ pub struct NetworkTcp {
     pub lock_try_mut_sleep_time_ms: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Runtime {
     pub worker_threads: usize,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Mysql {
     pub server: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Journal {
     pub server: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Placement {
     pub server: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StorageConfig {
     pub metadata: String,
     pub message: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SystemConfig {
     pub system_user: String,
     pub system_password: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Log {
     pub log_path: String,
     pub log_segment_size: u64,

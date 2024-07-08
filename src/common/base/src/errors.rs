@@ -104,13 +104,17 @@ pub enum RobustMQError {
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,
 
-    #[error("Bad subscription Path")]
-    BadSubscriptionPath,
+    #[error("Bad subscription Path [{0}] does not exist")]
+    SubscriptionPathNotExists(String),
 
     #[error(
         "Subscribe to push, send QOS2 message to client {0}, wait for PubRec message timeout."
     )]
     SubPublishWaitPubRecTimeout(String),
+
+    #[error("Cluster is in self-protection state, please request later")]
+    ClusterIsInSelfProtection,
+
 }
 
 #[cfg(test)]
