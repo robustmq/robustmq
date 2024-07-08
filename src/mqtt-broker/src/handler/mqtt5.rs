@@ -12,7 +12,7 @@ use crate::core::response_packet::{
     response_packet_matt5_unsuback, response_packet_matt_distinct, response_packet_ping_resp,
 };
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
-use crate::core::session::save_session;
+use crate::core::session::{build_session, save_session};
 use crate::core::topic::{get_topic_name, try_init_topic};
 use crate::core::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
@@ -117,19 +117,18 @@ where
 
         let (client_id, new_client_id) = get_client_id(connnect.client_id.clone());
 
-        let (session, new_session) = match save_session(
-            connect_id,
-            client_id.clone(),
-            connnect.clone(),
-            connect_properties.clone(),
-            last_will.clone(),
-            last_will_properties.clone(),
-            self.client_poll.clone(),
-            self.cache_manager.clone(),
+        let (session, new_session) = match build_session(
+            &client_id,
+            &connnect,
+            &connect_properties,
+            &last_will,
+            &last_will_properties,
+            &self.client_poll,
+            &self.cache_manager,
         )
         .await
         {
-            Ok(session) => session,
+            Ok(data) => data,
             Err(e) => {
                 return response_packet_matt5_connect_fail(
                     ConnectReturnCode::MalformedPacket,
@@ -138,6 +137,25 @@ where
                 );
             }
         };
+
+        match save_session(
+            connect_id,
+            session.clone(),
+            new_session,
+            &client_id,
+            &self.client_poll,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                return response_packet_matt5_connect_fail(
+                    ConnectReturnCode::MalformedPacket,
+                    &connect_properties,
+                    Some(e.to_string()),
+                );
+            }
+        }
 
         match save_last_will_message(
             client_id.clone(),
@@ -171,8 +189,7 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager
-            .report_heartbeat(&client_id, live_time);
+        self.cache_manager.report_heartbeat(&client_id, live_time);
 
         self.cache_manager
             .add_session(client_id.clone(), session.clone());
