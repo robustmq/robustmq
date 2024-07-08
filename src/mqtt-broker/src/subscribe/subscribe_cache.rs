@@ -149,7 +149,7 @@ impl SubscribeCacheManager {
         }
     }
 
-    pub fn remove_subscribe(&self, client_id: String, filter_path: Vec<String>) {
+    pub fn remove_subscribe(&self, client_id: &String, filter_path: &Vec<String>) {
         for (topic_name, _) in self.metadata_cache.topic_info.clone() {
             for path in filter_path.clone() {
                 if !path_regex_match(topic_name.clone(), path.clone()) {
@@ -158,7 +158,7 @@ impl SubscribeCacheManager {
 
                 // exclusive
                 for (key, subscriber) in self.exclusive_subscribe.clone() {
-                    if subscriber.client_id == client_id && subscriber.sub_path == path {
+                    if subscriber.client_id == *client_id && subscriber.sub_path == path {
                         if let Some(sx) = self.exclusive_push_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
@@ -173,7 +173,7 @@ impl SubscribeCacheManager {
                 for (key, data) in self.share_leader_subscribe.clone() {
                     let mut flag = false;
                     for (sub_key, share_sub) in data.sub_list {
-                        if share_sub.client_id == client_id && share_sub.sub_path == path {
+                        if share_sub.client_id == *client_id && share_sub.sub_path == path {
                             let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
                             mut_data.sub_list.remove(&sub_key);
                             flag = true;
@@ -192,7 +192,7 @@ impl SubscribeCacheManager {
 
                 // share follower
                 for (key, data) in self.share_follower_subscribe.clone() {
-                    if data.client_id == client_id && data.filter.path == path {
+                    if data.client_id == *client_id && data.filter.path == path {
                         self.share_follower_subscribe.remove(&key);
                         if let Some(sx) = self.share_follower_resub_thread.get(&key) {
                             match sx.send(true) {

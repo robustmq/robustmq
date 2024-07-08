@@ -104,3 +104,12 @@ fn session_expiry_interval(
     );
     return expiry as u64;
 }
+
+#[cfg(test)]
+mod test {
+
+    #[tokio::test]
+    pub async fn session_build_test() {
+       
+    }
+}

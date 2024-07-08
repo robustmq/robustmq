@@ -2,9 +2,7 @@ use super::{
     cache_manager::CacheManager,
     connection::Connection,
     error::MQTTBrokerError,
-    flow_control::{
-        is_connection_rate_exceeded, is_self_protection_status, is_subscribe_rate_exceeded,
-    },
+    flow_control::{is_connection_rate_exceeded, is_subscribe_rate_exceeded},
     pkid::pkid_exists,
     response_packet::{
         response_packet_matt5_connect_fail, response_packet_matt5_puback_fail,
@@ -28,8 +26,7 @@ use protocol::mqtt::{
     common::{
         Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
         LastWillProperties, Login, MQTTPacket, MQTTProtocol, PubAckReason, PubRecReason, Publish,
-        PublishProperties, QoS, Subscribe, SubscribeProperties, SubscribeReasonCode,
-        UnsubAckReason, Unsubscribe,
+        PublishProperties, QoS, Subscribe, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
     },
 };
 use std::{cmp::min, net::SocketAddr, sync::Arc};
@@ -98,11 +95,11 @@ pub fn connect_validator(
     login: &Option<Login>,
     addr: &SocketAddr,
 ) -> Option<MQTTPacket> {
-    if is_self_protection_status() {
+    if cluster.is_self_protection_status {
         return Some(response_packet_matt5_connect_fail(
             ConnectReturnCode::ServerBusy,
             &connect_properties,
-            None,
+            Some(RobustMQError::ClusterIsInSelfProtection.to_string()),
         ));
     }
 
@@ -494,6 +491,7 @@ pub async fn subscribe_validator(
 }
 
 pub async fn un_subscribe_validator(
+    client_id: &String,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
@@ -552,7 +550,18 @@ pub async fn un_subscribe_validator(
         ));
     }
 
-    
+    for path in un_subscribe.filters.clone() {
+        if let Some(sub_list) = cache_manager.subscribe_filter.get_mut(client_id) {
+            if !sub_list.contains_key(&path) {
+                return Some(response_packet_matt5_unsuback(
+                    &connection,
+                    un_subscribe.pkid,
+                    vec![UnsubAckReason::NoSubscriptionExisted],
+                    Some(RobustMQError::SubscriptionPathNotExists(path).to_string()),
+                ));
+            }
+        }
+    }
 
     return None;
 }
@@ -597,4 +606,10 @@ pub fn password_validator(password: &String) -> bool {
         return false;
     }
     return true;
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    pub fn topic_name_validator_test() {}
 }

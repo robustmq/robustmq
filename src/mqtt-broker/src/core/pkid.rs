@@ -63,10 +63,7 @@ pub async fn pkid_exists(
             }
         }
     } else {
-        return Ok(cache_manager
-            .get_client_pkid(client_id, pkid)
-            .await
-            .is_none());
+        return Ok(cache_manager.get_client_pkid(client_id, pkid).is_none());
     }
 }
 

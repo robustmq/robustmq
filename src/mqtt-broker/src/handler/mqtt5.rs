@@ -172,7 +172,7 @@ where
             heartbeat: now_second(),
         };
         self.cache_manager
-            .report_heartbeat(client_id.clone(), live_time);
+            .report_heartbeat(&client_id, live_time);
 
         self.cache_manager
             .add_session(client_id.clone(), session.clone());
@@ -669,7 +669,7 @@ where
             heartbeat: now_second(),
         };
         self.cache_manager
-            .report_heartbeat(connection.client_id.clone(), live_time);
+            .report_heartbeat(&connection.client_id, live_time);
         return response_packet_ping_resp();
     }
 
@@ -689,6 +689,7 @@ where
         };
 
         if let Some(packet) = un_subscribe_validator(
+            &connection.client_id,
             &self.cache_manager,
             &self.client_poll,
             &connection,
@@ -719,10 +720,10 @@ where
         }
 
         self.sucscribe_cache
-            .remove_subscribe(connection.client_id.clone(), un_subscribe.filters.clone());
+            .remove_subscribe(&connection.client_id, &un_subscribe.filters);
 
         self.cache_manager
-            .remove_filter_by_pkid(connection.client_id.clone(), un_subscribe.filters);
+            .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
         return response_packet_matt5_unsuback(
             &connection,

@@ -167,7 +167,7 @@ pub async fn qos2_send_publish(
     let mut retry_times = 0;
     let mut stop_rx = stop_sx.subscribe();
     loop {
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;
@@ -231,7 +231,7 @@ pub async fn qos2_send_pubrel(
     let mut stop_rx = stop_sx.subscribe();
 
     loop {
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;
@@ -325,7 +325,7 @@ pub async fn publish_message_qos0(
             Err(_) => {}
         }
 
-        if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id.clone()) {
+        if let Some(id) = metadata_cache.get_connect_id(&mqtt_client_id) {
             connect_id = id;
             break;
         } else {

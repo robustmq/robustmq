@@ -351,7 +351,7 @@ pub async fn exclusive_publish_message_qos1(
             Err(_) => {}
         }
 
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id.clone()) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;

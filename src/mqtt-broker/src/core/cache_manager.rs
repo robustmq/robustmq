@@ -164,11 +164,11 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_filter_by_pkid(&self, client_id: String, filters: Vec<String>) {
+    pub fn remove_filter_by_pkid(&self, client_id: &String, filters: &Vec<String>) {
         for path in filters {
-            if let Some(sub_list) = self.subscribe_filter.get_mut(&client_id) {
-                if sub_list.contains_key(&path) {
-                    sub_list.remove(&path);
+            if let Some(sub_list) = self.subscribe_filter.get_mut(client_id) {
+                if sub_list.contains_key(path) {
+                    sub_list.remove(path);
                 }
             }
         }
@@ -343,8 +343,8 @@ impl CacheManager {
         }
     }
 
-    pub fn get_connect_id(&self, client_id: String) -> Option<u64> {
-        if let Some(sess) = self.session_info.get(&client_id) {
+    pub fn get_connect_id(&self, client_id: &String) -> Option<u64> {
+        if let Some(sess) = self.session_info.get(client_id) {
             if let Some(conn_id) = sess.connection_id {
                 return Some(conn_id);
             }
@@ -471,8 +471,8 @@ impl CacheManager {
         }
     }
 
-    pub fn report_heartbeat(&self, client_id: String, live_time: ConnectionLiveTime) {
-        self.heartbeat_data.insert(client_id, live_time);
+    pub fn report_heartbeat(&self, client_id: &String, live_time: ConnectionLiveTime) {
+        self.heartbeat_data.insert(client_id.clone(), live_time);
     }
 
     pub fn remove_heartbeat(&self, client_id: &String) {
@@ -497,7 +497,7 @@ impl CacheManager {
         return None;
     }
 
-    pub async fn add_client_pkid(&self, client_id: &String, pkid: u16) {
+    pub fn add_client_pkid(&self, client_id: &String, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.client_pkid_data.insert(
             key,
@@ -508,12 +508,12 @@ impl CacheManager {
         );
     }
 
-    pub async fn delete_client_pkid(&self, client_id: &String, pkid: u16) {
+    pub fn delete_client_pkid(&self, client_id: &String, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.client_pkid_data.remove(&key);
     }
 
-    pub async fn get_client_pkid(&self, client_id: &String, pkid: u16) -> Option<ClientPkidData> {
+    pub fn get_client_pkid(&self, client_id: &String, pkid: u16) -> Option<ClientPkidData> {
         let key = self.key(client_id, pkid);
         if let Some(data) = self.client_pkid_data.get(&key) {
             return Some(data.clone());
