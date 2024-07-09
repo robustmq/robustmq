@@ -23,7 +23,7 @@ pub struct Connection {
 impl Connection {
     pub fn new(
         connect_id: u64,
-        client_id: String,
+        client_id: &String,
         receive_maximum: u16,
         max_packet_size: u32,
         topic_alias_max: u16,
@@ -32,7 +32,7 @@ impl Connection {
     ) -> Connection {
         let mut conn = Connection::default();
         conn.connect_id = connect_id;
-        conn.client_id = client_id;
+        conn.client_id = client_id.clone();
         conn.login = false;
         conn.keep_alive = keep_alive;
         conn.receive_maximum = receive_maximum;
@@ -102,7 +102,7 @@ pub fn create_connection(
         };
     return Connection::new(
         connect_id,
-        client_id,
+        &client_id,
         receive_maximum,
         max_packet_size,
         topic_alias_max,

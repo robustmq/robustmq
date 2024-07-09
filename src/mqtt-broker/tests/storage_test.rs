@@ -121,7 +121,7 @@ mod tests {
         let mut session = MQTTSession::default();
         session.client_id = client_id.clone();
         session_storage
-            .set_session(client_id.clone(), session)
+            .set_session(&client_id, &session)
             .await
             .unwrap();
 

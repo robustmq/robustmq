@@ -27,7 +27,7 @@ pub async fn build_session(
             Ok(Some(session)) => (session, false),
             Ok(None) => (
                 MQTTSession::new(
-                    client_id.clone(),
+                    &client_id,
                     session_expiry,
                     is_contain_last_will,
                     last_will_delay_interval,
@@ -41,7 +41,7 @@ pub async fn build_session(
     } else {
         (
             MQTTSession::new(
-                client_id.clone(),
+                &client_id,
                 session_expiry,
                 is_contain_last_will,
                 last_will_delay_interval,
@@ -114,11 +114,15 @@ mod test {
     use crate::core::cache_manager::CacheManager;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
+    use metadata_struct::mqtt::session::MQTTSession;
     use protocol::mqtt::common::ConnectProperties;
     use std::sync::Arc;
 
     #[tokio::test]
-    pub async fn build_session_test() {}
+    pub async fn build_session_test() {
+        let client_id = "client_id_test-**".to_string();
+        let session = MQTTSession::new(&client_id, 10, false, None);
+    }
 
     #[test]
     pub fn session_expiry_interval_test() {

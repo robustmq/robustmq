@@ -17,7 +17,7 @@ pub struct MQTTSession {
 
 impl MQTTSession {
     pub fn new(
-        client_id: String,
+        client_id: &String,
         session_expiry: u64,
         is_contain_last_will: bool,
         last_will_delay_interval: Option<u64>,
