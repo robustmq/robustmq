@@ -1,6 +1,6 @@
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
-use crate::core::connection::{create_connection, get_client_id};
+use crate::core::connection::{build_connection, get_client_id};
 use crate::core::lastwill::save_last_will_message;
 use crate::core::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::core::response_packet::{
@@ -113,7 +113,15 @@ where
             }
         }
 
-        let (client_id, new_client_id) = get_client_id(connnect.client_id.clone());
+        let (client_id, new_client_id) = get_client_id(&connnect.client_id);
+
+        let connection = build_connection(
+            connect_id,
+            &client_id,
+            &cluster,
+            &connnect,
+            &connect_properties,
+        );
 
         let (session, new_session) = match build_session(
             connect_id,
@@ -174,14 +182,6 @@ where
                 );
             }
         }
-
-        let connection = create_connection(
-            connect_id,
-            client_id.clone(),
-            &cluster,
-            connnect.clone(),
-            connect_properties.clone(),
-        );
 
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
             protobol: MQTTProtocol::MQTT5,

@@ -1,5 +1,3 @@
-use std::{collections::HashMap, default};
-
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
@@ -219,4 +217,12 @@ pub fn response_packet_matt5_unsuback(
         properties.reason_string = reason_string;
     }
     return MQTTPacket::UnsubAck(unsub_ack, None);
+}
+
+#[cfg(test)]
+mod test {
+    #[tokio::test]
+    pub async fn response_packet_matt5_connect_success_test() {
+
+    }
 }
