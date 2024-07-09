@@ -94,9 +94,7 @@ where
             return res;
         }
 
-        match authentication_login(self.cache_manager.clone(), login, &connect_properties, addr)
-            .await
-        {
+        match authentication_login(&self.cache_manager, &login, &connect_properties, &addr).await {
             Ok(flag) => {
                 if !flag {
                     return response_packet_matt5_connect_fail(
@@ -118,6 +116,7 @@ where
         let (client_id, new_client_id) = get_client_id(connnect.client_id.clone());
 
         let (session, new_session) = match build_session(
+            connect_id,
             &client_id,
             &connnect,
             &connect_properties,

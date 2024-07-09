@@ -9,6 +9,7 @@ use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillPrope
 use std::sync::Arc;
 
 pub async fn build_session(
+    connect_id: u64,
     client_id: &String,
     connnect: &Connect,
     connect_properties: &Option<ConnectProperties>,
@@ -21,7 +22,7 @@ pub async fn build_session(
     let is_contain_last_will = !last_will.is_none();
     let last_will_delay_interval = last_will_delay_interval(&last_will_properties);
 
-    let (session, new_session) = if connnect.clean_session {
+    let (mut session, new_session) = if connnect.clean_session {
         let session_storage = SessionStorage::new(client_poll.clone());
         match session_storage.get_session(client_id.clone()).await {
             Ok(Some(session)) => (session, false),
@@ -50,12 +51,16 @@ pub async fn build_session(
         )
     };
 
+    let conf = broker_mqtt_conf();
+    session.update_connnction_id(Some(connect_id));
+    session.update_broker_id(Some(conf.broker_id));
+    session.update_reconnect_time();
     return Ok((session, new_session));
 }
 
 pub async fn save_session(
     connect_id: u64,
-    mut session: MQTTSession,
+    session: MQTTSession,
     new_session: bool,
     client_id: &String,
     client_poll: &Arc<ClientPool>,
@@ -63,9 +68,6 @@ pub async fn save_session(
     let conf = broker_mqtt_conf();
     let session_storage = SessionStorage::new(client_poll.clone());
     if new_session {
-        session.update_connnction_id(Some(connect_id));
-        session.update_broker_id(Some(conf.broker_id));
-        session.update_reconnect_time();
         match session_storage.set_session(client_id, &session).await {
             Ok(_) => {}
             Err(e) => {
@@ -122,6 +124,15 @@ mod test {
     pub async fn build_session_test() {
         let client_id = "client_id_test-**".to_string();
         let session = MQTTSession::new(&client_id, 10, false, None);
+        assert_eq!(client_id, session.client_id);
+        assert_eq!(10, session.session_expiry);
+        assert!(!session.is_contain_last_will);
+        assert!(session.last_will_delay_interval.is_none());
+        
+        assert!(session.connection_id.is_none());
+        assert!(session.broker_id.is_none());
+        assert!(session.reconnect_time.is_none());
+        assert!(session.distinct_time.is_none());
     }
 
     #[test]
