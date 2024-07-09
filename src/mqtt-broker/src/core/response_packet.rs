@@ -1,5 +1,3 @@
-use std::{collections::HashMap, default};
-
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,

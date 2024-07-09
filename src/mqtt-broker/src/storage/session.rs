@@ -25,8 +25,8 @@ impl SessionStorage {
 
     pub async fn set_session(
         &self,
-        client_id: String,
-        session: MQTTSession,
+        client_id: &String,
+        session: &MQTTSession,
     ) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();
         let request = CreateSessionRequest {
@@ -168,7 +168,7 @@ impl SessionStorage {
 
     pub async fn save_last_will_messae(
         &self,
-        client_id: String,
+        client_id: &String,
         last_will_message: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();

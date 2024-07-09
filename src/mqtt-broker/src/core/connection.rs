@@ -23,7 +23,7 @@ pub struct Connection {
 impl Connection {
     pub fn new(
         connect_id: u64,
-        client_id: String,
+        client_id: &String,
         receive_maximum: u16,
         max_packet_size: u32,
         topic_alias_max: u16,
@@ -32,7 +32,7 @@ impl Connection {
     ) -> Connection {
         let mut conn = Connection::default();
         conn.connect_id = connect_id;
-        conn.client_id = client_id;
+        conn.client_id = client_id.clone();
         conn.login = false;
         conn.keep_alive = keep_alive;
         conn.receive_maximum = receive_maximum;
@@ -52,32 +52,32 @@ impl Connection {
     }
 }
 
-pub fn create_connection(
+pub fn build_connection(
     connect_id: u64,
-    client_id: String,
+    client_id: &String,
     cluster: &MQTTCluster,
-    connect: Connect,
-    connect_properties: Option<ConnectProperties>,
+    connect: &Connect,
+    connect_properties: &Option<ConnectProperties>,
 ) -> Connection {
-    let keep_alive = client_keep_alive(cluster.server_keep_alive(), connect.keep_alive);
+    let keep_alive = std::cmp::min(cluster.server_keep_alive(), connect.keep_alive);
     let (receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let receive_maximum = if let Some(value) = properties.receive_maximum {
-                value
+                std::cmp::min(value, cluster.receive_max())
             } else {
-                u16::MAX
+                cluster.receive_max()
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                value
+                std::cmp::min(value, cluster.max_packet_size())
             } else {
-                u32::MAX
+                cluster.max_packet_size()
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                value
+                std::cmp::min(value, cluster.topic_alias_max())
             } else {
-                u16::MAX
+                cluster.topic_alias_max()
             };
 
             let request_problem_info = if let Some(value) = properties.request_problem_info {
@@ -87,9 +87,9 @@ pub fn create_connection(
             };
 
             (
-                std::cmp::min(receive_maximum, cluster.receive_max()),
-                std::cmp::min(max_packet_size, cluster.max_packet_size()),
-                std::cmp::min(topic_alias_max, cluster.topic_alias_max()),
+                receive_maximum,
+                max_packet_size,
+                topic_alias_max,
                 request_problem_info,
             )
         } else {
@@ -102,7 +102,7 @@ pub fn create_connection(
         };
     return Connection::new(
         connect_id,
-        client_id,
+        &client_id,
         receive_maximum,
         max_packet_size,
         topic_alias_max,
@@ -111,11 +111,7 @@ pub fn create_connection(
     );
 }
 
-pub fn client_keep_alive(server_keep_alive: u16, client_keep_alive: u16) -> u16 {
-    return std::cmp::min(server_keep_alive, client_keep_alive);
-}
-
-pub fn get_client_id(client_id: String) -> (String, bool) {
+pub fn get_client_id(client_id: &String) -> (String, bool) {
     let (client_id, new_client_id) = if client_id.is_empty() {
         (unique_id(), true)
     } else {
@@ -134,4 +130,85 @@ pub fn response_information(connect_properties: &Option<ConnectProperties>) -> O
         }
     }
     return None;
+}
+
+#[cfg(test)]
+mod test {
+    use super::build_connection;
+    use super::get_client_id;
+    use super::response_information;
+    use super::REQUEST_RESPONSE_PREFIX_NAME;
+    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use protocol::mqtt::common::Connect;
+    use protocol::mqtt::common::ConnectProperties;
+
+    #[tokio::test]
+    pub async fn build_connection_test() {
+        let connect_id = 1;
+        let client_id = "client_id-***".to_string();
+        let cluster = MQTTCluster::new();
+        let connect = Connect {
+            keep_alive: 10,
+            client_id: client_id.clone(),
+            clean_session: true,
+        };
+        let connect_properties = ConnectProperties {
+            session_expiry_interval: Some(60),
+            receive_maximum: Some(100),
+            max_packet_size: Some(100),
+            request_problem_info: Some(0),
+            request_response_info: Some(0),
+            topic_alias_max: Some(100),
+            user_properties: Vec::new(),
+            authentication_method: None,
+            authentication_data: None,
+        };
+        let mut conn = build_connection(
+            connect_id,
+            &client_id,
+            &cluster,
+            &connect,
+            &Some(connect_properties),
+        );
+        assert_eq!(conn.connect_id, connect_id);
+        assert_eq!(conn.client_id, client_id);
+        assert!(!conn.login);
+        conn.login_success();
+        assert!(conn.login);
+        assert_eq!(conn.keep_alive, 10);
+        assert_eq!(conn.receive_maximum, 100);
+        assert_eq!(conn.max_packet_size, 100);
+        assert_eq!(conn.topic_alias_max, 100);
+        assert_eq!(conn.request_problem_info, 0);
+    }
+
+    #[tokio::test]
+    pub async fn get_client_id_test() {
+        let client_id = "".to_string();
+        let (new_client_id, is_new) = get_client_id(&client_id);
+        assert!(is_new);
+        assert!(!new_client_id.is_empty());
+
+        let client_id = "client_id-***".to_string();
+        let (new_client_id, is_new) = get_client_id(&client_id);
+        assert!(!is_new);
+        assert_eq!(new_client_id, client_id);
+        assert!(!new_client_id.is_empty());
+    }
+
+    #[tokio::test]
+    pub async fn response_information_test() {
+        let mut connect_properties = ConnectProperties::default();
+        connect_properties.request_response_info = Some(1);
+        let res = response_information(&Some(connect_properties));
+        assert_eq!(res.unwrap(), REQUEST_RESPONSE_PREFIX_NAME.to_string());
+
+        let res = response_information(&Some(ConnectProperties::default()));
+        assert!(res.is_none());
+
+        let mut connect_properties = ConnectProperties::default();
+        connect_properties.request_response_info = Some(0);
+        let res = response_information(&Some(connect_properties));
+        assert!(res.is_none());
+    }
 }

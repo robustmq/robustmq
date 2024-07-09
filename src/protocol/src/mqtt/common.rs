@@ -386,7 +386,7 @@ pub struct LastWill {
 }
 
 /// LastWillProperties can be used in MQTT Version 5
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize,Default)]
 pub struct LastWillProperties {
     pub delay_interval: Option<u32>,
     pub payload_format_indicator: Option<u8>,

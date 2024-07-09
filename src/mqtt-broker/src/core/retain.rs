@@ -222,10 +222,6 @@ pub async fn send_retain_message(
     });
 }
 
-pub fn is_new_sub() -> bool {
-    return true;
-}
-
 pub fn message_expiry_interval(
     cache_manager: &Arc<CacheManager>,
     publish_properties: &Option<PublishProperties>,
@@ -258,7 +254,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
         let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
-        let connect_id = 1;
+
         let mut filters = Vec::new();
         let flt = Filter {
             path: "/test/topic".to_string(),
@@ -276,7 +272,6 @@ mod tests {
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll.clone());
-        let new_sub = true;
 
         let topic_name = "/test/topic".to_string();
         let payload = "testtesttest".to_string();

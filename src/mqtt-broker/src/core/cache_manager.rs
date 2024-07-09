@@ -220,7 +220,10 @@ impl CacheManager {
     }
 
     pub fn get_cluster_info(&self) -> MQTTCluster {
-        return self.cluster_info.get(&self.cluster_name).unwrap().clone();
+        if let Some(cluster) = self.cluster_info.get(&self.cluster_name) {
+            return cluster.clone();
+        }
+        return MQTTCluster::new();
     }
 
     pub fn add_user(&self, user: MQTTUser) {

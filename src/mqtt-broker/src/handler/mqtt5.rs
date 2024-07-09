@@ -1,6 +1,6 @@
 use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
-use crate::core::connection::{create_connection, get_client_id};
+use crate::core::connection::{build_connection, get_client_id};
 use crate::core::lastwill::save_last_will_message;
 use crate::core::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::core::response_packet::{
@@ -12,7 +12,7 @@ use crate::core::response_packet::{
     response_packet_matt5_unsuback, response_packet_matt_distinct, response_packet_ping_resp,
 };
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
-use crate::core::session::save_session;
+use crate::core::session::{build_session, save_session};
 use crate::core::topic::{get_topic_name, try_init_topic};
 use crate::core::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
@@ -94,9 +94,7 @@ where
             return res;
         }
 
-        match authentication_login(self.cache_manager.clone(), login, &connect_properties, addr)
-            .await
-        {
+        match authentication_login(&self.cache_manager, &login, &connect_properties, &addr).await {
             Ok(flag) => {
                 if !flag {
                     return response_packet_matt5_connect_fail(
@@ -115,21 +113,29 @@ where
             }
         }
 
-        let (client_id, new_client_id) = get_client_id(connnect.client_id.clone());
+        let (client_id, new_client_id) = get_client_id(&connnect.client_id);
 
-        let (session, new_session) = match save_session(
+        let connection = build_connection(
             connect_id,
-            client_id.clone(),
-            connnect.clone(),
-            connect_properties.clone(),
-            last_will.clone(),
-            last_will_properties.clone(),
-            self.client_poll.clone(),
-            self.cache_manager.clone(),
+            &client_id,
+            &cluster,
+            &connnect,
+            &connect_properties,
+        );
+
+        let (session, new_session) = match build_session(
+            connect_id,
+            &client_id,
+            &connnect,
+            &connect_properties,
+            &last_will,
+            &last_will_properties,
+            &self.client_poll,
+            &self.cache_manager,
         )
         .await
         {
-            Ok(session) => session,
+            Ok(data) => data,
             Err(e) => {
                 return response_packet_matt5_connect_fail(
                     ConnectReturnCode::MalformedPacket,
@@ -139,11 +145,30 @@ where
             }
         };
 
+        match save_session(
+            connect_id,
+            session.clone(),
+            new_session,
+            &client_id,
+            &self.client_poll,
+        )
+        .await
+        {
+            Ok(()) => {}
+            Err(e) => {
+                return response_packet_matt5_connect_fail(
+                    ConnectReturnCode::MalformedPacket,
+                    &connect_properties,
+                    Some(e.to_string()),
+                );
+            }
+        }
+
         match save_last_will_message(
-            client_id.clone(),
-            last_will.clone(),
-            last_will_properties.clone(),
-            self.client_poll.clone(),
+            &client_id,
+            &last_will,
+            &last_will_properties,
+            &self.client_poll,
         )
         .await
         {
@@ -158,21 +183,12 @@ where
             }
         }
 
-        let connection = create_connection(
-            connect_id,
-            client_id.clone(),
-            &cluster,
-            connnect.clone(),
-            connect_properties.clone(),
-        );
-
         let live_time: ConnectionLiveTime = ConnectionLiveTime {
             protobol: MQTTProtocol::MQTT5,
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager
-            .report_heartbeat(&client_id, live_time);
+        self.cache_manager.report_heartbeat(&client_id, live_time);
 
         self.cache_manager
             .add_session(client_id.clone(), session.clone());
@@ -204,8 +220,6 @@ where
             ));
         };
 
-        let is_puback = publish.qos != QoS::ExactlyOnce;
-
         if let Some(pkg) = publish_validator(
             &self.cache_manager,
             &self.client_poll,
@@ -221,6 +235,8 @@ where
                 return Some(pkg);
             }
         }
+
+        let is_puback = publish.qos != QoS::ExactlyOnce;
 
         let topic_name = match get_topic_name(
             connect_id,

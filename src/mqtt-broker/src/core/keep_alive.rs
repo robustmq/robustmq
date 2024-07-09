@@ -159,10 +159,10 @@ mod test {
 
         let client_id = "clietn-id-123".to_string();
         let connect_id = 1;
-        let session = MQTTSession::new(client_id.clone(), 60, false, None);
+        let session = MQTTSession::new(&client_id, 60, false, None);
         cache_manager.add_session(client_id.clone(), session);
         let start_time = now_second();
-        let connection = Connection::new(1, client_id.clone(), 100, 100, 100, 100, 1);
+        let connection = Connection::new(1, &client_id, 100, 100, 100, 100, 1);
         cache_manager.add_connection(connect_id, connection);
 
         match request_queue_rx.recv().await {
