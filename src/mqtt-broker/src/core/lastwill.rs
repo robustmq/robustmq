@@ -22,7 +22,14 @@ where
         if will.topic.is_empty() || will.message.is_empty() {
             return Ok(());
         }
-        let topic_name = String::from_utf8(will.topic.to_vec()).unwrap();
+
+        let topic_name = match String::from_utf8(will.topic.to_vec()) {
+            Ok(da) => da,
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        };
+
         let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
             tp
         } else {
@@ -52,6 +59,7 @@ where
         } else {
             None
         };
+
         // Persisting retain message data
         match save_topic_retain_message(
             cache_manager,
@@ -89,23 +97,23 @@ where
 }
 
 pub async fn save_last_will_message(
-    client_id: String,
-    last_will: Option<LastWill>,
-    last_will_properties: Option<LastWillProperties>,
-    client_poll: Arc<ClientPool>,
+    client_id: &String,
+    last_will: &Option<LastWill>,
+    last_will_properties: &Option<LastWillProperties>,
+    client_poll: &Arc<ClientPool>,
 ) -> Result<(), RobustMQError> {
     if last_will.is_none() {
         return Ok(());
     }
 
-    let session_storage = SessionStorage::new(client_poll);
+    let session_storage = SessionStorage::new(client_poll.clone());
     let lastwill = LastWillData {
         client_id: client_id.clone(),
-        last_will,
-        last_will_properties,
+        last_will: last_will.clone(),
+        last_will_properties: last_will_properties.clone(),
     };
     return session_storage
-        .save_last_will_messae(client_id, lastwill.encode())
+        .save_last_will_messae(&client_id, lastwill.encode())
         .await;
 }
 
@@ -121,4 +129,25 @@ pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties
     };
 
     return Some(delay_interval as u64);
+}
+
+#[cfg(test)]
+mod test {
+    use super::last_will_delay_interval;
+    use protocol::mqtt::common::LastWillProperties;
+
+    #[tokio::test]
+    pub async fn last_will_delay_interval_test() {
+        let res = last_will_delay_interval(&None);
+        assert!(res.is_none());
+
+        let last_will_properties = LastWillProperties::default();
+        let res = last_will_delay_interval(&Some(last_will_properties));
+        assert!(res.is_none());
+
+        let mut last_will_properties = LastWillProperties::default();
+        last_will_properties.delay_interval = Some(10);
+        let res = last_will_delay_interval(&Some(last_will_properties));
+        assert_eq!(res.unwrap(), 10);
+    }
 }

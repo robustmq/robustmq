@@ -165,10 +165,10 @@ where
         }
 
         match save_last_will_message(
-            client_id.clone(),
-            last_will.clone(),
-            last_will_properties.clone(),
-            self.client_poll.clone(),
+            &client_id,
+            &last_will,
+            &last_will_properties,
+            &self.client_poll,
         )
         .await
         {
@@ -220,8 +220,6 @@ where
             ));
         };
 
-        let is_puback = publish.qos != QoS::ExactlyOnce;
-
         if let Some(pkg) = publish_validator(
             &self.cache_manager,
             &self.client_poll,
@@ -237,6 +235,8 @@ where
                 return Some(pkg);
             }
         }
+
+        let is_puback = publish.qos != QoS::ExactlyOnce;
 
         let topic_name = match get_topic_name(
             connect_id,

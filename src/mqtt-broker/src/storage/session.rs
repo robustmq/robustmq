@@ -168,7 +168,7 @@ impl SessionStorage {
 
     pub async fn save_last_will_messae(
         &self,
-        client_id: String,
+        client_id: &String,
         last_will_message: Vec<u8>,
     ) -> Result<(), RobustMQError> {
         let config = broker_mqtt_conf();

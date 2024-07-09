@@ -218,11 +218,3 @@ pub fn response_packet_matt5_unsuback(
     }
     return MQTTPacket::UnsubAck(unsub_ack, None);
 }
-
-#[cfg(test)]
-mod test {
-    #[tokio::test]
-    pub async fn response_packet_matt5_connect_success_test() {
-
-    }
-}
