@@ -479,7 +479,6 @@ mod tests {
 
     #[tokio::test]
     async fn get_sub_topic_list_test() {
-        let storage_adapter = Arc::new(MemoryStorageAdapter::new());
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
