@@ -490,3 +490,6 @@ pub async fn exclusive_publish_message_qos2(
     }
     return Ok(());
 }
+#[cfg(test)]
+mod test {
+}
