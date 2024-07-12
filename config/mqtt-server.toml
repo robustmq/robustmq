@@ -19,10 +19,10 @@ server = ["127.0.0.1:1228"]
 
 [mqtt]
 tcp_port = 1883
-tcps_port = 1883
+tcps_port = 1884
 websocket_port = 8083
 websockets_port = 8084
-quic_port = 8883
+quic_port = 9083
 
 [system]
 system_user = "admin"

@@ -24,3 +24,4 @@ clients.workspace = true
 metadata-struct.workspace = true
 regex.workspace = true
 placement-center.workspace = true
+tokio-native-tls = "0.3.1"

@@ -94,6 +94,24 @@ where
         self.wait_stop_server().await;
     }
 
+    pub async fn start_tls(&self, port: u32) {
+        let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
+            Ok(tl) => tl,
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
+        };
+        let arc_listener = Arc::new(listener);
+
+        for i in 1..=self.accept_thread_num {
+            self.acceptor(arc_listener.clone(), i).await;
+        }
+
+        self.handler_process().await;
+        self.response_process().await;
+        self.wait_stop_server().await;
+    }
+
     async fn acceptor(&self, listener: Arc<TcpListener>, index: usize) {
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
