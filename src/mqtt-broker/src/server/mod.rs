@@ -57,6 +57,12 @@ pub async fn start_tcp_server<S>(
         "MQTT TCP Server started successfully, listening port: {}",
         conf.mqtt.tcp_port
     ));
+
+    server.start_tls(conf.mqtt.tcp_port).await;
+    info(format!(
+        "MQTT TCP Server started successfully, listening port: {}",
+        conf.mqtt.tcp_port
+    ));
 }
 
 pub async fn start_tcp_ssl_server() {}
