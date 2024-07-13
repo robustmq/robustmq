@@ -34,6 +34,18 @@ pub enum MQTTProtocol {
     MQTT5,
 }
 
+impl MQTTProtocol {
+    pub fn is_mqtt3(&self) -> bool {
+        MQTTProtocol::MQTT3.eq(&self)
+    }
+    pub fn is_mqtt4(&self) -> bool {
+        MQTTProtocol::MQTT4.eq(&self)
+    }
+    pub fn is_mqtt5(&self) -> bool {
+        MQTTProtocol::MQTT5.eq(&self)
+    }
+}
+
 impl From<MQTTProtocol> for String {
     fn from(protocol: MQTTProtocol) -> Self {
         match protocol {
@@ -386,7 +398,7 @@ pub struct LastWill {
 }
 
 /// LastWillProperties can be used in MQTT Version 5
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize,Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct LastWillProperties {
     pub delay_interval: Option<u32>,
     pub payload_format_indicator: Option<u8>,
@@ -976,7 +988,7 @@ pub struct UnsubAckProperties {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Disconnect {
     /// Disconnect reason code which will be only used in MQTT V5
-    pub reason_code: DisconnectReasonCode,
+    pub reason_code: Option<DisconnectReasonCode>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

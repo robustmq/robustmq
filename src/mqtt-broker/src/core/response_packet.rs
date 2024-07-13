@@ -1,10 +1,11 @@
+use common_base::log::error;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
-    DisconnectProperties, DisconnectReasonCode, MQTTPacket, PingResp, PubAck, PubAckProperties,
-    PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec, PubRecProperties,
-    PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck, SubAckProperties,
-    SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
+    DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol, PingResp, PubAck,
+    PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
+    PubRecProperties, PubRecReason, PubRel, PubRelProperties, PubRelReason, SubAck,
+    SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 
 use super::{
@@ -12,7 +13,8 @@ use super::{
     validator::is_request_problem_info,
 };
 
-pub fn response_packet_matt5_connect_success(
+pub fn response_packet_matt_connect_success(
+    protocol: MQTTProtocol,
     cluster: &MQTTCluster,
     client_id: String,
     auto_client_id: bool,
@@ -20,6 +22,16 @@ pub fn response_packet_matt5_connect_success(
     session_present: bool,
     connect_properties: &Option<ConnectProperties>,
 ) -> MQTTPacket {
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::ConnAck(
+            ConnAck {
+                session_present,
+                code: ConnectReturnCode::Success,
+            },
+            None,
+        );
+    }
+
     let assigned_client_identifier = if auto_client_id {
         Some(client_id)
     } else {
@@ -54,14 +66,34 @@ pub fn response_packet_matt5_connect_success(
     );
 }
 
-pub fn response_packet_matt5_connect_fail(
+pub fn response_packet_matt_connect_fail(
+    protocol: &MQTTProtocol,
     code: ConnectReturnCode,
     connect_properties: &Option<ConnectProperties>,
-    error: Option<String>,
+    error_reason: Option<String>,
 ) -> MQTTPacket {
+    error(format!("protocaol:{:?}, {:?}", protocol, error_reason));
+    if !protocol.is_mqtt5() {
+        let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
+            ConnectReturnCode::BadClientId
+        } else if code == ConnectReturnCode::ProtocolError {
+            ConnectReturnCode::RefusedProtocolVersion
+        } else if code == ConnectReturnCode::Success && code == ConnectReturnCode::NotAuthorized {
+            code
+        } else {
+            ConnectReturnCode::ServiceUnavailable
+        };
+        return MQTTPacket::ConnAck(
+            ConnAck {
+                session_present: false,
+                code: new_code,
+            },
+            None,
+        );
+    }
     let mut ack_properties = ConnAckProperties::default();
     if is_request_problem_info(connect_properties) {
-        ack_properties.reason_string = error;
+        ack_properties.reason_string = error_reason;
     }
     return MQTTPacket::ConnAck(
         ConnAck {
@@ -72,21 +104,15 @@ pub fn response_packet_matt5_connect_fail(
     );
 }
 
-pub fn response_packet_matt5_connect_fail_by_code(code: ConnectReturnCode) -> MQTTPacket {
-    return MQTTPacket::ConnAck(
-        ConnAck {
-            session_present: false,
-            code,
-        },
-        None,
-    );
-}
-
-pub fn response_packet_matt5_distinct(
-    code: DisconnectReasonCode,
+pub fn response_packet_matt_distinct(
+    protocol: MQTTProtocol,
+    code: Option<DisconnectReasonCode>,
     connection: &Connection,
     reason_string: Option<String>,
 ) -> MQTTPacket {
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::Disconnect(Disconnect { reason_code: None }, None);
+    }
     let mut properteis = DisconnectProperties::default();
     if connection.is_response_proplem_info() {
         properteis.reason_string = reason_string;
@@ -95,13 +121,18 @@ pub fn response_packet_matt5_distinct(
     return MQTTPacket::Disconnect(Disconnect { reason_code: code }, None);
 }
 
-pub fn response_packet_matt_distinct(
-    code: DisconnectReasonCode,
-    reason_string: Option<String>,
+pub fn response_packet_matt_distinct_by_reason(
+    protocol: MQTTProtocol,
+    code: Option<DisconnectReasonCode>,
 ) -> MQTTPacket {
-    let mut properteis = DisconnectProperties::default();
-    properteis.reason_string = reason_string;
-    return MQTTPacket::Disconnect(Disconnect { reason_code: code }, None);
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::Disconnect(Disconnect { reason_code: None }, None);
+    }
+
+    return MQTTPacket::Disconnect(
+        Disconnect { reason_code: code },
+        Some(DisconnectProperties::default()),
+    );
 }
 
 pub fn response_packet_matt5_puback_success(
@@ -118,11 +149,18 @@ pub fn response_packet_matt5_puback_success(
 }
 
 pub fn response_packet_matt5_puback_fail(
+    protocol: &MQTTProtocol,
     connection: &Connection,
     pkid: u16,
     reason: PubAckReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
+    
+    if protocol.is_mqtt5() {
+        let pub_ack = PubAck { pkid: 0, reason };
+        return MQTTPacket::PubAck(pub_ack, None);
+    }
+
     let pub_ack = PubAck { pkid: 0, reason };
     let mut properties = PubAckProperties::default();
     if connection.is_response_proplem_info() {

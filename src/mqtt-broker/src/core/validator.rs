@@ -5,9 +5,9 @@ use super::{
     flow_control::{is_connection_rate_exceeded, is_subscribe_rate_exceeded},
     pkid::pkid_exists,
     response_packet::{
-        response_packet_matt5_connect_fail, response_packet_matt5_puback_fail,
-        response_packet_matt5_pubrec_fail, response_packet_matt5_suback,
-        response_packet_matt5_unsuback, response_packet_matt_distinct,
+        response_packet_matt5_puback_fail, response_packet_matt5_pubrec_fail,
+        response_packet_matt5_suback, response_packet_matt5_unsuback,
+        response_packet_matt_connect_fail, response_packet_matt_distinct_by_reason,
     },
     topic::topic_name_validator,
 };
@@ -40,7 +40,10 @@ pub async fn establish_connection_check(
     if connection_manager.connect_num_check() {
         let packet_wrapper = MQTTPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
-            packet: response_packet_matt_distinct(DisconnectReasonCode::QuotaExceeded, None),
+            packet: response_packet_matt_distinct_by_reason(
+                MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::QuotaExceeded),
+            ),
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
@@ -62,9 +65,9 @@ pub async fn establish_connection_check(
     if is_connection_rate_exceeded() {
         let packet_wrapper = MQTTPacketWrapper {
             protocol_version: MQTTProtocol::MQTT4.into(),
-            packet: response_packet_matt_distinct(
-                DisconnectReasonCode::ConnectionRateExceeded,
-                None,
+            packet: response_packet_matt_distinct_by_reason(
+                MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::ConnectionRateExceeded),
             ),
         };
         match write_frame_stream.send(packet_wrapper).await {
@@ -87,6 +90,7 @@ pub async fn establish_connection_check(
 }
 
 pub fn connect_validator(
+    protocol: &MQTTProtocol,
     cluster: &MQTTCluster,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
@@ -96,7 +100,8 @@ pub fn connect_validator(
     addr: &SocketAddr,
 ) -> Option<MQTTPacket> {
     if cluster.is_self_protection_status {
-        return Some(response_packet_matt5_connect_fail(
+        return Some(response_packet_matt_connect_fail(
+            protocol,
             ConnectReturnCode::ServerBusy,
             &connect_properties,
             Some(RobustMQError::ClusterIsInSelfProtection.to_string()),
@@ -104,7 +109,8 @@ pub fn connect_validator(
     }
 
     if is_ip_blacklist(addr) {
-        return Some(response_packet_matt5_connect_fail(
+        return Some(response_packet_matt_connect_fail(
+            protocol,
             ConnectReturnCode::Banned,
             &connect_properties,
             None,
@@ -112,7 +118,8 @@ pub fn connect_validator(
     }
 
     if !connect.client_id.is_empty() && !client_id_validator(&connect.client_id) {
-        return Some(response_packet_matt5_connect_fail(
+        return Some(response_packet_matt_connect_fail(
+            protocol,
             ConnectReturnCode::ClientIdentifierNotValid,
             connect_properties,
             None,
@@ -121,7 +128,8 @@ pub fn connect_validator(
 
     if let Some(login_info) = login {
         if !username_validator(&login_info.username) || !password_validator(&login_info.password) {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_matt_connect_fail(
+                protocol,
                 ConnectReturnCode::BadUserNamePassword,
                 connect_properties,
                 None,
@@ -131,7 +139,8 @@ pub fn connect_validator(
 
     if let Some(will) = last_will {
         if will.topic.is_empty() {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_matt_connect_fail(
+                protocol,
                 ConnectReturnCode::TopicNameInvalid,
                 connect_properties,
                 None,
@@ -141,7 +150,8 @@ pub fn connect_validator(
         let topic_name = match String::from_utf8(will.topic.to_vec()) {
             Ok(da) => da,
             Err(e) => {
-                return Some(response_packet_matt5_connect_fail(
+                return Some(response_packet_matt_connect_fail(
+                    protocol,
                     ConnectReturnCode::TopicNameInvalid,
                     connect_properties,
                     Some(e.to_string()),
@@ -152,7 +162,8 @@ pub fn connect_validator(
         match topic_name_validator(&topic_name) {
             Ok(()) => {}
             Err(e) => {
-                Some(response_packet_matt5_connect_fail(
+                Some(response_packet_matt_connect_fail(
+                    protocol,
                     ConnectReturnCode::TopicNameInvalid,
                     connect_properties,
                     Some(e.to_string()),
@@ -161,7 +172,8 @@ pub fn connect_validator(
         }
 
         if will.message.is_empty() {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_matt_connect_fail(
+                protocol,
                 ConnectReturnCode::PayloadFormatInvalid,
                 connect_properties,
                 None,
@@ -170,7 +182,8 @@ pub fn connect_validator(
 
         let max_packet_size = connection_max_packet_size(connect_properties, cluster) as usize;
         if will.message.len() > max_packet_size {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_matt_connect_fail(
+                protocol,
                 ConnectReturnCode::PacketTooLarge,
                 connect_properties,
                 None,
@@ -181,7 +194,8 @@ pub fn connect_validator(
             if let Some(payload_format) = will_properties.payload_format_indicator {
                 if payload_format == 1 {
                     if !std::str::from_utf8(&will.message.to_vec().as_slice()).is_ok() {
-                        return Some(response_packet_matt5_connect_fail(
+                        return Some(response_packet_matt_connect_fail(
+                            protocol,
                             ConnectReturnCode::PayloadFormatInvalid,
                             connect_properties,
                             None,

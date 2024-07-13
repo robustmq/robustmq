@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
- use super::*;
+use super::*;
 
- fn len(disconnect: &Disconnect, properties: &Option<DisconnectProperties>) -> usize {
-    if disconnect.reason_code == DisconnectReasonCode::NormalDisconnection && properties.is_none() {
+fn len(disconnect: &Disconnect, properties: &Option<DisconnectProperties>) -> usize {
+    if disconnect.reason_code.is_none() {
+        return 0;
+    }
+    if disconnect.reason_code.unwrap() == DisconnectReasonCode::NormalDisconnection
+        && properties.is_none()
+    {
         return 2; // packet type + 0x00
     }
 
@@ -27,43 +32,43 @@
         let properties_len = properties::len(properties);
         let properties_len_len = len_len(properties_len);
         length += properties_len_len + properties_len;
-    }
-    else {
-        length += 1; 
+    } else {
+        length += 1;
     }
     length
- }
+}
 
- pub fn write(
+pub fn write(
     disconnect: &Disconnect,
     properties: &Option<DisconnectProperties>,
     buffer: &mut BytesMut,
- ) -> Result<usize, Error> {
+) -> Result<usize, Error> {
     buffer.put_u8(0xE0);
 
     let length = len(disconnect, properties);
-
+    if length == 0 {
+        return Ok(0);
+    }
     if length == 2 {
         buffer.put_u8(0x00);
         return Ok(length);
     }
 
     let len_len = write_remaining_length(buffer, length)?;
-    buffer.put_u8(code(disconnect.reason_code));
+    buffer.put_u8(code(disconnect.reason_code.unwrap()));
 
     if let Some(properties) = &properties {
         properties::write(properties, buffer)?;
-    }
-    else {
+    } else {
         write_remaining_length(buffer, 0)?;
     }
-    Ok( 1 + len_len + length)
- }
+    Ok(1 + len_len + length)
+}
 
- pub fn read(
+pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
- ) -> Result<(Disconnect, Option<DisconnectProperties>), Error> {
+) -> Result<(Disconnect, Option<DisconnectProperties>), Error> {
     let packet_type = fixed_header.byte1 >> 4;
     let flags = fixed_header.byte1 & 0b0000_1111;
 
@@ -80,7 +85,7 @@
     if fixed_header.remaining_len == 0 {
         return Ok((
             Disconnect {
-                reason_code: DisconnectReasonCode::NormalDisconnection,
+                reason_code: Some(DisconnectReasonCode::NormalDisconnection),
             },
             None,
         ));
@@ -89,17 +94,17 @@
     let reason_code = read_u8(&mut bytes)?;
 
     let disconnect = Disconnect {
-        reason_code: reason(reason_code)?,
+        reason_code: Some(reason(reason_code)?),
     };
     let properties = properties::read(&mut bytes)?;
 
     Ok((disconnect, properties))
- }
+}
 
- mod properties {
+mod properties {
     use super::*;
 
-    pub fn len(properties: &DisconnectProperties) -> usize{
+    pub fn len(properties: &DisconnectProperties) -> usize {
         let mut length = 0;
 
         if properties.session_expiry_interval.is_some() {
@@ -203,10 +208,9 @@
 
         Ok(Some(properties))
     }
- }
+}
 
-
- fn code(reason: DisconnectReasonCode) -> u8 {
+fn code(reason: DisconnectReasonCode) -> u8 {
     match reason {
         DisconnectReasonCode::NormalDisconnection => 0x00,
         DisconnectReasonCode::DisconnectWithWillMessage => 0x04,
@@ -239,7 +243,6 @@
         DisconnectReasonCode::WildcardSubscriptionsNotSupported => 0xA2,
     }
 }
-
 
 fn reason(code: u8) -> Result<DisconnectReasonCode, Error> {
     let v = match code {
@@ -290,7 +293,7 @@ mod test {
             0x00, // Remaining length
         ];
         let expected = Disconnect {
-            reason_code: DisconnectReasonCode::NormalDisconnection,
+            reason_code: Some(DisconnectReasonCode::NormalDisconnection),
         };
 
         buffer.extend_from_slice(&packet_bytes[..]);
@@ -306,7 +309,7 @@ mod test {
     fn disconnect1_encoding_works() {
         let mut buffer = BytesMut::new();
         let disconnect = Disconnect {
-            reason_code: DisconnectReasonCode::NormalDisconnection,
+            reason_code: Some(DisconnectReasonCode::NormalDisconnection),
         };
         let expected = [
             0xE0, // Packet type
@@ -329,7 +332,7 @@ mod test {
 
         (
             Disconnect {
-                reason_code: DisconnectReasonCode::UnspecifiedError,
+                reason_code: Some(DisconnectReasonCode::UnspecifiedError),
             },
             Some(properties),
         )

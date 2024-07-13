@@ -4,12 +4,13 @@ use crate::core::connection::{build_connection, get_client_id};
 use crate::core::lastwill::save_last_will_message;
 use crate::core::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::core::response_packet::{
-    response_packet_matt5_connect_fail, response_packet_matt5_connect_success,
     response_packet_matt5_puback_fail, response_packet_matt5_puback_success,
     response_packet_matt5_pubcomp_fail, response_packet_matt5_pubcomp_success,
     response_packet_matt5_pubrec_fail, response_packet_matt5_pubrec_success,
     response_packet_matt5_pubrel_success, response_packet_matt5_suback,
-    response_packet_matt5_unsuback, response_packet_matt_distinct, response_packet_ping_resp,
+    response_packet_matt5_unsuback, response_packet_matt_connect_fail,
+    response_packet_matt_connect_success, response_packet_matt_distinct,
+    response_packet_matt_distinct_by_reason, response_packet_ping_resp,
 };
 use crate::core::retain::{save_topic_retain_message, send_retain_message};
 use crate::core::session::{build_session, save_session};
@@ -83,6 +84,7 @@ where
             self.cache_manager.get_cluster_info();
 
         if let Some(res) = connect_validator(
+            &MQTTProtocol::MQTT5,
             &cluster,
             &connnect,
             &connect_properties,
@@ -97,7 +99,8 @@ where
         match authentication_login(&self.cache_manager, &login, &connect_properties, &addr).await {
             Ok(flag) => {
                 if !flag {
-                    return response_packet_matt5_connect_fail(
+                    return response_packet_matt_connect_fail(
+                        &MQTTProtocol::MQTT5,
                         ConnectReturnCode::NotAuthorized,
                         &connect_properties,
                         None,
@@ -105,7 +108,8 @@ where
                 }
             }
             Err(e) => {
-                return response_packet_matt5_connect_fail(
+                return response_packet_matt_connect_fail(
+                    &MQTTProtocol::MQTT5,
                     ConnectReturnCode::UnspecifiedError,
                     &connect_properties,
                     Some(e.to_string()),
@@ -137,7 +141,8 @@ where
         {
             Ok(data) => data,
             Err(e) => {
-                return response_packet_matt5_connect_fail(
+                return response_packet_matt_connect_fail(
+                    &MQTTProtocol::MQTT5,
                     ConnectReturnCode::MalformedPacket,
                     &connect_properties,
                     Some(e.to_string()),
@@ -156,7 +161,8 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return response_packet_matt5_connect_fail(
+                return response_packet_matt_connect_fail(
+                    &MQTTProtocol::MQTT5,
                     ConnectReturnCode::MalformedPacket,
                     &connect_properties,
                     Some(e.to_string()),
@@ -174,8 +180,8 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                error(e.to_string());
-                return response_packet_matt5_connect_fail(
+                return response_packet_matt_connect_fail(
+                    &MQTTProtocol::MQTT5,
                     ConnectReturnCode::UnspecifiedError,
                     &connect_properties,
                     Some(e.to_string()),
@@ -183,7 +189,7 @@ where
             }
         }
 
-        let live_time: ConnectionLiveTime = ConnectionLiveTime {
+        let live_time = ConnectionLiveTime {
             protobol: MQTTProtocol::MQTT5,
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
@@ -195,7 +201,8 @@ where
         self.cache_manager
             .add_connection(connect_id, connection.clone());
 
-        return response_packet_matt5_connect_success(
+        return response_packet_matt_connect_success(
+            MQTTProtocol::MQTT5,
             &cluster,
             client_id.clone(),
             new_client_id,
@@ -214,9 +221,9 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return Some(response_packet_matt_distinct(
-                DisconnectReasonCode::MaximumConnectTime,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            return Some(response_packet_matt_distinct_by_reason(
+                MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::MaximumConnectTime),
             ));
         };
 
@@ -517,9 +524,9 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct(
-                DisconnectReasonCode::MaximumConnectTime,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            return response_packet_matt_distinct_by_reason(
+                MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
 
@@ -584,9 +591,9 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct(
-                DisconnectReasonCode::MaximumConnectTime,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            return response_packet_matt_distinct_by_reason(
+                MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
 
@@ -673,9 +680,9 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct(
-                DisconnectReasonCode::MaximumConnectTime,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            return response_packet_matt_distinct_by_reason(
+                MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
 
@@ -698,9 +705,9 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct(
-                DisconnectReasonCode::MaximumConnectTime,
-                Some(RobustMQError::NotFoundConnectionInCache(connect_id).to_string()),
+            return response_packet_matt_distinct_by_reason(
+                MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
 
@@ -773,14 +780,18 @@ where
             Ok(_) => {}
             Err(e) => {
                 return Some(response_packet_matt_distinct(
-                    DisconnectReasonCode::MaximumConnectTime,
+                    MQTTProtocol::MQTT5,
+                    Some(DisconnectReasonCode::MaximumConnectTime),
+                    &connection,
                     Some(e.to_string()),
                 ));
             }
         }
 
         return Some(response_packet_matt_distinct(
-            DisconnectReasonCode::NormalDisconnection,
+            MQTTProtocol::MQTT5,
+            Some(DisconnectReasonCode::MaximumConnectTime),
+            &connection,
             None,
         ));
     }

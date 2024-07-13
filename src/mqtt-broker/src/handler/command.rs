@@ -1,9 +1,11 @@
 use super::mqtt3::Mqtt3Service;
 use super::mqtt4::Mqtt4Service;
 use super::mqtt5::Mqtt5Service;
-use crate::core::cache_manager::CacheManager;
 use crate::core::response_packet::{
-    response_packet_matt5_connect_fail_by_code, response_packet_matt_distinct,
+    response_packet_matt_distinct, response_packet_matt_distinct_by_reason,
+};
+use crate::core::{
+    cache_manager::CacheManager, response_packet::response_packet_matt_connect_fail,
 };
 use crate::server::tcp::connection::TCPConnection;
 use crate::server::tcp::connection_manager::ConnectionManager;
@@ -11,7 +13,7 @@ use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
-use protocol::mqtt::common::{ConnectReturnCode, MQTTPacket};
+use protocol::mqtt::common::{ConnectReturnCode, DisconnectReasonCode, MQTTPacket, MQTTProtocol};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
@@ -39,7 +41,7 @@ where
         client_poll: Arc<ClientPool>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        let mqtt4_service = Mqtt4Service::new(cache_manager.clone());
+        let mqtt4_service = Mqtt4Service::new(client_poll.clone(), cache_manager.clone());
         let mqtt5_service = Mqtt5Service::new(
             cache_manager.clone(),
             message_storage_adapter.clone(),
@@ -81,9 +83,17 @@ where
                         .connect(connect.clone(), last_will.clone(), login.clone())
                         .await
                 } else if protocol_version == 4 {
-                    self.mqtt4_service
-                        .connect(connect.clone(), last_will.clone(), login.clone())
-                        .await
+                    Some(
+                        self.mqtt4_service
+                            .connect(
+                                tcp_connection.connection_id,
+                                connect,
+                                last_will,
+                                login,
+                                addr,
+                            )
+                            .await,
+                    )
                 } else if protocol_version == 5 {
                     Some(
                         self.mqtt5_service
@@ -99,8 +109,11 @@ where
                             .await,
                     )
                 } else {
-                    return Some(response_packet_matt5_connect_fail_by_code(
+                    return Some(response_packet_matt_connect_fail(
+                        &MQTTProtocol::MQTT4,
                         ConnectReturnCode::UnsupportedProtocolVersion,
+                        &None,
+                        None,
                     ));
                 };
 
@@ -296,7 +309,10 @@ where
                 }
 
                 if tcp_connection.is_mqtt4() {
-                    return self.mqtt4_service.disconnect(disconnect);
+                    return self
+                        .mqtt4_service
+                        .disconnect(tcp_connection.connection_id, disconnect)
+                        .await;
                 }
 
                 if tcp_connection.is_mqtt5() {
@@ -312,21 +328,27 @@ where
             }
 
             _ => {
-                return Some(response_packet_matt5_connect_fail_by_code(
+                return Some(response_packet_matt_connect_fail(
+                    &MQTTProtocol::MQTT4,
                     ConnectReturnCode::MalformedPacket,
+                    &None,
+                    None,
                 ));
             }
         }
-        return Some(response_packet_matt5_connect_fail_by_code(
+        return Some(response_packet_matt_connect_fail(
+            &MQTTProtocol::MQTT4,
             ConnectReturnCode::UnsupportedProtocolVersion,
+            &None,
+            None,
         ));
     }
 
     fn un_login_err(&self, connection_id: u64) -> MQTTPacket {
         info(format!("connect id [{}] Not logged in", connection_id));
-        return response_packet_matt_distinct(
-            protocol::mqtt::common::DisconnectReasonCode::NotAuthorized,
-            None,
+        return response_packet_matt_distinct_by_reason(
+            MQTTProtocol::MQTT5,
+            Some(DisconnectReasonCode::NotAuthorized),
         );
     }
 

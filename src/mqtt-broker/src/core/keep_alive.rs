@@ -60,8 +60,14 @@ impl ClientKeepAlive {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
                 let max_timeout = keep_live_time(time.keep_live);
                 if (now_second() - time.heartbeat) > max_timeout {
-                    let disconnect = Disconnect {
-                        reason_code: DisconnectReasonCode::KeepAliveTimeout,
+                    let disconnect = if time.protobol == MQTTProtocol::MQTT4
+                        || time.protobol == MQTTProtocol::MQTT3
+                    {
+                        Disconnect {
+                            reason_code: Some(DisconnectReasonCode::KeepAliveTimeout),
+                        }
+                    } else {
+                        Disconnect { reason_code: None }
                     };
 
                     let response = if time.protobol == MQTTProtocol::MQTT4
