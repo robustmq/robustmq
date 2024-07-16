@@ -1,14 +1,10 @@
 use crate::handler::cache_manager::CacheManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
-use axum::extract::ws::WebSocket;
+use axum::extract::ws::{Message, WebSocket};
 use axum::extract::WebSocketUpgrade;
 use axum::Router;
 use axum::{response::Response, routing::get};
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
-use futures_util::{
-    sink::SinkExt,
-    stream::{SplitSink, SplitStream, StreamExt},
-};
 use std::{net::SocketAddr, sync::Arc};
 
 pub const ROUTE_ROOT: &str = "/mqtt";
@@ -53,20 +49,19 @@ fn routes_v1(state: WebSocketServerState) -> Router {
 }
 
 async fn handler(ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(handle_socket)
+    ws.protocols(["mqttv3.1"]).on_upgrade(handle_socket)
 }
 
 async fn handle_socket(mut socket: WebSocket) {
     // let (mut sender, mut receiver) = socket.split();
     while let Some(msg) = socket.recv().await {
-        let msg = if let Ok(msg) = msg {
-            msg
-        } else {
-            // client disconnected
-            return;
-        };
+        info(format!("xxxxx:{:?}", msg));
 
-        if socket.send(msg).await.is_err() {
+        if socket
+            .send(Message::Text("test".to_string()))
+            .await
+            .is_err()
+        {
             // client disconnected
             return;
         }
