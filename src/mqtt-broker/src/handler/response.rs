@@ -13,8 +13,8 @@ use super::{
     validator::is_request_problem_info,
 };
 
-pub fn response_packet_matt_connect_success(
-    protocol: MQTTProtocol,
+pub fn response_packet_mqtt_connect_success(
+    protocol: &MQTTProtocol,
     cluster: &MQTTCluster,
     client_id: String,
     auto_client_id: bool,
@@ -44,7 +44,7 @@ pub fn response_packet_matt_connect_success(
         max_qos: Some(cluster.max_qos().into()),
         retain_available: Some(cluster.retain_available()),
         max_packet_size: Some(cluster.max_packet_size()),
-        assigned_client_identifier: assigned_client_identifier,
+        assigned_client_identifier,
         topic_alias_max: Some(cluster.topic_alias_max()),
         reason_string: None,
         user_properties: Vec::new(),
@@ -66,13 +66,12 @@ pub fn response_packet_matt_connect_success(
     );
 }
 
-pub fn response_packet_matt_connect_fail(
+pub fn response_packet_mqtt_connect_fail(
     protocol: &MQTTProtocol,
     code: ConnectReturnCode,
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MQTTPacket {
-    error(format!("protocaol:{:?}, {:?}", protocol, error_reason));
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
             ConnectReturnCode::BadClientId
@@ -91,21 +90,21 @@ pub fn response_packet_matt_connect_fail(
             None,
         );
     }
-    let mut ack_properties = ConnAckProperties::default();
+    let mut properties = ConnAckProperties::default();
     if is_request_problem_info(connect_properties) {
-        ack_properties.reason_string = error_reason;
+        properties.reason_string = error_reason;
     }
     return MQTTPacket::ConnAck(
         ConnAck {
             session_present: false,
             code,
         },
-        Some(ack_properties),
+        Some(properties),
     );
 }
 
-pub fn response_packet_matt_distinct(
-    protocol: MQTTProtocol,
+pub fn response_packet_mqtt_distinct(
+    protocol: &MQTTProtocol,
     code: Option<DisconnectReasonCode>,
     connection: &Connection,
     reason_string: Option<String>,
@@ -121,8 +120,8 @@ pub fn response_packet_matt_distinct(
     return MQTTPacket::Disconnect(Disconnect { reason_code: code }, None);
 }
 
-pub fn response_packet_matt_distinct_by_reason(
-    protocol: MQTTProtocol,
+pub fn response_packet_mqtt_distinct_by_reason(
+    protocol: &MQTTProtocol,
     code: Option<DisconnectReasonCode>,
 ) -> MQTTPacket {
     if !protocol.is_mqtt5() {
@@ -135,12 +134,21 @@ pub fn response_packet_matt_distinct_by_reason(
     );
 }
 
-pub fn response_packet_matt5_puback_success(
+pub fn response_packet_mqtt_puback_success(
+    protocol: &MQTTProtocol,
     reason: PubAckReason,
     pkid: u16,
     user_properties: Vec<(String, String)>,
 ) -> MQTTPacket {
-    let pub_ack = PubAck { pkid, reason };
+    if !protocol.is_mqtt5() {
+        let pub_ack = PubAck { pkid, reason: None };
+        return MQTTPacket::PubAck(pub_ack, None);
+    }
+
+    let pub_ack = PubAck {
+        pkid,
+        reason: Some(reason),
+    };
     let properties = Some(PubAckProperties {
         reason_string: None,
         user_properties: user_properties,
@@ -148,20 +156,22 @@ pub fn response_packet_matt5_puback_success(
     return MQTTPacket::PubAck(pub_ack, properties);
 }
 
-pub fn response_packet_matt5_puback_fail(
+pub fn response_packet_mqtt_puback_fail(
     protocol: &MQTTProtocol,
     connection: &Connection,
     pkid: u16,
     reason: PubAckReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
-    
-    if protocol.is_mqtt5() {
-        let pub_ack = PubAck { pkid: 0, reason };
+    if !protocol.is_mqtt5() {
+        let pub_ack = PubAck { pkid, reason: None };
         return MQTTPacket::PubAck(pub_ack, None);
     }
 
-    let pub_ack = PubAck { pkid: 0, reason };
+    let pub_ack = PubAck {
+        pkid,
+        reason: Some(reason),
+    };
     let mut properties = PubAckProperties::default();
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
@@ -169,12 +179,19 @@ pub fn response_packet_matt5_puback_fail(
     return MQTTPacket::PubAck(pub_ack, Some(properties));
 }
 
-pub fn response_packet_matt5_pubrec_success(
+pub fn response_packet_mqtt_pubrec_success(
+    protocol: &MQTTProtocol,
     reason: PubRecReason,
     pkid: u16,
     user_properties: Vec<(String, String)>,
 ) -> MQTTPacket {
-    let rec = PubRec { pkid, reason };
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::PubRec(PubRec { pkid, reason: None }, None);
+    }
+    let rec = PubRec {
+        pkid,
+        reason: Some(reason),
+    };
     let properties = Some(PubRecProperties {
         reason_string: None,
         user_properties: user_properties,
@@ -182,13 +199,20 @@ pub fn response_packet_matt5_pubrec_success(
     return MQTTPacket::PubRec(rec, properties);
 }
 
-pub fn response_packet_matt5_pubrec_fail(
+pub fn response_packet_mqtt_pubrec_fail(
+    protocol: &MQTTProtocol,
     connection: &Connection,
     pkid: u16,
     reason: PubRecReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
-    let pub_ack = PubRec { pkid, reason };
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::PubRec(PubRec { pkid, reason: None }, None);
+    }
+    let pub_ack = PubRec {
+        pkid,
+        reason: Some(reason),
+    };
     let mut properties = PubRecProperties::default();
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
@@ -196,28 +220,49 @@ pub fn response_packet_matt5_pubrec_fail(
     return MQTTPacket::PubRec(pub_ack, Some(properties));
 }
 
-pub fn response_packet_matt5_pubrel_success(pkid: u16, reason: PubRelReason) -> MQTTPacket {
-    let rel = PubRel { pkid, reason };
+pub fn response_packet_mqtt_pubrel_success(
+    protocol: &MQTTProtocol,
+    pkid: u16,
+    reason: PubRelReason,
+) -> MQTTPacket {
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::PubRel(PubRel { pkid, reason: None }, None);
+    }
+    let rel = PubRel {
+        pkid,
+        reason: Some(reason),
+    };
     let properties = Some(PubRelProperties::default());
     return MQTTPacket::PubRel(rel, properties);
 }
 
-pub fn response_packet_matt5_pubcomp_success(pkid: u16) -> MQTTPacket {
+pub fn response_packet_mqtt_pubcomp_success(protocol: &MQTTProtocol, pkid: u16) -> MQTTPacket {
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::PubComp(PubComp { pkid, reason: None }, None);
+    }
+
     let rec = PubComp {
         pkid,
-        reason: PubCompReason::Success,
+        reason: Some(PubCompReason::Success),
     };
     let properties = Some(PubCompProperties::default());
     return MQTTPacket::PubComp(rec, properties);
 }
 
-pub fn response_packet_matt5_pubcomp_fail(
+pub fn response_packet_mqtt_pubcomp_fail(
+    protocol: &MQTTProtocol,
     connection: &Connection,
     pkid: u16,
     reason: PubCompReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
-    let pub_ack = PubComp { pkid, reason };
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::PubComp(PubComp { pkid, reason: None }, None);
+    }
+    let pub_ack = PubComp {
+        pkid,
+        reason: Some(reason),
+    };
     let mut properties = PubCompProperties::default();
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
@@ -225,12 +270,17 @@ pub fn response_packet_matt5_pubcomp_fail(
     return MQTTPacket::PubComp(pub_ack, Some(properties));
 }
 
-pub fn response_packet_matt5_suback(
+pub fn response_packet_mqtt_suback(
+    protocol: &MQTTProtocol,
     connection: &Connection,
     pkid: u16,
     return_codes: Vec<SubscribeReasonCode>,
     reason_string: Option<String>,
 ) -> MQTTPacket {
+    if !protocol.is_mqtt5() {
+        return MQTTPacket::SubAck(SubAck { pkid, return_codes }, None);
+    }
+
     let sub_ack = SubAck { pkid, return_codes };
     let mut properties = SubAckProperties::default();
     if connection.is_response_proplem_info() {
@@ -239,11 +289,11 @@ pub fn response_packet_matt5_suback(
     return MQTTPacket::SubAck(sub_ack, Some(properties));
 }
 
-pub fn response_packet_ping_resp() -> MQTTPacket {
+pub fn response_packet_mqtt_ping_resp() -> MQTTPacket {
     return MQTTPacket::PingResp(PingResp {});
 }
 
-pub fn response_packet_matt5_unsuback(
+pub fn response_packet_mqtt_unsuback(
     connection: &Connection,
     pkid: u16,
     reasons: Vec<UnsubAckReason>,

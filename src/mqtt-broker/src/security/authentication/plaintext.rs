@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::cache_manager::CacheManager;
+use crate::handler::cache_manager::CacheManager;
 
 use super::Authentication;
 use axum::async_trait;
@@ -38,7 +38,7 @@ mod test {
     use metadata_struct::mqtt::user::MQTTUser;
     use protocol::mqtt::common::Login;
     use std::sync::Arc;
-    use crate::{core::cache_manager::CacheManager, security::authentication::Authentication};
+    use crate::{handler::cache_manager::CacheManager, security::authentication::Authentication};
     use super::Plaintext;
 
     #[tokio::test]

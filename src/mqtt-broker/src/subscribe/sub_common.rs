@@ -1,5 +1,5 @@
-use crate::core::cache_manager::CacheManager;
-use crate::core::cache_manager::QosAckPackageData;
+use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache_manager::QosAckPackageData;
 use crate::{server::tcp::packet::ResponsePackage, storage::message::MessageStorage};
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
@@ -240,7 +240,7 @@ pub async fn qos2_send_pubrel(
 
         let pubrel = PubRel {
             pkid,
-            reason: protocol::mqtt::common::PubRelReason::Success,
+            reason: Some(protocol::mqtt::common::PubRelReason::Success),
         };
 
         let pubrel_resp = ResponsePackage {
@@ -359,7 +359,7 @@ pub async fn publish_message_qos0(
 
 #[cfg(test)]
 mod tests {
-    use crate::core::cache_manager::CacheManager;
+    use crate::handler::cache_manager::CacheManager;
     use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
     use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, path_regex_match};
     use clients::poll::ClientPool;

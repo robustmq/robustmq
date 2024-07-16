@@ -2,8 +2,7 @@ use super::{
     connection::TCPConnection, connection_manager::ConnectionManager, packet::ResponsePackage,
 };
 use crate::{
-    core::validator::establish_connection_check,
-    handler::command::Command,
+    handler::{command::Command, validator::establish_connection_check},
     metrics::{
         metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
         metrics_response_queue,
@@ -173,16 +172,15 @@ where
                                             val = read_frame_stream.next()=>{
                                                 if let Some(pkg) = val {
                                                     metrics_request_packet_incr(&protocol_lable);
-                                                    info(format!("revc packet:{:?}", pkg));
                                                     match pkg {
                                                         Ok(data) => {
                                                             let pack: MQTTPacket = data.try_into().unwrap();
+                                                            info(format!("revc packet:{:?}", pack));
                                                             let package =
                                                                 RequestPackage::new(connection_id, addr, pack);
                                                             match request_queue_sx.send(package) {
                                                                 Ok(_) => {
                                                                     metrics_request_queue("handler-total", request_queue_sx.len() as i64);
-                                                                    info("request queue send success".to_string());
                                                                 }
                                                                 Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                                             }
@@ -255,7 +253,6 @@ where
                                             .await
                                         {
                                             let response_package = ResponsePackage::new(packet.connection_id, resp);
-                                            info(format!("response packet write queue:{:?}", response_package));
                                             match raw_response_queue_sx.send(response_package) {
                                                 Ok(_) => {
                                                     metrics_request_queue("response-total", raw_response_queue_sx.len() as i64);
@@ -298,7 +295,6 @@ where
                     },
                     val = request_queue_rx.recv()=>{
                         if let Ok(packet) = val{
-                            info(format!("process packet:{:?}", packet));
                             metrics_request_queue("handler-total", request_queue_rx.len() as i64);
 
                             let seq = if process_handler_seq > process_handler.len(){

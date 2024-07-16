@@ -2,8 +2,7 @@ use self::tcp::{
     packet::{RequestPackage, ResponsePackage},
     server::TcpServer,
 };
-use crate::handler::command::Command;
-use crate::{core::cache_manager::CacheManager, subscribe::subscribe_cache::SubscribeCacheManager};
+use crate::{handler::{cache_manager::CacheManager, command::Command}, subscribe::subscribe_cache::SubscribeCacheManager};
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
 use protocol::mqtt::common::MQTTProtocol;
@@ -58,16 +57,13 @@ pub async fn start_tcp_server<S>(
         conf.mqtt.tcp_port
     ));
 
-    server.start_tls(conf.mqtt.tcp_port).await;
-    info(format!(
-        "MQTT TCP Server started successfully, listening port: {}",
-        conf.mqtt.tcp_port
-    ));
+    // server.start_tls(conf.mqtt.tcps_port).await;
+    // info(format!(
+    //     "MQTT TCP Server started successfully, listening port: {}",
+    //     conf.mqtt.tcp_port
+    // ));
 }
 
 pub async fn start_tcp_ssl_server() {}
 
-pub async fn start_websockets_server() {}
-
-pub async fn start_websockets_ssl_server() {}
 async fn start_quic_server() {}

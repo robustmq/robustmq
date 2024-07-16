@@ -22,7 +22,7 @@ fn len(pubrec: &PubRec, properties: &Option<PubRecProperties>) -> usize {
     // The Reason Code and Property Length can be omitted if the Reason Code is 0x00 (Success)
     // and there are no Properties. In this case the PUBREC has a Remaining Length of 2.
     // <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901134>
-    if pubrec.reason == PubRecReason::Success && properties.is_none() {
+    if pubrec.reason.unwrap() == PubRecReason::Success && properties.is_none() {
         return 2;
     }
 
@@ -48,11 +48,11 @@ pub fn write(
     buffer.put_u16(pubrec.pkid);
 
     // If there are no properties during success, sending reason code is optional
-    if pubrec.reason == PubRecReason::Success && properties.is_none() {
+    if pubrec.reason.unwrap() == PubRecReason::Success && properties.is_none() {
         return Ok(4);
     }
 
-    buffer.put_u8(code(pubrec.reason));
+    buffer.put_u8(code(pubrec.reason.unwrap()));
 
     if let Some(p) = properties {
         properties::write(p, buffer)?;
@@ -74,7 +74,7 @@ pub fn read(
         return Ok((
             PubRec {
                 pkid,
-                reason: PubRecReason::Success,
+                reason: Some(PubRecReason::Success),
             },
             None,
         ));
@@ -85,7 +85,7 @@ pub fn read(
         return Ok((
             PubRec {
                 pkid,
-                reason: reason(ack_reason)?,
+                reason: Some(reason(ack_reason)?),
             },
             None,
         ));
@@ -93,7 +93,7 @@ pub fn read(
 
     let puback = PubRec {
         pkid,
-        reason: reason(ack_reason)?,
+        reason: Some(reason(ack_reason)?),
     };
     let properties = properties::read(&mut bytes)?;
 
@@ -215,7 +215,7 @@ mod tests {
         let mut buffer = BytesMut::new();
         let pubrec = PubRec {
             pkid: 20u16,
-            reason: PubRecReason::NotAuthorized,
+            reason: Some(PubRecReason::NotAuthorized),
         };
 
         let vec = vec![("username".to_string(), "Justin".to_string())];
@@ -236,7 +236,7 @@ mod tests {
          // test the read function of pubrec packet and check the result of write function in MQTT v5
          let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
          assert_eq!(x.pkid, 20u16);
-         assert_eq!(x.reason, PubRecReason::NotAuthorized);
+         assert_eq!(x.reason.unwrap(), PubRecReason::NotAuthorized);
 
          let pubrec_properties = y.unwrap();
          assert_eq!(pubrec_properties.reason_string, Some("user authorization failed".to_string()));

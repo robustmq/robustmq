@@ -1,21 +1,21 @@
-use crate::core::cache_manager::{CacheManager, ConnectionLiveTime};
-use crate::core::cache_manager::{QosAckPackageData, QosAckPackageType};
-use crate::core::connection::{build_connection, get_client_id};
-use crate::core::lastwill::save_last_will_message;
-use crate::core::pkid::{pkid_delete, pkid_exists, pkid_save};
-use crate::core::response_packet::{
-    response_packet_matt5_puback_fail, response_packet_matt5_puback_success,
-    response_packet_matt5_pubcomp_fail, response_packet_matt5_pubcomp_success,
-    response_packet_matt5_pubrec_fail, response_packet_matt5_pubrec_success,
-    response_packet_matt5_pubrel_success, response_packet_matt5_suback,
-    response_packet_matt5_unsuback, response_packet_matt_connect_fail,
-    response_packet_matt_connect_success, response_packet_matt_distinct,
-    response_packet_matt_distinct_by_reason, response_packet_ping_resp,
+use crate::handler::cache_manager::{CacheManager, ConnectionLiveTime};
+use crate::handler::cache_manager::{QosAckPackageData, QosAckPackageType};
+use crate::handler::connection::{build_connection, get_client_id};
+use crate::handler::lastwill::save_last_will_message;
+use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};
+use crate::handler::response::{
+    response_packet_mqtt_connect_fail, response_packet_mqtt_connect_success,
+    response_packet_mqtt_distinct, response_packet_mqtt_distinct_by_reason,
+    response_packet_mqtt_ping_resp, response_packet_mqtt_puback_fail,
+    response_packet_mqtt_puback_success, response_packet_mqtt_pubcomp_fail,
+    response_packet_mqtt_pubcomp_success, response_packet_mqtt_pubrec_fail,
+    response_packet_mqtt_pubrec_success, response_packet_mqtt_pubrel_success,
+    response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
-use crate::core::retain::{save_topic_retain_message, send_retain_message};
-use crate::core::session::{build_session, save_session};
-use crate::core::topic::{get_topic_name, try_init_topic};
-use crate::core::validator::{
+use crate::handler::retain::{save_topic_retain_message, send_retain_message};
+use crate::handler::session::{build_session, save_session};
+use crate::handler::topic::{get_topic_name, try_init_topic};
+use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
 use crate::storage::session::SessionStorage;
@@ -26,7 +26,7 @@ use crate::{
     storage::message::MessageStorage,
 };
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, log::error, tools::now_second};
+use common_base::{log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -42,7 +42,8 @@ use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self, Sender};
 
 #[derive(Clone)]
-pub struct Mqtt5Service<S> {
+pub struct MqttService<S> {
+    protocol: MQTTProtocol,
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
@@ -50,18 +51,20 @@ pub struct Mqtt5Service<S> {
     stop_sx: broadcast::Sender<bool>,
 }
 
-impl<S> Mqtt5Service<S>
+impl<S> MqttService<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
+        protocol: MQTTProtocol,
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        return Mqtt5Service {
+        return MqttService {
+            protocol,
             cache_manager,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
@@ -84,7 +87,7 @@ where
             self.cache_manager.get_cluster_info();
 
         if let Some(res) = connect_validator(
-            &MQTTProtocol::MQTT5,
+            &self.protocol,
             &cluster,
             &connnect,
             &connect_properties,
@@ -99,8 +102,8 @@ where
         match authentication_login(&self.cache_manager, &login, &connect_properties, &addr).await {
             Ok(flag) => {
                 if !flag {
-                    return response_packet_matt_connect_fail(
-                        &MQTTProtocol::MQTT5,
+                    return response_packet_mqtt_connect_fail(
+                        &self.protocol,
                         ConnectReturnCode::NotAuthorized,
                         &connect_properties,
                         None,
@@ -108,8 +111,8 @@ where
                 }
             }
             Err(e) => {
-                return response_packet_matt_connect_fail(
-                    &MQTTProtocol::MQTT5,
+                return response_packet_mqtt_connect_fail(
+                    &self.protocol,
                     ConnectReturnCode::UnspecifiedError,
                     &connect_properties,
                     Some(e.to_string()),
@@ -141,8 +144,8 @@ where
         {
             Ok(data) => data,
             Err(e) => {
-                return response_packet_matt_connect_fail(
-                    &MQTTProtocol::MQTT5,
+                return response_packet_mqtt_connect_fail(
+                    &self.protocol,
                     ConnectReturnCode::MalformedPacket,
                     &connect_properties,
                     Some(e.to_string()),
@@ -161,8 +164,8 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return response_packet_matt_connect_fail(
-                    &MQTTProtocol::MQTT5,
+                return response_packet_mqtt_connect_fail(
+                    &self.protocol,
                     ConnectReturnCode::MalformedPacket,
                     &connect_properties,
                     Some(e.to_string()),
@@ -180,8 +183,8 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return response_packet_matt_connect_fail(
-                    &MQTTProtocol::MQTT5,
+                return response_packet_mqtt_connect_fail(
+                    &self.protocol,
                     ConnectReturnCode::UnspecifiedError,
                     &connect_properties,
                     Some(e.to_string()),
@@ -190,7 +193,7 @@ where
         }
 
         let live_time = ConnectionLiveTime {
-            protobol: MQTTProtocol::MQTT5,
+            protobol: self.protocol.clone(),
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
@@ -201,8 +204,8 @@ where
         self.cache_manager
             .add_connection(connect_id, connection.clone());
 
-        return response_packet_matt_connect_success(
-            MQTTProtocol::MQTT5,
+        return response_packet_mqtt_connect_success(
+            &self.protocol,
             &cluster,
             client_id.clone(),
             new_client_id,
@@ -221,13 +224,14 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return Some(response_packet_matt_distinct_by_reason(
-                MQTTProtocol::MQTT5,
+            return Some(response_packet_mqtt_distinct_by_reason(
+                &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
             ));
         };
 
         if let Some(pkg) = publish_validator(
+            &self.protocol,
             &self.cache_manager,
             &self.client_poll,
             &connection,
@@ -254,14 +258,16 @@ where
             Ok(da) => da,
             Err(e) => {
                 if is_puback {
-                    return Some(response_packet_matt5_puback_fail(
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
                         &connection,
                         publish.pkid,
                         PubAckReason::UnspecifiedError,
                         Some(e.to_string()),
                     ));
                 } else {
-                    return Some(response_packet_matt5_pubrec_fail(
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
                         &connection,
                         publish.pkid,
                         PubRecReason::UnspecifiedError,
@@ -282,14 +288,16 @@ where
             Ok(tp) => tp,
             Err(e) => {
                 if is_puback {
-                    return Some(response_packet_matt5_puback_fail(
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
                         &connection,
                         publish.pkid,
                         PubAckReason::UnspecifiedError,
                         Some(e.to_string()),
                     ));
                 } else {
-                    return Some(response_packet_matt5_pubrec_fail(
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
                         &connection,
                         publish.pkid,
                         PubRecReason::UnspecifiedError,
@@ -315,14 +323,16 @@ where
             Ok(()) => {}
             Err(e) => {
                 if is_puback {
-                    return Some(response_packet_matt5_puback_fail(
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
                         &connection,
                         publish.pkid,
                         PubAckReason::UnspecifiedError,
                         Some(e.to_string()),
                     ));
                 } else {
-                    return Some(response_packet_matt5_pubrec_fail(
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
                         &connection,
                         publish.pkid,
                         PubRecReason::UnspecifiedError,
@@ -346,14 +356,16 @@ where
                 }
                 Err(e) => {
                     if is_puback {
-                        return Some(response_packet_matt5_puback_fail(
+                        return Some(response_packet_mqtt_puback_fail(
+                            &self.protocol,
                             &connection,
                             publish.pkid,
                             PubAckReason::UnspecifiedError,
                             Some(e.to_string()),
                         ));
                     } else {
-                        return Some(response_packet_matt5_pubrec_fail(
+                        return Some(response_packet_mqtt_pubrec_fail(
+                            &self.protocol,
                             &connection,
                             publish.pkid,
                             PubRecReason::UnspecifiedError,
@@ -380,7 +392,8 @@ where
                 } else {
                     PubAckReason::NoMatchingSubscribers
                 };
-                return Some(response_packet_matt5_puback_success(
+                return Some(response_packet_mqtt_puback_success(
+                    &self.protocol,
                     reason_code,
                     publish.pkid,
                     user_properties,
@@ -398,14 +411,16 @@ where
                     Ok(()) => {}
                     Err(e) => {
                         if is_puback {
-                            return Some(response_packet_matt5_puback_fail(
+                            return Some(response_packet_mqtt_puback_fail(
+                                &self.protocol,
                                 &connection,
                                 publish.pkid,
                                 PubAckReason::UnspecifiedError,
                                 Some(e.to_string()),
                             ));
                         } else {
-                            return Some(response_packet_matt5_pubrec_fail(
+                            return Some(response_packet_mqtt_pubrec_fail(
+                                &self.protocol,
                                 &connection,
                                 publish.pkid,
                                 PubRecReason::UnspecifiedError,
@@ -420,7 +435,8 @@ where
                     PubRecReason::NoMatchingSubscribers
                 };
 
-                return Some(response_packet_matt5_pubrec_success(
+                return Some(response_packet_mqtt_pubrec_success(
+                    &self.protocol,
                     reason_code,
                     publish.pkid,
                     user_properties,
@@ -482,7 +498,8 @@ where
             }
         }
 
-        return Some(response_packet_matt5_pubrel_success(
+        return Some(response_packet_mqtt_pubrel_success(
+            &self.protocol,
             pub_rec.pkid,
             PubRelReason::Success,
         ));
@@ -524,8 +541,8 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct_by_reason(
-                MQTTProtocol::MQTT5,
+            return response_packet_mqtt_distinct_by_reason(
+                &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
@@ -542,7 +559,8 @@ where
         {
             Ok(res) => {
                 if !res {
-                    return response_packet_matt5_pubcomp_fail(
+                    return response_packet_mqtt_pubcomp_fail(
+                        &self.protocol,
                         &connection,
                         pub_rel.pkid,
                         PubCompReason::PacketIdentifierNotFound,
@@ -551,7 +569,8 @@ where
                 }
             }
             Err(e) => {
-                return response_packet_matt5_pubcomp_fail(
+                return response_packet_mqtt_pubcomp_fail(
+                    &self.protocol,
                     &connection,
                     pub_rel.pkid,
                     PubCompReason::PacketIdentifierNotFound,
@@ -570,7 +589,8 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return response_packet_matt5_pubcomp_fail(
+                return response_packet_mqtt_pubcomp_fail(
+                    &self.protocol,
                     &connection,
                     pub_rel.pkid,
                     PubCompReason::PacketIdentifierNotFound,
@@ -578,7 +598,7 @@ where
                 );
             }
         }
-        return response_packet_matt5_pubcomp_success(pub_rel.pkid);
+        return response_packet_mqtt_pubcomp_success(&self.protocol, pub_rel.pkid);
     }
 
     pub async fn subscribe(
@@ -591,8 +611,8 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct_by_reason(
-                MQTTProtocol::MQTT5,
+            return response_packet_mqtt_distinct_by_reason(
+                &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
@@ -600,6 +620,7 @@ where
         let client_id = connection.client_id.clone();
 
         if let Some(packet) = subscribe_validator(
+            &self.protocol,
             &self.cache_manager,
             &self.client_poll,
             &connection,
@@ -636,7 +657,8 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return response_packet_matt5_suback(
+                return response_packet_mqtt_suback(
+                    &self.protocol,
                     &connection,
                     subscribe.packet_identifier,
                     vec![SubscribeReasonCode::Unspecified],
@@ -647,7 +669,7 @@ where
 
         self.cache_manager.add_client_subscribe(
             client_id.clone(),
-            MQTTProtocol::MQTT5,
+            self.protocol.clone(),
             subscribe.clone(),
             subscribe_properties.clone(),
         );
@@ -655,7 +677,7 @@ where
         self.sucscribe_cache
             .add_subscribe(
                 client_id.clone(),
-                MQTTProtocol::MQTT5,
+                self.protocol.clone(),
                 subscribe.clone(),
                 subscribe_properties.clone(),
             )
@@ -673,27 +695,27 @@ where
         .await;
 
         let pkid = subscribe.packet_identifier;
-        return response_packet_matt5_suback(&connection, pkid, return_codes, None);
+        return response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None);
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct_by_reason(
-                MQTTProtocol::MQTT5,
+            return response_packet_mqtt_distinct_by_reason(
+                &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
 
         let live_time = ConnectionLiveTime {
-            protobol: MQTTProtocol::MQTT5,
+            protobol: self.protocol.clone(),
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
         self.cache_manager
             .report_heartbeat(&connection.client_id, live_time);
-        return response_packet_ping_resp();
+        return response_packet_mqtt_ping_resp();
     }
 
     pub async fn un_subscribe(
@@ -705,8 +727,8 @@ where
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
         } else {
-            return response_packet_matt_distinct_by_reason(
-                MQTTProtocol::MQTT5,
+            return response_packet_mqtt_distinct_by_reason(
+                &self.protocol,
                 Some(DisconnectReasonCode::MaximumConnectTime),
             );
         };
@@ -733,7 +755,7 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return response_packet_matt5_unsuback(
+                return response_packet_mqtt_unsuback(
                     &connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::UnspecifiedError],
@@ -748,7 +770,7 @@ where
         self.cache_manager
             .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
-        return response_packet_matt5_unsuback(
+        return response_packet_mqtt_unsuback(
             &connection,
             un_subscribe.pkid,
             vec![UnsubAckReason::Success],
@@ -779,8 +801,8 @@ where
         {
             Ok(_) => {}
             Err(e) => {
-                return Some(response_packet_matt_distinct(
-                    MQTTProtocol::MQTT5,
+                return Some(response_packet_mqtt_distinct(
+                    &self.protocol,
                     Some(DisconnectReasonCode::MaximumConnectTime),
                     &connection,
                     Some(e.to_string()),
@@ -788,8 +810,8 @@ where
             }
         }
 
-        return Some(response_packet_matt_distinct(
-            MQTTProtocol::MQTT5,
+        return Some(response_packet_mqtt_distinct(
+            &self.protocol,
             Some(DisconnectReasonCode::MaximumConnectTime),
             &connection,
             None,

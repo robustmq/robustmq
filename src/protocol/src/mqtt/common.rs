@@ -34,6 +34,18 @@ pub enum MQTTProtocol {
     MQTT5,
 }
 
+pub fn is_mqtt3(protocol: u8) -> bool {
+    return protocol == 3;
+}
+
+pub fn is_mqtt4(protocol: u8) -> bool {
+    return protocol == 4;
+}
+
+pub fn is_mqtt5(protocol: u8) -> bool {
+    return protocol == 5;
+}
+
 impl MQTTProtocol {
     pub fn is_mqtt3(&self) -> bool {
         MQTTProtocol::MQTT3.eq(&self)
@@ -698,7 +710,7 @@ impl fmt::Display for PublishProperties {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PubAck {
     pub pkid: u16,
-    pub reason: PubAckReason,
+    pub reason: Option<PubAckReason>,
 }
 
 /// Return code in puback
@@ -741,7 +753,7 @@ impl fmt::Display for PubAckProperties {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PubRec {
     pub pkid: u16,
-    pub reason: PubRecReason,
+    pub reason: Option<PubRecReason>,
 }
 
 /// Return code in pubrec packet
@@ -786,7 +798,7 @@ impl fmt::Display for PubRecProperties {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PubRel {
     pub pkid: u16,
-    pub reason: PubRelReason,
+    pub reason: Option<PubRelReason>,
 }
 /// Return code in pubrel
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -828,7 +840,7 @@ impl fmt::Display for PubRelProperties {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PubComp {
     pub pkid: u16,
-    pub reason: PubCompReason,
+    pub reason: Option<PubCompReason>,
 }
 /// Return code in pubcomp pcaket
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

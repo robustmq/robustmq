@@ -1,5 +1,5 @@
 use self::plaintext::Plaintext;
-use crate::core::cache_manager::CacheManager;
+use crate::handler::cache_manager::CacheManager;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
 use protocol::mqtt::common::{ConnectProperties, Login};
@@ -43,7 +43,7 @@ pub fn is_ip_blacklist(addr: &SocketAddr) -> bool {
 mod test {
     use super::authentication_login;
     use super::is_ip_blacklist;
-    use crate::core::cache_manager::CacheManager;
+    use crate::handler::cache_manager::CacheManager;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use std::sync::Arc;

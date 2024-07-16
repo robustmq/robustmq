@@ -1,4 +1,4 @@
-use crate::core::{cache_manager::CacheManager, error::MQTTBrokerError};
+use crate::handler::{cache_manager::CacheManager, error::MQTTBrokerError};
 use crate::storage::topic::TopicStorage;
 use bytes::Bytes;
 use clients::poll::ClientPool;
@@ -141,7 +141,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::core::error::MQTTBrokerError;
+    use crate::handler::error::MQTTBrokerError;
 
     use super::topic_name_validator;
 
