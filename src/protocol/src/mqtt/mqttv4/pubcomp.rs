@@ -20,7 +20,7 @@ impl PubComp {
     fn mqttv4(pkid: u16) -> PubComp {
         return PubComp {
             pkid: pkid,
-            reason: PubCompReason::Success,
+            reason: Some(PubCompReason::Success),
         };
     }
 }
@@ -37,7 +37,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubComp, Erro
     if fixed_header.remaining_len == 2 {
         return Ok(PubComp {
             pkid, 
-            reason: PubCompReason::Success,
+            reason: Some(PubCompReason::Success),
         })
     }
     else {

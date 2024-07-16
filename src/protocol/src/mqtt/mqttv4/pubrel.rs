@@ -20,7 +20,7 @@ impl PubRel {
     fn mqttv4(pkid: u16) -> PubRel {
         return PubRel {
             pkid: pkid,
-            reason: PubRelReason::Success,
+            reason: Some(PubRelReason::Success),
         };
     }
 }
@@ -36,7 +36,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRel, Error
     if fixed_header.remaining_len == 2 {
         return Ok(PubRel {
             pkid,
-            reason: PubRelReason::Success,
+            reason: Some(PubRelReason::Success),
         })
     }
     else {

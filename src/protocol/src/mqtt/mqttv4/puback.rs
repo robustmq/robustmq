@@ -22,7 +22,7 @@ impl PubAck {
     fn mqttv4(pkid: u16) -> PubAck {
         return PubAck {
             pkid: pkid,
-            reason: PubAckReason::Success,
+            reason: Some(PubAckReason::Success),
         };
     }
 }
@@ -41,7 +41,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubAck, Error
     let pkid = read_u16(&mut bytes)?;
     let puback = PubAck {
         pkid,
-        reason: PubAckReason::Success,
+        reason: Some(PubAckReason::Success),
     };
 
     Ok(puback)

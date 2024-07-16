@@ -4,15 +4,15 @@ use super::{
     error::MQTTBrokerError,
     flow_control::{is_connection_rate_exceeded, is_subscribe_rate_exceeded},
     pkid::pkid_exists,
-    response_packet::{
-        response_packet_matt5_connect_fail, response_packet_matt5_puback_fail,
-        response_packet_matt5_pubrec_fail, response_packet_matt5_suback,
-        response_packet_matt5_unsuback, response_packet_matt_distinct,
+    response::{
+        response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
+        response_packet_mqtt_puback_fail, response_packet_mqtt_pubrec_fail,
+        response_packet_mqtt_suback, response_packet_mqtt_unsuback,
     },
     topic::topic_name_validator,
 };
 use crate::{
-    core::flow_control::is_publish_rate_exceeded,
+    handler::flow_control::is_publish_rate_exceeded,
     security::{acl::authentication_acl, authentication::is_ip_blacklist},
     server::tcp::connection_manager::ConnectionManager,
     subscribe::sub_common::sub_path_validator,
@@ -40,7 +40,10 @@ pub async fn establish_connection_check(
     if connection_manager.connect_num_check() {
         let packet_wrapper = MQTTPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
-            packet: response_packet_matt_distinct(DisconnectReasonCode::QuotaExceeded, None),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::QuotaExceeded),
+            ),
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
@@ -61,10 +64,10 @@ pub async fn establish_connection_check(
 
     if is_connection_rate_exceeded() {
         let packet_wrapper = MQTTPacketWrapper {
-            protocol_version: MQTTProtocol::MQTT4.into(),
-            packet: response_packet_matt_distinct(
-                DisconnectReasonCode::ConnectionRateExceeded,
-                None,
+            protocol_version: MQTTProtocol::MQTT5.into(),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::ConnectionRateExceeded),
             ),
         };
         match write_frame_stream.send(packet_wrapper).await {
@@ -87,6 +90,7 @@ pub async fn establish_connection_check(
 }
 
 pub fn connect_validator(
+    protocol: &MQTTProtocol,
     cluster: &MQTTCluster,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
@@ -96,23 +100,26 @@ pub fn connect_validator(
     addr: &SocketAddr,
 ) -> Option<MQTTPacket> {
     if cluster.is_self_protection_status {
-        return Some(response_packet_matt5_connect_fail(
+        return Some(response_packet_mqtt_connect_fail(
+            protocol,
             ConnectReturnCode::ServerBusy,
-            &connect_properties,
+            connect_properties,
             Some(RobustMQError::ClusterIsInSelfProtection.to_string()),
         ));
     }
 
     if is_ip_blacklist(addr) {
-        return Some(response_packet_matt5_connect_fail(
+        return Some(response_packet_mqtt_connect_fail(
+            protocol,
             ConnectReturnCode::Banned,
-            &connect_properties,
+            connect_properties,
             None,
         ));
     }
 
     if !connect.client_id.is_empty() && !client_id_validator(&connect.client_id) {
-        return Some(response_packet_matt5_connect_fail(
+        return Some(response_packet_mqtt_connect_fail(
+            protocol,
             ConnectReturnCode::ClientIdentifierNotValid,
             connect_properties,
             None,
@@ -121,7 +128,8 @@ pub fn connect_validator(
 
     if let Some(login_info) = login {
         if !username_validator(&login_info.username) || !password_validator(&login_info.password) {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_mqtt_connect_fail(
+                protocol,
                 ConnectReturnCode::BadUserNamePassword,
                 connect_properties,
                 None,
@@ -131,7 +139,8 @@ pub fn connect_validator(
 
     if let Some(will) = last_will {
         if will.topic.is_empty() {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_mqtt_connect_fail(
+                protocol,
                 ConnectReturnCode::TopicNameInvalid,
                 connect_properties,
                 None,
@@ -141,7 +150,8 @@ pub fn connect_validator(
         let topic_name = match String::from_utf8(will.topic.to_vec()) {
             Ok(da) => da,
             Err(e) => {
-                return Some(response_packet_matt5_connect_fail(
+                return Some(response_packet_mqtt_connect_fail(
+                    protocol,
                     ConnectReturnCode::TopicNameInvalid,
                     connect_properties,
                     Some(e.to_string()),
@@ -152,7 +162,8 @@ pub fn connect_validator(
         match topic_name_validator(&topic_name) {
             Ok(()) => {}
             Err(e) => {
-                Some(response_packet_matt5_connect_fail(
+                Some(response_packet_mqtt_connect_fail(
+                    protocol,
                     ConnectReturnCode::TopicNameInvalid,
                     connect_properties,
                     Some(e.to_string()),
@@ -161,7 +172,8 @@ pub fn connect_validator(
         }
 
         if will.message.is_empty() {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_mqtt_connect_fail(
+                protocol,
                 ConnectReturnCode::PayloadFormatInvalid,
                 connect_properties,
                 None,
@@ -170,7 +182,8 @@ pub fn connect_validator(
 
         let max_packet_size = connection_max_packet_size(connect_properties, cluster) as usize;
         if will.message.len() > max_packet_size {
-            return Some(response_packet_matt5_connect_fail(
+            return Some(response_packet_mqtt_connect_fail(
+                protocol,
                 ConnectReturnCode::PacketTooLarge,
                 connect_properties,
                 None,
@@ -181,7 +194,8 @@ pub fn connect_validator(
             if let Some(payload_format) = will_properties.payload_format_indicator {
                 if payload_format == 1 {
                     if !std::str::from_utf8(&will.message.to_vec().as_slice()).is_ok() {
-                        return Some(response_packet_matt5_connect_fail(
+                        return Some(response_packet_mqtt_connect_fail(
+                            protocol,
                             ConnectReturnCode::PayloadFormatInvalid,
                             connect_properties,
                             None,
@@ -195,6 +209,7 @@ pub fn connect_validator(
 }
 
 pub async fn publish_validator(
+    protocol: &MQTTProtocol,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
@@ -204,14 +219,16 @@ pub async fn publish_validator(
     let is_puback = publish.qos != QoS::ExactlyOnce;
     if publish.topic.is_empty() {
         if is_puback {
-            return Some(response_packet_matt5_puback_fail(
+            return Some(response_packet_mqtt_puback_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubAckReason::TopicNameInvalid,
                 None,
             ));
         } else {
-            return Some(response_packet_matt5_pubrec_fail(
+            return Some(response_packet_mqtt_pubrec_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubRecReason::TopicNameInvalid,
@@ -224,14 +241,16 @@ pub async fn publish_validator(
         Ok(da) => da,
         Err(e) => {
             if is_puback {
-                return Some(response_packet_matt5_puback_fail(
+                return Some(response_packet_mqtt_puback_fail(
+                    protocol,
                     connection,
                     publish.pkid,
                     PubAckReason::TopicNameInvalid,
                     Some(e.to_string()),
                 ));
             } else {
-                return Some(response_packet_matt5_pubrec_fail(
+                return Some(response_packet_mqtt_pubrec_fail(
+                    protocol,
                     connection,
                     publish.pkid,
                     PubRecReason::TopicNameInvalid,
@@ -245,14 +264,16 @@ pub async fn publish_validator(
         Ok(()) => {}
         Err(e) => {
             if is_puback {
-                return Some(response_packet_matt5_puback_fail(
+                return Some(response_packet_mqtt_puback_fail(
+                    protocol,
                     connection,
                     publish.pkid,
                     PubAckReason::TopicNameInvalid,
                     Some(e.to_string()),
                 ));
             } else {
-                return Some(response_packet_matt5_pubrec_fail(
+                return Some(response_packet_mqtt_pubrec_fail(
+                    protocol,
                     connection,
                     publish.pkid,
                     PubRecReason::TopicNameInvalid,
@@ -264,14 +285,16 @@ pub async fn publish_validator(
 
     if publish.payload.is_empty() {
         if is_puback {
-            return Some(response_packet_matt5_puback_fail(
+            return Some(response_packet_mqtt_puback_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
                 None,
             ));
         } else {
-            return Some(response_packet_matt5_pubrec_fail(
+            return Some(response_packet_mqtt_pubrec_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
@@ -291,7 +314,8 @@ pub async fn publish_validator(
         {
             Ok(res) => {
                 if res {
-                    return Some(response_packet_matt5_pubrec_fail(
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        protocol,
                         connection,
                         publish.pkid,
                         PubRecReason::PayloadFormatInvalid,
@@ -300,7 +324,8 @@ pub async fn publish_validator(
                 }
             }
             Err(e) => {
-                return Some(response_packet_matt5_pubrec_fail(
+                return Some(response_packet_mqtt_pubrec_fail(
+                    protocol,
                     connection,
                     publish.pkid,
                     PubRecReason::UnspecifiedError,
@@ -314,14 +339,16 @@ pub async fn publish_validator(
     let max_packet_size = min(cluster.max_packet_size, connection.max_packet_size) as usize;
     if publish.payload.len() > max_packet_size {
         if is_puback {
-            return Some(response_packet_matt5_puback_fail(
+            return Some(response_packet_mqtt_puback_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
                 Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         } else {
-            return Some(response_packet_matt5_pubrec_fail(
+            return Some(response_packet_mqtt_pubrec_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
@@ -335,7 +362,8 @@ pub async fn publish_validator(
             if payload_format == 1 {
                 if !std::str::from_utf8(&publish.payload.to_vec().as_slice()).is_ok() {
                     if is_puback {
-                        return Some(response_packet_matt5_puback_fail(
+                        return Some(response_packet_mqtt_puback_fail(
+                            protocol,
                             connection,
                             publish.pkid,
                             PubAckReason::PayloadFormatInvalid,
@@ -344,7 +372,8 @@ pub async fn publish_validator(
                             ),
                         ));
                     } else {
-                        return Some(response_packet_matt5_pubrec_fail(
+                        return Some(response_packet_mqtt_pubrec_fail(
+                            protocol,
                             connection,
                             publish.pkid,
                             PubRecReason::PayloadFormatInvalid,
@@ -359,14 +388,16 @@ pub async fn publish_validator(
     }
     if authentication_acl() {
         if is_puback {
-            return Some(response_packet_matt5_puback_fail(
+            return Some(response_packet_mqtt_puback_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubAckReason::NotAuthorized,
                 None,
             ));
         } else {
-            return Some(response_packet_matt5_pubrec_fail(
+            return Some(response_packet_mqtt_pubrec_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubRecReason::NotAuthorized,
@@ -377,14 +408,16 @@ pub async fn publish_validator(
 
     if is_publish_rate_exceeded() {
         if is_puback {
-            return Some(response_packet_matt5_puback_fail(
+            return Some(response_packet_mqtt_puback_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubAckReason::QuotaExceeded,
                 None,
             ));
         } else {
-            return Some(response_packet_matt5_pubrec_fail(
+            return Some(response_packet_mqtt_pubrec_fail(
+                protocol,
                 connection,
                 publish.pkid,
                 PubRecReason::QuotaExceeded,
@@ -398,14 +431,16 @@ pub async fn publish_validator(
             let cluster = cache_manager.get_cluster_info();
             if alias > cluster.topic_alias_max {
                 if is_puback {
-                    return Some(response_packet_matt5_puback_fail(
+                    return Some(response_packet_mqtt_puback_fail(
+                        protocol,
                         connection,
                         publish.pkid,
                         PubAckReason::UnspecifiedError,
                         Some(MQTTBrokerError::TopicAliasTooLong(alias).to_string()),
                     ));
                 } else {
-                    return Some(response_packet_matt5_pubrec_fail(
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        protocol,
                         connection,
                         publish.pkid,
                         PubRecReason::UnspecifiedError,
@@ -420,6 +455,7 @@ pub async fn publish_validator(
 }
 
 pub async fn subscribe_validator(
+    protocol: &MQTTProtocol,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
@@ -435,7 +471,8 @@ pub async fn subscribe_validator(
     {
         Ok(res) => {
             if res {
-                return Some(response_packet_matt5_suback(
+                return Some(response_packet_mqtt_suback(
+                    protocol,
                     &connection,
                     subscribe.packet_identifier,
                     vec![SubscribeReasonCode::PkidInUse],
@@ -444,7 +481,8 @@ pub async fn subscribe_validator(
             }
         }
         Err(e) => {
-            return Some(response_packet_matt5_suback(
+            return Some(response_packet_mqtt_suback(
+                protocol,
                 &connection,
                 subscribe.packet_identifier,
                 vec![SubscribeReasonCode::Unspecified],
@@ -461,7 +499,8 @@ pub async fn subscribe_validator(
         }
     }
     if !return_codes.is_empty() {
-        return Some(response_packet_matt5_suback(
+        return Some(response_packet_mqtt_suback(
+            protocol,
             &connection,
             subscribe.packet_identifier,
             return_codes,
@@ -470,7 +509,8 @@ pub async fn subscribe_validator(
     }
 
     if authentication_acl() {
-        return Some(response_packet_matt5_suback(
+        return Some(response_packet_mqtt_suback(
+            protocol,
             &connection,
             subscribe.packet_identifier,
             vec![SubscribeReasonCode::NotAuthorized],
@@ -479,7 +519,8 @@ pub async fn subscribe_validator(
     }
 
     if is_subscribe_rate_exceeded() {
-        return Some(response_packet_matt5_suback(
+        return Some(response_packet_mqtt_suback(
+            protocol,
             &connection,
             subscribe.packet_identifier,
             vec![SubscribeReasonCode::QuotaExceeded],
@@ -507,7 +548,7 @@ pub async fn un_subscribe_validator(
     {
         Ok(res) => {
             if res {
-                return Some(response_packet_matt5_unsuback(
+                return Some(response_packet_mqtt_unsuback(
                     &connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::PacketIdentifierInUse],
@@ -516,7 +557,7 @@ pub async fn un_subscribe_validator(
             }
         }
         Err(e) => {
-            return Some(response_packet_matt5_unsuback(
+            return Some(response_packet_mqtt_unsuback(
                 &connection,
                 un_subscribe.pkid,
                 vec![UnsubAckReason::UnspecifiedError],
@@ -533,7 +574,7 @@ pub async fn un_subscribe_validator(
         }
     }
     if !return_codes.is_empty() {
-        return Some(response_packet_matt5_unsuback(
+        return Some(response_packet_mqtt_unsuback(
             &connection,
             un_subscribe.pkid,
             return_codes,
@@ -542,7 +583,7 @@ pub async fn un_subscribe_validator(
     }
 
     if authentication_acl() {
-        return Some(response_packet_matt5_unsuback(
+        return Some(response_packet_mqtt_unsuback(
             &connection,
             un_subscribe.pkid,
             vec![UnsubAckReason::NotAuthorized],
@@ -553,7 +594,7 @@ pub async fn un_subscribe_validator(
     for path in un_subscribe.filters.clone() {
         if let Some(sub_list) = cache_manager.subscribe_filter.get_mut(client_id) {
             if !sub_list.contains_key(&path) {
-                return Some(response_packet_matt5_unsuback(
+                return Some(response_packet_mqtt_unsuback(
                     &connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::NoSubscriptionExisted],

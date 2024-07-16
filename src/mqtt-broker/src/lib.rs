@@ -13,8 +13,9 @@
 // limitations under the License.
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::create_runtime};
-use core::keep_alive::ClientKeepAlive;
-use core::{cache_manager::CacheManager, heartbreat::report_heartbeat};
+use handler::keep_alive::ClientKeepAlive;
+use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
+use server::websocket::server::{websocket_server, WebSocketServerState};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -39,7 +40,6 @@ use tokio::{
     sync::broadcast::{self, Sender},
 };
 
-mod core;
 mod handler;
 mod metrics;
 mod security;
@@ -108,6 +108,7 @@ where
         self.start_grpc_server();
         self.start_mqtt_server(stop_send.clone());
         self.start_http_server();
+        self.start_websocket_server();
         self.start_keep_alive_thread(stop_send.clone());
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_push_server();
@@ -155,6 +156,13 @@ where
             HttpServerState::new(self.cache_manager.clone(), self.subscribe_manager.clone());
         self.runtime
             .spawn(async move { start_http_server(http_state).await });
+    }
+
+    fn start_websocket_server(&self) {
+        let ws_state =
+            WebSocketServerState::new(self.cache_manager.clone(), self.subscribe_manager.clone());
+        self.runtime
+            .spawn(async move { websocket_server(ws_state).await });
     }
 
     fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {

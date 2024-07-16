@@ -1,5 +1,5 @@
 use super::cache::{cache_info, index, metrics};
-use crate::core::cache_manager::CacheManager;
+use crate::handler::cache_manager::CacheManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use axum::routing::get;
 use axum::Router;

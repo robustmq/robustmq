@@ -113,7 +113,7 @@ fn session_expiry_interval(
 #[cfg(test)]
 mod test {
     use super::session_expiry_interval;
-    use crate::core::cache_manager::CacheManager;
+    use crate::handler::cache_manager::CacheManager;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use metadata_struct::mqtt::session::MQTTSession;

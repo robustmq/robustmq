@@ -1,5 +1,5 @@
-use crate::core::cache_manager::CacheManager;
-use crate::core::lastwill::send_last_will_message;
+use crate::handler::cache_manager::CacheManager;
+use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use clients::poll::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;

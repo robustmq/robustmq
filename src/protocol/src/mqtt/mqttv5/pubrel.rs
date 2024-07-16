@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,7 +22,7 @@ fn len(pubrel: &PubRel, properties: &Option<PubRelProperties>) -> usize {
     // The reason code and property length can be omitted if the reason code is Success(0x00)
     // and there are no properties. In this case the remaining length of PubRel should be 2.
     //  <https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901144> can be referenced
-    if pubrel.reason == PubRelReason::Success && properties.is_none() {
+    if pubrel.reason.unwrap() == PubRelReason::Success && properties.is_none() {
         return 2;
     }
 
@@ -30,8 +30,7 @@ fn len(pubrel: &PubRel, properties: &Option<PubRelProperties>) -> usize {
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    }
-    else {
+    } else {
         len += 1;
     }
     len
@@ -48,23 +47,25 @@ pub fn write(
     buffer.put_u16(pubrel.pkid);
 
     // if there are no properties during success, reason code is optional as it is 0x00
-    if pubrel.reason == PubRelReason::Success && properties.is_none(){
+    if pubrel.reason.unwrap() == PubRelReason::Success && properties.is_none() {
         return Ok(4);
     }
 
-    buffer.put_u8(code(pubrel.reason));
+    buffer.put_u8(code(pubrel.reason.unwrap()));
 
     if let Some(p) = properties {
         properties::write(p, buffer)?;
-    }
-    else {
+    } else {
         write_remaining_length(buffer, 0)?;
     }
 
     Ok(1 + count + len)
 }
 
-pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<(PubRel, Option<PubRelProperties>), Error> {
+pub fn read(
+    fixed_header: FixedHeader,
+    mut bytes: Bytes,
+) -> Result<(PubRel, Option<PubRelProperties>), Error> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -73,7 +74,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<(PubRel, Opti
         return Ok((
             PubRel {
                 pkid,
-                reason: PubRelReason::Success,
+                reason: Some(PubRelReason::Success),
             },
             None,
         ));
@@ -82,21 +83,20 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<(PubRel, Opti
     if fixed_header.remaining_len < 4 {
         return Ok((
             PubRel {
-                pkid, 
-                reason: reason(ack_reason)?,
+                pkid,
+                reason: Some(reason(ack_reason)?),
             },
             None,
         ));
     }
 
     let pubrel = PubRel {
-        pkid, 
-        reason: reason(ack_reason)?,
+        pkid,
+        reason: Some(reason(ack_reason)?),
     };
 
     let properties = properties::read(&mut bytes)?;
     Ok((pubrel, properties))
-
 }
 
 mod properties {
@@ -109,7 +109,7 @@ mod properties {
             len += 1 + 2 + reason.len();
         }
 
-        for (key, value) in properties.user_properties.iter(){
+        for (key, value) in properties.user_properties.iter() {
             len += 1 + 2 + key.len() + 2 + value.len();
         }
 
@@ -149,7 +149,7 @@ mod properties {
         while cursor < properties_len {
             let prop = read_u8(bytes)?;
             cursor += 1;
-            
+
             match property(prop)? {
                 PropertyType::ReasonString => {
                     let reason = read_mqtt_string(bytes)?;
@@ -162,7 +162,7 @@ mod properties {
                     cursor += 2 + key.len() + 2 + value.len();
                     user_properties.push((key, value));
                 }
-                _ => return Err(Error::InvalidPacketType(prop))
+                _ => return Err(Error::InvalidPacketType(prop)),
             }
         }
         Ok(Some(PubRelProperties {
@@ -199,7 +199,7 @@ mod tests {
         let mut buffer = BytesMut::new();
         let pubrel = PubRel {
             pkid: 20u16,
-            reason: PubRelReason::Success,
+            reason: Some(PubRelReason::Success),
         };
 
         let vec = vec![("username".to_string(), "Justin".to_string())];
@@ -217,20 +217,20 @@ mod tests {
         assert_eq!(fixed_header.fixed_header_len, 2);
         assert_eq!(fixed_header.remaining_len, 33);
 
-         // test the read function of pubrec packet and check the result of write function in MQTT v5
-         let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-         assert_eq!(x.pkid, 20);
-         assert_eq!(x.reason, PubRelReason::Success);
+        // test the read function of pubrec packet and check the result of write function in MQTT v5
+        let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(x.pkid, 20);
+        assert_eq!(x.reason.unwrap(), PubRelReason::Success);
 
-         let pubrel_properties = y.unwrap();
-         assert_eq!(pubrel_properties.reason_string, Some("Success".to_string()));
-         assert_eq!(pubrel_properties.user_properties.get(0), Some(&("username".to_string(), "Justin".to_string())));
+        let pubrel_properties = y.unwrap();
+        assert_eq!(pubrel_properties.reason_string, Some("Success".to_string()));
+        assert_eq!(
+            pubrel_properties.user_properties.get(0),
+            Some(&("username".to_string(), "Justin".to_string()))
+        );
 
-         // test display of puback and puback_properties in v5
-         println!("pubrel is {}", pubrel);
-         println!("pubrel_properties is {}", pubrel_properties);
-
-
+        // test display of puback and puback_properties in v5
+        println!("pubrel is {}", pubrel);
+        println!("pubrel_properties is {}", pubrel_properties);
     }
 }
-

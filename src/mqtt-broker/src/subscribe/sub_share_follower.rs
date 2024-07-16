@@ -6,7 +6,9 @@ use super::{
     subscribe_cache::SubscribeCacheManager,
 };
 use crate::{
-    core::cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+    handler::cache_manager::{
+        CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+    },
     server::tcp::packet::ResponsePackage,
     subscribe::subscribe_cache::ShareSubShareSub,
 };
@@ -812,13 +814,19 @@ fn build_resub_unsubscribe_pkg(
 }
 
 fn build_resub_publish_ack(pkid: u16, reason: PubAckReason) -> MQTTPacket {
-    let puback = PubAck { pkid, reason };
+    let puback = PubAck {
+        pkid,
+        reason: Some(reason),
+    };
     let puback_properties = PubAckProperties::default();
     return MQTTPacket::PubAck(puback, Some(puback_properties));
 }
 
 fn build_resub_publish_rec(pkid: u16, reason: PubRecReason, mqtt_client_pkid: u64) -> MQTTPacket {
-    let puback = PubRec { pkid, reason };
+    let puback = PubRec {
+        pkid,
+        reason: Some(reason),
+    };
     let puback_properties = PubRecProperties {
         reason_string: None,
         user_properties: vec![("mqtt_client_pkid".to_string(), mqtt_client_pkid.to_string())],
@@ -827,7 +835,10 @@ fn build_resub_publish_rec(pkid: u16, reason: PubRecReason, mqtt_client_pkid: u6
 }
 
 fn build_resub_publish_comp(pkid: u16, reason: PubCompReason) -> MQTTPacket {
-    let pubcomp = PubComp { pkid, reason };
+    let pubcomp = PubComp {
+        pkid,
+        reason: Some(reason),
+    };
     let pubcomp_properties = PubCompProperties::default();
     return MQTTPacket::PubComp(pubcomp, Some(pubcomp_properties));
 }

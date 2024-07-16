@@ -60,8 +60,14 @@ impl ClientKeepAlive {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
                 let max_timeout = keep_live_time(time.keep_live);
                 if (now_second() - time.heartbeat) > max_timeout {
-                    let disconnect = Disconnect {
-                        reason_code: DisconnectReasonCode::KeepAliveTimeout,
+                    let disconnect = if time.protobol == MQTTProtocol::MQTT4
+                        || time.protobol == MQTTProtocol::MQTT3
+                    {
+                        Disconnect {
+                            reason_code: Some(DisconnectReasonCode::KeepAliveTimeout),
+                        }
+                    } else {
+                        Disconnect { reason_code: None }
                     };
 
                     let response = if time.protobol == MQTTProtocol::MQTT4
@@ -134,9 +140,9 @@ mod test {
     use protocol::mqtt::common::MQTTPacket;
     use tokio::sync::broadcast;
 
-    use crate::core::cache_manager::CacheManager;
-    use crate::core::connection::Connection;
-    use crate::core::keep_alive::ClientKeepAlive;
+    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::connection::Connection;
+    use crate::handler::keep_alive::ClientKeepAlive;
 
     #[tokio::test]
     pub async fn keep_alive_test() {

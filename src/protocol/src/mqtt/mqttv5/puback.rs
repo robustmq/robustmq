@@ -20,7 +20,7 @@ fn len(puback: &PubAck, properties: &Option<PubAckProperties>) -> usize {
     let mut len = 2 + 1; // pkid + reason code
 
     // If there are no properties, sending reason code is optional
-    if puback.reason == PubAckReason::Success && properties.is_none() {
+    if puback.reason.unwrap() == PubAckReason::Success && properties.is_none() {
         return 2;
     }
 
@@ -46,11 +46,11 @@ pub fn write(
     let count = write_remaining_length(buffer, len)?;
     buffer.put_u16(puback.pkid);
     // Reason code is optional with success if there are no properties
-    if puback.reason == PubAckReason::Success && properties.is_none() {
+    if puback.reason.unwrap() == PubAckReason::Success && properties.is_none() {
         return Ok(4);
     }
 
-    buffer.put_u8(code(puback.reason));
+    buffer.put_u8(code(puback.reason.unwrap()));
     if let Some(p) = properties {
         properties::write(p, buffer)?;
     } else {
@@ -73,7 +73,7 @@ pub fn read(
         return Ok((
             PubAck {
                 pkid,
-                reason: PubAckReason::Success,
+                reason: Some(PubAckReason::Success),
             },
             None,
         ));
@@ -84,7 +84,7 @@ pub fn read(
         return Ok((
             PubAck {
                 pkid,
-                reason: reason(ack_reason)?,
+                reason: Some(reason(ack_reason)?),
             },
             None,
         ));
@@ -92,7 +92,7 @@ pub fn read(
 
     let puback = PubAck {
         pkid,
-        reason: reason(ack_reason)?,
+        reason: Some(reason(ack_reason)?),
     };
 
     let properties = properties::read(&mut bytes)?;
@@ -209,7 +209,7 @@ mod tests {
         let mut buffer = BytesMut::new();
         let puback = PubAck {
             pkid: 20u16,
-            reason: PubAckReason::NotAuthorized,
+            reason: Some(PubAckReason::NotAuthorized),
         };
 
         let vec = vec![("username".to_string(), "Justin".to_string())];
@@ -227,19 +227,23 @@ mod tests {
         assert_eq!(fixed_header.fixed_header_len, 2);
         assert_eq!(fixed_header.remaining_len, 51);
 
-         // test the read function of puback packet and check the result of write function in MQTT v5
-         let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-         assert_eq!(x.pkid, 20u16);
-         assert_eq!(x.reason, PubAckReason::NotAuthorized);
+        // test the read function of puback packet and check the result of write function in MQTT v5
+        let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(x.pkid, 20u16);
+        assert_eq!(x.reason.unwrap(), PubAckReason::NotAuthorized);
 
-         let puback_properties = y.unwrap();
-         assert_eq!(puback_properties.reason_string, Some("user authorization failed".to_string()));
-         assert_eq!(puback_properties.user_properties.get(0), Some(&("username".to_string(), "Justin".to_string())));
+        let puback_properties = y.unwrap();
+        assert_eq!(
+            puback_properties.reason_string,
+            Some("user authorization failed".to_string())
+        );
+        assert_eq!(
+            puback_properties.user_properties.get(0),
+            Some(&("username".to_string(), "Justin".to_string()))
+        );
 
-         // test display of puback and puback_properties in v5
-         println!("puback is {}", puback);
-         println!("puback_properties is {}", puback_properties);
-
-
+        // test display of puback and puback_properties in v5
+        println!("puback is {}", puback);
+        println!("puback_properties is {}", puback_properties);
     }
 }

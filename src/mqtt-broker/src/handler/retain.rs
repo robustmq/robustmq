@@ -237,8 +237,8 @@ pub fn message_expiry_interval(
 
 #[cfg(test)]
 mod tests {
-    use crate::core::cache_manager::CacheManager;
-    use crate::core::retain::send_retain_message;
+    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::retain::send_retain_message;
     use crate::storage::topic::TopicStorage;
     use bytes::Bytes;
     use clients::poll::ClientPool;
