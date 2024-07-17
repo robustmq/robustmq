@@ -4,10 +4,12 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::extract::WebSocketUpgrade;
 use axum::Router;
 use axum::{response::Response, routing::get};
+use bytes::{BufMut, BytesMut};
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     log::{error, info},
 };
+use protocol::mqtt::codec::MqttCodec;
 use std::{net::SocketAddr, sync::Arc};
 
 pub const ROUTE_ROOT: &str = "/mqtt";
@@ -60,16 +62,11 @@ async fn handle_socket(mut socket: WebSocket) {
     while let Some(msg) = socket.recv().await {
         match msg {
             Ok(Message::Binary(data)) => {
-                if data.len() > 0 {
-                    match String::from_utf8(data) {
-                        Ok(d) => {
-                            info(format!("Binary:{},{:?}", d.len(), d));
-                        }
-                        Err(e) => {
-                            error(e.to_string());
-                        }
-                    }
-                }
+                let mut buf = BytesMut::with_capacity(data.len());
+                buf.put(data.as_slice());
+                let mut codec = MqttCodec::new(None);
+                let res = codec.decode_data(&mut buf);
+                info(format!("Binary:{},{:?}", data.len(), res));
             }
             Ok(Message::Text(data)) => {
                 info(format!("Text:{},{:?}", data.len(), data));
