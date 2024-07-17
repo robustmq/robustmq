@@ -4,7 +4,12 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::extract::WebSocketUpgrade;
 use axum::Router;
 use axum::{response::Response, routing::get};
-use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
+use bytes::{BufMut, BytesMut};
+use common_base::{
+    config::broker_mqtt::broker_mqtt_conf,
+    log::{error, info},
+};
+use protocol::mqtt::codec::MqttCodec;
 use std::{net::SocketAddr, sync::Arc};
 
 pub const ROUTE_ROOT: &str = "/mqtt";
@@ -49,21 +54,31 @@ fn routes_v1(state: WebSocketServerState) -> Router {
 }
 
 async fn handler(ws: WebSocketUpgrade) -> Response {
-    ws.protocols(["mqttv3.1"]).on_upgrade(handle_socket)
+    ws.protocols(["mqtt", "mqttv3.1"]).on_upgrade(handle_socket)
 }
 
 async fn handle_socket(mut socket: WebSocket) {
     // let (mut sender, mut receiver) = socket.split();
     while let Some(msg) = socket.recv().await {
-        info(format!("xxxxx:{:?}", msg));
-
-        if socket
-            .send(Message::Text("test".to_string()))
-            .await
-            .is_err()
-        {
-            // client disconnected
-            return;
+        match msg {
+            Ok(Message::Binary(data)) => {
+                let mut buf = BytesMut::with_capacity(data.len());
+                buf.put(data.as_slice());
+                let mut codec = MqttCodec::new(None);
+                let res = codec.decode_data(&mut buf);
+                info(format!("Binary:{},{:?}", data.len(), res));
+            }
+            Ok(Message::Text(data)) => {
+                info(format!("Text:{},{:?}", data.len(), data));
+            }
+            Ok(Message::Ping(data)) => {
+                info(format!("Ping:{},{:?}", data.len(), data));
+            }
+            Ok(Message::Pong(data)) => {
+                info(format!("Pong:{},{:?}", data.len(), data));
+            }
+            Ok(Message::Close(data)) => {}
+            Err(e) => error(e.to_string()),
         }
     }
 }
