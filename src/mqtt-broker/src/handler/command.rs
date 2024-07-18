@@ -24,7 +24,6 @@ pub struct Command<S> {
     mqtt4_service: MqttService<S>,
     mqtt5_service: MqttService<S>,
     metadata_cache: Arc<CacheManager>,
-    response_queue_sx: Sender<ResponsePackage>,
 }
 
 impl<S> Command<S>
@@ -34,7 +33,6 @@ where
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
-        response_queue_sx: Sender<ResponsePackage>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
         stop_sx: broadcast::Sender<bool>,
@@ -68,7 +66,6 @@ where
             mqtt4_service,
             mqtt5_service,
             metadata_cache: cache_manager,
-            response_queue_sx,
         };
     }
 
@@ -301,7 +298,6 @@ where
                                 tcp_connection.connection_id,
                                 subscribe,
                                 subscribe_properties,
-                                self.response_queue_sx.clone(),
                             )
                             .await,
                     );
@@ -313,7 +309,6 @@ where
                                 tcp_connection.connection_id,
                                 subscribe,
                                 subscribe_properties,
-                                self.response_queue_sx.clone(),
                             )
                             .await,
                     );
@@ -326,7 +321,6 @@ where
                                 tcp_connection.connection_id,
                                 subscribe,
                                 subscribe_properties,
-                                self.response_queue_sx.clone(),
                             )
                             .await,
                     );

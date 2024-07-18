@@ -69,7 +69,7 @@ impl NetworkConnection {
     }
 
     pub fn stop_connection(&self) {
-        if let Some(sx) = self.connection_stop_sx {
+        if let Some(sx) = self.connection_stop_sx.clone() {
             match sx.send(true) {
                 Ok(_) => {}
                 Err(e) => {

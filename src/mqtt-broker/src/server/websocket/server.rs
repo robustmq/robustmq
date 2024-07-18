@@ -114,7 +114,6 @@ where
     let command = Command::new(
         state.cache_manager.clone(),
         state.message_storage_adapter.clone(),
-        state.response_queue_sx.clone(),
         state.sucscribe_manager.clone(),
         state.client_poll.clone(),
         state.stop_sx.clone(),

@@ -606,7 +606,6 @@ where
         connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
-        response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
@@ -682,17 +681,6 @@ where
                 subscribe_properties.clone(),
             )
             .await;
-
-        send_retain_message(
-            client_id.clone(),
-            subscribe.clone(),
-            subscribe_properties.clone(),
-            self.client_poll.clone(),
-            self.cache_manager.clone(),
-            response_queue_sx.clone(),
-            self.stop_sx.clone(),
-        )
-        .await;
 
         let pkid = subscribe.packet_identifier;
         return response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None);
