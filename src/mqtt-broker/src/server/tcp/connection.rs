@@ -6,17 +6,32 @@ use tokio::sync::broadcast;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
-pub struct TCPConnection {
+pub enum NetworkConnectionType {
+    TCP,
+    TCPS,
+    WebSocket,
+    WebSockets,
+    QUIC,
+}
+
+#[derive(Clone)]
+pub struct NetworkConnection {
+    pub connection_type: NetworkConnectionType,
     pub connection_id: u64,
     pub protocol: Option<MQTTProtocol>,
     pub addr: SocketAddr,
-    pub connection_stop_sx: broadcast::Sender<bool>,
+    pub connection_stop_sx: Option<broadcast::Sender<bool>>,
 }
 
-impl TCPConnection {
-    pub fn new(addr: SocketAddr, connection_stop_sx: broadcast::Sender<bool>) -> Self {
+impl NetworkConnection {
+    pub fn new(
+        connection_type: NetworkConnectionType,
+        addr: SocketAddr,
+        connection_stop_sx: Option<broadcast::Sender<bool>>,
+    ) -> Self {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        TCPConnection {
+        NetworkConnection {
+            connection_type,
             connection_id,
             protocol: None,
             addr,
@@ -54,10 +69,12 @@ impl TCPConnection {
     }
 
     pub fn stop_connection(&self) {
-        match self.connection_stop_sx.send(true) {
-            Ok(_) => {}
-            Err(e) => {
-                error(e.to_string());
+        if let Some(sx) = self.connection_stop_sx {
+            match sx.send(true) {
+                Ok(_) => {}
+                Err(e) => {
+                    error(e.to_string());
+                }
             }
         }
     }

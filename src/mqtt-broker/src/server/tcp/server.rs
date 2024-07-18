@@ -1,12 +1,9 @@
 use super::{
-    connection::TCPConnection, connection_manager::ConnectionManager, packet::ResponsePackage,
+    connection::NetworkConnection, connection_manager::ConnectionManager, packet::ResponsePackage,
 };
 use crate::{
     handler::{command::Command, validator::establish_connection_check},
-    metrics::{
-        metrics_request_packet_incr, metrics_request_queue, metrics_response_packet_incr,
-        metrics_response_queue,
-    },
+    metrics::{metrics_request_queue, metrics_response_queue},
     server::tcp::packet::RequestPackage,
 };
 use common_base::{
@@ -16,7 +13,7 @@ use common_base::{
 use futures::StreamExt;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
-    common::{MQTTPacket, MQTTProtocol},
+    common::MQTTPacket,
 };
 use std::{collections::HashMap, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
@@ -27,7 +24,6 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 // U: codec: encoder + decoder
 // S: message storage adapter
 pub struct TcpServer<S> {
-    protocol: MQTTProtocol,
     command: Command<S>,
     connection_manager: Arc<ConnectionManager>,
     accept_thread_num: usize,
@@ -43,7 +39,6 @@ where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     pub fn new(
-        protocol: MQTTProtocol,
         command: Command<S>,
         accept_thread_num: usize,
         max_connection_num: usize,
@@ -54,16 +49,9 @@ where
         request_queue_sx: Sender<RequestPackage>,
         response_queue_sx: Sender<ResponsePackage>,
         stop_sx: broadcast::Sender<bool>,
+        connection_manager: Arc<ConnectionManager>,
     ) -> Self {
-        let connection_manager = Arc::new(ConnectionManager::new(
-            protocol.clone(),
-            max_connection_num,
-            max_try_mut_times,
-            try_mut_sleep_time_ms,
-        ));
-
         Self {
-            protocol,
             command,
             connection_manager,
             accept_thread_num,
@@ -114,7 +102,6 @@ where
     async fn acceptor(&self, listener: Arc<TcpListener>, index: usize) {
         let request_queue_sx = self.request_queue_sx.clone();
         let connection_manager = self.connection_manager.clone();
-        let protocol: String = self.protocol.clone().into();
         let mut stop_rx = self.stop_sx.subscribe();
         tokio::spawn(async move {
             info(format!(
@@ -151,9 +138,14 @@ where
                                 }
 
                                 let (connection_stop_sx,mut connection_stop_rx) = broadcast::channel::<bool>(1);
-                                let connection_id = cm.add(TCPConnection::new(addr,connection_stop_sx.clone()));
+                                let connection_id = cm.add(
+                                        NetworkConnection::new(
+                                            crate::server::tcp::connection::NetworkConnectionType::TCP,
+                                            addr,
+                                            Some(connection_stop_sx.clone())
+                                        )
+                                 );
                                 cm.add_write(connection_id, write_frame_stream);
-                                let protocol_lable = protocol.clone();
 
                                 tokio::spawn(async move {
                                     loop {
@@ -171,7 +163,6 @@ where
                                             }
                                             val = read_frame_stream.next()=>{
                                                 if let Some(pkg) = val {
-                                                    metrics_request_packet_incr(&protocol_lable);
                                                     match pkg {
                                                         Ok(data) => {
                                                             let pack: MQTTPacket = data.try_into().unwrap();
@@ -328,7 +319,6 @@ where
     async fn response_process(&self) {
         let mut response_queue_rx = self.response_queue_sx.subscribe();
         let connect_manager = self.connection_manager.clone();
-        let protocol_lable: String = self.protocol.clone().into();
         let mut stop_rx = self.stop_sx.subscribe();
         let response_process_num = self.response_process_num.clone();
         let stop_sx = self.stop_sx.clone();
@@ -341,7 +331,6 @@ where
                 process_handler.insert(index, response_process_sx.clone());
                 let mut raw_stop_rx = stop_sx.subscribe();
                 let raw_connect_manager = connect_manager.clone();
-                let raw_protocol_lable = protocol_lable.clone();
                 tokio::spawn(async move {
                     info(format!(
                         "TCP Server response process thread {} start successfully.",
@@ -365,7 +354,6 @@ where
                                 if let Ok(response_package) = val{
                                     let lable = format!("handler-{}",index);
                                     metrics_response_queue(&lable, response_process_rx.len() as i64);
-                                    metrics_response_packet_incr(&raw_protocol_lable);
 
                                     if let Some(protocol) =
                                     raw_connect_manager.get_connect_protocol(response_package.connection_id)

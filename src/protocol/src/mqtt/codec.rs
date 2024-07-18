@@ -144,7 +144,7 @@ impl MqttCodec{
         return Err(Error::InvalidProtocol);
     }
     
-    fn encode_data(
+    pub fn encode_data(
         &mut self,
         packet_wrapper: MQTTPacketWrapper,
         buffer: &mut BytesMut,

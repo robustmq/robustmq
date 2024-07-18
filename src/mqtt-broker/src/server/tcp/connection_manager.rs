@@ -1,5 +1,5 @@
-use super::connection::TCPConnection;
-use crate::metrics::metrics_connection_num;
+use crate::handler::cache_manager::CacheManager;
+use super::connection::NetworkConnection;
 use common_base::log::{error, info};
 use dashmap::DashMap;
 use futures::SinkExt;
@@ -7,43 +7,30 @@ use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTProtocol,
 };
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 
 pub struct ConnectionManager {
-    protocol: MQTTProtocol,
-    connections: DashMap<u64, TCPConnection>,
+    connections: DashMap<u64, NetworkConnection>,
     write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>>,
-    max_connection_num: usize,
-    max_try_mut_times: u64,
-    try_mut_sleep_time_ms: u64,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl ConnectionManager {
-    pub fn new(
-        protocol: MQTTProtocol,
-        max_connection_num: usize,
-        max_try_mut_times: u64,
-        try_mut_sleep_time_ms: u64,
-    ) -> ConnectionManager {
+    pub fn new(cache_manager: Arc<CacheManager>) -> ConnectionManager {
         let connections = DashMap::with_capacity_and_shard_amount(1000, 64);
         let write_list = DashMap::with_capacity_and_shard_amount(1000, 64);
         ConnectionManager {
-            protocol,
             connections,
             write_list,
-            max_connection_num,
-            max_try_mut_times,
-            try_mut_sleep_time_ms,
+            cache_manager,
         }
     }
 
-    pub fn add(&self, connection: TCPConnection) -> u64 {
+    pub fn add(&self, connection: NetworkConnection) -> u64 {
         let connection_id = connection.connection_id();
         self.connections.insert(connection_id, connection);
-        let lable: String = self.protocol.clone().into();
-        metrics_connection_num(&lable, self.connections.len() as i64);
         return connection_id;
     }
 
@@ -77,12 +64,11 @@ impl ConnectionManager {
                 Err(e) => error(e.to_string()),
             }
         }
-        let lable: String = self.protocol.clone().into();
-        metrics_connection_num(&lable, self.connections.len() as i64);
     }
 
     pub async fn write_frame(&self, connection_id: u64, resp: MQTTPacketWrapper) {
         let mut times = 0;
+        let cluster = self.cache_manager.get_cluster_info();
         loop {
             match self.write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
@@ -91,7 +77,7 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > self.max_try_mut_times {
+                            if times > cluster.send_max_try_mut_times {
                                 error(format!(
                                     "Failed to write data to the mqtt client, error message: {:?}",
                                     e
@@ -102,31 +88,32 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > self.max_try_mut_times {
+                    if times > cluster.send_max_try_mut_times {
                         error(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {},len:{}",connection_id,self.write_list.len()));
                         break;
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
-                    if times > self.max_try_mut_times {
+                    if times > cluster.send_max_try_mut_times {
                         error(format!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
                         break;
                     }
                 }
             }
             times = times + 1;
-            sleep(Duration::from_millis(self.try_mut_sleep_time_ms)).await
+            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
         }
     }
 
-    pub fn connect_num_check(&self) -> bool {
-        if self.connections.len() >= self.max_connection_num {
+    pub fn tcp_connect_num_check(&self) -> bool {
+        let cluster = self.cache_manager.get_cluster_info();
+        if self.connections.len() >= cluster.tcp_max_connection_num as usize {
             return true;
         }
         return false;
     }
 
-    pub fn get_connect(&self, connect_id: u64) -> Option<TCPConnection> {
+    pub fn get_connect(&self, connect_id: u64) -> Option<NetworkConnection> {
         if let Some(connec) = self.connections.get(&connect_id) {
             return Some(connec.clone());
         }
