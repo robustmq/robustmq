@@ -2,10 +2,13 @@ use self::tcp::{
     packet::{RequestPackage, ResponsePackage},
     server::TcpServer,
 };
-use crate::{handler::{cache_manager::CacheManager, command::Command}, subscribe::subscribe_cache::SubscribeCacheManager};
+use crate::{
+    handler::{cache_manager::CacheManager, command::Command},
+    subscribe::subscribe_cache::SubscribeCacheManager,
+};
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
-use protocol::mqtt::common::MQTTProtocol;
+use tcp::connection_manager::ConnectionManager;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self, Sender};
@@ -19,6 +22,7 @@ pub mod websocket;
 pub async fn start_tcp_server<S>(
     sucscribe_manager: Arc<SubscribeCacheManager>,
     cache_manager: Arc<CacheManager>,
+    connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
     client_poll: Arc<ClientPool>,
     request_queue_sx: Sender<RequestPackage>,
@@ -38,7 +42,6 @@ pub async fn start_tcp_server<S>(
     );
 
     let server = TcpServer::<S>::new(
-        MQTTProtocol::MQTT5,
         command,
         conf.network_tcp.accept_thread_num,
         conf.network_tcp.max_connection_num,
@@ -49,6 +52,7 @@ pub async fn start_tcp_server<S>(
         request_queue_sx,
         response_queue_sx,
         stop_sx.clone(),
+        connection_manager,
     );
 
     server.start(conf.mqtt.tcp_port).await;

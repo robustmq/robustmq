@@ -3,7 +3,7 @@ use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::handler::{
     cache_manager::CacheManager, response::response_packet_mqtt_connect_fail,
 };
-use crate::server::tcp::connection::TCPConnection;
+use crate::server::tcp::connection::NetworkConnection;
 use crate::server::tcp::connection_manager::ConnectionManager;
 use crate::server::tcp::packet::ResponsePackage;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -75,7 +75,7 @@ where
     pub async fn apply(
         &mut self,
         connect_manager: Arc<ConnectionManager>,
-        tcp_connection: TCPConnection,
+        tcp_connection: NetworkConnection,
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {

@@ -15,6 +15,7 @@ use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::create_runtime};
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
+use server::tcp::connection_manager::ConnectionManager;
 use server::websocket::server::{websocket_server, WebSocketServerState};
 use server::{
     grpc::server::GrpcServer,
@@ -71,6 +72,7 @@ pub struct MqttBroker<S> {
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeCacheManager>,
+    connection_manager: Arc<ConnectionManager>,
 }
 
 impl<S> MqttBroker<S>
@@ -80,7 +82,7 @@ where
     pub fn new(
         client_poll: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
-        metadata_cache: Arc<CacheManager>,
+        cache_manager: Arc<CacheManager>,
     ) -> Self {
         let conf = broker_mqtt_conf();
         let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
@@ -88,18 +90,20 @@ where
         let (request_queue_sx, _) = broadcast::channel(1000);
         let (response_queue_sx, _) = broadcast::channel(1000);
         let subscribe_manager = Arc::new(SubscribeCacheManager::new(
-            metadata_cache.clone(),
+            cache_manager.clone(),
             client_poll.clone(),
         ));
 
+        let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         return MqttBroker {
             runtime,
-            cache_manager: metadata_cache,
+            cache_manager,
             request_queue_sx,
             response_queue_sx,
             client_poll,
             message_storage_adapter,
             subscribe_manager,
+            connection_manager,
         };
     }
 
@@ -108,7 +112,7 @@ where
         self.start_grpc_server();
         self.start_mqtt_server(stop_send.clone());
         self.start_http_server();
-        self.start_websocket_server();
+        self.start_websocket_server(stop_send.clone());
         self.start_keep_alive_thread(stop_send.clone());
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_push_server();
@@ -120,6 +124,7 @@ where
         let message_storage_adapter = self.message_storage_adapter.clone();
         let subscribe_manager = self.subscribe_manager.clone();
         let client_poll = self.client_poll.clone();
+        let connection_manager = self.connection_manager.clone();
 
         let request_queue_sx = self.request_queue_sx.clone();
         let response_queue_sx = self.response_queue_sx.clone();
@@ -127,6 +132,7 @@ where
             start_tcp_server(
                 subscribe_manager,
                 cache,
+                connection_manager,
                 message_storage_adapter,
                 client_poll,
                 request_queue_sx,
@@ -158,9 +164,15 @@ where
             .spawn(async move { start_http_server(http_state).await });
     }
 
-    fn start_websocket_server(&self) {
-        let ws_state =
-            WebSocketServerState::new(self.cache_manager.clone(), self.subscribe_manager.clone());
+    fn start_websocket_server(&self, stop_send: broadcast::Sender<bool>) {
+        let ws_state = WebSocketServerState::new(
+            self.subscribe_manager.clone(),
+            self.cache_manager.clone(),
+            self.connection_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.client_poll.clone(),
+            stop_send,
+        );
         self.runtime
             .spawn(async move { websocket_server(ws_state).await });
     }

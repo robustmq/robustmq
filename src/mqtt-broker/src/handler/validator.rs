@@ -37,7 +37,7 @@ pub async fn establish_connection_check(
     connection_manager: &Arc<ConnectionManager>,
     write_frame_stream: &mut FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
 ) -> bool {
-    if connection_manager.connect_num_check() {
+    if connection_manager.tcp_connect_num_check() {
         let packet_wrapper = MQTTPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(

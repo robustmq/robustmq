@@ -18,6 +18,12 @@ pub struct MQTTCluster {
     pub default_message_expiry_interval: u64,
     pub client_pkid_persistent: bool,
     pub is_self_protection_status: bool,
+    pub tcp_max_connection_num: u64,
+    pub tcps_max_connection_num: u64,
+    pub websocket_max_connection_num: u64,
+    pub websockets_max_connection_num: u64,
+    pub send_max_try_mut_times: u64,
+    pub send_try_mut_sleep_time_ms: u64,
 }
 
 impl MQTTCluster {
@@ -38,6 +44,12 @@ impl MQTTCluster {
             default_message_expiry_interval: 3600,
             client_pkid_persistent: false,
             is_self_protection_status: false,
+            tcp_max_connection_num: 1000,
+            tcps_max_connection_num: 1000,
+            websocket_max_connection_num: 1000,
+            websockets_max_connection_num: 1000,
+            send_max_try_mut_times: 128,
+            send_try_mut_sleep_time_ms: 100,
         };
     }
     pub fn receive_max(&self) -> u16 {
