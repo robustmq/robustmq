@@ -24,4 +24,5 @@ clients.workspace = true
 metadata-struct.workspace = true
 regex.workspace = true
 placement-center.workspace = true
-futures-util.workspace =true
+futures-util.workspace = true
+axum-extra.workspace = true
