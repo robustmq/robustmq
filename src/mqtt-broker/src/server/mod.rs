@@ -35,7 +35,6 @@ pub async fn start_tcp_server<S>(
     let command = Command::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
-        response_queue_sx.clone(),
         sucscribe_manager.clone(),
         client_poll.clone(),
         stop_sx.clone(),
