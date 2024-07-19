@@ -44,11 +44,8 @@ pub async fn start_tcp_server<S>(
     let server = TcpServer::<S>::new(
         command,
         conf.network_tcp.accept_thread_num,
-        conf.network_tcp.max_connection_num,
         conf.network_tcp.handler_thread_num,
         conf.network_tcp.response_thread_num,
-        conf.network_tcp.lock_max_try_mut_times,
-        conf.network_tcp.lock_try_mut_sleep_time_ms,
         request_queue_sx,
         response_queue_sx,
         stop_sx.clone(),

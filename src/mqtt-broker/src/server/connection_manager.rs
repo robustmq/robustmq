@@ -139,7 +139,11 @@ impl ConnectionManager {
         return Ok(());
     }
 
-    pub async fn write_tcp_frame(&self, connection_id: u64, resp: MQTTPacketWrapper) {
+    pub async fn write_tcp_frame(
+        &self,
+        connection_id: u64,
+        resp: MQTTPacketWrapper,
+    ) -> Result<(), RobustMQError> {
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
@@ -151,31 +155,38 @@ impl ConnectionManager {
                         }
                         Err(e) => {
                             if times > cluster.send_max_try_mut_times {
-                                error(format!(
-                                    "Failed to write data to the mqtt tcp client, error message: {:?}",
-                                    e
-                                ));
-                                break;
+                                return Err(RobustMQError::CommmonError(format!(
+                                    "Failed to write data to the mqtt tcp client, error message: {e:?}"
+                                )));
                             }
                         }
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > cluster.send_max_try_mut_times {
-                        error(format!("[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",connection_id,self.tcp_write_list.len()));
-                        break;
+                        return Err(RobustMQError::CommmonError(
+                            format!(
+                                "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
+                                connection_id,
+                                self.tcp_write_list.len()
+                            )
+                        ));
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > cluster.send_max_try_mut_times {
-                        error(format!("[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id));
-                        break;
+                        return Err(RobustMQError::CommmonError(
+                            format!(
+                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
+                            )
+                        ));
                     }
                 }
             }
             times = times + 1;
             sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
         }
+        return Ok(());
     }
 
     pub fn tcp_connect_num_check(&self) -> bool {
