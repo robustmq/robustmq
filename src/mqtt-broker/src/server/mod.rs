@@ -1,20 +1,21 @@
-use self::tcp::{
-    packet::{RequestPackage, ResponsePackage},
-    server::TcpServer,
-};
+use self::tcp::server::TcpServer;
 use crate::{
     handler::{cache_manager::CacheManager, command::Command},
     subscribe::subscribe_cache::SubscribeCacheManager,
 };
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
-use tcp::connection_manager::ConnectionManager;
+use connection_manager::ConnectionManager;
+use packet::{RequestPackage, ResponsePackage};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self, Sender};
 
+pub mod connection;
+pub mod connection_manager;
 pub mod grpc;
 pub mod http;
+pub mod packet;
 pub mod quic;
 pub mod tcp;
 pub mod websocket;

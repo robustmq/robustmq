@@ -1,10 +1,7 @@
-use super::{
-    connection::NetworkConnection, connection_manager::ConnectionManager, packet::ResponsePackage,
-};
 use crate::{
     handler::{command::Command, validator::establish_connection_check},
     metrics::{metrics_request_queue, metrics_response_queue},
-    server::tcp::packet::RequestPackage,
+    server::{connection::NetworkConnection, connection_manager::ConnectionManager, packet::{RequestPackage, ResponsePackage}},
 };
 use common_base::{
     errors::RobustMQError,
@@ -138,14 +135,14 @@ where
                                 }
 
                                 let (connection_stop_sx,mut connection_stop_rx) = broadcast::channel::<bool>(1);
-                                let connection_id = cm.add(
+                                let connection_id = cm.add_connection(
                                         NetworkConnection::new(
-                                            crate::server::tcp::connection::NetworkConnectionType::TCP,
+                                            crate::server::connection::NetworkConnectionType::TCP,
                                             addr,
                                             Some(connection_stop_sx.clone())
                                         )
                                  );
-                                cm.add_write(connection_id, write_frame_stream);
+                                cm.add_tcp_write(connection_id, write_frame_stream);
 
                                 tokio::spawn(async move {
                                     loop {
@@ -238,6 +235,8 @@ where
                                 let lable = format!("handler-{}",index);
                                 metrics_request_queue(&lable, hendler_process_sx.len() as i64);
                                 if let Ok(packet) = val{
+                                    
+
                                     if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
                                         if let Some(resp) = raw_command
                                             .apply(raw_connect_manager.clone(), connect, packet.addr, packet.packet)
@@ -363,7 +362,7 @@ where
                                             packet: response_package.packet.clone(),
                                         };
                                         raw_connect_manager
-                                            .write_frame(response_package.connection_id, packet_wrapper)
+                                            .write_tcp_frame(response_package.connection_id, packet_wrapper)
                                             .await;
                                     }
 

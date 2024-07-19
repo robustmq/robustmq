@@ -15,13 +15,13 @@ use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::create_runtime};
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
-use server::tcp::connection_manager::ConnectionManager;
+use server::connection_manager::ConnectionManager;
+use server::packet::{RequestPackage, ResponsePackage};
 use server::websocket::server::{websocket_server, WebSocketServerState};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
     start_tcp_server,
-    tcp::packet::{RequestPackage, ResponsePackage},
 };
 use std::sync::Arc;
 use storage::cluster::ClusterStorage;

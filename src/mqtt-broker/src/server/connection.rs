@@ -46,7 +46,7 @@ impl NetworkConnection {
     pub fn set_protocol(&mut self, protocol: MQTTProtocol) {
         self.protocol = Some(protocol);
     }
-
+    
     pub fn is_mqtt3(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
             return protocol == MQTTProtocol::MQTT3;
