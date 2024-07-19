@@ -12,7 +12,7 @@ use crate::handler::response::{
     response_packet_mqtt_pubrec_success, response_packet_mqtt_pubrel_success,
     response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
-use crate::handler::retain::{save_topic_retain_message, send_retain_message};
+use crate::handler::retain::save_topic_retain_message;
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
@@ -21,10 +21,7 @@ use crate::handler::validator::{
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
-use crate::{
-    security::authentication::authentication_login, server::tcp::packet::ResponsePackage,
-    storage::message::MessageStorage,
-};
+use crate::{security::authentication::authentication_login, storage::message::MessageStorage};
 use clients::poll::ClientPool;
 use common_base::{log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
@@ -39,7 +36,7 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast::{self};
 
 #[derive(Clone)]
 pub struct MqttService<S> {

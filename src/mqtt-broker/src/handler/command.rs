@@ -1,11 +1,8 @@
 use super::mqtt::MqttService;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
-use crate::handler::{
-    cache_manager::CacheManager, response::response_packet_mqtt_connect_fail,
-};
-use crate::server::tcp::connection::NetworkConnection;
-use crate::server::tcp::connection_manager::ConnectionManager;
-use crate::server::tcp::packet::ResponsePackage;
+use crate::handler::{cache_manager::CacheManager, response::response_packet_mqtt_connect_fail};
+use crate::server::connection::NetworkConnection;
+use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
@@ -15,7 +12,7 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast::{self};
 
 // S: message storage adapter
 #[derive(Clone)]
