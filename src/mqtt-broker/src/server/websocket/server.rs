@@ -18,7 +18,7 @@ use common_base::{
 };
 use futures_util::stream::StreamExt;
 use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
-use protocol::mqtt::common::MQTTProtocol;
+use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
 use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
@@ -68,19 +68,15 @@ where
         .parse()
         .unwrap();
     let app = routes_v1(state);
-    let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
-    match axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .await
+    info(format!(
+        "Broker WebSocket Server start success. bind addr:{}",
+        ip
+    ));
+    match axum_server::bind(ip)
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+        .await
     {
-        Ok(()) => {
-            info(format!(
-                "Broker WebSocket Server start success. bind addr:{}",
-                ip
-            ));
-        }
+        Ok(()) => {}
         Err(e) => panic!("{}", e.to_string()),
     }
 }
@@ -115,6 +111,7 @@ where
         state.message_storage_adapter.clone(),
         state.sucscribe_manager.clone(),
         state.client_poll.clone(),
+        state.connection_manager.clone(),
         state.stop_sx.clone(),
     );
     let codec = MqttCodec::new(None);
@@ -150,7 +147,7 @@ async fn handle_socket<S>(
 
     connection_manager.add_websocket_write(tcp_connection.connection_id, sender);
     connection_manager.add_connection(tcp_connection.clone());
-    let protocol_version = MQTTProtocol::MQTT5.into();
+    let mut protocol_version = MQTTProtocol::MQTT5;
     let mut stop_rx = stop_sx.subscribe();
 
     loop {
@@ -179,16 +176,23 @@ async fn handle_socket<S>(
                                             connection_manager.clone(),
                                             tcp_connection.clone(),
                                             addr.clone(),
-                                            packet,
+                                            packet.clone(),
                                         )
                                         .await
                                     {
+                                        if let MQTTPacket::Connect(_,_,_,_,_,_) = packet {
+                                            if let Some(pv) = connection_manager.get_connect_protocol(tcp_connection.connection_id){
+                                                protocol_version = pv;
+                                            }
+                                        }
+
                                         let mut buff = BytesMut::new();
                                         let packet_wrapper = MQTTPacketWrapper {
-                                            protocol_version,
+                                            protocol_version: protocol_version.clone().into(),
                                             packet: resp_pkg,
                                         };
 
+                                        info(format!("{packet_wrapper:?}"));
                                         match codec.encode_data(packet_wrapper, &mut buff){
                                             Ok(()) => {},
                                             Err(e) => {
@@ -198,7 +202,7 @@ async fn handle_socket<S>(
                                         match connection_manager.write_websocket_frame(tcp_connection.connection_id, Message::Binary(buf.to_vec())).await{
                                             Ok(()) => {},
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error(format!("websocket returns failure to write the packet to the client with error message {e:?}"));
                                                 connection_manager.clonse_connect(tcp_connection.connection_id).await;
                                                 break;
                                             }

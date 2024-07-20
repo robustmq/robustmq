@@ -18,6 +18,7 @@ use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
+use crate::server::connection_manager::ConnectionManager;
 use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
@@ -38,10 +39,13 @@ use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self};
 
+use super::connection::disconnect_connection;
+
 #[derive(Clone)]
 pub struct MqttService<S> {
     protocol: MQTTProtocol,
     cache_manager: Arc<CacheManager>,
+    connnection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
     client_poll: Arc<ClientPool>,
@@ -55,6 +59,7 @@ where
     pub fn new(
         protocol: MQTTProtocol,
         cache_manager: Arc<CacheManager>,
+        connnection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
@@ -63,6 +68,7 @@ where
         return MqttService {
             protocol,
             cache_manager,
+            connnection_manager,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             client_poll,
@@ -775,31 +781,26 @@ where
             return None;
         };
 
-        self.cache_manager.remove_connection(connect_id);
-        self.cache_manager
-            .update_session_connect_id(&connection.client_id, None);
-
-        let session_storage = SessionStorage::new(self.client_poll.clone());
-        match session_storage
-            .update_session(&connection.client_id, 0, 0, 0, now_second())
-            .await
+        match disconnect_connection(
+            &connection.client_id,
+            connect_id,
+            &self.cache_manager,
+            &self.client_poll,
+            &self.connnection_manager,
+        )
+        .await
         {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(e) => {
                 return Some(response_packet_mqtt_distinct(
                     &self.protocol,
-                    Some(DisconnectReasonCode::MaximumConnectTime),
+                    Some(DisconnectReasonCode::UnspecifiedError),
                     &connection,
                     Some(e.to_string()),
                 ));
             }
         }
 
-        return Some(response_packet_mqtt_distinct(
-            &self.protocol,
-            Some(DisconnectReasonCode::MaximumConnectTime),
-            &connection,
-            None,
-        ));
+        return None;
     }
 }

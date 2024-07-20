@@ -1,8 +1,7 @@
 use std::{net::SocketAddr, sync::atomic::AtomicU64};
-
 use common_base::log::error;
 use protocol::mqtt::common::MQTTProtocol;
-use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
@@ -20,14 +19,14 @@ pub struct NetworkConnection {
     pub connection_id: u64,
     pub protocol: Option<MQTTProtocol>,
     pub addr: SocketAddr,
-    pub connection_stop_sx: Option<broadcast::Sender<bool>>,
+    pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }
 
 impl NetworkConnection {
     pub fn new(
         connection_type: NetworkConnectionType,
         addr: SocketAddr,
-        connection_stop_sx: Option<broadcast::Sender<bool>>,
+        connection_stop_sx: Option<mpsc::Sender<bool>>,
     ) -> Self {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         NetworkConnection {
@@ -46,7 +45,7 @@ impl NetworkConnection {
     pub fn set_protocol(&mut self, protocol: MQTTProtocol) {
         self.protocol = Some(protocol);
     }
-    
+
     pub fn is_mqtt3(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
             return protocol == MQTTProtocol::MQTT3;
@@ -68,9 +67,9 @@ impl NetworkConnection {
         return false;
     }
 
-    pub fn stop_connection(&self) {
+    pub async fn stop_connection(&self) {
         if let Some(sx) = self.connection_stop_sx.clone() {
-            match sx.send(true) {
+            match sx.send(true).await {
                 Ok(_) => {}
                 Err(e) => {
                     error(e.to_string());

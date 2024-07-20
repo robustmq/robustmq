@@ -32,11 +32,13 @@ where
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
+        connnection_manager: Arc<ConnectionManager>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         let mqtt3_service = MqttService::new(
             MQTTProtocol::MQTT3,
             cache_manager.clone(),
+            connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
@@ -45,6 +47,7 @@ where
         let mqtt4_service = MqttService::new(
             MQTTProtocol::MQTT4,
             cache_manager.clone(),
+            connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
@@ -53,6 +56,7 @@ where
         let mqtt5_service = MqttService::new(
             MQTTProtocol::MQTT5,
             cache_manager.clone(),
+            connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),

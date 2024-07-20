@@ -1,36 +1,40 @@
-use crate::server::packet::RequestPackage;
-
-use super::cache_manager::{CacheManager, ConnectionLiveTime};
+use super::{
+    cache_manager::{CacheManager, ConnectionLiveTime},
+    connection::disconnect_connection,
+};
+use crate::server::connection_manager::ConnectionManager;
+use clients::poll::ClientPool;
 use common_base::{
     log::{error, info},
     tools::now_second,
 };
-use protocol::mqtt::common::{
-    Disconnect, DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
-};
+use protocol::mqtt::common::MQTTProtocol;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{
     select,
-    sync::broadcast::{self, Sender},
+    sync::broadcast::{self},
     time::sleep,
 };
 
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
-    request_queue_sx: Sender<RequestPackage>,
     stop_send: broadcast::Sender<bool>,
+    client_poll: Arc<ClientPool>,
+    connnection_manager: Arc<ConnectionManager>,
 }
 
 impl ClientKeepAlive {
     pub fn new(
+        client_poll: Arc<ClientPool>,
+        connnection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
-        request_queue_sx: Sender<RequestPackage>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         return ClientKeepAlive {
+            client_poll,
+            connnection_manager,
             cache_manager,
-            request_queue_sx,
             stop_send,
         };
     }
@@ -61,44 +65,21 @@ impl ClientKeepAlive {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
                 let max_timeout = keep_live_time(time.keep_live);
                 if (now_second() - time.heartbeat) > max_timeout {
-                    let disconnect = if time.protobol == MQTTProtocol::MQTT4
-                        || time.protobol == MQTTProtocol::MQTT3
+                    info("Connection was closed by the server because the heartbeat timeout was not reported.".to_string());
+                    match disconnect_connection(
+                        &connection.client_id,
+                        connect_id,
+                        &self.cache_manager,
+                        &self.client_poll,
+                        &self.connnection_manager,
+                    )
+                    .await
                     {
-                        Disconnect {
-                            reason_code: Some(DisconnectReasonCode::KeepAliveTimeout),
-                        }
-                    } else {
-                        Disconnect { reason_code: None }
-                    };
-
-                    let response = if time.protobol == MQTTProtocol::MQTT4
-                        || time.protobol == MQTTProtocol::MQTT3
-                    {
-                        RequestPackage {
-                            connection_id: connect_id,
-                            addr: "127.0.0.1:1000".parse().unwrap(),
-                            packet: MQTTPacket::Disconnect(disconnect.clone(), None),
-                        }
-                    } else {
-                        let properties = Some(DisconnectProperties {
-                                                        session_expiry_interval: None,
-                                                        reason_string: Some("Connection was closed by the server because the heartbeat timeout was not reported.".to_string()),
-                                                        user_properties: vec![("heartbeat_close".to_string(), "true".to_string())],
-                                                        server_reference: None,
-                                                    });
-                        RequestPackage {
-                            connection_id: connect_id,
-                            addr: "127.0.0.1:1000".parse().unwrap(),
-                            packet: MQTTPacket::Disconnect(disconnect, properties),
-                        }
-                    };
-
-                    match self.request_queue_sx.send(response) {
-                        Ok(_) => {}
+                        Ok(()) => {}
                         Err(e) => {
                             error(e.to_string());
                         }
-                    };
+                    }
                 }
             } else {
                 let live_time = ConnectionLiveTime {
@@ -132,18 +113,16 @@ pub struct KeepAliveRunInfo {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
+    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::connection::Connection;
+    use crate::handler::keep_alive::ClientKeepAlive;
+    use crate::server::connection_manager::ConnectionManager;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use common_base::tools::now_second;
     use metadata_struct::mqtt::session::MQTTSession;
-    use protocol::mqtt::common::MQTTPacket;
+    use std::sync::Arc;
     use tokio::sync::broadcast;
-
-    use crate::handler::cache_manager::CacheManager;
-    use crate::handler::connection::Connection;
-    use crate::handler::keep_alive::ClientKeepAlive;
 
     #[tokio::test]
     pub async fn keep_alive_test() {
@@ -152,14 +131,17 @@ mod test {
         let client_poll = Arc::new(ClientPool::new(100));
         let (stop_send, _) = broadcast::channel::<bool>(2);
 
-        let (request_queue_sx, mut request_queue_rx) = broadcast::channel(1000);
         let cache_manager = Arc::new(CacheManager::new(
             client_poll.clone(),
             conf.cluster_name.clone(),
         ));
-
-        let mut keep_alive =
-            ClientKeepAlive::new(cache_manager.clone(), request_queue_sx, stop_send.clone());
+        let connnection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+        let mut keep_alive = ClientKeepAlive::new(
+            client_poll,
+            connnection_manager,
+            cache_manager.clone(),
+            stop_send,
+        );
         tokio::spawn(async move {
             keep_alive.start_heartbeat_check().await;
         });
@@ -171,21 +153,5 @@ mod test {
         let start_time = now_second();
         let connection = Connection::new(1, &client_id, 100, 100, 100, 100, 1);
         cache_manager.add_connection(connect_id, connection);
-
-        match request_queue_rx.recv().await {
-            Ok(da) => {
-                stop_send.send(true).unwrap();
-                let res = if let MQTTPacket::Disconnect(_, _) = da.packet {
-                    true
-                } else {
-                    false
-                };
-                assert!(res);
-                assert_eq!(now_second() - start_time, 3);
-            }
-            Err(_) => {
-                assert!(false);
-            }
-        }
     }
 }

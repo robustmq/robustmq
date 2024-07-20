@@ -1,4 +1,4 @@
-use common_base::log::error;
+use common_base::log::{error, warn};
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
@@ -72,6 +72,7 @@ pub fn response_packet_mqtt_connect_fail(
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MQTTPacket {
+    warn(format!("{error_reason:?}"));
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
             ConnectReturnCode::BadClientId
