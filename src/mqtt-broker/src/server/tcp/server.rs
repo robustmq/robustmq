@@ -1,13 +1,18 @@
 use crate::{
-    handler::{command::Command, validator::establish_connection_check},
+    handler::{
+        command::Command,
+        validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
+    },
     metrics::{metrics_request_queue, metrics_response_queue},
     server::{
         connection::NetworkConnection,
         connection_manager::ConnectionManager,
         packet::{RequestPackage, ResponsePackage},
+        tcp::tls_server::read_tls_frame_process,
     },
 };
 use common_base::{
+    config::broker_mqtt::broker_mqtt_conf,
     errors::RobustMQError,
     log::{debug, error, info},
 };
@@ -16,14 +21,17 @@ use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTPacket,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::Path, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
     io, select,
     sync::mpsc::{self, Receiver, Sender},
 };
 use tokio::{net::TcpListener, sync::broadcast};
+use tokio_rustls::{rustls::ServerConfig, TlsAcceptor};
 use tokio_util::codec::{FramedRead, FramedWrite};
+
+use super::tls_server::{load_certs, load_key};
 
 // U: codec: encoder + decoder
 // S: message storage adapter
@@ -90,11 +98,112 @@ where
         let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
 
         let arc_listener = Arc::new(listener);
-        self.acceptor_process(arc_listener.clone(), request_queue_sx)
+        self.acceptor_tls_process(arc_listener.clone(), request_queue_sx)
             .await;
         self.handler_process(request_queue_rx, response_queue_sx)
             .await;
         self.response_process(response_queue_rx).await;
+        info(format!(
+            "MQTT TLS TCP Server started successfully, listening port: {port}"
+        ));
+    }
+
+    async fn acceptor_tls_process(
+        &self,
+        listener_arc: Arc<TcpListener>,
+        request_queue_sx: Sender<RequestPackage>,
+    ) {
+        let conf = broker_mqtt_conf();
+
+        let certs = match load_certs(&Path::new(&conf.mqtt.tls_cert)) {
+            Ok(data) => data,
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
+        };
+
+        let key = match load_key(&Path::new(&conf.mqtt.tls_key)) {
+            Ok(data) => data,
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
+        };
+
+        let config = match ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(certs, key)
+        {
+            Ok(data) => data,
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
+        };
+        let tls_acceptor = TlsAcceptor::from(Arc::new(config));
+
+        for index in 1..=self.accept_thread_num {
+            let listener = listener_arc.clone();
+            let connection_manager = self.connection_manager.clone();
+            let mut stop_rx = self.stop_sx.subscribe();
+            let raw_request_queue_sx = request_queue_sx.clone();
+            let raw_tls_acceptor = tls_acceptor.clone();
+            tokio::spawn(async move {
+                info(format!(
+                    "TCP Server acceptor thread {} start successfully.",
+                    index
+                ));
+                loop {
+                    select! {
+                        val = stop_rx.recv() =>{
+                            match val{
+                                Ok(flag) => {
+                                    if flag {
+                                        info(format!("TCP Server acceptor thread {} stopped successfully.",index));
+                                        break;
+                                    }
+                                }
+                                Err(_) => {}
+                            }
+                        }
+                        val = listener.accept()=>{
+                            match val{
+                                Ok((stream, addr)) => {
+                                    info(format!("accept tcp tls connection:{:?}",addr));
+                                    let stream = match raw_tls_acceptor.accept(stream).await{
+                                        Ok(da) => da,
+                                        Err(e) => {
+                                            error(format!("Tls Accepter failed to read Stream with error message :{e:?}"));
+                                            continue;
+                                        }
+                                    };
+                                    let (r_stream, w_stream) = io::split(stream);
+                                    let codec = MqttCodec::new(None);
+                                    let read_frame_stream = FramedRead::new(r_stream, codec.clone());
+                                    let mut  write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+
+                                    if !tcp_tls_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
+                                        continue;
+                                    }
+
+                                    let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
+                                    let connection = NetworkConnection::new(
+                                        crate::server::connection::NetworkConnectionType::TCP,
+                                        addr,
+                                        Some(connection_stop_sx.clone())
+                                    );
+                                    connection_manager.add_connection(connection.clone());
+                                    connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
+
+                                    read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx);
+                                }
+                                Err(e) => {
+                                    error(format!("TCP accept failed to create connection with error message :{:?}",e));
+                                }
+                            }
+                        }
+                    };
+                }
+            });
+        }
     }
 
     async fn acceptor_process(
@@ -136,7 +245,7 @@ where
                                     let read_frame_stream = FramedRead::new(r_stream, codec.clone());
                                     let mut  write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
-                                    if !establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
+                                    if !tcp_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
                                         continue;
                                     }
 

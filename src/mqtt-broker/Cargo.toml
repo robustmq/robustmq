@@ -27,3 +27,5 @@ placement-center.workspace = true
 futures-util.workspace = true
 axum-extra.workspace = true
 axum-server.workspace = true
+rustls-pemfile.workspace = true
+tokio-rustls.workspace = true

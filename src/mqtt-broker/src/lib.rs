@@ -16,11 +16,11 @@ use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::cre
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
 use server::connection_manager::ConnectionManager;
+use server::tcp::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
-    start_tcp_server,
 };
 use std::sync::Arc;
 use storage::cluster::ClusterStorage;
@@ -172,7 +172,7 @@ where
             self.client_poll.clone(),
             stop_send.clone(),
         );
-        
+
         self.runtime
             .spawn(async move { websockets_server(ws_state).await });
     }
@@ -270,8 +270,8 @@ where
     }
 
     async fn stop_server(&self) {
-        // unregister node
         let cluster_storage = ClusterStorage::new(self.client_poll.clone());
         cluster_storage.unregister_node().await;
+        self.connection_manager.close_all_connect().await;
     }
 }

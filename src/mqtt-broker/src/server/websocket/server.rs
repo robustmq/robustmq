@@ -92,12 +92,18 @@ where
         .parse()
         .unwrap();
     let app = routes_v1(state);
-    let tls_config = RustlsConfig::from_pem_file(
+
+    let tls_config = match RustlsConfig::from_pem_file(
         PathBuf::from(config.mqtt.tls_cert.clone()),
         PathBuf::from(config.mqtt.tls_key.clone()),
     )
     .await
-    .unwrap();
+    {
+        Ok(cf) => cf,
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
+    };
 
     info(format!(
         "Broker WebSocket TLS Server start success. bind addr:{}",

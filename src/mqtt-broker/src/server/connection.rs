@@ -4,12 +4,11 @@ use protocol::mqtt::common::MQTTProtocol;
 use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone)]
+#[derive(Clone,PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
     TCP,
     TCPS,
     WebSocket,
-    WebSockets,
     QUIC,
 }
 

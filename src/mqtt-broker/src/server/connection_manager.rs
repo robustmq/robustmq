@@ -14,12 +14,19 @@ use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 
-use super::connection::NetworkConnection;
+use super::connection::{NetworkConnection, NetworkConnectionType};
 
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,
     tcp_write_list:
         DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>>,
+    tcp_tls_write_list: DashMap<
+        u64,
+        FramedWrite<
+            tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
+            MqttCodec,
+        >,
+    >,
     websocket_write_list: DashMap<u64, SplitSink<WebSocket, Message>>,
     cache_manager: Arc<CacheManager>,
 }
@@ -28,10 +35,12 @@ impl ConnectionManager {
     pub fn new(cache_manager: Arc<CacheManager>) -> ConnectionManager {
         let connections = DashMap::with_capacity(64);
         let tcp_write_list = DashMap::with_capacity(64);
+        let tcp_tls_write_list = DashMap::with_capacity(64);
         let websocket_write_list = DashMap::with_capacity(64);
         ConnectionManager {
             connections,
             tcp_write_list,
+            tcp_tls_write_list,
             cache_manager,
             websocket_write_list,
         }
@@ -51,6 +60,17 @@ impl ConnectionManager {
         self.tcp_write_list.insert(connection_id, write);
     }
 
+    pub fn add_tcp_tls_write(
+        &self,
+        connection_id: u64,
+        write: FramedWrite<
+            tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
+            MqttCodec,
+        >,
+    ) {
+        self.tcp_tls_write_list.insert(connection_id, write);
+    }
+
     pub fn add_websocket_write(&self, connection_id: u64, write: SplitSink<WebSocket, Message>) {
         self.websocket_write_list.insert(connection_id, write);
     }
@@ -63,7 +83,7 @@ impl ConnectionManager {
 
     pub async fn clonse_connect(&self, connection_id: u64) {
         if let Some((_, connection)) = self.connections.remove(&connection_id) {
-            connection.stop_connection();
+            connection.stop_connection().await;
         }
 
         if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
@@ -147,10 +167,68 @@ impl ConnectionManager {
         info(format!(
             "response packet:{resp:?},connection_id:{connection_id}"
         ));
+
+        // write tls stream
+        if let Some(connection) = self.get_connect(connection_id) {
+            if connection.connection_type == NetworkConnectionType::TCPS {
+                return self.write_tcp_tls_frame(connection_id, resp).await;
+            }
+        }
+
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
             match self.tcp_write_list.try_get_mut(&connection_id) {
+                dashmap::try_result::TryResult::Present(mut da) => {
+                    match da.send(resp.clone()).await {
+                        Ok(_) => {
+                            break;
+                        }
+                        Err(e) => {
+                            if times > cluster.send_max_try_mut_times {
+                                return Err(RobustMQError::CommmonError(format!(
+                                    "Failed to write data to the mqtt tcp client, error message: {e:?}"
+                                )));
+                            }
+                        }
+                    }
+                }
+                dashmap::try_result::TryResult::Absent => {
+                    if times > cluster.send_max_try_mut_times {
+                        return Err(RobustMQError::CommmonError(
+                            format!(
+                                "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
+                                connection_id,
+                                self.tcp_write_list.len()
+                            )
+                        ));
+                    }
+                }
+                dashmap::try_result::TryResult::Locked => {
+                    if times > cluster.send_max_try_mut_times {
+                        return Err(RobustMQError::CommmonError(
+                            format!(
+                                "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
+                            )
+                        ));
+                    }
+                }
+            }
+            times = times + 1;
+            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
+        }
+        return Ok(());
+    }
+
+    pub async fn write_tcp_tls_frame(
+        &self,
+        connection_id: u64,
+        resp: MQTTPacketWrapper,
+    ) -> Result<(), RobustMQError> {
+        let mut times = 0;
+        let cluster = self.cache_manager.get_cluster_info();
+        loop {
+            match self.tcp_tls_write_list.try_get_mut(&connection_id) {
                 dashmap::try_result::TryResult::Present(mut da) => {
                     match da.send(resp.clone()).await {
                         Ok(_) => {
