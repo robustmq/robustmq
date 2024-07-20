@@ -43,6 +43,8 @@ pub struct MQTT {
     pub websocket_port: u32,
     pub websockets_port: u32,
     pub quic_port: u32,
+    pub tls_cert: String,
+    pub tls_key: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

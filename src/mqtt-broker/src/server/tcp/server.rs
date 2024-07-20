@@ -20,7 +20,7 @@ use std::{collections::HashMap, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
     io, select,
-    sync::broadcast::{Receiver, Sender},
+    sync::mpsc::{self, Receiver, Sender},
 };
 use tokio::{net::TcpListener, sync::broadcast};
 use tokio_util::codec::{FramedRead, FramedWrite};
@@ -33,8 +33,6 @@ pub struct TcpServer<S> {
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
-    request_queue_sx: Sender<RequestPackage>,
-    response_queue_sx: Sender<ResponsePackage>,
     stop_sx: broadcast::Sender<bool>,
 }
 
@@ -47,8 +45,6 @@ where
         accept_thread_num: usize,
         handler_process_num: usize,
         response_process_num: usize,
-        request_queue_sx: Sender<RequestPackage>,
-        response_queue_sx: Sender<ResponsePackage>,
         stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
     ) -> Self {
@@ -58,8 +54,6 @@ where
             accept_thread_num,
             handler_process_num,
             response_process_num,
-            request_queue_sx,
-            response_queue_sx,
             stop_sx,
         }
     }
@@ -71,12 +65,18 @@ where
                 panic!("{}", e.to_string());
             }
         };
+        let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
+        let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
 
         let arc_listener = Arc::new(listener);
-        self.acceptor_process(arc_listener.clone()).await;
-        self.handler_process().await;
-        self.response_process().await;
-        self.wait_stop_server().await;
+        self.acceptor_process(arc_listener.clone(), request_queue_sx)
+            .await;
+        self.handler_process(request_queue_rx, response_queue_sx)
+            .await;
+        self.response_process(response_queue_rx).await;
+        info(format!(
+            "MQTT TCP Server started successfully, listening port: {port}"
+        ));
     }
 
     pub async fn start_tls(&self, port: u32) {
@@ -86,19 +86,28 @@ where
                 panic!("{}", e.to_string());
             }
         };
-        let listener = Arc::new(listener);
-        self.acceptor_process(listener.clone()).await;
-        self.handler_process().await;
-        self.response_process().await;
-        self.wait_stop_server().await;
+        let (request_queue_sx, request_queue_rx) = mpsc::channel::<RequestPackage>(1000);
+        let (response_queue_sx, response_queue_rx) = mpsc::channel::<ResponsePackage>(1000);
+
+        let arc_listener = Arc::new(listener);
+        self.acceptor_process(arc_listener.clone(), request_queue_sx)
+            .await;
+        self.handler_process(request_queue_rx, response_queue_sx)
+            .await;
+        self.response_process(response_queue_rx).await;
     }
 
-    async fn acceptor_process(&self, listener_arc: Arc<TcpListener>) {
+    async fn acceptor_process(
+        &self,
+        listener_arc: Arc<TcpListener>,
+        request_queue_sx: Sender<RequestPackage>,
+    ) {
         for index in 1..=self.accept_thread_num {
             let listener = listener_arc.clone();
-            let request_queue_sx = self.request_queue_sx.clone();
             let connection_manager = self.connection_manager.clone();
             let mut stop_rx = self.stop_sx.subscribe();
+            let raw_request_queue_sx = request_queue_sx.clone();
+
             tokio::spawn(async move {
                 info(format!(
                     "TCP Server acceptor thread {} start successfully.",
@@ -131,7 +140,7 @@ where
                                         continue;
                                     }
 
-                                    let (connection_stop_sx, connection_stop_rx) = broadcast::channel::<bool>(1);
+                                    let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                     let connection = NetworkConnection::new(
                                         crate::server::connection::NetworkConnectionType::TCP,
                                         addr,
@@ -140,7 +149,7 @@ where
                                     connection_manager.add_connection(connection.clone());
                                     connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
-                                    read_frame_process(read_frame_stream,connection,request_queue_sx.clone(),connection_stop_rx);
+                                    read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx);
                                 }
                                 Err(e) => {
                                     error(format!("TCP accept failed to create connection with error message :{:?}",e));
@@ -153,23 +162,25 @@ where
         }
     }
 
-    async fn handler_process(&self) {
-        let mut request_queue_rx = self.request_queue_sx.subscribe();
-        let response_queue_sx = self.response_queue_sx.clone();
+    async fn handler_process(
+        &self,
+        mut request_queue_rx: Receiver<RequestPackage>,
+        response_queue_sx: Sender<ResponsePackage>,
+    ) {
         let command = self.command.clone();
         let connect_manager = self.connection_manager.clone();
         let stop_sx = self.stop_sx.clone();
         let handler_process_num = self.handler_process_num.clone();
 
         tokio::spawn(async move {
-            let mut process_handler: HashMap<usize, Sender<RequestPackage>> = HashMap::new();
+            let mut child_process_list: HashMap<usize, Sender<RequestPackage>> = HashMap::new();
             handler_child_process(
                 handler_process_num,
                 stop_sx.clone(),
-                response_queue_sx.clone(),
                 connect_manager.clone(),
                 command.clone(),
-                &mut process_handler,
+                &mut child_process_list,
+                response_queue_sx.clone(),
             );
 
             let mut stop_rx = stop_sx.subscribe();
@@ -188,33 +199,29 @@ where
                         }
                     },
                     val = request_queue_rx.recv()=>{
-                        if let Ok(packet) = val{
-                            metrics_request_queue("handler-total", request_queue_rx.len() as i64);
-
-                            // Try to deliver the request packet to the child handler until it is delivered successfully. 
+                        if let Some(packet) = val{
+                            // Try to deliver the request packet to the child handler until it is delivered successfully.
                             // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
                             loop{
-                                let seq = if process_handler_seq > process_handler.len(){
+                                let seq = if process_handler_seq > child_process_list.len(){
                                     1
                                 } else {
                                     process_handler_seq
                                 };
 
-                                if let Some(handler_sx) = process_handler.get(&seq){
-                                    match handler_sx.send(packet.clone()){
+                                if let Some(handler_sx) = child_process_list.get(&seq){
+                                    match handler_sx.try_send(packet.clone()){
                                         Ok(_) => {
-                                            let lable = format!("handler-{}",seq);
-                                            metrics_request_queue(&lable, handler_sx.len() as i64);
                                             break;
                                         }
                                         Err(err) => error(format!(
-                                            "Failed to write data to the handler process queue, error message: {:?}",
+                                            "Failed to try write data to the handler process queue, error message: {:?}",
                                             err
                                         )),
                                     }
                                     process_handler_seq = process_handler_seq + 1;
                                 }else{
-                                    // In exceptional cases, if no available child handler can be found, the request packet is dropped. 
+                                    // In exceptional cases, if no available child handler can be found, the request packet is dropped.
                                     // If the client does not receive a return packet, it will retry the request.
                                     // Rely on repeated requests from the client to ensure that the request will eventually be processed successfully.
                                     error("No request packet processing thread available".to_string());
@@ -229,79 +236,21 @@ where
         });
     }
 
-    async fn response_process(&self) {
-        let mut response_queue_rx = self.response_queue_sx.subscribe();
+    async fn response_process(&self, mut response_queue_rx: Receiver<ResponsePackage>) {
         let connect_manager = self.connection_manager.clone();
         let mut stop_rx = self.stop_sx.subscribe();
         let response_process_num = self.response_process_num.clone();
         let stop_sx = self.stop_sx.clone();
 
         tokio::spawn(async move {
-            let mut process_handler = HashMap::new();
-            for index in 1..=response_process_num {
-                let (response_process_sx, mut response_process_rx) =
-                    broadcast::channel::<ResponsePackage>(100);
-                process_handler.insert(index, response_process_sx.clone());
-                let mut raw_stop_rx = stop_sx.subscribe();
-                let raw_connect_manager = connect_manager.clone();
-                tokio::spawn(async move {
-                    info(format!(
-                        "TCP Server response process thread {} start successfully.",
-                        index
-                    ));
+            let mut process_handler: HashMap<usize, Sender<ResponsePackage>> = HashMap::new();
+            response_child_process(
+                response_process_num,
+                &mut process_handler,
+                stop_sx,
+                connect_manager,
+            );
 
-                    loop {
-                        select! {
-                            val = raw_stop_rx.recv() =>{
-                                match val{
-                                    Ok(flag) => {
-                                        if flag {
-                                            info(format!("TCP Server response process thread {} stopped successfully.",index));
-                                            break;
-                                        }
-                                    }
-                                    Err(_) => {}
-                                }
-                            },
-                            val = response_process_rx.recv()=>{
-                                if let Ok(response_package) = val{
-                                    let lable = format!("handler-{}",index);
-                                    metrics_response_queue(&lable, response_process_rx.len() as i64);
-
-                                    if let Some(protocol) =
-                                    raw_connect_manager.get_connect_protocol(response_package.connection_id)
-                                    {
-                                        let packet_wrapper = MQTTPacketWrapper {
-                                            protocol_version: protocol.into(),
-                                            packet: response_package.packet.clone(),
-                                        };
-                                        match raw_connect_manager
-                                            .write_tcp_frame(response_package.connection_id, packet_wrapper)
-                                            .await{
-                                                Ok(()) => {},
-                                                Err(e) => {
-                                                    error(e.to_string());
-                                                    raw_connect_manager.clonse_connect(response_package.connection_id).await;
-                                                    break;
-                                                }
-                                            }
-                                    }
-
-
-                                    if let MQTTPacket::Disconnect(_, _) = response_package.packet {
-                                        raw_connect_manager.clonse_connect(response_package.connection_id).await;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-
-            info(format!(
-                "TCP Server response process thread start successfully."
-            ));
             let mut process_handler_seq = 1;
             loop {
                 select! {
@@ -318,53 +267,29 @@ where
                     }
 
                     val = response_queue_rx.recv()=>{
-                        if let Ok(packet) = val{
-                            info(format!("response packet:{:?}", packet));
+                        if let Some(packet) = val{
                             metrics_request_queue("response-total", response_queue_rx.len() as i64);
 
-                            let seq = if process_handler_seq > process_handler.len(){
-                                1
-                            } else {
-                                process_handler_seq
-                            };
+                            loop{
+                                let seq = if process_handler_seq > process_handler.len(){
+                                    1
+                                } else {
+                                    process_handler_seq
+                                };
 
-                            if let Some(handler_sx) = process_handler.get(&seq){
-                                match handler_sx.send(packet){
-                                    Ok(_) => {
-                                        let lable = format!("response-{}",seq);
-                                        metrics_request_queue(&lable, handler_sx.len() as i64);
+                                if let Some(handler_sx) = process_handler.get(&seq){
+                                    match handler_sx.try_send(packet.clone()){
+                                        Ok(_) => {}
+                                        Err(err) => error(format!(
+                                            "Failed to write data to the handler process queue, error message: {:?}",
+                                            err
+                                        )),
                                     }
-                                    Err(err) => error(format!(
-                                        "Failed to write data to the handler process queue, error message: {:?}",
-                                        err
-                                    )),
-                                }
-                                process_handler_seq = process_handler_seq + 1;
-                            }else{
-                                error("No request packet processing thread available".to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    async fn wait_stop_server(&self) {
-        let mut stop_rx = self.stop_sx.subscribe();
-        let connect_manager = self.connection_manager.clone();
-        tokio::spawn(async move {
-            loop {
-                select! {
-                    val = stop_rx.recv() =>{
-                        match val{
-                            Ok(flag) => {
-                                if flag {
-                                    connect_manager.close_all_connect().await;
-                                    break;
+                                    process_handler_seq = process_handler_seq + 1;
+                                }else{
+                                    error("No request packet processing thread available".to_string());
                                 }
                             }
-                            Err(_) => {}
                         }
                     }
                 }
@@ -383,14 +308,11 @@ fn read_frame_process(
         loop {
             select! {
                 val = connection_stop_rx.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                info(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
-                                break;
-                            }
+                    if let Some(flag) = val{
+                        if flag {
+                            info(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
                 val = read_frame_stream.next()=>{
@@ -401,10 +323,8 @@ fn read_frame_process(
                                 info(format!("revc tcp packet:{:?}", pack));
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
-                                match request_queue_sx.send(package) {
-                                    Ok(_) => {
-                                        metrics_request_queue("handler-total", request_queue_sx.len() as i64);
-                                    }
+                                match request_queue_sx.send(package).await {
+                                    Ok(_) => {}
                                     Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                 }
                             }
@@ -422,22 +342,21 @@ fn read_frame_process(
 fn handler_child_process<S>(
     handler_process_num: usize,
     stop_sx: broadcast::Sender<bool>,
-    response_queue_sx: Sender<ResponsePackage>,
     connection_manager: Arc<ConnectionManager>,
     command: Command<S>,
-    process_handler: &mut HashMap<usize, Sender<RequestPackage>>,
+    child_process_list: &mut HashMap<usize, Sender<RequestPackage>>,
+    response_queue_sx: Sender<ResponsePackage>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     for index in 1..=handler_process_num {
-        let (hendler_process_sx, mut hendler_process_rx) =
-            broadcast::channel::<RequestPackage>(100);
-        let mut raw_stop_rx = stop_sx.subscribe();
-        let raw_response_queue_sx = response_queue_sx.clone();
-        let raw_connect_manager = connection_manager.clone();
-        let mut raw_command = command.clone();
+        let (child_hendler_sx, mut child_process_rx) = mpsc::channel::<RequestPackage>(1000);
+        child_process_list.insert(index, child_hendler_sx.clone());
 
-        process_handler.insert(index, hendler_process_sx.clone());
+        let mut raw_stop_rx = stop_sx.subscribe();
+        let raw_connect_manager = connection_manager.clone();
+        let raw_response_queue_sx = response_queue_sx.clone();
+        let mut raw_command = command.clone();
 
         tokio::spawn(async move {
             info(format!(
@@ -457,22 +376,16 @@ fn handler_child_process<S>(
                             Err(_) => {}
                         }
                     },
-                    val = hendler_process_rx.recv()=>{
-                        let lable = format!("handler-{}",index);
-                        metrics_request_queue(&lable, hendler_process_sx.len() as i64);
-                        if let Ok(packet) = val{
-
-
+                    val = child_process_rx.recv()=>{
+                        if let Some(packet) = val{
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
                                 if let Some(resp) = raw_command
                                     .apply(raw_connect_manager.clone(), connect, packet.addr, packet.packet)
                                     .await
                                 {
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);
-                                    match raw_response_queue_sx.send(response_package) {
-                                        Ok(_) => {
-                                            metrics_request_queue("response-total", raw_response_queue_sx.len() as i64);
-                                        }
+                                    match raw_response_queue_sx.send(response_package).await {
+                                        Ok(_) => {}
                                         Err(err) => error(format!(
                                             "Failed to write data to the response queue, error message: {:?}",
                                             err
@@ -483,6 +396,74 @@ fn handler_child_process<S>(
                                 }
                             } else {
                                 error(RobustMQError::NotFoundConnectionInCache(packet.connection_id).to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}
+
+fn response_child_process(
+    response_process_num: usize,
+    process_handler: &mut HashMap<usize, Sender<ResponsePackage>>,
+    stop_sx: broadcast::Sender<bool>,
+    connection_manager: Arc<ConnectionManager>,
+) {
+    for index in 1..=response_process_num {
+        let (response_process_sx, mut response_process_rx) = mpsc::channel::<ResponsePackage>(100);
+        process_handler.insert(index, response_process_sx.clone());
+
+        let mut raw_stop_rx = stop_sx.subscribe();
+        let raw_connect_manager = connection_manager.clone();
+
+        tokio::spawn(async move {
+            info(format!(
+                "TCP Server response process thread {index} start successfully."
+            ));
+
+            loop {
+                select! {
+                    val = raw_stop_rx.recv() =>{
+                        match val{
+                            Ok(flag) => {
+                                if flag {
+                                    info(format!("TCP Server response process thread {index} stopped successfully."));
+                                    break;
+                                }
+                            }
+                            Err(_) => {}
+                        }
+                    },
+                    val = response_process_rx.recv()=>{
+                        if let Some(response_package) = val{
+                            let lable = format!("handler-{}",index);
+                            metrics_response_queue(&lable, response_process_rx.len() as i64);
+
+                            if let Some(protocol) =
+                            raw_connect_manager.get_connect_protocol(response_package.connection_id)
+                            {
+                                let packet_wrapper = MQTTPacketWrapper {
+                                    protocol_version: protocol.into(),
+                                    packet: response_package.packet.clone(),
+                                };
+                                match raw_connect_manager
+                                    .write_tcp_frame(response_package.connection_id, packet_wrapper)
+                                    .await{
+                                        Ok(()) => {},
+                                        Err(e) => {
+                                            error(e.to_string());
+                                            raw_connect_manager.clonse_connect(response_package.connection_id).await;
+                                            break;
+                                        }
+                                    }
+                            }
+
+
+                            if let MQTTPacket::Disconnect(_, _) = response_package.packet {
+                                raw_connect_manager.clonse_connect(response_package.connection_id).await;
+                                break;
                             }
                         }
                     }

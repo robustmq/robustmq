@@ -26,3 +26,4 @@ regex.workspace = true
 placement-center.workspace = true
 futures-util.workspace = true
 axum-extra.workspace = true
+axum-server.workspace = true

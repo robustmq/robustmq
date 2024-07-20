@@ -144,6 +144,9 @@ impl ConnectionManager {
         connection_id: u64,
         resp: MQTTPacketWrapper,
     ) -> Result<(), RobustMQError> {
+        info(format!(
+            "response packet:{resp:?},connection_id:{connection_id}"
+        ));
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
