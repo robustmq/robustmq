@@ -9,6 +9,7 @@ use axum::Router;
 use axum::{response::Response, routing::get};
 use axum_extra::headers::UserAgent;
 use axum_extra::TypedHeader;
+use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use clients::poll::ClientPool;
 use common_base::log::debug;
@@ -19,6 +20,7 @@ use common_base::{
 use futures_util::stream::StreamExt;
 use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
+use std::path::PathBuf;
 use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
@@ -73,6 +75,35 @@ where
         ip
     ));
     match axum_server::bind(ip)
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+        .await
+    {
+        Ok(()) => {}
+        Err(e) => panic!("{}", e.to_string()),
+    }
+}
+
+pub async fn websockets_server<S>(state: WebSocketServerState<S>)
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    let config = broker_mqtt_conf();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.mqtt.websockets_port)
+        .parse()
+        .unwrap();
+    let app = routes_v1(state);
+    let tls_config = RustlsConfig::from_pem_file(
+        PathBuf::from(config.mqtt.tls_cert.clone()),
+        PathBuf::from(config.mqtt.tls_key.clone()),
+    )
+    .await
+    .unwrap();
+
+    info(format!(
+        "Broker WebSocket TLS Server start success. bind addr:{}",
+        ip
+    ));
+    match axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
     {

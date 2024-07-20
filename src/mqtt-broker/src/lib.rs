@@ -16,7 +16,7 @@ use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::cre
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
 use server::connection_manager::ConnectionManager;
-use server::websocket::server::{websocket_server, WebSocketServerState};
+use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
@@ -159,10 +159,22 @@ where
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
             self.client_poll.clone(),
-            stop_send,
+            stop_send.clone(),
         );
         self.runtime
             .spawn(async move { websocket_server(ws_state).await });
+
+        let ws_state = WebSocketServerState::new(
+            self.subscribe_manager.clone(),
+            self.cache_manager.clone(),
+            self.connection_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.client_poll.clone(),
+            stop_send.clone(),
+        );
+        
+        self.runtime
+            .spawn(async move { websockets_server(ws_state).await });
     }
 
     fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {

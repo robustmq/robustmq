@@ -23,6 +23,8 @@ tcps_port = 1884
 websocket_port = 8083
 websockets_port = 8084
 quic_port = 9083
+tls_cert = "/Users/bytedance/Desktop/code/robustmq-project/robustmq/config/certs/cert.pem"
+tls_key = "/Users/bytedance/Desktop/code/robustmq-project/robustmq/config/certs/key.pem"
 
 [system]
 system_user = "admin"
