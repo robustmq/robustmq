@@ -1,3 +1,4 @@
+use super::connection_manager::ConnectionManager;
 use crate::{
     handler::{cache_manager::CacheManager, command::Command},
     subscribe::subscribe_cache::SubscribeCacheManager,
@@ -8,7 +9,6 @@ use server::TcpServer;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast;
-use super::connection_manager::ConnectionManager;
 
 pub mod server;
 pub mod tls_server;
@@ -40,6 +40,8 @@ pub async fn start_tcp_server<S>(
         conf.network_tcp.response_thread_num,
         stop_sx.clone(),
         connection_manager,
+        cache_manager,
+        client_poll,
     );
 
     server.start(conf.mqtt.tcp_port).await;
