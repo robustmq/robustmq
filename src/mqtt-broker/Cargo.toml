@@ -1,0 +1,31 @@
+[package]
+name = "mqtt-broker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+axum.workspace = true
+thiserror.workspace = true
+bytes.workspace = true
+protocol.workspace = true
+common-base.workspace = true
+tokio-util.workspace = true
+futures.workspace = true
+serde_json.workspace = true
+tonic.workspace = true
+dashmap.workspace = true
+serde.workspace = true
+lazy_static.workspace = true
+prometheus.workspace = true
+storage-adapter.workspace = true
+clients.workspace = true
+metadata-struct.workspace = true
+regex.workspace = true
+placement-center.workspace = true
+futures-util.workspace = true
+axum-extra.workspace = true
+axum-server.workspace = true
+rustls-pemfile.workspace = true
+tokio-rustls.workspace = true

@@ -1,0 +1,20 @@
+[package]
+name = "storage-adapter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+
+[dependencies]
+bytes.workspace = true
+axum.workspace = true
+thiserror.workspace = true
+common-base.workspace = true
+clients.workspace = true
+protocol.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+dashmap.workspace = true
+mysql = "*"
+serde.workspace = true
+serde_json.workspace =true

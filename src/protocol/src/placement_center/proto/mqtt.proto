@@ -1,0 +1,142 @@
+/*
+ * Copyright (c) 2023 RobustMQ Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package mqtt;
+import "common.proto";
+
+service MqttService {
+
+  rpc ListUser(ListUserRequest) returns(ListUserReply){}
+
+  rpc CreateUser(CreateUserRequest) returns(common.CommonReply){}
+
+  rpc DeleteUser(DeleteUserRequest) returns(common.CommonReply){}
+
+  rpc ListSession(ListSessionRequest) returns(ListSessionReply){}
+  
+  rpc CreateSession(CreateSessionRequest) returns(common.CommonReply){}
+
+  rpc UpdateSession(UpdateSessionRequest) returns(common.CommonReply){}
+ 
+  rpc DeleteSession(DeleteSessionRequest) returns(common.CommonReply){}
+
+  rpc ListTopic(ListTopicRequest) returns(ListTopicReply){}
+
+  rpc CreateTopic(CreateTopicRequest) returns(common.CommonReply){}
+
+  rpc DeleteTopic(DeleteTopicRequest) returns(common.CommonReply){}
+  
+  rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(common.CommonReply){}
+
+  rpc GetShareSubLeader(GetShareSubLeaderRequest) returns(GetShareSubLeaderReply){}
+
+  rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns(common.CommonReply){}
+}
+
+message GetShareSubLeaderRequest{
+    string group_name = 1;
+    string cluster_name = 3;
+}
+
+message GetShareSubLeaderReply{
+    uint64 broker_id = 1;
+    string broker_addr = 2;
+    string extend_info = 3;
+}
+
+message ListUserRequest{
+    string cluster_name = 1;
+    string username = 2;
+}
+
+message ListUserReply{
+    repeated bytes users = 1;
+}
+
+message CreateUserRequest{
+    string cluster_name = 1;
+    string user_name = 2;
+    bytes content = 3;
+}
+
+message DeleteUserRequest{
+    string cluster_name = 1;
+    string user_name = 2;
+}
+
+message ListTopicRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
+}
+
+message ListTopicReply{
+    repeated bytes topics = 1;
+}
+
+message CreateTopicRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
+    bytes content = 3;
+}
+
+
+message DeleteTopicRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
+}
+
+message SetTopicRetainMessageRequest{
+    string cluster_name = 1;
+    string topic_name = 2;
+    bytes retain_message = 3;
+    uint64 retain_message_expired_at = 4;
+}
+
+message ListSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+}
+
+message ListSessionReply{
+    repeated bytes sessions = 1;
+}
+
+message CreateSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+    bytes session = 3;
+}
+
+message UpdateSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+    uint64 connection_id = 3;
+    uint64 broker_id = 4;
+    uint64 reconnect_time = 5;
+    uint64 distinct_time = 6;
+}
+
+message DeleteSessionRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+}
+
+message SaveLastWillMessageRequest{
+    string cluster_name = 1;
+    string client_id = 2;
+    bytes  last_will_message = 3;
+}

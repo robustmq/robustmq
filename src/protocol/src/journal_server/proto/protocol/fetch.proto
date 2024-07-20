@@ -1,0 +1,20 @@
+syntax = "proto3";
+package fetch;
+import "header.proto";
+
+message FetchReqBody{
+}
+
+message FetchRespBody{
+}
+
+message FetchReq{
+    header.Header header = 1;
+    FetchReqBody body = 2;
+}
+
+message FetchResp{
+    header.Header header = 1;
+    FetchRespBody body = 2;
+
+}

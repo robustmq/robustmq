@@ -1,0 +1,17 @@
+syntax = "proto3";
+package common;
+
+enum ClusterType{
+    PlacementCenter = 0;
+    JournalServer = 1;
+    MQTTBrokerServer = 2;
+    AMQPBrokerServer = 3;
+}
+
+enum GenerageIdType{
+    UniqInt = 0;
+    UniqStr = 1;
+}
+message CommonReply{
+    
+}

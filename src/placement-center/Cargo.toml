@@ -1,0 +1,35 @@
+[package]
+name = "placement-center"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+tonic.workspace = true
+common-base.workspace = true
+protocol.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rocksdb.workspace = true
+futures.workspace = true
+futures-util.workspace = true
+bytes.workspace = true
+lazy_static.workspace = true
+bincode.workspace = true
+dashmap.workspace = true
+byteorder.workspace = true
+axum.workspace = true
+toml.workspace = true
+clients.workspace = true
+metadata-struct.workspace = true
+# raft = { version = "0.7", features = ["prost-codec"], default-features = false }
+#prost = "0.11"
+# raft = { path = "/Users/bytedance/Desktop/code/robustmq-project/raft-rs",  features = ["prost-codec"], default-features = false }
+raft = { git = "https://github.com/robustmq/raft-rs",  features = ["prost-codec"], default-features = false }
+prost = "0.12.3"
+
+slog = "2"
+slog-term = "2.9.0"
+slog-async = "2.8.0"

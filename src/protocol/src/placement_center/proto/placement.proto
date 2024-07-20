@@ -1,0 +1,145 @@
+/*
+ * Copyright (c) 2023 RobustMQ Team
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package placement;
+import "common.proto";
+
+service PlacementCenterService {
+
+  rpc RegisterNode(RegisterNodeRequest) returns(common.CommonReply){}
+
+  rpc UnRegisterNode(UnRegisterNodeRequest) returns(common.CommonReply){}
+
+  rpc Heartbeat(HeartbeatRequest) returns(common.CommonReply){}
+
+  rpc ReportMonitor(ReportMonitorRequest) returns(common.CommonReply){}
+
+  rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
+
+  rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
+
+  rpc GenerateUniqueId(GenerateUniqueNodeIdRequest) returns(GenerateUniqueNodeIdReply) {}
+
+  rpc SetResourceConfig(SetResourceConfigRequest) returns(common.CommonReply) {}
+
+  rpc GetResourceConfig(GetResourceConfigRequest) returns(GetResourceConfigReply) {}
+
+  rpc DeleteResourceConfig(DeleteResourceConfigRequest) returns(common.CommonReply) {}
+
+  rpc SetIdempotentData(SetIdempotentDataRequest) returns(common.CommonReply) {}
+
+  rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns(ExistsIdempotentDataReply) {}
+
+  rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(common.CommonReply) {}
+}
+
+message HeartbeatRequest{
+    common.ClusterType cluster_type = 1;
+    string cluster_name = 2;
+    uint64 node_id = 4;
+}
+
+message SendRaftMessageRequest{
+    bytes message = 1;
+}
+
+message SendRaftMessageReply{
+
+}
+
+message SendRaftConfChangeRequest{
+    bytes message = 1;
+}
+
+message SendRaftConfChangeReply{
+}
+
+
+message RegisterNodeRequest{
+    common.ClusterType cluster_type = 1;
+    string cluster_name = 2;
+    string node_ip = 3;
+    uint64 node_id = 4;
+    string node_inner_addr = 5;
+    string extend_info = 6;
+}
+
+message UnRegisterNodeRequest{
+    common.ClusterType cluster_type = 1;
+    string cluster_name = 2;
+    uint64 node_id = 3;
+}
+
+message ReportMonitorRequest{
+    string cluster_name = 1;
+    uint64 node_id = 2;
+    float cpu_rate = 3;
+    float memory_rate = 4;
+    float disk_rate = 5;
+    float network_rate = 6;
+}
+
+message GenerateUniqueNodeIdRequest{
+    common.GenerageIdType generage_type = 1;
+}
+
+message GenerateUniqueNodeIdReply{
+     uint64 id_int = 1;
+     string id_str = 2;
+}
+
+message SetResourceConfigRequest{
+    string cluster_name = 1;
+    repeated string resources = 2;
+    bytes config = 3;
+}
+
+message GetResourceConfigRequest{
+    string cluster_name = 1;
+    repeated string resources = 2;
+}
+
+message GetResourceConfigReply{
+    bytes config = 1;
+}
+
+message DeleteResourceConfigRequest{
+    string cluster_name = 1;
+    repeated string resources = 2;
+}
+
+message SetIdempotentDataRequest{
+    string cluster_name = 1;
+    string producer_id = 2;
+    uint64 seq_num = 3;
+}
+
+message ExistsIdempotentDataRequest{
+    string cluster_name = 1;
+    string producer_id = 2;
+    uint64 seq_num = 3;
+}
+
+message ExistsIdempotentDataReply{
+    bool exists = 1;
+}
+
+message DeleteIdempotentDataRequest{
+    string cluster_name = 1;
+    string producer_id = 2;
+    uint64 seq_num = 3;
+}

@@ -1,0 +1,33 @@
+syntax = "proto3";
+package produce;
+import "header.proto";
+
+message TopicData{
+    string name = 1;
+    PartitionData partition_data = 2;
+}
+
+message PartitionData{
+
+}
+
+message ProduceReqBody{
+    uint32 transactional_id = 1;
+    uint32 acks = 2;
+    uint32 timeout_ms = 3;
+    TopicData topic_data =4;
+}
+
+message ProduceRespBody{
+}
+
+message ProduceReq{
+    header.Header header = 1;
+    ProduceReqBody body = 2;
+}
+
+message ProduceResp{
+    header.Header header = 1;
+    ProduceRespBody body = 2;
+}
+
