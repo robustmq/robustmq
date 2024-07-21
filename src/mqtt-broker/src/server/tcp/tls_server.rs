@@ -41,7 +41,7 @@ pub(crate) fn read_tls_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            info(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
+                            debug(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
                             break;
                         }
                     }
@@ -55,7 +55,9 @@ pub(crate) fn read_tls_frame_process(
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
                                 match request_queue_sx.send(package).await {
-                                    Ok(_) => {}
+                                    Ok(_) => {
+                                        info(format!("vvv333"));
+                                    }
                                     Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                 }
                             }

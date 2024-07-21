@@ -1,6 +1,6 @@
 use crate::{
     handler::{
-        cache_manager::{self, CacheManager},
+        cache_manager::CacheManager,
         command::Command,
         connection::disconnect_connection,
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
@@ -317,6 +317,7 @@ where
                         }
                     },
                     val = request_queue_rx.recv()=>{
+                        info(format!("7855666,{val:?}"));
                         if let Some(packet) = val{
                             // Try to deliver the request packet to the child handler until it is delivered successfully.
                             // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
@@ -330,6 +331,7 @@ where
                                 if let Some(handler_sx) = child_process_list.get(&seq){
                                     match handler_sx.try_send(packet.clone()){
                                         Ok(_) => {
+                                            info(format!("success:{seq}"));
                                             break;
                                         }
                                         Err(err) => error(format!(
@@ -502,11 +504,14 @@ fn handler_child_process<S>(
                     },
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
+                            info(format!("1:{:?}", packet));
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
+                                info(format!("2:{:?}", packet));
                                 if let Some(resp) = raw_command
                                     .apply(raw_connect_manager.clone(), connect, packet.addr, packet.packet)
                                     .await
                                 {
+                                    info(format!("3:"));
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);
                                     match raw_response_queue_sx.send(response_package).await {
                                         Ok(_) => {}

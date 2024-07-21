@@ -33,6 +33,8 @@ pub async fn start_tcp_server<S>(
         stop_sx.clone(),
     );
 
+ 
+
     let server = TcpServer::<S>::new(
         command,
         conf.network_tcp.accept_thread_num,
@@ -43,7 +45,5 @@ pub async fn start_tcp_server<S>(
         cache_manager,
         client_poll,
     );
-
-    server.start(conf.mqtt.tcp_port).await;
     server.start_tls(conf.mqtt.tcps_port).await;
 }

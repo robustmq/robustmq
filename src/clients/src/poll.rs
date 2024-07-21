@@ -20,7 +20,7 @@ use tonic::transport::Channel;
 
 #[derive(Clone)]
 pub struct ClientPool {
-    ip_max_num: u64,
+    max_open_connection: u64,
     // placement center
     placement_center_inner_pools: DashMap<String, Pool<PlacementServiceManager>>,
     placement_center_journal_service_pools: DashMap<String, Pool<JournalServiceManager>>,
@@ -32,9 +32,9 @@ pub struct ClientPool {
 }
 
 impl ClientPool {
-    pub fn new(ip_max_num: u64) -> Self {
+    pub fn new(max_open_connection: u64) -> Self {
         Self {
-            ip_max_num,
+            max_open_connection,
             placement_center_inner_pools: DashMap::with_capacity(128),
             placement_center_journal_service_pools: DashMap::with_capacity(128),
             placement_center_kv_service_pools: DashMap::with_capacity(128),
@@ -51,7 +51,9 @@ impl ClientPool {
         let key = format!("{}_{}_{}", "PlacementServer", module, addr);
         if !self.placement_center_inner_pools.contains_key(&key) {
             let manager = PlacementServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
             self.placement_center_inner_pools.insert(key.clone(), pool);
         }
         if let Some(poll) = self.placement_center_inner_pools.get(&key) {
@@ -79,7 +81,9 @@ impl ClientPool {
             .contains_key(&key)
         {
             let manager = JournalServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
             self.placement_center_journal_service_pools
                 .insert(key.clone(), pool);
         }
@@ -108,7 +112,9 @@ impl ClientPool {
 
         if !self.placement_center_kv_service_pools.contains_key(&key) {
             let manager = KvServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
             self.placement_center_kv_service_pools
                 .insert(key.clone(), pool);
         }
@@ -134,12 +140,14 @@ impl ClientPool {
         &self,
         addr: String,
     ) -> Result<MqttServiceClient<Channel>, RobustMQError> {
-        let module = "MqttServices".to_string();
+        let module = "PlacementMqttServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
         if !self.placement_center_kv_service_pools.contains_key(&key) {
             let manager = MQTTServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
             self.placement_center_mqtt_service_pools
                 .insert(key.clone(), pool);
         }
@@ -169,7 +177,9 @@ impl ClientPool {
 
         if !self.mqtt_broker_mqtt_service_pools.contains_key(&key) {
             let manager = MqttBrokerMqttServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.ip_max_num).build(manager);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
             self.mqtt_broker_mqtt_service_pools
                 .insert(key.clone(), pool);
         }

@@ -302,4 +302,11 @@ impl ConnectionManager {
             };
         }
     }
+
+    pub fn is_websocket(&self, connect_id: u64) -> bool {
+        if let Some(connec) = self.connections.get(&connect_id) {
+            return connec.connection_type == NetworkConnectionType::WebSocket;
+        }
+        return false;
+    }
 }

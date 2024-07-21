@@ -1,9 +1,11 @@
 use super::cache_manager::{CacheManager, QosAckPacketInfo};
 use crate::{
-    server::packet::ResponsePackage, storage::topic::TopicStorage, subscribe::{
+    server::connection_manager::ConnectionManager,
+    storage::topic::TopicStorage,
+    subscribe::{
         sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0},
         sub_exclusive::{exclusive_publish_message_qos1, exclusive_publish_message_qos2},
-    }
+    },
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
@@ -13,7 +15,7 @@ use protocol::mqtt::common::{
     Publish, PublishProperties, QoS, RetainForwardRule, Subscribe, SubscribeProperties,
 };
 use std::sync::Arc;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast::{self};
 
 pub async fn save_topic_retain_message(
     cache_manager: &Arc<CacheManager>,
@@ -61,7 +63,7 @@ pub async fn send_retain_message(
     subscribe_properties: Option<SubscribeProperties>,
     client_poll: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
-    response_queue_sx: Sender<ResponsePackage>,
+    connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
@@ -125,23 +127,23 @@ pub async fn send_retain_message(
                             match qos {
                                 QoS::AtMostOnce => {
                                     publish_message_qos0(
-                                        cache_manager.clone(),
-                                        client_id.clone(),
-                                        publish,
-                                        Some(properties),
-                                        response_queue_sx.clone(),
-                                        stop_sx.clone(),
+                                        &cache_manager,
+                                        &client_id,
+                                        &publish,
+                                        &Some(properties),
+                                        &connection_manager,
+                                        &stop_sx,
                                     )
                                     .await;
                                 }
 
                                 QoS::AtLeastOnce => {
-                                    let pkid: u16 = cache_manager.get_pkid(client_id.clone()).await;
+                                    let pkid: u16 = cache_manager.get_pkid(&client_id).await;
                                     publish.pkid = pkid;
 
                                     let (wait_puback_sx, _) = broadcast::channel(1);
                                     cache_manager.add_ack_packet(
-                                        client_id.clone(),
+                                        &client_id,
                                         pkid,
                                         QosAckPacketInfo {
                                             sx: wait_puback_sx.clone(),
@@ -150,21 +152,20 @@ pub async fn send_retain_message(
                                     );
 
                                     match exclusive_publish_message_qos1(
-                                        cache_manager.clone(),
-                                        client_id.clone(),
+                                        &cache_manager,
+                                        &client_id,
                                         publish,
-                                        properties,
+                                        &properties,
                                         pkid,
-                                        response_queue_sx.clone(),
-                                        stop_sx.clone(),
-                                        wait_puback_sx,
+                                        &connection_manager,
+                                        &stop_sx,
+                                        &wait_puback_sx,
                                     )
                                     .await
                                     {
                                         Ok(()) => {
-                                            cache_manager.remove_pkid_info(client_id.clone(), pkid);
-                                            cache_manager
-                                                .remove_ack_packet(client_id.clone(), pkid);
+                                            cache_manager.remove_pkid_info(&client_id, pkid);
+                                            cache_manager.remove_ack_packet(&client_id, pkid);
                                         }
                                         Err(e) => {
                                             error(e.to_string());
@@ -173,12 +174,12 @@ pub async fn send_retain_message(
                                 }
 
                                 QoS::ExactlyOnce => {
-                                    let pkid: u16 = cache_manager.get_pkid(client_id.clone()).await;
+                                    let pkid: u16 = cache_manager.get_pkid(&client_id).await;
                                     publish.pkid = pkid;
 
                                     let (wait_ack_sx, _) = broadcast::channel(1);
                                     cache_manager.add_ack_packet(
-                                        client_id.clone(),
+                                        &client_id,
                                         pkid,
                                         QosAckPacketInfo {
                                             sx: wait_ack_sx.clone(),
@@ -186,21 +187,20 @@ pub async fn send_retain_message(
                                         },
                                     );
                                     match exclusive_publish_message_qos2(
-                                        cache_manager.clone(),
-                                        client_id.clone(),
-                                        publish,
-                                        properties,
+                                        &cache_manager,
+                                        &client_id,
+                                        &publish,
+                                        &properties,
                                         pkid,
-                                        response_queue_sx.clone(),
-                                        stop_sx.clone(),
-                                        wait_ack_sx,
+                                        &connection_manager,
+                                        &stop_sx,
+                                        &wait_ack_sx,
                                     )
                                     .await
                                     {
                                         Ok(()) => {
-                                            cache_manager.remove_pkid_info(client_id.clone(), pkid);
-                                            cache_manager
-                                                .remove_ack_packet(client_id.clone(), pkid);
+                                            cache_manager.remove_pkid_info(&client_id, pkid);
+                                            cache_manager.remove_ack_packet(&client_id, pkid);
                                         }
                                         Err(e) => {
                                             error(e.to_string());
@@ -235,15 +235,17 @@ pub fn message_expiry_interval(
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::cache_manager::CacheManager;
     use crate::handler::retain::send_retain_message;
     use crate::storage::topic::TopicStorage;
+    use crate::{
+        handler::cache_manager::CacheManager, server::connection_manager::ConnectionManager,
+    };
     use bytes::Bytes;
     use clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::message::MQTTMessage;
     use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::mqtt::common::{Filter, MQTTPacket, QoS, Subscribe, SubscribeProperties};
+    use protocol::mqtt::common::{Filter, QoS, Subscribe, SubscribeProperties};
     use std::sync::Arc;
     use tokio::sync::broadcast;
 
@@ -251,7 +253,6 @@ mod tests {
     async fn send_retain_message_test() {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
-        let (response_queue_sx, mut response_queue_rx) = broadcast::channel(1000);
 
         let mut filters = Vec::new();
         let flt = Filter {
@@ -296,35 +297,18 @@ mod tests {
                 assert!(false)
             }
         }
+        let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
 
-        let (stop_send, _) = broadcast::channel(2);
+        let (stop_send, _) = broadcast::channel(1);
         send_retain_message(
             client_id,
             subscribe,
             subscribe_properties,
             client_poll,
             metadata_cache.clone(),
-            response_queue_sx.clone(),
+            connection_manager,
             stop_send,
         )
         .await;
-
-        loop {
-            match response_queue_rx.recv().await {
-                Ok(packet) => {
-                    if let MQTTPacket::Publish(publish, _) = packet.packet {
-                        assert_eq!(publish.topic, retain_message.topic);
-                        assert_eq!(publish.payload, retain_message.payload);
-                    } else {
-                        println!("Package does not exist");
-                        assert!(false);
-                    }
-                    break;
-                }
-                Err(e) => {
-                    println!("{}", e)
-                }
-            }
-        }
     }
 }

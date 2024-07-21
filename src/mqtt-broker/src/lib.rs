@@ -190,38 +190,38 @@ where
             subscribe_manager.start().await;
         });
 
-        // let exclusive_sub = SubscribeExclusive::new(
-        //     self.message_storage_adapter.clone(),
-        //     self.cache_manager.clone(),
-        //     self.response_queue_sx.clone(),
-        //     self.subscribe_manager.clone(),
-        // );
+        let exclusive_sub = SubscribeExclusive::new(
+            self.message_storage_adapter.clone(),
+            self.cache_manager.clone(),
+            self.subscribe_manager.clone(),
+            self.connection_manager.clone(),
+        );
 
-        // self.runtime.spawn(async move {
-        //     exclusive_sub.start().await;
-        // });
+        self.runtime.spawn(async move {
+            exclusive_sub.start().await;
+        });
 
-        // let leader_sub = SubscribeShareLeader::new(
-        //     self.subscribe_manager.clone(),
-        //     self.message_storage_adapter.clone(),
-        //     self.response_queue_sx.clone(),
-        //     self.cache_manager.clone(),
-        // );
+        let leader_sub = SubscribeShareLeader::new(
+            self.subscribe_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.connection_manager.clone(),
+            self.cache_manager.clone(),
+        );
 
-        // self.runtime.spawn(async move {
-        //     leader_sub.start().await;
-        // });
+        self.runtime.spawn(async move {
+            leader_sub.start().await;
+        });
 
-        // let follower_sub = SubscribeShareFollower::new(
-        //     self.subscribe_manager.clone(),
-        //     self.response_queue_sx.clone(),
-        //     self.cache_manager.clone(),
-        //     self.client_poll.clone(),
-        // );
+        let follower_sub = SubscribeShareFollower::new(
+            self.subscribe_manager.clone(),
+            self.connection_manager.clone(),
+            self.cache_manager.clone(),
+            self.client_poll.clone(),
+        );
 
-        // self.runtime.spawn(async move {
-        //     follower_sub.start().await;
-        // });
+        self.runtime.spawn(async move {
+            follower_sub.start().await;
+        });
     }
 
     fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
