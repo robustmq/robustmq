@@ -1,11 +1,13 @@
 use crate::{
-    handler::cache_manager::{
-        CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+    handler::{
+        cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        retain::try_send_retain_message,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
     storage::message::MessageStorage,
 };
 use bytes::Bytes;
+use clients::poll::ClientPool;
 use common_base::{
     errors::RobustMQError,
     log::{error, info},
@@ -32,6 +34,7 @@ pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeCacheManager>,
     connection_manager: Arc<ConnectionManager>,
+    client_poll: Arc<ClientPool>,
     message_storage: Arc<S>,
 }
 
@@ -44,12 +47,14 @@ where
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeCacheManager>,
         connection_manager: Arc<ConnectionManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         return SubscribeExclusive {
             message_storage,
             cache_manager,
             subscribe_manager,
             connection_manager,
+            client_poll,
         };
     }
 
@@ -85,8 +90,8 @@ where
     // Handles exclusive subscription push tasks
     // Exclusively subscribed messages are pushed directly to the consuming client
     async fn start_push_thread(&self) {
-        for (exclusive_key, subscribe) in self.subscribe_manager.exclusive_subscribe.clone() {
-            let client_id = subscribe.client_id.clone();
+        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_subscribe.clone() {
+            let client_id = subscriber.client_id.clone();
 
             if self
                 .subscribe_manager
@@ -96,45 +101,54 @@ where
                 continue;
             }
 
-            let (stop_sx, mut stop_rx) = broadcast::channel(1);
+            let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
             let message_storage = self.message_storage.clone();
             let cache_manager = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
+            let client_poll = self.client_poll.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager
                 .exclusive_push_thread
-                .insert(exclusive_key.clone(), stop_sx.clone());
+                .insert(exclusive_key.clone(), sub_thread_stop_sx.clone());
 
             tokio::spawn(async move {
                 info(format!(
                         "Exclusive push thread for client_id [{}],topic_id [{}] was started successfully",
-                        client_id, subscribe.topic_id
+                        client_id, subscriber.topic_id
                     ));
                 let message_storage = MessageStorage::new(message_storage);
-                let group_id = format!("system_sub_{}_{}", client_id, subscribe.topic_id);
+                let group_id = format!("system_sub_{}_{}", client_id, subscriber.topic_id);
                 let record_num = 5;
                 let max_wait_ms = 100;
 
                 let cluster_qos = cache_manager.get_cluster_info().max_qos();
-                let qos = min_qos(cluster_qos, subscribe.qos);
+                let qos = min_qos(cluster_qos, subscriber.qos);
 
                 let mut sub_ids = Vec::new();
-                if let Some(id) = subscribe.subscription_identifier {
+                if let Some(id) = subscriber.subscription_identifier {
                     sub_ids.push(id);
                 }
 
-                // todo send retain message
+                try_send_retain_message(
+                    client_id.clone(),
+                    subscriber.clone(),
+                    client_poll.clone(),
+                    cache_manager.clone(),
+                    connection_manager.clone(),
+                    sub_thread_stop_sx.clone(),
+                )
+                .await;
 
                 loop {
-                    match stop_rx.try_recv() {
+                    match sub_thread_stop_rx.try_recv() {
                         Ok(flag) => {
                             if flag {
                                 info(format!(
                                         "Exclusive Push thread for client_id [{}],topic_id [{}] was stopped successfully",
                                         client_id.clone(),
-                                    subscribe.topic_id
+                                    subscriber.topic_id
                                     ));
                                 break;
                             }
@@ -143,7 +157,7 @@ where
                     }
                     match message_storage
                         .read_topic_message(
-                            subscribe.topic_id.clone(),
+                            subscriber.topic_id.clone(),
                             group_id.clone(),
                             record_num,
                         )
@@ -162,7 +176,7 @@ where
                                         error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));
                                         match message_storage
                                             .commit_group_offset(
-                                                subscribe.topic_id.clone(),
+                                                subscriber.topic_id.clone(),
                                                 group_id.clone(),
                                                 record.offset,
                                             )
@@ -177,11 +191,11 @@ where
                                     }
                                 };
 
-                                if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
+                                if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
                                     continue;
                                 }
 
-                                let retain = if subscribe.preserve_retain {
+                                let retain = if subscriber.preserve_retain {
                                     msg.retain
                                 } else {
                                     false
@@ -192,7 +206,7 @@ where
                                     qos,
                                     pkid: 0,
                                     retain,
-                                    topic: Bytes::from(subscribe.topic_name.clone()),
+                                    topic: Bytes::from(subscriber.topic_name.clone()),
                                     payload: Bytes::from(msg.payload),
                                 };
 
@@ -215,7 +229,7 @@ where
                                             &publish,
                                             &Some(properties),
                                             &connection_manager,
-                                            &stop_sx,
+                                            &sub_thread_stop_sx,
                                         )
                                         .await;
                                     }
@@ -241,7 +255,7 @@ where
                                             &properties,
                                             pkid,
                                             &connection_manager,
-                                            &stop_sx,
+                                            &sub_thread_stop_sx,
                                             &wait_puback_sx,
                                         )
                                         .await
@@ -276,7 +290,7 @@ where
                                             &properties,
                                             pkid,
                                             &connection_manager,
-                                            &stop_sx,
+                                            &sub_thread_stop_sx,
                                             &wait_ack_sx,
                                         )
                                         .await
@@ -295,7 +309,7 @@ where
                                 // commit offset
                                 loop_commit_offset(
                                     &message_storage,
-                                    &subscribe.topic_id,
+                                    &subscriber.topic_id,
                                     &group_id,
                                     record.offset,
                                 )
@@ -307,7 +321,7 @@ where
                             error(format!(
                                     "Failed to read message from storage, failure message: {},topic:{},group{}",
                                     e.to_string(),
-                                    subscribe.topic_id.clone(),
+                                    subscriber.topic_id.clone(),
                                     group_id.clone()
                                 ));
                             sleep(Duration::from_millis(max_wait_ms)).await;
