@@ -35,7 +35,7 @@ pub async fn start_http_server(state: HttpServerState) {
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     info(format!(
         "Broker HTTP Server start success. bind addr:{}",
-        ip
+        config.http_port
     ));
     axum::serve(listener, app).await.unwrap();
 }

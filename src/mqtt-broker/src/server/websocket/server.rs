@@ -71,8 +71,8 @@ where
         .unwrap();
     let app = routes_v1(state);
     info(format!(
-        "Broker WebSocket Server start success. bind addr:{}",
-        ip
+        "Broker WebSocket Server start success. port:{}",
+        config.mqtt.websocket_port
     ));
     match axum_server::bind(ip)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -106,8 +106,8 @@ where
     };
 
     info(format!(
-        "Broker WebSocket TLS Server start success. bind addr:{}",
-        ip
+        "Broker WebSocket TLS Server start success. port:{}",
+        config.mqtt.websockets_port
     ));
     match axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())

@@ -37,8 +37,8 @@ where
     pub async fn start(&self) {
         let addr = format!("0.0.0.0:{}", self.port).parse().unwrap();
         info(format!(
-            "Broker Grpc Server start success. bind addr:{}",
-            addr
+            "Broker Grpc Server start success. port:{}",
+            self.port
         ));
         let service_handler = GrpcBrokerServices::new(
             self.metadata_cache.clone(),

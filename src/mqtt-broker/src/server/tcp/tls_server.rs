@@ -11,7 +11,7 @@ use std::path::Path;
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use tokio_util::codec::{FramedRead, FramedWrite};
+use tokio_util::codec::FramedRead;
 
 pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
     certs(&mut BufReader::new(File::open(path)?)).collect()
@@ -41,7 +41,7 @@ pub(crate) fn read_tls_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            info(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
+                            debug(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
                             break;
                         }
                     }
@@ -51,11 +51,13 @@ pub(crate) fn read_tls_frame_process(
                         match pkg {
                             Ok(data) => {
                                 let pack: MQTTPacket = data.try_into().unwrap();
-                                info(format!("revc tcp packet:{:?}", pack));
+                                info(format!("revc tcp tls packet:{:?}", pack));
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
                                 match request_queue_sx.send(package).await {
-                                    Ok(_) => {}
+                                    Ok(_) => {
+                                        info(format!("vvv333"));
+                                    }
                                     Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                 }
                             }
