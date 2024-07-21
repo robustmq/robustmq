@@ -3,17 +3,19 @@ use super::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_cache::SubscribeCacheManager,
+    subscribe_cache::{ShareLeaderSubscribeData, SubscribeCacheManager},
 };
 use crate::{
-    handler::cache_manager::{
-        CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
+    handler::{
+        cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        retain::try_send_retain_message,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
     storage::message::MessageStorage,
     subscribe::subscriber::Subscriber,
 };
 use bytes::Bytes;
+use clients::poll::ClientPool;
 use common_base::{
     errors::RobustMQError,
     log::{error, info},
@@ -35,6 +37,7 @@ pub struct SubscribeShareLeader<S> {
     message_storage: Arc<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl<S> SubscribeShareLeader<S>
@@ -46,12 +49,14 @@ where
         message_storage: Arc<S>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         return SubscribeShareLeader {
             subscribe_manager,
             message_storage,
             connection_manager,
             cache_manager,
+            client_poll,
         };
     }
 
@@ -89,7 +94,7 @@ where
         }
     }
 
-    pub fn start_push_thread(&self) {
+    pub async fn start_push_thread(&self) {
         // Periodically verify if any push tasks are not started. If so, the thread is started
         for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
             if sub_data.sub_list.len() == 0 {
@@ -118,27 +123,39 @@ where
             {
                 self.push_by_round_robin(
                     share_leader_key.clone(),
-                    sub_data.group_name.clone(),
-                    sub_data.topic_id.clone(),
-                    sub_data.topic_name.clone(),
+                    sub_data.clone(),
                     subscribe_manager,
                 );
             }
         }
     }
 
-    fn push_by_round_robin(
+    async fn push_by_round_robin(
         &self,
         share_leader_key: String,
-        group_name: String,
-        topic_id: String,
-        topic_name: String,
+        sub_data: ShareLeaderSubscribeData,
         subscribe_manager: Arc<SubscribeCacheManager>,
     ) {
-        let (stop_sx, mut stop_rx) = broadcast::channel(1);
+        let group_name = sub_data.group_name.clone();
+        let topic_id = sub_data.topic_id.clone();
+        let topic_name = sub_data.topic_name.clone();
+        let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
+
+        for (_, subscriber) in sub_data.sub_list {
+            try_send_retain_message(
+                subscriber.client_id.clone(),
+                subscriber.clone(),
+                self.client_poll.clone(),
+                self.cache_manager.clone(),
+                self.connection_manager.clone(),
+                sub_thread_stop_sx.clone(),
+            )
+            .await;
+        }
+
         self.subscribe_manager
             .share_leader_push_thread
-            .insert(share_leader_key.clone(), stop_sx.clone());
+            .insert(share_leader_key.clone(), sub_thread_stop_sx.clone());
 
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
@@ -159,7 +176,7 @@ where
 
             loop {
                 select! {
-                    val = stop_rx.recv() =>{
+                    val = sub_thread_stop_rx.recv() =>{
                         match val {
                             Ok(flag) => {
                                 if flag {
@@ -184,7 +201,7 @@ where
                         cursor_point,
                         &connection_manager,
                         &cache_manager,
-                        &stop_sx
+                        &sub_thread_stop_sx
                     ) =>{
                         cursor_point = cp;
                         sub_list = sl;

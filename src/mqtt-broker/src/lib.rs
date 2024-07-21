@@ -195,6 +195,7 @@ where
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
+            self.client_poll.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -206,6 +207,7 @@ where
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
+            self.client_poll.clone(),
         );
 
         self.runtime.spawn(async move {
