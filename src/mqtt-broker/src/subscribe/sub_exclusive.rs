@@ -1,7 +1,13 @@
 use crate::{
-    handler::cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo}, server::packet::ResponsePackage, storage::message::MessageStorage
+    handler::{
+        cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        retain::try_send_retain_message,
+    },
+    server::{connection_manager::ConnectionManager, packet::ResponsePackage},
+    storage::message::MessageStorage,
 };
 use bytes::Bytes;
+use clients::poll::ClientPool;
 use common_base::{
     errors::RobustMQError,
     log::{error, info},
@@ -12,13 +18,13 @@ use protocol::mqtt::common::{MQTTPacket, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
-    sync::broadcast::{self, Sender},
+    sync::broadcast::{self},
     time::sleep,
 };
 
 use super::{
     sub_common::{
-        loop_commit_offset, min_qos, publish_message_qos0, publish_to_response_queue,
+        loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
     subscribe_cache::SubscribeCacheManager,
@@ -26,8 +32,9 @@ use super::{
 
 pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
-    response_queue_sx: Sender<ResponsePackage>,
     subscribe_manager: Arc<SubscribeCacheManager>,
+    connection_manager: Arc<ConnectionManager>,
+    client_poll: Arc<ClientPool>,
     message_storage: Arc<S>,
 }
 
@@ -38,14 +45,16 @@ where
     pub fn new(
         message_storage: Arc<S>,
         cache_manager: Arc<CacheManager>,
-        response_queue_sx: Sender<ResponsePackage>,
         subscribe_manager: Arc<SubscribeCacheManager>,
+        connection_manager: Arc<ConnectionManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         return SubscribeExclusive {
             message_storage,
             cache_manager,
-            response_queue_sx,
             subscribe_manager,
+            connection_manager,
+            client_poll,
         };
     }
 
@@ -81,8 +90,8 @@ where
     // Handles exclusive subscription push tasks
     // Exclusively subscribed messages are pushed directly to the consuming client
     async fn start_push_thread(&self) {
-        for (exclusive_key, subscribe) in self.subscribe_manager.exclusive_subscribe.clone() {
-            let client_id = subscribe.client_id.clone();
+        for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_subscribe.clone() {
+            let client_id = subscriber.client_id.clone();
 
             if self
                 .subscribe_manager
@@ -92,44 +101,54 @@ where
                 continue;
             }
 
-            let (stop_sx, mut stop_rx) = broadcast::channel(2);
-            let response_queue_sx = self.response_queue_sx.clone();
-            let metadata_cache = self.cache_manager.clone();
+            let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
             let message_storage = self.message_storage.clone();
             let cache_manager = self.cache_manager.clone();
+            let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
+            let client_poll = self.client_poll.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager
                 .exclusive_push_thread
-                .insert(exclusive_key.clone(), stop_sx.clone());
+                .insert(exclusive_key.clone(), sub_thread_stop_sx.clone());
 
             tokio::spawn(async move {
                 info(format!(
                         "Exclusive push thread for client_id [{}],topic_id [{}] was started successfully",
-                        client_id, subscribe.topic_id
+                        client_id, subscriber.topic_id
                     ));
                 let message_storage = MessageStorage::new(message_storage);
-                let group_id = format!("system_sub_{}_{}", client_id, subscribe.topic_id);
+                let group_id = format!("system_sub_{}_{}", client_id, subscriber.topic_id);
                 let record_num = 5;
                 let max_wait_ms = 100;
 
-                let cluster_qos = metadata_cache.get_cluster_info().max_qos();
-                let qos = min_qos(cluster_qos, subscribe.qos);
+                let cluster_qos = cache_manager.get_cluster_info().max_qos();
+                let qos = min_qos(cluster_qos, subscriber.qos);
 
                 let mut sub_ids = Vec::new();
-                if let Some(id) = subscribe.subscription_identifier {
+                if let Some(id) = subscriber.subscription_identifier {
                     sub_ids.push(id);
                 }
 
+                try_send_retain_message(
+                    client_id.clone(),
+                    subscriber.clone(),
+                    client_poll.clone(),
+                    cache_manager.clone(),
+                    connection_manager.clone(),
+                    sub_thread_stop_sx.clone(),
+                )
+                .await;
+
                 loop {
-                    match stop_rx.try_recv() {
+                    match sub_thread_stop_rx.try_recv() {
                         Ok(flag) => {
                             if flag {
                                 info(format!(
                                         "Exclusive Push thread for client_id [{}],topic_id [{}] was stopped successfully",
                                         client_id.clone(),
-                                    subscribe.topic_id
+                                    subscriber.topic_id
                                     ));
                                 break;
                             }
@@ -138,7 +157,7 @@ where
                     }
                     match message_storage
                         .read_topic_message(
-                            subscribe.topic_id.clone(),
+                            subscriber.topic_id.clone(),
                             group_id.clone(),
                             record_num,
                         )
@@ -157,7 +176,7 @@ where
                                         error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));
                                         match message_storage
                                             .commit_group_offset(
-                                                subscribe.topic_id.clone(),
+                                                subscriber.topic_id.clone(),
                                                 group_id.clone(),
                                                 record.offset,
                                             )
@@ -172,11 +191,11 @@ where
                                     }
                                 };
 
-                                if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
+                                if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
                                     continue;
                                 }
 
-                                let retain = if subscribe.preserve_retain {
+                                let retain = if subscriber.preserve_retain {
                                     msg.retain
                                 } else {
                                     false
@@ -187,7 +206,7 @@ where
                                     qos,
                                     pkid: 0,
                                     retain,
-                                    topic: Bytes::from(subscribe.topic_name.clone()),
+                                    topic: Bytes::from(subscriber.topic_name.clone()),
                                     payload: Bytes::from(msg.payload),
                                 };
 
@@ -205,24 +224,23 @@ where
                                 match qos {
                                     QoS::AtMostOnce => {
                                         publish_message_qos0(
-                                            metadata_cache.clone(),
-                                            client_id.clone(),
-                                            publish,
-                                            Some(properties),
-                                            response_queue_sx.clone(),
-                                            stop_sx.clone(),
+                                            &cache_manager,
+                                            &client_id,
+                                            &publish,
+                                            &Some(properties),
+                                            &connection_manager,
+                                            &sub_thread_stop_sx,
                                         )
                                         .await;
                                     }
 
                                     QoS::AtLeastOnce => {
-                                        let pkid: u16 =
-                                            metadata_cache.get_pkid(client_id.clone()).await;
+                                        let pkid: u16 = cache_manager.get_pkid(&client_id).await;
                                         publish.pkid = pkid;
 
                                         let (wait_puback_sx, _) = broadcast::channel(1);
                                         cache_manager.add_ack_packet(
-                                            client_id.clone(),
+                                            &client_id,
                                             pkid,
                                             QosAckPacketInfo {
                                                 sx: wait_puback_sx.clone(),
@@ -231,22 +249,20 @@ where
                                         );
 
                                         match exclusive_publish_message_qos1(
-                                            metadata_cache.clone(),
-                                            client_id.clone(),
+                                            &cache_manager,
+                                            &client_id,
                                             publish,
-                                            properties,
+                                            &properties,
                                             pkid,
-                                            response_queue_sx.clone(),
-                                            stop_sx.clone(),
-                                            wait_puback_sx,
+                                            &connection_manager,
+                                            &sub_thread_stop_sx,
+                                            &wait_puback_sx,
                                         )
                                         .await
                                         {
                                             Ok(()) => {
-                                                metadata_cache
-                                                    .remove_pkid_info(client_id.clone(), pkid);
-                                                cache_manager
-                                                    .remove_ack_packet(client_id.clone(), pkid);
+                                                cache_manager.remove_pkid_info(&client_id, pkid);
+                                                cache_manager.remove_ack_packet(&client_id, pkid);
                                             }
                                             Err(e) => {
                                                 error(e.to_string());
@@ -255,13 +271,12 @@ where
                                     }
 
                                     QoS::ExactlyOnce => {
-                                        let pkid: u16 =
-                                            metadata_cache.get_pkid(client_id.clone()).await;
+                                        let pkid: u16 = cache_manager.get_pkid(&client_id).await;
                                         publish.pkid = pkid;
 
                                         let (wait_ack_sx, _) = broadcast::channel(1);
                                         cache_manager.add_ack_packet(
-                                            client_id.clone(),
+                                            &client_id,
                                             pkid,
                                             QosAckPacketInfo {
                                                 sx: wait_ack_sx.clone(),
@@ -269,22 +284,20 @@ where
                                             },
                                         );
                                         match exclusive_publish_message_qos2(
-                                            metadata_cache.clone(),
-                                            client_id.clone(),
-                                            publish,
-                                            properties,
+                                            &cache_manager,
+                                            &client_id,
+                                            &publish,
+                                            &properties,
                                             pkid,
-                                            response_queue_sx.clone(),
-                                            stop_sx.clone(),
-                                            wait_ack_sx,
+                                            &connection_manager,
+                                            &sub_thread_stop_sx,
+                                            &wait_ack_sx,
                                         )
                                         .await
                                         {
                                             Ok(()) => {
-                                                metadata_cache
-                                                    .remove_pkid_info(client_id.clone(), pkid);
-                                                cache_manager
-                                                    .remove_ack_packet(client_id.clone(), pkid);
+                                                cache_manager.remove_pkid_info(&client_id, pkid);
+                                                cache_manager.remove_ack_packet(&client_id, pkid);
                                             }
                                             Err(e) => {
                                                 error(e.to_string());
@@ -295,9 +308,9 @@ where
 
                                 // commit offset
                                 loop_commit_offset(
-                                    message_storage.clone(),
-                                    subscribe.topic_id.clone(),
-                                    group_id.clone(),
+                                    &message_storage,
+                                    &subscriber.topic_id,
+                                    &group_id,
                                     record.offset,
                                 )
                                 .await;
@@ -308,7 +321,7 @@ where
                             error(format!(
                                     "Failed to read message from storage, failure message: {},topic:{},group{}",
                                     e.to_string(),
-                                    subscribe.topic_id.clone(),
+                                    subscriber.topic_id.clone(),
                                     group_id.clone()
                                 ));
                             sleep(Duration::from_millis(max_wait_ms)).await;
@@ -328,14 +341,14 @@ where
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
 // the push thread will exit automatically and will not attempt to push again.
 pub async fn exclusive_publish_message_qos1(
-    metadata_cache: Arc<CacheManager>,
-    client_id: String,
+    metadata_cache: &Arc<CacheManager>,
+    client_id: &String,
     mut publish: Publish,
-    publish_properties: PublishProperties,
+    publish_properties: &PublishProperties,
     pkid: u16,
-    response_queue_sx: Sender<ResponsePackage>,
-    stop_sx: broadcast::Sender<bool>,
-    wait_puback_sx: broadcast::Sender<QosAckPackageData>,
+    connection_manager: &Arc<ConnectionManager>,
+    stop_sx: &broadcast::Sender<bool>,
+    wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), RobustMQError> {
     let mut retry_times = 0;
     loop {
@@ -369,9 +382,9 @@ pub async fn exclusive_publish_message_qos1(
             packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
         };
 
-        match publish_to_response_queue(resp.clone(), response_queue_sx.clone()).await {
+        match publish_message_to_client(resp.clone(), connection_manager).await {
             Ok(_) => {
-                if let Some(data) = wait_packet_ack(wait_puback_sx.clone()).await {
+                if let Some(data) = wait_packet_ack(&wait_puback_sx).await {
                     if data.ack_type == QosAckPackageType::PubAck && data.pkid == pkid {
                         return Ok(());
                     }
@@ -393,23 +406,23 @@ pub async fn exclusive_publish_message_qos1(
 // send pubrel message
 // wait pubcomp message
 pub async fn exclusive_publish_message_qos2(
-    metadata_cache: Arc<CacheManager>,
-    client_id: String,
-    publish: Publish,
-    publish_properties: PublishProperties,
+    metadata_cache: &Arc<CacheManager>,
+    client_id: &String,
+    publish: &Publish,
+    publish_properties: &PublishProperties,
     pkid: u16,
-    response_queue_sx: Sender<ResponsePackage>,
-    stop_sx: broadcast::Sender<bool>,
-    wait_ack_sx: broadcast::Sender<QosAckPackageData>,
+    connection_manager: &Arc<ConnectionManager>,
+    stop_sx: &broadcast::Sender<bool>,
+    wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), RobustMQError> {
     // 1. send Publish to Client
     match qos2_send_publish(
-        metadata_cache.clone(),
-        client_id.clone(),
-        publish.clone(),
-        Some(publish_properties.clone()),
-        response_queue_sx.clone(),
-        stop_sx.clone(),
+        connection_manager,
+        metadata_cache,
+        client_id,
+        publish,
+        &Some(publish_properties.clone()),
+        stop_sx,
     )
     .await
     {
@@ -427,18 +440,18 @@ pub async fn exclusive_publish_message_qos2(
             }
             Err(_) => {}
         }
-        if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
+        if let Some(data) = wait_packet_ack(wait_ack_sx).await {
             if data.ack_type == QosAckPackageType::PubRec && data.pkid == pkid {
                 break;
             }
         } else {
             match qos2_send_publish(
-                metadata_cache.clone(),
-                client_id.clone(),
-                publish.clone(),
-                Some(publish_properties.clone()),
-                response_queue_sx.clone(),
-                stop_sx.clone(),
+                connection_manager,
+                metadata_cache,
+                client_id,
+                publish,
+                &Some(publish_properties.clone()),
+                stop_sx,
             )
             .await
             {
@@ -450,14 +463,7 @@ pub async fn exclusive_publish_message_qos2(
     }
 
     // 3. send PubRel to Client
-    qos2_send_pubrel(
-        metadata_cache.clone(),
-        client_id.clone(),
-        pkid,
-        response_queue_sx.clone(),
-        stop_sx.clone(),
-    )
-    .await;
+    qos2_send_pubrel(metadata_cache, client_id, pkid, connection_manager, stop_sx).await;
 
     // 4. wait pub comp
     loop {
@@ -469,24 +475,16 @@ pub async fn exclusive_publish_message_qos2(
             }
             Err(_) => {}
         }
-        if let Some(data) = wait_packet_ack(wait_ack_sx.clone()).await {
+        if let Some(data) = wait_packet_ack(&wait_ack_sx).await {
             if data.ack_type == QosAckPackageType::PubComp && data.pkid == pkid {
                 break;
             }
         } else {
-            qos2_send_pubrel(
-                metadata_cache.clone(),
-                client_id.clone(),
-                pkid,
-                response_queue_sx.clone(),
-                stop_sx.clone(),
-            )
-            .await;
+            qos2_send_pubrel(metadata_cache, client_id, pkid, connection_manager, stop_sx).await;
         }
         sleep(Duration::from_millis(1)).await;
     }
     return Ok(());
 }
 #[cfg(test)]
-mod test {
-}
+mod test {}

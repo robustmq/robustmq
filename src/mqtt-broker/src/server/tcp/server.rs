@@ -1,6 +1,8 @@
 use crate::{
     handler::{
+        cache_manager::CacheManager,
         command::Command,
+        connection::disconnect_connection,
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
     },
     metrics::{metrics_request_queue, metrics_response_queue},
@@ -11,6 +13,7 @@ use crate::{
         tcp::tls_server::read_tls_frame_process,
     },
 };
+use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
     errors::RobustMQError,
@@ -38,6 +41,8 @@ use super::tls_server::{load_certs, load_key};
 pub struct TcpServer<S> {
     command: Command<S>,
     connection_manager: Arc<ConnectionManager>,
+    cache_manager: Arc<CacheManager>,
+    client_poll: Arc<ClientPool>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
@@ -55,9 +60,13 @@ where
         response_process_num: usize,
         stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
+        cache_manager: Arc<CacheManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         Self {
             command,
+            cache_manager,
+            client_poll,
             connection_manager,
             accept_thread_num,
             handler_process_num,
@@ -104,7 +113,7 @@ where
             .await;
         self.response_process(response_queue_rx).await;
         info(format!(
-            "MQTT TLS TCP Server started successfully, listening port: {port}"
+            "MQTT TCP TLS Server started successfully, listening port: {port}"
         ));
     }
 
@@ -147,7 +156,7 @@ where
             let raw_request_queue_sx = request_queue_sx.clone();
             let raw_tls_acceptor = tls_acceptor.clone();
             tokio::spawn(async move {
-                info(format!(
+                debug(format!(
                     "TCP Server acceptor thread {} start successfully.",
                     index
                 ));
@@ -157,7 +166,7 @@ where
                             match val{
                                 Ok(flag) => {
                                     if flag {
-                                        info(format!("TCP Server acceptor thread {} stopped successfully.",index));
+                                        debug(format!("TCP Server acceptor thread {} stopped successfully.",index));
                                         break;
                                     }
                                 }
@@ -186,7 +195,7 @@ where
 
                                     let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                     let connection = NetworkConnection::new(
-                                        crate::server::connection::NetworkConnectionType::TCP,
+                                        crate::server::connection::NetworkConnectionType::TCPS,
                                         addr,
                                         Some(connection_stop_sx.clone())
                                     );
@@ -218,7 +227,7 @@ where
             let raw_request_queue_sx = request_queue_sx.clone();
 
             tokio::spawn(async move {
-                info(format!(
+                debug(format!(
                     "TCP Server acceptor thread {} start successfully.",
                     index
                 ));
@@ -228,7 +237,7 @@ where
                             match val{
                                 Ok(flag) => {
                                     if flag {
-                                        info(format!("TCP Server acceptor thread {} stopped successfully.",index));
+                                        debug(format!("TCP Server acceptor thread {} stopped successfully.",index));
                                         break;
                                     }
                                 }
@@ -300,7 +309,7 @@ where
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    info("TCP Server handler thread stopped successfully.".to_string());
+                                    debug("TCP Server handler thread stopped successfully.".to_string());
                                     break;
                                 }
                             }
@@ -308,6 +317,7 @@ where
                         }
                     },
                     val = request_queue_rx.recv()=>{
+                        info(format!("7855666,{val:?}"));
                         if let Some(packet) = val{
                             // Try to deliver the request packet to the child handler until it is delivered successfully.
                             // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
@@ -321,6 +331,7 @@ where
                                 if let Some(handler_sx) = child_process_list.get(&seq){
                                     match handler_sx.try_send(packet.clone()){
                                         Ok(_) => {
+                                            info(format!("success:{seq}"));
                                             break;
                                         }
                                         Err(err) => error(format!(
@@ -349,6 +360,8 @@ where
         let connect_manager = self.connection_manager.clone();
         let mut stop_rx = self.stop_sx.subscribe();
         let response_process_num = self.response_process_num.clone();
+        let cache_manager = self.cache_manager.clone();
+        let client_poll = self.client_poll.clone();
         let stop_sx = self.stop_sx.clone();
 
         tokio::spawn(async move {
@@ -358,6 +371,8 @@ where
                 &mut process_handler,
                 stop_sx,
                 connect_manager,
+                cache_manager,
+                client_poll,
             );
 
             let mut process_handler_seq = 1;
@@ -367,7 +382,7 @@ where
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    info("TCP Server response process thread stopped successfully.".to_string());
+                                    debug("TCP Server response process thread stopped successfully.".to_string());
                                     break;
                                 }
                             }
@@ -388,9 +403,11 @@ where
 
                                 if let Some(handler_sx) = process_handler.get(&seq){
                                     match handler_sx.try_send(packet.clone()){
-                                        Ok(_) => {}
+                                        Ok(_) => {
+                                            break;
+                                        }
                                         Err(err) => error(format!(
-                                            "Failed to write data to the handler process queue, error message: {:?}",
+                                            "Failed to write data to the response process queue, error message: {:?}",
                                             err
                                         )),
                                     }
@@ -419,7 +436,7 @@ fn read_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            info(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
+                            debug(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
                             break;
                         }
                     }
@@ -468,7 +485,7 @@ fn handler_child_process<S>(
         let mut raw_command = command.clone();
 
         tokio::spawn(async move {
-            info(format!(
+            debug(format!(
                 "TCP Server handler process thread {} start successfully.",
                 index
             ));
@@ -478,7 +495,7 @@ fn handler_child_process<S>(
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    info(format!("TCP Server handler process thread {} stopped successfully.",index));
+                                    debug(format!("TCP Server handler process thread {} stopped successfully.",index));
                                     break;
                                 }
                             }
@@ -487,11 +504,14 @@ fn handler_child_process<S>(
                     },
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
+                            info(format!("1:{:?}", packet));
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
+                                info(format!("2:{:?}", packet));
                                 if let Some(resp) = raw_command
                                     .apply(raw_connect_manager.clone(), connect, packet.addr, packet.packet)
                                     .await
                                 {
+                                    info(format!("3:"));
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);
                                     match raw_response_queue_sx.send(response_package).await {
                                         Ok(_) => {}
@@ -519,6 +539,8 @@ fn response_child_process(
     process_handler: &mut HashMap<usize, Sender<ResponsePackage>>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    cache_manager: Arc<CacheManager>,
+    client_poll: Arc<ClientPool>,
 ) {
     for index in 1..=response_process_num {
         let (response_process_sx, mut response_process_rx) = mpsc::channel::<ResponsePackage>(100);
@@ -526,9 +548,10 @@ fn response_child_process(
 
         let mut raw_stop_rx = stop_sx.subscribe();
         let raw_connect_manager = connection_manager.clone();
-
+        let raw_cache_manager = cache_manager.clone();
+        let raw_client_poll = client_poll.clone();
         tokio::spawn(async move {
-            info(format!(
+            debug(format!(
                 "TCP Server response process thread {index} start successfully."
             ));
 
@@ -538,7 +561,7 @@ fn response_child_process(
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    info(format!("TCP Server response process thread {index} stopped successfully."));
+                                    debug(format!("TCP Server response process thread {index} stopped successfully."));
                                     break;
                                 }
                             }
@@ -571,7 +594,18 @@ fn response_child_process(
 
 
                             if let MQTTPacket::Disconnect(_, _) = response_package.packet {
-                                raw_connect_manager.clonse_connect(response_package.connection_id).await;
+                                if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){
+                                    match disconnect_connection(
+                                        &connection.client_id,
+                                        connection.connect_id,
+                                        &raw_cache_manager,
+                                        &raw_client_poll,
+                                        &raw_connect_manager,
+                                    ).await{
+                                        Ok(()) => {},
+                                        Err(e) => error(e.to_string())
+                                    };
+                                }
                                 break;
                             }
                         }

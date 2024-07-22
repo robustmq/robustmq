@@ -1,10 +1,10 @@
-use std::{net::SocketAddr, sync::atomic::AtomicU64};
 use common_base::log::error;
 use protocol::mqtt::common::MQTTProtocol;
+use std::{net::SocketAddr, sync::atomic::AtomicU64};
 use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Clone,PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
     TCP,
     TCPS,

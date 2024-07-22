@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use clients::poll::ClientPool;
 use common_base::{
-    errors::RobustMQError,
-    tools::{now_second, unique_id},
+    errors::RobustMQError, log::info, tools::{now_second, unique_id}
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
@@ -153,15 +152,18 @@ pub async fn disconnect_connection(
     cache_manager.update_session_connect_id(client_id, None);
 
     let session_storage = SessionStorage::new(client_poll.clone());
+    info(format!("b1"));
     match session_storage
         .update_session(client_id, 0, 0, 0, now_second())
         .await
     {
-        Ok(_) => {}
+        Ok(_) => {  info(format!("loboxu v5"));}
         Err(e) => {
+            info(format!("berr vvv"));
             return Err(e);
         }
     }
+    info(format!("b2"));
 
     connnection_manager.clonse_connect(connect_id).await;
     return Ok(());
