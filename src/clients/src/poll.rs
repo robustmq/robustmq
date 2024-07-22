@@ -1,5 +1,5 @@
 use crate::{
-    mqtt::MqttBrokerMqttServiceManager,
+    broker_mqtt::MqttBrokerMqttServiceManager,
     placement::{
         journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager,
         placement::PlacementServiceManager,
@@ -140,7 +140,7 @@ impl ClientPool {
         &self,
         addr: String,
     ) -> Result<MqttServiceClient<Channel>, RobustMQError> {
-        let module = "PlacementMqttServices".to_string();
+        let module = "MqttServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
         if !self.placement_center_kv_service_pools.contains_key(&key) {
@@ -172,7 +172,7 @@ impl ClientPool {
         &self,
         addr: String,
     ) -> Result<MqttBrokerServiceClient<Channel>, RobustMQError> {
-        let module = "MqttServices".to_string();
+        let module = "BrokerMqttServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
         if !self.mqtt_broker_mqtt_service_pools.contains_key(&key) {
@@ -198,5 +198,19 @@ impl ClientPool {
             module,
             "connection pool is not initialized".to_string(),
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ClientPool;
+
+    #[tokio::test]
+    async fn get_placement_center_inner_services_client_test() {
+        let poll = ClientPool::new(100);
+        let res = poll
+            .get_placement_center_inner_services_client("".to_string())
+            .await;
+        
     }
 }
