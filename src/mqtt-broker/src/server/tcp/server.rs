@@ -317,7 +317,6 @@ where
                         }
                     },
                     val = request_queue_rx.recv()=>{
-                        info(format!("7855666,{val:?}"));
                         if let Some(packet) = val{
                             // Try to deliver the request packet to the child handler until it is delivered successfully.
                             // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
@@ -331,7 +330,6 @@ where
                                 if let Some(handler_sx) = child_process_list.get(&seq){
                                     match handler_sx.try_send(packet.clone()){
                                         Ok(_) => {
-                                            info(format!("success:{seq}"));
                                             break;
                                         }
                                         Err(err) => error(format!(
@@ -375,7 +373,7 @@ where
                 client_poll,
             );
 
-            let mut process_handler_seq = 1;
+            let mut response_process_seq = 1;
             loop {
                 select! {
                     val = stop_rx.recv() =>{
@@ -395,10 +393,10 @@ where
                             metrics_request_queue("response-total", response_queue_rx.len() as i64);
 
                             loop{
-                                let seq = if process_handler_seq > process_handler.len(){
+                                let seq = if response_process_seq > process_handler.len(){
                                     1
                                 } else {
-                                    process_handler_seq
+                                    response_process_seq
                                 };
 
                                 if let Some(handler_sx) = process_handler.get(&seq){
@@ -411,7 +409,7 @@ where
                                             err
                                         )),
                                     }
-                                    process_handler_seq = process_handler_seq + 1;
+                                    response_process_seq = response_process_seq + 1;
                                 }else{
                                     error("No request packet processing thread available".to_string());
                                 }
@@ -504,14 +502,11 @@ fn handler_child_process<S>(
                     },
                     val = child_process_rx.recv()=>{
                         if let Some(packet) = val{
-                            info(format!("1:{:?}", packet));
                             if let Some(connect) = raw_connect_manager.get_connect(packet.connection_id) {
-                                info(format!("2:{:?}", packet));
                                 if let Some(resp) = raw_command
                                     .apply(raw_connect_manager.clone(), connect, packet.addr, packet.packet)
                                     .await
                                 {
-                                    info(format!("3:"));
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);
                                     match raw_response_queue_sx.send(response_package).await {
                                         Ok(_) => {}

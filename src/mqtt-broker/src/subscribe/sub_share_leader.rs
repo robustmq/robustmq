@@ -62,7 +62,7 @@ where
 
     pub async fn start(&self) {
         loop {
-            self.start_push_thread();
+            self.start_push_thread().await;
             self.try_thread_gc();
             sleep(Duration::from_secs(1)).await;
         }
@@ -125,7 +125,7 @@ where
                     share_leader_key.clone(),
                     sub_data.clone(),
                     subscribe_manager,
-                );
+                ).await;
             }
         }
     }
