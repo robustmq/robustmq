@@ -47,11 +47,19 @@ Designed for IDC and cloud infrastructure, the storage layer supports multiple s
   
 The architecture is refined, and there is no need to rely on external dependent components. By simplifying the complexity of the kernel architecture, it improves stability and reduces long-term learning and maintenance costs.
 
-### Build
+### Get Started
+
 - Run standalone by placement-center
 ```
-cargo run --package cmd --bin meta -- --conf=config/placement-center.toml
+cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
 ```
+
+- Run standalone by placement-center
+```
+cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
+```
+
+### Build
 
 - Run cluster by mqtt-server
 ```
