@@ -98,6 +98,18 @@ impl ConnectionManager {
             }
         }
 
+        if let Some((id, mut stream)) = self.tcp_tls_write_list.remove(&connection_id) {
+            match stream.close().await {
+                Ok(_) => {
+                    info(format!(
+                        "server closes the tcp connection actively, connection id [{}]",
+                        id
+                    ));
+                }
+                Err(e) => error(e.to_string()),
+            }
+        }
+
         if let Some((id, mut stream)) = self.websocket_write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {

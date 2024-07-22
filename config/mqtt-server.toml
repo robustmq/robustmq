@@ -31,12 +31,12 @@ system_user = "admin"
 system_password = "pwd123"
 
 [runtime]
-worker_threads = 16
+worker_threads = 128
 
 [network_tcp]
-accept_thread_num = 3
-handler_thread_num = 3
-response_thread_num = 3
+accept_thread_num = 1
+handler_thread_num = 1
+response_thread_num = 1
 max_connection_num = 1000
 request_queue_size = 2000
 response_queue_size = 2000
