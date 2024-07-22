@@ -22,7 +22,7 @@ RobustMQ is a 100% Rust-based, minimalist, highly cohesive cloud-native messagin
 ![Architecture Image](docs/robustmq-architecture.png)
 
 
-### Introduce
+## Introduce
 - 100% Rust kernel
   
 A new messaging engine kernel implemented 100% in Rust. It is hoped to build a cloud-native message engine with high performance, high reliability and high stability by using Rust language's characteristics of high performance and high security.
@@ -47,7 +47,7 @@ Designed for IDC and cloud infrastructure, the storage layer supports multiple s
   
 The architecture is refined, and there is no need to rely on external dependent components. By simplifying the complexity of the kernel architecture, it improves stability and reduces long-term learning and maintenance costs.
 
-### Get Started
+## Get Started
 
 - Run standalone by placement-center
 ```
@@ -59,7 +59,7 @@ cargo run --package cmd --bin placement-center -- --conf=config/placement-center
 cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
 ```
 
-### Build
+### Run Cluster
 
 - Run cluster by mqtt-server
 ```

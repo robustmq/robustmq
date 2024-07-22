@@ -56,7 +56,6 @@ pub(crate) fn read_tls_frame_process(
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
                                 match request_queue_sx.send(package).await {
                                     Ok(_) => {
-                                        info(format!("read_tls_frame_process send success {}",request_queue_sx.capacity()))
                                     }
                                     Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
                                 }
