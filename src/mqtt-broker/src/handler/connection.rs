@@ -153,15 +153,15 @@ pub async fn disconnect_connection(
 
     let session_storage = SessionStorage::new(client_poll.clone());
 
-    // match session_storage
-    //     .update_session(client_id, 0, 0, 0, now_second())
-    //     .await
-    // {
-    //     Ok(_) => {}
-    //     Err(e) => {
-    //         return Err(e);
-    //     }
-    // }
+    match session_storage
+        .update_session(client_id, 0, 0, 0, now_second())
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(e);
+        }
+    }
 
     connnection_manager.clonse_connect(connect_id).await;
     return Ok(());

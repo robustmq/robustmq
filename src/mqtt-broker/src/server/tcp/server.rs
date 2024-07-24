@@ -317,7 +317,6 @@ where
                         }
                     },
                     val = request_queue_rx.recv()=>{
-                        info(format!("start{}",request_queue_rx.len()));
                         if let Some(packet) = val{
                             // Try to deliver the request packet to the child handler until it is delivered successfully.
                             // Because some request queues may be full or abnormal, the request packets can be delivered to other child handlers.
@@ -349,7 +348,6 @@ where
                             }
 
                         }
-                        info(format!("end{}",request_queue_rx.len()));
                     }
                 }
             }

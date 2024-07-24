@@ -1,6 +1,9 @@
 use std::{sync::Arc, time::Duration};
 
-use common_base::{log::error, tools::now_second};
+use common_base::{
+    log::{error, info},
+    tools::now_second,
+};
 use metadata_struct::mqtt::{lastwill::LastWillData, topic::MQTTTopic};
 use tokio::time::sleep;
 
@@ -53,15 +56,18 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let value = serde_json::from_slice::<MQTTTopic>(data.data.as_slice()).unwrap();
+            let mut value = serde_json::from_slice::<MQTTTopic>(data.data.as_slice()).unwrap();
             if !value.retain_message.is_none() {
                 let delete = if let Some(expired_at) = value.retain_message_expired_at {
                     now_second() >= (data.create_time + expired_at)
                 } else {
-                    true
+                    false
                 };
                 if delete {
-                    match topic_storage.delete(&self.cluster_name, &value.topic_name) {
+                    value.retain_message = None;
+                    value.retain_message_expired_at = None;
+                    match topic_storage.save(&self.cluster_name, &value.topic_name, value.encode())
+                    {
                         Ok(()) => {}
                         Err(e) => {
                             error(e.to_string());

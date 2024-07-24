@@ -372,7 +372,7 @@ pub async fn publish_validator(
                         protocol,
                         connection,
                         publish.pkid,
-                        PubRecReason::PayloadFormatInvalid,
+                        PubRecReason::PacketIdentifierInUse,
                         None,
                     ));
                 }

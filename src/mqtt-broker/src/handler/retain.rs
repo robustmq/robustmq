@@ -38,6 +38,7 @@ pub async fn save_topic_retain_message(
         } else {
             let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
             let message_expire = message_expiry_interval(cache_manager, publish_properties);
+            println!("message_expire:{}", message_expire);
             match topic_storage
                 .set_retain_message(topic_name, &retain_message, message_expire)
                 .await
@@ -208,7 +209,10 @@ pub async fn try_send_retain_message(
                     Ok(None) => {
                         continue;
                     }
-                    Err(e) => error(e.to_string()),
+                    Err(e) => error(format!(
+                        "send retain message error, error message:{}",
+                        e.to_string()
+                    )),
                 }
             }
         }

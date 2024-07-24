@@ -99,7 +99,7 @@ mod tests {
         let retain_message =
             MQTTMessage::build_message(&client_id, &publish, &Some(publish_properties));
         topic_storage
-            .set_retain_message(&topic_name, &retain_message, now_second() + 3600)
+            .set_retain_message(&topic_name, &retain_message, 3600)
             .await
             .unwrap();
 

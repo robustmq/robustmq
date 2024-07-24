@@ -7,10 +7,7 @@ use clients::{
 };
 use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
 use dashmap::DashMap;
-use metadata_struct::mqtt::{
-    message::MQTTMessage,
-    topic::{self, MQTTTopic},
-};
+use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
 use protocol::placement_center::generate::mqtt::{
     CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
@@ -205,5 +202,38 @@ impl TopicStorage {
                 }
             };
         return Ok(Some(message));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TopicStorage;
+    use crate::handler::cache_manager::CacheManager;
+    use clients::poll::ClientPool;
+    use common_base::{
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+    };
+    use metadata_struct::mqtt::topic::MQTTTopic;
+    use std::sync::Arc;
+    #[tokio::test]
+
+    async fn get_topic_test() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        init_broker_mqtt_conf_by_path(&path);
+        init_broker_mqtt_log();
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+        let storage = TopicStorage::new(client_poll);
+        let topic_name = "/loboxu/test56".to_string();
+      
+        match storage.get_topic(topic_name).await {
+            Ok(da) => {
+                println!("ccc{:?}", da);
+            }
+            Err(e) => {}
+        }
     }
 }
