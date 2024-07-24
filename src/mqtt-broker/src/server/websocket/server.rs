@@ -177,7 +177,7 @@ async fn handle_socket<S>(
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let (sender, mut receiver) = socket.split();
-    let tcp_connection = NetworkConnection::new(
+    let mut tcp_connection = NetworkConnection::new(
         crate::server::connection::NetworkConnectionType::WebSocket,
         addr,
         None,
@@ -220,7 +220,8 @@ async fn handle_socket<S>(
                                     {
                                         if let MQTTPacket::Connect(_,_,_,_,_,_) = packet {
                                             if let Some(pv) = connection_manager.get_connect_protocol(tcp_connection.connection_id){
-                                                protocol_version = pv;
+                                                protocol_version = pv.clone();
+                                                tcp_connection.set_protocol(pv);
                                             }
                                         }
 

@@ -120,7 +120,7 @@ pub async fn try_send_retain_message(
                             content_type: msg.content_type,
                         };
 
-                        tokio::spawn(async {});
+
                         match qos {
                             QoS::AtMostOnce => {
                                 publish_message_qos0(
