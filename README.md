@@ -51,42 +51,19 @@ The architecture is refined, and there is no need to rely on external dependent 
 ### Binary Packages
 #### Download .tar.gz
 ```
-tar -xzvf robustmq-v0.0.1-release.tar.gz
-cd robustmq-v0.0.1-release
+$ tar -xzvf robustmq-v0.0.1-release.tar.gz
+$ cd robustmq-v0.0.1-release
 ```
 
 #### Start Placement Center
 ```
 $ bin/robustctl placement-center start
-config:/Users/bytedance/robustmq-v0.0.1-release/bin/../config/placement-center.toml
-placement-center is starting....
-
-         _____     ____    ______            _____ ________ _         _    _____
-        ||    \ //    \ ||     ||||     ||||     --------||\      //|| //    \
-        ||----//||      ||||____// ||     || \____   ||   || \    // ||||      ||
-        ||   // ||      ||||     \||     ||      ||  ||   ||  \  //  ||||      ||
-        ||_|__\ \____// ||__|__||||__|__|| __|__||  ||   ||   \//   || \___\//
-                                                                               \\
-
-placement-center started successfully.
 ```
 
 #### Start MQTT Broker
 ```
 $ bin/robustctl broker-mqtt start
-config:/Users/bytedance/robustmq-v0.0.1-release/bin/../config/broker-mqtt.toml
-broker-mqtt is starting....
-
-         _____     ____    ______            _____ ________ _         _    _____
-        ||    \ //    \ ||     ||||     ||||     --------||\      //|| //    \
-        ||----//||      ||||____// ||     || \____   ||   || \    // ||||      ||
-        ||   // ||      ||||     \||     ||      ||  ||   ||  \  //  ||||      ||
-        ||_|__\ \____// ||__|__||||__|__|| __|__||  ||   ||   \//   || \___\//
-                                                                               \\
-
-broker-mqtt started successfully.
 ```
-
 #### MQTT Test
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
