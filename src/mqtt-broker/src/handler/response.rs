@@ -164,6 +164,7 @@ pub fn response_packet_mqtt_puback_fail(
     reason: PubAckReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
+    error(format!("reason:{reason:?}, reason string: {reason_string:?}"));
     if !protocol.is_mqtt5() {
         let pub_ack = PubAck { pkid, reason: None };
         return MQTTPacket::PubAck(pub_ack, None);
@@ -207,6 +208,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     reason: PubRecReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
+    error(format!("reason:{reason:?}, reason string: {reason_string:?}"));
     if !protocol.is_mqtt5() {
         return MQTTPacket::PubRec(PubRec { pkid, reason: None }, None);
     }
