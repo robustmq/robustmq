@@ -35,18 +35,18 @@ In the second phase, the development of AMQP protocol-related functions is initi
 6. Support reserved messages, testament messages, shared subscriptions, etc
    
 ### Start By Binary Packages
-#### Download .tar.gz
+#### 1. Download .tar.gz
 ```
 $ tar -xzvf robustmq-v0.0.1-release.tar.gz
 $ cd robustmq-v0.0.1-release
 ```
 
-#### Start Placement Center
+#### 2. Start Placement Center
 ```
 $ bin/robustctl placement-center start
 ```
 
-#### Start MQTT Broker
+#### 3. Start MQTT Broker
 ```
 $ bin/robustctl broker-mqtt start
 ```
