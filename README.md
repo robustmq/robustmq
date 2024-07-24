@@ -54,37 +54,39 @@ $ bin/robustctl broker-mqtt start
 ### Start By Cargo Run
 
 #### Run in stand-alone mode
-- Run standalone by placement-center
+1. Run standalone by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
 ```
 
-- Run standalone by mqtt-server
+2. Run standalone by mqtt-server
 ```
 cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
 ```
 
 #### Running cluster mode
-
-- Run cluster by mqtt-server
-```
-cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-1.toml
-cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-2.toml
-cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-3.toml
-```
-
-- Run cluster by placement-center
+1. Run cluster by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-1.toml
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-2.toml
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-3.toml
 ```
 
+2. Run cluster by mqtt-server
+```
+cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-1.toml
+cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-2.toml
+cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-3.toml
+```
+
+
+
 ### MQTT Test
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ## Contributing
-Please refer to contribution [guidelines](https://github.com/robustmq/robustmq/docs/en/contribution.md) for more information.
+Please refer to contribution [guidelines](https://github.com/robustmq/robustmq/blob/main/docs/en/contribution.md) for more information.
+
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
 
