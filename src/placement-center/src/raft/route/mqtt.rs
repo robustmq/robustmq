@@ -97,6 +97,7 @@ impl DataRouteMQTT {
             &req.cluster_name,
             &req.topic_name,
             req.retain_message,
+            req.retain_message_expired_at
         ) {
             Ok(_) => {
                 return Ok(());

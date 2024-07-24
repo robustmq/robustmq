@@ -5,7 +5,7 @@ use clients::{
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError, log::info};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
 use protocol::placement_center::generate::placement::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
