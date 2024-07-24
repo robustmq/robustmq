@@ -64,8 +64,6 @@ $ bin/robustctl placement-center start
 ```
 $ bin/robustctl broker-mqtt start
 ```
-#### MQTT Test
-MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ### Cargo Run
 
@@ -80,7 +78,7 @@ cargo run --package cmd --bin placement-center -- --conf=config/placement-center
 cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
 ```
 
-### Running cluster mode
+#### Running cluster mode
 
 - Run cluster by mqtt-server
 ```
@@ -95,6 +93,9 @@ cargo run --package cmd --bin placement-center -- --conf=config/cluster/placemen
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-2.toml
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-3.toml
 ```
+
+### MQTT Test
+MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
