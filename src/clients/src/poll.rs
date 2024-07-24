@@ -211,6 +211,5 @@ mod tests {
         let res = poll
             .get_placement_center_inner_services_client("".to_string())
             .await;
-        
     }
 }

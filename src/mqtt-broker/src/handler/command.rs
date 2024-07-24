@@ -158,7 +158,6 @@ where
                 if !self.auth_login(tcp_connection.connection_id).await {
                     return Some(self.un_login_err(tcp_connection.connection_id));
                 }
-
                 if tcp_connection.is_mqtt3() {
                     return self
                         .mqtt3_service

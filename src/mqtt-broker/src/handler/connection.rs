@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use clients::poll::ClientPool;
 use common_base::{
-    errors::RobustMQError, log::info, tools::{now_second, unique_id}
+    errors::RobustMQError,
+    tools::{now_second, unique_id},
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{server::connection_manager::ConnectionManager, storage::session::SessionStorage};
 
-use super::cache_manager::{self, CacheManager};
+use super::cache_manager::CacheManager;
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 

@@ -8,58 +8,63 @@
 </h3>
 
 ## What is RobustMQ?
-RobustMQ is a 100% Rust-based, minimalist, highly cohesive cloud-native messaging engine. It is a typical computing, storage, scheduling separation architecture, with support for multi-protocol, clustered deployment, computing/storage layer flexibility, minimalist high cohesion architecture of the next generation of cloud-native converged message queue.
+RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture.
 
 ## Features
-- A cloud-native messaging engine built 100% on Rust with high performance, reliability, and stability.
-- Supports a variety of mainstream standard messaging protocols. Support MQTT 3.1, MQTT 5.0, AMQP, RocketMQ Remoting, Kafka Protocol, OpenMessing, JNS, SQS, WebSocket and other mainstream messaging protocols.
-- Computing, storage, scheduling hierarchical architecture, computing layer, storage layer, scheduling layer have simple, fast, Serverless expansion capacity.
-- Multiple virtual clusters can be created in one physical cluster.
-- Flexible multilevel storage architecture can meet different service scenarios, ensuring performance and greatly reducing storage costs.
-- Minimalist high cohesion architecture, no external dependent components, simple, reliable and stable architecture.
+- 100% Rust: A message queuing kernel implemented entirely in Rust.
+- Multi-protocol: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessing, JNS, SQS and other mainstream message protocols.
+- Layered architecture: computing, storage, scheduling independent three-tier architecture, each layer has the ability of cluster deployment, rapid horizontal scaling capacity.
+- Plug-in storage: Standalone plug-in storage layer implementation, you can choose the appropriate storage layer according to your needs. It is compatible with traditional and cloud-native architectures, and supports cloud and IDC deployment patterns.
+- High cohesion architecture: It provides built-in metadata storage components, distributed Journal storage services, and has the ability to deploy quickly, easily and cohesively.
+- Rich functions: support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
 
-## Architecture
-![Architecture Image](docs/robustmq-architecture.png)
+## Long term planning
+RobustMQ has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs. So there are several stages in the development perspective:
 
+In the first phase, the basic framework of the cluster (such as metadata storage service, storage adaptation layer, bring your own storage layer, etc.) and the functions related to MQTT protocol will be developed. The goal is to complete the RobustMQ architecture and adapt it to the MQTT protocol, and achieve production availability on the MQTT protocol.
 
-## Introduce
-- 100% Rust kernel
-  
-A new messaging engine kernel implemented 100% in Rust. It is hoped to build a cloud-native message engine with high performance, high reliability and high stability by using Rust language's characteristics of high performance and high security.
+In the second phase, the development of AMQP protocol-related functions is initiated.
 
-- Multi-protocol support
-  
-Support MQTT 3.1/5.0, AMQP, RocketMQ Remoting, Kafka Protocol, OpenMessing, JNS, SQS, WebSocket and other mainstream messaging protocols. It is hoped to build a message engine that can meet various scenarios to reduce the learning and operation cost of maintaining multiple message engines at the same time.
+## RobustMQ MQTT
+### Feature
+1. Cluster deployment, horizontal unaware expansion.
+2. A single machine can carry millions of connections.
+3. Support MQTT3.1/3.1.1/5.0 protocol.
+4. Supports TCP, SSL, WebSocket, WebSockets protocols.
+5. Supports persistent Session storage.
+6. Support reserved messages, testament messages, shared subscriptions, etc
+   
+### Start By Binary Packages
+#### Download .tar.gz
+```
+$ tar -xzvf robustmq-v0.0.1-release.tar.gz
+$ cd robustmq-v0.0.1-release
+```
 
-- Layered architecture
-  
-Typical hierarchical architecture, with independent computing, storage, scheduling layers. Each layer supports distributed cluster deployment and provides simple, fast, Serverless horizontal capacity expansion and contraction.
+#### Start Placement Center
+```
+$ bin/robustctl placement-center start
+```
 
-- Multi Tenant
-  
-Supports the multi-tenant feature. Multiple virtual clusters can be created on one physical cluster, and virtual clusters can be isolated from each other. From the implementation point of view, plugins support a variety of forms of stream limiting mechanisms.
+#### Start MQTT Broker
+```
+$ bin/robustctl broker-mqtt start
+```
 
-- Multilevel storage
-  
-Designed for IDC and cloud infrastructure, the storage layer supports multiple storage media such as physical hard disks, cloud hard disks, and object storage. At the same time, performance, stability, and cost are taken into account, which is suitable for a variety of different business scenarios.
+### Start By Cargo Run
 
-- Minimal, high cohesion
-  
-The architecture is refined, and there is no need to rely on external dependent components. By simplifying the complexity of the kernel architecture, it improves stability and reduces long-term learning and maintenance costs.
-
-## Get Started
-
+#### Run in stand-alone mode
 - Run standalone by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
 ```
 
-- Run standalone by placement-center
+- Run standalone by mqtt-server
 ```
 cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
 ```
 
-### Run Cluster
+#### Running cluster mode
 
 - Run cluster by mqtt-server
 ```
@@ -75,10 +80,13 @@ cargo run --package cmd --bin placement-center -- --conf=config/cluster/placemen
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-3.toml
 ```
 
+### MQTT Test
+MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
+## Contributing
+Please refer to contribution [guidelines](https://github.com/robustmq/robustmq/docs/en/contribution.md) for more information.
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
 
-## Contributing
-Please refer to contribution [guidelines](https://github.com/robustmq/robustmq) for more information.
+
 

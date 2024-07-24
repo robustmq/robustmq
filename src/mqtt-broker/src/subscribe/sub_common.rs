@@ -11,6 +11,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::{errors::RobustMQError, log::error};
 use protocol::mqtt::codec::MQTTPacketWrapper;
 use protocol::mqtt::codec::MqttCodec;
+use protocol::mqtt::common::MQTTProtocol;
 use protocol::mqtt::common::{MQTTPacket, PubRel, Publish, PublishProperties, QoS};
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
@@ -209,9 +210,23 @@ pub async fn qos2_send_publish(
         let mut publish = publish.clone();
         publish.dup = retry_times >= 2;
 
-        let resp = ResponsePackage {
-            connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish, publish_properties.clone()),
+        let mut contain_properties = false;
+        if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
+            if MQTTProtocol::is_mqtt5(&protocol) {
+                contain_properties = true;
+            }
+        }
+
+        let resp = if contain_properties {
+            ResponsePackage {
+                connection_id: connect_id,
+                packet: MQTTPacket::Publish(publish.clone(), publish_properties.clone()),
+            }
+        } else {
+            ResponsePackage {
+                connection_id: connect_id,
+                packet: MQTTPacket::Publish(publish.clone(), None),
+            }
         };
 
         select! {
@@ -366,9 +381,23 @@ pub async fn publish_message_qos0(
         }
     }
 
-    let resp = ResponsePackage {
-        connection_id: connect_id,
-        packet: MQTTPacket::Publish(publish.clone(), properties.clone()),
+    let mut contain_properties = false;
+    if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
+        if MQTTProtocol::is_mqtt5(&protocol) {
+            contain_properties = true;
+        }
+    }
+
+    let resp = if contain_properties {
+        ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish.clone(), properties.clone()),
+        }
+    } else {
+        ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish.clone(), None),
+        }
     };
 
     // 2. publish to mqtt client

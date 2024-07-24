@@ -5,6 +5,7 @@ use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
+use axum::http::response;
 use axum::Router;
 use axum::{response::Response, routing::get};
 use axum_extra::headers::UserAgent;
@@ -176,7 +177,7 @@ async fn handle_socket<S>(
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let (sender, mut receiver) = socket.split();
-    let tcp_connection = NetworkConnection::new(
+    let mut tcp_connection = NetworkConnection::new(
         crate::server::connection::NetworkConnectionType::WebSocket,
         addr,
         None,
@@ -219,24 +220,25 @@ async fn handle_socket<S>(
                                     {
                                         if let MQTTPacket::Connect(_,_,_,_,_,_) = packet {
                                             if let Some(pv) = connection_manager.get_connect_protocol(tcp_connection.connection_id){
-                                                protocol_version = pv;
+                                                protocol_version = pv.clone();
+                                                tcp_connection.set_protocol(pv);
                                             }
                                         }
 
-                                        let mut buff = BytesMut::new();
+                                        let mut response_buff = BytesMut::new();
                                         let packet_wrapper = MQTTPacketWrapper {
                                             protocol_version: protocol_version.clone().into(),
                                             packet: resp_pkg,
                                         };
 
                                         info(format!("{packet_wrapper:?}"));
-                                        match codec.encode_data(packet_wrapper, &mut buff){
+                                        match codec.encode_data(packet_wrapper, &mut response_buff){
                                             Ok(()) => {},
                                             Err(e) => {
                                                 error(format!("Websocket encode back packet failed with error message: {e:?}"));
                                             }
                                         }
-                                        match connection_manager.write_websocket_frame(tcp_connection.connection_id, Message::Binary(buf.to_vec())).await{
+                                        match connection_manager.write_websocket_frame(tcp_connection.connection_id, Message::Binary(response_buff.to_vec())).await{
                                             Ok(()) => {},
                                             Err(e) => {
                                                 error(format!("websocket returns failure to write the packet to the client with error message {e:?}"));
