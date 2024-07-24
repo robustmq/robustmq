@@ -84,7 +84,8 @@ cargo run --package cmd --bin placement-center -- --conf=config/cluster/placemen
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ## Contributing
-Please refer to contribution [guidelines](https://github.com/robustmq/robustmq/docs/en/contribution.md) for more information.
+Please refer to contribution [guidelines](https://github.com/robustmq/robustmq/blob/main/docs/en/contribution.md) for more information.
+
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
 
