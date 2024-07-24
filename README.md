@@ -1,4 +1,4 @@
-<p  align="center">
+<p align="center">
   <picture>
     <img alt="RobustMQ Logo" src="docs/RobustMQ-logo-formal.png" width="300">
   </picture>
