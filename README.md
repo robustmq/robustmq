@@ -47,19 +47,63 @@ Designed for IDC and cloud infrastructure, the storage layer supports multiple s
   
 The architecture is refined, and there is no need to rely on external dependent components. By simplifying the complexity of the kernel architecture, it improves stability and reduces long-term learning and maintenance costs.
 
-## Get Started
+## Start RobustMQ MQTT
+### Binary Packages
+#### Download .tar.gz
+```
+tar -xzvf robustmq-v0.0.1-release.tar.gz
+cd robustmq-v0.0.1-release
+```
 
+#### Start Placement Center
+```
+$ bin/robustctl placement-center start
+config:/Users/bytedance/robustmq-v0.0.1-release/bin/../config/placement-center.toml
+placement-center is starting....
+
+         _____     ____    ______            _____ ________ _         _    _____
+        ||    \ //    \ ||     ||||     ||||     --------||\      //|| //    \
+        ||----//||      ||||____// ||     || \____   ||   || \    // ||||      ||
+        ||   // ||      ||||     \||     ||      ||  ||   ||  \  //  ||||      ||
+        ||_|__\ \____// ||__|__||||__|__|| __|__||  ||   ||   \//   || \___\//
+                                                                               \\
+
+placement-center started successfully.
+```
+
+#### Start MQTT Broker
+```
+$ bin/robustctl broker-mqtt start
+config:/Users/bytedance/robustmq-v0.0.1-release/bin/../config/broker-mqtt.toml
+broker-mqtt is starting....
+
+         _____     ____    ______            _____ ________ _         _    _____
+        ||    \ //    \ ||     ||||     ||||     --------||\      //|| //    \
+        ||----//||      ||||____// ||     || \____   ||   || \    // ||||      ||
+        ||   // ||      ||||     \||     ||      ||  ||   ||  \  //  ||||      ||
+        ||_|__\ \____// ||__|__||||__|__|| __|__||  ||   ||   \//   || \___\//
+                                                                               \\
+
+broker-mqtt started successfully.
+```
+
+#### MQTT Test
+MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
+
+### Cargo Run
+
+#### Run in stand-alone mode
 - Run standalone by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
 ```
 
-- Run standalone by placement-center
+- Run standalone by mqtt-server
 ```
 cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
 ```
 
-### Run Cluster
+### Running cluster mode
 
 - Run cluster by mqtt-server
 ```
@@ -74,7 +118,6 @@ cargo run --package cmd --bin placement-center -- --conf=config/cluster/placemen
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-2.toml
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-3.toml
 ```
-
 
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
