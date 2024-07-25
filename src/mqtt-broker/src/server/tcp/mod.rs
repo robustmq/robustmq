@@ -30,30 +30,29 @@ pub async fn start_tcp_server<S>(
         sucscribe_manager.clone(),
         client_poll.clone(),
         connection_manager.clone(),
-        stop_sx.clone(),
     );
 
     let server = TcpServer::<S>::new(
         command.clone(),
-        conf.network_tcp.accept_thread_num,
-        conf.network_tcp.handler_thread_num,
-        conf.network_tcp.response_thread_num,
+        conf.tcp_thread.accept_thread_num,
+        conf.tcp_thread.handler_thread_num,
+        conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager.clone(),
         cache_manager.clone(),
         client_poll.clone(),
     );
-    server.start(conf.mqtt.tcp_port).await;
+    server.start(conf.network.tcp_port).await;
 
     let server = TcpServer::<S>::new(
         command,
-        conf.network_tcp.accept_thread_num,
-        conf.network_tcp.handler_thread_num,
-        conf.network_tcp.response_thread_num,
+        conf.tcp_thread.accept_thread_num,
+        conf.tcp_thread.handler_thread_num,
+        conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager,
         cache_manager,
         client_poll,
     );
-    server.start_tls(conf.mqtt.tcps_port).await;
+    server.start_tls(conf.network.tcps_port).await;
 }

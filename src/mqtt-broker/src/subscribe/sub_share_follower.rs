@@ -763,8 +763,8 @@ fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MQTTPacket 
     properties.user_properties = Vec::new();
 
     let login = Login {
-        username: conf.system.system_user.clone(),
-        password: conf.system.system_password.clone(),
+        username: conf.system.default_user.clone(),
+        password: conf.system.default_password.clone(),
     };
 
     return MQTTPacket::Connect(

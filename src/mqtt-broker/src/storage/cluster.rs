@@ -6,7 +6,7 @@ use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    log::{debug, error, info},
+    log::{error, info},
     tools::get_local_ip,
 };
 use metadata_struct::mqtt::cluster::MQTTCluster;
@@ -43,17 +43,17 @@ impl ClusterStorage {
         let node = MQTTNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
             http_addr: format!("{}:{}", local_ip, config.http_port),
-            mqtt_addr: format!("{}:{}", local_ip, config.mqtt.tcp_port),
-            mqtts_addr: format!("{}:{}", local_ip, config.mqtt.tcps_port),
-            websocket_addr: format!("{}:{}", local_ip, config.mqtt.websocket_port),
-            websockets_addr: format!("{}:{}", local_ip, config.mqtt.websockets_port),
-            quic_addr: format!("{}:{}", local_ip, config.mqtt.quic_port),
+            mqtt_addr: format!("{}:{}", local_ip, config.network.tcp_port),
+            mqtts_addr: format!("{}:{}", local_ip, config.network.tcps_port),
+            websocket_addr: format!("{}:{}", local_ip, config.network.websocket_port),
+            websockets_addr: format!("{}:{}", local_ip, config.network.websockets_port),
+            quic_addr: format!("{}:{}", local_ip, config.network.quic_port),
         };
         req.extend_info = serde_json::to_string(&node).unwrap();
 
         match register_node(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             req.clone(),
         )
         .await
@@ -79,7 +79,7 @@ impl ClusterStorage {
 
         match un_register_node(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             req.clone(),
         )
         .await
@@ -100,7 +100,7 @@ impl ClusterStorage {
 
         match heartbeat(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             req.clone(),
         )
         .await
@@ -125,7 +125,7 @@ impl ClusterStorage {
 
         match set_resource_config(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -147,7 +147,7 @@ impl ClusterStorage {
 
         match delete_resource_config(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -172,7 +172,7 @@ impl ClusterStorage {
 
         match get_resource_config(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await

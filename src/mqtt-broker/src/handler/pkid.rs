@@ -24,7 +24,7 @@ pub async fn pkid_save(
             producer_id: client_id.clone(),
             seq_num: pkid as u64,
         };
-        match set_idempotent_data(client_poll.clone(), conf.placement.server.clone(), request).await
+        match set_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request).await
         {
             Ok(_) => {
                 return Ok(());
@@ -52,7 +52,7 @@ pub async fn pkid_exists(
             producer_id: client_id.clone(),
             seq_num: pkid as u64,
         };
-        match exists_idempotent_data(client_poll.clone(), conf.placement.server.clone(), request)
+        match exists_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)
             .await
         {
             Ok(reply) => {
@@ -80,7 +80,7 @@ pub async fn pkid_delete(
             producer_id: client_id.clone(),
             seq_num: pkid as u64,
         };
-        match delete_idempotent_data(client_poll.clone(), conf.placement.server.clone(), request)
+        match delete_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)
             .await
         {
             Ok(_) => {

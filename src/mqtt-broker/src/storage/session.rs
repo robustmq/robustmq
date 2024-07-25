@@ -36,7 +36,7 @@ impl SessionStorage {
         };
         match placement_create_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -67,7 +67,7 @@ impl SessionStorage {
         };
         match placement_update_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -87,7 +87,7 @@ impl SessionStorage {
         };
         match placement_delete_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -110,7 +110,7 @@ impl SessionStorage {
         };
         match placement_list_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -141,7 +141,7 @@ impl SessionStorage {
         };
         match placement_list_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -179,7 +179,7 @@ impl SessionStorage {
         };
         match placement_save_last_will_message(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
