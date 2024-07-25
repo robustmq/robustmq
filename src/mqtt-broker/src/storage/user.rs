@@ -27,7 +27,7 @@ impl UserStorage {
         };
         match placement_create_user(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -47,7 +47,7 @@ impl UserStorage {
         };
         match placement_delete_user(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -67,7 +67,7 @@ impl UserStorage {
         };
         match placement_list_user(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -100,7 +100,7 @@ impl UserStorage {
         };
         match placement_list_user(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await

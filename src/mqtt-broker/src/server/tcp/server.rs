@@ -124,14 +124,14 @@ where
     ) {
         let conf = broker_mqtt_conf();
 
-        let certs = match load_certs(&Path::new(&conf.mqtt.tls_cert)) {
+        let certs = match load_certs(&Path::new(&conf.network.tls_cert)) {
             Ok(data) => data,
             Err(e) => {
                 panic!("{}", e.to_string());
             }
         };
 
-        let key = match load_key(&Path::new(&conf.mqtt.tls_key)) {
+        let key = match load_key(&Path::new(&conf.network.tls_key)) {
             Ok(data) => data,
             Err(e) => {
                 panic!("{}", e.to_string());

@@ -31,7 +31,7 @@ impl TopicStorage {
         };
         match placement_create_topic(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -51,7 +51,7 @@ impl TopicStorage {
         };
         match placement_delete_topic(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -71,7 +71,7 @@ impl TopicStorage {
         };
         match placement_list_topic(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -104,7 +104,7 @@ impl TopicStorage {
         };
         match placement_list_topic(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -142,7 +142,7 @@ impl TopicStorage {
         };
         match placement_set_topic_retain_message(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -164,7 +164,7 @@ impl TopicStorage {
         };
         match placement_set_topic_retain_message(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await

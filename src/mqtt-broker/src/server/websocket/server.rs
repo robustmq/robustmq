@@ -5,7 +5,6 @@ use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
-use axum::http::response;
 use axum::Router;
 use axum::{response::Response, routing::get};
 use axum_extra::headers::UserAgent;
@@ -67,13 +66,13 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.mqtt.websocket_port)
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websocket_port)
         .parse()
         .unwrap();
     let app = routes_v1(state);
     info(format!(
         "Broker WebSocket Server start success. port:{}",
-        config.mqtt.websocket_port
+        config.network.websocket_port
     ));
     match axum_server::bind(ip)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -89,14 +88,14 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.mqtt.websockets_port)
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websockets_port)
         .parse()
         .unwrap();
     let app = routes_v1(state);
 
     let tls_config = match RustlsConfig::from_pem_file(
-        PathBuf::from(config.mqtt.tls_cert.clone()),
-        PathBuf::from(config.mqtt.tls_key.clone()),
+        PathBuf::from(config.network.tls_cert.clone()),
+        PathBuf::from(config.network.tls_key.clone()),
     )
     .await
     {
@@ -108,7 +107,7 @@ where
 
     info(format!(
         "Broker WebSocket TLS Server start success. port:{}",
-        config.mqtt.websockets_port
+        config.network.websockets_port
     ));
     match axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
@@ -150,7 +149,6 @@ where
         state.sucscribe_manager.clone(),
         state.client_poll.clone(),
         state.connection_manager.clone(),
-        state.stop_sx.clone(),
     );
     let codec = MqttCodec::new(None);
     ws.protocols(["mqtt", "mqttv3.1"])

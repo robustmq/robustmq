@@ -22,9 +22,9 @@ use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
 };
-use storage_adapter::memory::MemoryStorageAdapter;
 use std::sync::Arc;
 use storage::cluster::ClusterStorage;
+use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::{
     // memory::MemoryStorageAdapter,
     mysql::{build_mysql_conn_pool, MySQLStorageAdapter},
@@ -53,7 +53,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
 
     // build message storage driver
-    let pool = build_mysql_conn_pool(&conf.mysql.server).unwrap();
+    let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
     // let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
     let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
 
@@ -84,7 +84,10 @@ where
         cache_manager: Arc<CacheManager>,
     ) -> Self {
         let conf = broker_mqtt_conf();
-        let runtime = create_runtime("storage-engine-server-runtime", conf.runtime.worker_threads);
+        let runtime = create_runtime(
+            "storage-engine-server-runtime",
+            conf.system.runtime_worker_threads,
+        );
         let subscribe_manager = Arc::new(SubscribeCacheManager::new(
             cache_manager.clone(),
             client_poll.clone(),

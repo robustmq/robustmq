@@ -121,7 +121,7 @@ pub async fn get_share_sub_leader(
         cluster_name: conf.cluster_name.clone(),
         group_name,
     };
-    match placement_get_share_sub_leader(client_poll, conf.placement.server.clone(), req).await {
+    match placement_get_share_sub_leader(client_poll, conf.placement_center.clone(), req).await {
         Ok(reply) => {
             return Ok(reply);
         }

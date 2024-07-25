@@ -25,19 +25,16 @@ pub struct BrokerMQTTConfig {
     pub broker_id: u64,
     pub grpc_port: u32,
     pub http_port: usize,
-    pub mqtt: MQTT,
-    pub runtime: Runtime,
-    pub network_tcp: NetworkTcp,
+    pub placement_center: Vec<String>,
+    pub network: Network,
+    pub tcp_thread: TcpThread,
+    pub system: System,
+    pub storage: Storage,
     pub log: Log,
-    pub storage: StorageConfig,
-    pub mysql: Mysql,
-    pub placement: Placement,
-    pub journal: Journal,
-    pub system: SystemConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct MQTT {
+pub struct Network {
     pub tcp_port: u32,
     pub tcps_port: u32,
     pub websocket_port: u32,
@@ -48,7 +45,7 @@ pub struct MQTT {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct NetworkTcp {
+pub struct TcpThread {
     pub accept_thread_num: usize,
     pub handler_thread_num: usize,
     pub response_thread_num: usize,
@@ -60,35 +57,19 @@ pub struct NetworkTcp {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Runtime {
-    pub worker_threads: usize,
+pub struct Storage {
+    pub storage_type: String,
+    #[serde(skip)]
+    #[serde(default)]
+    pub journal_addr: String,
+    pub mysql_addr: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Mysql {
-    pub server: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Journal {
-    pub server: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Placement {
-    pub server: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct StorageConfig {
-    pub metadata: String,
-    pub message: String,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct SystemConfig {
-    pub system_user: String,
-    pub system_password: String,
+pub struct System {
+    pub runtime_worker_threads: usize,
+    pub default_user: String,
+    pub default_password: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -105,7 +86,12 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &String) -> &'static BrokerMQT
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     BROKER_MQTT_CONF.get_or_init(|| {
         let content = read_file(config_path);
-        let config: BrokerMQTTConfig = toml::from_str(&content).unwrap();
+        let config: BrokerMQTTConfig = match toml::from_str(&content) {
+            Ok(da) => da,
+            Err(e) => {
+                panic!("{}", e)
+            }
+        };
         create_fold(config.log.log_path.clone());
         return config;
     })

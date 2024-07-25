@@ -451,7 +451,7 @@ impl CacheManager {
         };
 
         for (_, topic) in topic_list {
-            println!("{}",topic.topic_name);
+            println!("{}", topic.topic_name);
             self.add_topic(&topic.topic_name, &topic);
         }
     }
@@ -460,8 +460,8 @@ impl CacheManager {
         // init system user
         let conf = broker_mqtt_conf();
         let system_user_info = MQTTUser {
-            username: conf.system.system_user.clone(),
-            password: conf.system.system_password.clone(),
+            username: conf.system.default_user.clone(),
+            password: conf.system.default_password.clone(),
             is_superuser: true,
         };
         let user_storage = UserStorage::new(self.client_poll.clone());

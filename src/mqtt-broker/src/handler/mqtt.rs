@@ -48,7 +48,6 @@ pub struct MqttService<S> {
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
     client_poll: Arc<ClientPool>,
-    stop_sx: broadcast::Sender<bool>,
 }
 
 impl<S> MqttService<S>
@@ -62,7 +61,6 @@ where
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
-        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return MqttService {
             protocol,
@@ -71,7 +69,6 @@ where
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             client_poll,
-            stop_sx,
         };
     }
 
