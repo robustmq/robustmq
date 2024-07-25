@@ -58,6 +58,7 @@ rumqttc = "0.24.0"
 axum-extra = {version = "0.9.3",features = ["typed-header"]}
 rustls-pemfile = "2"
 tokio-rustls = "0.26"
+humantime-serde = "1.1.1"
 
 ## workspaces members
 mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }

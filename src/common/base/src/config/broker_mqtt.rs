@@ -59,6 +59,8 @@ pub struct TcpThread {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Storage {
     pub storage_type: String,
+    #[serde(skip)]
+    #[serde(default)]
     pub journal_addr: String,
     pub mysql_addr: String,
 }
