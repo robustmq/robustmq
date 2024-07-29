@@ -1,6 +1,6 @@
 use crate::handler::cache_manager::CacheManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
-use axum::extract::ws::{Message, WebSocket};
+use axum::extract::ws::WebSocket;
 use axum::extract::WebSocketUpgrade;
 use axum::Router;
 use axum::{response::Response, routing::get};
@@ -43,27 +43,17 @@ pub async fn websocket_server(state: WebSocketServerState) {
 
 fn routes_v1(state: WebSocketServerState) -> Router {
     let mqtt_ws = Router::new().route(ROUTE_ROOT, get(handler));
-
     let app = Router::new().merge(mqtt_ws);
     return app.with_state(state);
 }
 
 async fn handler(ws: WebSocketUpgrade) -> Response {
-    ws.protocols(["mqttv3.1"]).on_upgrade(handle_socket)
+    ws.on_upgrade(handle_socket)
 }
 
 async fn handle_socket(mut socket: WebSocket) {
     // let (mut sender, mut receiver) = socket.split();
-    while let Some(msg) = socket.recv().await {
+    while let Some(Ok(msg)) = socket.recv().await {
         info(format!("xxxxx:{:?}", msg));
-
-        if socket
-            .send(Message::Text("test".to_string()))
-            .await
-            .is_err()
-        {
-            // client disconnected
-            return;
-        }
     }
 }
