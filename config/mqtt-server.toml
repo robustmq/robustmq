@@ -31,8 +31,8 @@ default_password = "pwd123"
 [storage]
 #type = 'journal'
 #journal_addr = []
-storage_type = "mysql"
-mysql_addr = "mysql://root:123456@127.0.0.1:3306/mqtt"
+storage_type = "memory"
+
 
 [log]
 log_path = "/tmp/logs"

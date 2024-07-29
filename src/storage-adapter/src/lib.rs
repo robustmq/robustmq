@@ -5,7 +5,36 @@ pub mod placement;
 pub mod record;
 pub mod storage;
 
-pub const ADAPTER_NAME_PLACEMENT: &str = "placement";
-pub const ADAPTER_NAME_JOURNAL: &str = "journal";
-pub const ADAPTER_NAME_MEMORY: &str = "momory";
-pub const ADAPTER_NAME_MYSQL: &str = "mysql";
+#[derive(Debug)]
+pub enum StorageType {
+    Journal,
+    Memory,
+    Mysql,
+}
+
+pub fn storage_is_journal(storage_type: &String) -> bool {
+    let st = format!("{:?}", StorageType::Journal).to_lowercase();
+    return st == storage_type.clone();
+}
+
+pub fn storage_is_memory(storage_type: &String) -> bool {
+    let st = format!("{:?}", StorageType::Memory).to_lowercase();
+    return st == storage_type.clone();
+}
+
+pub fn storage_is_mysql(storage_type: &String) -> bool {
+    let st = format!("{:?}", StorageType::Mysql).to_lowercase();
+    return st == storage_type.clone();
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{storage_is_journal, storage_is_memory, storage_is_mysql};
+
+    #[tokio::test]
+    async fn storage_type_test() {
+        assert!(storage_is_journal(&"journal".to_string()));
+        assert!(storage_is_memory(&"memory".to_string()));
+        assert!(storage_is_mysql(&"mysql".to_string()));
+    }
+}
