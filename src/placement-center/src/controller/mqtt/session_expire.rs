@@ -7,12 +7,8 @@ use crate::{
     },
 };
 use clients::poll::ClientPool;
-use common_base::{
-    log::{error, info},
-    tools::now_second,
-};
+use common_base::{log::error, tools::now_second};
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
-use protocol::mqtt::codec::MQTTPacketWrapper;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 

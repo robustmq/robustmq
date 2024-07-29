@@ -1,11 +1,8 @@
 use super::mqtt::MqttService;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
-use crate::handler::{
-    cache_manager::CacheManager, response::response_packet_mqtt_connect_fail,
-};
-use crate::server::tcp::connection::TCPConnection;
-use crate::server::tcp::connection_manager::ConnectionManager;
-use crate::server::tcp::packet::ResponsePackage;
+use crate::handler::{cache_manager::CacheManager, response::response_packet_mqtt_connect_fail};
+use crate::server::connection::NetworkConnection;
+use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
@@ -15,7 +12,7 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast::{self};
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -24,7 +21,6 @@ pub struct Command<S> {
     mqtt4_service: MqttService<S>,
     mqtt5_service: MqttService<S>,
     metadata_cache: Arc<CacheManager>,
-    response_queue_sx: Sender<ResponsePackage>,
 }
 
 impl<S> Command<S>
@@ -34,48 +30,46 @@ where
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
-        response_queue_sx: Sender<ResponsePackage>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
-        stop_sx: broadcast::Sender<bool>,
+        connnection_manager: Arc<ConnectionManager>,
     ) -> Self {
         let mqtt3_service = MqttService::new(
             MQTTProtocol::MQTT3,
             cache_manager.clone(),
+            connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
-            stop_sx.clone(),
         );
         let mqtt4_service = MqttService::new(
             MQTTProtocol::MQTT4,
             cache_manager.clone(),
+            connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
-            stop_sx.clone(),
         );
         let mqtt5_service = MqttService::new(
             MQTTProtocol::MQTT5,
             cache_manager.clone(),
+            connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
-            stop_sx.clone(),
         );
         return Command {
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
             metadata_cache: cache_manager,
-            response_queue_sx,
         };
     }
 
     pub async fn apply(
         &mut self,
         connect_manager: Arc<ConnectionManager>,
-        tcp_connection: TCPConnection,
+        tcp_connection: NetworkConnection,
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
@@ -160,7 +154,6 @@ where
                 if !self.auth_login(tcp_connection.connection_id).await {
                     return Some(self.un_login_err(tcp_connection.connection_id));
                 }
-
                 if tcp_connection.is_mqtt3() {
                     return self
                         .mqtt3_service
@@ -301,7 +294,6 @@ where
                                 tcp_connection.connection_id,
                                 subscribe,
                                 subscribe_properties,
-                                self.response_queue_sx.clone(),
                             )
                             .await,
                     );
@@ -313,7 +305,6 @@ where
                                 tcp_connection.connection_id,
                                 subscribe,
                                 subscribe_properties,
-                                self.response_queue_sx.clone(),
                             )
                             .await,
                     );
@@ -326,7 +317,6 @@ where
                                 tcp_connection.connection_id,
                                 subscribe,
                                 subscribe_properties,
-                                self.response_queue_sx.clone(),
                             )
                             .await,
                     );

@@ -233,6 +233,7 @@ impl SubscribeCacheManager {
                 qos: filter.qos,
                 nolocal: filter.nolocal,
                 preserve_retain: filter.preserve_retain,
+                retain_forward_rule: filter.retain_forward_rule.clone(),
                 subscription_identifier: sub_identifier,
                 sub_path: filter.path.clone(),
             };

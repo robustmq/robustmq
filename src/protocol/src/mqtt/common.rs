@@ -898,8 +898,9 @@ pub struct Filter {
     pub retain_forward_rule: RetainForwardRule,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default,Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RetainForwardRule {
+    #[default]
     OnEverySubscribe,
     OnNewSubscribe,
     Never,

@@ -7,10 +7,9 @@ pub fn calc_share_sub_leader(
     group_name: String,
     cluster_cache: Arc<PlacementCacheManager>,
 ) -> Result<u64, RobustMQError> {
-    if let Some(cluster) = cluster_cache.cluster_list.get(&cluster_name) {
+    if let Some(cluster) = cluster_cache.node_list.get(&cluster_name) {
         // todo The node where the Share Sub Leader is located is calculated based on the cluster load
-        // return Ok(cluster.nodes.first().unwrap().clone());
-        return Ok(7);
+        return Ok(cluster.first().unwrap().clone());
     }
     return Err(RobustMQError::ClusterDoesNotExist(cluster_name));
 }

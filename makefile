@@ -1,7 +1,7 @@
 TARGET = robustmq
-VERSION = v0.0.1
+VERSION = v0.0.1-beta
 BUILD_FOLD = ./build
-PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)-release
+PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)
 
 release:
 	mkdir -p ${BUILD_FOLD}
@@ -15,7 +15,7 @@ release:
 	cp -rf target/release/journal-server $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/libs 
 	cp -rf bin/* $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin
 	cp -rf config/* $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/config
-	chmod 777 $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin
+	chmod -R 777 $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin/*
 	cd $(BUILD_FOLD) && tar zcvf ${PACKAGE_FOLD_NAME}.tar.gz ${PACKAGE_FOLD_NAME}
 	
 	echo "build release package success. ${PACKAGE_FOLD_NAME}.tar.gz "

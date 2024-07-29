@@ -1,8 +1,18 @@
-use common_base::tools::{now_second, unique_id};
+use std::sync::Arc;
+
+use clients::poll::ClientPool;
+use common_base::{
+    errors::RobustMQError,
+    tools::{now_second, unique_id},
+};
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{Connect, ConnectProperties};
 use serde::{Deserialize, Serialize};
+
+use crate::{server::connection_manager::ConnectionManager, storage::session::SessionStorage};
+
+use super::cache_manager::CacheManager;
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
@@ -130,6 +140,32 @@ pub fn response_information(connect_properties: &Option<ConnectProperties>) -> O
         }
     }
     return None;
+}
+
+pub async fn disconnect_connection(
+    client_id: &String,
+    connect_id: u64,
+    cache_manager: &Arc<CacheManager>,
+    client_poll: &Arc<ClientPool>,
+    connnection_manager: &Arc<ConnectionManager>,
+) -> Result<(), RobustMQError> {
+    cache_manager.remove_connection(connect_id);
+    cache_manager.update_session_connect_id(client_id, None);
+
+    let session_storage = SessionStorage::new(client_poll.clone());
+
+    match session_storage
+        .update_session(client_id, 0, 0, 0, now_second())
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(e);
+        }
+    }
+
+    connnection_manager.clonse_connect(connect_id).await;
+    return Ok(());
 }
 
 #[cfg(test)]

@@ -2,36 +2,18 @@ cluster_name = "mqtt-broker"
 broker_id = 1
 grpc_port = 9981
 http_port = 9982
+placement_center = ["127.0.0.1:1228"]
 
-[storage]
-metadata = "memory"
-message = "memory"
-
-[mysql]
-server = "mysql://root:123456@127.0.0.1:3306/mqtt"
-
-[journal]
-server = []
-
-[placement]
-# server = ["14.103.42.35:1228"]
-server = ["127.0.0.1:1228"]
-
-[mqtt]
+[network]
 tcp_port = 1883
-tcps_port = 1884
+tcps_port = 8883
 websocket_port = 8083
 websockets_port = 8084
 quic_port = 9083
+tls_cert = "./config/certs/cert.pem"
+tls_key = "./config/certs/key.pem"
 
-[system]
-system_user = "admin"
-system_password = "pwd123"
-
-[runtime]
-worker_threads = 16
-
-[network_tcp]
+[tcp_thread]
 accept_thread_num = 1
 handler_thread_num = 1
 response_thread_num = 1
@@ -40,6 +22,16 @@ request_queue_size = 2000
 response_queue_size = 2000
 lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
+
+[system]
+runtime_worker_threads = 128
+default_user = "admin"
+default_password = "pwd123"
+
+[storage]
+#type = 'journal'
+#journal_addr = []
+storage_type = "memory"
 
 
 [log]

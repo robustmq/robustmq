@@ -24,7 +24,7 @@ pub async fn pkid_save(
             producer_id: client_id.clone(),
             seq_num: pkid as u64,
         };
-        match set_idempotent_data(client_poll.clone(), conf.placement.server.clone(), request).await
+        match set_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request).await
         {
             Ok(_) => {
                 return Ok(());
@@ -52,7 +52,7 @@ pub async fn pkid_exists(
             producer_id: client_id.clone(),
             seq_num: pkid as u64,
         };
-        match exists_idempotent_data(client_poll.clone(), conf.placement.server.clone(), request)
+        match exists_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)
             .await
         {
             Ok(reply) => {
@@ -63,7 +63,7 @@ pub async fn pkid_exists(
             }
         }
     } else {
-        return Ok(cache_manager.get_client_pkid(client_id, pkid).is_none());
+        return Ok(!cache_manager.get_client_pkid(client_id, pkid).is_none());
     }
 }
 
@@ -80,7 +80,7 @@ pub async fn pkid_delete(
             producer_id: client_id.clone(),
             seq_num: pkid as u64,
         };
-        match delete_idempotent_data(client_poll.clone(), conf.placement.server.clone(), request)
+        match delete_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)
             .await
         {
             Ok(_) => {
@@ -94,4 +94,118 @@ pub async fn pkid_delete(
         cache_manager.delete_client_pkid(client_id, pkid);
     }
     return Ok(());
+}
+
+#[cfg(test)]
+mod test {
+    use super::pkid_delete;
+    use super::pkid_exists;
+    use super::pkid_save;
+    use crate::handler::cache_manager::CacheManager;
+    use clients::poll::ClientPool;
+    use common_base::{
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+    };
+    use std::sync::Arc;
+
+    #[tokio::test]
+    pub async fn pkid_test() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        init_broker_mqtt_conf_by_path(&path);
+        init_broker_mqtt_log();
+        let cluster_name = "test".to_string();
+        let client_poll = Arc::new(ClientPool::new(10));
+        let cache_manager = Arc::new(CacheManager::new(client_poll.clone(), cluster_name));
+        let client_id = "test".to_string();
+        let pkid = 15;
+        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(flag) => {
+                assert!(!flag);
+            }
+            Err(_) => {
+                assert!(false);
+            }
+        }
+
+        match pkid_save(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(()) => {}
+            Err(_) => {
+                assert!(false);
+            }
+        }
+
+        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(flag) => {
+                assert!(flag);
+            }
+            Err(_) => {
+                assert!(false);
+            }
+        }
+
+        match pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(_) => {}
+            Err(_) => {
+                assert!(false);
+            }
+        }
+
+        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(flag) => {
+                assert!(!flag);
+            }
+            Err(_) => {
+                assert!(false);
+            }
+        }
+        let mut cluset_info = cache_manager.get_cluster_info();
+        cluset_info.client_pkid_persistent = true;
+        cache_manager.set_cluster_info(cluset_info);
+
+        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(flag) => {
+                assert!(!flag);
+            }
+            Err(_) => {
+                assert!(false);
+            }
+        }
+
+        match pkid_save(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(()) => {}
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+            }
+        }
+
+        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(flag) => {
+                assert!(flag);
+            }
+            Err(_) => {
+                assert!(false);
+            }
+        }
+
+        match pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(_) => {}
+            Err(_) => {
+                assert!(false);
+            }
+        }
+
+        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
+            Ok(flag) => {
+                assert!(!flag);
+            }
+            Err(_) => {
+                assert!(false);
+            }
+        }
+    }
 }

@@ -15,7 +15,7 @@
  */
 
 pub mod journal;
-pub mod mqtt;
+pub mod broker_mqtt;
 pub mod placement;
 pub mod poll;
 

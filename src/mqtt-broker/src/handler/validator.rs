@@ -14,7 +14,7 @@ use super::{
 use crate::{
     handler::flow_control::is_publish_rate_exceeded,
     security::{acl::authentication_acl, authentication::is_ip_blacklist},
-    server::tcp::connection_manager::ConnectionManager,
+    server::connection_manager::ConnectionManager,
     subscribe::sub_common::sub_path_validator,
 };
 use clients::poll::ClientPool;
@@ -32,12 +32,72 @@ use protocol::mqtt::{
 use std::{cmp::min, net::SocketAddr, sync::Arc};
 use tokio_util::codec::FramedWrite;
 
-pub async fn establish_connection_check(
+pub async fn tcp_establish_connection_check(
     addr: &SocketAddr,
     connection_manager: &Arc<ConnectionManager>,
     write_frame_stream: &mut FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
 ) -> bool {
-    if connection_manager.connect_num_check() {
+    if connection_manager.tcp_connect_num_check() {
+        let packet_wrapper = MQTTPacketWrapper {
+            protocol_version: MQTTProtocol::MQTT5.into(),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::QuotaExceeded),
+            ),
+        };
+        match write_frame_stream.send(packet_wrapper).await {
+            Ok(_) => {}
+            Err(e) => error(e.to_string()),
+        }
+
+        match write_frame_stream.close().await {
+            Ok(_) => {
+                error(format!(
+                    "tcp connection failed to establish from IP: {}",
+                    addr.to_string()
+                ));
+            }
+            Err(e) => error(e.to_string()),
+        }
+        return false;
+    }
+
+    if is_connection_rate_exceeded() {
+        let packet_wrapper = MQTTPacketWrapper {
+            protocol_version: MQTTProtocol::MQTT5.into(),
+            packet: response_packet_mqtt_distinct_by_reason(
+                &MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::ConnectionRateExceeded),
+            ),
+        };
+        match write_frame_stream.send(packet_wrapper).await {
+            Ok(_) => {}
+            Err(e) => error(e.to_string()),
+        }
+
+        match write_frame_stream.close().await {
+            Ok(_) => {
+                error(format!(
+                    "tcp connection failed to establish from IP: {}",
+                    addr.to_string()
+                ));
+            }
+            Err(e) => error(e.to_string()),
+        }
+        return false;
+    }
+    return true;
+}
+
+pub async fn tcp_tls_establish_connection_check(
+    addr: &SocketAddr,
+    connection_manager: &Arc<ConnectionManager>,
+    write_frame_stream: &mut FramedWrite<
+        tokio::io::WriteHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
+        MqttCodec,
+    >,
+) -> bool {
+    if connection_manager.tcp_connect_num_check() {
         let packet_wrapper = MQTTPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
@@ -318,7 +378,7 @@ pub async fn publish_validator(
                         protocol,
                         connection,
                         publish.pkid,
-                        PubRecReason::PayloadFormatInvalid,
+                        PubRecReason::PacketIdentifierInUse,
                         None,
                     ));
                 }
@@ -629,7 +689,7 @@ pub fn connection_max_packet_size(
 }
 
 pub fn client_id_validator(client_id: &String) -> bool {
-    if client_id.len() < 5 {
+    if client_id.len() == 5 && client_id.len() > 23 {
         return false;
     }
     return true;

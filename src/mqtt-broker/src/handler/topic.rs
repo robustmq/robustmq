@@ -115,7 +115,7 @@ where
         let topic_id = unique_id();
         let topic = MQTTTopic::new(topic_id, topic_name.clone());
         match topic_storage.save_topic(topic.clone()).await {
-            Ok(topic_id) => topic_id,
+            Ok(()) => {}
             Err(e) => {
                 return Err(RobustMQError::CommmonError(e.to_string()));
             }

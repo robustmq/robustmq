@@ -12,19 +12,16 @@ use crate::handler::response::{
     response_packet_mqtt_pubrec_success, response_packet_mqtt_pubrel_success,
     response_packet_mqtt_suback, response_packet_mqtt_unsuback,
 };
-use crate::handler::retain::{save_topic_retain_message, send_retain_message};
+use crate::handler::retain::save_topic_retain_message;
 use crate::handler::session::{build_session, save_session};
 use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
-use crate::storage::session::SessionStorage;
+use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_cache::SubscribeCacheManager;
-use crate::{
-    security::authentication::authentication_login, server::tcp::packet::ResponsePackage,
-    storage::message::MessageStorage,
-};
+use crate::{security::authentication::authentication_login, storage::message::MessageStorage};
 use clients::poll::ClientPool;
 use common_base::{log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
@@ -39,16 +36,18 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::{self, Sender};
+use tokio::sync::broadcast::{self};
+
+use super::connection::disconnect_connection;
 
 #[derive(Clone)]
 pub struct MqttService<S> {
     protocol: MQTTProtocol,
     cache_manager: Arc<CacheManager>,
+    connnection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
     sucscribe_cache: Arc<SubscribeCacheManager>,
     client_poll: Arc<ClientPool>,
-    stop_sx: broadcast::Sender<bool>,
 }
 
 impl<S> MqttService<S>
@@ -58,18 +57,18 @@ where
     pub fn new(
         protocol: MQTTProtocol,
         cache_manager: Arc<CacheManager>,
+        connnection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeCacheManager>,
         client_poll: Arc<ClientPool>,
-        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return MqttService {
             protocol,
             cache_manager,
+            connnection_manager,
             message_storage_adapter,
             sucscribe_cache: sucscribe_manager,
             client_poll,
-            stop_sx,
         };
     }
 
@@ -606,7 +605,6 @@ where
         connect_id: u64,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
-        response_queue_sx: Sender<ResponsePackage>,
     ) -> MQTTPacket {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
             se.clone()
@@ -682,17 +680,6 @@ where
                 subscribe_properties.clone(),
             )
             .await;
-
-        send_retain_message(
-            client_id.clone(),
-            subscribe.clone(),
-            subscribe_properties.clone(),
-            self.client_poll.clone(),
-            self.cache_manager.clone(),
-            response_queue_sx.clone(),
-            self.stop_sx.clone(),
-        )
-        .await;
 
         let pkid = subscribe.packet_identifier;
         return response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None);
@@ -790,31 +777,26 @@ where
             return None;
         };
 
-        self.cache_manager.remove_connection(connect_id);
-        self.cache_manager
-            .update_session_connect_id(&connection.client_id, None);
-
-        let session_storage = SessionStorage::new(self.client_poll.clone());
-        match session_storage
-            .update_session(&connection.client_id, 0, 0, 0, now_second())
-            .await
+        match disconnect_connection(
+            &connection.client_id,
+            connect_id,
+            &self.cache_manager,
+            &self.client_poll,
+            &self.connnection_manager,
+        )
+        .await
         {
-            Ok(_) => {}
+            Ok(()) => {}
             Err(e) => {
                 return Some(response_packet_mqtt_distinct(
                     &self.protocol,
-                    Some(DisconnectReasonCode::MaximumConnectTime),
+                    Some(DisconnectReasonCode::UnspecifiedError),
                     &connection,
                     Some(e.to_string()),
                 ));
             }
         }
 
-        return Some(response_packet_mqtt_distinct(
-            &self.protocol,
-            Some(DisconnectReasonCode::MaximumConnectTime),
-            &connection,
-            None,
-        ));
+        return None;
     }
 }

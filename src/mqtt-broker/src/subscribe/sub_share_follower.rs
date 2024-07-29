@@ -1,6 +1,6 @@
 use super::{
     sub_common::{
-        get_share_sub_leader, publish_message_qos0, publish_to_response_queue, qos2_send_publish,
+        get_share_sub_leader, publish_message_qos0, publish_message_to_client, qos2_send_publish,
         qos2_send_pubrel, wait_packet_ack,
     },
     subscribe_cache::SubscribeCacheManager,
@@ -9,7 +9,7 @@ use crate::{
     handler::cache_manager::{
         CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
     },
-    server::tcp::packet::ResponsePackage,
+    server::{connection_manager::ConnectionManager, packet::ResponsePackage},
     subscribe::subscribe_cache::ShareSubShareSub,
 };
 use clients::poll::ClientPool;
@@ -41,12 +41,10 @@ use tokio::{
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
 
-pub const SUB_SHARE_FOLLOWER_DEFAULT_CLIENT_ID: &str = "a5d2d62d35d54d81a55f2c32858d5338";
-
 #[derive(Clone)]
 pub struct SubscribeShareFollower {
     pub subscribe_manager: Arc<SubscribeCacheManager>,
-    response_queue_sx: broadcast::Sender<ResponsePackage>,
+    connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     client_poll: Arc<ClientPool>,
 }
@@ -54,13 +52,13 @@ pub struct SubscribeShareFollower {
 impl SubscribeShareFollower {
     pub fn new(
         subscribe_manager: Arc<SubscribeCacheManager>,
-        response_queue_sx: broadcast::Sender<ResponsePackage>,
+        connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         return SubscribeShareFollower {
             subscribe_manager,
-            response_queue_sx,
+            connection_manager,
             cache_manager,
             client_poll,
         };
@@ -79,7 +77,7 @@ impl SubscribeShareFollower {
             self.subscribe_manager.share_follower_subscribe.clone()
         {
             let metadata_cache = self.cache_manager.clone();
-            let response_queue_sx = self.response_queue_sx.clone();
+            let connection_manager = self.connection_manager.clone();
 
             match get_share_sub_leader(self.client_poll.clone(), share_sub.group_name.clone()).await
             {
@@ -149,7 +147,7 @@ impl SubscribeShareFollower {
                                     metadata_cache,
                                     share_sub,
                                     stop_sx,
-                                    response_queue_sx.clone(),
+                                    connection_manager.clone(),
                                 )
                                 .await
                                 {
@@ -193,7 +191,7 @@ async fn resub_sub_mqtt5(
     cache_manager: Arc<CacheManager>,
     share_sub: ShareSubShareSub,
     stop_sx: Sender<bool>,
-    response_queue_sx: broadcast::Sender<ResponsePackage>,
+    connection_manager: Arc<ConnectionManager>,
 ) -> Result<(), RobustMQError> {
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
@@ -263,17 +261,17 @@ async fn resub_sub_mqtt5(
                     match data{
                         Ok(packet) => {
                             let is_break = process_packet(
-                                cache_manager.clone(),
-                                share_sub.clone(),
-                                stop_sx.clone(),
-                                response_queue_sx.clone(),
+                                &cache_manager,
+                                &share_sub,
+                                &stop_sx,
+                                &connection_manager,
                                 packet,
-                                write_stream.clone(),
+                                &write_stream,
                                 follower_sub_leader_pkid,
-                                follower_sub_leader_client_id.clone(),
-                                mqtt_client_id.clone(),
-                                group_name.clone(),
-                                sub_name.clone(),
+                                &follower_sub_leader_client_id,
+                                &mqtt_client_id,
+                                &group_name,
+                                &sub_name,
                             ).await;
 
                             if is_break{
@@ -293,17 +291,17 @@ async fn resub_sub_mqtt5(
 }
 
 async fn process_packet(
-    cache_manager: Arc<CacheManager>,
-    share_sub: ShareSubShareSub,
-    stop_sx: Sender<bool>,
-    response_queue_sx: broadcast::Sender<ResponsePackage>,
+    cache_manager: &Arc<CacheManager>,
+    share_sub: &ShareSubShareSub,
+    stop_sx: &Sender<bool>,
+    connection_manager: &Arc<ConnectionManager>,
     packet: MQTTPacket,
-    write_stream: Arc<WriteStream>,
+    write_stream: &Arc<WriteStream>,
     follower_sub_leader_pkid: u16,
-    follower_sub_leader_client_id: String,
-    mqtt_client_id: String,
-    group_name: String,
-    sub_name: String,
+    follower_sub_leader_client_id: &String,
+    mqtt_client_id: &String,
+    group_name: &String,
+    sub_name: &String,
 ) -> bool {
     info(format!("sub follower recv:{:?}", packet));
     match packet {
@@ -345,29 +343,35 @@ async fn process_packet(
         }
 
         MQTTPacket::Publish(mut publish, publish_properties) => {
+            let cache_manager = cache_manager.clone();
+            let stop_sx = stop_sx.clone();
+            let connection_manager = connection_manager.clone();
+            let write_stream = write_stream.clone();
+            let follower_sub_leader_client_id = follower_sub_leader_client_id.clone();
+            let mqtt_client_id = mqtt_client_id.clone();
             tokio::spawn(async move {
                 match publish.qos {
                     // 1. leader publish to resub thread
                     protocol::mqtt::common::QoS::AtMostOnce => {
                         publish.dup = false;
                         publish_message_qos0(
-                            cache_manager.clone(),
-                            mqtt_client_id.clone(),
-                            publish,
-                            publish_properties,
-                            response_queue_sx.clone(),
-                            stop_sx.clone(),
+                            &cache_manager,
+                            &mqtt_client_id,
+                            &publish,
+                            &publish_properties,
+                            &connection_manager,
+                            &stop_sx,
                         )
                         .await;
                     }
 
                     protocol::mqtt::common::QoS::AtLeastOnce => {
                         let publish_to_client_pkid: u16 =
-                            cache_manager.get_pkid(mqtt_client_id.clone()).await;
+                            cache_manager.get_pkid(&mqtt_client_id).await;
 
                         let (wait_puback_sx, _) = broadcast::channel(1);
                         cache_manager.add_ack_packet(
-                            mqtt_client_id.clone(),
+                            &mqtt_client_id,
                             publish_to_client_pkid,
                             QosAckPacketInfo {
                                 sx: wait_puback_sx.clone(),
@@ -376,27 +380,23 @@ async fn process_packet(
                         );
 
                         match resub_publish_message_qos1(
-                            cache_manager.clone(),
-                            mqtt_client_id.clone(),
+                            &cache_manager,
+                            &mqtt_client_id,
                             publish,
-                            publish_properties,
+                            &publish_properties,
                             publish_to_client_pkid,
-                            response_queue_sx.clone(),
-                            stop_sx.clone(),
-                            wait_puback_sx,
-                            write_stream.clone(),
+                            &connection_manager,
+                            &stop_sx,
+                            &wait_puback_sx,
+                            &write_stream,
                         )
                         .await
                         {
                             Ok(()) => {
-                                cache_manager.remove_pkid_info(
-                                    mqtt_client_id.clone(),
-                                    publish_to_client_pkid,
-                                );
-                                cache_manager.remove_ack_packet(
-                                    mqtt_client_id.clone(),
-                                    publish_to_client_pkid,
-                                );
+                                cache_manager
+                                    .remove_pkid_info(&mqtt_client_id, publish_to_client_pkid);
+                                cache_manager
+                                    .remove_ack_packet(&mqtt_client_id, publish_to_client_pkid);
                             }
                             Err(e) => {
                                 error(e.to_string());
@@ -406,12 +406,12 @@ async fn process_packet(
 
                     protocol::mqtt::common::QoS::ExactlyOnce => {
                         let publish_to_client_pkid: u16 =
-                            cache_manager.get_pkid(mqtt_client_id.clone()).await;
+                            cache_manager.get_pkid(&mqtt_client_id).await;
 
                         let (wait_client_ack_sx, _) = broadcast::channel(1);
 
                         cache_manager.add_ack_packet(
-                            mqtt_client_id.clone(),
+                            &mqtt_client_id,
                             publish_to_client_pkid,
                             QosAckPacketInfo {
                                 sx: wait_client_ack_sx.clone(),
@@ -421,7 +421,7 @@ async fn process_packet(
 
                         let (wait_leader_ack_sx, _) = broadcast::channel(1);
                         cache_manager.add_ack_packet(
-                            follower_sub_leader_client_id.clone(),
+                            &follower_sub_leader_client_id,
                             publish.pkid,
                             QosAckPacketInfo {
                                 sx: wait_leader_ack_sx.clone(),
@@ -430,30 +430,26 @@ async fn process_packet(
                         );
 
                         match resub_publish_message_qos2(
-                            cache_manager.clone(),
-                            mqtt_client_id.clone(),
-                            publish.clone(),
+                            &cache_manager,
+                            &mqtt_client_id,
+                            &publish,
                             publish_to_client_pkid,
-                            response_queue_sx.clone(),
-                            stop_sx.clone(),
-                            wait_client_ack_sx,
-                            wait_leader_ack_sx,
-                            write_stream.clone(),
-                            publish_properties,
+                            &connection_manager,
+                            &stop_sx,
+                            &wait_client_ack_sx,
+                            &wait_leader_ack_sx,
+                            &write_stream,
+                            &publish_properties,
                         )
                         .await
                         {
                             Ok(()) => {
-                                cache_manager.remove_pkid_info(
-                                    mqtt_client_id.clone(),
-                                    publish_to_client_pkid,
-                                );
+                                cache_manager
+                                    .remove_pkid_info(&mqtt_client_id, publish_to_client_pkid);
+                                cache_manager
+                                    .remove_ack_packet(&mqtt_client_id, publish_to_client_pkid);
                                 cache_manager.remove_ack_packet(
-                                    mqtt_client_id.clone(),
-                                    publish_to_client_pkid,
-                                );
-                                cache_manager.remove_ack_packet(
-                                    follower_sub_leader_client_id.clone(),
+                                    &follower_sub_leader_client_id,
                                     publish.pkid,
                                 );
                             }
@@ -542,15 +538,15 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
 }
 
 async fn resub_publish_message_qos1(
-    metadata_cache: Arc<CacheManager>,
-    mqtt_client_id: String,
+    metadata_cache: &Arc<CacheManager>,
+    mqtt_client_id: &String,
     mut publish: Publish,
-    properties: Option<PublishProperties>,
+    properties: &Option<PublishProperties>,
     publish_to_client_pkid: u16,
-    response_queue_sx: Sender<ResponsePackage>,
-    stop_sx: broadcast::Sender<bool>,
-    wait_puback_sx: broadcast::Sender<QosAckPackageData>,
-    write_stream: Arc<WriteStream>,
+    connection_manager: &Arc<ConnectionManager>,
+    stop_sx: &broadcast::Sender<bool>,
+    wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
+    write_stream: &Arc<WriteStream>,
 ) -> Result<(), RobustMQError> {
     let mut retry_times = 0;
     let current_message_pkid = publish.pkid;
@@ -587,10 +583,10 @@ async fn resub_publish_message_qos1(
         };
 
         // 2. publish to mqtt client
-        match publish_to_response_queue(resp.clone(), response_queue_sx.clone()).await {
+        match publish_message_to_client(resp, connection_manager).await {
             Ok(_) => {
                 // 3. wait mqtt client puback
-                if let Some(data) = wait_packet_ack(wait_puback_sx.clone()).await {
+                if let Some(data) = wait_packet_ack(wait_puback_sx).await {
                     if data.ack_type == QosAckPackageType::PubAck
                         && data.pkid == publish_to_client_pkid
                     {
@@ -615,32 +611,32 @@ async fn resub_publish_message_qos1(
     }
 }
 
-// send publish message
-// wait pubrec message
-// send pubrel message
-// wait pubcomp message
+// 1. send publish message
+// 2. wait pubrec message
+// 3. send pubrel message
+// 4. wait pubcomp message
 pub async fn resub_publish_message_qos2(
-    metadata_cache: Arc<CacheManager>,
-    mqtt_client_id: String,
-    publish: Publish,
+    metadata_cache: &Arc<CacheManager>,
+    mqtt_client_id: &String,
+    publish: &Publish,
     publish_to_client_pkid: u16,
-    response_queue_sx: Sender<ResponsePackage>,
-    stop_sx: broadcast::Sender<bool>,
-    wait_client_ack_sx: broadcast::Sender<QosAckPackageData>,
-    wait_leader_ack_sx: broadcast::Sender<QosAckPackageData>,
-    write_stream: Arc<WriteStream>,
-    publish_properties: Option<PublishProperties>,
+    connection_manager: &Arc<ConnectionManager>,
+    stop_sx: &broadcast::Sender<bool>,
+    wait_client_ack_sx: &broadcast::Sender<QosAckPackageData>,
+    wait_leader_ack_sx: &broadcast::Sender<QosAckPackageData>,
+    write_stream: &Arc<WriteStream>,
+    publish_properties: &Option<PublishProperties>,
 ) -> Result<(), RobustMQError> {
     let current_message_pkid = publish.pkid;
 
     // 2. Send publish message to mqtt client
     match qos2_send_publish(
-        metadata_cache.clone(),
-        mqtt_client_id.clone(),
-        publish.clone(),
-        publish_properties.clone(),
-        response_queue_sx.clone(),
-        stop_sx.clone(),
+        connection_manager,
+        metadata_cache,
+        mqtt_client_id,
+        publish,
+        publish_properties,
+        stop_sx,
     )
     .await
     {
@@ -662,7 +658,7 @@ pub async fn resub_publish_message_qos2(
                 }
             }
             // 3. Wait mqtt client PubRec
-            val = wait_packet_ack(wait_client_ack_sx.clone()) => {
+            val = wait_packet_ack(wait_client_ack_sx) => {
                 if let Some(data) = val{
 
                     if data.ack_type == QosAckPackageType::PubRec && data.pkid == publish_to_client_pkid {
@@ -704,16 +700,16 @@ pub async fn resub_publish_message_qos2(
             }
 
             // 5. Wait Sub leader PubRel
-            val =  wait_packet_ack(wait_leader_ack_sx.clone()) =>{
+            val =  wait_packet_ack(wait_leader_ack_sx) =>{
                 if let Some(data) = val{
                     if data.ack_type == QosAckPackageType::PubRel && data.pkid == current_message_pkid {
                         // 6. Send PubRel to mqtt client
                         qos2_send_pubrel(
-                            metadata_cache.clone(),
-                            mqtt_client_id.clone(),
+                            metadata_cache,
+                            mqtt_client_id,
                             publish_to_client_pkid,
-                            response_queue_sx.clone(),
-                            stop_sx.clone(),
+                            connection_manager,
+                            stop_sx,
                         )
                         .await;
                         break;
@@ -736,7 +732,7 @@ pub async fn resub_publish_message_qos2(
                     Err(_) => {}
                 }
             }
-            val = wait_packet_ack(wait_client_ack_sx.clone()) => {
+            val = wait_packet_ack(wait_client_ack_sx) => {
                 if let Some(data) = val{
                     if data.ack_type == QosAckPackageType::PubComp {
                         // 8.pubcomp to leader
@@ -767,8 +763,8 @@ fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MQTTPacket 
     properties.user_properties = Vec::new();
 
     let login = Login {
-        username: conf.system.system_user.clone(),
-        password: conf.system.system_password.clone(),
+        username: conf.system.default_user.clone(),
+        password: conf.system.default_password.clone(),
     };
 
     return MQTTPacket::Connect(

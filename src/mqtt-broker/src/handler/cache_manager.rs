@@ -362,19 +362,19 @@ impl CacheManager {
         return None;
     }
 
-    pub async fn get_pkid(&self, client_id: String) -> u16 {
-        let pkid = self.get_available_pkid(client_id.clone()).await;
-        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
+    pub async fn get_pkid(&self, client_id: &String) -> u16 {
+        let pkid = self.get_available_pkid(client_id).await;
+        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(client_id) {
             pkid_list.push(pkid);
         } else {
-            self.publish_pkid_info.insert(client_id, vec![pkid]);
+            self.publish_pkid_info.insert(client_id.clone(), vec![pkid]);
         }
         return pkid;
     }
 
-    async fn get_available_pkid(&self, client_id: String) -> u16 {
+    async fn get_available_pkid(&self, client_id: &String) -> u16 {
         loop {
-            if let Some(pkid_list) = self.publish_pkid_info.get(&client_id) {
+            if let Some(pkid_list) = self.publish_pkid_info.get(client_id) {
                 for i in 1..65535 {
                     if pkid_list.contains(&i) {
                         continue;
@@ -382,7 +382,7 @@ impl CacheManager {
                     return i;
                 }
             } else {
-                self.publish_pkid_info.insert(client_id, vec![1]);
+                self.publish_pkid_info.insert(client_id.clone(), vec![1]);
                 return 1;
             }
             sleep(Duration::from_millis(10)).await;
@@ -390,8 +390,8 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_pkid_info(&self, client_id: String, pkid: u16) {
-        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(&client_id) {
+    pub fn remove_pkid_info(&self, client_id: &String, pkid: u16) {
+        if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(client_id) {
             pkid_list.retain(|x| *x == pkid);
         }
     }
@@ -451,6 +451,7 @@ impl CacheManager {
         };
 
         for (_, topic) in topic_list {
+            println!("{}", topic.topic_name);
             self.add_topic(&topic.topic_name, &topic);
         }
     }
@@ -459,8 +460,8 @@ impl CacheManager {
         // init system user
         let conf = broker_mqtt_conf();
         let system_user_info = MQTTUser {
-            username: conf.system.system_user.clone(),
-            password: conf.system.system_password.clone(),
+            username: conf.system.default_user.clone(),
+            password: conf.system.default_password.clone(),
             is_superuser: true,
         };
         let user_storage = UserStorage::new(self.client_poll.clone());
@@ -482,13 +483,13 @@ impl CacheManager {
         self.heartbeat_data.remove(client_id);
     }
 
-    pub fn add_ack_packet(&self, client_id: String, pkid: u16, packet: QosAckPacketInfo) {
-        let key = self.key(&client_id, pkid);
+    pub fn add_ack_packet(&self, client_id: &String, pkid: u16, packet: QosAckPacketInfo) {
+        let key = self.key(client_id, pkid);
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn remove_ack_packet(&self, client_id: String, pkid: u16) {
-        let key = self.key(&client_id, pkid);
+    pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {
+        let key = self.key(client_id, pkid);
         self.qos_ack_packet.remove(&key);
     }
 

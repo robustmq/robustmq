@@ -1,22 +1,35 @@
-use std::{net::SocketAddr, sync::atomic::AtomicU64};
-
 use common_base::log::error;
 use protocol::mqtt::common::MQTTProtocol;
-use tokio::sync::broadcast;
+use std::{net::SocketAddr, sync::atomic::AtomicU64};
+use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
+#[derive(Clone, PartialEq, PartialOrd)]
+pub enum NetworkConnectionType {
+    TCP,
+    TCPS,
+    WebSocket,
+    QUIC,
+}
+
 #[derive(Clone)]
-pub struct TCPConnection {
+pub struct NetworkConnection {
+    pub connection_type: NetworkConnectionType,
     pub connection_id: u64,
     pub protocol: Option<MQTTProtocol>,
     pub addr: SocketAddr,
-    pub connection_stop_sx: broadcast::Sender<bool>,
+    pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }
 
-impl TCPConnection {
-    pub fn new(addr: SocketAddr, connection_stop_sx: broadcast::Sender<bool>) -> Self {
+impl NetworkConnection {
+    pub fn new(
+        connection_type: NetworkConnectionType,
+        addr: SocketAddr,
+        connection_stop_sx: Option<mpsc::Sender<bool>>,
+    ) -> Self {
         let connection_id = CONNECTION_ID_BUILD.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        TCPConnection {
+        NetworkConnection {
+            connection_type,
             connection_id,
             protocol: None,
             addr,
@@ -53,11 +66,13 @@ impl TCPConnection {
         return false;
     }
 
-    pub fn stop_connection(&self) {
-        match self.connection_stop_sx.send(true) {
-            Ok(_) => {}
-            Err(e) => {
-                error(e.to_string());
+    pub async fn stop_connection(&self) {
+        if let Some(sx) = self.connection_stop_sx.clone() {
+            match sx.send(true).await {
+                Ok(_) => {}
+                Err(e) => {
+                    error(e.to_string());
+                }
             }
         }
     }
