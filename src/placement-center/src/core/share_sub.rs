@@ -46,6 +46,7 @@ pub fn calc_share_sub_leader(
 mod tests {
     #[test]
     fn calc_share_sub_leader_test() {
-        
+        let cluster_name = "test".to_string();
+        let group_name = "group1".to_string();
     }
 }

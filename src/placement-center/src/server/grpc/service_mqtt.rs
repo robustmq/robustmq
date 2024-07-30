@@ -58,9 +58,10 @@ impl MqttService for GrpcMqttService {
         let mut reply = GetShareSubLeaderReply::default();
 
         let leader_broker = match calc_share_sub_leader(
-            cluster_name.clone(),
-            group_name.clone(),
+            &cluster_name,
+            &group_name,
             self.cluster_cache.clone(),
+            self.rocksdb_engine_handler.clone(),
         ) {
             Ok(data) => data,
             Err(e) => {
