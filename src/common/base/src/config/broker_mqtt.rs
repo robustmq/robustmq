@@ -62,6 +62,8 @@ pub struct Storage {
     #[serde(skip)]
     #[serde(default)]
     pub journal_addr: String,
+    #[serde(skip)]
+    #[serde(default)]
     pub mysql_addr: String,
 }
 

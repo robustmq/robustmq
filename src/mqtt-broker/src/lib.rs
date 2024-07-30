@@ -25,12 +25,14 @@ use server::{
 use std::sync::Arc;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
+use storage_adapter::mysql::MySQLStorageAdapter;
 use storage_adapter::{
     // memory::MemoryStorageAdapter,
-    mysql::{build_mysql_conn_pool, MySQLStorageAdapter},
+    mysql::build_mysql_conn_pool,
     // placement::PlacementStorageAdapter,
     storage::StorageAdapter,
 };
+use storage_adapter::{storage_is_journal, storage_is_memory, storage_is_mysql};
 use subscribe::{
     sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
     sub_share_leader::SubscribeShareLeader, subscribe_cache::SubscribeCacheManager,
@@ -51,18 +53,26 @@ mod subscribe;
 pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
     let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-
-    // build message storage driver
-    let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
-    // let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
-    let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
-
     let metadata_cache = Arc::new(CacheManager::new(
         client_poll.clone(),
         conf.cluster_name.clone(),
     ));
-    let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
-    server.start(stop_send)
+    let storage_type = conf.storage.storage_type.clone();
+    if storage_is_memory(&storage_type) {
+        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+        let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+        server.start(stop_send);
+    } else if storage_is_mysql(&storage_type) {
+        if conf.storage.mysql_addr.is_empty() {
+            panic!("storaget type is [mysql],[storage.mysql_addr] cannot be empty");
+        }
+        let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
+        let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
+        let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+        server.start(stop_send);
+    } else {
+        panic!("Message data storage type configuration error, optional :mysql, memory");
+    };
 }
 
 pub struct MqttBroker<S> {
@@ -88,6 +98,9 @@ where
             "storage-engine-server-runtime",
             conf.system.runtime_worker_threads,
         );
+
+        let storage_type = conf.storage.storage_type.clone();
+
         let subscribe_manager = Arc::new(SubscribeCacheManager::new(
             cache_manager.clone(),
             client_poll.clone(),
