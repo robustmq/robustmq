@@ -7,7 +7,7 @@ use crate::{
     },
 };
 use common_base::errors::RobustMQError;
-use std::{cmp::min, collections::HashMap, hash::Hash, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 pub struct ShareSubLeader {
     cluster_cache: Arc<PlacementCacheManager>,
@@ -33,8 +33,8 @@ impl ShareSubLeader {
         let key = storage_key_mqtt_sub_group_leader(cluster_name, group_name);
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
 
-        if let Some(data) = kv_storage.get(key) {
-            match data.parse::<u64>() {
+        match kv_storage.get(key) {
+            Ok(Some(data)) => match data.parse::<u64>() {
                 Ok(da) => {
                     if let Some(node_list) = self.cluster_cache.node_list.get(cluster_name) {
                         if node_list.contains_key(&da) {
@@ -43,10 +43,12 @@ impl ShareSubLeader {
                     }
                 }
                 Err(_) => {}
-            }
+            },
+            Ok(None) => {}
+            Err(e) => {}
         }
 
-        return self.calc_leader();
+        return self.calc_leader(cluster_name, group_name);
     }
 
     fn calc_leader(
@@ -54,18 +56,6 @@ impl ShareSubLeader {
         cluster_name: &String,
         group_name: &String,
     ) -> Result<u64, RobustMQError> {
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler);
-        let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
-        let node_leader_data = if let Some(data) = kv_storage.get(key) {
-            let data = match serde_json::from_str::<HashMap<u64, Vec<String>>>(&data) {
-                Ok(da) => da,
-                Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
-            };
-            data
-        } else {
-            HashMap::new()
-        };
-
         let mut broker_ids = Vec::new();
         if let Some(cluster) = self.cluster_cache.node_list.get(cluster_name) {
             for (id, _) in cluster.clone() {
@@ -75,12 +65,12 @@ impl ShareSubLeader {
 
         broker_ids.sort();
 
-        let node_sub_info = match self.read_node_sub_info(cluster_name, group_name) {
+        let node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,
             Err(e) => return Err(e),
         };
 
-        let mut target_id = 0;
+        let mut target_broker_id = 0;
         let mut cur_len = 0;
         for broker_id in broker_ids {
             let size = if let Some(list) = node_sub_info.get(&broker_id) {
@@ -88,71 +78,85 @@ impl ShareSubLeader {
             } else {
                 0
             };
-            if target_id == 0 {
-                target_id = broker_id;
+            if target_broker_id == 0 {
+                target_broker_id = broker_id;
                 cur_len = size;
                 continue;
             }
+
+            if size > cur_len {
+                target_broker_id = broker_id;
+                cur_len = size;
+            }
         }
-        return Err(RobustMQError::ClusterNoAvailableNode);
+
+        if target_broker_id == 0 {
+            return Err(RobustMQError::ClusterNoAvailableNode);
+        }
+
+        match self.save_node_sub_info(cluster_name, target_broker_id, group_name) {
+            Ok(()) => {}
+            Err(e) => {
+                return Err(e);
+            }
+        }
+        return Ok(target_broker_id);
+    }
+
+    fn save_node_sub_info(
+        &self,
+        cluster_name: &String,
+        broker_id: u64,
+        group_name: &String,
+    ) -> Result<(), RobustMQError> {
+        let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
+            Ok(data) => data,
+            Err(e) => return Err(e),
+        };
+        if let Some(data) = node_sub_info.get_mut(&broker_id) {
+            if !data.contains(group_name) {
+                data.push(group_name.clone());
+            }
+        } else {
+            node_sub_info.insert(broker_id, vec![group_name.clone()]);
+        }
+
+        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
+        let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
+
+        match serde_json::to_string(&node_sub_info) {
+            Ok(value) => match kv_storage.set(key, value) {
+                Ok(()) => {}
+                Err(e) => {
+                    return Err(e);
+                }
+            },
+            Err(e) => {
+                return Err(RobustMQError::CommmonError(e.to_string()));
+            }
+        }
+        return Ok(());
     }
 
     fn read_node_sub_info(
         &self,
         cluster_name: &String,
-        group_name: &String,
     ) -> Result<HashMap<u64, Vec<String>>, RobustMQError> {
-        let kv_storage = KvStorage::new(self.rocksdb_engine_handler);
+        let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
         let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
-        if let Some(data) = kv_storage.get(key) {
-            match serde_json::from_str::<HashMap<u64, Vec<String>>>(&data) {
+        match kv_storage.get(key) {
+            Ok(Some(data)) => match serde_json::from_str::<HashMap<u64, Vec<String>>>(&data) {
                 Ok(data) => {
                     return Ok(data);
                 }
                 Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
-            }
+            },
+            Ok(None) => {}
+            Err(e) => {}
         }
+
         return Ok(HashMap::new());
     }
-}
-pub fn calc_share_sub_leader(
-    cluster_name: &String,
-    group_name: &String,
-    cluster_cache: Arc<PlacementCacheManager>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-) -> Result<u64, RobustMQError> {
-    let mut broker_ids = Vec::new();
-    if let Some(cluster) = cluster_cache.node_list.get(cluster_name) {
-        for (id, _) in cluster.clone() {
-            broker_ids.push(id);
-        }
-    }
-    broker_ids.sort();
-    if broker_ids.len() == 0 {
-        return Err(RobustMQError::ClusterDoesNotExist(cluster_name.clone()));
-    }
-    return Ok(broker_ids.first().unwrap().clone());
-}
-
-fn get_node_sub_info(cluster_name: &String, rocksdb_engine_handler: Arc<RocksDBEngine>) {}
-
-fn save_node_sub_info(
-    cluster_name: &String,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    group_name: &String,
-    node_id: u64,
-) -> Result<(), RobustMQError> {
-    let kv_storage = KvStorage::new(rocksdb_engine_handler);
-    let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
-    if let Some(data) = kv_storage.get(key) {
-        match serde_json::from_str::<HashMap<u64, Vec<String>>>(&data) {
-            Ok(da) => {
-                return Ok(());
-            }
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
-        }
-    }
-    return Ok(());
 }
 
 #[cfg(test)]

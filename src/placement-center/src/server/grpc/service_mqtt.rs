@@ -1,6 +1,6 @@
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-    core::share_sub::calc_share_sub_leader,
+    core::share_sub::ShareSubLeader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
         mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
@@ -56,23 +56,24 @@ impl MqttService for GrpcMqttService {
         let cluster_name = req.cluster_name;
         let group_name = req.group_name;
         let mut reply = GetShareSubLeaderReply::default();
-
-        let leader_broker = match calc_share_sub_leader(
-            &cluster_name,
-            &group_name,
+        let share_sub = ShareSubLeader::new(
             self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
-        ) {
+        );
+
+        let leader_broker = match share_sub.get_leader_node(&cluster_name, &group_name) {
             Ok(data) => data,
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         };
+
         if let Some(node) = self.cluster_cache.get_node(&cluster_name, leader_broker) {
             reply.broker_id = leader_broker;
             reply.broker_addr = node.node_inner_addr;
             reply.extend_info = node.extend;
         }
+
         return Ok(Response::new(reply));
     }
 
