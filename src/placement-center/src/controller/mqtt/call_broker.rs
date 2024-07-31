@@ -76,7 +76,7 @@ impl MQTTBrokerCall {
             if success {
                 let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
                 for ms in raw {
-                    match session_storage.delete(self.cluster_name.clone(), ms.client_id.clone()) {
+                    match session_storage.delete(&self.cluster_name, &ms.client_id) {
                         Ok(()) => {
                             let delay = if let Some(delay) = ms.last_will_delay_interval {
                                 delay
