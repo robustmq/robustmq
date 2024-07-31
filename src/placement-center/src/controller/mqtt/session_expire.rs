@@ -203,5 +203,6 @@ impl SessionExpire {
 #[cfg(test)]
 mod tests {
 
-    get_expire_session_list
+    #[tokio::test]
+    async fn get_expire_session_list_test() {}
 }
