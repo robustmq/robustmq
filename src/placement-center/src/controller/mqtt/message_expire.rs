@@ -54,6 +54,7 @@ impl MessageExpire {
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
             let mut value = serde_json::from_slice::<MQTTTopic>(data.data.as_slice()).unwrap();
+
             if !value.retain_message.is_none() {
                 let delete = if let Some(expired_at) = value.retain_message_expired_at {
                     now_second() >= (data.create_time + expired_at)
@@ -133,4 +134,61 @@ impl MessageExpire {
         }
         sleep(Duration::from_secs(1)).await;
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::storage::{mqtt::topic::MQTTTopicStorage, rocksdb::RocksDBEngine};
+    use common_base::{
+        config::placement_center::PlacementCenterConfig,
+        tools::{now_second, unique_id},
+    };
+    use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
+    use protocol::mqtt::common::Publish;
+    use std::{sync::Arc, time::Duration};
+    use tokio::time::sleep;
+
+    use super::MessageExpire;
+
+    #[tokio::test]
+    async fn retain_message_expire_test() {
+        let config = PlacementCenterConfig::default();
+        let cluster_name = unique_id();
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let message_expire =
+            MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
+
+        let topic_storage = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
+        let topic = MQTTTopic::new(unique_id(), "tp1".to_string());
+        topic_storage
+            .save(&cluster_name, &topic.topic_name, topic.encode())
+            .unwrap();
+
+        let retain_msg = MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None);
+        topic_storage
+            .set_topic_retain_message(&cluster_name, &topic.topic_name, retain_msg.encode(), 3)
+            .unwrap();
+        tokio::spawn(async move {
+            loop {
+                message_expire.retain_message_expire().await;
+            }
+        });
+
+        let start = now_second();
+        loop {
+            let res = topic_storage
+                .list(&cluster_name, Some(topic.topic_name.clone()))
+                .unwrap();
+            let data = res.get(0).unwrap();
+            let tp = serde_json::from_slice::<MQTTTopic>(data.data.as_slice()).unwrap();
+            if tp.retain_message.is_none() {
+                break;
+            }
+            sleep(Duration::from_millis(100)).await;
+        }
+        assert_eq!((now_second() - start), 3);
+    }
+
+    #[test]
+    fn last_will_message_expire_test() {}
 }

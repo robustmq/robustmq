@@ -108,6 +108,7 @@ pub fn storage_key_mqtt_last_will_prefix(cluster_name: &String) -> String {
     return format!("/mqtt/lastwill/{}", cluster_name);
 }
 
-pub fn storage_key_mqtt_sub_group_leader(cluster_name: &String, group_name: &String) -> String {
-    return format!("/mqtt/sub_group_leader/{}/{}", cluster_name, group_name);
+
+pub fn storage_key_mqtt_node_sub_group_leader(cluster_name: &String) -> String {
+    return format!("/mqtt/sub_group_leader/{}", cluster_name);
 }

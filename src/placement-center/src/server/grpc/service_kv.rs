@@ -82,9 +82,13 @@ impl KvService for GrpcKvService {
 
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
         let mut reply = GetReply::default();
-        if let Some(data) = kv_storage.get(req.key) {
-            reply.value = data;
-            return Ok(Response::new(reply));
+        match kv_storage.get(req.key) {
+            Ok(Some(data)) => {
+                reply.value = data;
+                return Ok(Response::new(reply));
+            }
+            Ok(None) => {}
+            Err(e) => return Err(Status::cancelled(e.to_string())),
         }
 
         return Ok(Response::new(reply));
@@ -103,7 +107,10 @@ impl KvService for GrpcKvService {
         }
 
         // Raft state machine is used to store Node data
-        let data = StorageData::new(StorageDataType::KvDelete, DeleteRequest::encode_to_vec(&req));
+        let data = StorageData::new(
+            StorageDataType::KvDelete,
+            DeleteRequest::encode_to_vec(&req),
+        );
         match self
             .placement_center_storage
             .apply_propose_message(data, "delete".to_string())
