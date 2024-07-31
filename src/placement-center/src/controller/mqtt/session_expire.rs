@@ -139,7 +139,7 @@ impl SessionExpire {
             .clone()
         {
             if self.is_send_last_will(&lastwill) {
-                match lastwill_storage.get(self.cluster_name.clone(), lastwill.client_id.clone()) {
+                match lastwill_storage.get(&self.cluster_name, &lastwill.client_id) {
                     Ok(Some(data)) => {
                         let value = match serde_json::from_slice::<LastWillData>(
                             data.data.as_slice(),

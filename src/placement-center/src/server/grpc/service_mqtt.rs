@@ -232,7 +232,7 @@ impl MqttService for GrpcMqttService {
         } else {
             Some(req.client_id)
         };
-        match storage.list(req.cluster_name, client_id) {
+        match storage.list(&req.cluster_name, client_id) {
             Ok(data) => {
                 let mut result = Vec::new();
                 for raw in data {

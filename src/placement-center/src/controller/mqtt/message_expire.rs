@@ -109,27 +109,25 @@ impl MessageExpire {
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
             let value = serde_json::from_slice::<LastWillData>(data.data.as_slice()).unwrap();
-            if !value.last_will.is_none() {
-                if let Some(properties) = value.last_will_properties {
-                    let delete = if let Some(expiry_interval) = properties.message_expiry_interval {
-                        now_second() >= ((expiry_interval as u64) + data.create_time)
-                    } else {
-                        true
-                    };
+            if let Some(properties) = value.last_will_properties {
+                let delete = if let Some(expiry_interval) = properties.message_expiry_interval {
+                    now_second() >= ((expiry_interval as u64) + data.create_time)
+                } else {
+                    now_second() >= ((86400 * 30) + data.create_time)
+                };
 
-                    if delete {
-                        match lastwill_storage.delete_last_will_message(
-                            self.cluster_name.clone(),
-                            value.client_id.clone(),
-                        ) {
-                            Ok(()) => {}
-                            Err(e) => {
-                                error(e.to_string());
-                            }
+                if delete {
+                    match lastwill_storage
+                        .delete_last_will_message(&self.cluster_name, &value.client_id)
+                    {
+                        Ok(()) => {}
+                        Err(e) => {
+                            error(e.to_string());
                         }
                     }
                 }
             }
+
             iter.next();
         }
         sleep(Duration::from_secs(1)).await;
@@ -138,13 +136,20 @@ impl MessageExpire {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::{mqtt::topic::MQTTTopicStorage, rocksdb::RocksDBEngine};
+    use crate::storage::{
+        mqtt::{
+            lastwill::MQTTLastWillStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
+        },
+        rocksdb::RocksDBEngine,
+    };
     use common_base::{
         config::placement_center::PlacementCenterConfig,
         tools::{now_second, unique_id},
     };
-    use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
-    use protocol::mqtt::common::Publish;
+    use metadata_struct::mqtt::{
+        lastwill::LastWillData, message::MQTTMessage, session::MQTTSession, topic::MQTTTopic,
+    };
+    use protocol::mqtt::common::{LastWill, LastWillProperties, Publish};
     use std::{sync::Arc, time::Duration};
     use tokio::time::sleep;
 
@@ -189,6 +194,48 @@ mod tests {
         assert_eq!((now_second() - start), 3);
     }
 
-    #[test]
-    fn last_will_message_expire_test() {}
+    #[tokio::test]
+    async fn last_will_message_expire_test() {
+        let config = PlacementCenterConfig::default();
+        let cluster_name = unique_id();
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let lastwill_storage = MQTTLastWillStorage::new(rocksdb_engine_handler.clone());
+        let session_storage = MQTTSessionStorage::new(rocksdb_engine_handler.clone());
+
+        let client_id = unique_id();
+        let mut last_will_properties = LastWillProperties::default();
+        last_will_properties.message_expiry_interval = Some(3);
+        let last_will_message = LastWillData {
+            client_id: client_id.clone(),
+            last_will: None,
+            last_will_properties: Some(last_will_properties),
+        };
+        let message_expire =
+            MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
+        tokio::spawn(async move {
+            loop {
+                message_expire.last_will_message_expire().await;
+            }
+        });
+
+        let mut session = MQTTSession::default();
+        session.client_id = client_id.clone();
+        session_storage
+            .save(&cluster_name, &client_id, session.encode())
+            .unwrap();
+        lastwill_storage
+            .save(&cluster_name, &client_id, last_will_message.encode())
+            .unwrap();
+
+        let start = now_second();
+        loop {
+            let res = lastwill_storage.get(&cluster_name, &client_id).unwrap();
+            if res.is_none() {
+                break;
+            }
+            sleep(Duration::from_millis(100)).await;
+        }
+
+        assert_eq!((now_second() - start), 3);
+    }
 }
