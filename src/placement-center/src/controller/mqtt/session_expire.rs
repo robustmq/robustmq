@@ -45,6 +45,14 @@ impl SessionExpire {
     }
 
     pub async fn session_expire(&self) {
+        let sessions = self.get_expire_session_list().await;
+        if sessions.len() > 0 {
+            self.delete_session(sessions);
+        }
+        sleep(Duration::from_secs(1)).await;
+    }
+
+    pub async fn get_expire_session_list(&self) -> Vec<MQTTSession> {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
         let cf = self.rocksdb_engine_handler.cf_mqtt();
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
@@ -97,20 +105,20 @@ impl SessionExpire {
             }
             iter.next();
         }
+        return sessions;
+    }
 
-        if sessions.len() > 0 {
-            let call = MQTTBrokerCall::new(
-                self.cluster_name.clone(),
-                self.placement_cache_manager.clone(),
-                self.rocksdb_engine_handler.clone(),
-                self.client_poll.clone(),
-                self.mqtt_cache_manager.clone(),
-            );
-            tokio::spawn(async move {
-                call.delete_sessions(sessions).await;
-            });
-        }
-        sleep(Duration::from_secs(10)).await;
+    pub fn delete_session(&self, sessions: Vec<MQTTSession>) {
+        let call = MQTTBrokerCall::new(
+            self.cluster_name.clone(),
+            self.placement_cache_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
+            self.client_poll.clone(),
+            self.mqtt_cache_manager.clone(),
+        );
+        tokio::spawn(async move {
+            call.delete_sessions(sessions).await;
+        });
     }
 
     pub async fn sender_last_will_messsage(&self) {
@@ -194,5 +202,6 @@ impl SessionExpire {
 
 #[cfg(test)]
 mod tests {
-    
+
+    get_expire_session_list
 }
