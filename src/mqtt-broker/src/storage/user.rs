@@ -126,3 +126,57 @@ impl UserStorage {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::storage::user::UserStorage;
+    use clients::poll::ClientPool;
+    use common_base::{
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+    };
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn user_test() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        init_broker_mqtt_conf_by_path(&path);
+        init_broker_mqtt_log();
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let user_storage = UserStorage::new(client_poll);
+        let username = "test".to_string();
+        let password = "test_password".to_string();
+        let is_superuser = true;
+        let user_info = metadata_struct::mqtt::user::MQTTUser {
+            username: username.clone(),
+            password: password.clone(),
+            is_superuser,
+        };
+        user_storage.save_user(user_info).await.unwrap();
+
+        let result = user_storage
+            .get_user(username.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.username, username);
+        assert_eq!(result.password, password);
+        assert_eq!(result.is_superuser, is_superuser);
+
+        let result = user_storage.user_list().await.unwrap();
+        let prev_len = result.len();
+        assert!(result.len() >= 1);
+
+        user_storage.delete_user(username.clone()).await.unwrap();
+        let result = user_storage.get_user(username.clone()).await.unwrap();
+        assert!(result.is_none());
+
+        let result = user_storage.get_user(username.clone()).await.unwrap();
+        assert!(result.is_none());
+
+        let result = user_storage.user_list().await.unwrap();
+        assert_eq!(result.len(), prev_len - 1);
+    }
+}

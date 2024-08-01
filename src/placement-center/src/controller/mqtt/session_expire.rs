@@ -12,7 +12,7 @@ use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ExpireLastWill {
     pub client_id: String,
     pub delay_sec: u64,
@@ -131,23 +131,15 @@ impl SessionExpire {
 
     fn get_expire_lastwill_messsage(&self) -> Vec<ExpireLastWill> {
         let mut results = Vec::new();
-        if !self
-            .mqtt_cache_manager
-            .expire_last_wills
-            .contains_key(&self.cluster_name)
-        {
-            return results;
-        }
-
-        for (_, lastwill) in self
+        if let Some(list) = self
             .mqtt_cache_manager
             .expire_last_wills
             .get(&self.cluster_name)
-            .unwrap()
-            .clone()
         {
-            if self.is_send_last_will(&lastwill) {
-                results.push(lastwill);
+            for (_, lastwill) in list.clone() {
+                if self.is_send_last_will(&lastwill) {
+                    results.push(lastwill);
+                }
             }
         }
         return results;
@@ -223,12 +215,12 @@ mod tests {
     use metadata_struct::mqtt::session::MQTTSession;
     use tokio::time::sleep;
 
+    use super::SessionExpire;
+    use crate::controller::mqtt::session_expire::ExpireLastWill;
     use crate::{
         cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
         storage::{mqtt::session::MQTTSessionStorage, rocksdb::RocksDBEngine},
     };
-
-    use super::SessionExpire;
 
     #[test]
     fn is_session_expire_test() {
@@ -318,5 +310,89 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn is_send_last_will_test() {}
+    async fn is_send_last_will_test() {
+        let config = PlacementCenterConfig::default();
+        let cluster_name = unique_id();
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
+        let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
+            rocksdb_engine_handler.clone(),
+            placement_cache.clone(),
+        ));
+        let client_poll = Arc::new(ClientPool::new(10));
+
+        let session_expire = SessionExpire::new(
+            rocksdb_engine_handler.clone(),
+            mqtt_cache_manager,
+            placement_cache,
+            client_poll,
+            cluster_name.clone(),
+        );
+
+        let lastwill = ExpireLastWill {
+            client_id: unique_id(),
+            delay_sec: now_second() - 3,
+            cluster_name: "test1".to_string(),
+        };
+
+        assert!(session_expire.is_send_last_will(&lastwill));
+
+        let lastwill = ExpireLastWill {
+            client_id: unique_id(),
+            delay_sec: now_second() + 3,
+            cluster_name: "test1".to_string(),
+        };
+        assert!(!session_expire.is_send_last_will(&lastwill));
+    }
+
+    #[tokio::test]
+    async fn get_expire_lastwill_messsage_test() {
+        let config = PlacementCenterConfig::default();
+        let cluster_name = unique_id();
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
+        let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
+            rocksdb_engine_handler.clone(),
+            placement_cache.clone(),
+        ));
+        let client_poll = Arc::new(ClientPool::new(10));
+
+        let session_expire = SessionExpire::new(
+            rocksdb_engine_handler.clone(),
+            mqtt_cache_manager.clone(),
+            placement_cache,
+            client_poll,
+            cluster_name.clone(),
+        );
+
+        let client_id = unique_id();
+        let expire_last_will = ExpireLastWill {
+            client_id: client_id.clone(),
+            delay_sec: now_second() + 3,
+            cluster_name: cluster_name.clone(),
+        };
+
+        mqtt_cache_manager.add_expire_last_will(expire_last_will);
+
+        let start = now_second();
+        loop {
+            let lastwill_list = session_expire.get_expire_lastwill_messsage();
+            if lastwill_list.len() > 0 {
+                let mut flag = false;
+                for st in lastwill_list {
+                    if st.client_id == client_id {
+                        flag = true;
+                    }
+                }
+
+                if flag {
+                    break;
+                }
+            }
+
+            sleep(Duration::from_millis(1000)).await;
+        }
+
+        assert_eq!((now_second() - start), 3);
+    }
 }
