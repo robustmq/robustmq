@@ -149,7 +149,7 @@ mod tests {
     use metadata_struct::mqtt::{
         lastwill::LastWillData, message::MQTTMessage, session::MQTTSession, topic::MQTTTopic,
     };
-    use protocol::mqtt::common::{LastWill, LastWillProperties, Publish};
+    use protocol::mqtt::common::{LastWillProperties, Publish};
     use std::{sync::Arc, time::Duration};
     use tokio::time::sleep;
 

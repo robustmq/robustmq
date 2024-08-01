@@ -199,3 +199,55 @@ impl ClusterStorage {
         return vec!["cluster".to_string(), cluster_name];
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::storage::cluster::ClusterStorage;
+    use clients::poll::ClientPool;
+    use common_base::{
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+    };
+    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn cluster_test() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        init_broker_mqtt_conf_by_path(&path);
+        init_broker_mqtt_log();
+
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let cluster_storage = ClusterStorage::new(client_poll);
+
+        let cluster_name = "robust_test".to_string();
+        let mut cluster = MQTTCluster::default();
+        cluster.topic_alias_max = 999;
+        cluster_storage
+            .set_cluster_config(cluster_name.clone(), cluster)
+            .await
+            .unwrap();
+
+        let result = cluster_storage
+            .get_cluster_config(cluster_name.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.topic_alias_max(), 999);
+
+        cluster_storage
+            .delete_cluster_config(cluster_name.clone())
+            .await
+            .unwrap();
+
+        let result = cluster_storage
+            .get_cluster_config(cluster_name.clone())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+    }
+}
