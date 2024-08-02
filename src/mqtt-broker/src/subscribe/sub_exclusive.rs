@@ -27,7 +27,7 @@ use super::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_cache::SubscribeCacheManager,
+    subscribe_manager::SubscribeCacheManager,
 };
 
 pub struct SubscribeExclusive<S> {

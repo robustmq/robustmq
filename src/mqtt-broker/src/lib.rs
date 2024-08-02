@@ -35,7 +35,7 @@ use storage_adapter::{
 use storage_adapter::{storage_is_journal, storage_is_memory, storage_is_mysql};
 use subscribe::{
     sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
-    sub_share_leader::SubscribeShareLeader, subscribe_cache::SubscribeCacheManager,
+    sub_share_leader::SubscribeShareLeader, subscribe_manager::SubscribeCacheManager,
 };
 use tokio::{
     runtime::Runtime,

@@ -118,14 +118,14 @@ impl CacheManager {
             client_poll,
             cluster_name,
             cluster_info: DashMap::with_capacity(1),
-            user_info: DashMap::with_capacity(256),
-            session_info: DashMap::with_capacity(256),
-            topic_info: DashMap::with_capacity(256),
-            topic_id_name: DashMap::with_capacity(256),
-            connection_info: DashMap::with_capacity(256),
+            user_info: DashMap::with_capacity(8),
+            session_info: DashMap::with_capacity(8),
+            topic_info: DashMap::with_capacity(8),
+            topic_id_name: DashMap::with_capacity(8),
+            connection_info: DashMap::with_capacity(8),
             subscribe_filter: DashMap::with_capacity(8),
             publish_pkid_info: DashMap::with_capacity(8),
-            heartbeat_data: DashMap::with_capacity(256),
+            heartbeat_data: DashMap::with_capacity(8),
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
         };
@@ -261,13 +261,13 @@ impl CacheManager {
 
     pub fn login_success(&self, connect_id: u64) {
         if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
-            conn.login = true;
+            conn.is_login = true;
         }
     }
 
     pub fn is_login(&self, connect_id: u64) -> bool {
         if let Some(conn) = self.connection_info.get(&connect_id) {
-            return conn.login;
+            return conn.is_login;
         }
         return false;
     }
