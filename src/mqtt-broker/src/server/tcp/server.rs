@@ -552,6 +552,7 @@ fn response_child_process(
         let raw_connect_manager = connection_manager.clone();
         let raw_cache_manager = cache_manager.clone();
         let raw_client_poll = client_poll.clone();
+        let raw_subscribe_manager = subscribe_manager.clone();
         tokio::spawn(async move {
             debug(format!(
                 "TCP Server response process thread {index} start successfully."
@@ -603,7 +604,7 @@ fn response_child_process(
                                         &raw_cache_manager,
                                         &raw_client_poll,
                                         &raw_connect_manager,
-                                        &subscribe_manager,
+                                        &raw_subscribe_manager,
                                     ).await{
                                         Ok(()) => {},
                                         Err(e) => error(e.to_string())

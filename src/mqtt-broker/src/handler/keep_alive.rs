@@ -143,7 +143,10 @@ mod test {
             conf.cluster_name.clone(),
         ));
 
-        let subscribe_manager = Arc::new(SubscribeManager::new(cache_manager.clone(), client_poll));
+        let subscribe_manager = Arc::new(SubscribeManager::new(
+            cache_manager.clone(),
+            client_poll.clone(),
+        ));
 
         let connnection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         let mut keep_alive = ClientKeepAlive::new(
