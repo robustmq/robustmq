@@ -1,6 +1,6 @@
 use super::cache::{cache_info, index, metrics};
 use crate::handler::cache_manager::CacheManager;
-use crate::subscribe::subscribe_manager::SubscribeCacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use axum::routing::get;
 use axum::Router;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info};
@@ -13,13 +13,13 @@ pub const ROUTE_METRICS: &str = "/metrics";
 #[derive(Clone)]
 pub struct HttpServerState {
     pub cache_metadata: Arc<CacheManager>,
-    pub subscribe_cache: Arc<SubscribeCacheManager>,
+    pub subscribe_cache: Arc<SubscribeManager>,
 }
 
 impl HttpServerState {
     pub fn new(
         cache_metadata: Arc<CacheManager>,
-        subscribe_cache: Arc<SubscribeCacheManager>,
+        subscribe_cache: Arc<SubscribeManager>,
     ) -> Self {
         return Self {
             cache_metadata,

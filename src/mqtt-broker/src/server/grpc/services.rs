@@ -1,6 +1,6 @@
 use crate::handler::cache_manager::CacheManager;
 use crate::handler::lastwill::send_last_will_message;
-use crate::subscribe::subscribe_manager::SubscribeCacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_server::generate::mqtt::{
@@ -13,7 +13,7 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcBrokerServices<S> {
     cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
@@ -21,7 +21,7 @@ pub struct GrpcBrokerServices<S> {
 impl<S> GrpcBrokerServices<S> {
     pub fn new(
         metadata_cache: Arc<CacheManager>,
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
@@ -62,7 +62,7 @@ where
         }
         for client_id in req.client_id {
             self.cache_manager.remove_session(&client_id);
-            self.subscribe_manager.remove_client(&client_id);
+            self.subscribe_manager.stop_push_by_client_id(&client_id);
         }
 
         return Ok(Response::new(CommonReply::default()));

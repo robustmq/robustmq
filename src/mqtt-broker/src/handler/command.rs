@@ -3,7 +3,7 @@ use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::handler::{cache_manager::CacheManager, response::response_packet_mqtt_connect_fail};
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_manager::SubscribeCacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::common::{
@@ -29,7 +29,7 @@ where
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeCacheManager>,
+        sucscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
         connnection_manager: Arc<ConnectionManager>,
     ) -> Self {

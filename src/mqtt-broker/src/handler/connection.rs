@@ -1,5 +1,9 @@
 use super::cache_manager::CacheManager;
-use crate::{server::connection_manager::ConnectionManager, storage::session::SessionStorage};
+use crate::{
+    server::connection_manager::ConnectionManager,
+    storage::session::SessionStorage,
+    subscribe::subscribe_manager::{self, SubscribeManager},
+};
 use clients::poll::ClientPool;
 use common_base::{
     errors::RobustMQError,
@@ -155,9 +159,11 @@ pub async fn disconnect_connection(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connnection_manager: &Arc<ConnectionManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), RobustMQError> {
     cache_manager.remove_connection(connect_id);
     cache_manager.update_session_connect_id(client_id, None);
+    subscribe_manager.stop_push_by_client_id(&client_id);
 
     let session_storage = SessionStorage::new(client_poll.clone());
     match session_storage

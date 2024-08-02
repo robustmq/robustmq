@@ -20,7 +20,7 @@ use crate::handler::validator::{
 };
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
-use crate::subscribe::subscribe_manager::SubscribeCacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use crate::{security::authentication::authentication_login, storage::message::MessageStorage};
 use clients::poll::ClientPool;
 use common_base::{log::error, tools::now_second};
@@ -46,7 +46,7 @@ pub struct MqttService<S> {
     cache_manager: Arc<CacheManager>,
     connnection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
-    sucscribe_cache: Arc<SubscribeCacheManager>,
+    sucscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -59,7 +59,7 @@ where
         cache_manager: Arc<CacheManager>,
         connnection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeCacheManager>,
+        sucscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         return MqttService {
@@ -67,7 +67,7 @@ where
             cache_manager,
             connnection_manager,
             message_storage_adapter,
-            sucscribe_cache: sucscribe_manager,
+            sucscribe_manager,
             client_poll,
         };
     }
@@ -672,7 +672,7 @@ where
             subscribe_properties.clone(),
         );
 
-        self.sucscribe_cache
+        self.sucscribe_manager
             .add_subscribe(
                 client_id.clone(),
                 self.protocol.clone(),
@@ -751,7 +751,7 @@ where
             }
         }
 
-        self.sucscribe_cache
+        self.sucscribe_manager
             .remove_subscribe(&connection.client_id, &un_subscribe.filters);
 
         self.cache_manager
@@ -783,6 +783,7 @@ where
             &self.cache_manager,
             &self.client_poll,
             &self.connnection_manager,
+            &self.sucscribe_manager,
         )
         .await
         {

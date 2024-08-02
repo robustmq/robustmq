@@ -33,7 +33,7 @@ pub struct ShareLeaderSubscribeData {
 }
 
 #[derive(Clone)]
-pub struct SubscribeCacheManager {
+pub struct SubscribeManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<CacheManager>,
 
@@ -59,9 +59,9 @@ pub struct SubscribeCacheManager {
     pub share_follower_identifier_id: DashMap<usize, String>,
 }
 
-impl SubscribeCacheManager {
+impl SubscribeManager {
     pub fn new(metadata_cache: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> Self {
-        return SubscribeCacheManager {
+        return SubscribeManager {
             client_poll,
             metadata_cache,
             exclusive_subscribe: DashMap::with_capacity(8),
@@ -126,7 +126,7 @@ impl SubscribeCacheManager {
         }
     }
 
-    pub fn remove_client(&self, client_id: &String) {
+    pub fn stop_push_by_client_id(&self, client_id: &String) {
         for (key, subscriber) in self.exclusive_subscribe.clone() {
             if subscriber.client_id == *client_id {
                 self.exclusive_subscribe.remove(&key);

@@ -3,7 +3,7 @@ use super::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_manager::{ShareLeaderSubscribeData, SubscribeCacheManager},
+    subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager},
 };
 use crate::{
     handler::{
@@ -33,7 +33,7 @@ use tokio::{
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
-    pub subscribe_manager: Arc<SubscribeCacheManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: Arc<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
@@ -45,7 +45,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         message_storage: Arc<S>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
@@ -134,7 +134,7 @@ where
         &self,
         share_leader_key: String,
         sub_data: ShareLeaderSubscribeData,
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
     ) {
         let group_name = sub_data.group_name.clone();
         let topic_id = sub_data.topic_id.clone();
@@ -218,7 +218,7 @@ where
 
 async fn read_message_process<S>(
     share_leader_key: &String,
-    subscribe_manager: &Arc<SubscribeCacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
     topic_id: &String,
     topic_name: &String,
     message_storage: &MessageStorage<S>,
@@ -621,7 +621,7 @@ where
 }
 
 fn build_share_leader_sub_list(
-    subscribe_manager: Arc<SubscribeCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     key: String,
 ) -> Vec<Subscriber> {
     let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(&key) {

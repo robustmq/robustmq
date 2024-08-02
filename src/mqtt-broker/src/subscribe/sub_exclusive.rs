@@ -27,12 +27,12 @@ use super::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_manager::SubscribeCacheManager,
+    subscribe_manager::SubscribeManager,
 };
 
 pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     client_poll: Arc<ClientPool>,
     message_storage: Arc<S>,
@@ -45,7 +45,7 @@ where
     pub fn new(
         message_storage: Arc<S>,
         cache_manager: Arc<CacheManager>,
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {

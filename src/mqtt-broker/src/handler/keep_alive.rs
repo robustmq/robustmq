@@ -2,7 +2,10 @@ use super::{
     cache_manager::{CacheManager, ConnectionLiveTime},
     connection::disconnect_connection,
 };
-use crate::server::connection_manager::ConnectionManager;
+use crate::{
+    server::connection_manager::ConnectionManager,
+    subscribe::subscribe_manager::SubscribeManager,
+};
 use clients::poll::ClientPool;
 use common_base::{
     log::{error, info},
@@ -22,11 +25,13 @@ pub struct ClientKeepAlive {
     stop_send: broadcast::Sender<bool>,
     client_poll: Arc<ClientPool>,
     connnection_manager: Arc<ConnectionManager>,
+    subscribe_manager: Arc<SubscribeManager>,
 }
 
 impl ClientKeepAlive {
     pub fn new(
         client_poll: Arc<ClientPool>,
+        subscribe_manager: Arc<SubscribeManager>,
         connnection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
         stop_send: broadcast::Sender<bool>,
@@ -36,6 +41,7 @@ impl ClientKeepAlive {
             connnection_manager,
             cache_manager,
             stop_send,
+            subscribe_manager,
         };
     }
 
@@ -72,6 +78,7 @@ impl ClientKeepAlive {
                         &self.cache_manager,
                         &self.client_poll,
                         &self.connnection_manager,
+                        &self.subscribe_manager,
                     )
                     .await
                     {
@@ -117,6 +124,7 @@ mod test {
     use crate::handler::connection::Connection;
     use crate::handler::keep_alive::ClientKeepAlive;
     use crate::server::connection_manager::ConnectionManager;
+    use crate::subscribe::subscribe_manager::SubscribeManager;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use common_base::tools::now_second;
@@ -135,9 +143,13 @@ mod test {
             client_poll.clone(),
             conf.cluster_name.clone(),
         ));
+
+        let subscribe_manager = Arc::new(SubscribeManager::new(cache_manager, client_poll));
+
         let connnection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         let mut keep_alive = ClientKeepAlive::new(
             client_poll,
+            subscribe_manager,
             connnection_manager,
             cache_manager.clone(),
             stop_send,

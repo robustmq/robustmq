@@ -1,5 +1,5 @@
 use super::services::GrpcBrokerServices;
-use crate::{handler::cache_manager::CacheManager, subscribe::subscribe_manager::SubscribeCacheManager};
+use crate::{handler::cache_manager::CacheManager, subscribe::subscribe_manager::SubscribeManager};
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
@@ -10,7 +10,7 @@ use tonic::transport::Server;
 pub struct GrpcServer<S> {
     port: u32,
     metadata_cache: Arc<CacheManager>,
-    subscribe_manager: Arc<SubscribeCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
@@ -22,7 +22,7 @@ where
     pub fn new(
         port: u32,
         metadata_cache: Arc<CacheManager>,
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
