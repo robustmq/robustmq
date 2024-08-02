@@ -1,8 +1,7 @@
 use super::cache_manager::CacheManager;
 use crate::{
-    server::connection_manager::ConnectionManager,
-    storage::session::SessionStorage,
-    subscribe::subscribe_manager::{self, SubscribeManager},
+    server::connection_manager::ConnectionManager, storage::session::SessionStorage,
+    subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::{
@@ -161,10 +160,14 @@ pub async fn disconnect_connection(
     connnection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), RobustMQError> {
+    // Remove the connection cache
     cache_manager.remove_connection(connect_id);
+    // Remove the client id bound connection information
     cache_manager.update_session_connect_id(client_id, None);
+    // Once the connection is dropped, the push thread for the Client ID dimension is paused
     subscribe_manager.stop_push_by_client_id(&client_id);
 
+    // Remove the Connect id of the Session in the Placement Center
     let session_storage = SessionStorage::new(client_poll.clone());
     match session_storage
         .update_session(client_id, 0, 0, 0, now_second())
@@ -176,6 +179,7 @@ pub async fn disconnect_connection(
         }
     }
 
+    // Close the real network connection
     connnection_manager.clonse_connect(connect_id).await;
     return Ok(());
 }

@@ -240,7 +240,10 @@ impl CacheManager {
     }
 
     pub fn add_connection(&self, connect_id: u64, conn: Connection) {
-        self.connection_info.insert(connect_id, conn);
+        if let Some(mut session) = self.session_info.get_mut(&conn.client_id){
+            session.connection_id = Some(connect_id);
+            self.connection_info.insert(connect_id, conn);
+        }
     }
 
     pub fn add_topic(&self, topic_name: &String, topic: &MQTTTopic) {
