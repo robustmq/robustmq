@@ -1,7 +1,7 @@
 use super::connection_manager::ConnectionManager;
 use crate::{
     handler::{cache_manager::CacheManager, command::Command},
-    subscribe::subscribe_cache::SubscribeCacheManager,
+    subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -14,7 +14,7 @@ pub mod server;
 pub mod tls_server;
 
 pub async fn start_tcp_server<S>(
-    sucscribe_manager: Arc<SubscribeCacheManager>,
+    sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
@@ -39,6 +39,7 @@ pub async fn start_tcp_server<S>(
         conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager.clone(),
+        sucscribe_manager.clone(),
         cache_manager.clone(),
         client_poll.clone(),
     );
@@ -51,6 +52,7 @@ pub async fn start_tcp_server<S>(
         conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager,
+        sucscribe_manager.clone(),
         cache_manager,
         client_poll,
     );

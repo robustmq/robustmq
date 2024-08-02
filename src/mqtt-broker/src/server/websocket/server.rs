@@ -2,7 +2,7 @@ use crate::handler::cache_manager::CacheManager;
 use crate::handler::command::Command;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_cache::SubscribeCacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
 use axum::Router;
@@ -30,7 +30,7 @@ pub const ROUTE_ROOT: &str = "/mqtt";
 
 #[derive(Clone)]
 pub struct WebSocketServerState<S> {
-    sucscribe_manager: Arc<SubscribeCacheManager>,
+    sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
     client_poll: Arc<ClientPool>,
@@ -43,7 +43,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        sucscribe_manager: Arc<SubscribeCacheManager>,
+        sucscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,

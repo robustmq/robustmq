@@ -1,5 +1,6 @@
 use super::{cache_manager::CacheManager, retain::save_topic_retain_message};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
+use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
@@ -18,9 +19,70 @@ pub async fn send_last_will_message<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
+    match build_publish_message_by_lastwill(last_will, last_will_properties) {
+        Ok((topic_name, publish_res, publish_properteis)) => {
+            if publish_res.is_none() {
+                // If building a publish message from lastwill fails, the message is ignored without throwing an error.
+                return Ok(());
+            }
+
+            let publish = publish_res.unwrap();
+
+            let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
+                tp
+            } else {
+                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
+            };
+
+            match save_topic_retain_message(
+                cache_manager,
+                client_poll,
+                &topic_name,
+                client_id,
+                &publish,
+                &publish_properteis,
+            )
+            .await
+            {
+                Ok(()) => {}
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+
+            // Persisting stores message data
+            let message_storage = MessageStorage::new(message_storage_adapter.clone());
+
+            if let Some(record) =
+                MQTTMessage::build_record(client_id, &publish, &publish_properteis)
+            {
+                match message_storage
+                    .append_topic_message(topic.topic_id.clone(), vec![record])
+                    .await
+                {
+                    Ok(_) => {
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+            return Ok(());
+        }
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+fn build_publish_message_by_lastwill(
+    last_will: &Option<LastWill>,
+    last_will_properties: &Option<LastWillProperties>,
+) -> Result<(String, Option<Publish>, Option<PublishProperties>), RobustMQError> {
     if let Some(will) = last_will {
         if will.topic.is_empty() || will.message.is_empty() {
-            return Ok(());
+            return Ok(("".to_string(), None, None));
         }
 
         let topic_name = match String::from_utf8(will.topic.to_vec()) {
@@ -30,18 +92,12 @@ where
             }
         };
 
-        let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
-            tp
-        } else {
-            return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
-        };
-
         let publish = Publish {
             dup: false,
             qos: will.qos,
             pkid: 0,
             retain: will.retain,
-            topic: will.topic.clone(),
+            topic: Bytes::from(topic_name.clone()),
             payload: will.message.clone(),
         };
 
@@ -59,41 +115,9 @@ where
         } else {
             None
         };
-
-        // Persisting retain message data
-        match save_topic_retain_message(
-            cache_manager,
-            client_poll,
-            &topic_name,
-            client_id,
-            &publish,
-            &properties,
-        )
-        .await
-        {
-            Ok(()) => {}
-            Err(e) => {
-                return Err(e);
-            }
-        }
-
-        // Persisting stores message data
-        let message_storage = MessageStorage::new(message_storage_adapter.clone());
-        if let Some(record) = MQTTMessage::build_record(client_id, &publish, &properties) {
-            match message_storage
-                .append_topic_message(topic.topic_id.clone(), vec![record])
-                .await
-            {
-                Ok(_) => {
-                    return Ok(());
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
+        return Ok((topic_name, Some(publish), properties));
     }
-    return Ok(());
+    return Ok(("".to_string(), None, None));
 }
 
 pub async fn save_last_will_message(
@@ -133,8 +157,10 @@ pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties
 
 #[cfg(test)]
 mod test {
+    use super::build_publish_message_by_lastwill;
     use super::last_will_delay_interval;
-    use protocol::mqtt::common::LastWillProperties;
+    use bytes::Bytes;
+    use protocol::mqtt::common::{LastWill, LastWillProperties};
 
     #[tokio::test]
     pub async fn last_will_delay_interval_test() {
@@ -149,5 +175,72 @@ mod test {
         last_will_properties.delay_interval = Some(10);
         let res = last_will_delay_interval(&Some(last_will_properties));
         assert_eq!(res.unwrap(), 10);
+    }
+
+    #[tokio::test]
+    pub async fn build_publish_message_by_lastwill_test() {
+        let res = build_publish_message_by_lastwill(&None, &None).unwrap();
+        assert!(res.0.is_empty());
+        assert!(res.1.is_none());
+        assert!(res.2.is_none());
+
+        let topic = "t1".to_string();
+        let message = "message".to_string();
+
+        let lastwill = LastWill {
+            topic: Bytes::from(topic.clone()),
+            message: Bytes::from(message.clone()),
+            qos: protocol::mqtt::common::QoS::AtLeastOnce,
+            retain: false,
+        };
+
+        let lastwill_properties = None;
+        let (t, p, pp) =
+            build_publish_message_by_lastwill(&Some(lastwill.clone()), &lastwill_properties)
+                .unwrap();
+        assert_eq!(t, topic);
+        let p_tmp = p.unwrap();
+        assert_eq!(p_tmp.topic, Bytes::from(topic.clone()));
+        assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
+        assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
+        assert!(!p_tmp.retain);
+        assert_eq!(p_tmp.pkid, 0);
+        assert_eq!(p_tmp.dup, false);
+        assert!(pp.is_none());
+
+        let lastwill_properties = Some(LastWillProperties {
+            delay_interval: Some(1),
+            payload_format_indicator: Some(2),
+            message_expiry_interval: Some(3),
+            content_type: Some("t1".to_string()),
+            response_topic: Some("t2".to_string()),
+            correlation_data: Some(Bytes::from("t3".to_string())),
+            user_properties: Vec::new(),
+        });
+
+        let (t, p, pp) =
+            build_publish_message_by_lastwill(&Some(lastwill), &lastwill_properties).unwrap();
+        assert_eq!(t, topic);
+        let p_tmp = p.unwrap();
+        assert_eq!(p_tmp.topic, Bytes::from(topic.clone()));
+        assert_eq!(p_tmp.payload, Bytes::from(message.clone()));
+        assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
+        assert!(!p_tmp.retain);
+        assert_eq!(p_tmp.pkid, 0);
+        assert_eq!(p_tmp.dup, false);
+        assert!(!pp.is_none());
+
+        let pp_tmp = pp.unwrap();
+        assert_eq!(pp_tmp.payload_format_indicator.unwrap(), 2);
+        assert_eq!(pp_tmp.message_expiry_interval.unwrap(), 3);
+        assert!(pp_tmp.topic_alias.is_none());
+        assert_eq!(pp_tmp.response_topic.unwrap(), "t2".to_string());
+        assert_eq!(
+            pp_tmp.correlation_data.unwrap(),
+            Bytes::from("t3".to_string())
+        );
+        assert!(pp_tmp.user_properties.is_empty());
+        assert!(pp_tmp.subscription_identifiers.is_empty());
+        assert_eq!(pp_tmp.content_type.unwrap(), "t1".to_string())
     }
 }

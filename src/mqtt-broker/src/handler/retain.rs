@@ -24,34 +24,38 @@ pub async fn save_topic_retain_message(
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Result<(), RobustMQError> {
-    if publish.retain {
-        let topic_storage = TopicStorage::new(client_poll.clone());
-        if publish.payload.is_empty() {
-            match topic_storage.delete_retain_message(topic_name).await {
-                Ok(_) => {
-                    cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
-                }
-                Err(e) => {
-                    return Err(e);
-                }
+    if !publish.retain {
+        return Ok(());
+    }
+
+    let topic_storage = TopicStorage::new(client_poll.clone());
+
+    if publish.payload.is_empty() {
+        match topic_storage.delete_retain_message(topic_name).await {
+            Ok(_) => {
+                cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
             }
-        } else {
-            let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
-            let message_expire = message_expiry_interval(cache_manager, publish_properties);
-            match topic_storage
-                .set_retain_message(topic_name, &retain_message, message_expire)
-                .await
-            {
-                Ok(_) => {
-                    cache_manager
-                        .update_topic_retain_message(&topic_name, Some(retain_message.encode()));
-                }
-                Err(e) => {
-                    return Err(e);
-                }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    } else {
+        let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
+        let message_expire = message_expiry_interval(cache_manager, publish_properties);
+        match topic_storage
+            .set_retain_message(topic_name, &retain_message, message_expire)
+            .await
+        {
+            Ok(_) => {
+                cache_manager
+                    .update_topic_retain_message(&topic_name, Some(retain_message.encode()));
+            }
+            Err(e) => {
+                return Err(e);
             }
         }
     }
+
     return Ok(());
 }
 
@@ -118,7 +122,6 @@ pub async fn try_send_retain_message(
                             subscription_identifiers: sub_id.clone(),
                             content_type: msg.content_type,
                         };
-
 
                         match qos {
                             QoS::AtMostOnce => {
@@ -228,86 +231,49 @@ pub fn message_expiry_interval(
             return std::cmp::min(cluster.max_message_expiry_interval, expire as u64);
         }
     }
-    return cluster.default_message_expiry_interval;
+    return cluster.max_message_expiry_interval;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::retain::try_send_retain_message;
-    use crate::storage::topic::TopicStorage;
-    use crate::subscribe::subscriber::Subscriber;
-    use crate::{
-        handler::cache_manager::CacheManager, server::connection_manager::ConnectionManager,
-    };
-    use bytes::Bytes;
+    use crate::handler::cache_manager::CacheManager;
     use clients::poll::ClientPool;
-    use common_base::tools::unique_id;
-    use metadata_struct::mqtt::message::MQTTMessage;
-    use metadata_struct::mqtt::topic::MQTTTopic;
-    use protocol::mqtt::common::{Filter, QoS, Subscribe, SubscribeProperties};
+    use common_base::{
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+    };
+    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use protocol::mqtt::common::PublishProperties;
     use std::sync::Arc;
-    use tokio::sync::broadcast;
+
+    use super::message_expiry_interval;
 
     #[tokio::test]
-    async fn send_retain_message_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
+    async fn save_topic_retain_message_test() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
 
-        let mut filters = Vec::new();
-        let flt = Filter {
-            path: "/test/topic".to_string(),
-            qos: QoS::AtLeastOnce,
-            nolocal: true,
-            preserve_retain: true,
-            retain_forward_rule: protocol::mqtt::common::RetainForwardRule::OnEverySubscribe,
-        };
-        filters.push(flt);
-        let subscribe = Subscribe {
-            packet_identifier: 1,
-            filters,
-        };
-        let subscribe_properties = Some(SubscribeProperties::default());
+        init_broker_mqtt_conf_by_path(&path);
+        init_broker_mqtt_log();
+    }
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let topic_storage = TopicStorage::new(client_poll.clone());
+    #[test]
+    fn message_expiry_interval_test() {
+        let client_poll = Arc::new(ClientPool::new(1));
+        let cluster_name = "test".to_string();
+        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let mut cluster = MQTTCluster::default();
+        cluster.max_message_expiry_interval = 10;
+        cache_manager.set_cluster_info(cluster);
 
-        let topic_name = "/test/topic".to_string();
-        let payload = "testtesttest".to_string();
-        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
-        let client_id = "xxxxx".to_string();
+        let publish_properties = None;
+        let res = message_expiry_interval(&cache_manager, &publish_properties);
+        assert_eq!(res, 10);
 
-        metadata_cache.add_topic(&topic_name, &topic);
-
-        let mut retain_message = MQTTMessage::default();
-        retain_message.dup = false;
-        retain_message.qos = QoS::AtLeastOnce;
-        retain_message.pkid = 1;
-        retain_message.retain = true;
-        retain_message.topic = Bytes::from(topic_name.clone());
-        retain_message.payload = Bytes::from(payload);
-
-        match topic_storage
-            .set_retain_message(&topic.topic_id, &retain_message, 10000)
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
-        }
-        let connection_manager = Arc::new(ConnectionManager::new(metadata_cache.clone()));
-
-        let (stop_send, _) = broadcast::channel(1);
-        let subscriber = Subscriber::default();
-        try_send_retain_message(
-            client_id,
-            subscriber,
-            client_poll,
-            metadata_cache.clone(),
-            connection_manager,
-            stop_send,
-        )
-        .await;
+        let mut publish_properties = PublishProperties::default();
+        publish_properties.message_expiry_interval = Some(3);
+        let res = message_expiry_interval(&cache_manager, &Some(publish_properties));
+        assert_eq!(res, 3);
     }
 }

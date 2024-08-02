@@ -12,6 +12,7 @@ use crate::{
         packet::{RequestPackage, ResponsePackage},
         tcp::tls_server::read_tls_frame_process,
     },
+    subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::{
@@ -42,6 +43,7 @@ pub struct TcpServer<S> {
     command: Command<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
     accept_thread_num: usize,
     handler_process_num: usize,
@@ -60,11 +62,13 @@ where
         response_process_num: usize,
         stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         Self {
             command,
+            subscribe_manager,
             cache_manager,
             client_poll,
             connection_manager,
@@ -360,6 +364,7 @@ where
         let response_process_num = self.response_process_num.clone();
         let cache_manager = self.cache_manager.clone();
         let client_poll = self.client_poll.clone();
+        let subscribe_manager = self.subscribe_manager.clone();
         let stop_sx = self.stop_sx.clone();
 
         tokio::spawn(async move {
@@ -370,6 +375,7 @@ where
                 stop_sx,
                 connect_manager,
                 cache_manager,
+                subscribe_manager,
                 client_poll,
             );
 
@@ -535,6 +541,7 @@ fn response_child_process(
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
 ) {
     for index in 1..=response_process_num {
@@ -545,6 +552,7 @@ fn response_child_process(
         let raw_connect_manager = connection_manager.clone();
         let raw_cache_manager = cache_manager.clone();
         let raw_client_poll = client_poll.clone();
+        let raw_subscribe_manager = subscribe_manager.clone();
         tokio::spawn(async move {
             debug(format!(
                 "TCP Server response process thread {index} start successfully."
@@ -596,6 +604,7 @@ fn response_child_process(
                                         &raw_cache_manager,
                                         &raw_client_poll,
                                         &raw_connect_manager,
+                                        &raw_subscribe_manager,
                                     ).await{
                                         Ok(()) => {},
                                         Err(e) => error(e.to_string())

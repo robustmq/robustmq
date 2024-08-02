@@ -35,7 +35,7 @@ use storage_adapter::{
 use storage_adapter::{storage_is_journal, storage_is_memory, storage_is_mysql};
 use subscribe::{
     sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
-    sub_share_leader::SubscribeShareLeader, subscribe_cache::SubscribeCacheManager,
+    sub_share_leader::SubscribeShareLeader, subscribe_manager::SubscribeManager,
 };
 use tokio::{
     runtime::Runtime,
@@ -80,7 +80,7 @@ pub struct MqttBroker<S> {
     runtime: Runtime,
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
-    subscribe_manager: Arc<SubscribeCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
 }
 
@@ -101,7 +101,7 @@ where
 
         let storage_type = conf.storage.storage_type.clone();
 
-        let subscribe_manager = Arc::new(SubscribeCacheManager::new(
+        let subscribe_manager = Arc::new(SubscribeManager::new(
             cache_manager.clone(),
             client_poll.clone(),
         ));
@@ -247,6 +247,7 @@ where
     fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
         let mut keep_alive = ClientKeepAlive::new(
             self.client_poll.clone(),
+            self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             stop_send,

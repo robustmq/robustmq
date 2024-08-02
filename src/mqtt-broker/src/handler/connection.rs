@@ -1,5 +1,8 @@
-use std::sync::Arc;
-
+use super::cache_manager::CacheManager;
+use crate::{
+    server::connection_manager::ConnectionManager, storage::session::SessionStorage,
+    subscribe::subscribe_manager::SubscribeManager,
+};
 use clients::poll::ClientPool;
 use common_base::{
     errors::RobustMQError,
@@ -9,24 +12,31 @@ use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{Connect, ConnectProperties};
 use serde::{Deserialize, Serialize};
-
-use crate::{server::connection_manager::ConnectionManager, storage::session::SessionStorage};
-
-use super::cache_manager::CacheManager;
+use std::sync::Arc;
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Connection {
+    // Connection ID
     pub connect_id: u64,
+    // Each connection has a unique Client ID
     pub client_id: String,
-    pub login: bool,
+    // Mark whether the link is already logged in
+    pub is_login: bool,
+    // When the client does not report a heartbeat, the maximum survival time of the connection,
     pub keep_alive: u32,
+    // Records the Topic alias information for the connection dimension
     pub topic_alias: DashMap<u16, String>,
+    // Record the maximum number of QOS1 and QOS2 packets that the client can send in connection dimension. Scope of data flow control.
     pub receive_maximum: u16,
+    // Record the connection dimension, the size of the maximum request packet that can be received.
     pub max_packet_size: u32,
+    // Record the maximum number of connection dimensions and topic aliases. The default value ranges from 0 to 65535
     pub topic_alias_max: u16,
+    // Flags whether to return a detailed error message to the client when an error occurs.
     pub request_problem_info: u8,
+    // Time when the connection was created
     pub create_time: u64,
 }
 
@@ -40,21 +50,22 @@ impl Connection {
         request_problem_info: u8,
         keep_alive: u32,
     ) -> Connection {
-        let mut conn = Connection::default();
-        conn.connect_id = connect_id;
-        conn.client_id = client_id.clone();
-        conn.login = false;
-        conn.keep_alive = keep_alive;
-        conn.receive_maximum = receive_maximum;
-        conn.max_packet_size = max_packet_size;
-        conn.topic_alias_max = topic_alias_max;
-        conn.request_problem_info = request_problem_info;
-        conn.create_time = now_second();
-        return conn;
+        return Connection {
+            connect_id,
+            client_id: client_id.clone(),
+            is_login: false,
+            keep_alive,
+            receive_maximum,
+            max_packet_size,
+            topic_alias: DashMap::with_capacity(2),
+            topic_alias_max,
+            request_problem_info,
+            create_time: now_second(),
+        };
     }
 
     pub fn login_success(&mut self) {
-        self.login = true;
+        self.is_login = true;
     }
 
     pub fn is_response_proplem_info(&self) -> bool {
@@ -70,6 +81,7 @@ pub fn build_connection(
     connect_properties: &Option<ConnectProperties>,
 ) -> Connection {
     let keep_alive = std::cmp::min(cluster.server_keep_alive(), connect.keep_alive);
+
     let (receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let receive_maximum = if let Some(value) = properties.receive_maximum {
@@ -122,13 +134,11 @@ pub fn build_connection(
 }
 
 pub fn get_client_id(client_id: &String) -> (String, bool) {
-    let (client_id, new_client_id) = if client_id.is_empty() {
-        (unique_id(), true)
+    if client_id.is_empty() {
+        return (unique_id(), true);
     } else {
-        (client_id.clone(), false)
+        return (client_id.clone(), false);
     };
-
-    return (client_id, new_client_id);
 }
 
 pub fn response_information(connect_properties: &Option<ConnectProperties>) -> Option<String> {
@@ -148,12 +158,17 @@ pub async fn disconnect_connection(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connnection_manager: &Arc<ConnectionManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), RobustMQError> {
+    // Remove the connection cache
     cache_manager.remove_connection(connect_id);
+    // Remove the client id bound connection information
     cache_manager.update_session_connect_id(client_id, None);
+    // Once the connection is dropped, the push thread for the Client ID dimension is paused
+    subscribe_manager.stop_push_by_client_id(&client_id);
 
+    // Remove the Connect id of the Session in the Placement Center
     let session_storage = SessionStorage::new(client_poll.clone());
-
     match session_storage
         .update_session(client_id, 0, 0, 0, now_second())
         .await
@@ -164,6 +179,7 @@ pub async fn disconnect_connection(
         }
     }
 
+    // Close the real network connection
     connnection_manager.clonse_connect(connect_id).await;
     return Ok(());
 }
@@ -208,9 +224,9 @@ mod test {
         );
         assert_eq!(conn.connect_id, connect_id);
         assert_eq!(conn.client_id, client_id);
-        assert!(!conn.login);
+        assert!(!conn.is_login);
         conn.login_success();
-        assert!(conn.login);
+        assert!(conn.is_login);
         assert_eq!(conn.keep_alive, 10);
         assert_eq!(conn.receive_maximum, 100);
         assert_eq!(conn.max_packet_size, 100);

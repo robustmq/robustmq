@@ -7,7 +7,7 @@ use crate::{
         connection::Connection,
     },
     subscribe::{
-        subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
+        subscribe_manager::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},
     },
 };

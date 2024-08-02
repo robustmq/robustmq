@@ -3,14 +3,14 @@ use super::{
         get_share_sub_leader, publish_message_qos0, publish_message_to_client, qos2_send_publish,
         qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_cache::SubscribeCacheManager,
+    subscribe_manager::SubscribeManager,
 };
 use crate::{
     handler::cache_manager::{
         CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
-    subscribe::subscribe_cache::ShareSubShareSub,
+    subscribe::subscribe_manager::ShareSubShareSub,
 };
 use clients::poll::ClientPool;
 use common_base::{
@@ -43,7 +43,7 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 
 #[derive(Clone)]
 pub struct SubscribeShareFollower {
-    pub subscribe_manager: Arc<SubscribeCacheManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     client_poll: Arc<ClientPool>,
@@ -51,7 +51,7 @@ pub struct SubscribeShareFollower {
 
 impl SubscribeShareFollower {
     pub fn new(
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
         client_poll: Arc<ClientPool>,
