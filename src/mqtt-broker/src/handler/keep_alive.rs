@@ -3,8 +3,7 @@ use super::{
     connection::disconnect_connection,
 };
 use crate::{
-    server::connection_manager::ConnectionManager,
-    subscribe::subscribe_manager::SubscribeManager,
+    server::connection_manager::ConnectionManager, subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::{
@@ -144,7 +143,7 @@ mod test {
             conf.cluster_name.clone(),
         ));
 
-        let subscribe_manager = Arc::new(SubscribeManager::new(cache_manager, client_poll));
+        let subscribe_manager = Arc::new(SubscribeManager::new(cache_manager.clone(), client_poll));
 
         let connnection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         let mut keep_alive = ClientKeepAlive::new(

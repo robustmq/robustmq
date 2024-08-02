@@ -39,6 +39,7 @@ pub async fn start_tcp_server<S>(
         conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager.clone(),
+        sucscribe_manager.clone(),
         cache_manager.clone(),
         client_poll.clone(),
     );
@@ -51,6 +52,7 @@ pub async fn start_tcp_server<S>(
         conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager,
+        sucscribe_manager.clone(),
         cache_manager,
         client_poll,
     );
