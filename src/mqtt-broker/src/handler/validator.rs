@@ -2,7 +2,7 @@ use super::{
     cache_manager::CacheManager,
     connection::Connection,
     error::MQTTBrokerError,
-    flow_control::{is_connection_rate_exceeded, is_subscribe_rate_exceeded},
+    flow_control::{is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded},
     pkid::pkid_exists,
     response::{
         response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
@@ -12,7 +12,6 @@ use super::{
     topic::topic_name_validator,
 };
 use crate::{
-    handler::flow_control::is_publish_rate_exceeded,
     security::{acl::authentication_acl, authentication::is_ip_blacklist},
     server::connection_manager::ConnectionManager,
     subscribe::sub_common::sub_path_validator,
@@ -466,7 +465,9 @@ pub async fn publish_validator(
         }
     }
 
-    if is_publish_rate_exceeded() {
+    if is_flow_control(protocol, publish.qos)
+        && connection.get_recv_qos_message() >= cluster.receive_max() as isize
+    {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
                 protocol,

@@ -7,7 +7,8 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
+    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket,
+    MQTTProtocol, QoS,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -72,7 +73,6 @@ where
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
-
         if !self.check_login_status(tcp_connection.connection_id).await {
             return Some(response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,

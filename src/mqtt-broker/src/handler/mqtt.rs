@@ -36,9 +36,9 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::{self};
 
 use super::connection::disconnect_connection;
+use super::flow_control::is_flow_control;
 
 #[derive(Clone)]
 pub struct MqttService<S> {
@@ -229,6 +229,10 @@ where
             ));
         };
 
+        if is_flow_control(&self.protocol, publish.qos) {
+            connection.recv_qos_message_incr();
+        }
+
         if let Some(pkg) = publish_validator(
             &self.protocol,
             &self.cache_manager,
@@ -239,6 +243,9 @@ where
         )
         .await
         {
+            if is_flow_control(&self.protocol, publish.qos) {
+                connection.recv_qos_message_decr();
+            }
             if publish.qos == QoS::AtMostOnce {
                 return None;
             } else {
@@ -256,6 +263,10 @@ where
         ) {
             Ok(da) => da,
             Err(e) => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -286,6 +297,10 @@ where
         {
             Ok(tp) => tp,
             Err(e) => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -321,6 +336,10 @@ where
         {
             Ok(()) => {}
             Err(e) => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -354,6 +373,10 @@ where
                     format!("{:?}", da)
                 }
                 Err(e) => {
+                    if is_flow_control(&self.protocol, publish.qos) {
+                        connection.recv_qos_message_decr();
+                    }
+
                     if is_puback {
                         return Some(response_packet_mqtt_puback_fail(
                             &self.protocol,
@@ -386,6 +409,10 @@ where
                 return None;
             }
             QoS::AtLeastOnce => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 let reason_code = if path_contain_sub(&topic_name) {
                     PubAckReason::Success
                 } else {
@@ -409,6 +436,10 @@ where
                 {
                     Ok(()) => {}
                     Err(e) => {
+                        if is_flow_control(&self.protocol, publish.qos) {
+                            connection.recv_qos_message_decr();
+                        }
+                        
                         if is_puback {
                             return Some(response_packet_mqtt_puback_fail(
                                 &self.protocol,
@@ -586,7 +617,9 @@ where
         )
         .await
         {
-            Ok(()) => {}
+            Ok(()) => {
+                connection.recv_qos_message_decr();
+            }
             Err(e) => {
                 return response_packet_mqtt_pubcomp_fail(
                     &self.protocol,
