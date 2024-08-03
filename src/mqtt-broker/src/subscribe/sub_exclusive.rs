@@ -13,7 +13,7 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::{cluster, message::MQTTMessage};
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;

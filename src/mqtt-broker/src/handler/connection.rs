@@ -11,12 +11,14 @@ use common_base::{
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{Connect, ConnectProperties};
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicIsize, Ordering},
+    Arc,
+};
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct Connection {
     // Connection ID
     pub connect_id: u64,
@@ -29,13 +31,17 @@ pub struct Connection {
     // Records the Topic alias information for the connection dimension
     pub topic_alias: DashMap<u16, String>,
     // Record the maximum number of QOS1 and QOS2 packets that the client can send in connection dimension. Scope of data flow control.
-    pub receive_maximum: u16,
+    pub client_max_receive_maximum: u16,
     // Record the connection dimension, the size of the maximum request packet that can be received.
     pub max_packet_size: u32,
     // Record the maximum number of connection dimensions and topic aliases. The default value ranges from 0 to 65535
     pub topic_alias_max: u16,
     // Flags whether to return a detailed error message to the client when an error occurs.
     pub request_problem_info: u8,
+    // Flow control part keeps track of how many QOS 1 and QOS 2 messages are still pending on the connection
+    pub receive_qos_message: Arc<AtomicIsize>,
+    // Flow control part keeps track of how many QOS 1 and QOS 2 messages are still pending on the connection
+    pub sender_qos_message: Arc<AtomicIsize>,
     // Time when the connection was created
     pub create_time: u64,
 }
@@ -55,11 +61,13 @@ impl Connection {
             client_id: client_id.clone(),
             is_login: false,
             keep_alive,
-            receive_maximum,
+            client_max_receive_maximum: receive_maximum,
             max_packet_size,
             topic_alias: DashMap::with_capacity(2),
             topic_alias_max,
             request_problem_info,
+            receive_qos_message: Arc::new(AtomicIsize::new(0)),
+            sender_qos_message: Arc::new(AtomicIsize::new(0)),
             create_time: now_second(),
         };
     }
@@ -70,6 +78,30 @@ impl Connection {
 
     pub fn is_response_proplem_info(&self) -> bool {
         return self.request_problem_info == 1;
+    }
+
+    pub fn get_recv_qos_message(&self) -> isize {
+        return self.receive_qos_message.fetch_add(0, Ordering::Relaxed);
+    }
+
+    pub fn recv_qos_message_incr(&self) {
+        self.receive_qos_message.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn recv_qos_message_decr(&self) {
+        self.receive_qos_message.fetch_add(-1, Ordering::Relaxed);
+    }
+
+    pub fn get_send_qos_message(&self) -> isize {
+        return self.sender_qos_message.fetch_add(0, Ordering::Relaxed);
+    }
+
+    pub fn send_qos_message_incr(&self) {
+        self.sender_qos_message.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn send_qos_message_decr(&self) {
+        self.sender_qos_message.fetch_add(-1, Ordering::Relaxed);
     }
 }
 
@@ -82,10 +114,10 @@ pub fn build_connection(
 ) -> Connection {
     let keep_alive = std::cmp::min(cluster.server_keep_alive(), connect.keep_alive);
 
-    let (receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
+    let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
-            let receive_maximum = if let Some(value) = properties.receive_maximum {
-                std::cmp::min(value, cluster.receive_max())
+            let client_receive_maximum = if let Some(value) = properties.receive_maximum {
+                value
             } else {
                 cluster.receive_max()
             };
@@ -109,7 +141,7 @@ pub fn build_connection(
             };
 
             (
-                receive_maximum,
+                client_receive_maximum,
                 max_packet_size,
                 topic_alias_max,
                 request_problem_info,
@@ -125,7 +157,7 @@ pub fn build_connection(
     return Connection::new(
         connect_id,
         &client_id,
-        receive_maximum,
+        client_receive_maximum,
         max_packet_size,
         topic_alias_max,
         request_problem_info,
@@ -189,6 +221,7 @@ mod test {
     use super::build_connection;
     use super::get_client_id;
     use super::response_information;
+    use super::Connection;
     use super::REQUEST_RESPONSE_PREFIX_NAME;
     use metadata_struct::mqtt::cluster::MQTTCluster;
     use protocol::mqtt::common::Connect;
@@ -228,7 +261,7 @@ mod test {
         conn.login_success();
         assert!(conn.is_login);
         assert_eq!(conn.keep_alive, 10);
-        assert_eq!(conn.receive_maximum, 100);
+        assert_eq!(conn.client_max_receive_maximum, 100);
         assert_eq!(conn.max_packet_size, 100);
         assert_eq!(conn.topic_alias_max, 100);
         assert_eq!(conn.request_problem_info, 0);
@@ -262,5 +295,25 @@ mod test {
         connect_properties.request_response_info = Some(0);
         let res = response_information(&Some(connect_properties));
         assert!(res.is_none());
+    }
+
+    #[tokio::test]
+    pub async fn recv_qos_message_num_test() {
+        let conn = Connection::default();
+        assert_eq!(conn.get_recv_qos_message(), 0);
+        conn.recv_qos_message_incr();
+        assert_eq!(conn.get_recv_qos_message(), 1);
+        conn.recv_qos_message_decr();
+        assert_eq!(conn.get_recv_qos_message(), 0);
+    }
+
+    #[tokio::test]
+    pub async fn send_qos_message_num_test() {
+        let conn = Connection::default();
+        assert_eq!(conn.get_send_qos_message(), 0);
+        conn.send_qos_message_incr();
+        assert_eq!(conn.get_send_qos_message(), 1);
+        conn.send_qos_message_decr();
+        assert_eq!(conn.get_send_qos_message(), 0);
     }
 }
