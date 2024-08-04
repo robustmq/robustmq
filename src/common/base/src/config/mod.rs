@@ -19,6 +19,7 @@ use toml;
 pub mod broker_mqtt;
 pub mod placement_center;
 pub mod journal_server;
+pub mod common;
 
 pub const DEFAULT_MQTT_SERVER_CONFIG: &str = "config/mqtt-server.toml";
 pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "config/placement-center.toml";

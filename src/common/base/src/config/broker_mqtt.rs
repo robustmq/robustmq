@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use super::read_file;
+use super::{common::Storage, read_file};
 use crate::tools::create_fold;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -26,9 +26,13 @@ pub struct BrokerMQTTConfig {
     pub grpc_port: u32,
     pub http_port: usize,
     pub placement_center: Vec<String>,
+    #[serde(skip)]
+    #[serde(default)]
     pub network: Network,
     pub tcp_thread: TcpThread,
     pub system: System,
+    #[serde(skip)]
+    #[serde(default)]
     pub storage: Storage,
     pub log: Log,
 }
@@ -54,17 +58,6 @@ pub struct TcpThread {
     pub response_queue_size: usize,
     pub lock_max_try_mut_times: u64,
     pub lock_try_mut_sleep_time_ms: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Storage {
-    pub storage_type: String,
-    #[serde(skip)]
-    #[serde(default)]
-    pub journal_addr: String,
-    #[serde(skip)]
-    #[serde(default)]
-    pub mysql_addr: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
