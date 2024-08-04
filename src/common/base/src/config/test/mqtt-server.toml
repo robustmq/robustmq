@@ -1,0 +1,6 @@
+cluster_name = "mqtt-broker"
+broker_id = 1
+placement_center = ["127.0.0.1:1228"]
+
+[network]
+tcp_port = 1883
