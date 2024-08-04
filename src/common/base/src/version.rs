@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
- pub fn banner() {
+pub fn banner() {
     const B: &str = r"                                              
          _____     ____    ______            _____ ________ _         _    _____
         ||    \\ //    \\ ||     ||||     ||||     --------||\\      //|| //    \\
@@ -22,7 +22,17 @@
         ||   // ||      ||||     \\||     ||      ||  ||   ||  \\  //  ||||      || 
         ||_|__\\ \\____// ||__|__||||__|__|| __|__||  ||   ||   \\//   || \\___\\//       
                                                                                 \\
-    ";                                                                                  
+    ";
 
     println!("{B}\n");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::banner;
+
+    #[test]
+    fn banner_test() {
+        banner();
+    }
 }

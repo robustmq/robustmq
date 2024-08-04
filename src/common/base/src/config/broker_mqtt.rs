@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+use super::default_mqtt::{
+    default_grpc_port, default_http_port, default_log, default_network, default_network_quic_port,
+    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
+    default_network_websockets_port, default_storage, default_system, default_tcp_thread,
+};
 use super::{common::Storage, read_file};
 use crate::tools::create_fold;
 use serde::{Deserialize, Serialize};
@@ -23,54 +28,79 @@ use std::sync::OnceLock;
 pub struct BrokerMQTTConfig {
     pub cluster_name: String,
     pub broker_id: u64,
+    #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
+    #[serde(default = "default_http_port")]
     pub http_port: usize,
+    #[serde(default)]
     pub placement_center: Vec<String>,
-    #[serde(skip)]
-    #[serde(default)]
+    #[serde(default = "default_network")]
     pub network: Network,
+    #[serde(default = "default_tcp_thread")]
     pub tcp_thread: TcpThread,
+    #[serde(default = "default_system")]
     pub system: System,
-    #[serde(skip)]
-    #[serde(default)]
+    #[serde(default = "default_storage")]
     pub storage: Storage,
+    #[serde(default = "default_log")]
     pub log: Log,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Network {
+    #[serde(default = "default_network_tcp_port")]
     pub tcp_port: u32,
+    #[serde(default = "default_network_tcps_port")]
     pub tcps_port: u32,
+    #[serde(default = "default_network_websocket_port")]
     pub websocket_port: u32,
+    #[serde(default = "default_network_websockets_port")]
     pub websockets_port: u32,
+    #[serde(default = "default_network_quic_port")]
     pub quic_port: u32,
+    #[serde(default)]
     pub tls_cert: String,
+    #[serde(default)]
     pub tls_key: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct TcpThread {
+    #[serde(default)]
     pub accept_thread_num: usize,
+    #[serde(default)]
     pub handler_thread_num: usize,
+    #[serde(default)]
     pub response_thread_num: usize,
+    #[serde(default)]
     pub max_connection_num: usize,
+    #[serde(default)]
     pub request_queue_size: usize,
+    #[serde(default)]
     pub response_queue_size: usize,
+    #[serde(default)]
     pub lock_max_try_mut_times: u64,
+    #[serde(default)]
     pub lock_try_mut_sleep_time_ms: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct System {
+    #[serde(default)]
     pub runtime_worker_threads: usize,
+    #[serde(default)]
     pub default_user: String,
+    #[serde(default)]
     pub default_password: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Log {
+    #[serde(default)]
     pub log_path: String,
+    #[serde(default)]
     pub log_segment_size: u64,
+    #[serde(default)]
     pub log_file_num: u32,
 }
 
@@ -81,6 +111,7 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &String) -> &'static BrokerMQT
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     BROKER_MQTT_CONF.get_or_init(|| {
         let content = read_file(config_path);
+        println!("{}", content);
         let config: BrokerMQTTConfig = match toml::from_str(&content) {
             Ok(da) => da,
             Err(e) => {
@@ -110,5 +141,107 @@ pub fn broker_mqtt_conf() -> &'static BrokerMQTTConfig {
                 "Placement center configuration is not initialized, check the configuration file."
             );
         }
+    }
+}
+
+mod tests {
+    use crate::config::{broker_mqtt::BrokerMQTTConfig, read_file};
+
+    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
+
+    #[test]
+    fn config_default_test() {
+        let path = format!(
+            "{}/src/config/test/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        let content = read_file(&path);
+        println!("{}", content);
+        let config: BrokerMQTTConfig = match toml::from_str(&content) {
+            Ok(da) => da,
+            Err(e) => {
+                panic!("{}", e)
+            }
+        };
+        assert_eq!(config.broker_id, 1);
+        assert_eq!(config.cluster_name, "mqtt-broker".to_string());
+        assert_eq!(config.placement_center.len(), 1);
+        assert_eq!(config.grpc_port, 9981);
+        assert_eq!(config.http_port, 9982);
+
+        assert_eq!(config.network.tcp_port, 1883);
+        assert_eq!(config.network.tcps_port, 1884);
+        assert_eq!(config.network.websocket_port, 8083);
+        assert_eq!(config.network.websockets_port, 8084);
+        assert_eq!(config.network.quic_port, 9083);
+        assert!(config.network.tls_cert.is_empty());
+        assert!(config.network.tls_key.is_empty());
+
+        assert_eq!(config.tcp_thread.accept_thread_num, 1);
+        assert_eq!(config.tcp_thread.handler_thread_num, 1);
+        assert_eq!(config.tcp_thread.response_thread_num, 1);
+        assert_eq!(config.tcp_thread.max_connection_num, 1000);
+        assert_eq!(config.tcp_thread.request_queue_size, 2000);
+        assert_eq!(config.tcp_thread.response_queue_size, 2000);
+        assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
+        assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
+
+        assert_eq!(config.system.runtime_worker_threads, 16);
+        assert_eq!(config.system.default_user, "admin".to_string());
+        assert_eq!(config.system.default_password, "robustmq".to_string());
+
+        assert_eq!(config.storage.storage_type, "memory".to_string());
+        assert_eq!(config.storage.journal_addr, "".to_string());
+        assert_eq!(config.storage.mysql_addr, "".to_string());
+
+        assert_eq!(config.log.log_path, "/tmp/robust-default".to_string());
+        assert_eq!(config.log.log_segment_size, 1073741824);
+        assert_eq!(config.log.log_file_num, 50);
+    }
+
+    #[test]
+    fn config_init_test() {
+        let path = format!(
+            "{}/src/config/test/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        init_broker_mqtt_conf_by_path(&path);
+        let config = broker_mqtt_conf();
+        assert_eq!(config.broker_id, 1);
+        assert_eq!(config.cluster_name, "mqtt-broker".to_string());
+        assert_eq!(config.placement_center.len(), 1);
+        assert_eq!(config.grpc_port, 9981);
+        assert_eq!(config.http_port, 9982);
+
+        assert_eq!(config.network.tcp_port, 1883);
+        assert_eq!(config.network.tcps_port, 1884);
+        assert_eq!(config.network.websocket_port, 8083);
+        assert_eq!(config.network.websockets_port, 8084);
+        assert_eq!(config.network.quic_port, 9083);
+        assert!(config.network.tls_cert.is_empty());
+        assert!(config.network.tls_key.is_empty());
+
+        assert_eq!(config.tcp_thread.accept_thread_num, 1);
+        assert_eq!(config.tcp_thread.handler_thread_num, 1);
+        assert_eq!(config.tcp_thread.response_thread_num, 1);
+        assert_eq!(config.tcp_thread.max_connection_num, 1000);
+        assert_eq!(config.tcp_thread.request_queue_size, 2000);
+        assert_eq!(config.tcp_thread.response_queue_size, 2000);
+        assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
+        assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
+
+        assert_eq!(config.system.runtime_worker_threads, 16);
+        assert_eq!(config.system.default_user, "admin".to_string());
+        assert_eq!(config.system.default_password, "robustmq".to_string());
+
+        assert_eq!(config.storage.storage_type, "memory".to_string());
+        assert_eq!(config.storage.journal_addr, "".to_string());
+        assert_eq!(config.storage.mysql_addr, "".to_string());
+
+        assert_eq!(config.log.log_path, "/tmp/robust-default".to_string());
+        assert_eq!(config.log.log_segment_size, 1073741824);
+        assert_eq!(config.log.log_file_num, 50);
     }
 }
