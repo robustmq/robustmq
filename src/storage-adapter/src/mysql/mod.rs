@@ -379,23 +379,16 @@ impl StorageAdapter for MySQLStorageAdapter {
     }
 }
 
-pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
-    match Pool::new(addr) {
-        Ok(pool) => return Ok(pool),
-        Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use third_driver::mysql::build_mysql_conn_pool;
+
     use crate::{
         record::{Header, Record},
         storage::{ShardConfig, StorageAdapter},
     };
 
-    use super::{build_mysql_conn_pool, MySQLStorageAdapter};
+    use super::MySQLStorageAdapter;
 
     #[tokio::test]
     async fn mysql_set() {

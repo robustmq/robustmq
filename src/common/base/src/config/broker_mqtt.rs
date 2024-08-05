@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+use super::common::Auth;
 use super::default_mqtt::{
-    default_grpc_port, default_http_port, default_log, default_network, default_network_quic_port,
-    default_network_tcp_port, default_network_tcps_port, default_network_websocket_port,
-    default_network_websockets_port, default_storage, default_system, default_tcp_thread,
+    default_auth, default_grpc_port, default_http_port, default_log, default_network,
+    default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
+    default_network_websocket_port, default_network_websockets_port, default_storage,
+    default_system, default_tcp_thread,
 };
 use super::{common::Storage, read_file};
 use crate::tools::create_fold;
@@ -42,6 +44,8 @@ pub struct BrokerMQTTConfig {
     pub system: System,
     #[serde(default = "default_storage")]
     pub storage: Storage,
+    #[serde(default = "default_auth")]
+    pub auth: Auth,
     #[serde(default = "default_log")]
     pub log: Log,
 }
@@ -198,6 +202,10 @@ mod tests {
         assert_eq!(config.log.log_path, "/tmp/robust-default".to_string());
         assert_eq!(config.log.log_segment_size, 1073741824);
         assert_eq!(config.log.log_file_num, 50);
+
+        assert_eq!(config.auth.storage_type, "memory".to_string());
+        assert_eq!(config.auth.journal_addr, "".to_string());
+        assert_eq!(config.auth.mysql_addr, "".to_string());
     }
 
     #[test]
@@ -243,5 +251,9 @@ mod tests {
         assert_eq!(config.log.log_path, "/tmp/robust-default".to_string());
         assert_eq!(config.log.log_segment_size, 1073741824);
         assert_eq!(config.log.log_file_num, 50);
+
+        assert_eq!(config.auth.storage_type, "memory".to_string());
+        assert_eq!(config.auth.journal_addr, "".to_string());
+        assert_eq!(config.auth.mysql_addr, "".to_string());
     }
 }

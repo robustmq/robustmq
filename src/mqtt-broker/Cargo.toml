@@ -22,6 +22,7 @@ prometheus.workspace = true
 storage-adapter.workspace = true
 clients.workspace = true
 metadata-struct.workspace = true
+third-driver.workspace = true
 regex.workspace = true
 placement-center.workspace = true
 futures-util.workspace = true
