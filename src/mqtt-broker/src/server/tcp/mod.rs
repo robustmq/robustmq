@@ -1,7 +1,7 @@
 use super::connection_manager::ConnectionManager;
 use crate::{
     handler::{cache_manager::CacheManager, command::Command},
-    subscribe::subscribe_cache::SubscribeCacheManager,
+    subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -14,7 +14,7 @@ pub mod server;
 pub mod tls_server;
 
 pub async fn start_tcp_server<S>(
-    sucscribe_manager: Arc<SubscribeCacheManager>,
+    sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
@@ -30,30 +30,31 @@ pub async fn start_tcp_server<S>(
         sucscribe_manager.clone(),
         client_poll.clone(),
         connection_manager.clone(),
-        stop_sx.clone(),
     );
 
     let server = TcpServer::<S>::new(
         command.clone(),
-        conf.network_tcp.accept_thread_num,
-        conf.network_tcp.handler_thread_num,
-        conf.network_tcp.response_thread_num,
+        conf.tcp_thread.accept_thread_num,
+        conf.tcp_thread.handler_thread_num,
+        conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager.clone(),
+        sucscribe_manager.clone(),
         cache_manager.clone(),
         client_poll.clone(),
     );
-    server.start(conf.mqtt.tcp_port).await;
+    server.start(conf.network.tcp_port).await;
 
     let server = TcpServer::<S>::new(
         command,
-        conf.network_tcp.accept_thread_num,
-        conf.network_tcp.handler_thread_num,
-        conf.network_tcp.response_thread_num,
+        conf.tcp_thread.accept_thread_num,
+        conf.tcp_thread.handler_thread_num,
+        conf.tcp_thread.response_thread_num,
         stop_sx.clone(),
         connection_manager,
+        sucscribe_manager.clone(),
         cache_manager,
         client_poll,
     );
-    server.start_tls(conf.mqtt.tcps_port).await;
+    server.start_tls(conf.network.tcps_port).await;
 }

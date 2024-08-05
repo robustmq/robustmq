@@ -36,7 +36,7 @@ impl SessionStorage {
         };
         match placement_create_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -67,7 +67,7 @@ impl SessionStorage {
         };
         match placement_update_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -87,7 +87,7 @@ impl SessionStorage {
         };
         match placement_delete_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -110,7 +110,7 @@ impl SessionStorage {
         };
         match placement_list_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -141,7 +141,7 @@ impl SessionStorage {
         };
         match placement_list_session(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -179,7 +179,7 @@ impl SessionStorage {
         };
         match placement_save_last_will_message(
             self.client_poll.clone(),
-            config.placement.server.clone(),
+            config.placement_center.clone(),
             request,
         )
         .await
@@ -189,5 +189,82 @@ impl SessionStorage {
             }
             Err(e) => return Err(e),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::storage::session::SessionStorage;
+    use clients::poll::ClientPool;
+    use common_base::{
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+        tools::now_second,
+    };
+    use metadata_struct::mqtt::session::MQTTSession;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn session_test() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+
+        init_broker_mqtt_conf_by_path(&path);
+        init_broker_mqtt_log();
+
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let session_storage = SessionStorage::new(client_poll);
+        let client_id: String = "client_id_11111".to_string();
+        let mut session = MQTTSession::default();
+        session.client_id = client_id.clone();
+        session.session_expiry = 1000;
+        session.broker_id = Some(1);
+        session.reconnect_time = Some(now_second());
+
+        session_storage
+            .set_session(&client_id, &session)
+            .await
+            .unwrap();
+
+        let result = session_storage
+            .get_session(client_id.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.client_id, client_id);
+        assert_eq!(result.broker_id.unwrap(), 1);
+        assert!(result.connection_id.is_none());
+
+        session_storage
+            .update_session(&client_id, 3, 3, now_second(), 0)
+            .await
+            .unwrap();
+
+        let result = session_storage
+            .get_session(client_id.clone())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.broker_id.unwrap(), 3);
+        assert_eq!(result.connection_id.unwrap(), 3);
+
+        let result = session_storage.list_session().await.unwrap();
+        let prefix_len = result.len();
+        assert!(result.len() >= 1);
+
+        session_storage
+            .delete_session(client_id.clone())
+            .await
+            .unwrap();
+
+        let result = session_storage
+            .get_session(client_id.clone())
+            .await
+            .unwrap();
+        assert!(result.is_none());
+
+        let result = session_storage.list_session().await.unwrap();
+        assert_eq!(result.len(), prefix_len - 1);
     }
 }

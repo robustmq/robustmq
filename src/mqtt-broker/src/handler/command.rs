@@ -3,16 +3,16 @@ use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::handler::{cache_manager::CacheManager, response::response_packet_mqtt_connect_fail};
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_cache::SubscribeCacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
+    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket,
+    MQTTProtocol, QoS,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::{self};
 
 // S: message storage adapter
 #[derive(Clone)]
@@ -30,10 +30,9 @@ where
     pub fn new(
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeCacheManager>,
+        sucscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
         connnection_manager: Arc<ConnectionManager>,
-        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         let mqtt3_service = MqttService::new(
             MQTTProtocol::MQTT3,
@@ -42,7 +41,6 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
-            stop_sx.clone(),
         );
         let mqtt4_service = MqttService::new(
             MQTTProtocol::MQTT4,
@@ -51,7 +49,6 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
-            stop_sx.clone(),
         );
         let mqtt5_service = MqttService::new(
             MQTTProtocol::MQTT5,
@@ -60,7 +57,6 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
-            stop_sx.clone(),
         );
         return Command {
             mqtt3_service,
@@ -77,6 +73,13 @@ where
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
+        if !self.check_login_status(tcp_connection.connection_id).await {
+            return Some(response_packet_mqtt_distinct_by_reason(
+                &MQTTProtocol::MQTT5,
+                Some(DisconnectReasonCode::NotAuthorized),
+            ));
+        }
+
         match packet {
             MQTTPacket::Connect(
                 protocol_version,
@@ -155,10 +158,6 @@ where
             }
 
             MQTTPacket::Publish(publish, publish_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
-
                 if tcp_connection.is_mqtt3() {
                     return self
                         .mqtt3_service
@@ -182,9 +181,6 @@ where
             }
 
             MQTTPacket::PubRec(pub_rec, pub_rec_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
                 if tcp_connection.is_mqtt3() {
                     return self
                         .mqtt3_service
@@ -206,10 +202,6 @@ where
             }
 
             MQTTPacket::PubComp(pub_comp, pub_comp_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
-
                 if tcp_connection.is_mqtt3() {
                     return self
                         .mqtt3_service
@@ -233,9 +225,6 @@ where
             }
 
             MQTTPacket::PubRel(pub_rel, pub_rel_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
                 if tcp_connection.is_mqtt3() {
                     return Some(
                         self.mqtt3_service
@@ -261,10 +250,6 @@ where
             }
 
             MQTTPacket::PubAck(pub_ack, pub_ack_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
-
                 if tcp_connection.is_mqtt3() {
                     return self
                         .mqtt3_service
@@ -289,9 +274,6 @@ where
             }
 
             MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
                 if tcp_connection.is_mqtt3() {
                     return Some(
                         self.mqtt3_service
@@ -329,10 +311,6 @@ where
             }
 
             MQTTPacket::PingReq(ping) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
-
                 if tcp_connection.is_mqtt3() {
                     return Some(
                         self.mqtt3_service
@@ -359,10 +337,6 @@ where
             }
 
             MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
-                if !self.auth_login(tcp_connection.connection_id).await {
-                    return Some(self.un_login_err(tcp_connection.connection_id));
-                }
-
                 if tcp_connection.is_mqtt3() {
                     return Some(
                         self.mqtt3_service
@@ -452,15 +426,7 @@ where
         ));
     }
 
-    fn un_login_err(&self, connection_id: u64) -> MQTTPacket {
-        info(format!("connect id [{}] Not logged in", connection_id));
-        return response_packet_mqtt_distinct_by_reason(
-            &MQTTProtocol::MQTT5,
-            Some(DisconnectReasonCode::NotAuthorized),
-        );
-    }
-
-    pub async fn auth_login(&self, connection_id: u64) -> bool {
+    pub async fn check_login_status(&self, connection_id: u64) -> bool {
         return self.metadata_cache.is_login(connection_id);
     }
 }

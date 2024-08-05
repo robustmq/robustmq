@@ -47,6 +47,7 @@ impl MQTTBrokerCall {
             .chunks(100)
             .map(|chunk| chunk.to_vec()) // 将切片转换为Vec
             .collect();
+
         for raw in chunks {
             let client_ids: Vec<String> = raw.iter().map(|x| x.client_id.clone()).collect();
             let mut success = true;
@@ -54,6 +55,7 @@ impl MQTTBrokerCall {
                 "Session [{:?}] has expired. Call Broker to delete the Session information.",
                 client_ids
             ));
+            
             for addr in self
                 .placement_cache_manager
                 .get_cluster_node_addr(&self.cluster_name)
@@ -76,7 +78,7 @@ impl MQTTBrokerCall {
             if success {
                 let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
                 for ms in raw {
-                    match session_storage.delete(self.cluster_name.clone(), ms.client_id.clone()) {
+                    match session_storage.delete(&self.cluster_name, &ms.client_id) {
                         Ok(()) => {
                             let delay = if let Some(delay) = ms.last_will_delay_interval {
                                 delay
@@ -118,4 +120,14 @@ impl MQTTBrokerCall {
             }
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[tokio::test]
+    async fn delete_sessions_test() {}
+
+    #[tokio::test]
+    async fn send_last_will_message_test() {}
 }

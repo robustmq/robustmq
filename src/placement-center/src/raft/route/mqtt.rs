@@ -97,6 +97,7 @@ impl DataRouteMQTT {
             &req.cluster_name,
             &req.topic_name,
             req.retain_message,
+            req.retain_message_expired_at
         ) {
             Ok(_) => {
                 return Ok(());
@@ -112,7 +113,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTLastWillStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.save(req.cluster_name, req.client_id, req.last_will_message) {
+        match storage.save(&req.cluster_name, &req.client_id, req.last_will_message) {
             Ok(_) => {
                 return Ok(());
             }
@@ -128,7 +129,7 @@ impl DataRouteMQTT {
             .unwrap();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
 
-        match storage.save(req.cluster_name, req.client_id, req.session) {
+        match storage.save(&req.cluster_name, &req.client_id, req.session) {
             Ok(_) => {
                 return Ok(());
             }
@@ -143,7 +144,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let result = match storage.list(req.cluster_name.clone(), Some(req.client_id.clone())) {
+        let result = match storage.list(&req.cluster_name, Some(req.client_id.clone())) {
             Ok(data) => {
                 if data.len() == 0 {
                     return Err(RobustMQError::SessionDoesNotExist);
@@ -178,7 +179,7 @@ impl DataRouteMQTT {
             session.distinct_time = None;
         }
 
-        match storage.save(req.cluster_name, req.client_id, session.encode()) {
+        match storage.save(&req.cluster_name, &req.client_id, session.encode()) {
             Ok(_) => {
                 return Ok(());
             }
@@ -193,7 +194,7 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.delete(req.cluster_name, req.client_id) {
+        match storage.delete(&req.cluster_name, &req.client_id) {
             Ok(_) => {
                 return Ok(());
             }

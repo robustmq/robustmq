@@ -3,7 +3,7 @@ use super::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
         qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
     },
-    subscribe_cache::{ShareLeaderSubscribeData, SubscribeCacheManager},
+    subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager},
 };
 use crate::{
     handler::{
@@ -22,7 +22,7 @@ use common_base::{
     tools::now_second,
 };
 use metadata_struct::mqtt::message::MQTTMessage;
-use protocol::mqtt::common::{MQTTPacket, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
 use tokio::{
@@ -33,7 +33,7 @@ use tokio::{
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
-    pub subscribe_manager: Arc<SubscribeCacheManager>,
+    pub subscribe_manager: Arc<SubscribeManager>,
     message_storage: Arc<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
@@ -45,7 +45,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
         message_storage: Arc<S>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
@@ -134,7 +134,7 @@ where
         &self,
         share_leader_key: String,
         sub_data: ShareLeaderSubscribeData,
-        subscribe_manager: Arc<SubscribeCacheManager>,
+        subscribe_manager: Arc<SubscribeManager>,
     ) {
         let group_name = sub_data.group_name.clone();
         let topic_id = sub_data.topic_id.clone();
@@ -218,7 +218,7 @@ where
 
 async fn read_message_process<S>(
     share_leader_key: &String,
-    subscribe_manager: &Arc<SubscribeCacheManager>,
+    subscribe_manager: &Arc<SubscribeManager>,
     topic_id: &String,
     topic_name: &String,
     message_storage: &MessageStorage<S>,
@@ -492,9 +492,23 @@ async fn share_leader_publish_message_qos1(
         }
     }
 
-    let resp = ResponsePackage {
-        connection_id: connect_id,
-        packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+    let mut contain_properties = false;
+    if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
+        if MQTTProtocol::is_mqtt5(&protocol) {
+            contain_properties = true;
+        }
+    }
+
+    let resp = if contain_properties {
+        ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+        }
+    } else {
+        ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::Publish(publish.clone(), None),
+        }
     };
 
     match publish_message_to_client(resp.clone(), connection_manager).await {
@@ -607,7 +621,7 @@ where
 }
 
 fn build_share_leader_sub_list(
-    subscribe_manager: Arc<SubscribeCacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
     key: String,
 ) -> Vec<Subscriber> {
     let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(&key) {

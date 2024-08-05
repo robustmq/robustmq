@@ -93,7 +93,7 @@ pub fn storage_key_mqtt_topic_cluster_prefix(cluster_name: &String) -> String {
     return format!("/mqtt/topic/{}", cluster_name);
 }
 
-pub fn storage_key_mqtt_session(cluster_name: String, client_id: String) -> String {
+pub fn storage_key_mqtt_session(cluster_name: &String, client_id: &String) -> String {
     return format!("/mqtt/session/{}/{}", cluster_name, client_id);
 }
 
@@ -101,9 +101,14 @@ pub fn storage_key_mqtt_session_cluster_prefix(cluster_name: &String) -> String 
     return format!("/mqtt/session/{}", cluster_name);
 }
 
-pub fn storage_key_mqtt_last_will(cluster_name: String, client_id: String) -> String {
+pub fn storage_key_mqtt_last_will(cluster_name: &String, client_id: &String) -> String {
     return format!("/mqtt/lastwill/{}/{}", cluster_name, client_id);
 }
 pub fn storage_key_mqtt_last_will_prefix(cluster_name: &String) -> String {
     return format!("/mqtt/lastwill/{}", cluster_name);
+}
+
+
+pub fn storage_key_mqtt_node_sub_group_leader(cluster_name: &String) -> String {
+    return format!("/mqtt/sub_group_leader/{}", cluster_name);
 }

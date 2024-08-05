@@ -734,6 +734,7 @@ version = "0.0.1"
 dependencies = [
  "axum 0.7.4",
  "env_logger",
+ "humantime-serde",
  "lazy_static",
  "local-ip-address",
  "log",
@@ -1466,6 +1467,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
+name = "humantime-serde"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57a3db5ea5923d99402c94e9feb261dc5ee9b4efa158b0315f788cf549cc200c"
+dependencies = [
+ "humantime",
+ "serde",
+]
+
+[[package]]
 name = "hyper"
 version = "0.14.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1993,6 +2004,7 @@ dependencies = [
  "serde",
  "serde_json",
  "storage-adapter",
+ "third-driver",
  "thiserror",
  "tokio",
  "tokio-rustls 0.26.0",
@@ -3268,6 +3280,7 @@ dependencies = [
  "protocol",
  "serde",
  "serde_json",
+ "third-driver",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -3387,6 +3400,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "third-driver"
+version = "0.0.1"
+dependencies = [
+ "common-base",
+ "mysql",
+ "thiserror",
 ]
 
 [[package]]

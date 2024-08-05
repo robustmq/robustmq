@@ -79,3 +79,18 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use storage_adapter::memory::MemoryStorageAdapter;
+
+    use super::MessageStorage;
+
+    #[tokio::test]
+    async fn topic_message_test() {
+        let storage_adapter =  Arc::new(MemoryStorageAdapter::new());
+        let message_storage = MessageStorage::new(storage_adapter);
+    }
+}

@@ -94,6 +94,7 @@ impl MQTTTopicStorage {
         cluster_name: &String,
         topic_name: &String,
         retain_message: Vec<u8>,
+        retain_message_expired_at: u64,
     ) -> Result<(), RobustMQError> {
         let results = match self.list(cluster_name, Some(topic_name.clone())) {
             Ok(data) => data,
@@ -108,7 +109,13 @@ impl MQTTTopicStorage {
         let topic = results.get(0).unwrap();
         match serde_json::from_slice::<MQTTTopic>(&topic.data.as_slice()) {
             Ok(mut mqtt_topic) => {
-                mqtt_topic.retain_message = Some(retain_message);
+                if retain_message.len() == 0 {
+                    mqtt_topic.retain_message = None;
+                    mqtt_topic.retain_message_expired_at = None;
+                } else {
+                    mqtt_topic.retain_message = Some(retain_message);
+                    mqtt_topic.retain_message_expired_at = Some(retain_message_expired_at);
+                }
                 match self.save(cluster_name, topic_name, mqtt_topic.encode()) {
                     Ok(_) => {
                         return Ok(());

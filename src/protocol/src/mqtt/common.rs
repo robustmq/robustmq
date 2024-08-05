@@ -401,7 +401,7 @@ pub struct ConnectProperties {
 }
 
 /// LastWill that broker forwards on behalf of the client
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct LastWill {
     pub topic: Bytes,
     pub message: Bytes,
@@ -898,7 +898,7 @@ pub struct Filter {
     pub retain_forward_rule: RetainForwardRule,
 }
 
-#[derive(Default,Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RetainForwardRule {
     #[default]
     OnEverySubscribe,

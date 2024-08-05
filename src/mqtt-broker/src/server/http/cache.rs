@@ -7,7 +7,7 @@ use crate::{
         connection::Connection,
     },
     subscribe::{
-        subscribe_cache::{ShareLeaderSubscribeData, ShareSubShareSub},
+        subscribe_manager::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},
     },
 };
@@ -35,7 +35,7 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         cluster_info: state.cache_metadata.cluster_info.clone(),
         user_info: state.cache_metadata.user_info.clone(),
         session_info: state.cache_metadata.session_info.clone(),
-        connection_info: state.cache_metadata.connection_info.clone(),
+        // connection_info: state.cache_metadata.connection_info.clone(),
         topic_info: state.cache_metadata.topic_info.clone(),
         topic_id_name: state.cache_metadata.topic_id_name.clone(),
         subscribe_filter: state.cache_metadata.subscribe_filter.clone(),
@@ -73,7 +73,7 @@ pub struct MetadataCacheResult {
     pub cluster_info: DashMap<String, MQTTCluster>,
     pub user_info: DashMap<String, MQTTUser>,
     pub session_info: DashMap<String, MQTTSession>,
-    pub connection_info: DashMap<u64, Connection>,
+    // pub connection_info: DashMap<u64, Connection>,
     pub topic_info: DashMap<String, MQTTTopic>,
     pub topic_id_name: DashMap<String, String>,
     pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,

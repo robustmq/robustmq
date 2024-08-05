@@ -13,6 +13,7 @@ members = [
     "src/common/raft-rocksdb",
     "src/common/rocksdb-engine",
     "src/common/metadata-struct",
+    "src/common/third-driver",
     "src/protocol",
     "src/journal-server",
     "src/journal-remote",
@@ -58,6 +59,8 @@ rumqttc = "0.24.0"
 axum-extra = {version = "0.9.3",features = ["typed-header"]}
 rustls-pemfile = "2"
 tokio-rustls = "0.26"
+humantime-serde = "1.1.1"
+mysql = "*"
 
 ## workspaces members
 mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }
@@ -76,5 +79,6 @@ common-base = { path = "src/common/base" }
 raft-rocksdb = { path = "src/common/raft-rocksdb" }
 rocksdb-engine = { path = "src/common/rocksdb-engine" }
 metadata-struct = { path = "src/common/metadata-struct" }
+third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }

@@ -19,9 +19,8 @@ use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
 use crate::server::connection_manager::ConnectionManager;
-use crate::storage::session::SessionStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
-use crate::subscribe::subscribe_cache::SubscribeCacheManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 use crate::{security::authentication::authentication_login, storage::message::MessageStorage};
 use clients::poll::ClientPool;
 use common_base::{log::error, tools::now_second};
@@ -37,9 +36,9 @@ use protocol::mqtt::common::{
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
-use tokio::sync::broadcast::{self};
 
 use super::connection::disconnect_connection;
+use super::flow_control::is_flow_control;
 
 #[derive(Clone)]
 pub struct MqttService<S> {
@@ -47,9 +46,8 @@ pub struct MqttService<S> {
     cache_manager: Arc<CacheManager>,
     connnection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
-    sucscribe_cache: Arc<SubscribeCacheManager>,
+    sucscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
-    stop_sx: broadcast::Sender<bool>,
 }
 
 impl<S> MqttService<S>
@@ -61,18 +59,16 @@ where
         cache_manager: Arc<CacheManager>,
         connnection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
-        sucscribe_manager: Arc<SubscribeCacheManager>,
+        sucscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
-        stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return MqttService {
             protocol,
             cache_manager,
             connnection_manager,
             message_storage_adapter,
-            sucscribe_cache: sucscribe_manager,
+            sucscribe_manager,
             client_poll,
-            stop_sx,
         };
     }
 
@@ -233,6 +229,10 @@ where
             ));
         };
 
+        if is_flow_control(&self.protocol, publish.qos) {
+            connection.recv_qos_message_incr();
+        }
+
         if let Some(pkg) = publish_validator(
             &self.protocol,
             &self.cache_manager,
@@ -243,6 +243,9 @@ where
         )
         .await
         {
+            if is_flow_control(&self.protocol, publish.qos) {
+                connection.recv_qos_message_decr();
+            }
             if publish.qos == QoS::AtMostOnce {
                 return None;
             } else {
@@ -260,6 +263,10 @@ where
         ) {
             Ok(da) => da,
             Err(e) => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -290,6 +297,10 @@ where
         {
             Ok(tp) => tp,
             Err(e) => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -325,6 +336,10 @@ where
         {
             Ok(()) => {}
             Err(e) => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         &self.protocol,
@@ -358,6 +373,10 @@ where
                     format!("{:?}", da)
                 }
                 Err(e) => {
+                    if is_flow_control(&self.protocol, publish.qos) {
+                        connection.recv_qos_message_decr();
+                    }
+
                     if is_puback {
                         return Some(response_packet_mqtt_puback_fail(
                             &self.protocol,
@@ -390,6 +409,10 @@ where
                 return None;
             }
             QoS::AtLeastOnce => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
+                }
+
                 let reason_code = if path_contain_sub(&topic_name) {
                     PubAckReason::Success
                 } else {
@@ -413,6 +436,10 @@ where
                 {
                     Ok(()) => {}
                     Err(e) => {
+                        if is_flow_control(&self.protocol, publish.qos) {
+                            connection.recv_qos_message_decr();
+                        }
+                        
                         if is_puback {
                             return Some(response_packet_mqtt_puback_fail(
                                 &self.protocol,
@@ -590,7 +617,9 @@ where
         )
         .await
         {
-            Ok(()) => {}
+            Ok(()) => {
+                connection.recv_qos_message_decr();
+            }
             Err(e) => {
                 return response_packet_mqtt_pubcomp_fail(
                     &self.protocol,
@@ -676,7 +705,7 @@ where
             subscribe_properties.clone(),
         );
 
-        self.sucscribe_cache
+        self.sucscribe_manager
             .add_subscribe(
                 client_id.clone(),
                 self.protocol.clone(),
@@ -755,7 +784,7 @@ where
             }
         }
 
-        self.sucscribe_cache
+        self.sucscribe_manager
             .remove_subscribe(&connection.client_id, &un_subscribe.filters);
 
         self.cache_manager
@@ -787,6 +816,7 @@ where
             &self.cache_manager,
             &self.client_poll,
             &self.connnection_manager,
+            &self.sucscribe_manager,
         )
         .await
         {
