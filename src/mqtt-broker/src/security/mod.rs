@@ -5,14 +5,17 @@ use metadata_struct::mqtt::user::MQTTUser;
 pub mod acl;
 pub mod authentication;
 pub mod mysql;
+pub mod placement;
 
 #[async_trait]
-pub trait StorageAdapter {
+pub trait AuthStorageAdapter {
     async fn read_all_user(&self) -> Result<Vec<MQTTUser>, RobustMQError>;
 
     async fn create_user(&self) -> Result<(), RobustMQError>;
 
+    async fn delete_user(&self) -> Result<(), RobustMQError>;
 
+    async fn update_user(&self) -> Result<(), RobustMQError>;
 }
 
 pub struct Acl {
