@@ -1,6 +1,6 @@
 use super::{
     broker_mqtt::{Log, Network, System, TcpThread},
-    common::Storage,
+    common::{Auth, Storage},
 };
 
 pub fn default_grpc_port() -> u32 {
@@ -72,5 +72,13 @@ pub fn default_log() -> Log {
         log_path: format!("/tmp/robust-default"),
         log_segment_size: 1073741824,
         log_file_num: 50,
+    }
+}
+
+pub fn default_auth() -> Auth {
+    Auth {
+        storage_type: "memory".to_string(),
+        journal_addr: "".to_string(),
+        mysql_addr: "".to_string(),
     }
 }

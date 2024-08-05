@@ -22,17 +22,13 @@ use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
 };
+use third_driver::mysql::build_mysql_conn_pool;
 use std::sync::Arc;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
-use storage_adapter::{
-    // memory::MemoryStorageAdapter,
-    mysql::build_mysql_conn_pool,
-    // placement::PlacementStorageAdapter,
-    storage::StorageAdapter,
-};
-use storage_adapter::{storage_is_journal, storage_is_memory, storage_is_mysql};
+use storage_adapter::storage::StorageAdapter;
+use storage_adapter::{storage_is_memory, storage_is_mysql};
 use subscribe::{
     sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
     sub_share_leader::SubscribeShareLeader, subscribe_manager::SubscribeManager,
