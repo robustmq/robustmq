@@ -18,6 +18,7 @@ use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
+use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
@@ -48,6 +49,7 @@ pub struct MqttService<S> {
     message_storage_adapter: Arc<S>,
     sucscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
+    auth_driver: Arc<AuthDriver>,
 }
 
 impl<S> MqttService<S>
@@ -61,6 +63,7 @@ where
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
+        auth_driver: Arc<AuthDriver>,
     ) -> Self {
         return MqttService {
             protocol,
@@ -69,6 +72,7 @@ where
             message_storage_adapter,
             sucscribe_manager,
             client_poll,
+            auth_driver,
         };
     }
 
@@ -98,7 +102,7 @@ where
             return res;
         }
 
-        match authentication_login(&self.cache_manager, &login, &connect_properties, &addr).await {
+        match self.auth_driver.check_login(&login, &connect_properties, &addr).await {
             Ok(flag) => {
                 if !flag {
                     return response_packet_mqtt_connect_fail(
@@ -439,7 +443,7 @@ where
                         if is_flow_control(&self.protocol, publish.qos) {
                             connection.recv_qos_message_decr();
                         }
-                        
+
                         if is_puback {
                             return Some(response_packet_mqtt_puback_fail(
                                 &self.protocol,

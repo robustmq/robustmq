@@ -1,14 +1,14 @@
 use super::mqtt::MqttService;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::handler::{cache_manager::CacheManager, response::response_packet_mqtt_connect_fail};
+use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::log::info;
 use protocol::mqtt::common::{
-    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket,
-    MQTTProtocol, QoS,
+    is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -33,6 +33,7 @@ where
         sucscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
         connnection_manager: Arc<ConnectionManager>,
+        auth_driver: Arc<AuthDriver>,
     ) -> Self {
         let mqtt3_service = MqttService::new(
             MQTTProtocol::MQTT3,
@@ -41,6 +42,7 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
+            auth_driver.clone(),
         );
         let mqtt4_service = MqttService::new(
             MQTTProtocol::MQTT4,
@@ -49,6 +51,7 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
+            auth_driver.clone(),
         );
         let mqtt5_service = MqttService::new(
             MQTTProtocol::MQTT5,
@@ -57,6 +60,7 @@ where
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
             client_poll.clone(),
+            auth_driver.clone(),
         );
         return Command {
             mqtt3_service,

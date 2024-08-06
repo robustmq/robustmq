@@ -15,6 +15,7 @@ use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::create_runtime};
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
+use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::tcp::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
@@ -22,7 +23,6 @@ use server::{
     grpc::server::GrpcServer,
     http::server::{start_http_server, HttpServerState},
 };
-use third_driver::mysql::build_mysql_conn_pool;
 use std::sync::Arc;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
@@ -33,6 +33,7 @@ use subscribe::{
     sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
     sub_share_leader::SubscribeShareLeader, subscribe_manager::SubscribeManager,
 };
+use third_driver::mysql::build_mysql_conn_pool;
 use tokio::{
     runtime::Runtime,
     signal,
@@ -78,6 +79,7 @@ pub struct MqttBroker<S> {
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
+    auth_driver: Arc<AuthDriver>,
 }
 
 impl<S> MqttBroker<S>
@@ -101,6 +103,8 @@ where
         ));
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
+
+        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone()));
         return MqttBroker {
             runtime,
             cache_manager,
@@ -108,6 +112,7 @@ where
             message_storage_adapter,
             subscribe_manager,
             connection_manager,
+            auth_driver,
         };
     }
 
@@ -129,6 +134,7 @@ where
         let subscribe_manager = self.subscribe_manager.clone();
         let client_poll = self.client_poll.clone();
         let connection_manager = self.connection_manager.clone();
+        let auth_driver = self.auth_driver.clone();
 
         self.runtime.spawn(async move {
             start_tcp_server(
@@ -138,6 +144,7 @@ where
                 message_storage_adapter,
                 client_poll,
                 stop_send,
+                auth_driver,
             )
             .await
         });
@@ -171,6 +178,7 @@ where
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
             self.client_poll.clone(),
+            self.auth_driver.clone(),
             stop_send.clone(),
         );
         self.runtime
@@ -182,6 +190,7 @@ where
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
             self.client_poll.clone(),
+            self.auth_driver.clone(),
             stop_send.clone(),
         );
 

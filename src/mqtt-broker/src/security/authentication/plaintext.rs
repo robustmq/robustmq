@@ -5,17 +5,18 @@ use crate::handler::cache_manager::CacheManager;
 use super::Authentication;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
-use protocol::mqtt::common::Login;
 
 pub struct Plaintext {
-    login: Login,
+    username: String,
+    password: String,
     cache_manager: Arc<CacheManager>,
 }
 
 impl Plaintext {
-    pub fn new(login: Login, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(username: String, password: String, cache_manager: Arc<CacheManager>) -> Self {
         return Plaintext {
-            login,
+            username,
+            password,
             cache_manager,
         };
     }
@@ -24,22 +25,22 @@ impl Plaintext {
 #[async_trait]
 impl Authentication for Plaintext {
     async fn apply(&self) -> Result<bool, RobustMQError> {
-        if let Some(user) = self.cache_manager.user_info.get(&self.login.username) {
-            return Ok(user.password == self.login.password);
+        if let Some(user) = self.cache_manager.user_info.get(&self.username) {
+            return Ok(user.password == self.password);
         }
-        return Ok(false);
+        return Err(RobustMQError::UserDoesNotExist);
     }
 }
 
 #[cfg(test)]
 mod test {
+    use super::Plaintext;
+    use crate::{handler::cache_manager::CacheManager, security::authentication::Authentication};
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use metadata_struct::mqtt::user::MQTTUser;
     use protocol::mqtt::common::Login;
     use std::sync::Arc;
-    use crate::{handler::cache_manager::CacheManager, security::authentication::Authentication};
-    use super::Plaintext;
 
     #[tokio::test]
     pub async fn plaintext_test() {
@@ -63,7 +64,7 @@ mod test {
             username: username.clone(),
             password: password.clone(),
         };
-        let pt = Plaintext::new(login, cache_manager.clone());
+        let pt = Plaintext::new(login.username, login.password, cache_manager.clone());
         let res = pt.apply().await.unwrap();
         assert!(res);
 
@@ -71,7 +72,7 @@ mod test {
             username,
             password: "pwd1111".to_string(),
         };
-        let pt = Plaintext::new(login, cache_manager.clone());
+        let pt = Plaintext::new(login.username, login.password, cache_manager.clone());
         let res = pt.apply().await.unwrap();
         assert!(!res);
     }
