@@ -1,7 +1,6 @@
 use super::connection_manager::ConnectionManager;
 use crate::{
-    handler::{cache_manager::CacheManager, command::Command},
-    subscribe::subscribe_manager::SubscribeManager,
+    handler::{cache_manager::CacheManager, command::Command}, security::AuthDriver, subscribe::subscribe_manager::SubscribeManager
 };
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -20,6 +19,7 @@ pub async fn start_tcp_server<S>(
     message_storage_adapter: Arc<S>,
     client_poll: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
+    auth_driver: Arc<AuthDriver>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -30,6 +30,7 @@ pub async fn start_tcp_server<S>(
         sucscribe_manager.clone(),
         client_poll.clone(),
         connection_manager.clone(),
+        auth_driver.clone(),
     );
 
     let server = TcpServer::<S>::new(

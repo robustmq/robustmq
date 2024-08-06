@@ -21,7 +21,7 @@ pub trait AuthStorageAdapter {
 
 pub struct AuthDriver {
     cache_manager: Arc<CacheManager>,
-    driver: Arc<Box<dyn AuthStorageAdapter + 'static + Sync>>,
+    driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
 }
 
 impl AuthDriver {
@@ -34,7 +34,7 @@ impl AuthDriver {
         };
         return AuthDriver {
             cache_manager,
-            driver: Arc::new(driver),
+            driver: driver,
         };
     }
 
@@ -45,7 +45,7 @@ impl AuthDriver {
                 return Err(e);
             }
         };
-        self.driver = Arc::new(driver);
+        self.driver = driver;
         return Ok(());
     }
 
@@ -127,8 +127,8 @@ impl AuthDriver {
     }
 }
 
-pub fn build_driver() -> Result<Box<dyn AuthStorageAdapter>, RobustMQError> {
+pub fn build_driver() -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, RobustMQError> {
     let conf = broker_mqtt_conf();
-    let driver = Box::new(PlacementAuthStorageAdapter::new());
-    return Ok(driver);
+    let driver = PlacementAuthStorageAdapter::new();
+    return Ok(Arc::new(driver));
 }

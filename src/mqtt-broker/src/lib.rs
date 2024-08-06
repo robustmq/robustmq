@@ -134,6 +134,7 @@ where
         let subscribe_manager = self.subscribe_manager.clone();
         let client_poll = self.client_poll.clone();
         let connection_manager = self.connection_manager.clone();
+        let auth_driver = self.auth_driver.clone();
 
         self.runtime.spawn(async move {
             start_tcp_server(
@@ -143,6 +144,7 @@ where
                 message_storage_adapter,
                 client_poll,
                 stop_send,
+                auth_driver,
             )
             .await
         });
@@ -176,6 +178,7 @@ where
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
             self.client_poll.clone(),
+            self.auth_driver.clone(),
             stop_send.clone(),
         );
         self.runtime
@@ -187,6 +190,7 @@ where
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
             self.client_poll.clone(),
+            self.auth_driver.clone(),
             stop_send.clone(),
         );
 
