@@ -95,8 +95,6 @@ where
             conf.system.runtime_worker_threads,
         );
 
-        let storage_type = conf.storage.storage_type.clone();
-
         let subscribe_manager = Arc::new(SubscribeManager::new(
             cache_manager.clone(),
             client_poll.clone(),

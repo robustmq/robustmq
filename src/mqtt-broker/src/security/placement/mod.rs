@@ -6,6 +6,12 @@ use super::AuthStorageAdapter;
 
 pub struct PlacementAuthStorageAdapter {}
 
+impl PlacementAuthStorageAdapter {
+    pub fn new() -> PlacementAuthStorageAdapter {
+        return PlacementAuthStorageAdapter {};
+    }
+}
+
 #[async_trait]
 impl AuthStorageAdapter for PlacementAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<Vec<MQTTUser>, RobustMQError> {
