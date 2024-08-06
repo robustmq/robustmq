@@ -26,7 +26,11 @@ pub async fn authentication_login(
 
     // Basic authentication mode
     if let Some(info) = login {
-        let plaintext = Plaintext::new(info.clone(), cache_manager.clone());
+        let plaintext = Plaintext::new(
+            info.username.clone(),
+            info.password.clone(),
+            cache_manager.clone(),
+        );
         return plaintext.apply().await;
     }
 

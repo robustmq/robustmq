@@ -12,15 +12,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         return Ok(Vec::new());
     }
 
-    async fn create_user(&self) -> Result<(), RobustMQError> {
-        return Ok(());
-    }
-
-    async fn delete_user(&self) -> Result<(), RobustMQError> {
-        return Ok(());
-    }
-
-    async fn update_user(&self) -> Result<(), RobustMQError> {
-        return Ok(());
+    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, RobustMQError> {
+        return Ok(None);
     }
 }
