@@ -1,11 +1,15 @@
 use crate::handler::cache_manager::CacheManager;
 use authentication::{plaintext::Plaintext, Authentication};
 use axum::async_trait;
+use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
+use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login};
 use std::{net::SocketAddr, sync::Arc};
+use storage_adapter::{storage_is_mysql, storage_is_placement};
 
 pub mod acl;
 pub mod authentication;
@@ -14,19 +18,20 @@ pub mod placement;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<Vec<MQTTUser>, RobustMQError>;
+    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, RobustMQError>;
 
     async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, RobustMQError>;
 }
 
 pub struct AuthDriver {
     cache_manager: Arc<CacheManager>,
+    client_poll: Arc<ClientPool>,
     driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
 }
 
 impl AuthDriver {
-    pub fn new(cache_manager: Arc<CacheManager>) -> AuthDriver {
-        let driver = match build_driver() {
+    pub fn new(cache_manager: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> AuthDriver {
+        let driver = match build_driver(client_poll.clone()) {
             Ok(driver) => driver,
             Err(e) => {
                 panic!("{}", e.to_string());
@@ -35,11 +40,12 @@ impl AuthDriver {
         return AuthDriver {
             cache_manager,
             driver: driver,
+            client_poll,
         };
     }
 
     pub fn update_driver(&mut self) -> Result<(), RobustMQError> {
-        let driver = match build_driver() {
+        let driver = match build_driver(self.client_poll.clone()) {
             Ok(driver) => driver,
             Err(e) => {
                 return Err(e);
@@ -52,19 +58,21 @@ impl AuthDriver {
     pub async fn check_login(
         &self,
         login: &Option<Login>,
-        connect_properties: &Option<ConnectProperties>,
-        addr: &SocketAddr,
+        _: &Option<ConnectProperties>,
+        _: &SocketAddr,
     ) -> Result<bool, RobustMQError> {
         let cluster = self.cache_manager.get_cluster_info();
 
         if cluster.is_secret_free_login() {
             return Ok(true);
         }
+
         if let Some(info) = login {
             return self
                 .plaintext_check_login(&info.username, &info.password)
                 .await;
         }
+
         return Ok(false);
     }
 
@@ -127,8 +135,19 @@ impl AuthDriver {
     }
 }
 
-pub fn build_driver() -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, RobustMQError> {
+pub fn build_driver(
+    client_poll: Arc<ClientPool>,
+) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, RobustMQError> {
     let conf = broker_mqtt_conf();
-    let driver = PlacementAuthStorageAdapter::new();
-    return Ok(Arc::new(driver));
+    if storage_is_placement(&conf.auth.storage_type) {
+        let driver = PlacementAuthStorageAdapter::new(client_poll);
+        return Ok(Arc::new(driver));
+    }
+
+    if storage_is_mysql(&conf.auth.storage_type) {
+        let driver = MySQLAuthStorageAdapter::new();
+        return Ok(Arc::new(driver));
+    }
+
+    return Err(RobustMQError::UnavailableStorageType);
 }

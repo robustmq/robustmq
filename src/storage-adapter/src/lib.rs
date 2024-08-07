@@ -10,6 +10,7 @@ pub enum StorageType {
     Journal,
     Memory,
     Mysql,
+    Placement,
 }
 
 pub fn storage_is_journal(storage_type: &String) -> bool {
@@ -19,6 +20,11 @@ pub fn storage_is_journal(storage_type: &String) -> bool {
 
 pub fn storage_is_memory(storage_type: &String) -> bool {
     let st = format!("{:?}", StorageType::Memory).to_lowercase();
+    return st == storage_type.clone();
+}
+
+pub fn storage_is_placement(storage_type: &String) -> bool {
+    let st = format!("{:?}", StorageType::Placement).to_lowercase();
     return st == storage_type.clone();
 }
 

@@ -104,7 +104,7 @@ where
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
 
-        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone()));
+        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_poll.clone()));
         return MqttBroker {
             runtime,
             cache_manager,

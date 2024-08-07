@@ -30,3 +30,4 @@ axum-extra.workspace = true
 axum-server.workspace = true
 rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
+mysql.workspace = true
