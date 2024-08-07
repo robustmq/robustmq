@@ -1996,6 +1996,7 @@ dependencies = [
  "futures-util",
  "lazy_static",
  "metadata-struct",
+ "mysql",
  "placement-center",
  "prometheus",
  "protocol",

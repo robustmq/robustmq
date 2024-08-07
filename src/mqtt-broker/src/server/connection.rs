@@ -16,7 +16,7 @@ pub enum NetworkConnectionType {
 pub struct NetworkConnection {
     pub connection_type: NetworkConnectionType,
     pub connection_id: u64,
-    pub protocol: Option<MQTTProtocol>,
+    pub protocol: Option<MQTTProtocol>, 
     pub addr: SocketAddr,
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }

@@ -1,3 +1,5 @@
+
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct TAuthUser {
     pub id: u64,
@@ -16,4 +18,5 @@ pub struct TAuthAcl {
     pub username: String,
     pub clientid: String,
     pub access: u64,
+    pub topic: String,
 }

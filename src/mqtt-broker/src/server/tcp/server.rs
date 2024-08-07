@@ -397,7 +397,6 @@ where
                     val = response_queue_rx.recv()=>{
                         if let Some(packet) = val{
                             metrics_request_queue("response-total", response_queue_rx.len() as i64);
-
                             loop{
                                 let seq = if response_process_seq > process_handler.len(){
                                     1
@@ -594,7 +593,6 @@ fn response_child_process(
                                         }
                                     }
                             }
-
 
                             if let MQTTPacket::Disconnect(_, _) = response_package.packet {
                                 if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){

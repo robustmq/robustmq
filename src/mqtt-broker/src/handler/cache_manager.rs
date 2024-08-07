@@ -1,4 +1,6 @@
 use crate::handler::connection::Connection;
+use crate::security::AuthDriver;
+use crate::security::AuthStorageAdapter;
 use crate::storage::user::UserStorage;
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage};
 use crate::subscribe::subscriber::SubscribeData;
@@ -240,7 +242,7 @@ impl CacheManager {
     }
 
     pub fn add_connection(&self, connect_id: u64, conn: Connection) {
-        if let Some(mut session) = self.session_info.get_mut(&conn.client_id){
+        if let Some(mut session) = self.session_info.get_mut(&conn.client_id) {
             session.connection_id = Some(connect_id);
             self.connection_info.insert(connect_id, conn);
         }
@@ -406,7 +408,7 @@ impl CacheManager {
         return true;
     }
 
-    pub async fn load_metadata_cache(&self) {
+    pub async fn load_metadata_cache(&self, auth_driver: Arc<AuthDriver>) {
         let conf = broker_mqtt_conf();
         // load cluster config
         let cluster_storage = ClusterStorage::new(self.client_poll.clone());
@@ -426,8 +428,7 @@ impl CacheManager {
         self.set_cluster_info(cluster);
 
         // load all user
-        let user_storage = UserStorage::new(self.client_poll.clone());
-        let user_list = match user_storage.user_list().await {
+        let user_list = match auth_driver.read_all_user().await {
             Ok(list) => list,
             Err(e) => {
                 panic!(

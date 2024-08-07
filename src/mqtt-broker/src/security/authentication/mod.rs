@@ -5,7 +5,11 @@ use common_base::errors::RobustMQError;
 use protocol::mqtt::common::{ConnectProperties, Login};
 use std::{net::SocketAddr, sync::Arc};
 
+pub mod http;
+pub mod jwt;
 pub mod plaintext;
+pub mod psk;
+pub mod x509;
 
 #[async_trait]
 pub trait Authentication {
@@ -26,7 +30,11 @@ pub async fn authentication_login(
 
     // Basic authentication mode
     if let Some(info) = login {
-        let plaintext = Plaintext::new(info.clone(), cache_manager.clone());
+        let plaintext = Plaintext::new(
+            info.username.clone(),
+            info.password.clone(),
+            cache_manager.clone(),
+        );
         return plaintext.apply().await;
     }
 
