@@ -2,7 +2,10 @@ use crate::handler::cache_manager::CacheManager;
 use authentication::{plaintext::Plaintext, Authentication};
 use axum::async_trait;
 use clients::poll::ClientPool;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::{
+    config::{broker_mqtt::broker_mqtt_conf, common::Auth},
+    errors::RobustMQError,
+};
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
 use mysql::MySQLAuthStorageAdapter;
@@ -31,7 +34,8 @@ pub struct AuthDriver {
 
 impl AuthDriver {
     pub fn new(cache_manager: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> AuthDriver {
-        let driver = match build_driver(client_poll.clone()) {
+        let conf = broker_mqtt_conf();
+        let driver = match build_driver(client_poll.clone(), conf.auth.clone()) {
             Ok(driver) => driver,
             Err(e) => {
                 panic!("{}", e.to_string());
@@ -44,8 +48,8 @@ impl AuthDriver {
         };
     }
 
-    pub fn update_driver(&mut self) -> Result<(), RobustMQError> {
-        let driver = match build_driver(self.client_poll.clone()) {
+    pub fn update_driver(&mut self, auth: Auth) -> Result<(), RobustMQError> {
+        let driver = match build_driver(self.client_poll.clone(), auth) {
             Ok(driver) => driver,
             Err(e) => {
                 return Err(e);
@@ -53,6 +57,10 @@ impl AuthDriver {
         };
         self.driver = driver;
         return Ok(());
+    }
+
+    pub async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, RobustMQError> {
+        return self.driver.read_all_user().await;
     }
 
     pub async fn check_login(
@@ -137,15 +145,15 @@ impl AuthDriver {
 
 pub fn build_driver(
     client_poll: Arc<ClientPool>,
+    auth: Auth,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, RobustMQError> {
-    let conf = broker_mqtt_conf();
-    if storage_is_placement(&conf.auth.storage_type) {
+    if storage_is_placement(&auth.storage_type) {
         let driver = PlacementAuthStorageAdapter::new(client_poll);
         return Ok(Arc::new(driver));
     }
 
-    if storage_is_mysql(&conf.auth.storage_type) {
-        let driver = MySQLAuthStorageAdapter::new(conf.auth.mysql_addr.clone());
+    if storage_is_mysql(&auth.storage_type) {
+        let driver = MySQLAuthStorageAdapter::new(auth.mysql_addr.clone());
         return Ok(Arc::new(driver));
     }
 

@@ -88,7 +88,7 @@ where
     ) -> MQTTPacket {
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
             self.cache_manager.get_cluster_info();
-
+        
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
@@ -101,6 +101,7 @@ where
         ) {
             return res;
         }
+
 
         match self.auth_driver.check_login(&login, &connect_properties, &addr).await {
             Ok(flag) => {

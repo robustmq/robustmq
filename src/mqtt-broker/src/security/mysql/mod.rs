@@ -26,6 +26,7 @@ impl MySQLAuthStorageAdapter {
 #[async_trait]
 impl AuthStorageAdapter for MySQLAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, RobustMQError> {
+        let sql = "select * from mqtt_user";
         return Ok(DashMap::with_capacity(2));
     }
 
