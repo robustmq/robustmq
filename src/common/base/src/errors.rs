@@ -98,6 +98,9 @@ pub enum RobustMQError {
     #[error("Session does not exist")]
     SessionDoesNotExist,
 
+    #[error("User does not exist")]
+    UserDoesNotExist,
+
     #[error("Resource Config does not exist")]
     ResourceConfigDoesNotExist,
 
@@ -115,6 +118,8 @@ pub enum RobustMQError {
     #[error("Cluster is in self-protection state, please request later")]
     ClusterIsInSelfProtection,
 
+    #[error("Unavailable storage type")]
+    UnavailableStorageType,
 }
 
 #[cfg(test)]

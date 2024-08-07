@@ -1,5 +1,6 @@
 use crate::handler::cache_manager::CacheManager;
 use crate::handler::command::Command;
+use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
@@ -36,6 +37,7 @@ pub struct WebSocketServerState<S> {
     client_poll: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
+    auth_driver: Arc<AuthDriver>,
 }
 
 impl<S> WebSocketServerState<S>
@@ -48,6 +50,7 @@ where
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
         client_poll: Arc<ClientPool>,
+        auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return Self {
@@ -56,6 +59,7 @@ where
             connection_manager,
             message_storage_adapter,
             client_poll,
+            auth_driver,
             stop_sx,
         };
     }
@@ -149,6 +153,7 @@ where
         state.sucscribe_manager.clone(),
         state.client_poll.clone(),
         state.connection_manager.clone(),
+        state.auth_driver.clone(),
     );
     let codec = MqttCodec::new(None);
     ws.protocols(["mqtt", "mqttv3.1"])
