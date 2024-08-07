@@ -145,7 +145,7 @@ pub fn build_driver(
     }
 
     if storage_is_mysql(&conf.auth.storage_type) {
-        let driver = MySQLAuthStorageAdapter::new();
+        let driver = MySQLAuthStorageAdapter::new(conf.auth.mysql_addr);
         return Ok(Arc::new(driver));
     }
 
