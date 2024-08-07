@@ -77,7 +77,12 @@ where
         addr: SocketAddr,
         packet: MQTTPacket,
     ) -> Option<MQTTPacket> {
-        if !self.check_login_status(tcp_connection.connection_id).await {
+        let mut is_conect_pkg = false;
+        if let MQTTPacket::Connect(_, _, _, _, _, _) = packet {
+            is_conect_pkg = true;
+        }
+
+        if !is_conect_pkg && !self.check_login_status(tcp_connection.connection_id).await {
             return Some(response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
                 Some(DisconnectReasonCode::NotAuthorized),

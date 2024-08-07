@@ -118,6 +118,8 @@ pub enum RobustMQError {
     #[error("Cluster is in self-protection state, please request later")]
     ClusterIsInSelfProtection,
 
+    #[error("Unavailable storage type")]
+    UnavailableStorageType,
 }
 
 #[cfg(test)]

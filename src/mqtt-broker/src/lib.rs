@@ -104,7 +104,7 @@ where
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
 
-        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone()));
+        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_poll.clone()));
         return MqttBroker {
             runtime,
             cache_manager,
@@ -284,9 +284,10 @@ where
     fn register_node(&self) {
         let metadata_cache = self.cache_manager.clone();
         let client_poll = self.client_poll.clone();
+        let auth_driver = self.auth_driver.clone();
         self.runtime.block_on(async move {
             metadata_cache.init_system_user().await;
-            metadata_cache.load_metadata_cache().await;
+            metadata_cache.load_metadata_cache(auth_driver).await;
 
             let cluster_storage = ClusterStorage::new(client_poll.clone());
             cluster_storage.register_node().await;
