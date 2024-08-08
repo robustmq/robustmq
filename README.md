@@ -88,7 +88,7 @@ MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https:/
 Please refer to contribution [guidelines](https://github.com/robustmq/robustmq/blob/main/docs/en/contribution.md) for more information.
 
 ## License
-RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want.
+RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want
 
 
 
