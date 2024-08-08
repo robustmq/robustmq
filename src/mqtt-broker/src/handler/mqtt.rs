@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::cache_manager::{CacheManager, ConnectionLiveTime};
 use crate::handler::cache_manager::{QosAckPackageData, QosAckPackageType};
 use crate::handler::connection::{build_connection, get_client_id};
@@ -34,9 +33,9 @@ use crate::handler::validator::{
 };
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
+use crate::storage::message::MessageStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
-use crate::{security::authentication::authentication_login, storage::message::MessageStorage};
 use clients::poll::ClientPool;
 use common_base::{log::error, tools::now_second};
 use metadata_struct::mqtt::message::MQTTMessage;
@@ -102,7 +101,7 @@ where
     ) -> MQTTPacket {
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
             self.cache_manager.get_cluster_info();
-        
+
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
@@ -116,8 +115,11 @@ where
             return res;
         }
 
-
-        match self.auth_driver.check_login(&login, &connect_properties, &addr).await {
+        match self
+            .auth_driver
+            .check_login(&login, &connect_properties, &addr)
+            .await
+        {
             Ok(flag) => {
                 if !flag {
                     return response_packet_mqtt_connect_fail(

@@ -20,6 +20,8 @@ release:
 	
 	echo "build release package success. ${PACKAGE_FOLD_NAME}.tar.gz "
 
+test: 
+	sh ./scripts/test_case.sh
 clean:
 	cargo clean
 	rm -rf build

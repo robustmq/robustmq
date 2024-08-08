@@ -289,7 +289,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);
 
-        let topic_name: String = "test_password".to_string();
+        let topic_name: String = unique_id();
         let client_id = unique_id();
         let content = "Robust Data".to_string();
 
