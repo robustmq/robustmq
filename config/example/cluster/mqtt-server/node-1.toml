@@ -12,7 +12,7 @@
 #  limitations under the License.
 
 
-cluster_name = "mqtt-broker"
+cluster_name = "mqtt-broker1"
 broker_id = 7
 grpc_port = 9971
 http_port = 9972
