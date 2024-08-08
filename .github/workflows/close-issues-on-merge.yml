@@ -21,7 +21,7 @@ jobs:
             direction: 'desc'
           });
           for (const issue of issues.data) {
-            if (issue.body.includes(`Closes #${github.event.pull_request.number}`)) {
+            if (issue.body.includes(`close #${github.event.pull_request.number}`)) {
               await github.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

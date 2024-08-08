@@ -11,10 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub struct TAuthUser {
     pub id: u64,
     pub username: String,
@@ -24,7 +21,7 @@ pub struct TAuthUser {
     pub created: u64,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Default)]
 pub struct TAuthAcl {
     pub id: u64,
     pub allow: u64,
