@@ -14,7 +14,6 @@
 
 use crate::handler::connection::Connection;
 use crate::security::AuthDriver;
-use crate::security::AuthStorageAdapter;
 use crate::storage::user::UserStorage;
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage};
 use crate::subscribe::subscriber::SubscribeData;

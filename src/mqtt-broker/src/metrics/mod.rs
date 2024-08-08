@@ -54,12 +54,14 @@ lazy_static! {
     .unwrap();
 }
 
+#[allow(dead_code)]
 pub fn metrics_request_packet_incr(lable: &str) {
     BROKER_PACKET_NUM
         .with_label_values(&["broker", lable, "request"])
         .inc();
 }
 
+#[allow(dead_code)]
 pub fn metrics_response_packet_incr(lable: &str) {
     BROKER_PACKET_NUM
         .with_label_values(&["broker", lable, "response"])
@@ -78,12 +80,14 @@ pub fn metrics_response_queue(lable: &str, len: i64) {
         .set(len);
 }
 
+#[allow(dead_code)]
 pub fn metrics_connection_num(lable: &str, len: i64) {
     BROKER_TCP_CONNECTION_NUM
         .with_label_values(&["broker", lable])
         .set(len);
 }
 
+#[allow(dead_code)]
 pub fn metrics_heartbeat_keep_alive_run_info(time: u128) {
     HEARTBEAT_KEEP_ALIVE_RUN_TIMES
         .with_label_values(&["broker"])

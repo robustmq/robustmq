@@ -88,7 +88,6 @@ impl ShardStorage {
     }
 
     pub fn get_all_shard(&self, cluster_name: &String) -> Vec<String> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
 
         return Vec::new();
     }

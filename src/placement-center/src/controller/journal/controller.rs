@@ -11,19 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::preferred_election::PreferredElection;
 use crate::{
-    cache::journal::JournalCacheManager,
-    raft::apply::RaftMachineApply,
-    storage::{
-        journal::shard::ShardStorage,
-        placement::{cluster::ClusterStorage, node::NodeStorage},
-        rocksdb::RocksDBEngine,
-    },
+    cache::journal::JournalCacheManager, raft::apply::RaftMachineApply,
+    storage::rocksdb::RocksDBEngine,
 };
 use common_base::log::info_meta;
-use protocol::placement_center::generate::common::ClusterType;
 use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 

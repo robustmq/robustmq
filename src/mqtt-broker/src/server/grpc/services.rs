@@ -57,8 +57,6 @@ where
         &self,
         request: Request<UpdateCacheRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        let req = request.into_inner();
-
         return Ok(Response::new(CommonReply::default()));
     }
 

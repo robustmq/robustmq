@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::{
     keys::{key_cluster, key_cluster_prefix, key_cluster_prefix_by_type},
     rocksdb::RocksDBEngine,
@@ -47,6 +46,7 @@ impl ClusterStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get(
         &self,
         cluster_type: &String,

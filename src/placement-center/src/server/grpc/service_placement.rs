@@ -37,7 +37,6 @@ use protocol::placement_center::generate::placement::{
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
@@ -155,8 +154,6 @@ impl PlacementCenterService for GrpcPlacementService {
         &self,
         request: Request<ReportMonitorRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        let req = request.into_inner();
-
         return Ok(Response::new(CommonReply::default()));
     }
 

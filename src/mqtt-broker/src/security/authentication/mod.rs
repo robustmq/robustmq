@@ -11,13 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use self::plaintext::Plaintext;
-use crate::handler::cache_manager::CacheManager;
 use axum::async_trait;
 use common_base::errors::RobustMQError;
-use protocol::mqtt::common::{ConnectProperties, Login};
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
 pub mod http;
 pub mod jwt;
@@ -30,7 +26,7 @@ pub trait Authentication {
     async fn apply(&self) -> Result<bool, RobustMQError>;
 }
 
-pub fn is_ip_blacklist(addr: &SocketAddr) -> bool {
+pub fn is_ip_blacklist(_: &SocketAddr) -> bool {
     return false;
 }
 
