@@ -21,7 +21,7 @@ release:
 	echo "build release package success. ${PACKAGE_FOLD_NAME}.tar.gz "
 
 test: 
-	sh ./scripts/test_case.sh
+	sh ./scripts/integration-testing.sh
 clean:
 	cargo clean
 	rm -rf build
