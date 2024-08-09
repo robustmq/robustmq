@@ -33,6 +33,7 @@ In the second phase, the development of AMQP protocol-related functions is initi
 4. Supports TCP, SSL, WebSocket, WebSockets protocols.
 5. Supports persistent Session storage.
 6. Support reserved messages, testament messages, shared subscriptions, etc
+7. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
 
 ### RobustMQ AMQP
 Stay tuned
@@ -112,7 +113,7 @@ cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/n
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ## Contributing
-Please refer to contribution [guidelines](https://github.com/robustmq/robustmq/blob/main/docs/en/contribution.md) for more information.
+Please refer to contribution [guidelines](docs/en/contribution.md) for more information.
 
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want
