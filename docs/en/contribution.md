@@ -55,6 +55,7 @@ Issues are of two types, requirements and MINOR Fixed, so at the header level th
 
 - RBIP-* : This indicates that a feature or functionality has been added, such as RBIP-09 or RBIP-10, followed by an increasing number.
 ![image1](../images/image-1.png)
+
 - MINOR: Identifies minor fixes or additions. You can start with MINOR: followed by a title.
 ![image1](../images/image-2.png)
 
@@ -66,6 +67,7 @@ close #issue_number
 
 close is a fixed prefix, # is a fixed prefix, and issue_number represents the ISSUE number associated with this PR. For example:
 ![image1](../images/image-5.png)
+
 #297, #292 are the ISSUE numbers.
 
 For example, if you need to submit a PR to resolve ISSUE #297, the PR content needs to include
@@ -76,5 +78,6 @@ close #297
 In this case, when the PR is merged, the ISSUE is automatically closed.After PR is merged, the effect of PR and ISSUE is as follows:
 - PR
 ![image1](../images/image-3.png)
+
 - ISSUE
 ![image1](../images/image-4.png)
