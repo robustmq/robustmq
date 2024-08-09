@@ -36,11 +36,11 @@ In the second phase, the development of AMQP protocol-related functions is initi
 7. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
 
 ### RobustMQ AMQP
-Stay tuned
+In the planning
 ### RobustMQ Kafka
-Stay tuned
+In the planning
 ### RobustMQ ...
-Stay tuned
+In the planning
 
 ## Quick start
 ### Binary packages run
