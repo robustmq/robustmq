@@ -25,35 +25,63 @@ In the first phase, the basic framework of the cluster (such as metadata storage
 
 In the second phase, the development of AMQP protocol-related functions is initiated.
 
-## RobustMQ MQTT
-### Feature
+## Feature
+### RobustMQ MQTT
 1. Cluster deployment, horizontal unaware expansion.
 2. A single machine can carry millions of connections.
 3. Support MQTT3.1/3.1.1/5.0 protocol.
 4. Supports TCP, SSL, WebSocket, WebSockets protocols.
 5. Supports persistent Session storage.
 6. Support reserved messages, testament messages, shared subscriptions, etc
-   
-### Start By Binary Packages
-#### 1. Download .tar.gz
+
+### RobustMQ AMQP
+Stay tuned
+### RobustMQ Kafka
+Stay tuned
+### RobustMQ ...
+Stay tuned
+
+## Quick start
+### Binary packages run
+#### Stand-alone mode
+1. Download .tar.gz
 ```
 $ tar -xzvf robustmq-v0.0.1-release.tar.gz
 $ cd robustmq-v0.0.1-release
 ```
 
-#### 2. Start Placement Center
+2. Start Placement Center
 ```
 $ bin/robustctl placement-center start
 ```
 
-#### 3. Start MQTT Broker
+3. Start MQTT Broker
 ```
 $ bin/robustctl broker-mqtt start
 ```
 
-### Start By Cargo Run
+#### Cluster mode
+1. Download .tar.gz
+```
+$ tar -xzvf robustmq-v0.0.1-release.tar.gz
+$ cd robustmq-v0.0.1-release
+```
+2. Start Placement Center
+```
+$ bin/robustctl placement-center start config/cluster/placement-center/node-1.toml
+$ bin/robustctl placement-center start config/cluster/placement-center/node-2.toml
+$ bin/robustctl placement-center start config/cluster/placement-center/node-3.toml
+```
 
-#### Run in stand-alone mode
+3. Start MQTT Broker
+```
+$ bin/robustctl broker-mqtt start config/cluster/mqtt-server/node-1.toml
+$ bin/robustctl broker-mqtt start config/cluster/mqtt-server/node-2.toml
+$ bin/robustctl broker-mqtt start config/cluster/mqtt-server/node-3.toml
+```
+
+### Cargo runs
+#### Standalone mode
 1. Run standalone by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
@@ -64,7 +92,7 @@ cargo run --package cmd --bin placement-center -- --conf=config/placement-center
 cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
 ```
 
-#### Running cluster mode
+#### Cluster mode
 1. Run cluster by placement-center
 ```
 cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-1.toml
@@ -78,7 +106,6 @@ cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/n
 cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-2.toml
 cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-3.toml
 ```
-
 
 
 ### MQTT Test
