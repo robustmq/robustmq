@@ -18,6 +18,13 @@ RobustMQ is a next-generation high-performance cloud-native converged message qu
 - High cohesion architecture: It provides built-in metadata storage components, distributed Journal storage services, and has the ability to deploy quickly, easily and cohesively.
 - Rich functions: support sequential messages, dead message messages, transaction messages, idempotent messages, delay messages and other rich message queue functions.
 
+## Architecture
+![image](docs/images/robustmq-architecture.png)
+
+RobustMQ is a typical distributed layered architecture, which is composed of the control layer, the Placement Center, the access layer, the Storage Adapter, and the Journal Engine.
+
+Click [Robust Architecture](docs/en/architecture.md) for detailed system architecture design.
+
 ## Planning
 RobustMQ has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs. So there are several stages in the development perspective:
 
@@ -37,8 +44,13 @@ In the second phase, the development of AMQP protocol-related functions is initi
 
 ### RobustMQ AMQP
 In the planning
+
 ### RobustMQ Kafka
 In the planning
+
+### RobustMQ RocketMQ
+In the planning
+
 ### RobustMQ ...
 In the planning
 
@@ -110,7 +122,6 @@ cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/n
 ```
 
 ## Development
-
 ### Run all test cases
 ```
 make test
