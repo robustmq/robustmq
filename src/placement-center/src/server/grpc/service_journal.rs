@@ -125,11 +125,11 @@ impl EngineService for GrpcEngineService {
         &self,
         request: Request<GetShardRequest>,
     ) -> Result<Response<GetShardReply>, Status> {
-        let req = request.into_inner();
+        // let req = request.into_inner();
         // let shard_info = self
         //     .cluster_storage
         //     .get_shard(req.cluster_name.clone(), req.shard_name);
-        let mut result = GetShardReply::default();
+        let result = GetShardReply::default();
         // if shard_info.is_none() {
         //     let si = shard_info.unwrap();
         //     result.cluster_name = req.cluster_name;

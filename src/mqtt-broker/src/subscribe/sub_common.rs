@@ -40,7 +40,7 @@ use tokio::time::{sleep, timeout};
 
 const SHARE_SUB_PREFIX: &str = "$share";
 
-pub fn path_contain_sub(topic_name: &String) -> bool {
+pub fn path_contain_sub(_: &String) -> bool {
     return true;
 }
 

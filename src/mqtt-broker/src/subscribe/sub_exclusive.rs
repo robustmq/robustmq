@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     handler::{
         cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
@@ -27,7 +26,7 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
-use metadata_struct::mqtt::{cluster, message::MQTTMessage};
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;

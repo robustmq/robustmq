@@ -11,15 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::collections::HashMap;
 
 use super::server::HttpServerState;
 use crate::{
-    handler::{
-        cache_manager::{ClientPkidData, ConnectionLiveTime},
-        connection::Connection,
-    },
+    handler::cache_manager::{ClientPkidData, ConnectionLiveTime},
     subscribe::{
         subscribe_manager::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
     connection::{Connection, ConnectionManager},
     packet::ResponsePackage,
@@ -22,10 +21,7 @@ use futures::StreamExt;
 use protocol::journal_server::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
 use tokio::{io, sync::broadcast};
-use tokio::{
-    net::TcpListener,
-    sync::broadcast::{Receiver, Sender},
-};
+use tokio::{net::TcpListener, sync::broadcast::Sender};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub struct TcpServer {
@@ -34,9 +30,7 @@ pub struct TcpServer {
     handler_process_num: usize,
     response_process_num: usize,
     request_queue_sx: Sender<RequestPackage>,
-    request_queue_rx: Receiver<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
-    response_queue_rx: Receiver<ResponsePackage>,
     codec: StorageEngineCodec,
 }
 
@@ -51,8 +45,8 @@ impl TcpServer {
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
     ) -> Self {
-        let (request_queue_sx, request_queue_rx) = broadcast::channel(request_queue_size);
-        let (response_queue_sx, response_queue_rx) = broadcast::channel(response_queue_size);
+        let (request_queue_sx, _) = broadcast::channel(request_queue_size);
+        let (response_queue_sx, _) = broadcast::channel(response_queue_size);
 
         let connection_manager = Arc::new(ConnectionManager::new(
             max_connection_num,
@@ -67,9 +61,7 @@ impl TcpServer {
             handler_process_num,
             response_process_num,
             request_queue_sx,
-            request_queue_rx,
             response_queue_sx,
-            response_queue_rx,
             codec,
         }
     }

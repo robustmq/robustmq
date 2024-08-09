@@ -22,9 +22,7 @@ use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
-use common_base::version::banner;
 use controller::mqtt::MQTTController;
-use controller::placement::controller::ClusterController;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
@@ -120,8 +118,6 @@ impl PlacementCenter {
         self.start_grpc_server(placement_center_storage.clone());
 
         self.awaiting_stop(stop_send);
-
-        banner();
     }
 
     // Start HTTP Server

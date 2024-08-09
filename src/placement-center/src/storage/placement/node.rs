@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::{
     keys::{key_node, key_node_prefix, key_node_prefix_all},
     rocksdb::RocksDBEngine,
@@ -78,7 +77,6 @@ impl NodeStorage {
     }
 
     pub fn list(&self, cluster_name: Option<String>) -> Result<Vec<BrokerNode>, RobustMQError> {
-        let mut result = Vec::new();
         let prefix_key = if let Some(cn) = cluster_name {
             key_node_prefix(&cn)
         } else {
@@ -97,6 +95,6 @@ impl NodeStorage {
                 }
             }
         }
-        return Ok(result);
+        return Ok(results);
     }
 }

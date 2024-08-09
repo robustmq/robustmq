@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+#[allow(dead_code)]
 pub struct Acl {
     pub allow: AclAllow,
     pub ip_addr: String,
@@ -21,11 +21,13 @@ pub struct Acl {
     pub topic: String,
 }
 
+#[allow(dead_code)]
 pub enum AclAllow {
     Deny,
     Allow,
 }
 
+#[allow(dead_code)]
 pub enum AclAccess {
     Subscribe,
     Publish,

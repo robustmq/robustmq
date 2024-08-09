@@ -23,7 +23,6 @@ pub enum NetworkConnectionType {
     TCP,
     TCPS,
     WebSocket,
-    QUIC,
 }
 
 #[derive(Clone)]

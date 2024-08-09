@@ -75,6 +75,7 @@ rustls-pemfile = "2"
 tokio-rustls = "0.26"
 humantime-serde = "1.1.1"
 mysql = "*"
+paho-mqtt = "0.12.5"
 
 ## workspaces members
 mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }
