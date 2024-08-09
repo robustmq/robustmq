@@ -110,7 +110,7 @@ cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/n
 
 ## Development
 
-### Run the test cases
+### Run all test cases
 ```
 make test
 ```
@@ -121,11 +121,6 @@ make release
 ```
 
 ## Tests
-### Cargo Test
-```
-cargo test
-```
-
 ### MQTT functional tests 
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
