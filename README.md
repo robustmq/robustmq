@@ -43,6 +43,7 @@ In the planning
 In the planning
 
 ## Quick start
+To start the order, you need to start the Placement Center first, and then start the MQTT Broker.
 ### Binary packages run
 #### Stand-alone mode
 1. Download .tar.gz
