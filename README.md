@@ -108,8 +108,25 @@ cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/n
 cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-3.toml
 ```
 
+## Development
 
-### MQTT Test
+### Run the test cases
+```
+make test
+```
+
+### Packaging
+```
+make release
+```
+
+## Tests
+### Cargo Test
+```
+cargo test
+```
+
+### MQTT functional tests 
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
 ## Contributing
