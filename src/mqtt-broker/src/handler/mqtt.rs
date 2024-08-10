@@ -231,6 +231,7 @@ where
             new_client_id,
             session.session_expiry as u32,
             new_session,
+            connection.keep_alive,
             &connect_properties,
         );
     }

@@ -11,8 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use super::cache_manager::CacheManager;
+use super::{cache_manager::CacheManager, keep_alive::client_keep_live_time};
 use crate::{
     server::connection_manager::ConnectionManager, storage::session::SessionStorage,
     subscribe::subscribe_manager::SubscribeManager,
@@ -41,7 +40,7 @@ pub struct Connection {
     // Mark whether the link is already logged in
     pub is_login: bool,
     // When the client does not report a heartbeat, the maximum survival time of the connection,
-    pub keep_alive: u32,
+    pub keep_alive: u16,
     // Records the Topic alias information for the connection dimension
     pub topic_alias: DashMap<u16, String>,
     // Record the maximum number of QOS1 and QOS2 packets that the client can send in connection dimension. Scope of data flow control.
@@ -68,7 +67,7 @@ impl Connection {
         max_packet_size: u32,
         topic_alias_max: u16,
         request_problem_info: u8,
-        keep_alive: u32,
+        keep_alive: u16,
     ) -> Connection {
         return Connection {
             connect_id,
@@ -126,7 +125,7 @@ pub fn build_connection(
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
 ) -> Connection {
-    let keep_alive = std::cmp::min(cluster.server_keep_alive(), connect.keep_alive);
+    let keep_alive = client_keep_live_time(cluster, connect.keep_alive);
 
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
@@ -175,7 +174,7 @@ pub fn build_connection(
         max_packet_size,
         topic_alias_max,
         request_problem_info,
-        keep_alive as u32,
+        keep_alive,
     );
 }
 

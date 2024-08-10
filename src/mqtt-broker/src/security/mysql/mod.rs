@@ -105,6 +105,7 @@ mod tests {
     use super::{schema::TAuthUser, MySQLAuthStorageAdapter};
 
     #[tokio::test]
+    #[ignore]
     async fn read_all_user_test() {
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
         init_user(&addr);
@@ -118,6 +119,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn get_user_test() {
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt".to_string();
         init_user(&addr);
