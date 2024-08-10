@@ -97,6 +97,7 @@ impl ShareSubLeader {
         return Ok(target_broker_id);
     }
 
+    #[allow(dead_code)]
     pub fn remove_group_by_node(
         &self,
         cluster_name: &String,

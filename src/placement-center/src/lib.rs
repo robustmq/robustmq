@@ -23,6 +23,7 @@ use common_base::config::placement_center::placement_center_conf;
 use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
 use controller::mqtt::MQTTController;
+use controller::placement::controller::ClusterController;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
@@ -158,7 +159,6 @@ impl PlacementCenter {
 
         let mqtt_handler = GrpcMqttService::new(
             self.cluster_cache.clone(),
-            self.mqtt_cache.clone(),
             placement_center_storage.clone(),
             self.rocksdb_engine_handler.clone(),
         );
@@ -185,15 +185,14 @@ impl PlacementCenter {
         placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) {
-        // let ctrl = ClusterController::new(
-        //     self.cluster_cache.clone(),
-        //     placement_center_storage,
-        //     self.rocksdb_engine_handler.clone(),
-        //     stop_send.clone(),
-        // );
-        // self.daemon_runtime.spawn(async move {
-        //     ctrl.start_node_heartbeat_check().await;
-        // });
+        let ctrl = ClusterController::new(
+            self.cluster_cache.clone(),
+            placement_center_storage,
+            stop_send.clone(),
+        );
+        self.daemon_runtime.spawn(async move {
+            ctrl.start_node_heartbeat_check().await;
+        });
 
         let mqtt_controller = MQTTController::new(
             self.rocksdb_engine_handler.clone(),

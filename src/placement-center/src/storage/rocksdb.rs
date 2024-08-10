@@ -79,21 +79,6 @@ impl RocksDBEngine {
         }
     }
 
-    //
-    pub fn read_str(&self, cf: &ColumnFamily, key: &str) -> Result<Option<String>, String> {
-        match self.db.get_cf(cf, key) {
-            Ok(opt) => match opt {
-                Some(found) => match String::from_utf8(found) {
-                    Ok(s) => Ok(Some(s)),
-                    Err(err) => Err(format!("Failed to deserialize: {:?}", err)),
-                },
-                None => Ok(None),
-            },
-            Err(err) => Err(format!("Failed to get from ColumnFamily: {:?}", err)),
-        }
-    }
-
-    //
     pub fn write_str(&self, cf: &ColumnFamily, key: &str, value: String) -> Result<(), String> {
         self.db
             .put_cf(cf, key, value.into_bytes())

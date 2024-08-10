@@ -96,7 +96,6 @@ impl GlobalId {
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-
     use crate::storage::placement::global_id::GlobalId;
     use crate::storage::rocksdb::RocksDBEngine;
     use common_base::config::placement_center::PlacementCenterConfig;

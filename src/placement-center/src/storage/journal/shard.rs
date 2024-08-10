@@ -87,11 +87,13 @@ impl ShardStorage {
         }
     }
 
-    pub fn get_all_shard(&self, cluster_name: &String) -> Vec<String> {
+    #[allow(dead_code)]
+    pub fn get_all_shard(&self, _: &String) -> Vec<String> {
 
         return Vec::new();
     }
 
+    #[allow(dead_code)]
     pub fn shard_list(&self, cluster_name: String) -> Vec<ShardInfo> {
         let all_shard = self.get_all_shard(&cluster_name);
         let mut result = Vec::new();

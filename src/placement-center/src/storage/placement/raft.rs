@@ -21,7 +21,6 @@ use crate::storage::keys::key_name_snapshot;
 use crate::storage::keys::key_name_uncommit;
 use crate::storage::rocksdb::RocksDBEngine;
 use bincode::{deserialize, serialize};
-use common_base::config::placement_center::placement_center_conf;
 use common_base::log::error_meta;
 use common_base::log::info_meta;
 use prost::Message as _;
@@ -47,7 +46,6 @@ pub struct RaftMachineStorage {
 
 impl RaftMachineStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let config = placement_center_conf();
         let uncommit_index = HashMap::new();
 
         let mut rc = RaftMachineStorage {
@@ -170,7 +168,8 @@ impl RaftMachineStorage {
 
         return Ok(());
     }
-
+    
+    #[allow(dead_code)]
     pub fn entrys(&self, low: u64, high: u64) -> Vec<Entry> {
         let mut entry_list: Vec<Entry> = Vec::new();
         for idx in low..=high {
