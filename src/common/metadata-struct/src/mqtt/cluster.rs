@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use protocol::mqtt::common::QoS;
 use serde::{Deserialize, Serialize};
 
@@ -112,27 +111,17 @@ impl MQTTCluster {
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AvailableFlag {
     #[default]
-    Enable,
     Disable,
-}
-
-impl From<AvailableFlag> for u8 {
-    fn from(flag: AvailableFlag) -> Self {
-        match flag {
-            AvailableFlag::Enable => 1,
-            AvailableFlag::Disable => 0,
-        }
-    }
-}
-
-pub enum Available {
     Enable,
-    Disable,
 }
 
-pub fn available_flag(flag: Available) -> AvailableFlag {
-    match flag {
-        Available::Enable => return AvailableFlag::Enable,
-        Available::Disable => return AvailableFlag::Disable,
+#[cfg(test)]
+mod tests {
+    use crate::mqtt::cluster::AvailableFlag;
+
+    #[test]
+    fn client34_connect_test() {
+        assert_eq!(AvailableFlag::Disable as u8, 0);
+        assert_eq!(AvailableFlag::Enable as u8, 1);
     }
 }

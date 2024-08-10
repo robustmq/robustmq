@@ -313,7 +313,6 @@ impl ConnectionManager {
 
     pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MQTTProtocol> {
         if let Some(connec) = self.connections.get(&connect_id) {
-            println!("protocol:{:?}",connec.protocol.clone());
             return connec.protocol.clone();
         }
         return None;

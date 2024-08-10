@@ -192,7 +192,6 @@ mod test {
         match pkid_save(&cache_manager, &client_poll, &client_id, pkid).await {
             Ok(()) => {}
             Err(e) => {
-                println!("{}", e);
                 assert!(false);
             }
         }

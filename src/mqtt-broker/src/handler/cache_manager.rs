@@ -468,7 +468,6 @@ impl CacheManager {
         };
 
         for (_, topic) in topic_list {
-            println!("{}", topic.topic_name);
             self.add_topic(&topic.topic_name, &topic);
         }
     }
