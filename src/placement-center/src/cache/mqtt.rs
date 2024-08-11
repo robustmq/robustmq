@@ -57,6 +57,7 @@ impl MqttCacheManager {
         }
     }
 
+    #[warn(dead_code)]
     pub fn remove_topic(&self, cluster_name: &String, topic_name: &String) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
             data.remove(topic_name);
@@ -73,6 +74,7 @@ impl MqttCacheManager {
         }
     }
 
+    #[warn(dead_code)]
     pub fn remove_user(&self, cluster_name: &String, username: &String) {
         if let Some(data) = self.expire_last_wills.get_mut(cluster_name) {
             data.remove(username);
