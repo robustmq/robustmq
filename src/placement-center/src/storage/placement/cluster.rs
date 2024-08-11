@@ -67,6 +67,7 @@ impl ClusterStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn delete(
         &self,
         cluster_type: &String,
@@ -94,7 +95,7 @@ impl ClusterStorage {
         let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
         let mut results = Vec::new();
         for raw in data_list {
-            for (k, v) in raw {
+            for (_, v) in raw {
                 match serde_json::from_slice::<ClusterInfo>(v.as_ref()) {
                     Ok(v) => results.push(v),
                     Err(_) => {

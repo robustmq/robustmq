@@ -152,7 +152,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
     async fn report_monitor(
         &self,
-        request: Request<ReportMonitorRequest>,
+        _: Request<ReportMonitorRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         return Ok(Response::new(CommonReply::default()));
     }

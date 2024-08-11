@@ -55,7 +55,8 @@ impl NodeStorage {
             }
         }
     }
-
+    
+    #[allow(dead_code)]
     pub fn get(
         &self,
         cluster_name: &String,

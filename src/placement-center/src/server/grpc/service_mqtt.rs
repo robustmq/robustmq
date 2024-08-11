@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
-    cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
+    cache::placement::PlacementCacheManager,
     core::share_sub::ShareSubLeader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
@@ -37,7 +36,6 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
     cluster_cache: Arc<PlacementCacheManager>,
-    mqtt_cache: Arc<MqttCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
@@ -45,13 +43,11 @@ pub struct GrpcMqttService {
 impl GrpcMqttService {
     pub fn new(
         cluster_cache: Arc<PlacementCacheManager>,
-        mqtt_cache: Arc<MqttCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcMqttService {
             cluster_cache,
-            mqtt_cache,
             placement_center_storage,
             rocksdb_engine_handler,
         }

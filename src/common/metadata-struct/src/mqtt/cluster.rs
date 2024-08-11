@@ -24,7 +24,8 @@ pub struct MQTTCluster {
     pub max_packet_size: u32,
     pub subscription_identifiers_available: AvailableFlag,
     pub shared_subscription_available: AvailableFlag,
-    pub server_keep_alive: u16,
+    pub max_server_keep_alive: u16,
+    pub default_server_keep_alive: u16,
     pub receive_max: u16,
     pub secret_free_login: bool,
     pub max_message_expiry_interval: u64,
@@ -49,7 +50,8 @@ impl MQTTCluster {
             wildcard_subscription_available: AvailableFlag::Enable,
             subscription_identifiers_available: AvailableFlag::Enable,
             shared_subscription_available: AvailableFlag::Enable,
-            server_keep_alive: 60,
+            max_server_keep_alive: 3600,
+            default_server_keep_alive: 60,
             receive_max: 65535,
             secret_free_login: false,
             max_message_expiry_interval: 315360000,
@@ -69,10 +71,6 @@ impl MQTTCluster {
 
     pub fn max_qos(&self) -> QoS {
         return self.max_qos;
-    }
-
-    pub fn server_keep_alive(&self) -> u16 {
-        return self.server_keep_alive;
     }
 
     pub fn retain_available(&self) -> u8 {

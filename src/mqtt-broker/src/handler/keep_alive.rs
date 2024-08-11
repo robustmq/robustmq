@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
     cache_manager::{CacheManager, ConnectionLiveTime},
     connection::disconnect_connection,
@@ -24,7 +23,8 @@ use common_base::{
     log::{error, info},
     tools::now_second,
 };
-use protocol::mqtt::common::MQTTProtocol;
+use metadata_struct::mqtt::cluster::MQTTCluster;
+use protocol::mqtt::common::{ConnectProperties, MQTTProtocol};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{
@@ -114,7 +114,7 @@ impl ClientKeepAlive {
         let mut expire_connection = Vec::new();
         for (connect_id, connection) in self.cache_manager.connection_info.clone() {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
-                let max_timeout = self.keep_live_time(time.keep_live);
+                let max_timeout = keep_live_time(time.keep_live) as u64;
                 if (now_second() - time.heartbeat) >= max_timeout {
                     info("Connection was closed by the server because the heartbeat timeout was not reported.".to_string());
                     expire_connection.push(connect_id);
@@ -131,10 +131,24 @@ impl ClientKeepAlive {
         }
         return expire_connection;
     }
+}
 
-    fn keep_live_time(&self, keep_alive: u16) -> u64 {
-        return (keep_alive * 2) as u64;
+pub fn keep_live_time(keep_alive: u16) -> u16 {
+    let new_keep_alive: u32 = (keep_alive as u32) * 2;
+    if new_keep_alive > 65535 {
+        return 65535;
     }
+    return new_keep_alive as u16;
+}
+
+pub fn client_keep_live_time(cluster: &MQTTCluster, mut keep_alive: u16) -> u16 {
+    if keep_alive <= 0 {
+        keep_alive = cluster.default_server_keep_alive;
+    }
+    if keep_alive > cluster.max_server_keep_alive {
+        keep_alive = cluster.max_server_keep_alive / 2;
+    }
+    return keep_alive;
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -146,6 +160,7 @@ pub struct KeepAliveRunInfo {
 
 #[cfg(test)]
 mod test {
+    use super::keep_live_time;
     use crate::handler::cache_manager::CacheManager;
     use crate::handler::connection::Connection;
     use crate::handler::keep_alive::ClientKeepAlive;
@@ -162,31 +177,12 @@ mod test {
 
     #[tokio::test]
     pub async fn keep_live_time_test() {
-        let mut conf = BrokerMQTTConfig::default();
-        conf.cluster_name = "test".to_string();
-        let client_poll = Arc::new(ClientPool::new(100));
-        let (stop_send, _) = broadcast::channel::<bool>(2);
-
-        let cache_manager = Arc::new(CacheManager::new(
-            client_poll.clone(),
-            conf.cluster_name.clone(),
-        ));
-
-        let subscribe_manager = Arc::new(SubscribeManager::new(
-            cache_manager.clone(),
-            client_poll.clone(),
-        ));
-
-        let connnection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
-        let keep_alive = ClientKeepAlive::new(
-            client_poll,
-            subscribe_manager,
-            connnection_manager,
-            cache_manager.clone(),
-            stop_send,
-        );
-        let res = keep_alive.keep_live_time(3);
+        let res = keep_live_time(3);
         assert_eq!(res, 6);
+        let res = keep_live_time(1000);
+        assert_eq!(res, 2000);
+        let res = keep_live_time(50000);
+        assert_eq!(res, 65535);
     }
 
     #[tokio::test]
@@ -233,6 +229,9 @@ mod test {
             }
             sleep(Duration::from_millis(100)).await;
         }
-        assert_eq!((now_second() - start), alive.keep_live_time(keep_alive as u16));
+        assert_eq!(
+            (now_second() - start),
+            keep_live_time(keep_alive as u16) as u64
+        );
     }
 }

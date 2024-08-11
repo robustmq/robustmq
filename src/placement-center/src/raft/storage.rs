@@ -37,6 +37,7 @@ impl RaftRocksDBStorage {
         return RaftRocksDBStorage { core };
     }
 
+    #[allow(dead_code)]
     pub fn new_with_conf_state<T>(
         core: Arc<RwLock<RaftMachineStorage>>,
         conf_state: T,
@@ -49,6 +50,7 @@ impl RaftRocksDBStorage {
         return store;
     }
 
+    #[allow(dead_code)]
     pub fn initialize_with_conf_state<T>(&self, conf_state: T)
     where
         ConfState: From<T>,

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::log::{error, warn};
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
@@ -24,6 +23,7 @@ use protocol::mqtt::common::{
 
 use super::{
     connection::{response_information, Connection},
+    keep_alive::keep_live_time,
     validator::is_request_problem_info,
 };
 
@@ -34,6 +34,7 @@ pub fn response_packet_mqtt_connect_success(
     auto_client_id: bool,
     session_expiry_interval: u32,
     session_present: bool,
+    keep_alive: u16,
     connect_properties: &Option<ConnectProperties>,
 ) -> MQTTPacket {
     if !protocol.is_mqtt5() {
@@ -65,7 +66,7 @@ pub fn response_packet_mqtt_connect_success(
         wildcard_subscription_available: Some(cluster.wildcard_subscription_available()),
         subscription_identifiers_available: Some(cluster.subscription_identifiers_available()),
         shared_subscription_available: Some(cluster.shared_subscription_available()),
-        server_keep_alive: Some(cluster.server_keep_alive()),
+        server_keep_alive: Some(keep_live_time(keep_alive)),
         response_information: response_information(connect_properties),
         server_reference: None,
         authentication_method: None,

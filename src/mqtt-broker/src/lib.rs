@@ -40,7 +40,7 @@ use tokio::{
     sync::broadcast::{self},
 };
 
-mod handler;
+pub mod handler;
 mod metrics;
 mod security;
 mod server;

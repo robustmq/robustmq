@@ -69,6 +69,7 @@ impl SegmentStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_segment(
         &self,
         cluster_name: String,
