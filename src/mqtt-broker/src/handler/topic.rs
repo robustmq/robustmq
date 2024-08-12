@@ -55,6 +55,7 @@ pub fn topic_name_validator(topic_name: &String) -> Result<(), MQTTBrokerError> 
     if topic_name.is_empty() {
         return Err(MQTTBrokerError::TopicNameIsEmpty);
     }
+
     let topic_slice: Vec<&str> = topic_name.split("/").collect();
     if topic_slice.first().unwrap().to_string() == "/".to_string() {
         return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted);
