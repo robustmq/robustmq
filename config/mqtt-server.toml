@@ -47,8 +47,6 @@ default_user = "admin"
 default_password = "pwd123"
 
 [storage]
-#type = 'journal'
-#journal_addr = []
 storage_type = "memory"
 
 
