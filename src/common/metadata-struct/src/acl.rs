@@ -11,6 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub fn authentication_acl() -> bool {
-    return false;
+#[allow(dead_code)]
+pub struct CommonAcl {
+    pub allow: CommonAclAllow,
+    pub ip_addr: String,
+    pub username: String,
+    pub client_id: String,
+    pub access: AclAccess,
+    pub topic: String,
+}
+
+#[allow(dead_code)]
+pub enum CommonAclAllow {
+    Deny,
+    Allow,
+}
+
+#[allow(dead_code)]
+pub enum AclAccess {
+    Subscribe,
+    Publish,
+    PubSub,
 }
