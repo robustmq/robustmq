@@ -11,25 +11,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[allow(dead_code)]
+pub const WILDCARD_RESOURCE: &str = "*";
+
 pub struct CommonAcl {
-    pub allow: CommonAclAllow,
-    pub ip_addr: String,
-    pub username: String,
-    pub client_id: String,
-    pub access: AclAccess,
-    pub topic: String,
+    pub resource_type: AclResourceType,
+    pub resource_name: String,
+    pub pattern_type: AclPatternType,
+    pub principal: String,
+    pub acl_operation: AclOperation,
+    pub acl_permission_type: AclPermissionType,
+    pub host: String,
 }
 
-#[allow(dead_code)]
-pub enum CommonAclAllow {
+pub enum AclResourceType {
+    Any,
+    Topic,
+    Group,
+    Cluster,
+    User,
+}
+
+pub enum AclPatternType {
+    Any,
+    Match,
+    Literal,
+    Prefixed,
+}
+
+pub enum AclOperation {
+    Any,
+    Read,
+    Write,
+}
+
+pub enum AclPermissionType {
+    Any,
     Deny,
     Allow,
-}
-
-#[allow(dead_code)]
-pub enum AclAccess {
-    Subscribe,
-    Publish,
-    PubSub,
 }

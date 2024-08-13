@@ -11,6 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub struct MQTTAcl {
+    pub allow: MQTTAclAllow,
+    pub ip_addr: String,
+    pub username: String,
+    pub client_id: String,
+    pub access: MQTTAclAccess,
+    pub topic: String,
+}
+
+pub enum MQTTAclAllow {
+    Deny,
+    Allow,
+}
+
+pub enum MQTTAclAccess {
+    Subscribe,
+    Publish,
+    PubSub,
+}
+
 pub fn authentication_acl() -> bool {
     return false;
 }
