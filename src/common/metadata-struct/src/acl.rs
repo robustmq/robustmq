@@ -11,18 +11,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::{self, Display};
+
+use serde::{Deserialize, Serialize};
+
 pub const WILDCARD_RESOURCE: &str = "*";
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct CommonAcl {
     pub resource_type: AclResourceType,
     pub resource_name: String,
     pub pattern_type: AclPatternType,
     pub principal: String,
+    pub principal_type: AclPrincipalType,
     pub acl_operation: AclOperation,
     pub acl_permission_type: AclPermissionType,
     pub host: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub enum AclResourceType {
     Any,
     Topic,
@@ -31,6 +38,24 @@ pub enum AclResourceType {
     User,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
+pub enum AclPrincipalType {
+    User,
+    IP,
+    ClientId,
+}
+
+impl Display for AclPrincipalType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            AclPrincipalType::User => write!(f, "User"),
+            AclPrincipalType::IP => write!(f, "Ip"),
+            AclPrincipalType::ClientId => write!(f, "ClientId"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub enum AclPatternType {
     Any,
     Match,
@@ -38,12 +63,14 @@ pub enum AclPatternType {
     Prefixed,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub enum AclOperation {
     Any,
     Read,
     Write,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub enum AclPermissionType {
     Any,
     Deny,
