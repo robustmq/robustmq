@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 /** ===========Raft========== */
 pub fn key_name_by_first_index() -> String {
     return "/raft/first_index".to_string();
@@ -74,8 +73,12 @@ pub fn key_resource_idempotent(cluster_name: &String, produce_id: &String, seq_n
     return format!("/idempotent/{}/{}/{}", cluster_name, produce_id, seq_num);
 }
 
-pub fn key_resource_acl(cluster_name: String, resource_key: String) -> String {
-    return format!("/acl/{}/{}", cluster_name, resource_key);
+pub fn key_resource_acl(
+    cluster_name: String,
+    resource_type: String,
+    resource_key: String,
+) -> String {
+    return format!("/acl/{}/{}/{}", cluster_name, resource_type, resource_key);
 }
 
 /** ===========Journal========== */
@@ -121,7 +124,6 @@ pub fn storage_key_mqtt_last_will(cluster_name: &String, client_id: &String) -> 
 pub fn storage_key_mqtt_last_will_prefix(cluster_name: &String) -> String {
     return format!("/mqtt/lastwill/{}", cluster_name);
 }
-
 
 pub fn storage_key_mqtt_node_sub_group_leader(cluster_name: &String) -> String {
     return format!("/mqtt/sub_group_leader/{}", cluster_name);

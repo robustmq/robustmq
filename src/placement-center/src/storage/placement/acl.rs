@@ -28,7 +28,7 @@ impl AclStorage {
     }
     pub fn save(&self, cluster_name: String, acl: CommonAcl) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-        let key = key_resource_acl(cluster_name, acl.principal);
+        key_resource_acl(cluster_name, acl.resource_type);
         match self.rocksdb_engine_handler.write(cf, &key, &acl) {
             Ok(_) => {
                 return Ok(());

@@ -18,6 +18,7 @@ pub struct CommonAcl {
     pub resource_name: String,
     pub pattern_type: AclPatternType,
     pub principal: String,
+    pub principal_type: AclPrincipalType,
     pub acl_operation: AclOperation,
     pub acl_permission_type: AclPermissionType,
     pub host: String,
@@ -29,6 +30,12 @@ pub enum AclResourceType {
     Group,
     Cluster,
     User,
+}
+
+pub enum AclPrincipalType{
+    User,
+    IP,
+    ClientId
 }
 
 pub enum AclPatternType {
