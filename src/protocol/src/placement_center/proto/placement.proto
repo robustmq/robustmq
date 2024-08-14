@@ -45,6 +45,13 @@ service PlacementCenterService {
   rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns(ExistsIdempotentDataReply) {}
 
   rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(common.CommonReply) {}
+
+  rpc GetAcl(GetAclRequest) returns(GetAclReply) {}
+
+  rpc DeleteAcl(DeleteAclRequest) returns(common.CommonReply) {}
+
+  rpc CreateAcl(CreateAclRequest) returns(common.CommonReply) {}
+
 }
 
 message HeartbeatRequest{
@@ -142,4 +149,20 @@ message DeleteIdempotentDataRequest{
     string cluster_name = 1;
     string producer_id = 2;
     uint64 seq_num = 3;
+}
+
+message GetAclRequest{
+    string cluster_name = 1;
+}
+
+message GetAclReply{
+    string cluster_name = 1;
+}
+
+message DeleteAclRequest{
+    string cluster_name = 1;
+}
+
+message CreateAclRequest{
+    string cluster_name = 1;
 }

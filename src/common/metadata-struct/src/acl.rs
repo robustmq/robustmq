@@ -11,26 +11,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct MQTTAcl {
-    pub allow: MQTTAclAllow,
-    pub ip_addr: String,
-    pub username: String,
-    pub client_id: String,
-    pub access: MQTTAclAccess,
-    pub topic: String,
+pub const WILDCARD_RESOURCE: &str = "*";
+
+pub struct CommonAcl {
+    pub resource_type: AclResourceType,
+    pub resource_name: String,
+    pub pattern_type: AclPatternType,
+    pub principal: String,
+    pub acl_operation: AclOperation,
+    pub acl_permission_type: AclPermissionType,
+    pub host: String,
 }
 
-pub enum MQTTAclAllow {
+pub enum AclResourceType {
+    Any,
+    Topic,
+    Group,
+    Cluster,
+    User,
+}
+
+pub enum AclPatternType {
+    Any,
+    Match,
+    Literal,
+    Prefixed,
+}
+
+pub enum AclOperation {
+    Any,
+    Read,
+    Write,
+}
+
+pub enum AclPermissionType {
+    Any,
     Deny,
     Allow,
-}
-
-pub enum MQTTAclAccess {
-    Subscribe,
-    Publish,
-    PubSub,
-}
-
-pub fn authentication_acl() -> bool {
-    return false;
 }

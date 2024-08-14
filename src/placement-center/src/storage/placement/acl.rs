@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::{keys::key_resource_acl, rocksdb::RocksDBEngine};
 use common_base::errors::RobustMQError;
+use metadata_struct::acl::CommonAcl;
 use std::sync::Arc;
 
 pub struct AclStorage {
@@ -26,14 +26,9 @@ impl AclStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn save(
-        &self,
-        cluster_name: String,
-        resource_key: Vec<String>,
-        acl: String,
-    ) -> Result<(), RobustMQError> {
+    pub fn save(&self, cluster_name: String, acl: CommonAcl) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-        let key = key_resource_acl(cluster_name, resource_key.join("/"));
+        let key = key_resource_acl(cluster_name, acl.principal);
         match self.rocksdb_engine_handler.write(cf, &key, &acl) {
             Ok(_) => {
                 return Ok(());

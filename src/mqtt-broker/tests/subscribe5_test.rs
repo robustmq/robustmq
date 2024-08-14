@@ -8,5 +8,7 @@ mod tests {
     use crate::common::{broker_addr, connect_server34};
 
     #[tokio::test]
-    async fn client5_subscribe_test() {}
+    async fn client5_subscribe_test() {
+        
+    }
 }
