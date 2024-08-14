@@ -75,10 +75,10 @@ pub fn key_resource_idempotent(cluster_name: &String, produce_id: &String, seq_n
 
 pub fn key_resource_acl(
     cluster_name: String,
-    resource_type: String,
-    resource_key: String,
+    principal_type: String,
+    principal: String,
 ) -> String {
-    return format!("/acl/{}/{}/{}", cluster_name, resource_type, resource_key);
+    return format!("/acl/{}/{}/{}", cluster_name, principal_type, principal);
 }
 
 /** ===========Journal========== */
