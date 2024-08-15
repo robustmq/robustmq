@@ -26,9 +26,14 @@ impl AclStorage {
             rocksdb_engine_handler,
         }
     }
+
+    pub fn list(&self, cluster_name: String) -> Result<Vec<CommonAcl>, RobustMQError> {
+        return Ok(vec![]);
+    }
+
     pub fn save(&self, cluster_name: String, acl: CommonAcl) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-        
+
         let key = key_resource_acl(
             cluster_name,
             acl.principal_type.clone().to_string(),
@@ -80,5 +85,13 @@ impl AclStorage {
                 return Err(RobustMQError::CommmonError(e));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn unique_id_int() {
+        
     }
 }
