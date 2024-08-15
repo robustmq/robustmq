@@ -13,6 +13,10 @@
 // limitations under the License.
 
 use crate::storage::{
+    engine::{
+        engine_delete_by_cluster, engine_get_by_cluster, engine_list_by_cluster,
+        engine_save_by_cluster,
+    },
     keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix},
     rocksdb::RocksDBEngine,
     StorageDataWrap,
@@ -30,43 +34,19 @@ impl MQTTSessionStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn list(
+
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, RobustMQError> {
+        let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
+        return engine_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key);
+    }
+
+    pub fn get(
         &self,
         cluster_name: &String,
-        client_id: Option<String>,
-    ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
-        if client_id != None {
-            let key: String = storage_key_mqtt_session(cluster_name, &client_id.unwrap());
-            match self
-                .rocksdb_engine_handler
-                .read::<StorageDataWrap>(cf, &key)
-            {
-                Ok(Some(data)) => {
-                    return Ok(vec![data]);
-                }
-                Ok(None) => {
-                    return Ok(Vec::new());
-                }
-                Err(e) => {
-                    return Err(RobustMQError::CommmonError(e));
-                }
-            }
-        }
-        let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
-        let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
-        let mut results = Vec::new();
-        for raw in data_list {
-            for (_, v) in raw {
-                match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
-                    Ok(v) => results.push(v),
-                    Err(_) => {
-                        continue;
-                    }
-                }
-            }
-        }
-        return Ok(results);
+        client_id: String,
+    ) -> Result<Option<StorageDataWrap>, RobustMQError> {
+        let key: String = storage_key_mqtt_session(cluster_name, &client_id);
+        return engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
     pub fn save(
@@ -75,30 +55,13 @@ impl MQTTSessionStorage {
         client_id: &String,
         content: Vec<u8>,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        let data = StorageDataWrap::new(content);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, content);
     }
 
     pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 }
 
@@ -130,21 +93,21 @@ mod tests {
             .save(&cluster_name, &client_id, session.encode())
             .unwrap();
 
-        let res = session_storage.list(&cluster_name, None).unwrap();
+        let res = session_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = session_storage
-            .list(&cluster_name, Some("lobo1".to_string()))
+            .get(&cluster_name, "lobo1".to_string())
             .unwrap();
-        assert_eq!(res.len(), 1);
+        assert!(!res.is_none());
 
         session_storage
             .delete(&cluster_name, &"lobo1".to_string())
             .unwrap();
 
         let res = session_storage
-            .list(&cluster_name, Some("lobo1".to_string()))
+            .get(&cluster_name, "lobo1".to_string())
             .unwrap();
-        assert_eq!(res.len(), 0);
+        assert!(res.is_none());
     }
 }

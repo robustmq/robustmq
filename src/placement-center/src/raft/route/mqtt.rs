@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::{
     mqtt::{
         lastwill::MQTTLastWillStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
@@ -111,7 +110,7 @@ impl DataRouteMQTT {
             &req.cluster_name,
             &req.topic_name,
             req.retain_message,
-            req.retain_message_expired_at
+            req.retain_message_expired_at,
         ) {
             Ok(_) => {
                 return Ok(());
@@ -158,18 +157,13 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let result = match storage.list(&req.cluster_name, Some(req.client_id.clone())) {
-            Ok(data) => {
-                if data.len() == 0 {
-                    return Err(RobustMQError::SessionDoesNotExist);
-                }
-                data
-            }
+        let result = match storage.get(&req.cluster_name, req.client_id.clone()) {
+            Ok(data) => data,
             Err(e) => {
                 return Err(e);
             }
         };
-        let session = result.get(0).unwrap();
+        let session = result.unwrap();
         let mut session = serde_json::from_slice::<MQTTSession>(&session.data).unwrap();
         if req.connection_id > 0 {
             session.update_connnction_id(Some(req.connection_id));

@@ -11,7 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{keys::key_resource_acl, rocksdb::RocksDBEngine, StorageDataWrap};
+use crate::storage::{
+    engine::engine_save_by_cluster, keys::key_resource_acl, rocksdb::RocksDBEngine, StorageDataWrap,
+};
 use common_base::errors::RobustMQError;
 use metadata_struct::acl::CommonAcl;
 use std::sync::Arc;
@@ -32,28 +34,12 @@ impl AclStorage {
     }
 
     pub fn save(&self, cluster_name: String, acl: CommonAcl) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
-
         let key = key_resource_acl(
             cluster_name,
             acl.principal_type.clone().to_string(),
             acl.principal.clone(),
         );
-
-        let content = match serde_json::to_vec(&acl) {
-            Ok(data) => data,
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
-        };
-
-        let data = StorageDataWrap::new(content);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, acl);
     }
 
     pub fn delete(&self, cluster_name: String, acl: CommonAcl) -> Result<(), RobustMQError> {
@@ -91,7 +77,5 @@ impl AclStorage {
 #[cfg(test)]
 mod tests {
     #[tokio::test]
-    async fn unique_id_int() {
-        
-    }
+    async fn unique_id_int() {}
 }
