@@ -21,8 +21,8 @@ use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 
-pub const DB_COLUMN_FAMILY_CLUSTER: &str = "meta";
-pub const DB_COLUMN_FAMILY_DATA: &str = "mqtt";
+pub const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
+pub const DB_COLUMN_FAMILY_DATA: &str = "data";
 pub const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
 
 fn column_family_list() -> Vec<String> {

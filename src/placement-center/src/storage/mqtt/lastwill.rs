@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::storage::{
+    engine::{engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster},
     keys::{storage_key_mqtt_last_will, storage_key_mqtt_session},
     rocksdb::RocksDBEngine,
     StorageDataWrap,
@@ -36,6 +37,7 @@ impl MQTTLastWillStorage {
         client_id: &String,
         last_will_message: Vec<u8>,
     ) -> Result<(), RobustMQError> {
+
         let results = match self.get(cluster_name, client_id) {
             Ok(data) => data,
             Err(e) => {
@@ -46,17 +48,8 @@ impl MQTTLastWillStorage {
             return Err(RobustMQError::SessionDoesNotExist);
         }
 
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        let data = StorageDataWrap::new(last_will_message);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message);
     }
 
     pub fn get(
@@ -64,22 +57,8 @@ impl MQTTLastWillStorage {
         cluster_name: &String,
         client_id: &String,
     ) -> Result<Option<StorageDataWrap>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
-        let key = storage_key_mqtt_session(cluster_name, client_id);
-        match self
-            .rocksdb_engine_handler
-            .read::<StorageDataWrap>(cf, &key)
-        {
-            Ok(Some(data)) => {
-                return Ok(Some(data));
-            }
-            Ok(None) => {
-                return Ok(None);
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        let key = storage_key_mqtt_last_will(cluster_name, client_id);
+        return engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
     pub fn delete_last_will_message(
@@ -87,16 +66,8 @@ impl MQTTLastWillStorage {
         cluster_name: &String,
         client_id: &String,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 }
 

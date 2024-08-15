@@ -237,22 +237,34 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListSessionReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let client_id = if req.client_id.is_empty() {
-            None
-        } else {
-            Some(req.client_id)
-        };
-        match storage.list(&req.cluster_name, client_id) {
-            Ok(data) => {
-                let mut result = Vec::new();
-                for raw in data {
-                    result.push(raw.data);
+
+        if !req.client_id.is_empty() {
+            match storage.get(&req.cluster_name, req.client_id) {
+                Ok(data) => {
+                    let mut result = Vec::new();
+                    if let Some(raw) = data {
+                        result.push(raw.data);
+                    }
+                    let reply = ListSessionReply { sessions: result };
+                    return Ok(Response::new(reply));
                 }
-                let reply = ListSessionReply { sessions: result };
-                return Ok(Response::new(reply));
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+        } else {
+            match storage.list(&req.cluster_name) {
+                Ok(data) => {
+                    let mut result = Vec::new();
+                    for raw in data {
+                        result.push(raw.data);
+                    }
+                    let reply = ListSessionReply { sessions: result };
+                    return Ok(Response::new(reply));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
         }
     }
