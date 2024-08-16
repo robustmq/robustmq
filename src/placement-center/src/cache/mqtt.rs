@@ -120,15 +120,10 @@ impl MqttCacheManager {
                 }
 
                 let user = MQTTUserStorage::new(rocksdb_engine_handler.clone());
-                match user.list(&cluster.cluster_name, None) {
+                match user.list(&cluster.cluster_name) {
                     Ok(data) => {
-                        for dt in data {
-                            match serde_json::from_slice::<MQTTUser>(&dt.data) {
-                                Ok(user) => self.add_user(&cluster.cluster_name, user),
-                                Err(e) => {
-                                    panic!("{}", e.to_string())
-                                }
-                            }
+                        for user in data {
+                            self.add_user(&cluster.cluster_name, user);
                         }
                     }
                     Err(e) => {

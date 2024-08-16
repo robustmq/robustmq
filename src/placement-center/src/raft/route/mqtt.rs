@@ -41,7 +41,8 @@ impl DataRouteMQTT {
     pub fn create_user(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
         let req = CreateUserRequest::decode(value.as_ref())?;
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.save(&req.cluster_name, &req.user_name, req.content) {
+        let user = serde_json::from_slice(&req.content)?;
+        match storage.save(&req.cluster_name, &req.user_name, user) {
             Ok(_) => {
                 return Ok(());
             }
@@ -146,7 +147,7 @@ impl DataRouteMQTT {
         if result.is_none() {
             return Err(RobustMQError::SessionDoesNotExist);
         }
-        
+
         let mut session = result.unwrap();
 
         if req.connection_id > 0 {
