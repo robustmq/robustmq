@@ -12,6 +12,10 @@
 // limitations under the License.
 
 use crate::storage::{
+    engine::{
+        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+        engine_save_by_cluster,
+    },
     keys::{key_node, key_node_prefix, key_node_prefix_all},
     rocksdb::RocksDBEngine,
 };
@@ -31,49 +35,35 @@ impl NodeStorage {
     }
 
     pub fn save(&self, cluster_name: &String, node: BrokerNode) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
         let node_key = key_node(&cluster_name, node.node_id);
-        match self.rocksdb_engine_handler.write(cf, &node_key, &node) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node);
     }
 
     pub fn delete(&self, cluster_name: &String, node_id: u64) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
         let node_key = key_node(cluster_name, node_id);
-        match self.rocksdb_engine_handler.delete(cf, &node_key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), node_key);
     }
-    
+
     #[allow(dead_code)]
     pub fn get(
         &self,
         cluster_name: &String,
         node_id: u64,
     ) -> Result<Option<BrokerNode>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
-        let cluster_key = key_node(cluster_name, node_id);
-        match self
-            .rocksdb_engine_handler
-            .read::<BrokerNode>(cf, &cluster_key)
-        {
-            Ok(cluster_info) => {
-                return Ok(cluster_info);
+        let node_key = key_node(cluster_name, node_id);
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), node_key) {
+            Ok(Some(data)) => match serde_json::from_slice::<BrokerNode>(&data.data) {
+                Ok(node) => {
+                    return Ok(Some(node));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
             }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -83,19 +73,25 @@ impl NodeStorage {
         } else {
             key_node_prefix_all()
         };
-        let cf = self.rocksdb_engine_handler.cf_cluster();
-        let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
-        let mut results = Vec::new();
-        for raw in data_list {
-            for (_, v) in raw {
-                match serde_json::from_slice::<BrokerNode>(v.as_ref()) {
-                    Ok(v) => results.push(v),
-                    Err(_) => {
-                        continue;
+
+        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
+            Ok(data) => {
+                let mut results = Vec::new();
+                for raw in data {
+                    match serde_json::from_slice::<BrokerNode>(&raw.data) {
+                        Ok(node) => {
+                            results.push(node);
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
                     }
                 }
+                return Ok(results);
+            }
+            Err(e) => {
+                return Err(e);
             }
         }
-        return Ok(results);
     }
 }

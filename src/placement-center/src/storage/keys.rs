@@ -73,24 +73,32 @@ pub fn key_resource_idempotent(cluster_name: &String, produce_id: &String, seq_n
     return format!("/idempotent/{}/{}/{}", cluster_name, produce_id, seq_num);
 }
 
-pub fn key_resource_acl(
-    cluster_name: String,
-    principal_type: String,
-    principal: String,
-) -> String {
+pub fn key_resource_acl(cluster_name: String, principal_type: String, principal: String) -> String {
     return format!("/acl/{}/{}/{}", cluster_name, principal_type, principal);
 }
 
 /** ===========Journal========== */
-pub fn key_shard(cluster_name: &String, shard_name: String) -> String {
-    return format!("/journal/{}/shard/{}", cluster_name, shard_name);
+pub fn key_shard(cluster_name: &String, shard_name: &String) -> String {
+    return format!("/journal/shard/{}/{}", cluster_name, shard_name);
+}
+
+pub fn key_shard_prefix(cluster_name: &String) -> String {
+    return format!("/journal/shard/{}", cluster_name);
 }
 
 pub fn key_segment(cluster_name: &String, shard_name: &String, segement_seq: u64) -> String {
     return format!(
-        "/journal/{}/segment/{}/{}",
+        "/journal/segment/{}/{}/{}",
         cluster_name, shard_name, segement_seq
     );
+}
+
+pub fn key_segment_cluster_prefix(cluster_name: &String) -> String {
+    return format!("/journal/segment/{}", cluster_name);
+}
+
+pub fn key_segment_shard_prefix(cluster_name: &String, shard_name: &String) -> String {
+    return format!("/journal/segment/{}/{}", cluster_name, shard_name);
 }
 
 /** ===========MQTT========== */

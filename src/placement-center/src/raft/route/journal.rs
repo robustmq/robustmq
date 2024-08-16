@@ -11,13 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::sync::Arc;
 use crate::{
-    cache::{placement::PlacementCacheManager, journal::JournalCacheManager},
+    cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
     controller::journal::segment_replica::SegmentReplicaAlgorithm,
     storage::{
-        journal::{segment::{SegmentInfo, SegmentStatus, SegmentStorage}, shard::{ShardInfo, ShardStorage}}, rocksdb::RocksDBEngine
+        journal::{
+            segment::{SegmentInfo, SegmentStatus, SegmentStorage},
+            shard::{ShardInfo, ShardStorage},
+        },
+        rocksdb::RocksDBEngine,
     },
 };
 use common_base::{
@@ -28,6 +30,7 @@ use prost::Message as _;
 use protocol::placement_center::generate::journal::{
     CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
 };
+use std::sync::Arc;
 use tonic::Status;
 
 pub struct DataRouteJournal {
@@ -61,7 +64,6 @@ impl DataRouteJournal {
             shard_name: req.shard_name.clone(),
             replica: req.replica,
             last_segment_seq: 0,
-            segments: Vec::new(),
             create_time: now_mills(),
         };
 
@@ -90,7 +92,7 @@ impl DataRouteJournal {
 
         // delete shard info
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        shard_storage.delete(cluster_name.clone(), shard_name.clone());
+        shard_storage.delete(cluster_name.clone(), &shard_name)?;
         self.engine_cache
             .remove_shard(cluster_name.clone(), shard_name.clone());
         return Ok(());
@@ -124,9 +126,7 @@ impl DataRouteJournal {
 
         // Update persistence information
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.save_segment(segment_info);
-        shard_storage.add_segment(cluster_name, shard_name, segment_seq);
+        segment_storage.save(segment_info);
 
         // todo call storage engine create segment
         return Ok(());
@@ -146,9 +146,7 @@ impl DataRouteJournal {
 
         // Update persistence information
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.delete_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
-        shard_storage.delete_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+        segment_storage.delete(&cluster_name, &shard_name, segment_seq);
 
         // todo call storage engine delete segment
         return Ok(());

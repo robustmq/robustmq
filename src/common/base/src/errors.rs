@@ -23,7 +23,7 @@ pub enum RobustMQError {
         "The service connection is incorrect, possibly because the service port is not started"
     )]
     TonicTransport(#[from] tonic::transport::Error),
-    
+
     #[error(
         "The service connection is incorrect, possibly because the service port is not started"
     )]
@@ -34,7 +34,10 @@ pub enum RobustMQError {
     )]
     SerdeJsonError(#[from] serde_json::Error),
 
-
+    #[error(
+        "The service connection is incorrect, possibly because the service port is not started"
+    )]
+    RocksdbError(#[from] rocksdb::Error),
 
     #[error("{0}")]
     CommmonError(String),

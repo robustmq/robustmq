@@ -36,3 +36,4 @@ local-ip-address = "0.6.1"
 tonic.workspace = true
 humantime-serde.workspace = true
 prost.workspace = true
+rocksdb.workspace = true

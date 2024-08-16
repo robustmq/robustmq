@@ -50,7 +50,7 @@ impl AclStorage {
                 return Ok(());
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
+                return Err(e);
             }
         }
     }

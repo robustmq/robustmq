@@ -752,6 +752,7 @@ dependencies = [
  "log4rs",
  "prometheus",
  "prost 0.12.3",
+ "rocksdb",
  "serde",
  "serde_json",
  "snowflake",

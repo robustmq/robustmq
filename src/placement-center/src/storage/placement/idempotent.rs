@@ -11,10 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::storage::{keys::key_resource_idempotent, rocksdb::RocksDBEngine, StorageDataWrap};
-use common_base::{errors::RobustMQError, tools::now_second};
-use prost::Message;
+use crate::storage::{
+    engine::{engine_delete_by_cluster, engine_exists_by_cluster, engine_save_by_cluster},
+    keys::key_resource_idempotent,
+    rocksdb::RocksDBEngine,
+};
+use common_base::errors::RobustMQError;
 use std::sync::Arc;
 
 pub struct IdempotentStorage {
@@ -33,17 +35,8 @@ impl IdempotentStorage {
         producer_id: &String,
         seq_num: u64,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
-        let data = StorageDataWrap::new(now_second().encode_to_vec());
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, seq_num);
     }
 
     pub fn delete(
@@ -52,36 +45,17 @@ impl IdempotentStorage {
         producer_id: &String,
         seq_num: u64,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
-        match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
-    pub fn get(
+    pub fn exists(
         &self,
         cluster_name: &String,
         producer_id: &String,
         seq_num: u64,
-    ) -> Result<Option<StorageDataWrap>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
+    ) -> Result<bool, RobustMQError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
-        match self
-            .rocksdb_engine_handler
-            .read::<StorageDataWrap>(cf, &key)
-        {
-            Ok(cluster_info) => {
-                return Ok(cluster_info);
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_exists_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 }

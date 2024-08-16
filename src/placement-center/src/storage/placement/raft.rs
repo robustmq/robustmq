@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::keys::key_name_by_conf_state;
 use crate::storage::keys::key_name_by_entry;
 use crate::storage::keys::key_name_by_first_index;
@@ -87,9 +86,7 @@ impl RaftMachineStorage {
         if value == None {
             HardState::default()
         } else {
-            return HardState::decode(value.unwrap().as_ref())
-                .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
-                .unwrap();
+            return HardState::decode(value.unwrap().as_ref()).unwrap();
         }
     }
 
@@ -168,7 +165,7 @@ impl RaftMachineStorage {
 
         return Ok(());
     }
-    
+
     #[allow(dead_code)]
     pub fn entrys(&self, low: u64, high: u64) -> Vec<Entry> {
         let mut entry_list: Vec<Entry> = Vec::new();

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::rocksdb::RocksDBEngine;
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
@@ -43,13 +42,7 @@ impl Lock {
 
     pub fn un_lock(&self) -> Result<(), RobustMQError> {
         let cf = self.rocksdb_engine_handler.cf_cluster();
-        match self.rocksdb_engine_handler.delete(cf, &self.key) {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
-        return Ok(());
+        return Ok(self.rocksdb_engine_handler.delete(cf, &self.key)?);
     }
 
     pub fn lock_exists(&self) -> bool {
@@ -60,10 +53,10 @@ impl Lock {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use crate::core::lock::Lock;
     use crate::storage::rocksdb::RocksDBEngine;
     use common_base::config::placement_center::PlacementCenterConfig;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn lock_test() {

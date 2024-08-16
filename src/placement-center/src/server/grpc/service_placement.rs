@@ -229,11 +229,9 @@ impl PlacementCenterService for GrpcPlacementService {
         match storage.get(req.cluster_name, req.resources) {
             Ok(data) => {
                 if let Some(res) = data {
-                    let reply = GetResourceConfigReply { config: res };
-                    return Ok(Response::new(reply));
+                    return Ok(Response::new(GetResourceConfigReply { config: res }));
                 } else {
-                    let reply = GetResourceConfigReply { config: Vec::new() };
-                    return Ok(Response::new(reply));
+                    return Ok(Response::new(GetResourceConfigReply { config: Vec::new() }));
                 }
             }
             Err(e) => {
@@ -292,12 +290,9 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
         let req = request.into_inner();
         let storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.get(&req.cluster_name, &req.producer_id, req.seq_num) {
-            Ok(Some(_)) => {
-                return Ok(Response::new(ExistsIdempotentDataReply { exists: true }));
-            }
-            Ok(None) => {
-                return Ok(Response::new(ExistsIdempotentDataReply { exists: false }));
+        match storage.exists(&req.cluster_name, &req.producer_id, req.seq_num) {
+            Ok(flag) => {
+                return Ok(Response::new(ExistsIdempotentDataReply { exists: flag }));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

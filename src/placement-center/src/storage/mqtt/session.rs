@@ -14,7 +14,7 @@
 
 use crate::storage::{
     engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_list_by_cluster,
+        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
         engine_save_by_cluster,
     },
     keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix},
@@ -47,7 +47,7 @@ impl MQTTSessionStorage {
 
     pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, RobustMQError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
-        return engine_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key);
+        return engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key);
     }
 
     pub fn get(

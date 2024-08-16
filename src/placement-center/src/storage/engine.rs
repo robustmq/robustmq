@@ -29,17 +29,28 @@ pub fn engine_get_by_cluster(
     return engine_get(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name);
 }
 
+pub fn engine_exists_by_cluster(
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    key_name: String,
+) -> Result<bool, RobustMQError> {
+    return engine_exists(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name);
+}
+
 pub fn engine_delete_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<(), RobustMQError> {
     return engine_delete(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name);
 }
-pub fn engine_list_by_cluster(
+pub fn engine_prefix_list_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     prefix_key_name: String,
 ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
-    return engine_list(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, prefix_key_name);
+    return engine_prefix_list(
+        rocksdb_engine_handler,
+        DB_COLUMN_FAMILY_CLUSTER,
+        prefix_key_name,
+    );
 }
 
 fn engine_save<T>(
@@ -107,17 +118,24 @@ fn engine_delete(
         return Err(RobustMQError::ClusterNoAvailableNode);
     };
 
-    match rocksdb_engine_handler.delete(cf, &key_name) {
-        Ok(_) => {
-            return Ok(());
-        }
-        Err(e) => {
-            return Err(RobustMQError::CommmonError(e));
-        }
-    }
+    rocksdb_engine_handler.delete(cf, &key_name)
 }
 
-fn engine_list(
+fn engine_exists(
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
+    rocksdb_cluster: &str,
+    key_name: String,
+) -> Result<bool, RobustMQError> {
+    let cf = if rocksdb_cluster.to_string() == DB_COLUMN_FAMILY_CLUSTER.to_string() {
+        rocksdb_engine_handler.cf_cluster()
+    } else {
+        return Err(RobustMQError::ClusterNoAvailableNode);
+    };
+
+    return Ok(rocksdb_engine_handler.exist(cf, &key_name));
+}
+
+fn engine_prefix_list(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     rocksdb_cluster: &str,
     prefix_key_name: String,
