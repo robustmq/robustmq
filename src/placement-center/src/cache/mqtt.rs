@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     controller::mqtt::session_expire::ExpireLastWill,
     storage::{
@@ -109,15 +108,10 @@ impl MqttCacheManager {
         for (_, cluster) in placement_cache.cluster_list.clone() {
             if cluster.cluster_type == ClusterType::MqttBrokerServer.as_str_name().to_string() {
                 let topic = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
-                match topic.list(&cluster.cluster_name, None) {
+                match topic.list(&cluster.cluster_name) {
                     Ok(data) => {
-                        for dt in data {
-                            match serde_json::from_slice::<MQTTTopic>(&dt.data) {
-                                Ok(topic) => self.add_topic(&cluster.cluster_name, topic),
-                                Err(e) => {
-                                    panic!("{}", e.to_string())
-                                }
-                            }
+                        for topic in data {
+                            self.add_topic(&cluster.cluster_name, topic);
                         }
                     }
                     Err(e) => {

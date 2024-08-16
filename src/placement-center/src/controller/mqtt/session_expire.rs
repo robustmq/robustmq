@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::call_broker::MQTTBrokerCall;
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
@@ -22,7 +21,7 @@ use crate::{
 };
 use clients::poll::ClientPool;
 use common_base::{log::error, tools::now_second};
-use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
+use metadata_struct::mqtt::session::MQTTSession;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -171,17 +170,7 @@ impl SessionExpire {
         for lastwill in last_will_list {
             match lastwill_storage.get(&self.cluster_name, &lastwill.client_id) {
                 Ok(Some(data)) => {
-                    let value = match serde_json::from_slice::<LastWillData>(data.data.as_slice()) {
-                        Ok(data) => data,
-                        Err(e) => {
-                            error(format!(
-                                    "Sending Last will message process, failed to parse Session data, error message :{}",
-                                    e.to_string()
-                                ));
-                            continue;
-                        }
-                    };
-                    call.send_last_will_message(lastwill.client_id.clone(), value)
+                    call.send_last_will_message(lastwill.client_id.clone(), data)
                         .await;
                 }
                 Ok(None) => {

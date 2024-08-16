@@ -17,9 +17,9 @@ use crate::storage::{
     engine::{engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster},
     keys::storage_key_mqtt_last_will,
     rocksdb::RocksDBEngine,
-    StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::lastwill::LastWillData;
 use std::sync::Arc;
 
 pub struct MQTTLastWillStorage {
@@ -32,11 +32,12 @@ impl MQTTLastWillStorage {
             rocksdb_engine_handler,
         }
     }
+
     pub fn save(
         &self,
         cluster_name: &String,
         client_id: &String,
-        last_will_message: Vec<u8>,
+        last_will_message: LastWillData,
     ) -> Result<(), RobustMQError> {
         let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
         let results = session_storage.get(cluster_name, client_id)?;
@@ -52,9 +53,22 @@ impl MQTTLastWillStorage {
         &self,
         cluster_name: &String,
         client_id: &String,
-    ) -> Result<Option<StorageDataWrap>, RobustMQError> {
+    ) -> Result<Option<LastWillData>, RobustMQError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        return engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
+            Ok(Some(data)) => match serde_json::from_slice::<LastWillData>(&data.data) {
+                Ok(lastwill) => {
+                    return Ok(Some(lastwill));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
+            }
+            Err(e) => Err(e),
+        }
     }
 
     pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
@@ -95,7 +109,7 @@ mod tests {
             last_will_properties: None,
         };
         lastwill_storage
-            .save(&cluster_name, &client_id, last_will_message.encode())
+            .save(&cluster_name, &client_id, last_will_message)
             .unwrap();
 
         let data = lastwill_storage.get(&cluster_name, &client_id).unwrap();
