@@ -132,7 +132,7 @@ impl MessageExpire {
 
                 if delete {
                     match lastwill_storage
-                        .delete_last_will_message(&self.cluster_name, &value.client_id)
+                        .delete(&self.cluster_name, &value.client_id)
                     {
                         Ok(()) => {}
                         Err(e) => {
@@ -235,7 +235,7 @@ mod tests {
         let mut session = MQTTSession::default();
         session.client_id = client_id.clone();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
         lastwill_storage
             .save(&cluster_name, &client_id, last_will_message.encode())

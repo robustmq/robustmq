@@ -239,7 +239,7 @@ impl MqttService for GrpcMqttService {
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
 
         if !req.client_id.is_empty() {
-            match storage.get(&req.cluster_name, req.client_id) {
+            match storage.get(&req.cluster_name, &req.client_id) {
                 Ok(data) => {
                     let mut result = Vec::new();
                     if let Some(raw) = data {

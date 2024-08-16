@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::{
+    engine::engine_save_by_cluster,
     keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix},
     rocksdb::RocksDBEngine,
     StorageDataWrap,
@@ -77,17 +77,8 @@ impl MQTTTopicStorage {
         topic_name: &String,
         content: Vec<u8>,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
-        let data = StorageDataWrap::new(content);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, content);
     }
 
     pub fn delete(&self, cluster_name: &String, topic_name: &String) -> Result<(), RobustMQError> {

@@ -142,7 +142,8 @@ impl DataRouteMQTT {
             .unwrap();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
 
-        match storage.save(&req.cluster_name, &req.client_id, req.session) {
+        let session = serde_json::from_slice::<MQTTSession>(&req.session)?;
+        match storage.save(&req.cluster_name, &req.client_id, session) {
             Ok(_) => {
                 return Ok(());
             }
@@ -157,14 +158,11 @@ impl DataRouteMQTT {
             .map_err(|e| Status::invalid_argument(e.to_string()))
             .unwrap();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let result = match storage.get(&req.cluster_name, req.client_id.clone()) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let result = storage.get(&req.cluster_name, &req.client_id)?;
         let session = result.unwrap();
-        let mut session = serde_json::from_slice::<MQTTSession>(&session.data).unwrap();
+
+        let mut session = serde_json::from_slice::<MQTTSession>(&session.data)?;
+
         if req.connection_id > 0 {
             session.update_connnction_id(Some(req.connection_id));
         } else {
@@ -187,7 +185,7 @@ impl DataRouteMQTT {
             session.distinct_time = None;
         }
 
-        match storage.save(&req.cluster_name, &req.client_id, session.encode()) {
+        match storage.save(&req.cluster_name, &req.client_id, session) {
             Ok(_) => {
                 return Ok(());
             }

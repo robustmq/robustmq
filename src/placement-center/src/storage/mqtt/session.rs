@@ -22,6 +22,7 @@ use crate::storage::{
     StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::session::MQTTSession;
 use std::sync::Arc;
 
 pub struct MQTTSessionStorage {
@@ -43,9 +44,9 @@ impl MQTTSessionStorage {
     pub fn get(
         &self,
         cluster_name: &String,
-        client_id: String,
+        client_id: &String,
     ) -> Result<Option<StorageDataWrap>, RobustMQError> {
-        let key: String = storage_key_mqtt_session(cluster_name, &client_id);
+        let key: String = storage_key_mqtt_session(cluster_name, client_id);
         return engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
@@ -53,10 +54,10 @@ impl MQTTSessionStorage {
         &self,
         cluster_name: &String,
         client_id: &String,
-        content: Vec<u8>,
+        session: MQTTSession,
     ) -> Result<(), RobustMQError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, content);
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session);
     }
 
     pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
@@ -84,20 +85,20 @@ mod tests {
         let client_id = "loboxu".to_string();
         let session = MQTTSession::default();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let client_id = "lobo1".to_string();
         let session = MQTTSession::default();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let res = session_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = session_storage
-            .get(&cluster_name, "lobo1".to_string())
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
         assert!(!res.is_none());
 
@@ -106,7 +107,7 @@ mod tests {
             .unwrap();
 
         let res = session_storage
-            .get(&cluster_name, "lobo1".to_string())
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
         assert!(res.is_none());
     }

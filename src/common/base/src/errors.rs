@@ -40,6 +40,12 @@ pub enum RobustMQError {
         "The service connection is incorrect, possibly because the service port is not started"
     )]
     TonicTransport(#[from] tonic::transport::Error),
+    
+    #[error(
+        "The service connection is incorrect, possibly because the service port is not started"
+    )]
+    SerdeJsonError(#[from] serde_json::Error),
+
 
     #[error("Grpc call of the node failed,Grpc status was {0}")]
     MetaGrpcStatus(Status),

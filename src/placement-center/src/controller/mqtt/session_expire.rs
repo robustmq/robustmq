@@ -298,7 +298,7 @@ mod tests {
 
         session.client_id = client_id.clone();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let start = now_second();
