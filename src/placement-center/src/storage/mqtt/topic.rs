@@ -11,15 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::{
+    engine::{
+        engine_delete_by_cluster, engine_get_by_cluster, engine_list_by_cluster,
+        engine_save_by_cluster,
+    },
     keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix},
     rocksdb::RocksDBEngine,
-    StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
 use metadata_struct::mqtt::topic::MQTTTopic;
-use std::{sync::Arc, vec};
+use std::sync::Arc;
 
 pub struct MQTTTopicStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -32,75 +34,62 @@ impl MQTTTopicStorage {
         }
     }
 
-    pub fn list(
-        &self,
-        cluster_name: &String,
-        topicname: Option<String>,
-    ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
-        if topicname != None {
-            let key: String = storage_key_mqtt_topic(cluster_name, &topicname.unwrap());
-            match self
-                .rocksdb_engine_handler
-                .read::<StorageDataWrap>(cf, &key)
-            {
-                Ok(Some(data)) => {
-                    return Ok(vec![data]);
-                }
-                Ok(None) => {
-                    return Ok(Vec::new());
-                }
-                Err(e) => {
-                    return Err(RobustMQError::CommmonError(e));
-                }
-            }
-        }
-        let prefix_key = storage_key_mqtt_topic_cluster_prefix(&cluster_name);
-        let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
-        let mut results = Vec::new();
-        for raw in data_list {
-            for (_, v) in raw {
-                match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
-                    Ok(v) => results.push(v),
-                    Err(_) => {
-                        continue;
-                    }
-                }
-            }
-        }
-        return Ok(results);
-    }
-
     pub fn save(
         &self,
         cluster_name: &String,
         topic_name: &String,
-        content: Vec<u8>,
+        topic: MQTTTopic,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
-        let data = StorageDataWrap::new(content);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic);
+    }
+
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTTopic>, RobustMQError> {
+        let prefix_key = storage_key_mqtt_topic_cluster_prefix(&cluster_name);
+        match engine_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
+            Ok(data) => {
+                let mut results = Vec::new();
+                for raw in data {
+                    match serde_json::from_slice::<MQTTTopic>(&raw.data) {
+                        Ok(topic) => {
+                            results.push(topic);
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    }
+                }
+                return Ok(results);
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
+                return Err(e);
             }
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, topic_name: &String) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
-        let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
-        match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
+    pub fn get(
+        &self,
+        cluster_name: &String,
+        topicname: &String,
+    ) -> Result<Option<MQTTTopic>, RobustMQError> {
+        let key: String = storage_key_mqtt_topic(cluster_name, topicname);
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
+            Ok(Some(data)) => match serde_json::from_slice::<MQTTTopic>(&data.data) {
+                Ok(lastwill) => {
+                    return Ok(Some(lastwill));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => return Ok(None),
+            Err(e) => return Err(e),
         }
+    }
+
+    pub fn delete(&self, cluster_name: &String, topic_name: &String) -> Result<(), RobustMQError> {
+        let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
     pub fn set_topic_retain_message(
@@ -110,39 +99,24 @@ impl MQTTTopicStorage {
         retain_message: Vec<u8>,
         retain_message_expired_at: u64,
     ) -> Result<(), RobustMQError> {
-        let results = match self.list(cluster_name, Some(topic_name.clone())) {
-            Ok(data) => data,
+        let mut topic = match self.get(cluster_name, topic_name) {
+            Ok(Some(data)) => data,
+            Ok(None) => {
+                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
+            }
             Err(e) => {
                 return Err(e);
             }
         };
-        if results.is_empty() {
-            return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
-        }
 
-        let topic = results.get(0).unwrap();
-        match serde_json::from_slice::<MQTTTopic>(&topic.data.as_slice()) {
-            Ok(mut mqtt_topic) => {
-                if retain_message.len() == 0 {
-                    mqtt_topic.retain_message = None;
-                    mqtt_topic.retain_message_expired_at = None;
-                } else {
-                    mqtt_topic.retain_message = Some(retain_message);
-                    mqtt_topic.retain_message_expired_at = Some(retain_message_expired_at);
-                }
-                match self.save(cluster_name, topic_name, mqtt_topic.encode()) {
-                    Ok(_) => {
-                        return Ok(());
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    }
-                }
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
-            }
+        if retain_message.len() == 0 {
+            topic.retain_message = None;
+            topic.retain_message_expired_at = None;
+        } else {
+            topic.retain_message = Some(retain_message);
+            topic.retain_message_expired_at = Some(retain_message_expired_at);
         }
+        return self.save(cluster_name, topic_name, topic);
     }
 }
 
@@ -171,7 +145,7 @@ mod tests {
             retain_message_expired_at: None,
         };
         topic_storage
-            .save(&cluster_name, &topic_name, topic.encode())
+            .save(&cluster_name, &topic_name, topic)
             .unwrap();
 
         let topic_name = "lobo1".to_string();
@@ -182,23 +156,23 @@ mod tests {
             retain_message_expired_at: None,
         };
         topic_storage
-            .save(&cluster_name, &topic_name, topic.encode())
+            .save(&cluster_name, &topic_name, topic)
             .unwrap();
 
-        let res = topic_storage.list(&cluster_name, None).unwrap();
+        let res = topic_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = topic_storage
-            .list(&cluster_name, Some("lobo1".to_string()))
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
-        assert_eq!(res.len(), 1);
+        assert!(!res.is_none());
 
         let name = "lobo1".to_string();
         topic_storage.delete(&cluster_name, &name).unwrap();
 
         let res = topic_storage
-            .list(&cluster_name, Some("lobo1".to_string()))
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
-        assert_eq!(res.len(), 0);
+        assert!(res.is_none());
     }
 }

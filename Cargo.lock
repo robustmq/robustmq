@@ -751,6 +751,7 @@ dependencies = [
  "log",
  "log4rs",
  "prometheus",
+ "prost 0.12.3",
  "serde",
  "serde_json",
  "snowflake",

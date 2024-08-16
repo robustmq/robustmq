@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::session::MQTTSessionStorage;
 use crate::storage::{
     engine::{engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster},
-    keys::{storage_key_mqtt_last_will, storage_key_mqtt_session},
+    keys::storage_key_mqtt_last_will,
     rocksdb::RocksDBEngine,
-    StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::lastwill::LastWillData;
 use std::sync::Arc;
 
 pub struct MQTTLastWillStorage {
@@ -31,19 +32,15 @@ impl MQTTLastWillStorage {
             rocksdb_engine_handler,
         }
     }
+
     pub fn save(
         &self,
         cluster_name: &String,
         client_id: &String,
-        last_will_message: Vec<u8>,
+        last_will_message: LastWillData,
     ) -> Result<(), RobustMQError> {
-
-        let results = match self.get(cluster_name, client_id) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(e);
-            }
-        };
+        let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+        let results = session_storage.get(cluster_name, client_id)?;
         if results.is_none() {
             return Err(RobustMQError::SessionDoesNotExist);
         }
@@ -56,24 +53,71 @@ impl MQTTLastWillStorage {
         &self,
         cluster_name: &String,
         client_id: &String,
-    ) -> Result<Option<StorageDataWrap>, RobustMQError> {
+    ) -> Result<Option<LastWillData>, RobustMQError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        return engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
+            Ok(Some(data)) => match serde_json::from_slice::<LastWillData>(&data.data) {
+                Ok(lastwill) => {
+                    return Ok(Some(lastwill));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
+            }
+            Err(e) => Err(e),
+        }
     }
 
-    pub fn delete_last_will_message(
-        &self,
-        cluster_name: &String,
-        client_id: &String,
-    ) -> Result<(), RobustMQError> {
-        let key = storage_key_mqtt_session(cluster_name, client_id);
+    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
+        let key = storage_key_mqtt_last_will(cluster_name, client_id);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use super::MQTTLastWillStorage;
+    use crate::storage::{mqtt::session::MQTTSessionStorage, rocksdb::RocksDBEngine};
+    use common_base::config::placement_center::PlacementCenterConfig;
+    use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 
     #[tokio::test]
-    async fn lastwill_storage_test() {}
+    async fn lastwill_storage_test() {
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = "/tmp/tmp_test".to_string();
+        let rs = Arc::new(RocksDBEngine::new(&config));
+        let session_storage = MQTTSessionStorage::new(rs.clone());
+
+        let cluster_name = "test_cluster".to_string();
+        let client_id = "loboxu".to_string();
+        let session = MQTTSession::default();
+
+        session_storage
+            .save(&cluster_name, &client_id, session)
+            .unwrap();
+
+        let lastwill_storage = MQTTLastWillStorage::new(rs.clone());
+        let last_will_message = LastWillData {
+            client_id: client_id.clone(),
+            last_will: None,
+            last_will_properties: None,
+        };
+        lastwill_storage
+            .save(&cluster_name, &client_id, last_will_message)
+            .unwrap();
+
+        let data = lastwill_storage.get(&cluster_name, &client_id).unwrap();
+        assert!(!data.is_none());
+
+        lastwill_storage.delete(&cluster_name, &client_id).unwrap();
+
+        let data = lastwill_storage.get(&cluster_name, &client_id).unwrap();
+        assert!(data.is_none());
+    }
 }

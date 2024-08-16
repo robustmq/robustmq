@@ -22,6 +22,7 @@ use crate::storage::{
     StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
+use metadata_struct::mqtt::session::MQTTSession;
 use std::sync::Arc;
 
 pub struct MQTTSessionStorage {
@@ -34,6 +35,15 @@ impl MQTTSessionStorage {
             rocksdb_engine_handler,
         }
     }
+    pub fn save(
+        &self,
+        cluster_name: &String,
+        client_id: &String,
+        session: MQTTSession,
+    ) -> Result<(), RobustMQError> {
+        let key = storage_key_mqtt_session(cluster_name, client_id);
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session);
+    }
 
     pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, RobustMQError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
@@ -43,20 +53,25 @@ impl MQTTSessionStorage {
     pub fn get(
         &self,
         cluster_name: &String,
-        client_id: String,
-    ) -> Result<Option<StorageDataWrap>, RobustMQError> {
-        let key: String = storage_key_mqtt_session(cluster_name, &client_id);
-        return engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key);
-    }
-
-    pub fn save(
-        &self,
-        cluster_name: &String,
         client_id: &String,
-        content: Vec<u8>,
-    ) -> Result<(), RobustMQError> {
-        let key = storage_key_mqtt_session(cluster_name, client_id);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, content);
+    ) -> Result<Option<MQTTSession>, RobustMQError> {
+        let key: String = storage_key_mqtt_session(cluster_name, client_id);
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
+            Ok(Some(data)) => match serde_json::from_slice::<MQTTSession>(&data.data) {
+                Ok(session) => {
+                    return Ok(Some(session));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
     }
 
     pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
@@ -84,20 +99,20 @@ mod tests {
         let client_id = "loboxu".to_string();
         let session = MQTTSession::default();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let client_id = "lobo1".to_string();
         let session = MQTTSession::default();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let res = session_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = session_storage
-            .get(&cluster_name, "lobo1".to_string())
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
         assert!(!res.is_none());
 
@@ -106,7 +121,7 @@ mod tests {
             .unwrap();
 
         let res = session_storage
-            .get(&cluster_name, "lobo1".to_string())
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
         assert!(res.is_none());
     }

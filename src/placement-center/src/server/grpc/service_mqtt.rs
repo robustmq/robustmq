@@ -210,23 +210,32 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListTopicReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
-        let topic_name = if req.topic_name.is_empty() {
-            None
-        } else {
-            Some(req.topic_name)
-        };
-        match storage.list(&req.cluster_name, topic_name) {
-            Ok(data) => {
-                let mut result = Vec::new();
-                for raw in data {
-                    result.push(raw.data);
+        if !req.topic_name.is_empty() {
+            match storage.get(&req.cluster_name, &req.topic_name) {
+                Ok(Some(data)) => {
+                    return Ok(Response::new(ListTopicReply {
+                        topics: vec![data.encode()],
+                    }));
                 }
-                let reply = ListTopicReply { topics: result };
-
-                return Ok(Response::new(reply));
+                Ok(None) => {
+                    return Ok(Response::new(ListTopicReply::default()));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+        } else {
+            match storage.list(&req.cluster_name) {
+                Ok(data) => {
+                    let mut result = Vec::new();
+                    for raw in data {
+                        result.push(raw.encode());
+                    }
+                    return Ok(Response::new(ListTopicReply { topics: result }));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
         }
     }
@@ -239,14 +248,14 @@ impl MqttService for GrpcMqttService {
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
 
         if !req.client_id.is_empty() {
-            match storage.get(&req.cluster_name, req.client_id) {
-                Ok(data) => {
-                    let mut result = Vec::new();
-                    if let Some(raw) = data {
-                        result.push(raw.data);
-                    }
-                    let reply = ListSessionReply { sessions: result };
-                    return Ok(Response::new(reply));
+            match storage.get(&req.cluster_name, &req.client_id) {
+                Ok(Some(data)) => {
+                    return Ok(Response::new(ListSessionReply {
+                        sessions: vec![data.encode()],
+                    }));
+                }
+                Ok(None) => {
+                    return Ok(Response::new(ListSessionReply::default()));
                 }
                 Err(e) => {
                     return Err(Status::cancelled(e.to_string()));

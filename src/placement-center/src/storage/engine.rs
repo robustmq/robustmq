@@ -3,7 +3,6 @@ use super::{
     StorageDataWrap,
 };
 use common_base::errors::RobustMQError;
-use rocksdb::ColumnFamily;
 use serde::Serialize;
 use std::sync::Arc;
 
@@ -38,9 +37,9 @@ pub fn engine_delete_by_cluster(
 }
 pub fn engine_list_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    key_name: String,
+    prefix_key_name: String,
 ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
-    return engine_list(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name);
+    return engine_list(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, prefix_key_name);
 }
 
 fn engine_save<T>(

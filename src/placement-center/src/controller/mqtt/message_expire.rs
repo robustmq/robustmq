@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::{sync::Arc, time::Duration};
 
 use common_base::{log::error, tools::now_second};
@@ -78,8 +77,7 @@ impl MessageExpire {
                 if delete {
                     value.retain_message = None;
                     value.retain_message_expired_at = None;
-                    match topic_storage.save(&self.cluster_name, &value.topic_name, value.encode())
-                    {
+                    match topic_storage.save(&self.cluster_name, &value.topic_name.clone(), value) {
                         Ok(()) => {}
                         Err(e) => {
                             error(e.to_string());
@@ -131,9 +129,7 @@ impl MessageExpire {
                 };
 
                 if delete {
-                    match lastwill_storage
-                        .delete_last_will_message(&self.cluster_name, &value.client_id)
-                    {
+                    match lastwill_storage.delete(&self.cluster_name, &value.client_id) {
                         Ok(()) => {}
                         Err(e) => {
                             error(e.to_string());
@@ -180,12 +176,17 @@ mod tests {
         let topic_storage = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
         let topic = MQTTTopic::new(unique_id(), "tp1".to_string());
         topic_storage
-            .save(&cluster_name, &topic.topic_name, topic.encode())
+            .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
             .unwrap();
 
         let retain_msg = MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None);
         topic_storage
-            .set_topic_retain_message(&cluster_name, &topic.topic_name, retain_msg.encode(), 3)
+            .set_topic_retain_message(
+                &cluster_name,
+                &topic.topic_name.clone(),
+                retain_msg.encode(),
+                3,
+            )
             .unwrap();
         tokio::spawn(async move {
             loop {
@@ -195,11 +196,8 @@ mod tests {
 
         let start = now_second();
         loop {
-            let res = topic_storage
-                .list(&cluster_name, Some(topic.topic_name.clone()))
-                .unwrap();
-            let data = res.get(0).unwrap();
-            let tp = serde_json::from_slice::<MQTTTopic>(data.data.as_slice()).unwrap();
+            let res = topic_storage.get(&cluster_name, &topic.topic_name).unwrap();
+            let tp = res.unwrap();
             if tp.retain_message.is_none() {
                 break;
             }
@@ -235,10 +233,10 @@ mod tests {
         let mut session = MQTTSession::default();
         session.client_id = client_id.clone();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
         lastwill_storage
-            .save(&cluster_name, &client_id, last_will_message.encode())
+            .save(&cluster_name, &client_id, last_will_message)
             .unwrap();
 
         let start = now_second();
