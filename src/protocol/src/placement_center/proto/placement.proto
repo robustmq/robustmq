@@ -32,8 +32,6 @@ service PlacementCenterService {
 
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
 
-  rpc GenerateUniqueId(GenerateUniqueNodeIdRequest) returns(GenerateUniqueNodeIdReply) {}
-
   rpc SetResourceConfig(SetResourceConfigRequest) returns(common.CommonReply) {}
 
   rpc GetResourceConfig(GetResourceConfigRequest) returns(GetResourceConfigReply) {}
@@ -98,15 +96,6 @@ message ReportMonitorRequest{
     float memory_rate = 4;
     float disk_rate = 5;
     float network_rate = 6;
-}
-
-message GenerateUniqueNodeIdRequest{
-    common.GenerageIdType generage_type = 1;
-}
-
-message GenerateUniqueNodeIdReply{
-     uint64 id_int = 1;
-     string id_str = 2;
 }
 
 message SetResourceConfigRequest{

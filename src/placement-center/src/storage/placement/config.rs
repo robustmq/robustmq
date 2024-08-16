@@ -11,8 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::storage::{keys::key_resource_config, rocksdb::RocksDBEngine, StorageDataWrap};
+use crate::storage::{
+    engine::{engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster},
+    keys::key_resource_config,
+    rocksdb::RocksDBEngine,
+};
 use common_base::errors::RobustMQError;
 use std::sync::Arc;
 
@@ -32,17 +35,8 @@ impl ResourceConfigStorage {
         resource_key: Vec<String>,
         config: Vec<u8>,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        let data = StorageDataWrap::new(config);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, config);
     }
 
     pub fn delete(
@@ -50,35 +44,30 @@ impl ResourceConfigStorage {
         cluster_name: String,
         resource_key: Vec<String>,
     ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
     pub fn get(
         &self,
         cluster_name: String,
         resource_key: Vec<String>,
-    ) -> Result<Option<StorageDataWrap>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
+    ) -> Result<Option<Vec<u8>>, RobustMQError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        match self
-            .rocksdb_engine_handler
-            .read::<StorageDataWrap>(cf, &key)
-        {
-            Ok(cluster_info) => {
-                return Ok(cluster_info);
+
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
+            Ok(Some(data)) => match serde_json::from_slice::<Vec<u8>>(&data.data) {
+                Ok(config) => {
+                    return Ok(Some(config));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
             }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
+            Err(e) => Err(e),
         }
     }
 }
