@@ -23,17 +23,24 @@ use user::{user_create, user_delete, user_get, user_list, user_update};
 pub mod cluster;
 pub mod user;
 
-pub const ROUTE_USER: &str = "/user";
-pub const ROUTE_CLUSTER: &str = "/cluster";
+pub const ROUTE_MQTT_USER: &str = "/mqtt/user";
+pub const ROUTE_MQTT_ACL: &str = "/mqtt/acl";
+pub const ROUTE_MQTT_SESSION: &str = "/mqtt/session";
+pub const ROUTE_CLUSTER: &str = "/mqtt/cluster";
 
 pub fn mqtt_routes() -> Router<HttpServerState> {
     return Router::new()
         // user
-        .route(&v1_path(&path_get(ROUTE_USER)), get(user_get))
-        .route(&v1_path(&path_create(ROUTE_USER)), post(user_create))
-        .route(&v1_path(&path_update(ROUTE_USER)), put(user_update))
-        .route(&v1_path(&path_delete(ROUTE_USER)), delete(user_delete))
-        .route(&v1_path(&path_list(ROUTE_USER)), get(user_list))
+        .route(&v1_path(&path_get(ROUTE_MQTT_USER)), get(user_get))
+        .route(&v1_path(&path_create(ROUTE_MQTT_USER)), post(user_create))
+        .route(&v1_path(&path_update(ROUTE_MQTT_USER)), put(user_update))
+        .route(&v1_path(&path_delete(ROUTE_MQTT_USER)), delete(user_delete))
+        .route(&v1_path(&path_list(ROUTE_MQTT_USER)), get(user_list))
+        
+        // acl
+
+        // session
+        
         // cluster
         .route(&v1_path(&path_get(ROUTE_CLUSTER)), get(cluster_get))
         .route(&v1_path(&path_update(ROUTE_CLUSTER)), put(cluster_set))
