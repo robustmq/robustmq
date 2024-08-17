@@ -15,6 +15,7 @@
 pub mod index;
 pub mod mqtt;
 pub mod server;
+pub mod journal;
 
 pub(crate) fn v1_path(path: &str) -> String {
     return format!("/v1{}", path);

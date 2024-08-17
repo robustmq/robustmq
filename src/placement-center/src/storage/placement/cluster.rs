@@ -13,7 +13,7 @@
 
 use crate::storage::{
     engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_list_by_cluster,
+        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
         engine_save_by_cluster,
     },
     keys::{key_cluster, key_cluster_prefix, key_cluster_prefix_by_type},
@@ -76,7 +76,7 @@ impl ClusterStorage {
         } else {
             key_cluster_prefix()
         };
-        match engine_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
+        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
                 let mut results = Vec::new();
                 for raw in data {

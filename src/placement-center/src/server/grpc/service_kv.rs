@@ -136,9 +136,13 @@ impl KvService for GrpcKvService {
         }
 
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
-        let mut rep = ExistsReply::default();
-        rep.flag = kv_storage.exists(req.key);
-
-        return Ok(Response::new(rep));
+        match kv_storage.exists(req.key) {
+            Ok(flag) => {
+                return Ok(Response::new(ExistsReply { flag }));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 }

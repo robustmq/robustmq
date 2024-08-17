@@ -13,7 +13,7 @@
 
 use crate::storage::{
     engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_list_by_cluster,
+        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
         engine_save_by_cluster,
     },
     keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix},
@@ -46,7 +46,7 @@ impl MQTTTopicStorage {
 
     pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTTopic>, RobustMQError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(&cluster_name);
-        match engine_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
+        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
                 let mut results = Vec::new();
                 for raw in data {
