@@ -72,7 +72,7 @@ impl ShardStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: String, shard_name: &String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, shard_name: &String) -> Result<(), RobustMQError> {
         let shard_key = key_shard(&cluster_name, shard_name);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key);
     }

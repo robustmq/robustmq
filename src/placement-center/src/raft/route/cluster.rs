@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     cache::placement::PlacementCacheManager,
     storage::{
@@ -33,7 +32,6 @@ use protocol::placement_center::generate::placement::{
     SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use std::sync::Arc;
-use tonic::Status;
 
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -52,9 +50,7 @@ impl DataRouteCluster {
     }
 
     pub fn add_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())?;
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
         let node = BrokerNode {
@@ -79,12 +75,7 @@ impl DataRouteCluster {
                 create_time: now_mills(),
             };
             self.cluster_cache.add_cluster(cluster_info.clone());
-            match cluster_storage.save(cluster_info) {
-                Ok(_) => {}
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+            return cluster_storage.save(cluster_info);
         }
 
         // update node
@@ -93,9 +84,7 @@ impl DataRouteCluster {
     }
 
     pub fn delete_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
         self.cluster_cache.remove_node(&cluster_name, node_id);
@@ -105,33 +94,25 @@ impl DataRouteCluster {
     }
 
     pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = SetResourceConfigRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         return config_storage.save(req.cluster_name, req.resources, req.config);
     }
 
     pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = DeleteResourceConfigRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         return config_storage.delete(req.cluster_name, req.resources);
     }
 
     pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = SetIdempotentDataRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req = SetIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         return idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num);
     }
 
     pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = DeleteIdempotentDataRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         return idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num);
     }
