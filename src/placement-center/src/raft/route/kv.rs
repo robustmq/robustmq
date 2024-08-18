@@ -16,7 +16,6 @@ use common_base::errors::RobustMQError;
 use prost::Message as _;
 use protocol::placement_center::generate::kv::{DeleteRequest, SetRequest};
 use std::sync::Arc;
-use tonic::Status;
 pub struct DataRouteKv {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     kv_storage: KvStorage,
@@ -31,16 +30,12 @@ impl DataRouteKv {
         };
     }
     pub fn set(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: SetRequest = SetRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req: SetRequest = SetRequest::decode(value.as_ref())?;
         return self.kv_storage.set(req.key, req.value);
     }
 
     pub fn delete(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: DeleteRequest = DeleteRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req: DeleteRequest = DeleteRequest::decode(value.as_ref())?;
         return self.kv_storage.delete(req.key);
     }
 }

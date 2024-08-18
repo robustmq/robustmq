@@ -31,7 +31,6 @@ use protocol::placement_center::generate::journal::{
     CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
 };
 use std::sync::Arc;
-use tonic::Status;
 
 pub struct DataRouteJournal {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -52,15 +51,11 @@ impl DataRouteJournal {
         };
     }
     pub fn create_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
-
-        let cluster_name = req.cluster_name;
+        let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
 
         let shard_info = ShardInfo {
             shard_uid: unique_id(),
-            cluster_name: cluster_name.clone(),
+            cluster_name: req.cluster_name.clone(),
             shard_name: req.shard_name.clone(),
             replica: req.replica,
             last_segment_seq: 0,
@@ -68,40 +63,37 @@ impl DataRouteJournal {
         };
 
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        // persist
-        shard_storage.save(shard_info.clone());
+        shard_storage.save(shard_info.clone())?;
 
         // upate cache
         self.engine_cache.add_shard(shard_info);
 
         // Create segments according to the built-in pre-created segment strategy.
         // Between 0 and N segments may be created.
-        self.pre_create_segment().unwrap();
+        self.pre_create_segment()?;
 
         // todo maybe update storage engine node cache
         return Ok(());
     }
 
     pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name.clone();
         let shard_name = req.shard_name.clone();
         // todo delete all segment
 
         // delete shard info
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
-        shard_storage.delete(cluster_name.clone(), &shard_name)?;
+        shard_storage.delete(&cluster_name, &shard_name)?;
+
         self.engine_cache
             .remove_shard(cluster_name.clone(), shard_name.clone());
+
         return Ok(());
     }
 
     pub fn create_segment(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: CreateSegmentRequest = CreateSegmentRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req: CreateSegmentRequest = CreateSegmentRequest::decode(value.as_ref())?;
 
         let cluster_name = req.cluster_name;
         let shard_name = req.shard_name;
@@ -120,35 +112,22 @@ impl DataRouteJournal {
             segment_seq: segment_seq,
             status: SegmentStatus::Idle,
         };
-
-        // Updating cache information
-        self.engine_cache.add_segment(segment_info.clone());
-
-        // Update persistence information
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.save(segment_info);
-
-        // todo call storage engine create segment
+        segment_storage.save(segment_info.clone())?;
+        self.engine_cache.add_segment(segment_info);
         return Ok(());
     }
 
     pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+        let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let shard_name = req.shard_name;
         let segment_seq = req.segment_seq;
 
-        // Updating cache information
+        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
+        segment_storage.delete(&cluster_name, &shard_name, segment_seq)?;
         self.engine_cache
             .remove_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
-
-        // Update persistence information
-        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.delete(&cluster_name, &shard_name, segment_seq);
-
-        // todo call storage engine delete segment
         return Ok(());
     }
 
