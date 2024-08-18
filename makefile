@@ -21,6 +21,7 @@ release:
 
 test: 
 	sh ./scripts/integration-testing.sh
+	
 clean:
 	cargo clean
 	rm -rf build
