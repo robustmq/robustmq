@@ -38,4 +38,4 @@ response_queue_size = 2000
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "./logs"
+log_path = "./logs/journal-server"
