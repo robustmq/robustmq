@@ -36,7 +36,7 @@ pub(crate) async fn inner_register_node(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -53,7 +53,7 @@ pub(crate) async fn inner_unregister_node(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -70,7 +70,7 @@ pub(crate) async fn inner_heartbeat(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -87,7 +87,7 @@ pub(crate) async fn inner_send_raft_message(
             Ok(result) => {
                 return Ok(SendRaftMessageReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -104,7 +104,7 @@ pub(crate) async fn inner_send_raft_conf_change(
             Ok(result) => {
                 return Ok(SendRaftConfChangeReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -121,7 +121,7 @@ pub(crate) async fn inner_set_resource_config(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -138,7 +138,7 @@ pub(crate) async fn inner_get_resource_config(
             Ok(result) => {
                 return Ok(GetResourceConfigReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -155,7 +155,7 @@ pub(crate) async fn inner_delete_resource_config(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -172,7 +172,7 @@ pub(crate) async fn inner_set_idempotent(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -191,7 +191,7 @@ pub(crate) async fn inner_exist_idempotent(
                     &result.into_inner(),
                 ));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -208,7 +208,7 @@ pub(crate) async fn inner_delete_idempotent(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));

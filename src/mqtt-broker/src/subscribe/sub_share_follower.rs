@@ -643,7 +643,7 @@ pub async fn resub_publish_message_qos2(
     let current_message_pkid = publish.pkid;
 
     // 2. Send publish message to mqtt client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         metadata_cache,
         mqtt_client_id,
@@ -651,11 +651,7 @@ pub async fn resub_publish_message_qos2(
         publish_properties,
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     let mut stop_rx = stop_sx.subscribe();
     loop {

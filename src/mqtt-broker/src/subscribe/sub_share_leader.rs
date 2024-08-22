@@ -29,7 +29,10 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{error::robustmq::RobustMQError, tools::now_second};
+use common_base::{
+    error::{mqtt_broker::MQTTBrokerError, robustmq::RobustMQError},
+    tools::now_second,
+};
 use log::{error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
@@ -496,7 +499,7 @@ async fn share_leader_publish_message_qos1(
 
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
         if publish.payload.len() > (conn.max_packet_size as usize) {
-            return Err(RobustMQError::PacketLenthError(publish.payload.len()));
+            return Err(MQTTBrokerError::PacketLenthError(publish.payload.len()).into());
         }
     }
 
@@ -562,7 +565,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     // 1. send Publish to Client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         cache_manager,
         client_id,
@@ -570,11 +573,7 @@ where
         &Some(publish_properties.clone()),
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     // 2. wait pub rec
     loop {

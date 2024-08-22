@@ -11,11 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::handler::{cache_manager::CacheManager, error::MQTTBrokerError};
+use crate::handler::cache_manager::CacheManager;
 use crate::storage::topic::TopicStorage;
 use bytes::Bytes;
 use clients::poll::ClientPool;
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::error::robustmq::RobustMQError;
 use common_base::tools::unique_id;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -78,7 +78,7 @@ pub fn get_topic_name(
     metadata_cache: &Arc<CacheManager>,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
-) -> Result<String, RobustMQError> {
+) -> Result<String, MQTTBrokerError> {
     let topic_alias = if let Some(pub_properties) = publish_properties {
         pub_properties.topic_alias
     } else {
@@ -86,29 +86,22 @@ pub fn get_topic_name(
     };
 
     if publish.topic.is_empty() && topic_alias.is_none() {
-        return Err(RobustMQError::TopicNameInvalid());
+        return Err(MQTTBrokerError::TopicNameIsEmpty);
     }
 
     let topic_name = if publish.topic.is_empty() {
         if let Some(tn) = metadata_cache.get_topic_alias(connect_id, topic_alias.unwrap()) {
             tn
         } else {
-            return Err(RobustMQError::TopicNameInvalid());
+            return Err(MQTTBrokerError::TopicNameInvalid());
         }
     } else {
         match String::from_utf8(publish.topic.to_vec()) {
             Ok(da) => da,
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(e.into()),
         }
     };
-
-    match topic_name_validator(&topic_name) {
-        Ok(_) => {}
-        Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
-        }
-    }
-
+    topic_name_validator(&topic_name)?;
     return Ok(topic_name);
 }
 
@@ -127,26 +120,15 @@ where
         let topic_storage = TopicStorage::new(client_poll.clone());
         let topic_id = unique_id();
         let topic = MQTTTopic::new(topic_id, topic_name.clone());
-        match topic_storage.save_topic(topic.clone()).await {
-            Ok(()) => {}
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
-            }
-        };
+        topic_storage.save_topic(topic.clone()).await?;
         metadata_cache.add_topic(&topic_name, &topic);
 
         // Create the resource object of the storage layer
         let shard_name = topic.topic_id.clone();
         let shard_config = ShardConfig::default();
-        match message_storage_adapter
+        message_storage_adapter
             .create_shard(shard_name, shard_config)
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
-            }
-        }
+            .await?;
         return Ok(topic);
     };
     return Ok(topic);
@@ -154,7 +136,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::handler::error::MQTTBrokerError;
+
+    use common_base::error::mqtt_broker::MQTTBrokerError;
 
     use super::topic_name_validator;
 

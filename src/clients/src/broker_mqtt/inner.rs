@@ -29,7 +29,7 @@ pub(crate) async fn inner_delete_session(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -46,7 +46,7 @@ pub(crate) async fn inner_update_cache(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -63,7 +63,7 @@ pub(crate) async fn inner_send_last_will_message(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));

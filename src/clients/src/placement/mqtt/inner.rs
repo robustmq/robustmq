@@ -35,7 +35,7 @@ pub(crate) async fn inner_get_share_sub_leader(
             Ok(result) => {
                 return Ok(GetShareSubLeaderReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -52,7 +52,7 @@ pub(crate) async fn inner_create_user(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -69,7 +69,7 @@ pub(crate) async fn inner_list_user(
             Ok(result) => {
                 return Ok(ListUserReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -86,7 +86,7 @@ pub(crate) async fn inner_delete_user(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -103,7 +103,7 @@ pub(crate) async fn inner_create_topic(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -120,7 +120,7 @@ pub(crate) async fn inner_list_topic(
             Ok(result) => {
                 return Ok(ListTopicReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -137,7 +137,7 @@ pub(crate) async fn inner_delete_topic(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -154,7 +154,7 @@ pub(crate) async fn inner_set_topic_retain_message(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -171,7 +171,7 @@ pub(crate) async fn inner_create_session(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -188,7 +188,7 @@ pub(crate) async fn inner_list_session(
             Ok(result) => {
                 return Ok(ListSessionReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -205,7 +205,7 @@ pub(crate) async fn inner_delete_session(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -222,7 +222,7 @@ pub(crate) async fn inner_update_session(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));
@@ -239,7 +239,7 @@ pub(crate) async fn inner_save_last_will_message(
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(RobustMQError::GrpcServerStatus(e)),
         },
         Err(e) => {
             return Err(RobustMQError::CommmonError(e.to_string()));

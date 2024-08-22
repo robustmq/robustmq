@@ -14,7 +14,6 @@
 
 pub mod cache_manager;
 pub mod connection;
-pub mod error;
 pub mod flow_control;
 pub mod keep_alive;
 pub mod lastwill;

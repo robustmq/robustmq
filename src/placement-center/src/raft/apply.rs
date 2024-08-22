@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use bincode::serialize;
+use common_base::error::placement_center::PlacementCenterError;
 use common_base::error::robustmq::RobustMQError;
 use raft::eraftpb::ConfChange;
 use raft::eraftpb::Message as raftPreludeMessage;
@@ -118,7 +118,7 @@ impl RaftMachineApply {
 
     pub async fn transfer_leader(&self, node_id: u64) -> Result<(), RobustMQError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return self
+        return Ok(self
             .apply_raft_status_machine_message(
                 RaftMessage::TransferLeader {
                     node_id: node_id,
@@ -127,7 +127,7 @@ impl RaftMachineApply {
                 "transfer_leader".to_string(),
                 rx,
             )
-            .await;
+            .await?);
     }
 
     pub async fn apply_propose_message(
@@ -136,7 +136,7 @@ impl RaftMachineApply {
         action: String,
     ) -> Result<(), RobustMQError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return self
+        return Ok(self
             .apply_raft_status_machine_message(
                 RaftMessage::Propose {
                     data: serialize(&data).unwrap(),
@@ -145,7 +145,7 @@ impl RaftMachineApply {
                 action,
                 rx,
             )
-            .await;
+            .await?);
     }
 
     pub async fn apply_raft_message(
@@ -154,7 +154,7 @@ impl RaftMachineApply {
         action: String,
     ) -> Result<(), RobustMQError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return self
+        return Ok(self
             .apply_raft_status_machine_message(
                 RaftMessage::Raft {
                     message: message,
@@ -163,7 +163,7 @@ impl RaftMachineApply {
                 action,
                 rx,
             )
-            .await;
+            .await?);
     }
 
     pub async fn apply_conf_raft_message(
@@ -172,13 +172,13 @@ impl RaftMachineApply {
         action: String,
     ) -> Result<(), RobustMQError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return self
+        return Ok(self
             .apply_raft_status_machine_message(
                 RaftMessage::ConfChange { change, chan: sx },
                 action,
                 rx,
             )
-            .await;
+            .await?);
     }
 
     async fn apply_raft_status_machine_message(
@@ -186,10 +186,10 @@ impl RaftMachineApply {
         message: RaftMessage,
         action: String,
         rx: Receiver<RaftResponseMesage>,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), PlacementCenterError> {
         let _ = self.raft_status_machine_sender.send(message).await;
         if !self.wait_recv_chan_resp(rx).await {
-            return Err(RobustMQError::MetaLogCommitTimeout(action));
+            return Err(PlacementCenterError::RaftLogCommitTimeout(action));
         }
         return Ok(());
     }

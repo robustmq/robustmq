@@ -440,7 +440,7 @@ pub async fn exclusive_publish_message_qos2(
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), RobustMQError> {
     // 1. send Publish to Client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         metadata_cache,
         client_id,
@@ -448,11 +448,7 @@ pub async fn exclusive_publish_message_qos2(
         &Some(publish_properties.clone()),
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     // 2. wait PubRec ack
     loop {
@@ -469,7 +465,7 @@ pub async fn exclusive_publish_message_qos2(
                 break;
             }
         } else {
-            match qos2_send_publish(
+            qos2_send_publish(
                 connection_manager,
                 metadata_cache,
                 client_id,
@@ -477,11 +473,7 @@ pub async fn exclusive_publish_message_qos2(
                 &Some(publish_properties.clone()),
                 stop_sx,
             )
-            .await
-            {
-                Ok(()) => {}
-                Err(e) => return Err(e),
-            };
+            .await?;
         }
         sleep(Duration::from_millis(1)).await;
     }

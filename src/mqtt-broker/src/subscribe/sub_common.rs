@@ -21,6 +21,7 @@ use bytes::BytesMut;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::error::robustmq::RobustMQError;
 use log::error;
 use protocol::mqtt::codec::MQTTPacketWrapper;
@@ -201,7 +202,7 @@ pub async fn qos2_send_publish(
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     stop_sx: &broadcast::Sender<bool>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), MQTTBrokerError> {
     let mut retry_times = 0;
     let mut stop_rx = stop_sx.subscribe();
     loop {
@@ -214,7 +215,7 @@ pub async fn qos2_send_publish(
 
         if let Some(conn) = metadata_cache.get_connection(connect_id) {
             if publish.payload.len() > (conn.max_packet_size as usize) {
-                return Err(RobustMQError::PacketLenthError(publish.payload.len()));
+                return Err(MQTTBrokerError::PacketLenthError(publish.payload.len()));
             }
         }
 

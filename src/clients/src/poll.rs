@@ -74,11 +74,11 @@ impl ClientPool {
             match poll.get().await {
                 Ok(conn) => return Ok(conn.into_inner()),
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(RobustMQError::NoAvailableGrpcConnection(module, e.to_string()));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(RobustMQError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -107,11 +107,11 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(RobustMQError::NoAvailableGrpcConnection(module, e.to_string()));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(RobustMQError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -139,12 +139,12 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(RobustMQError::NoAvailableGrpcConnection(module, e.to_string()));
                 }
             };
         }
 
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(RobustMQError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -172,11 +172,11 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(RobustMQError::NoAvailableGrpcConnection(module, e.to_string()));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(RobustMQError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -204,11 +204,11 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(RobustMQError::NoAvailableGrpcConnection(module, e.to_string()));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(RobustMQError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
