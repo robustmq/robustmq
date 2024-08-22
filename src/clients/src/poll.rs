@@ -19,7 +19,7 @@ use crate::{
         placement::PlacementServiceManager,
     },
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use dashmap::DashMap;
 use mobc::Pool;
 use protocol::{

@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use std::sync::Arc;
 

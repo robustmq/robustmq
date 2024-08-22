@@ -15,7 +15,7 @@
 use crate::placement::PlacementCenterService;
 use crate::placement::{retry_call, PlacementCenterInterface};
 use crate::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use prost::Message;
 use protocol::placement_center::generate::journal::{
     CreateSegmentRequest, DeleteSegmentRequest, DeleteShardRequest,

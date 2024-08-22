@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use bytes::Bytes;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{error::robustmq::RobustMQError, tools::now_second};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use storage_adapter::record::Record;

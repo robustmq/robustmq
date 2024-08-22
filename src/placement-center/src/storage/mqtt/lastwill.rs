@@ -18,7 +18,7 @@ use crate::storage::{
     keys::storage_key_mqtt_last_will,
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use std::sync::Arc;
 

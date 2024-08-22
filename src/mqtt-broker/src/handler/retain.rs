@@ -23,7 +23,7 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{error::robustmq::RobustMQError, tools::now_second};
 use log::error;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};

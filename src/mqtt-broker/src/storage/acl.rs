@@ -1,5 +1,5 @@
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use std::sync::Arc;
 
 use crate::security::acl::MQTTAcl;

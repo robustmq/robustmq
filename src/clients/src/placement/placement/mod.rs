@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use inner::{
     inner_delete_idempotent, inner_delete_resource_config, inner_exist_idempotent,
     inner_get_resource_config, inner_set_idempotent, inner_set_resource_config,

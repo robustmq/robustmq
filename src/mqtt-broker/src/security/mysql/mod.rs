@@ -13,7 +13,7 @@
 
 use super::AuthStorageAdapter;
 use axum::async_trait;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
 use mysql::{prelude::Queryable, Pool};

@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_segment, key_segment_cluster_prefix, key_segment_shard_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

@@ -21,7 +21,7 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use common_base::tools::now_second;
 use prost::Message;
 use protocol::placement_center::generate::common::CommonReply;

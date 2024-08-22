@@ -13,7 +13,7 @@
 
 use crate::handler::cache_manager::CacheManager;
 use axum::extract::ws::{Message, WebSocket};
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use dashmap::DashMap;
 use futures::{stream::SplitSink, SinkExt};
 use log::{error, info};

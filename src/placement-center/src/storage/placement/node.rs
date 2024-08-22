@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_node, key_node_prefix, key_node_prefix_all},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use metadata_struct::placement::broker_node::BrokerNode;
 use std::sync::Arc;
 

@@ -21,7 +21,7 @@ use clients::{
     placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
     poll::ClientPool,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use protocol::placement_center::generate::kv::{
     DeleteRequest, ExistsRequest, GetRequest, SetRequest,
 };

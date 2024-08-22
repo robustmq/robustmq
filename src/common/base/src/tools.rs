@@ -21,7 +21,7 @@ use local_ip_address::local_ip;
 use log::warn;
 use uuid::Uuid;
 
-use crate::errors::RobustMQError;
+use crate::error::robustmq::RobustMQError;
 
 pub fn create_fold(fold: &String) -> Result<(), RobustMQError> {
     if !Path::new(fold).exists() {

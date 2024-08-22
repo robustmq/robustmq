@@ -15,7 +15,7 @@
 use self::inner::inner_get_share_sub_leader;
 use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use inner::{
     inner_create_session, inner_create_topic, inner_create_user, inner_delete_session,
     inner_delete_topic, inner_delete_user, inner_list_session, inner_list_topic, inner_list_user,

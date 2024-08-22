@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_cluster, key_cluster_prefix, key_cluster_prefix_by_type},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use metadata_struct::placement::cluster::ClusterInfo;
 use std::sync::Arc;
 

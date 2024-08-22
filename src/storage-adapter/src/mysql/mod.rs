@@ -11,13 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     record::{Header, Record},
     storage::{ShardConfig, StorageAdapter},
 };
 use axum::async_trait;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{error::robustmq::RobustMQError, tools::now_second};
 use mysql::{params, prelude::Queryable, Pool};
 
 use self::schema::{TMqttKvMsg, TMqttRecord};

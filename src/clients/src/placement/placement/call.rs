@@ -16,7 +16,7 @@ use crate::{
     placement::{retry_call, PlacementCenterInterface, PlacementCenterService},
     poll::ClientPool,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,

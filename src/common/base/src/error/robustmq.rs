@@ -19,6 +19,11 @@ use std::io;
 use thiserror::Error;
 use tonic::Status;
 
+use crate::error::{
+    journal_server::JournalServerError, mqtt_broker::MQTTBrokerError,
+    placement_center::PlacementCenterError,
+};
+
 #[derive(Error, Debug)]
 pub enum RobustMQError {
     #[error("{0}")]
@@ -35,6 +40,15 @@ pub enum RobustMQError {
 
     #[error("{0}")]
     IoError(#[from] io::Error),
+
+    #[error("{0}")]
+    MQTTBrokerError(#[from] MQTTBrokerError),
+
+    #[error("{0}")]
+    PlacementCenterError(#[from] PlacementCenterError),
+
+    #[error("{0}")]
+    JournalServerError(#[from] JournalServerError),
 
     #[error("{0}")]
     CommmonError(String),
@@ -136,7 +150,7 @@ pub enum RobustMQError {
 
 #[cfg(test)]
 mod tests {
-    use crate::errors::RobustMQError;
+    use crate::error::robustmq::RobustMQError;
 
     #[test]
     fn thiserror_to_string() {

@@ -28,7 +28,7 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    errors::RobustMQError,
+    error::robustmq::RobustMQError,
     tools::{now_second, unique_id},
 };
 use dashmap::DashMap;

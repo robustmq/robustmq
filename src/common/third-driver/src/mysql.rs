@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use mysql::Pool;
 
 pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {

@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
 use log::error;
 use mobc::Manager;

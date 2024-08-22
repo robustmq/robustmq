@@ -22,10 +22,7 @@ use crate::{
         rocksdb::RocksDBEngine,
     },
 };
-use common_base::{
-    errors::RobustMQError,
-    tools::{now_mills, unique_id},
-};
+use common_base::{error::robustmq::RobustMQError, tools::{now_mills, unique_id}};
 use prost::Message as _;
 use protocol::placement_center::generate::journal::{
     CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,

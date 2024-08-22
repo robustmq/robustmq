@@ -17,7 +17,7 @@ use crate::{
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine},
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,

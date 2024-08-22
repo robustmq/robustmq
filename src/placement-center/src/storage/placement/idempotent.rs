@@ -16,7 +16,7 @@ use crate::storage::{
     keys::key_resource_idempotent,
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use std::sync::Arc;
 
 pub struct IdempotentStorage {

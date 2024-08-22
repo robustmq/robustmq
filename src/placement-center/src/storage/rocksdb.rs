@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::config::placement_center::PlacementCenterConfig;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use log::error;
 use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};

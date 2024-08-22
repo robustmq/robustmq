@@ -18,7 +18,7 @@ use crate::handler::cache_manager::CacheManager;
 
 use super::Authentication;
 use axum::async_trait;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 
 pub struct Plaintext {
     username: String,

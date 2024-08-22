@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use crate::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use mobc::Manager;
 use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
 use tonic::transport::Channel;

@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine};
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use prost::Message as _;
 use protocol::placement_center::generate::kv::{DeleteRequest, SetRequest};
 use std::sync::Arc;

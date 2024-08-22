@@ -17,10 +17,7 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{
-    errors::RobustMQError,
-    tools::{now_second, unique_id},
-};
+use common_base::{error::robustmq::RobustMQError, tools::{now_second, unique_id}};
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{Connect, ConnectProperties};

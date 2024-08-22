@@ -16,7 +16,7 @@ use crate::handler::{cache_manager::CacheManager, error::MQTTBrokerError};
 use crate::storage::topic::TopicStorage;
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use common_base::tools::unique_id;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};

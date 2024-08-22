@@ -14,7 +14,7 @@
 
 use crate::record::Record;
 use axum::async_trait;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 
 #[derive(Default)]
 pub struct ShardConfig {}

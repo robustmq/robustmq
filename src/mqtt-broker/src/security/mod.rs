@@ -18,7 +18,7 @@ use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::{
     config::{broker_mqtt::broker_mqtt_conf, common::Auth},
-    errors::RobustMQError,
+    error::robustmq::RobustMQError,
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;

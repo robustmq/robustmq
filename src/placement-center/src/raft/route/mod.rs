@@ -28,7 +28,7 @@ use crate::{
     storage::rocksdb::RocksDBEngine,
 };
 use bincode::deserialize;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use std::sync::Arc;
 
 pub struct DataRoute {

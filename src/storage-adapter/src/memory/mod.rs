@@ -17,7 +17,7 @@ use crate::{
     storage::{ShardConfig, StorageAdapter},
 };
 use axum::async_trait;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use dashmap::DashMap;
 
 #[derive(Clone)]

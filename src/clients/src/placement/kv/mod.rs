@@ -15,7 +15,7 @@
 use crate::poll::ClientPool;
 use self::inner::{inner_delete, inner_exists, inner_get, inner_set};
 use super::PlacementCenterInterface;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use mobc::Manager;
 use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
 use std::sync::Arc;

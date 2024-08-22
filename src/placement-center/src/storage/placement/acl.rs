@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_resource_acl, key_resource_acl_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use metadata_struct::acl::CommonAcl;
 use std::sync::Arc;
 

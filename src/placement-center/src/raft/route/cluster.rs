@@ -22,7 +22,7 @@ use crate::{
     },
 };
 use common_base::{
-    errors::RobustMQError,
+    error::robustmq::RobustMQError,
     tools::{now_mills, unique_id},
 };
 use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};

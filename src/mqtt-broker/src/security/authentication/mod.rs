@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use axum::async_trait;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use std::net::SocketAddr;
 
 pub mod http;

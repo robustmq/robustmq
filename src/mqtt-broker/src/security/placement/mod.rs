@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use axum::async_trait;
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
 

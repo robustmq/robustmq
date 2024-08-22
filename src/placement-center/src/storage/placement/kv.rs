@@ -18,7 +18,7 @@ use crate::storage::{
     },
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use std::sync::Arc;
 
 pub struct KvStorage {

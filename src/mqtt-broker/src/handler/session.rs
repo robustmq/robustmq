@@ -16,7 +16,7 @@ use super::{cache_manager::CacheManager, lastwill::last_will_delay_interval};
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::{
-    config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError, tools::now_second,
+    config::broker_mqtt::broker_mqtt_conf, error::robustmq::RobustMQError, tools::now_second,
 };
 use metadata_struct::mqtt::session::MQTTSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};

@@ -16,7 +16,7 @@ use clients::placement::placement::call::{
     un_register_node,
 };
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::get_local_ip};
 use log::{error, info};
 use metadata_struct::mqtt::cluster::MQTTCluster;

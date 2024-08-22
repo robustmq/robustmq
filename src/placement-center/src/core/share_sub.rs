@@ -19,7 +19,7 @@ use crate::{
         rocksdb::RocksDBEngine,
     },
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct ShareSubLeader {

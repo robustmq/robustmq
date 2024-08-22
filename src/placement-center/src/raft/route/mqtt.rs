@@ -18,7 +18,7 @@ use crate::storage::{
     },
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use metadata_struct::mqtt::session::MQTTSession;
 use prost::Message as _;
 use protocol::placement_center::generate::mqtt::{

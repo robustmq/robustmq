@@ -15,7 +15,7 @@ use super::{
     rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER},
     StorageDataWrap,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use serde::Serialize;
 use std::sync::Arc;
 

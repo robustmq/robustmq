@@ -20,7 +20,7 @@ use crate::storage::{
     rocksdb::RocksDBEngine,
 };
 
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

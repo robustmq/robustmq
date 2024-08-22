@@ -13,7 +13,7 @@
 
 
 use bincode::serialize;
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use raft::eraftpb::ConfChange;
 use raft::eraftpb::Message as raftPreludeMessage;
 use serde::Deserialize;

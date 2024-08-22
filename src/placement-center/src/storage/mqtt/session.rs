@@ -21,7 +21,7 @@ use crate::storage::{
     rocksdb::RocksDBEngine,
     StorageDataWrap,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use metadata_struct::mqtt::session::MQTTSession;
 use std::sync::Arc;
 

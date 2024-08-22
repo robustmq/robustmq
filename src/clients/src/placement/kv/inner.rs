@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use common_base::errors::RobustMQError;
+use common_base::error::robustmq::RobustMQError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
