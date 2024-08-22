@@ -180,7 +180,12 @@ mod tests {
 
         // subscribe
         let rx = cli.start_consuming();
-        cli.subscribe_many(sub_topics, sub_qos).unwrap();
+        match cli.subscribe_many(sub_topics, sub_qos) {
+            Ok(da) => {}
+            Err(e) => {
+                panic!("{}", e)
+            }
+        }
         for msg in rx.iter() {
             if let Some(msg) = msg {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();

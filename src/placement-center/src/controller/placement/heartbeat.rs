@@ -11,15 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     cache::placement::PlacementCacheManager,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
 };
-use common_base::{
-    log::{error_meta, info_meta},
-    tools::now_second,
-};
+use common_base::tools::now_second;
+use log::{error, info};
 use prost::Message;
 use protocol::placement_center::generate::{common::ClusterType, placement::UnRegisterNodeRequest};
 use std::{sync::Arc, thread::sleep, time::Duration};
@@ -81,13 +78,13 @@ impl BrokerHeartbeat {
                                         .await
                                     {
                                         Ok(_) => {
-                                            info_meta(
-                                                    &format!("The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
+                                            info!(
+                                                   "The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
                                                     node.node_id,
-                                                    node.node_ip));
+                                                    node.node_ip);
                                         }
                                         Err(e) => {
-                                            error_meta(&e.to_string());
+                                            error!("{}", e);
                                         }
                                     }
                                 });

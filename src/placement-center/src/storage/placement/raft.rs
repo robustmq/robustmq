@@ -20,8 +20,8 @@ use crate::storage::keys::key_name_snapshot;
 use crate::storage::keys::key_name_uncommit;
 use crate::storage::rocksdb::RocksDBEngine;
 use bincode::{deserialize, serialize};
-use common_base::log::error_meta;
-use common_base::log::info_meta;
+use log::error;
+use log::info;
 use prost::Message as _;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -110,7 +110,7 @@ impl RaftMachineStorage {
     pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
         let entry = self.entry_by_idx(idx);
         if entry.is_none() {
-            info_meta(&format!("commit_to {} but the entry does not exist", idx))
+            info!("commit_to {} but the entry does not exist", idx);
         }
 
         println!(">> commit entry index:{}", idx);
@@ -194,7 +194,7 @@ impl RaftMachineStorage {
                 }
             }
             Err(e) => {
-                error_meta(&format!("Failed to read the first index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index));
+                error!("Failed to read the first index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index);
                 self.snapshot_metadata.index + 1
             }
         }
@@ -215,7 +215,7 @@ impl RaftMachineStorage {
                 }
             }
             Err(e) => {
-                error_meta(&format!("Failed to read the last index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index));
+                error!("Failed to read the last index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index);
                 self.snapshot_metadata.index
             }
         }
@@ -236,10 +236,10 @@ impl RaftMachineStorage {
                     return Some(et);
                 }
             }
-            Err(e) => error_meta(&format!(
+            Err(e) => error!(
                 "Failed to read entry. The failure information is {}, and the current index is {}",
                 e, idx
-            )),
+            ),
         }
         return None;
     }
@@ -297,11 +297,11 @@ impl RaftMachineStorage {
                 if let Some(value) = data {
                     match deserialize(value.as_ref()) {
                         Ok(v) => return v,
-                        Err(err) => error_meta(&err.to_string()),
+                        Err(err) => error!("{}", err),
                     }
                 }
             }
-            Err(err) => error_meta(&err),
+            Err(err) => error!("{}", err),
         }
         return HashMap::new();
     }
@@ -319,17 +319,17 @@ impl RaftMachineStorage {
                         .get_column_family(family.to_string());
                     for raw in value {
                         for (key, val) in &raw {
-                            info_meta(&format!("key:{:?},val{:?}", key, val.to_string()));
+                            info!("key:{:?},val{:?}", key, val.to_string());
                             match self
                                 .rocksdb_engine_handler
                                 .write_str(cf, key, val.to_string())
                             {
                                 Ok(_) => {}
                                 Err(err) => {
-                                    error_meta(&format!(
+                                    error!(
                                         "Error occurred during apply snapshot. Error message: {}",
                                         err
-                                    ));
+                                    );
                                 }
                             }
                         }
@@ -337,7 +337,7 @@ impl RaftMachineStorage {
                 }
             }
             Err(err) => {
-                error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
+                error!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string());
             }
         }
     }
@@ -434,7 +434,7 @@ mod tests {
     use super::RaftMachineStorage;
     use common_base::{
         config::placement_center::{init_placement_center_conf_by_config, PlacementCenterConfig},
-        log::init_placement_center_log,
+        logs::init_placement_center_log,
     };
 
     #[test]

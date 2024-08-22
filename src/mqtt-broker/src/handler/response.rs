@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::log::{error, warn};
+use log::{error, warn};
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
@@ -87,7 +87,7 @@ pub fn response_packet_mqtt_connect_fail(
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MQTTPacket {
-    warn(format!("{code:?},{error_reason:?}"));
+    warn!("{code:?},{error_reason:?}");
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
             ConnectReturnCode::BadClientId
@@ -179,9 +179,7 @@ pub fn response_packet_mqtt_puback_fail(
     reason: PubAckReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
-    error(format!(
-        "reason:{reason:?}, reason string: {reason_string:?}"
-    ));
+    error!("reason:{reason:?}, reason string: {reason_string:?}");
     if !protocol.is_mqtt5() {
         let pub_ack = PubAck { pkid, reason: None };
         return MQTTPacket::PubAck(pub_ack, None);
@@ -225,9 +223,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     reason: PubRecReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
-    error(format!(
-        "reason:{reason:?}, reason string: {reason_string:?}"
-    ));
+    error!("reason:{reason:?}, reason string: {reason_string:?}");
     if !protocol.is_mqtt5() {
         return MQTTPacket::PubRec(PubRec { pkid, reason: None }, None);
     }

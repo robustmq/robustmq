@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::mqtt::MqttService;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
 use crate::handler::{cache_manager::CacheManager, response::response_packet_mqtt_connect_fail};
@@ -20,7 +19,7 @@ use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
-use common_base::log::info;
+use log::info;
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
 };
@@ -171,10 +170,7 @@ where
                     if conn_ack.code == ConnectReturnCode::Success {
                         self.metadata_cache
                             .login_success(tcp_connection.connection_id);
-                        info(format!(
-                            "connect [{}] login success",
-                            tcp_connection.connection_id
-                        ));
+                        info!("connect [{}] login success", tcp_connection.connection_id);
                     }
                 }
                 return Some(ack_pkg);

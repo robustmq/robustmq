@@ -11,16 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     placement::placement::call::{heartbeat, register_node, un_register_node},
     poll::ClientPool,
 };
-use common_base::{
-    config::journal_server::JournalServerConfig,
-    log::{debug_eninge, error_engine, info_meta},
-    tools::get_local_ip,
-};
+use common_base::{config::journal_server::JournalServerConfig, tools::get_local_ip};
+use log::{debug, error, info};
 use protocol::placement_center::generate::{
     common::ClusterType,
     placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},
@@ -40,10 +36,7 @@ pub async fn register_storage_engine_node(
     req.extend_info = "".to_string();
     match register_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {
-            info_meta(&format!(
-                "Node {} has been successfully registered",
-                config.node_id
-            ));
+            info!("Node {} has been successfully registered", config.node_id);
         }
         Err(e) => {
             panic!("{}", e.to_string());
@@ -62,7 +55,7 @@ pub async fn unregister_storage_engine_node(
 
     match un_register_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {
-            info_meta(&format!("Node {} exits successfully", config.node_id));
+            info!("Node {} exits successfully", config.node_id);
         }
         Err(e) => {
             panic!("{}", e.to_string());
@@ -84,14 +77,14 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, config: JournalServe
         .await
         {
             Ok(_) => {
-                debug_eninge(format!(
+                debug!(
                     "Node {} successfully reports the heartbeat communication",
                     config.node_id
-                ));
+                );
                 break;
             }
             Err(e) => {
-                error_engine(e.to_string());
+                error!("{}", e);
             }
         }
         time::sleep(Duration::from_millis(1000)).await;

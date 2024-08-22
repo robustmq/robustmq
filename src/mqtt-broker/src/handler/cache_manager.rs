@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::connection::Connection;
 use crate::security::AuthDriver;
 use crate::storage::user::UserStorage;
@@ -19,9 +18,9 @@ use crate::storage::{cluster::ClusterStorage, topic::TopicStorage};
 use crate::subscribe::subscriber::SubscribeData;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::log::warn;
 use common_base::tools::now_second;
 use dashmap::DashMap;
+use log::warn;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -404,7 +403,7 @@ impl CacheManager {
                 return 1;
             }
             sleep(Duration::from_millis(10)).await;
-            warn("No pkid available for client, wait 10ms.".to_string());
+            warn!("{}", "No pkid available for client, wait 10ms.");
         }
     }
 

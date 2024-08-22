@@ -19,10 +19,8 @@ use crate::{
     server::connection_manager::ConnectionManager, subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{
-    log::{error, info},
-    tools::now_second,
-};
+use common_base::tools::now_second;
+use log::{error, info};
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{ConnectProperties, MQTTProtocol};
 use serde::{Deserialize, Serialize};
@@ -66,7 +64,7 @@ impl ClientKeepAlive {
                     match val{
                         Ok(flag) => {
                             if flag {
-                                info("Heartbeat check thread stopped successfully.".to_string());
+                                info!("{}","Heartbeat check thread stopped successfully.");
                                 break;
                             }
                         }
@@ -96,7 +94,7 @@ impl ClientKeepAlive {
                 {
                     Ok(()) => {}
                     Err(e) => {
-                        error(e.to_string());
+                        error!("{}", e);
                     }
                 }
             }
@@ -116,7 +114,7 @@ impl ClientKeepAlive {
             if let Some(time) = self.cache_manager.heartbeat_data.get(&connection.client_id) {
                 let max_timeout = keep_live_time(time.keep_live) as u64;
                 if (now_second() - time.heartbeat) >= max_timeout {
-                    info("Connection was closed by the server because the heartbeat timeout was not reported.".to_string());
+                    info!("{}","Connection was closed by the server because the heartbeat timeout was not reported.");
                     expire_connection.push(connect_id);
                 }
             } else {

@@ -11,16 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use self::{
     journal::journal_interface_call, kv::kv_interface_call, mqtt::mqtt_interface_call,
     placement::placement_interface_call,
 };
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-};
+use common_base::errors::RobustMQError;
+use log::error;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -138,7 +135,7 @@ async fn retry_call(
                 return Ok(data);
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
                 if times > retry_times() {
                     return Err(e);
                 }

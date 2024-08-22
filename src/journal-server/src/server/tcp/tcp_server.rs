@@ -16,8 +16,9 @@ use super::{
     packet::ResponsePackage,
 };
 use crate::{network::command::Command, server::tcp::packet::RequestPackage};
-use common_base::log::error_engine;
+
 use futures::StreamExt;
+use log::error;
 use protocol::journal_server::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
 use tokio::{io, sync::broadcast};
@@ -98,7 +99,7 @@ impl TcpServer {
                         match cm.connect_check() {
                             Ok(_) => {}
                             Err(e) => {
-                                error_engine(format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
+                                error!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string());
                                 continue;
                             }
                         }
@@ -120,11 +121,11 @@ impl TcpServer {
                                             let package = RequestPackage::new(connection_id, data);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
-                                                Err(err) => error_engine(format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                                Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
                                             }
                                         }
                                         Err(e) => {
-                                            error_engine(e.to_string());
+                                            error!("{}", e);
                                         }
                                     }
                                 }
@@ -132,7 +133,7 @@ impl TcpServer {
                         });
                     }
                     Err(e) => {
-                        error_engine(e.to_string());
+                        error!("{}", e);
                     }
                 };
             }
@@ -154,10 +155,10 @@ impl TcpServer {
                 let response_package = ResponsePackage::new(resquest_package.connection_id, resp);
                 match response_queue_sx.send(response_package) {
                     Ok(_) => {}
-                    Err(err) => error_engine(format!(
+                    Err(err) => error!(
                         "Failed to write data to the response queue, error message: {:?}",
                         err
-                    )),
+                    ),
                 }
             }
         });

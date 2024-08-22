@@ -46,3 +46,4 @@ rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
 mysql.workspace = true
 paho-mqtt.workspace = true
+log.workspace = true

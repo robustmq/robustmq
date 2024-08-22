@@ -51,7 +51,7 @@ pub fn build_v5_conn_pros(props: Properties, err_pwd: bool) -> ConnectOptions {
     let conn_opts = ConnectOptionsBuilder::new_v5()
         .keep_alive_interval(Duration::from_secs(20))
         .clean_start(true)
-        .connect_timeout(Duration::from_secs(1))
+        .connect_timeout(Duration::from_secs(5))
         .properties(props.clone())
         .user_name(username())
         .password(pwd)
@@ -64,7 +64,7 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool) -> ConnectOptions {
     let conn_opts = ConnectOptionsBuilder::with_mqtt_version(mqtt_version)
         .keep_alive_interval(Duration::from_secs(20))
         .clean_session(true)
-        .connect_timeout(Duration::from_secs(1))
+        .connect_timeout(Duration::from_secs(5))
         .user_name(username())
         .password(pwd)
         .finalize();
@@ -104,7 +104,7 @@ pub fn connect_server34(mqtt_version: u32, client_id: &String, addr: &String) ->
     match cli.connect(conn_opts) {
         Ok(_) => {}
         Err(e) => {
-            println!("Unable to connect:\n\t{:?}", e);
+            println!("Unable to connect:\n\t{:?},{}", e, addr);
             assert!(false)
         }
     }

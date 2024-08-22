@@ -11,15 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     broker_mqtt::call::{broker_mqtt_delete_session, send_last_will_message},
     poll::ClientPool,
 };
-use common_base::{
-    log::{error, info, warn},
-    tools::now_second,
-};
+use common_base::tools::now_second;
+use log::{error, info, warn};
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
 
@@ -65,11 +62,11 @@ impl MQTTBrokerCall {
         for raw in chunks {
             let client_ids: Vec<String> = raw.iter().map(|x| x.client_id.clone()).collect();
             let mut success = true;
-            info(format!(
+            info!(
                 "Session [{:?}] has expired. Call Broker to delete the Session information.",
                 client_ids
-            ));
-            
+            );
+
             for addr in self
                 .placement_cache_manager
                 .get_cluster_node_addr(&self.cluster_name)
@@ -84,7 +81,7 @@ impl MQTTBrokerCall {
                     Ok(_) => {}
                     Err(e) => {
                         success = false;
-                        warn(e.to_string());
+                        warn!("{}", e);
                     }
                 }
             }
@@ -106,7 +103,7 @@ impl MQTTBrokerCall {
                                     cluster_name: self.cluster_name.clone(),
                                 });
                         }
-                        Err(e) => error(e.to_string()),
+                        Err(e) => error!("{}", e),
                     }
                 }
             }
@@ -130,7 +127,7 @@ impl MQTTBrokerCall {
                 .mqtt_cache_manager
                 .remove_expire_last_will(&self.cluster_name, &client_id),
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
             }
         }
     }

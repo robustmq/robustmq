@@ -13,7 +13,8 @@
 
 use std::{sync::Arc, time::Duration};
 
-use common_base::{log::error, tools::now_second};
+use common_base::tools::now_second;
+use log::error;
 use metadata_struct::mqtt::{lastwill::LastWillData, topic::MQTTTopic};
 use tokio::time::sleep;
 
@@ -41,7 +42,7 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
         let topic_storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
+        let cf = self.rocksdb_engine_handler.cf_cluster();
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         while iter.valid() {
@@ -80,7 +81,7 @@ impl MessageExpire {
                     match topic_storage.save(&self.cluster_name, &value.topic_name.clone(), value) {
                         Ok(()) => {}
                         Err(e) => {
-                            error(e.to_string());
+                            error!("{}", e);
                         }
                     }
                 }
@@ -94,7 +95,7 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MQTTLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
+        let cf = self.rocksdb_engine_handler.cf_cluster();
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         while iter.valid() {
@@ -132,7 +133,7 @@ impl MessageExpire {
                     match lastwill_storage.delete(&self.cluster_name, &value.client_id) {
                         Ok(()) => {}
                         Err(e) => {
-                            error(e.to_string());
+                            error!("{}", e);
                         }
                     }
                 }

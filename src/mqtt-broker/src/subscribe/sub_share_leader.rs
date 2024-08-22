@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
     sub_common::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
@@ -30,11 +29,8 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-    tools::now_second,
-};
+use common_base::{errors::RobustMQError, tools::now_second};
+use log::{error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
@@ -98,10 +94,7 @@ where
                             .remove(&share_leader_key);
                     }
                     Err(err) => {
-                        error(format!(
-                            "stop sub share thread error, error message:{}",
-                            err.to_string()
-                        ));
+                        error!("stop sub share thread error, error message:{}", err);
                     }
                 }
             }
@@ -139,7 +132,8 @@ where
                     share_leader_key.clone(),
                     sub_data.clone(),
                     subscribe_manager,
-                ).await;
+                )
+                .await;
             }
         }
     }
@@ -176,10 +170,10 @@ where
         let message_storage = self.message_storage.clone();
 
         tokio::spawn(async move {
-            info(format!(
+            info!(
                 "Share leader push data thread for GroupName {},Topic [{}] was started successfully",
                 group_name, topic_name
-            ));
+            );
 
             let message_storage: MessageStorage<S> = MessageStorage::new(message_storage);
             let group_id = format!("system_sub_{}_{}", group_name, topic_id);
@@ -194,10 +188,10 @@ where
                         match val {
                             Ok(flag) => {
                                 if flag {
-                                    info(format!(
+                                    info!(
                                         "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
                                         group_name, topic_name
-                                    ));
+                                    );
                                     break;
                                 }
                             }
@@ -261,10 +255,10 @@ where
                 let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Storage layer message Decord failed with error message :{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                         loop_commit_offset(message_storage, topic_id, group_id, record.offset)
                             .await;
                         return (cursor_point, sub_list);
@@ -367,8 +361,8 @@ where
                                         break;
                                     }
                                     Err(e) => {
-                                        error(format!("SharSub Leader failed to send QOS1 message to {}, error message :{},
-                                         trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string()));
+                                        error!("SharSub Leader failed to send QOS1 message to {}, error message :{},
+                                         trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string());
                                         loop_times = loop_times + 1;
                                     }
                                 }
@@ -408,7 +402,7 @@ where
                                         break;
                                     }
                                     Err(e) => {
-                                        error(e.to_string());
+                                        error!("{}", e);
                                         loop_times = loop_times + 1;
                                     }
                                 }
@@ -422,12 +416,12 @@ where
             return (cursor_point, sub_list);
         }
         Err(e) => {
-            error(format!(
+            error!(
                 "Failed to read message from storage, failure message: {},topic:{},group{}",
                 e.to_string(),
                 topic_id.clone(),
                 group_id.clone()
-            ));
+            );
             sleep(Duration::from_millis(max_wait_ms)).await;
             return (cursor_point, sub_list);
         }

@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::cluster::ClusterStorage;
 use clients::poll::ClientPool;
-use common_base::log::debug;
+use log::debug;
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
 
@@ -26,7 +25,7 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast
                 match val{
                     Ok(flag) => {
                         if flag {
-                            debug(format!("Heartbeat reporting thread exited successfully"));
+                            debug!("{}","Heartbeat reporting thread exited successfully");
                             break;
                         }
                     }

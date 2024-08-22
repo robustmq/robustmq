@@ -11,18 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::placement::placement::call::{
     delete_resource_config, get_resource_config, heartbeat, register_node, set_resource_config,
     un_register_node,
 };
 use clients::poll::ClientPool;
 use common_base::errors::RobustMQError;
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    log::{error, info},
-    tools::get_local_ip,
-};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::get_local_ip};
+use log::{error, info};
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
 use protocol::placement_center::generate::placement::{
@@ -73,10 +69,7 @@ impl ClusterStorage {
         .await
         {
             Ok(_) => {
-                info(format!(
-                    "Node {} has been successfully registered",
-                    config.broker_id
-                ));
+                info!("Node {} has been successfully registered", config.broker_id);
             }
             Err(e) => {
                 panic!("{}", e.to_string())
@@ -99,9 +92,9 @@ impl ClusterStorage {
         .await
         {
             Ok(_) => {
-                info(format!("Node {} exits successfully", config.broker_id));
+                info!("Node {} exits successfully", config.broker_id);
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
     }
 
@@ -120,7 +113,7 @@ impl ClusterStorage {
         .await
         {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
     }
 
@@ -219,7 +212,8 @@ mod tests {
     use crate::storage::cluster::ClusterStorage;
     use clients::poll::ClientPool;
     use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+        config::broker_mqtt::init_broker_mqtt_conf_by_path,
+        logs::{init_broker_mqtt_log, init_log},
     };
     use metadata_struct::mqtt::cluster::MQTTCluster;
     use std::sync::Arc;
@@ -230,9 +224,7 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_poll);
@@ -262,6 +254,5 @@ mod tests {
             .await
             .unwrap();
         assert!(result.is_none());
-
     }
 }

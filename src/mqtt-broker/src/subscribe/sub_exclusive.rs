@@ -21,11 +21,8 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-    tools::now_second,
-};
+use common_base::{errors::RobustMQError, tools::now_second};
+use log::{error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
@@ -127,10 +124,10 @@ where
                 .insert(exclusive_key.clone(), sub_thread_stop_sx.clone());
 
             tokio::spawn(async move {
-                info(format!(
+                info!(
                         "Exclusive push thread for client_id [{}],topic_id [{}] was started successfully",
                         client_id, subscriber.topic_id
-                    ));
+                    );
                 let message_storage = MessageStorage::new(message_storage);
                 let group_id = format!("system_sub_{}_{}", client_id, subscriber.topic_id);
                 let record_num = 5;
@@ -158,11 +155,11 @@ where
                     match sub_thread_stop_rx.try_recv() {
                         Ok(flag) => {
                             if flag {
-                                info(format!(
+                                info!(
                                         "Exclusive Push thread for client_id [{}],topic_id [{}] was stopped successfully",
                                         client_id.clone(),
                                     subscriber.topic_id
-                                    ));
+                                    );
                                 break;
                             }
                         }
@@ -186,7 +183,7 @@ where
                                 let msg = match MQTTMessage::decode_record(record.clone()) {
                                     Ok(msg) => msg,
                                     Err(e) => {
-                                        error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));
+                                        error!("Storage layer message Decord failed with error message :{}",e);
                                         match message_storage
                                             .commit_group_offset(
                                                 subscriber.topic_id.clone(),
@@ -197,7 +194,7 @@ where
                                         {
                                             Ok(_) => {}
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error!("{}", e);
                                             }
                                         }
                                         continue;
@@ -278,7 +275,7 @@ where
                                                 cache_manager.remove_ack_packet(&client_id, pkid);
                                             }
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error!("{}", e);
                                             }
                                         }
                                     }
@@ -313,7 +310,7 @@ where
                                                 cache_manager.remove_ack_packet(&client_id, pkid);
                                             }
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error!("{}", e);
                                             }
                                         }
                                     }
@@ -331,12 +328,12 @@ where
                             }
                         }
                         Err(e) => {
-                            error(format!(
+                            error!(
                                     "Failed to read message from storage, failure message: {},topic:{},group{}",
                                     e.to_string(),
                                     subscriber.topic_id.clone(),
                                     group_id.clone()
-                                ));
+                                );
                             sleep(Duration::from_millis(max_wait_ms)).await;
                         }
                     }
@@ -418,10 +415,10 @@ pub async fn exclusive_publish_message_qos1(
                 }
             }
             Err(e) => {
-                error(format!(
+                error!(
                     "Failed to write QOS1 Publish message to response queue, failure message: {}",
-                    e.to_string()
-                ));
+                    e
+                );
                 sleep(Duration::from_secs(1)).await;
             }
         }

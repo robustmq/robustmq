@@ -13,12 +13,11 @@
 // limitations under the License.
 
 pub mod broker;
-use axum::routing::{get, Route};
+use axum::routing::get;
 use axum::Router;
+use log::info;
 use prometheus::IntGaugeVec;
 use prometheus::{Encoder, TextEncoder};
-
-use crate::log::info;
 
 lazy_static::lazy_static! {
     static ref APP_VERSION: IntGaugeVec =
@@ -42,10 +41,10 @@ pub async fn register_prometheus_export(port: u16) {
     let ip = format!("0.0.0.0:{}", port);
     let route = Router::new().route("/metrics", get(route_metrics));
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
-    info(format!(
+    info!(
         "Prometheus HTTP Server started successfully, listening port: {}",
         port
-    ));
+    );
     axum::serve(listener, route).await.unwrap();
 }
 

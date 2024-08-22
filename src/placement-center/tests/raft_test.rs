@@ -11,12 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #[cfg(test)]
 mod tests {
     use byteorder::{BigEndian, ReadBytesExt};
     use common_base::config::placement_center::init_placement_center_conf_by_config;
-    use common_base::log::init_placement_center_log;
+    use common_base::logs::init_placement_center_log;
     use common_base::{config::placement_center::PlacementCenterConfig, tools::create_fold};
     use placement_center::PlacementCenter;
     use prost::Message;
@@ -33,7 +32,7 @@ mod tests {
         conf.addr = "127.0.0.1".to_string();
         conf.grpc_port = 1221;
         conf.http_port = 2221;
-        conf.log_path = "/tmp/test_fold1/logs".to_string();
+        conf.log.log_path = "/tmp/test_fold1/logs".to_string();
         conf.data_path = "/tmp/test_fold1/data".to_string();
 
         let mut nodes = Table::new();
@@ -66,10 +65,10 @@ mod tests {
         conf.addr = "127.0.0.1".to_string();
         conf.grpc_port = 1222;
         conf.http_port = 2222;
-        conf.log_path = "/tmp/test_fold2/logs".to_string();
+        conf.log.log_path = "/tmp/test_fold2/logs".to_string();
         conf.data_path = "/tmp/test_fold2/data".to_string();
-        create_fold(conf.data_path.clone());
-        create_fold(conf.log_path.clone());
+        create_fold(&conf.data_path);
+        create_fold(&conf.log.log_path);
 
         let mut nodes = Table::new();
         nodes.insert(
@@ -101,7 +100,7 @@ mod tests {
         conf.addr = "127.0.0.1".to_string();
         conf.grpc_port = 1223;
         conf.http_port = 2223;
-        conf.log_path = "/tmp/test_fold3/logs".to_string();
+        conf.log.log_path = "/tmp/test_fold3/logs".to_string();
         conf.data_path = "/tmp/test_fold3/data".to_string();
 
         let mut nodes = Table::new();

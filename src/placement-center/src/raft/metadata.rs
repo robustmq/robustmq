@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::{config::placement_center::placement_center_conf, log::info_meta};
+use common_base::config::placement_center::placement_center_conf;
+use log::info;
 use metadata_struct::placement::broker_node::BrokerNode;
 use protocol::placement_center::generate::common::ClusterType;
 use raft::StateRole;
@@ -73,13 +73,13 @@ impl RaftGroupMetadata {
 
     // Add Meta node
     pub fn add_peer(&mut self, id: u64, node: BrokerNode) {
-        info_meta(&format!("add peer node:{:?}", node));
+        info!("add peer node:{:?}", node);
         self.peers.insert(id, node);
     }
 
     // Add Meta node
     pub fn remove_peer(&mut self, id: u64) {
-        info_meta(&format!("remove peer node id:{:?}", id));
+        info!("remove peer node id:{:?}", id);
         self.peers.remove(&id);
     }
 

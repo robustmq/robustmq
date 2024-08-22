@@ -48,3 +48,4 @@ slog = "2"
 slog-term = "2.9.0"
 slog-async = "2.8.0"
 time = "0.3.36"
+log.workspace = true

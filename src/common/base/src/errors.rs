@@ -14,30 +14,27 @@
  * limitations under the License.
  */
 
+use std::io;
+
 use thiserror::Error;
 use tonic::Status;
 
 #[derive(Error, Debug)]
 pub enum RobustMQError {
-    #[error(
-        "The service connection is incorrect, possibly because the service port is not started"
-    )]
+    #[error("{0}")]
     TonicTransport(#[from] tonic::transport::Error),
 
-    #[error(
-        "The service connection is incorrect, possibly because the service port is not started"
-    )]
+    #[error("{0}")]
     DecodeError(#[from] prost::DecodeError),
 
-    #[error(
-        "The service connection is incorrect, possibly because the service port is not started"
-    )]
+    #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
-    #[error(
-        "The service connection is incorrect, possibly because the service port is not started"
-    )]
+    #[error("{0}")]
     RocksdbError(#[from] rocksdb::Error),
+
+    #[error("{0}")]
+    IoError(#[from] io::Error),
 
     #[error("{0}")]
     CommmonError(String),

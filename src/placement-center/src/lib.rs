@@ -20,10 +20,10 @@ use cache::mqtt::MqttCacheManager;
 use cache::placement::PlacementCacheManager;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
-use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
 use controller::mqtt::MQTTController;
 use controller::placement::controller::ClusterController;
+use log::info;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
@@ -164,10 +164,10 @@ impl PlacementCenter {
         );
 
         self.server_runtime.spawn(async move {
-            info_meta(&format!(
+            info!(
                 "RobustMQ Meta Grpc Server start success. bind addr:{}",
                 ip
-            ));
+            );
             Server::builder()
                 .add_service(PlacementCenterServiceServer::new(placement_handler))
                 .add_service(KvServiceServer::new(kv_handler))
@@ -239,7 +239,7 @@ impl PlacementCenter {
             peers_manager.start().await;
         });
 
-        info_meta("Raft Node inter-node communication management thread started successfully");
+        info!("Raft Node inter-node communication management thread started successfully");
     }
 
     // Wait Stop Signal
@@ -250,7 +250,7 @@ impl PlacementCenter {
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match stop_send.send(true) {
                     Ok(_) => {
-                        info_meta("When ctrl + c is received, the service starts to stop");
+                        info!("When ctrl + c is received, the service starts to stop");
                         break;
                     }
                     Err(_) => {}

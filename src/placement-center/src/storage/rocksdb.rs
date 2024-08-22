@@ -14,7 +14,7 @@
 
 use common_base::config::placement_center::PlacementCenterConfig;
 use common_base::errors::RobustMQError;
-use common_base::log::error_meta;
+use log::error;
 use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use serde::{de::DeserializeOwned, Serialize};
@@ -23,13 +23,10 @@ use std::collections::HashMap;
 use std::path::Path;
 
 pub const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
-pub const DB_COLUMN_FAMILY_DATA: &str = "data";
-pub const DB_COLUMN_FAMILY_MQTT: &str = "mqtt";
 
 fn column_family_list() -> Vec<String> {
     let mut list = Vec::new();
     list.push(DB_COLUMN_FAMILY_CLUSTER.to_string());
-    list.push(DB_COLUMN_FAMILY_DATA.to_string());
     return list;
 }
 
@@ -54,7 +51,12 @@ impl RocksDBEngine {
 
         for family in column_family_list().iter() {
             if cf_list.iter().find(|cf| cf == &family).is_none() {
-                instance.create_cf(&family, &opts).unwrap();
+                match instance.create_cf(&family, &opts) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        panic!("{}", e);
+                    }
+                }
             }
         }
 
@@ -170,11 +172,11 @@ impl RocksDBEngine {
                                 result.push(raw);
                             }
                             Err(e) => {
-                                error_meta(&e.to_string());
+                                error!("{}", e);
                             }
                         },
                         Err(e) => {
-                            error_meta(&e.to_string());
+                            error!("{}", e);
                         }
                     }
                 }
@@ -194,14 +196,6 @@ impl RocksDBEngine {
 
     pub fn cf_cluster(&self) -> &ColumnFamily {
         return self.db.cf_handle(&DB_COLUMN_FAMILY_CLUSTER).unwrap();
-    }
-
-    pub fn cf_mqtt(&self) -> &ColumnFamily {
-        return self.db.cf_handle(&DB_COLUMN_FAMILY_MQTT).unwrap();
-    }
-
-    pub fn cf_data(&self) -> &ColumnFamily {
-        return self.db.cf_handle(&DB_COLUMN_FAMILY_DATA).unwrap();
     }
 
     fn open_db_opts(config: &PlacementCenterConfig) -> Options {
@@ -230,12 +224,7 @@ impl RocksDBEngine {
     }
 
     pub fn get_column_family(&self, family: String) -> &ColumnFamily {
-        let cf = if family == DB_COLUMN_FAMILY_CLUSTER {
-            self.cf_cluster()
-        } else {
-            self.cf_data()
-        };
-        return cf;
+        return self.cf_cluster();
     }
 }
 
@@ -258,7 +247,7 @@ mod tests {
     async fn multi_rocksdb_instance() {
         let mut config = PlacementCenterConfig::default();
         config.data_path = "/tmp/tmp_test".to_string();
-        config.log_path = "/tmp/tmp_log".to_string();
+        config.log.log_path = "/tmp/tmp_log".to_string();
         let rs_handler = Arc::new(RocksDBEngine::new(&config));
         for i in 1..100 {
             let rs = rs_handler.clone();

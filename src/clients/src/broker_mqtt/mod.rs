@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::{errors::RobustMQError, log::error};
+use common_base::errors::RobustMQError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
+use log::error;
 use mobc::Manager;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_client::MqttBrokerServiceClient;
 use std::{sync::Arc, time::Duration};
@@ -64,7 +64,7 @@ async fn retry_call(
                 return Ok(data);
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
                 if times > retry_times() {
                     return Err(e);
                 }

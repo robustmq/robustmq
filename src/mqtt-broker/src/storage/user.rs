@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     placement::mqtt::call::{placement_create_user, placement_delete_user, placement_list_user},
     poll::ClientPool,
@@ -144,9 +143,7 @@ impl UserStorage {
 mod tests {
     use crate::storage::user::UserStorage;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-    };
+    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::init_log};
     use std::sync::Arc;
 
     #[tokio::test]
@@ -155,9 +152,8 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
+
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let user_storage = UserStorage::new(client_poll);
         let username = "test".to_string();

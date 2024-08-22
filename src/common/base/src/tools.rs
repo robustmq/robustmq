@@ -11,22 +11,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::{
     fs,
-    path::Path,
+    path::{self, Path},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use local_ip_address::local_ip;
+use log::warn;
 use uuid::Uuid;
 
-use crate::log::warn;
+use crate::errors::RobustMQError;
 
-pub fn create_fold(fold: String) {
-    if !Path::new(&fold).exists() {
-        fs::create_dir_all(fold).unwrap();
+pub fn create_fold(fold: &String) -> Result<(), RobustMQError> {
+    if !Path::new(fold).exists() {
+        fs::create_dir_all(fold)?
     }
+    return Ok(());
 }
 
 pub fn now_mills() -> u128 {
@@ -54,13 +55,28 @@ pub fn get_local_ip() -> String {
             return data.to_string();
         }
         Err(e) => {
-            warn(format!(
+            warn!(
                 "If the local IP fails, stop the process.error message:{}",
                 e.to_string()
-            ));
+            );
             return "127.0.0.1".to_string();
         }
     }
+}
+
+pub fn file_exists(path: &String) -> bool {
+    return Path::new(path).exists();
+}
+
+pub fn read_file(path: &String) -> Result<String, RobustMQError> {
+    if !path::Path::new(path).exists() {
+        return Err(RobustMQError::CommmonError(format!(
+            "File {} does not exist",
+            path
+        )));
+    }
+
+    return Ok(fs::read_to_string(&path)?);
 }
 
 #[cfg(test)]
