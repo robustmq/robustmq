@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::error::common::CommonError;
+use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
 use metadata_struct::mqtt::topic::MQTTTopic;
 use std::sync::Arc;
 
@@ -102,7 +102,7 @@ impl MQTTTopicStorage {
         let mut topic = match self.get(cluster_name, topic_name) {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(CommonError::TopicDoesNotExist(topic_name.clone()));
+                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
             }
             Err(e) => {
                 return Err(e);

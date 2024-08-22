@@ -30,7 +30,7 @@ use crate::{
 use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::{
-    error::{mqtt_broker::MQTTBrokerError, common::CommonError},
+    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
     tools::now_second,
 };
 use log::{error, info};
@@ -593,9 +593,7 @@ where
                 break;
             }
         } else {
-            return Err(CommonError::SubPublishWaitPubRecTimeout(
-                client_id.clone(),
-            ));
+            return Err(MQTTBrokerError::SubPublishWaitPubRecTimeout(client_id.clone()).into());
         }
     }
 

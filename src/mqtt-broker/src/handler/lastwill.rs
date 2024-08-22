@@ -15,7 +15,7 @@ use super::{cache_manager::CacheManager, retain::save_topic_retain_message};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::error::{mqtt_broker::MQTTBrokerError, common::CommonError};
+use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
 use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
@@ -44,7 +44,7 @@ where
             let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
                 tp
             } else {
-                return Err(CommonError::TopicDoesNotExist(topic_name.clone()));
+                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
             };
 
             match save_topic_retain_message(

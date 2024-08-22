@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     cache::placement::PlacementCacheManager,
     storage::{
@@ -88,12 +87,7 @@ impl ShareSubLeader {
             return Err(CommonError::ClusterNoAvailableNode);
         }
 
-        match self.save_node_sub_info(cluster_name, target_broker_id, group_name) {
-            Ok(()) => {}
-            Err(e) => {
-                return Err(e);
-            }
-        }
+        self.save_node_sub_info(cluster_name, target_broker_id, group_name)?;
         return Ok(target_broker_id);
     }
 
@@ -260,15 +254,15 @@ mod tests {
         assert!(result.contains_key(&broker_id));
         assert!(result.get(&broker_id).unwrap().contains(&group_name3));
 
-        share_sub.remove_group_by_node(&cluster_name, &group_name3).unwrap();
+        share_sub
+            .remove_group_by_node(&cluster_name, &group_name3)
+            .unwrap();
         let result = share_sub.read_node_sub_info(&cluster_name).unwrap();
         assert!(!result.get(&broker_id).unwrap().contains(&group_name3));
 
         share_sub.delete_node(&cluster_name, broker_id).unwrap();
         let result = share_sub.read_node_sub_info(&cluster_name).unwrap();
         assert!(!result.contains_key(&broker_id));
-
-
     }
 
     #[test]

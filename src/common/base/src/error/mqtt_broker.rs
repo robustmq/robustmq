@@ -24,4 +24,24 @@ pub enum MQTTBrokerError {
 
     #[error("There is a problem with the length [{0}] of the Packet. Please check the length of the request packet")]
     PacketLenthError(usize),
+
+    #[error("Cluster is in self-protection state, please request later")]
+    ClusterIsInSelfProtection,
+
+    #[error(
+        "Subscribe to push, send QOS2 message to client {0}, wait for PubRec message timeout."
+    )]
+    SubPublishWaitPubRecTimeout(String),
+
+    #[error("Bad subscription Path [{0}] does not exist")]
+    SubscriptionPathNotExists(String),
+
+    #[error("User does not exist")]
+    UserDoesNotExist,
+
+    #[error("Session does not exist")]
+    SessionDoesNotExist,
+
+    #[error("Topic [{0}] does not exist")]
+    TopicDoesNotExist(String),
 }

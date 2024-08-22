@@ -18,7 +18,10 @@ use clients::{
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
+use common_base::{
+    config::broker_mqtt::broker_mqtt_conf,
+    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
+};
 use dashmap::DashMap;
 use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
 use protocol::placement_center::generate::mqtt::{
@@ -197,7 +200,7 @@ impl TopicStorage {
         let topic = match self.get_topic(topic_name.clone()).await {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(CommonError::TopicDoesNotExist(topic_name.clone()));
+                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
             }
             Err(e) => {
                 return Err(e);
@@ -226,7 +229,11 @@ mod tests {
     use crate::storage::topic::TopicStorage;
     use bytes::Bytes;
     use clients::poll::ClientPool;
-    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::{init_broker_mqtt_log, init_log}, tools::unique_id};
+    use common_base::{
+        config::broker_mqtt::init_broker_mqtt_conf_by_path,
+        logs::{init_broker_mqtt_log, init_log},
+        tools::unique_id,
+    };
     use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
     use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;

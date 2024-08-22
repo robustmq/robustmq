@@ -18,7 +18,7 @@ use crate::storage::{
     },
     rocksdb::RocksDBEngine,
 };
-use common_base::error::common::CommonError;
+use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
 use metadata_struct::mqtt::session::MQTTSession;
 use prost::Message as _;
 use protocol::placement_center::generate::mqtt::{
@@ -95,7 +95,7 @@ impl DataRouteMQTT {
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
         let result = storage.get(&req.cluster_name, &req.client_id)?;
         if result.is_none() {
-            return Err(CommonError::SessionDoesNotExist);
+            return Err(MQTTBrokerError::SessionDoesNotExist.into());
         }
 
         let mut session = result.unwrap();

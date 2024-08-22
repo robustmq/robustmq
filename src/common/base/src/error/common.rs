@@ -68,32 +68,9 @@ pub enum CommonError {
     #[error("Module {0} does not support this feature {1}")]
     NotSupportFeature(String, String),
 
-    #[error("Topic [{0}] does not exist")]
-    TopicDoesNotExist(String),
-
-    #[error("Session does not exist")]
-    SessionDoesNotExist,
-
-    #[error("User does not exist")]
-    UserDoesNotExist,
-
-    #[error("Resource Config does not exist")]
-    ResourceConfigDoesNotExist,
+    #[error("Unavailable storage type")]
+    UnavailableStorageType,
 
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,
-
-    #[error("Bad subscription Path [{0}] does not exist")]
-    SubscriptionPathNotExists(String),
-
-    #[error(
-        "Subscribe to push, send QOS2 message to client {0}, wait for PubRec message timeout."
-    )]
-    SubPublishWaitPubRecTimeout(String),
-
-    #[error("Cluster is in self-protection state, please request later")]
-    ClusterIsInSelfProtection,
-
-    #[error("Unavailable storage type")]
-    UnavailableStorageType,
 }

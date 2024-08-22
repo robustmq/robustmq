@@ -18,7 +18,7 @@ use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::{
     config::{broker_mqtt::broker_mqtt_conf, common::Auth},
-    error::common::CommonError,
+    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
@@ -116,10 +116,10 @@ impl AuthDriver {
             }
             Err(e) => {
                 // If the user does not exist, try to get the user information from the storage layer
-                if e.to_string() == CommonError::UserDoesNotExist.to_string() {
+                if e.to_string() == MQTTBrokerError::UserDoesNotExist.to_string() {
                     return self.try_get_check_user_by_driver(username).await;
                 }
-                return Err(e);
+                return Err(e.into());
             }
         }
 
@@ -142,7 +142,7 @@ impl AuthDriver {
                         }
                     }
                     Err(e) => {
-                        return Err(e);
+                        return Err(e.into());
                     }
                 }
             }

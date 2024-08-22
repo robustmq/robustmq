@@ -18,7 +18,7 @@ use crate::storage::{
     keys::storage_key_mqtt_last_will,
     rocksdb::RocksDBEngine,
 };
-use common_base::error::common::CommonError;
+use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
 use metadata_struct::mqtt::lastwill::LastWillData;
 use std::sync::Arc;
 
@@ -42,7 +42,7 @@ impl MQTTLastWillStorage {
         let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
         let results = session_storage.get(cluster_name, client_id)?;
         if results.is_none() {
-            return Err(CommonError::SessionDoesNotExist);
+            return Err(MQTTBrokerError::SessionDoesNotExist.into());
         }
 
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
