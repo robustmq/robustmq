@@ -18,7 +18,7 @@ use crate::handler::cache_manager::CacheManager;
 
 use super::Authentication;
 use axum::async_trait;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 
 pub struct Plaintext {
     username: String,
@@ -38,11 +38,11 @@ impl Plaintext {
 
 #[async_trait]
 impl Authentication for Plaintext {
-    async fn apply(&self) -> Result<bool, RobustMQError> {
+    async fn apply(&self) -> Result<bool, CommonError> {
         if let Some(user) = self.cache_manager.user_info.get(&self.username) {
             return Ok(user.password == self.password);
         }
-        return Err(RobustMQError::UserDoesNotExist);
+        return Err(CommonError::UserDoesNotExist);
     }
 }
 

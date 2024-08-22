@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use std::sync::Arc;
 use storage_adapter::{record::Record, storage::StorageAdapter};
 
@@ -34,7 +34,7 @@ where
         &self,
         topic_id: String,
         record: Vec<Record>,
-    ) -> Result<Vec<usize>, RobustMQError> {
+    ) -> Result<Vec<usize>, CommonError> {
         let shard_name = topic_id;
         match self.storage_adapter.stream_write(shard_name, record).await {
             Ok(id) => {
@@ -52,7 +52,7 @@ where
         topic_id: String,
         group_id: String,
         record_num: u128,
-    ) -> Result<Vec<Record>, RobustMQError> {
+    ) -> Result<Vec<Record>, CommonError> {
         let shard_name = topic_id;
         match self
             .storage_adapter
@@ -77,7 +77,7 @@ where
         topic_id: String,
         group_id: String,
         offset: u128,
-    ) -> Result<bool, RobustMQError> {
+    ) -> Result<bool, CommonError> {
         let shard_name = topic_id;
         match self
             .storage_adapter

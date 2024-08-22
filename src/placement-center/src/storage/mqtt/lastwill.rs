@@ -18,7 +18,7 @@ use crate::storage::{
     keys::storage_key_mqtt_last_will,
     rocksdb::RocksDBEngine,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use std::sync::Arc;
 
@@ -38,11 +38,11 @@ impl MQTTLastWillStorage {
         cluster_name: &String,
         client_id: &String,
         last_will_message: LastWillData,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
         let results = session_storage.get(cluster_name, client_id)?;
         if results.is_none() {
-            return Err(RobustMQError::SessionDoesNotExist);
+            return Err(CommonError::SessionDoesNotExist);
         }
 
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
@@ -53,7 +53,7 @@ impl MQTTLastWillStorage {
         &self,
         cluster_name: &String,
         client_id: &String,
-    ) -> Result<Option<LastWillData>, RobustMQError> {
+    ) -> Result<Option<LastWillData>, CommonError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<LastWillData>(&data.data) {
@@ -71,7 +71,7 @@ impl MQTTLastWillStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }

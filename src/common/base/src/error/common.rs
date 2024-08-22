@@ -25,7 +25,7 @@ use crate::error::{
 };
 
 #[derive(Error, Debug)]
-pub enum RobustMQError {
+pub enum CommonError {
     #[error("{0}")]
     TonicTransport(#[from] tonic::transport::Error),
 

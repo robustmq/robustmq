@@ -16,7 +16,7 @@ use crate::storage::{
     keys::key_resource_idempotent,
     rocksdb::RocksDBEngine,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use std::sync::Arc;
 
 pub struct IdempotentStorage {
@@ -34,7 +34,7 @@ impl IdempotentStorage {
         cluster_name: &String,
         producer_id: &String,
         seq_num: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, seq_num);
     }
@@ -44,7 +44,7 @@ impl IdempotentStorage {
         cluster_name: &String,
         producer_id: &String,
         seq_num: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
@@ -54,7 +54,7 @@ impl IdempotentStorage {
         cluster_name: &String,
         producer_id: &String,
         seq_num: u64,
-    ) -> Result<bool, RobustMQError> {
+    ) -> Result<bool, CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
         return engine_exists_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }

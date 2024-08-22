@@ -13,7 +13,7 @@
 
 use bincode::serialize;
 use common_base::error::placement_center::PlacementCenterError;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use raft::eraftpb::ConfChange;
 use raft::eraftpb::Message as raftPreludeMessage;
 use serde::Deserialize;
@@ -116,7 +116,7 @@ impl RaftMachineApply {
         };
     }
 
-    pub async fn transfer_leader(&self, node_id: u64) -> Result<(), RobustMQError> {
+    pub async fn transfer_leader(&self, node_id: u64) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         return Ok(self
             .apply_raft_status_machine_message(
@@ -134,7 +134,7 @@ impl RaftMachineApply {
         &self,
         data: StorageData,
         action: String,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         return Ok(self
             .apply_raft_status_machine_message(
@@ -152,7 +152,7 @@ impl RaftMachineApply {
         &self,
         message: raftPreludeMessage,
         action: String,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         return Ok(self
             .apply_raft_status_machine_message(
@@ -170,7 +170,7 @@ impl RaftMachineApply {
         &self,
         change: ConfChange,
         action: String,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         return Ok(self
             .apply_raft_status_machine_message(

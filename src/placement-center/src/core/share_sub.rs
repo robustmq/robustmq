@@ -19,7 +19,7 @@ use crate::{
         rocksdb::RocksDBEngine,
     },
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use std::{collections::HashMap, sync::Arc};
 
 pub struct ShareSubLeader {
@@ -42,7 +42,7 @@ impl ShareSubLeader {
         &self,
         cluster_name: &String,
         group_name: &String,
-    ) -> Result<u64, RobustMQError> {
+    ) -> Result<u64, CommonError> {
         let mut broker_ids = Vec::new();
         if let Some(cluster) = self.cluster_cache.node_list.get(cluster_name) {
             for (id, _) in cluster.clone() {
@@ -85,7 +85,7 @@ impl ShareSubLeader {
         }
 
         if target_broker_id == 0 {
-            return Err(RobustMQError::ClusterNoAvailableNode);
+            return Err(CommonError::ClusterNoAvailableNode);
         }
 
         match self.save_node_sub_info(cluster_name, target_broker_id, group_name) {
@@ -102,7 +102,7 @@ impl ShareSubLeader {
         &self,
         cluster_name: &String,
         group_name: &String,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,
             Err(e) => return Err(e),
@@ -122,7 +122,7 @@ impl ShareSubLeader {
                         }
                     },
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
                 break;
@@ -131,7 +131,7 @@ impl ShareSubLeader {
         return Ok(());
     }
 
-    pub fn delete_node(&self, cluster_name: &String, broker_id: u64) -> Result<(), RobustMQError> {
+    pub fn delete_node(&self, cluster_name: &String, broker_id: u64) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,
             Err(e) => return Err(e),
@@ -149,7 +149,7 @@ impl ShareSubLeader {
                     }
                 },
                 Err(e) => {
-                    return Err(RobustMQError::CommmonError(e.to_string()));
+                    return Err(CommonError::CommmonError(e.to_string()));
                 }
             }
         }
@@ -161,7 +161,7 @@ impl ShareSubLeader {
         cluster_name: &String,
         broker_id: u64,
         group_name: &String,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,
             Err(e) => return Err(e),
@@ -185,7 +185,7 @@ impl ShareSubLeader {
                 }
             },
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
         return Ok(());
@@ -194,7 +194,7 @@ impl ShareSubLeader {
     fn read_node_sub_info(
         &self,
         cluster_name: &String,
-    ) -> Result<HashMap<u64, Vec<String>>, RobustMQError> {
+    ) -> Result<HashMap<u64, Vec<String>>, CommonError> {
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
         let key = storage_key_mqtt_node_sub_group_leader(cluster_name);
         match kv_storage.get(key) {
@@ -202,7 +202,7 @@ impl ShareSubLeader {
                 Ok(data) => {
                     return Ok(data);
                 }
-                Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                Err(e) => return Err(CommonError::CommmonError(e.to_string())),
             },
             Ok(None) => {}
             Err(e) => {

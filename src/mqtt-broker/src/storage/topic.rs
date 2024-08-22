@@ -18,7 +18,7 @@ use clients::{
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::robustmq::RobustMQError};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use dashmap::DashMap;
 use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
 use protocol::placement_center::generate::mqtt::{
@@ -35,7 +35,7 @@ impl TopicStorage {
         return TopicStorage { client_poll };
     }
 
-    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), RobustMQError> {
+    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -56,7 +56,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn delete_topic(&self, topic_name: String) -> Result<(), RobustMQError> {
+    pub async fn delete_topic(&self, topic_name: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = DeleteTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -76,7 +76,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn topic_list(&self) -> Result<DashMap<String, MQTTTopic>, RobustMQError> {
+    pub async fn topic_list(&self) -> Result<DashMap<String, MQTTTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -109,7 +109,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MQTTTopic>, RobustMQError> {
+    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MQTTTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -130,7 +130,7 @@ impl TopicStorage {
                 match serde_json::from_slice::<MQTTTopic>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
             }
@@ -145,7 +145,7 @@ impl TopicStorage {
         topic_name: &String,
         retain_message: &MQTTMessage,
         retain_message_expired_at: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -167,7 +167,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn delete_retain_message(&self, topic_name: &String) -> Result<(), RobustMQError> {
+    pub async fn delete_retain_message(&self, topic_name: &String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -193,11 +193,11 @@ impl TopicStorage {
     pub async fn get_retain_message(
         &self,
         topic_name: String,
-    ) -> Result<Option<MQTTMessage>, RobustMQError> {
+    ) -> Result<Option<MQTTMessage>, CommonError> {
         let topic = match self.get_topic(topic_name.clone()).await {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
+                return Err(CommonError::TopicDoesNotExist(topic_name.clone()));
             }
             Err(e) => {
                 return Err(e);
@@ -211,7 +211,7 @@ impl TopicStorage {
             let message = match serde_json::from_slice::<MQTTMessage>(retain_message.as_slice()) {
                 Ok(data) => data,
                 Err(e) => {
-                    return Err(RobustMQError::CommmonError(e.to_string()));
+                    return Err(CommonError::CommmonError(e.to_string()));
                 }
             };
             return Ok(Some(message));

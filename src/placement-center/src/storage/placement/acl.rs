@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_resource_acl, key_resource_acl_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use metadata_struct::acl::CommonAcl;
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ impl AclStorage {
         }
     }
 
-    pub fn save(&self, cluster_name: &String, acl: CommonAcl) -> Result<(), RobustMQError> {
+    pub fn save(&self, cluster_name: &String, acl: CommonAcl) -> Result<(), CommonError> {
         let mut data = self.get(
             cluster_name,
             &acl.principal_type.to_string(),
@@ -55,7 +55,7 @@ impl AclStorage {
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, data);
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<CommonAcl>, RobustMQError> {
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<CommonAcl>, CommonError> {
         let prefix_key = key_resource_acl_prefix(cluster_name);
 
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
@@ -84,7 +84,7 @@ impl AclStorage {
         cluster_name: &String,
         principal_type: &String,
         principal: &String,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = key_resource_acl(cluster_name, principal_type, principal);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
@@ -94,7 +94,7 @@ impl AclStorage {
         cluster_name: &String,
         principal_type: &String,
         principal: &String,
-    ) -> Result<Vec<CommonAcl>, RobustMQError> {
+    ) -> Result<Vec<CommonAcl>, CommonError> {
         let key = key_resource_acl(cluster_name, principal_type, principal);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<Vec<CommonAcl>>(&data.data) {

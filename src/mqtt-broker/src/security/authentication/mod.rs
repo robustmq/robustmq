@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use axum::async_trait;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use std::net::SocketAddr;
 
 pub mod http;
@@ -23,7 +23,7 @@ pub mod x509;
 
 #[async_trait]
 pub trait Authentication {
-    async fn apply(&self) -> Result<bool, RobustMQError>;
+    async fn apply(&self) -> Result<bool, CommonError>;
 }
 
 pub fn is_ip_blacklist(_: &SocketAddr) -> bool {

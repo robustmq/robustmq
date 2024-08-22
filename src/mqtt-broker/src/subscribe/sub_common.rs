@@ -22,7 +22,7 @@ use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::mqtt_broker::MQTTBrokerError;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use log::error;
 use protocol::mqtt::codec::MQTTPacketWrapper;
 use protocol::mqtt::codec::MqttCodec;
@@ -130,7 +130,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 pub async fn get_share_sub_leader(
     client_poll: Arc<ClientPool>,
     group_name: String,
-) -> Result<GetShareSubLeaderReply, RobustMQError> {
+) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_mqtt_conf();
     let req = GetShareSubLeaderRequest {
         cluster_name: conf.cluster_name.clone(),
@@ -169,7 +169,7 @@ pub async fn wait_packet_ack(sx: &Sender<QosAckPackageData>) -> Option<QosAckPac
 pub async fn publish_message_to_client(
     resp: ResponsePackage,
     connection_manager: &Arc<ConnectionManager>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
         let response: MQTTPacketWrapper = MQTTPacketWrapper {
             protocol_version: protocol.clone().into(),

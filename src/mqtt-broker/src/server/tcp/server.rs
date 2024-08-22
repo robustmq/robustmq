@@ -30,7 +30,7 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    error::{mqtt_broker::MQTTBrokerError, robustmq::RobustMQError},
+    error::{mqtt_broker::MQTTBrokerError, common::CommonError},
 };
 use futures_util::StreamExt;
 use log::{debug, error, info};

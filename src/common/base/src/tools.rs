@@ -21,9 +21,9 @@ use local_ip_address::local_ip;
 use log::warn;
 use uuid::Uuid;
 
-use crate::error::robustmq::RobustMQError;
+use crate::error::common::CommonError;
 
-pub fn create_fold(fold: &String) -> Result<(), RobustMQError> {
+pub fn create_fold(fold: &String) -> Result<(), CommonError> {
     if !Path::new(fold).exists() {
         fs::create_dir_all(fold)?
     }
@@ -68,9 +68,9 @@ pub fn file_exists(path: &String) -> bool {
     return Path::new(path).exists();
 }
 
-pub fn read_file(path: &String) -> Result<String, RobustMQError> {
+pub fn read_file(path: &String) -> Result<String, CommonError> {
     if !path::Path::new(path).exists() {
-        return Err(RobustMQError::CommmonError(format!(
+        return Err(CommonError::CommmonError(format!(
             "File {} does not exist",
             path
         )));

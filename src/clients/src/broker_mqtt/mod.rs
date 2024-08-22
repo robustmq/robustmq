@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
 use log::error;
 use mobc::Manager;
@@ -42,7 +42,7 @@ async fn retry_call(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     let mut times = 1;
     loop {
         let index = times % addrs.len();
@@ -78,7 +78,7 @@ async fn retry_call(
 async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<MqttBrokerServiceClient<Channel>, RobustMQError> {
+) -> Result<MqttBrokerServiceClient<Channel>, CommonError> {
     match client_poll.mqtt_broker_mqtt_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -94,7 +94,7 @@ pub(crate) async fn mqtt_interface_call(
     client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match mqtt_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
@@ -104,7 +104,7 @@ pub(crate) async fn mqtt_interface_call(
                     inner_send_last_will_message(client, request).await
                 }
                 _ => {
-                    return Err(RobustMQError::CommmonError(format!(
+                    return Err(CommonError::CommmonError(format!(
                         "mqtt service does not support service interfaces [{:?}]",
                         interface
                     )))
@@ -137,7 +137,7 @@ impl MqttBrokerMqttServiceManager {
 #[tonic::async_trait]
 impl Manager for MqttBrokerMqttServiceManager {
     type Connection = MqttBrokerServiceClient<Channel>;
-    type Error = RobustMQError;
+    type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match MqttBrokerServiceClient::connect(format!("http://{}", self.addr.clone())).await {
@@ -145,7 +145,7 @@ impl Manager for MqttBrokerMqttServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(RobustMQError::CommmonError(format!(
+                return Err(CommonError::CommmonError(format!(
                     "{},{}",
                     err.to_string(),
                     self.addr.clone()

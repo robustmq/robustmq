@@ -16,7 +16,7 @@ use crate::storage::{
     keys::key_resource_config,
     rocksdb::RocksDBEngine,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use std::sync::Arc;
 
 pub struct ResourceConfigStorage {
@@ -34,7 +34,7 @@ impl ResourceConfigStorage {
         cluster_name: String,
         resource_key: Vec<String>,
         config: Vec<u8>,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, config);
     }
@@ -43,7 +43,7 @@ impl ResourceConfigStorage {
         &self,
         cluster_name: String,
         resource_key: Vec<String>,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
@@ -52,7 +52,7 @@ impl ResourceConfigStorage {
         &self,
         cluster_name: String,
         resource_key: Vec<String>,
-    ) -> Result<Option<Vec<u8>>, RobustMQError> {
+    ) -> Result<Option<Vec<u8>>, CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
 
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {

@@ -23,7 +23,7 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{error::robustmq::RobustMQError, tools::now_second};
+use common_base::{error::common::CommonError, tools::now_second};
 use log::error;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};
@@ -37,7 +37,7 @@ pub async fn save_topic_retain_message(
     client_id: &String,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if !publish.retain {
         return Ok(());
     }

@@ -18,7 +18,7 @@ use clients::{
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::robustmq::RobustMQError};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use dashmap::DashMap;
 use metadata_struct::mqtt::session::MQTTSession;
 use protocol::placement_center::generate::mqtt::{
@@ -40,7 +40,7 @@ impl SessionStorage {
         &self,
         client_id: &String,
         session: &MQTTSession,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -68,7 +68,7 @@ impl SessionStorage {
         broker_id: u64,
         reconnect_time: u64,
         distinct_time: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = UpdateSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -92,7 +92,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn delete_session(&self, client_id: String) -> Result<(), RobustMQError> {
+    pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = DeleteSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -115,7 +115,7 @@ impl SessionStorage {
     pub async fn get_session(
         &self,
         client_id: String,
-    ) -> Result<Option<MQTTSession>, RobustMQError> {
+    ) -> Result<Option<MQTTSession>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -136,7 +136,7 @@ impl SessionStorage {
                 match serde_json::from_slice::<MQTTSession>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
             }
@@ -146,7 +146,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn list_session(&self) -> Result<DashMap<String, MQTTSession>, RobustMQError> {
+    pub async fn list_session(&self) -> Result<DashMap<String, MQTTSession>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -183,7 +183,7 @@ impl SessionStorage {
         &self,
         client_id: &String,
         last_will_message: Vec<u8>,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SaveLastWillMessageRequest {
             cluster_name: config.cluster_name.clone(),

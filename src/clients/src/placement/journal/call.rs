@@ -15,7 +15,7 @@
 use crate::placement::PlacementCenterService;
 use crate::placement::{retry_call, PlacementCenterInterface};
 use crate::poll::ClientPool;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message;
 use protocol::placement_center::generate::journal::{
     CreateSegmentRequest, DeleteSegmentRequest, DeleteShardRequest,
@@ -27,7 +27,7 @@ pub async fn create_shard(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateShardRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = CreateShardRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Journal,
@@ -40,7 +40,7 @@ pub async fn create_shard(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -52,7 +52,7 @@ pub async fn delete_shard(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteShardRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = DeleteShardRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Journal,
@@ -65,7 +65,7 @@ pub async fn delete_shard(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -77,7 +77,7 @@ pub async fn create_segment(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateSegmentRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = CreateSegmentRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Journal,
@@ -90,7 +90,7 @@ pub async fn create_segment(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -102,7 +102,7 @@ pub async fn delete_segment(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSegmentRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = DeleteSegmentRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Journal,
@@ -115,7 +115,7 @@ pub async fn delete_segment(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);

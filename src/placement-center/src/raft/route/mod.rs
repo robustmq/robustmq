@@ -28,7 +28,7 @@ use crate::{
     storage::rocksdb::RocksDBEngine,
 };
 use bincode::deserialize;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use std::sync::Arc;
 
 pub struct DataRoute {
@@ -62,7 +62,7 @@ impl DataRoute {
     }
 
     //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
-    pub fn route(&self, data: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn route(&self, data: Vec<u8>) -> Result<(), CommonError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
             StorageDataType::ClusterRegisterNode => {

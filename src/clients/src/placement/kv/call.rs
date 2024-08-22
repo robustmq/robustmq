@@ -17,7 +17,7 @@ use crate::{
     placement::{retry_call, PlacementCenterService},
     poll::ClientPool,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
@@ -29,7 +29,7 @@ pub async fn placement_set(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = SetRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Kv,
@@ -42,7 +42,7 @@ pub async fn placement_set(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -54,7 +54,7 @@ pub async fn placement_get(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: GetRequest,
-) -> Result<GetReply, RobustMQError> {
+) -> Result<GetReply, CommonError> {
     let request_data = GetRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Kv,
@@ -67,7 +67,7 @@ pub async fn placement_get(
     {
         Ok(data) => match GetReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -79,7 +79,7 @@ pub async fn placement_delete(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = DeleteRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Kv,
@@ -92,7 +92,7 @@ pub async fn placement_delete(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -104,7 +104,7 @@ pub async fn placement_exists(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ExistsRequest,
-) -> Result<ExistsReply, RobustMQError> {
+) -> Result<ExistsReply, CommonError> {
     let request_data = ExistsRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Kv,
@@ -117,7 +117,7 @@ pub async fn placement_exists(
     {
         Ok(data) => match ExistsReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);

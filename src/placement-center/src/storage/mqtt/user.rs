@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use metadata_struct::mqtt::user::MQTTUser;
 use std::sync::Arc;
 
@@ -39,12 +39,12 @@ impl MQTTUserStorage {
         cluster_name: &String,
         user_name: &String,
         user: MQTTUser,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(cluster_name, user_name);
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user);
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTUser>, RobustMQError> {
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -71,7 +71,7 @@ impl MQTTUserStorage {
         &self,
         cluster_name: &String,
         username: &String,
-    ) -> Result<Option<MQTTUser>, RobustMQError> {
+    ) -> Result<Option<MQTTUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<MQTTUser>(&data.data) {
@@ -87,7 +87,7 @@ impl MQTTUserStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, user_name: &String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, user_name: &String) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, user_name);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }

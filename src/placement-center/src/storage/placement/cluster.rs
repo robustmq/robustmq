@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_cluster, key_cluster_prefix, key_cluster_prefix_by_type},
     rocksdb::RocksDBEngine,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use metadata_struct::placement::cluster::ClusterInfo;
 use std::sync::Arc;
 
@@ -34,7 +34,7 @@ impl ClusterStorage {
         }
     }
 
-    pub fn save(&self, cluster_info: ClusterInfo) -> Result<(), RobustMQError> {
+    pub fn save(&self, cluster_info: ClusterInfo) -> Result<(), CommonError> {
         let key = key_cluster(&cluster_info.cluster_type, &cluster_info.cluster_name);
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, cluster_info);
     }
@@ -44,7 +44,7 @@ impl ClusterStorage {
         &self,
         cluster_type: &String,
         cluster_name: &String,
-    ) -> Result<Option<ClusterInfo>, RobustMQError> {
+    ) -> Result<Option<ClusterInfo>, CommonError> {
         let key = key_cluster(cluster_type, cluster_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<ClusterInfo>(&data.data) {
@@ -65,12 +65,12 @@ impl ClusterStorage {
         &self,
         cluster_type: &String,
         cluster_name: &String,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key: String = key_cluster(cluster_type, cluster_name);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
-    pub fn list(&self, cluster_type: Option<String>) -> Result<Vec<ClusterInfo>, RobustMQError> {
+    pub fn list(&self, cluster_type: Option<String>) -> Result<Vec<ClusterInfo>, CommonError> {
         let prefix_key = if let Some(ct) = cluster_type {
             key_cluster_prefix_by_type(&ct)
         } else {

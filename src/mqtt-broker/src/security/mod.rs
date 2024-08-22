@@ -18,7 +18,7 @@ use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::{
     config::{broker_mqtt::broker_mqtt_conf, common::Auth},
-    error::robustmq::RobustMQError,
+    error::common::CommonError,
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
@@ -35,9 +35,9 @@ pub mod placement;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, RobustMQError>;
+    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError>;
 
-    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, RobustMQError>;
+    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError>;
 }
 
 pub struct AuthDriver {
@@ -62,7 +62,7 @@ impl AuthDriver {
         };
     }
 
-    pub fn update_driver(&mut self, auth: Auth) -> Result<(), RobustMQError> {
+    pub fn update_driver(&mut self, auth: Auth) -> Result<(), CommonError> {
         let driver = match build_driver(self.client_poll.clone(), auth) {
             Ok(driver) => driver,
             Err(e) => {
@@ -73,7 +73,7 @@ impl AuthDriver {
         return Ok(());
     }
 
-    pub async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, RobustMQError> {
+    pub async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
         return self.driver.read_all_user().await;
     }
 
@@ -82,7 +82,7 @@ impl AuthDriver {
         login: &Option<Login>,
         _: &Option<ConnectProperties>,
         _: &SocketAddr,
-    ) -> Result<bool, RobustMQError> {
+    ) -> Result<bool, CommonError> {
         let cluster = self.cache_manager.get_cluster_info();
 
         if cluster.is_secret_free_login() {
@@ -102,7 +102,7 @@ impl AuthDriver {
         &self,
         username: &String,
         password: &String,
-    ) -> Result<bool, RobustMQError> {
+    ) -> Result<bool, CommonError> {
         let plaintext = Plaintext::new(
             username.clone(),
             password.clone(),
@@ -116,7 +116,7 @@ impl AuthDriver {
             }
             Err(e) => {
                 // If the user does not exist, try to get the user information from the storage layer
-                if e.to_string() == RobustMQError::UserDoesNotExist.to_string() {
+                if e.to_string() == CommonError::UserDoesNotExist.to_string() {
                     return self.try_get_check_user_by_driver(username).await;
                 }
                 return Err(e);
@@ -126,7 +126,7 @@ impl AuthDriver {
         return Ok(false);
     }
 
-    async fn try_get_check_user_by_driver(&self, username: &String) -> Result<bool, RobustMQError> {
+    async fn try_get_check_user_by_driver(&self, username: &String) -> Result<bool, CommonError> {
         match self.driver.get_user(username.clone()).await {
             Ok(Some(user)) => {
                 self.cache_manager.add_user(user.clone());
@@ -160,7 +160,7 @@ impl AuthDriver {
 pub fn build_driver(
     client_poll: Arc<ClientPool>,
     auth: Auth,
-) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, RobustMQError> {
+) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
     if storage_is_placement(&auth.storage_type) {
         let driver = PlacementAuthStorageAdapter::new(client_poll);
         return Ok(Arc::new(driver));
@@ -171,5 +171,5 @@ pub fn build_driver(
         return Ok(Arc::new(driver));
     }
 
-    return Err(RobustMQError::UnavailableStorageType);
+    return Err(CommonError::UnavailableStorageType);
 }

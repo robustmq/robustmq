@@ -15,7 +15,7 @@ use super::{cache_manager::CacheManager, retain::save_topic_retain_message};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::error::{mqtt_broker::MQTTBrokerError, robustmq::RobustMQError};
+use common_base::error::{mqtt_broker::MQTTBrokerError, common::CommonError};
 use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
@@ -28,7 +28,7 @@ pub async fn send_last_will_message<S>(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     message_storage_adapter: Arc<S>,
-) -> Result<(), RobustMQError>
+) -> Result<(), CommonError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -44,7 +44,7 @@ where
             let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
                 tp
             } else {
-                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
+                return Err(CommonError::TopicDoesNotExist(topic_name.clone()));
             };
 
             match save_topic_retain_message(
@@ -92,7 +92,7 @@ where
 fn build_publish_message_by_lastwill(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
-) -> Result<(String, Option<Publish>, Option<PublishProperties>), RobustMQError> {
+) -> Result<(String, Option<Publish>, Option<PublishProperties>), CommonError> {
     if let Some(will) = last_will {
         if will.topic.is_empty() || will.message.is_empty() {
             return Ok(("".to_string(), None, None));
@@ -101,7 +101,7 @@ fn build_publish_message_by_lastwill(
         let topic_name = match String::from_utf8(will.topic.to_vec()) {
             Ok(da) => da,
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         };
 
@@ -138,7 +138,7 @@ pub async fn save_last_will_message(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     client_poll: &Arc<ClientPool>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if last_will.is_none() {
         return Ok(());
     }

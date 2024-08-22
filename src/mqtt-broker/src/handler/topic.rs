@@ -16,7 +16,7 @@ use crate::storage::topic::TopicStorage;
 use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::error::mqtt_broker::MQTTBrokerError;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use common_base::tools::unique_id;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
@@ -110,7 +110,7 @@ pub async fn try_init_topic<S>(
     metadata_cache: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
     client_poll: Arc<ClientPool>,
-) -> Result<MQTTTopic, RobustMQError>
+) -> Result<MQTTTopic, CommonError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {

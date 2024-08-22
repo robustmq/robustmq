@@ -21,7 +21,7 @@ use crate::storage::{
     rocksdb::RocksDBEngine,
     StorageDataWrap,
 };
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MQTTSession;
 use std::sync::Arc;
 
@@ -40,12 +40,12 @@ impl MQTTSessionStorage {
         cluster_name: &String,
         client_id: &String,
         session: MQTTSession,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session);
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, RobustMQError> {
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, CommonError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
         return engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key);
     }
@@ -54,7 +54,7 @@ impl MQTTSessionStorage {
         &self,
         cluster_name: &String,
         client_id: &String,
-    ) -> Result<Option<MQTTSession>, RobustMQError> {
+    ) -> Result<Option<MQTTSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<MQTTSession>(&data.data) {
@@ -74,7 +74,7 @@ impl MQTTSessionStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }

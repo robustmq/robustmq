@@ -15,7 +15,7 @@
 use crate::poll::ClientPool;
 use self::inner::{inner_delete, inner_exists, inner_get, inner_set};
 use super::PlacementCenterInterface;
-use common_base::error::robustmq::RobustMQError;
+use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
 use std::sync::Arc;
@@ -27,7 +27,7 @@ mod inner;
 async fn kv_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<KvServiceClient<Channel>, RobustMQError> {
+) -> Result<KvServiceClient<Channel>, CommonError> {
     match client_poll.placement_center_kv_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -43,7 +43,7 @@ pub(crate) async fn kv_interface_call(
     client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match kv_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
@@ -51,7 +51,7 @@ pub(crate) async fn kv_interface_call(
                 PlacementCenterInterface::Delete => inner_delete(client, request.clone()).await,
                 PlacementCenterInterface::Get => inner_get(client, request.clone()).await,
                 PlacementCenterInterface::Exists => inner_exists(client, request.clone()).await,
-                _ => return Err(RobustMQError::CommmonError(format!(
+                _ => return Err(CommonError::CommmonError(format!(
                     "kv service does not support service interfaces [{:?}]",
                     interface
                 ))),
@@ -83,14 +83,14 @@ impl KvServiceManager {
 #[tonic::async_trait]
 impl Manager for KvServiceManager {
     type Connection = KvServiceClient<Channel>;
-    type Error = RobustMQError;
+    type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match KvServiceClient::connect(format!("http://{}", self.addr.clone())).await {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => return Err(RobustMQError::CommmonError(format!(
+            Err(err) => return Err(CommonError::CommmonError(format!(
                 "{},{}",
                 err.to_string(),
                 self.addr.clone()

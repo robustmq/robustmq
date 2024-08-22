@@ -29,7 +29,7 @@ use crate::{
     subscribe::sub_common::sub_path_validator,
 };
 use clients::poll::ClientPool;
-use common_base::error::{mqtt_broker::MQTTBrokerError, robustmq::RobustMQError};
+use common_base::error::{mqtt_broker::MQTTBrokerError, common::CommonError};
 use futures::SinkExt;
 use log::error;
 use metadata_struct::mqtt::cluster::MQTTCluster;
@@ -176,7 +176,7 @@ pub fn connect_validator(
             protocol,
             ConnectReturnCode::ServerBusy,
             connect_properties,
-            Some(RobustMQError::ClusterIsInSelfProtection.to_string()),
+            Some(CommonError::ClusterIsInSelfProtection.to_string()),
         ));
     }
 
@@ -672,7 +672,7 @@ pub async fn un_subscribe_validator(
                     &connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::NoSubscriptionExisted],
-                    Some(RobustMQError::SubscriptionPathNotExists(path).to_string()),
+                    Some(CommonError::SubscriptionPathNotExists(path).to_string()),
                 ));
             }
         }
