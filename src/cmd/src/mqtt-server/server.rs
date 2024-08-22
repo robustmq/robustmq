@@ -15,7 +15,7 @@
 use clap::{command, Parser};
 use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
 use common_base::config::DEFAULT_MQTT_SERVER_CONFIG;
-use common_base::log::init_broker_mqtt_log;
+use common_base::logs::init_broker_mqtt_log;
 use mqtt_broker::start_mqtt_broker_server;
 use tokio::sync::broadcast;
 

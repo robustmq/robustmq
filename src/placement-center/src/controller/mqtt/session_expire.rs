@@ -20,7 +20,8 @@ use crate::{
     },
 };
 use clients::poll::ClientPool;
-use common_base::{log::error, tools::now_second};
+use common_base::tools::now_second;
+use log::error;
 use metadata_struct::mqtt::session::MQTTSession;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
@@ -75,7 +76,7 @@ impl SessionExpire {
 
     async fn get_expire_session_list(&self) -> Vec<MQTTSession> {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
+        let cf = self.rocksdb_engine_handler.cf_cluster();
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         let mut sessions = Vec::new();
@@ -104,19 +105,19 @@ impl SessionExpire {
                 Ok(data) => match serde_json::from_slice::<MQTTSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Session expired, failed to parse Session data, error message :{}",
                             e.to_string()
-                        ));
+                        );
                         iter.next();
                         continue;
                     }
                 },
                 Err(e) => {
-                    error(format!(
+                    error!(
                         "Session expired, failed to parse Session data, error message :{}",
                         e.to_string()
-                    ));
+                    );
                     iter.next();
                     continue;
                 }
@@ -179,7 +180,7 @@ impl SessionExpire {
                 }
                 Err(e) => {
                     sleep(Duration::from_millis(100)).await;
-                    error(e.to_string());
+                    error!("{}", e);
                     continue;
                 }
             }

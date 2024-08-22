@@ -11,11 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::services::GrpcBrokerServices;
 use crate::{handler::cache_manager::CacheManager, subscribe::subscribe_manager::SubscribeManager};
 use clients::poll::ClientPool;
-use common_base::log::info;
+
+use log::info;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
@@ -50,10 +50,7 @@ where
     }
     pub async fn start(&self) {
         let addr = format!("0.0.0.0:{}", self.port).parse().unwrap();
-        info(format!(
-            "Broker Grpc Server start success. port:{}",
-            self.port
-        ));
+        info!("Broker Grpc Server start success. port:{}", self.port);
         let service_handler = GrpcBrokerServices::new(
             self.metadata_cache.clone(),
             self.subscribe_manager.clone(),

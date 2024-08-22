@@ -17,33 +17,14 @@ use std::path;
 use toml;
 
 pub mod broker_mqtt;
-pub mod placement_center;
-pub mod journal_server;
 pub mod common;
 pub mod default_mqtt;
+pub mod journal_server;
+pub mod placement_center;
 
 pub const DEFAULT_MQTT_SERVER_CONFIG: &str = "config/mqtt-server.toml";
 pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "config/placement-center.toml";
 pub const DEFAULT_JOURNAL_SERVER_CONFIG: &str = "config/journal-server.toml";
-
-/// Parsing reads the RobustMQ Server configuration
-pub fn parse_server(config_path: &String) -> BrokerMQTTConfig {
-    let content = read_file(config_path);
-    let server_config: BrokerMQTTConfig = toml::from_str(&content).unwrap();
-    return server_config;
-}
-
-fn read_file(config_path: &String) -> String {
-    if !path::Path::new(config_path).exists() {
-        panic!("The configuration file does not exist.");
-    }
-
-    let content: String = fs::read_to_string(&config_path).expect(&format!(
-        "Failed to read the configuration file. File path:{}.",
-        config_path
-    ));
-    return content;
-}
 
 #[cfg(test)]
 mod tests {

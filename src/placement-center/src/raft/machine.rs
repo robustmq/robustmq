@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::apply::{RaftMessage, RaftResponseMesage};
 use super::route::DataRoute;
 use super::storage::RaftRocksDBStorage;
@@ -20,8 +19,7 @@ use crate::raft::peer::PeerMessage;
 use crate::storage::placement::raft::RaftMachineStorage;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
-use common_base::errors::RobustMQError;
-use common_base::log::{error_meta, info_meta};
+use log::{error, info};
 use metadata_struct::placement::broker_node::BrokerNode;
 use prost::Message as _;
 use raft::eraftpb::{
@@ -86,7 +84,7 @@ impl RaftMachine {
             match self.stop_recv.try_recv() {
                 Ok(val) => {
                     if val {
-                        info_meta("Raft Node Process services stop.");
+                        info!("{}", "Raft Node Process services stop.");
                         break;
                     }
                 }
@@ -104,9 +102,7 @@ impl RaftMachine {
                             self.resp_channel.insert(seq, chan);
                         }
                         Err(e) => {
-                            error_meta(
-                                &RobustMQError::RaftConfChangeCommitFail(e.to_string()).to_string(),
-                            );
+                            error!("{}", e,);
                         }
                     }
                 }
@@ -119,25 +115,23 @@ impl RaftMachine {
                         Ok(_) => match chan.send(RaftResponseMesage::Success) {
                             Ok(_) => {}
                             Err(_) => {
-                                error_meta("commit entry Fails to return data to chan. chan may have been closed");
+                                error!("{}","commit entry Fails to return data to chan. chan may have been closed");
                             }
                         },
                         Err(e) => {
-                            error_meta(
-                                &RobustMQError::RaftStepCommitFail(e.to_string()).to_string(),
-                            );
+                            error!("{}", e);
                         }
                     }
                 }
 
                 Ok(Some(RaftMessage::TransferLeader { node_id, chan })) => {
                     // Step advances the state machine using the given message.
-                    info_meta(&format!("transfer_leader {}", node_id));
+                    info!("transfer_leader {}", node_id);
                     raft_node.transfer_leader(node_id);
                     match chan.send(RaftResponseMesage::Success) {
                         Ok(_) => {}
                         Err(_) => {
-                            error_meta("commit entry Fails to return data to chan. chan may have been closed");
+                            error!("{}","commit entry Fails to return data to chan. chan may have been closed");
                         }
                     }
                 }
@@ -152,9 +146,7 @@ impl RaftMachine {
                             self.resp_channel.insert(seq, chan);
                         }
                         Err(e) => {
-                            error_meta(
-                                &RobustMQError::RaftProposeCommitFail(e.to_string()).to_string(),
-                            );
+                            error!("{}", e);
                         }
                     }
                 }
@@ -170,17 +162,17 @@ impl RaftMachine {
             }
 
             if self.placement_cluster.read().unwrap().raft_role != raft_node.raft.state {
-                info_meta(&format!(
+                info!(
                     "Node Raft Role changes from  【{:?}】 to 【{:?}】",
                     self.placement_cluster.read().unwrap().raft_role,
                     raft_node.raft.state
-                ));
+                );
                 self.placement_cluster
                     .write()
                     .unwrap()
                     .set_role(raft_node.raft.state)
             }
-            // info_meta(&format!("{:?}",raft_node.raft.state));
+            // info!(&format!("{:?}",raft_node.raft.state));
             self.on_ready(&mut raft_node).await;
         }
     }
@@ -203,11 +195,11 @@ impl RaftMachine {
         // but the snapshot is usually large. Synchronization blocks threads).
         if *ready.snapshot() != Snapshot::default() {
             let s = ready.snapshot().clone();
-            info_meta(&format!(
+            info!(
                 "save snapshot,term:{},index:{}",
                 s.get_metadata().get_term(),
                 s.get_metadata().get_index()
-            ));
+            );
             raft_node.mut_store().apply_snapshot(s).unwrap();
         }
 
@@ -223,7 +215,7 @@ impl RaftMachine {
         // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
-            info_meta(&format!("save hardState!!!,len:{:?}", hs));
+            info!("save hardState!!!,len:{:?}", hs);
             raft_node.mut_store().set_hard_state(hs.clone()).unwrap();
         }
 
@@ -236,7 +228,7 @@ impl RaftMachine {
         // A call to advance tells Raft that it is ready for processing.
         let mut light_rd = raft_node.advance(ready);
         if let Some(commit) = light_rd.commit_index() {
-            info_meta(&format!("save light rd!!!,commit:{:?}", commit));
+            info!("save light rd!!!,commit:{:?}", commit);
             raft_node.mut_store().set_hard_state_comit(commit).unwrap();
         }
 
@@ -255,17 +247,14 @@ impl RaftMachine {
         let data_route = self.data_route.write().unwrap();
         for entry in entrys {
             if !entry.data.is_empty() {
-                info_meta(&format!(
-                    "ready entrys entry type:{:?}",
-                    entry.get_entry_type()
-                ));
+                info!("ready entrys entry type:{:?}", entry.get_entry_type());
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
                         match data_route.route(entry.get_data().to_vec()) {
                             Ok(_) => {}
                             Err(err) => {
-                                error_meta(&err.to_string());
+                                error!("{}", err);
                             }
                         }
                     }
@@ -283,7 +272,7 @@ impl RaftMachine {
                                         cls.add_peer(id, node);
                                     }
                                     Err(e) => {
-                                        error_meta(&format!("Failed to parse Node data from context with error message {:?}", e));
+                                        error!("Failed to parse Node data from context with error message {:?}", e);
                                     }
                                 }
                             }
@@ -310,7 +299,7 @@ impl RaftMachine {
                     Some(chan) => match chan.send(RaftResponseMesage::Success) {
                         Ok(_) => {}
                         Err(_) => {
-                            error_meta("commit entry Fails to return data to chan. chan may have been closed");
+                            error!("commit entry Fails to return data to chan. chan may have been closed");
                         }
                     },
                     None => {}
@@ -328,7 +317,7 @@ impl RaftMachine {
             if msg.get_msg_type() != MessageType::MsgHeartbeat
                 && msg.get_msg_type() != MessageType::MsgHeartbeatResponse
             {
-                info_meta(&format!("ready message:{:?}", msg));
+                info!("ready message:{:?}", msg);
             }
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
             self.send_peer_message(to, data).await;
@@ -380,7 +369,7 @@ impl RaftMachine {
 
     fn build_slog(&self) -> slog::Logger {
         let conf = placement_center_conf();
-        let path = format!("{}/raft.log", conf.log_path.clone());
+        let path = format!("{}/raft.log", conf.log.log_path.clone());
         let file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -422,14 +411,14 @@ impl RaftMachine {
                     .await
                 {
                     Ok(_) => {}
-                    Err(e) => error_meta(&format!(
+                    Err(e) => error!(
                         "Failed to write Raft Message to send queue with error message: {:?}",
                         e.to_string()
-                    )),
+                    ),
                 }
             });
         } else {
-            error_meta(&format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id));
+            error!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id);
         }
     }
 }

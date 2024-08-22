@@ -16,8 +16,8 @@ use crate::{
     cache::journal::JournalCacheManager, raft::apply::RaftMachineApply,
     storage::rocksdb::RocksDBEngine,
 };
-use common_base::log::info_meta;
 use std::sync::{Arc, RwLock};
+use log::info;
 use tokio::sync::broadcast;
 
 pub struct StorageEngineController {
@@ -47,7 +47,7 @@ impl StorageEngineController {
     pub async fn start(&self) {
         self.resource_manager_thread();
         self.preferred_replica_election();
-        info_meta("Storage Engine Controller started successfully");
+        info!("Storage Engine Controller started successfully");
     }
 
     pub fn load_cache(&self) {

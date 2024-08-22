@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::cache_manager::CacheManager;
 use crate::handler::command::Command;
 use crate::security::AuthDriver;
@@ -27,12 +26,10 @@ use axum_extra::TypedHeader;
 use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use clients::poll::ClientPool;
-use common_base::log::debug;
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    log::{error, info},
-};
+
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::stream::StreamExt;
+use log::{debug, error, info};
 use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
 use std::path::PathBuf;
@@ -88,10 +85,10 @@ where
         .parse()
         .unwrap();
     let app = routes_v1(state);
-    info(format!(
+    info!(
         "Broker WebSocket Server start success. port:{}",
         config.network.websocket_port
-    ));
+    );
     match axum_server::bind(ip)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
@@ -123,10 +120,10 @@ where
         }
     };
 
-    info(format!(
+    info!(
         "Broker WebSocket TLS Server start success. port:{}",
         config.network.websockets_port
-    ));
+    );
     match axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
@@ -160,7 +157,7 @@ where
     } else {
         String::from("Unknown Source")
     };
-    info(format!("`{user_agent}` at {addr} connected."));
+    info!("`{user_agent}` at {addr} connected.");
     let command = Command::new(
         state.cache_manager.clone(),
         state.message_storage_adapter.clone(),
@@ -225,7 +222,7 @@ async fn handle_socket<S>(
                             buf.put(data.as_slice());
                             match codec.decode_data(&mut buf) {
                                 Ok(Some(packet)) => {
-                                    info(format!("recv websocket packet:{packet:?}"));
+                                    info!("recv websocket packet:{packet:?}");
                                     if let Some(resp_pkg) = command
                                         .apply(
                                             connection_manager.clone(),
@@ -248,17 +245,17 @@ async fn handle_socket<S>(
                                             packet: resp_pkg,
                                         };
 
-                                        info(format!("{packet_wrapper:?}"));
+                                        info!("{packet_wrapper:?}");
                                         match codec.encode_data(packet_wrapper, &mut response_buff){
                                             Ok(()) => {},
                                             Err(e) => {
-                                                error(format!("Websocket encode back packet failed with error message: {e:?}"));
+                                                error!("Websocket encode back packet failed with error message: {e:?}");
                                             }
                                         }
                                         match connection_manager.write_websocket_frame(tcp_connection.connection_id, Message::Binary(response_buff.to_vec())).await{
                                             Ok(()) => {},
                                             Err(e) => {
-                                                error(format!("websocket returns failure to write the packet to the client with error message {e:?}"));
+                                                error!("websocket returns failure to write the packet to the client with error message {e:?}");
                                                 connection_manager.clonse_connect(tcp_connection.connection_id).await;
                                                 break;
                                             }
@@ -267,41 +264,41 @@ async fn handle_socket<S>(
                                 }
                                 Ok(None) => {}
                                 Err(e) => {
-                                    error(format!("Websocket failed to parse MQTT protocol packet with error message :{e:?}"));
+                                    error!("Websocket failed to parse MQTT protocol packet with error message :{e:?}");
                                 }
                             }
                         }
                         Ok(Message::Text(data)) => {
-                            debug(format!(
+                            debug!(
                                 "websocket server receives a TEXT message with the following content: {data}"
-                            ));
+                            );
                         }
                         Ok(Message::Ping(data)) => {
-                            debug(format!(
+                            debug!(
                                 "websocket server receives a Ping message with the following content: {data:?}"
-                            ));
+                            );
                         }
                         Ok(Message::Pong(data)) => {
-                            debug(format!(
+                            debug!(
                                 "websocket server receives a Pong message with the following content: {data:?}"
-                            ));
+                            );
                         }
                         Ok(Message::Close(data)) => {
                             if let Some(cf) = data {
-                                info(format!(
+                                info!(
                                     ">>> {} sent close with code {} and reason `{}`",
                                     addr, cf.code, cf.reason
-                                ));
+                                );
                             } else {
-                                info(format!(
+                                info!(
                                     ">>> {addr} somehow sent close message without CloseFrame"
-                                ));
+                                );
                             }
                             break;
                         }
-                        Err(e) => error(format!(
+                        Err(e) => error!(
                             "websocket server parsing request packet error, error message :{e:?}"
-                        )),
+                        ),
                     }
                 }
             }

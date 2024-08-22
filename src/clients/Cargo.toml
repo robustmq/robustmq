@@ -31,3 +31,4 @@ tokio.workspace = true
 mobc.workspace = true
 prost.workspace = true
 dashmap.workspace = true
+log.workspace = true

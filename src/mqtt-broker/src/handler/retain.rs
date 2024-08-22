@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::cache_manager::{CacheManager, QosAckPacketInfo};
 use crate::{
     server::connection_manager::ConnectionManager,
@@ -24,7 +23,8 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, log::error, tools::now_second};
+use common_base::{errors::RobustMQError, tools::now_second};
+use log::error;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};
 use std::sync::Arc;
@@ -181,7 +181,7 @@ pub async fn try_send_retain_message(
                                         cache_manager.remove_ack_packet(&client_id, pkid);
                                     }
                                     Err(e) => {
-                                        error(e.to_string());
+                                        error!("{}", e);
                                     }
                                 }
                             }
@@ -216,7 +216,7 @@ pub async fn try_send_retain_message(
                                         cache_manager.remove_ack_packet(&client_id, pkid);
                                     }
                                     Err(e) => {
-                                        error(e.to_string());
+                                        error!("{}", e);
                                     }
                                 }
                             }
@@ -225,10 +225,7 @@ pub async fn try_send_retain_message(
                     Ok(None) => {
                         continue;
                     }
-                    Err(e) => error(format!(
-                        "send retain message error, error message:{}",
-                        e.to_string()
-                    )),
+                    Err(e) => error!("send retain message error, error message:{}", e),
                 }
             }
         }
@@ -250,27 +247,16 @@ pub fn message_expiry_interval(
 
 #[cfg(test)]
 mod tests {
+    use super::message_expiry_interval;
     use crate::handler::cache_manager::CacheManager;
     use clients::poll::ClientPool;
     use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
+        config::broker_mqtt::init_broker_mqtt_conf_by_path,
+        logs::{init_broker_mqtt_log, init_log},
     };
     use metadata_struct::mqtt::cluster::MQTTCluster;
     use protocol::mqtt::common::PublishProperties;
     use std::sync::Arc;
-
-    use super::message_expiry_interval;
-
-    #[tokio::test]
-    async fn save_topic_retain_message_test() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-
-        init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
-    }
 
     #[test]
     fn message_expiry_interval_test() {

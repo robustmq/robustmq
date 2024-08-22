@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     placement::mqtt::call::{
         placement_create_topic, placement_delete_topic, placement_list_topic,
@@ -227,10 +226,7 @@ mod tests {
     use crate::storage::topic::TopicStorage;
     use bytes::Bytes;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-        tools::unique_id,
-    };
+    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::{init_broker_mqtt_log, init_log}, tools::unique_id};
     use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
     use protocol::mqtt::common::{Publish, PublishProperties};
     use std::sync::Arc;
@@ -241,9 +237,11 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
+        let log_config = format!("{}/../../config/log4rs.yaml", env!("CARGO_MANIFEST_DIR"));
+        let log_path = format!("{}/../../logs/tests", env!("CARGO_MANIFEST_DIR"));
 
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
+        init_log(&log_config, &log_path);
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);
@@ -284,7 +282,6 @@ mod tests {
         );
 
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);

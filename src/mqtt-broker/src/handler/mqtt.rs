@@ -37,7 +37,8 @@ use crate::storage::message::MessageStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
-use common_base::{log::error, tools::now_second};
+use common_base::tools::now_second;
+use log::error;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -513,10 +514,10 @@ where
                 }) {
                     Ok(_) => {}
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "publish ack send ack manager message error, error message:{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                     }
                 }
             }
@@ -541,10 +542,10 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "publish rec send ack manager message error, error message:{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                     }
                 }
             }
@@ -573,10 +574,10 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "publish comp send ack manager message error, error message:{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                     }
                 }
             }

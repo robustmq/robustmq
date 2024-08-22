@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::cache_manager::CacheManager;
 use crate::handler::cache_manager::QosAckPackageData;
 use crate::server::connection_manager::ConnectionManager;
@@ -22,7 +21,8 @@ use bytes::BytesMut;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::{errors::RobustMQError, log::error};
+use common_base::errors::RobustMQError;
+use log::error;
 use protocol::mqtt::codec::MQTTPacketWrapper;
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::common::MQTTProtocol;
@@ -180,9 +180,7 @@ pub async fn publish_message_to_client(
             match codec.encode_data(response, &mut buff) {
                 Ok(()) => {}
                 Err(e) => {
-                    error(format!(
-                        "Websocket encode back packet failed with error message: {e:?}"
-                    ));
+                    error!("Websocket encode back packet failed with error message: {e:?}");
                 }
             }
             return connection_manager
@@ -263,10 +261,10 @@ pub async fn qos2_send_publish(
                         break;
                     }
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Failed to write QOS2 Publish message to response queue, failure message: {}",
                             e.to_string()
-                        ));
+                        );
                         sleep(Duration::from_millis(1)).await;
                     }
                 }
@@ -324,10 +322,10 @@ pub async fn qos2_send_pubrel(
                         break;
                     }
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Failed to write PubRel message to response queue, failure message: {}",
                             e.to_string()
-                        ));
+                        );
                     }
                 }
             }
@@ -353,7 +351,7 @@ pub async fn loop_commit_offset<S>(
                 break;
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
             }
         }
     }
@@ -418,10 +416,10 @@ pub async fn publish_message_qos0(
     match publish_message_to_client(resp.clone(), connection_manager).await {
         Ok(_) => {}
         Err(e) => {
-            error(format!(
+            error!(
                 "Failed Publish message to response queue, failure message: {}",
                 e.to_string()
-            ));
+            );
         }
     }
 }

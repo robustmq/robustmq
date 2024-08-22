@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::cache_manager::CacheManager;
 use clients::{
     placement::placement::call::{
@@ -117,9 +116,7 @@ mod test {
     use super::pkid_save;
     use crate::handler::cache_manager::CacheManager;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-    };
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -128,9 +125,8 @@ mod test {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
+
         let cluster_name = "test".to_string();
         let client_poll = Arc::new(ClientPool::new(10));
         let cache_manager = Arc::new(CacheManager::new(client_poll.clone(), cluster_name));

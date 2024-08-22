@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use clients::poll::ClientPool;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::create_runtime};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, runtime::create_runtime};
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
+use log::info;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::tcp::start_tcp_server;
@@ -267,7 +268,10 @@ where
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match stop_send.send(true) {
                     Ok(_) => {
-                        info("When ctrl + c is received, the service starts to stop".to_string());
+                        info!(
+                            "{}",
+                            "When ctrl + c is received, the service starts to stop"
+                        );
                         self.stop_server().await;
                         break;
                     }

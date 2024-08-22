@@ -11,15 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::cache_manager::CacheManager;
 use axum::extract::ws::{Message, WebSocket};
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-};
+use common_base::errors::RobustMQError;
 use dashmap::DashMap;
 use futures::{stream::SplitSink, SinkExt};
+use log::{error, info};
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTProtocol,
@@ -103,36 +100,36 @@ impl ConnectionManager {
         if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
-                    info(format!(
+                    info!(
                         "server closes the tcp connection actively, connection id [{}]",
                         id
-                    ));
+                    );
                 }
-                Err(e) => error(e.to_string()),
+                Err(e) => error!("{}", e),
             }
         }
 
         if let Some((id, mut stream)) = self.tcp_tls_write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
-                    info(format!(
+                    info!(
                         "server closes the tcp connection actively, connection id [{}]",
                         id
-                    ));
+                    );
                 }
-                Err(e) => error(e.to_string()),
+                Err(e) => error!("{}", e),
             }
         }
 
         if let Some((id, mut stream)) = self.websocket_write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
-                    info(format!(
+                    info!(
                         "server closes the websocket connection actively, connection id [{}]",
                         id
-                    ));
+                    );
                 }
-                Err(e) => error(e.to_string()),
+                Err(e) => error!("{}", e),
             }
         }
     }
@@ -190,9 +187,7 @@ impl ConnectionManager {
         connection_id: u64,
         resp: MQTTPacketWrapper,
     ) -> Result<(), RobustMQError> {
-        info(format!(
-            "response packet:{resp:?},connection_id:{connection_id}"
-        ));
+        info!("response packet:{resp:?},connection_id:{connection_id}");
 
         // write tls stream
         if let Some(connection) = self.get_connect(connection_id) {

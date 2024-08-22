@@ -15,7 +15,7 @@ use clap::command;
 use clap::Parser;
 use common_base::config::journal_server::init_journal_server_conf_by_path;
 use common_base::config::DEFAULT_JOURNAL_SERVER_CONFIG;
-use common_base::log::init_journal_server_log;
+use common_base::logs::init_journal_server_log;
 use journal_server::JournalServer;
 use tokio::sync::broadcast;
 
@@ -32,7 +32,7 @@ fn main() {
     let args = ArgsParams::parse();
     init_journal_server_conf_by_path(&args.conf);
     init_journal_server_log();
-    
+
     let (stop_send, _) = broadcast::channel(2);
     let server = JournalServer::new(stop_send);
     server.start();

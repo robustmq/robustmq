@@ -38,3 +38,7 @@ response_thread_num = 2
 max_connection_num = 1000
 request_queue_size = 2000
 response_queue_size = 2000
+
+[log]
+log_config = "./config/log4rs.yaml"
+log_path = "./logs/tests/js"

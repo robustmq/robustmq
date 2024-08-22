@@ -11,8 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::log::error;
+use log::error;
 use protocol::mqtt::common::MQTTProtocol;
 use std::{net::SocketAddr, sync::atomic::AtomicU64};
 use tokio::sync::mpsc;
@@ -29,7 +28,7 @@ pub enum NetworkConnectionType {
 pub struct NetworkConnection {
     pub connection_type: NetworkConnectionType,
     pub connection_id: u64,
-    pub protocol: Option<MQTTProtocol>, 
+    pub protocol: Option<MQTTProtocol>,
     pub addr: SocketAddr,
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }
@@ -84,7 +83,7 @@ impl NetworkConnection {
             match sx.send(true).await {
                 Ok(_) => {}
                 Err(e) => {
-                    error(e.to_string());
+                    error!("{}", e);
                 }
             }
         }

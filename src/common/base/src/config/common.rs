@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -30,4 +29,10 @@ pub struct Auth {
     pub journal_addr: String,
     #[serde(default)]
     pub mysql_addr: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct Log {
+    pub log_config: String,
+    pub log_path: String,
 }

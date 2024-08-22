@@ -31,3 +31,4 @@ clients.workspace = true
 tokio-util.workspace = true
 futures.workspace = true
 dashmap.workspace = true
+log.workspace = true

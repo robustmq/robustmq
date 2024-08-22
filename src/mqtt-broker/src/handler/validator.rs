@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
     cache_manager::CacheManager,
     connection::Connection,
@@ -31,8 +30,9 @@ use crate::{
     subscribe::sub_common::sub_path_validator,
 };
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, log::error};
+use common_base::errors::RobustMQError;
 use futures::SinkExt;
+use log::error;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
@@ -60,17 +60,17 @@ pub async fn tcp_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }
@@ -85,17 +85,17 @@ pub async fn tcp_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }
@@ -120,17 +120,17 @@ pub async fn tcp_tls_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }
@@ -145,17 +145,17 @@ pub async fn tcp_tls_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }

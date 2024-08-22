@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::SinkExt;
+use log::error;
 use protocol::journal_server::codec::{StorageEngineCodec, StorageEnginePacket};
 use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
 use tokio::time::sleep;
@@ -68,13 +67,13 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.max_try_mut_times {
-                        error_engine(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
+                        error!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id);
                         break;
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > self.max_try_mut_times {
-                        error_engine(format!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
+                        error!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id);
                         break;
                     }
                 }
@@ -125,10 +124,10 @@ impl Connection {
     pub async fn write_frame(&mut self, resp: StorageEnginePacket) {
         match self.write.send(resp).await {
             Ok(_) => {}
-            Err(err) => error_meta(&format!(
+            Err(err) => error!(
                 "Failed to write data to the response queue, error message ff: {:?}",
                 err
-            )),
+            ),
         }
     }
 }
