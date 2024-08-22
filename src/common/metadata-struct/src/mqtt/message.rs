@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use bytes::Bytes;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{error::common::CommonError, tools::now_second};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 use storage_adapter::record::Record;
@@ -81,11 +80,11 @@ impl MQTTMessage {
         }
     }
 
-    pub fn decode_record(record: Record) -> Result<MQTTMessage, RobustMQError> {
+    pub fn decode_record(record: Record) -> Result<MQTTMessage, CommonError> {
         let data: MQTTMessage = match serde_json::from_slice(record.data.as_slice()) {
             Ok(da) => da,
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         };
         return Ok(data);

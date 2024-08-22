@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_node, key_node_prefix, key_node_prefix_all},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use metadata_struct::placement::broker_node::BrokerNode;
 use std::sync::Arc;
 
@@ -34,12 +34,12 @@ impl NodeStorage {
         }
     }
 
-    pub fn save(&self, cluster_name: &String, node: BrokerNode) -> Result<(), RobustMQError> {
+    pub fn save(&self, cluster_name: &String, node: BrokerNode) -> Result<(), CommonError> {
         let node_key = key_node(&cluster_name, node.node_id);
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node);
     }
 
-    pub fn delete(&self, cluster_name: &String, node_id: u64) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, node_id: u64) -> Result<(), CommonError> {
         let node_key = key_node(cluster_name, node_id);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), node_key);
     }
@@ -49,7 +49,7 @@ impl NodeStorage {
         &self,
         cluster_name: &String,
         node_id: u64,
-    ) -> Result<Option<BrokerNode>, RobustMQError> {
+    ) -> Result<Option<BrokerNode>, CommonError> {
         let node_key = key_node(cluster_name, node_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), node_key) {
             Ok(Some(data)) => match serde_json::from_slice::<BrokerNode>(&data.data) {
@@ -67,7 +67,7 @@ impl NodeStorage {
         }
     }
 
-    pub fn list(&self, cluster_name: Option<String>) -> Result<Vec<BrokerNode>, RobustMQError> {
+    pub fn list(&self, cluster_name: Option<String>) -> Result<Vec<BrokerNode>, CommonError> {
         let prefix_key = if let Some(cn) = cluster_name {
             key_node_prefix(&cn)
         } else {

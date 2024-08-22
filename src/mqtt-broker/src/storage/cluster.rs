@@ -16,7 +16,7 @@ use clients::placement::placement::call::{
     un_register_node,
 };
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::get_local_ip};
 use log::{error, info};
 use metadata_struct::mqtt::cluster::MQTTCluster;
@@ -121,7 +121,7 @@ impl ClusterStorage {
         &self,
         cluster_name: String,
         cluster: MQTTCluster,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = SetResourceConfigRequest {
@@ -144,7 +144,7 @@ impl ClusterStorage {
         }
     }
 
-    pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), RobustMQError> {
+    pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = DeleteResourceConfigRequest {
@@ -169,7 +169,7 @@ impl ClusterStorage {
     pub async fn get_cluster_config(
         &self,
         cluster_name: String,
-    ) -> Result<Option<MQTTCluster>, RobustMQError> {
+    ) -> Result<Option<MQTTCluster>, CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = GetResourceConfigRequest {
@@ -193,7 +193,7 @@ impl ClusterStorage {
                             return Ok(Some(data));
                         }
                         Err(e) => {
-                            return Err(RobustMQError::CommmonError(e.to_string()));
+                            return Err(CommonError::CommmonError(e.to_string()));
                         }
                     }
                 }

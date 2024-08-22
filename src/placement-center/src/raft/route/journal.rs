@@ -22,10 +22,7 @@ use crate::{
         rocksdb::RocksDBEngine,
     },
 };
-use common_base::{
-    errors::RobustMQError,
-    tools::{now_mills, unique_id},
-};
+use common_base::{error::common::CommonError, tools::{now_mills, unique_id}};
 use prost::Message as _;
 use protocol::placement_center::generate::journal::{
     CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
@@ -50,7 +47,7 @@ impl DataRouteJournal {
             cluster_cache,
         };
     }
-    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
 
         let shard_info = ShardInfo {
@@ -76,7 +73,7 @@ impl DataRouteJournal {
         return Ok(());
     }
 
-    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name.clone();
         let shard_name = req.shard_name.clone();
@@ -92,7 +89,7 @@ impl DataRouteJournal {
         return Ok(());
     }
 
-    pub fn create_segment(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn create_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: CreateSegmentRequest = CreateSegmentRequest::decode(value.as_ref())?;
 
         let cluster_name = req.cluster_name;
@@ -118,7 +115,7 @@ impl DataRouteJournal {
         return Ok(());
     }
 
-    pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let shard_name = req.shard_name;
@@ -131,7 +128,7 @@ impl DataRouteJournal {
         return Ok(());
     }
 
-    pub fn pre_create_segment(&self) -> Result<(), RobustMQError> {
+    pub fn pre_create_segment(&self) -> Result<(), CommonError> {
         return Ok(());
     }
 }

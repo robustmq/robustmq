@@ -28,7 +28,7 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::{
     config::broker_mqtt::broker_mqtt_conf,
-    errors::RobustMQError,
+    error::common::CommonError,
     tools::{now_second, unique_id},
 };
 use dashmap::DashMap;
@@ -205,7 +205,7 @@ async fn resub_sub_mqtt5(
     share_sub: ShareSubShareSub,
     stop_sx: Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let mqtt_client_id = share_sub.client_id.clone();
     let group_name = share_sub.group_name.clone();
     let sub_name = share_sub.sub_name.clone();
@@ -220,7 +220,7 @@ async fn resub_sub_mqtt5(
     let socket = match TcpStream::connect(leader_addr.clone()).await {
         Ok(sock) => sock,
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     };
 
@@ -560,7 +560,7 @@ async fn resub_publish_message_qos1(
     stop_sx: &broadcast::Sender<bool>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
     write_stream: &Arc<WriteStream>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let mut retry_times = 0;
     let current_message_pkid = publish.pkid;
     loop {
@@ -639,11 +639,11 @@ pub async fn resub_publish_message_qos2(
     wait_leader_ack_sx: &broadcast::Sender<QosAckPackageData>,
     write_stream: &Arc<WriteStream>,
     publish_properties: &Option<PublishProperties>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let current_message_pkid = publish.pkid;
 
     // 2. Send publish message to mqtt client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         metadata_cache,
         mqtt_client_id,
@@ -651,11 +651,7 @@ pub async fn resub_publish_message_qos2(
         publish_properties,
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     let mut stop_rx = stop_sx.subscribe();
     loop {

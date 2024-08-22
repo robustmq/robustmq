@@ -15,7 +15,7 @@
 use self::inner::inner_get_share_sub_leader;
 use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use inner::{
     inner_create_session, inner_create_topic, inner_create_user, inner_delete_session,
     inner_delete_topic, inner_delete_user, inner_list_session, inner_list_topic, inner_list_user,
@@ -32,7 +32,7 @@ mod inner;
 async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<MqttServiceClient<Channel>, RobustMQError> {
+) -> Result<MqttServiceClient<Channel>, CommonError> {
     match client_poll
         .placement_center_mqtt_services_client(addr)
         .await
@@ -51,7 +51,7 @@ pub(crate) async fn mqtt_interface_call(
     client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match mqtt_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
@@ -95,7 +95,7 @@ pub(crate) async fn mqtt_interface_call(
                     inner_save_last_will_message(client, request.clone()).await
                 }
                 _ => {
-                    return Err(RobustMQError::CommmonError(format!(
+                    return Err(CommonError::CommmonError(format!(
                         "mqtt service does not support service interfaces [{:?}]",
                         interface
                     )))
@@ -128,7 +128,7 @@ impl MQTTServiceManager {
 #[tonic::async_trait]
 impl Manager for MQTTServiceManager {
     type Connection = MqttServiceClient<Channel>;
-    type Error = RobustMQError;
+    type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match MqttServiceClient::connect(format!("http://{}", self.addr.clone())).await {
@@ -136,7 +136,7 @@ impl Manager for MQTTServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(RobustMQError::CommmonError(format!(
+                return Err(CommonError::CommmonError(format!(
                     "{},{}",
                     err.to_string(),
                     self.addr.clone()

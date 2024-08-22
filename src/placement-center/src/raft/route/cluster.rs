@@ -22,7 +22,7 @@ use crate::{
     },
 };
 use common_base::{
-    errors::RobustMQError,
+    error::common::CommonError,
     tools::{now_mills, unique_id},
 };
 use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
@@ -49,7 +49,7 @@ impl DataRouteCluster {
         };
     }
 
-    pub fn add_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn add_node(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())?;
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
@@ -83,7 +83,7 @@ impl DataRouteCluster {
         return node_storage.save(&cluster_name, node);
     }
 
-    pub fn delete_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn delete_node(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
@@ -93,25 +93,25 @@ impl DataRouteCluster {
         return node_storage.delete(&cluster_name, node_id);
     }
 
-    pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         return config_storage.save(req.cluster_name, req.resources, req.config);
     }
 
-    pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         return config_storage.delete(req.cluster_name, req.resources);
     }
 
-    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = SetIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         return idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num);
     }
 
-    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         return idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num);

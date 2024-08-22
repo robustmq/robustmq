@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
@@ -26,16 +26,16 @@ use tonic::transport::Channel;
 pub(crate) async fn inner_create_shard(
     mut client: EngineServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match CreateShardRequest::decode(request.as_ref()) {
         Ok(request) => match client.create_shard(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -43,16 +43,16 @@ pub(crate) async fn inner_create_shard(
 pub(crate) async fn inner_delete_shard(
     mut client: EngineServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match DeleteShardRequest::decode(request.as_ref()) {
         Ok(request) => match client.delete_shard(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -60,16 +60,16 @@ pub(crate) async fn inner_delete_shard(
 pub(crate) async fn inner_create_segment(
     mut client: EngineServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match CreateSegmentRequest::decode(request.as_ref()) {
         Ok(request) => match client.create_segment(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -77,16 +77,16 @@ pub(crate) async fn inner_create_segment(
 pub(crate) async fn inner_delete_segment(
     mut client: EngineServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match DeleteSegmentRequest::decode(request.as_ref()) {
         Ok(request) => match client.delete_segment(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }

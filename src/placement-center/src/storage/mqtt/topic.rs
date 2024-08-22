@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
 use metadata_struct::mqtt::topic::MQTTTopic;
 use std::sync::Arc;
 
@@ -39,12 +39,12 @@ impl MQTTTopicStorage {
         cluster_name: &String,
         topic_name: &String,
         topic: MQTTTopic,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic);
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTTopic>, RobustMQError> {
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTTopic>, CommonError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(&cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -71,7 +71,7 @@ impl MQTTTopicStorage {
         &self,
         cluster_name: &String,
         topicname: &String,
-    ) -> Result<Option<MQTTTopic>, RobustMQError> {
+    ) -> Result<Option<MQTTTopic>, CommonError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topicname);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<MQTTTopic>(&data.data) {
@@ -87,7 +87,7 @@ impl MQTTTopicStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, topic_name: &String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, topic_name: &String) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
@@ -98,11 +98,11 @@ impl MQTTTopicStorage {
         topic_name: &String,
         retain_message: Vec<u8>,
         retain_message_expired_at: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let mut topic = match self.get(cluster_name, topic_name) {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
+                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
             }
             Err(e) => {
                 return Err(e);

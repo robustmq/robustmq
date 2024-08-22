@@ -20,7 +20,7 @@ use crate::storage::{
     rocksdb::RocksDBEngine,
 };
 
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -45,7 +45,7 @@ impl ShardStorage {
         }
     }
 
-    pub fn save(&self, shard_info: ShardInfo) -> Result<(), RobustMQError> {
+    pub fn save(&self, shard_info: ShardInfo) -> Result<(), CommonError> {
         let shard_key = key_shard(&shard_info.cluster_name, &shard_info.shard_name);
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, shard_info);
     }
@@ -54,7 +54,7 @@ impl ShardStorage {
         &self,
         cluster_name: &String,
         shard_name: &String,
-    ) -> Result<Option<ShardInfo>, RobustMQError> {
+    ) -> Result<Option<ShardInfo>, CommonError> {
         let shard_key: String = key_shard(&cluster_name, shard_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
             Ok(Some(data)) => match serde_json::from_slice::<ShardInfo>(&data.data) {
@@ -72,12 +72,12 @@ impl ShardStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, shard_name: &String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cluster_name: &String, shard_name: &String) -> Result<(), CommonError> {
         let shard_key = key_shard(&cluster_name, shard_name);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key);
     }
 
-    pub fn list_by_shard(&self, cluster_name: &String) -> Result<Vec<ShardInfo>, RobustMQError> {
+    pub fn list_by_shard(&self, cluster_name: &String) -> Result<Vec<ShardInfo>, CommonError> {
         let prefix_key = key_shard_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {

@@ -18,7 +18,7 @@ use crate::storage::{
     },
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use std::sync::Arc;
 
 pub struct KvStorage {
@@ -32,15 +32,15 @@ impl KvStorage {
         }
     }
 
-    pub fn set(&self, key: String, value: String) -> Result<(), RobustMQError> {
+    pub fn set(&self, key: String, value: String) -> Result<(), CommonError> {
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, value);
     }
 
-    pub fn delete(&self, key: String) -> Result<(), RobustMQError> {
+    pub fn delete(&self, key: String) -> Result<(), CommonError> {
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
-    pub fn get(&self, key: String) -> Result<Option<String>, RobustMQError> {
+    pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<String>(&data.data) {
                 Ok(data) => {
@@ -57,7 +57,7 @@ impl KvStorage {
         }
     }
 
-    pub fn exists(&self, key: String) -> Result<bool, RobustMQError> {
+    pub fn exists(&self, key: String) -> Result<bool, CommonError> {
         return engine_exists_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 }

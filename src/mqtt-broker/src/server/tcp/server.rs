@@ -28,7 +28,10 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::{
+    config::broker_mqtt::broker_mqtt_conf,
+    error::{mqtt_broker::MQTTBrokerError, common::CommonError},
+};
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::mqtt::{
@@ -524,7 +527,7 @@ fn handler_child_process<S>(
                                     info!("{}","No backpacking is required for this request");
                                 }
                             } else {
-                                error!("{}", RobustMQError::NotFoundConnectionInCache(packet.connection_id));
+                                error!("{}", MQTTBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

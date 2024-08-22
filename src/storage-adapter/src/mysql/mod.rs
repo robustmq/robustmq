@@ -11,13 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     record::{Header, Record},
     storage::{ShardConfig, StorageAdapter},
 };
 use axum::async_trait;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{error::common::CommonError, tools::now_second};
 use mysql::{params, prelude::Queryable, Pool};
 
 use self::schema::{TMqttKvMsg, TMqttRecord};
@@ -52,7 +51,7 @@ impl MySQLStorageAdapter {
         return format!("__group_offset_{}_{}", group_name, shard_name);
     }
 
-    pub fn init_table(&self) -> Result<(), RobustMQError> {
+    pub fn init_table(&self) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let show_table_sql = "
@@ -68,11 +67,11 @@ impl MySQLStorageAdapter {
                 ";
                 match conn.query_drop(show_table_sql) {
                     Ok(()) => return Ok(()),
-                    Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
@@ -84,7 +83,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         &self,
         shard_name: String,
         shard_config: ShardConfig,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let show_table_sql = format!(
@@ -101,16 +100,16 @@ impl StorageAdapter for MySQLStorageAdapter {
                 );
                 match conn.query_drop(show_table_sql) {
                     Ok(()) => return Ok(()),
-                    Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
 
-    async fn delete_shard(&self, shard_name: String) -> Result<(), RobustMQError> {
+    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let show_table_sql = format!(
@@ -119,16 +118,16 @@ impl StorageAdapter for MySQLStorageAdapter {
                 );
                 match conn.query_drop(show_table_sql) {
                     Ok(()) => return Ok(()),
-                    Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
 
-    async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
+    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let values = vec![TMqttKvMsg {
@@ -152,17 +151,17 @@ impl StorageAdapter for MySQLStorageAdapter {
                         return Ok(());
                     }
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
 
-    async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
+    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = format!(
@@ -177,12 +176,12 @@ impl StorageAdapter for MySQLStorageAdapter {
                 return Ok(None);
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
 
-    async fn delete(&self, key: String) -> Result<(), RobustMQError> {
+    async fn delete(&self, key: String) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = format!(
@@ -192,16 +191,16 @@ impl StorageAdapter for MySQLStorageAdapter {
                 );
                 match conn.query_drop(sql) {
                     Ok(()) => return Ok(()),
-                    Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
 
-    async fn exists(&self, key: String) -> Result<bool, RobustMQError> {
+    async fn exists(&self, key: String) -> Result<bool, CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = format!(
@@ -216,7 +215,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 return Ok(false);
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
@@ -225,7 +224,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         &self,
         shard_name: String,
         data: Vec<Record>,
-    ) -> Result<Vec<usize>, RobustMQError> {
+    ) -> Result<Vec<usize>, CommonError> {
         if data.len() == 0 {
             return Ok(Vec::new());
         }
@@ -268,12 +267,12 @@ impl StorageAdapter for MySQLStorageAdapter {
                         return Ok(data);
                     }
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
@@ -284,7 +283,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         group_id: String,
         record_num: Option<u128>,
         _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, RobustMQError> {
+    ) -> Result<Option<Vec<Record>>, CommonError> {
         let offset_key = self.group_offset_key(shard_name.clone(), group_id);
         let offset = match self.get(offset_key).await {
             Ok(Some(record)) => {
@@ -292,7 +291,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 offset_str.parse::<usize>().unwrap()
             }
             Ok(None) => 0,
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         };
         let rn = if let Some(rn) = record_num { rn } else { 10 };
         match self.pool.get_conn() {
@@ -322,7 +321,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 return Ok(Some(result));
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
@@ -332,7 +331,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         shard_name: String,
         group_id: String,
         offset: u128,
-    ) -> Result<bool, RobustMQError> {
+    ) -> Result<bool, CommonError> {
         // batch update offset
         match self.pool.get_conn() {
             Ok(mut conn) => {
@@ -347,11 +346,11 @@ impl StorageAdapter for MySQLStorageAdapter {
 
                 match conn.query_drop(update_sql) {
                     Ok(()) => return Ok(true),
-                    Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
                 }
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         }
     }
@@ -360,8 +359,8 @@ impl StorageAdapter for MySQLStorageAdapter {
         &self,
         _: String,
         _: usize,
-    ) -> Result<Option<Record>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<Option<Record>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
@@ -374,8 +373,8 @@ impl StorageAdapter for MySQLStorageAdapter {
         _: u128,
         _: Option<usize>,
         _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<Option<Vec<Record>>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
@@ -385,8 +384,8 @@ impl StorageAdapter for MySQLStorageAdapter {
         &self,
         _: String,
         _: String,
-    ) -> Result<Option<Record>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<Option<Record>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));

@@ -21,7 +21,7 @@ use clients::{
     placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
     poll::ClientPool,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use protocol::placement_center::generate::kv::{
     DeleteRequest, ExistsRequest, GetRequest, SetRequest,
 };
@@ -45,15 +45,15 @@ impl StorageAdapter for PlacementStorageAdapter {
         &self,
         shard_name: String,
         shard_config: ShardConfig,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         return Ok(());
     }
 
-    async fn delete_shard(&self, shard_name: String) -> Result<(), RobustMQError> {
+    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
         return Ok(());
     }
 
-    async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
+    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
         let request = SetRequest {
             key,
             value: String::from_utf8(value.data).unwrap(),
@@ -68,7 +68,7 @@ impl StorageAdapter for PlacementStorageAdapter {
         }
     }
 
-    async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
+    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
         let request = GetRequest { key };
         match placement_get(self.client_poll.clone(), self.addrs.clone(), request).await {
             Ok(reply) => {
@@ -83,7 +83,7 @@ impl StorageAdapter for PlacementStorageAdapter {
             }
         }
     }
-    async fn delete(&self, key: String) -> Result<(), RobustMQError> {
+    async fn delete(&self, key: String) -> Result<(), CommonError> {
         let request = DeleteRequest { key };
         match placement_delete(self.client_poll.clone(), self.addrs.clone(), request).await {
             Ok(_) => return Ok(()),
@@ -92,7 +92,7 @@ impl StorageAdapter for PlacementStorageAdapter {
             }
         }
     }
-    async fn exists(&self, key: String) -> Result<bool, RobustMQError> {
+    async fn exists(&self, key: String) -> Result<bool, CommonError> {
         let request = ExistsRequest { key };
         match placement_exists(self.client_poll.clone(), self.addrs.clone(), request).await {
             Ok(reply) => return Ok(reply.flag),
@@ -102,8 +102,8 @@ impl StorageAdapter for PlacementStorageAdapter {
         }
     }
 
-    async fn stream_write(&self, _: String, _: Vec<Record>) -> Result<Vec<usize>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    async fn stream_write(&self, _: String, _: Vec<Record>) -> Result<Vec<usize>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
@@ -115,8 +115,8 @@ impl StorageAdapter for PlacementStorageAdapter {
         _: String,
         _: Option<u128>,
         _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<Option<Vec<Record>>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
@@ -127,8 +127,8 @@ impl StorageAdapter for PlacementStorageAdapter {
         _: String,
         _: String,
         _: u128,
-    ) -> Result<bool, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<bool, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
@@ -138,8 +138,8 @@ impl StorageAdapter for PlacementStorageAdapter {
         &self,
         _: String,
         _: usize,
-    ) -> Result<Option<Record>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<Option<Record>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
@@ -152,8 +152,8 @@ impl StorageAdapter for PlacementStorageAdapter {
         _: u128,
         _: Option<usize>,
         _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<Option<Vec<Record>>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));
@@ -163,8 +163,8 @@ impl StorageAdapter for PlacementStorageAdapter {
         &self,
         _: String,
         _: String,
-    ) -> Result<Option<Record>, RobustMQError> {
-        return Err(RobustMQError::NotSupportFeature(
+    ) -> Result<Option<Record>, CommonError> {
+        return Err(CommonError::NotSupportFeature(
             "PlacementStorageAdapter".to_string(),
             "stream_write".to_string(),
         ));

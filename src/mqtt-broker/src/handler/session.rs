@@ -16,7 +16,7 @@ use super::{cache_manager::CacheManager, lastwill::last_will_delay_interval};
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::{
-    config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError, tools::now_second,
+    config::broker_mqtt::broker_mqtt_conf, error::common::CommonError, tools::now_second,
 };
 use metadata_struct::mqtt::session::MQTTSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
@@ -31,7 +31,7 @@ pub async fn build_session(
     last_will_properties: &Option<LastWillProperties>,
     client_poll: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<(MQTTSession, bool), RobustMQError> {
+) -> Result<(MQTTSession, bool), CommonError> {
     let session_expiry = session_expiry_interval(cache_manager, connect_properties);
     let is_contain_last_will = !last_will.is_none();
     let last_will_delay_interval = last_will_delay_interval(&last_will_properties);
@@ -78,7 +78,7 @@ pub async fn save_session(
     new_session: bool,
     client_id: &String,
     client_poll: &Arc<ClientPool>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let conf = broker_mqtt_conf();
     let session_storage = SessionStorage::new(client_poll.clone());
     if new_session {

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::config::placement_center::PlacementCenterConfig;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use log::error;
 use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
@@ -186,7 +186,7 @@ impl RocksDBEngine {
         return result;
     }
 
-    pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), RobustMQError> {
+    pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), CommonError> {
         return Ok(self.db.delete_cf(cf, key)?);
     }
 

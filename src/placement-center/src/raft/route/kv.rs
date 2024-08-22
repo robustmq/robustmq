@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine};
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::generate::kv::{DeleteRequest, SetRequest};
 use std::sync::Arc;
@@ -29,12 +29,12 @@ impl DataRouteKv {
             kv_storage,
         };
     }
-    pub fn set(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn set(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: SetRequest = SetRequest::decode(value.as_ref())?;
         return self.kv_storage.set(req.key, req.value);
     }
 
-    pub fn delete(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
+    pub fn delete(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: DeleteRequest = DeleteRequest::decode(value.as_ref())?;
         return self.kv_storage.delete(req.key);
     }

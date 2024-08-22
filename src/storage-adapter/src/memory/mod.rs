@@ -17,7 +17,7 @@ use crate::{
     storage::{ShardConfig, StorageAdapter},
 };
 use axum::async_trait;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
 
 #[derive(Clone)]
@@ -63,31 +63,31 @@ impl MemoryStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
-    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), RobustMQError> {
+    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
         self.shard_data.insert(shard_name, Vec::new());
         return Ok(());
     }
 
-    async fn delete_shard(&self, shard_name: String) -> Result<(), RobustMQError> {
+    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
         self.shard_data.remove(&shard_name);
         return Ok(());
     }
 
-    async fn set(&self, key: String, value: Record) -> Result<(), RobustMQError> {
+    async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
         self.memory_data.insert(key, value);
         return Ok(());
     }
-    async fn get(&self, key: String) -> Result<Option<Record>, RobustMQError> {
+    async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
         if let Some(data) = self.memory_data.get(&key) {
             return Ok(Some(data.clone()));
         }
         return Ok(None);
     }
-    async fn delete(&self, key: String) -> Result<(), RobustMQError> {
+    async fn delete(&self, key: String) -> Result<(), CommonError> {
         self.memory_data.remove(&key);
         return Ok(());
     }
-    async fn exists(&self, key: String) -> Result<bool, RobustMQError> {
+    async fn exists(&self, key: String) -> Result<bool, CommonError> {
         return Ok(self.memory_data.contains_key(&key));
     }
 
@@ -95,7 +95,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         message: Vec<Record>,
-    ) -> Result<Vec<usize>, RobustMQError> {
+    ) -> Result<Vec<usize>, CommonError> {
         let mut shard = if let Some((_, da)) = self.shard_data.remove(&shard_name) {
             da
         } else {
@@ -124,7 +124,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         group_id: String,
         record_num: Option<u128>,
         _: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, RobustMQError> {
+    ) -> Result<Option<Vec<Record>>, CommonError> {
         let offset = if let Some(da) = self.get_offset(group_id, shard_name.clone()) {
             da + 1
         } else {
@@ -156,7 +156,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         shard_name: String,
         group_id: String,
         offset: u128,
-    ) -> Result<bool, RobustMQError> {
+    ) -> Result<bool, CommonError> {
         let key = self.offset_key(group_id, shard_name);
         self.group_data.insert(key, offset);
         return Ok(true);
@@ -166,7 +166,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         offset: usize,
-    ) -> Result<Option<Record>, RobustMQError> {
+    ) -> Result<Option<Record>, CommonError> {
         if let Some(da) = self.shard_data.get(&shard_name) {
             if let Some(value) = da.get(offset) {
                 return Ok(Some(value.clone()));
@@ -182,7 +182,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         end_timestamp: u128,
         record_num: Option<usize>,
         record_size: Option<usize>,
-    ) -> Result<Option<Vec<Record>>, RobustMQError> {
+    ) -> Result<Option<Vec<Record>>, CommonError> {
         return Ok(None);
     }
 
@@ -190,7 +190,7 @@ impl StorageAdapter for MemoryStorageAdapter {
         &self,
         shard_name: String,
         key: String,
-    ) -> Result<Option<Record>, RobustMQError> {
+    ) -> Result<Option<Record>, CommonError> {
         return Ok(None);
     }
 }

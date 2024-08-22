@@ -29,7 +29,10 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{
+    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
+    tools::now_second,
+};
 use log::{error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
@@ -484,11 +487,11 @@ async fn share_leader_publish_message_qos1(
     pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
         id
     } else {
-        return Err(RobustMQError::CommmonError(format!(
+        return Err(CommonError::CommmonError(format!(
             "Client [{}] failed to get connect id, no connection available.",
             client_id.clone()
         )));
@@ -496,7 +499,7 @@ async fn share_leader_publish_message_qos1(
 
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
         if publish.payload.len() > (conn.max_packet_size as usize) {
-            return Err(RobustMQError::PacketLenthError(publish.payload.len()));
+            return Err(MQTTBrokerError::PacketLenthError(publish.payload.len()).into());
         }
     }
 
@@ -526,13 +529,13 @@ async fn share_leader_publish_message_qos1(
                     return Ok(());
                 }
             }
-            return Err(RobustMQError::CommmonError(
+            return Err(CommonError::CommmonError(
                 "QOS1 publishes a message and waits for the PubAck packet to fail to be received"
                     .to_string(),
             ));
         }
         Err(e) => {
-            return Err(RobustMQError::CommmonError(format!(
+            return Err(CommonError::CommmonError(format!(
                 "Failed to write QOS1 Publish message to response queue, failure message: {}",
                 e.to_string()
             )));
@@ -557,12 +560,12 @@ async fn share_leader_publish_message_qos2<S>(
     group_id: &String,
     offset: u128,
     message_storage: &MessageStorage<S>,
-) -> Result<(), RobustMQError>
+) -> Result<(), CommonError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     // 1. send Publish to Client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         cache_manager,
         client_id,
@@ -570,11 +573,7 @@ where
         &Some(publish_properties.clone()),
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     // 2. wait pub rec
     loop {
@@ -594,9 +593,7 @@ where
                 break;
             }
         } else {
-            return Err(RobustMQError::SubPublishWaitPubRecTimeout(
-                client_id.clone(),
-            ));
+            return Err(MQTTBrokerError::SubPublishWaitPubRecTimeout(client_id.clone()).into());
         }
     }
 

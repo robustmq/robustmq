@@ -19,7 +19,7 @@ use crate::storage::{
     keys::{key_segment, key_segment_cluster_prefix, key_segment_shard_prefix},
     rocksdb::RocksDBEngine,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -60,7 +60,7 @@ impl SegmentStorage {
         }
     }
 
-    pub fn save(&self, segment: SegmentInfo) -> Result<(), RobustMQError> {
+    pub fn save(&self, segment: SegmentInfo) -> Result<(), CommonError> {
         let shard_key = key_segment(
             &segment.cluster_name.clone(),
             &segment.shard_name.clone(),
@@ -75,7 +75,7 @@ impl SegmentStorage {
         cluster_name: &String,
         shard_name: &String,
         segment_seq: u64,
-    ) -> Result<Option<SegmentInfo>, RobustMQError> {
+    ) -> Result<Option<SegmentInfo>, CommonError> {
         let shard_key: String = key_segment(cluster_name, shard_name, segment_seq);
 
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
@@ -97,7 +97,7 @@ impl SegmentStorage {
     pub fn list_by_cluster(
         &self,
         cluster_name: &String,
-    ) -> Result<Vec<SegmentInfo>, RobustMQError> {
+    ) -> Result<Vec<SegmentInfo>, CommonError> {
         let prefix_key = key_segment_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -124,7 +124,7 @@ impl SegmentStorage {
         &self,
         cluster_name: &String,
         shard_name: &String,
-    ) -> Result<Vec<SegmentInfo>, RobustMQError> {
+    ) -> Result<Vec<SegmentInfo>, CommonError> {
         let prefix_key = key_segment_shard_prefix(cluster_name, shard_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -152,7 +152,7 @@ impl SegmentStorage {
         cluster_name: &String,
         shard_name: &String,
         segment_seq: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let shard_key = key_segment(cluster_name, shard_name, segment_seq);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key);
     }

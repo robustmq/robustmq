@@ -21,7 +21,8 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::placement_center::PlacementCenterError;
+use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use prost::Message;
 use protocol::placement_center::generate::common::CommonReply;
@@ -171,7 +172,7 @@ impl PlacementCenterService for GrpcPlacementService {
             Ok(_) => return Ok(Response::new(SendRaftMessageReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(
-                    RobustMQError::MetaLogCommitTimeout(e.to_string()).to_string(),
+                    PlacementCenterError::RaftLogCommitTimeout(e.to_string()).to_string(),
                 ));
             }
         }
@@ -192,7 +193,7 @@ impl PlacementCenterService for GrpcPlacementService {
             Ok(_) => return Ok(Response::new(SendRaftConfChangeReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(
-                    RobustMQError::MetaLogCommitTimeout(e.to_string()).to_string(),
+                    PlacementCenterError::RaftLogCommitTimeout(e.to_string()).to_string(),
                 ));
             }
         }

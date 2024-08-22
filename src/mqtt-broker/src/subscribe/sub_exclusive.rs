@@ -21,7 +21,7 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{error::common::CommonError, tools::now_second};
 use log::{error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
@@ -359,7 +359,7 @@ pub async fn exclusive_publish_message_qos1(
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let mut retry_times = 0;
     loop {
         match stop_sx.subscribe().try_recv() {
@@ -438,9 +438,9 @@ pub async fn exclusive_publish_message_qos2(
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     // 1. send Publish to Client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         metadata_cache,
         client_id,
@@ -448,11 +448,7 @@ pub async fn exclusive_publish_message_qos2(
         &Some(publish_properties.clone()),
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     // 2. wait PubRec ack
     loop {
@@ -469,7 +465,7 @@ pub async fn exclusive_publish_message_qos2(
                 break;
             }
         } else {
-            match qos2_send_publish(
+            qos2_send_publish(
                 connection_manager,
                 metadata_cache,
                 client_id,
@@ -477,11 +473,7 @@ pub async fn exclusive_publish_message_qos2(
                 &Some(publish_properties.clone()),
                 stop_sx,
             )
-            .await
-            {
-                Ok(()) => {}
-                Err(e) => return Err(e),
-            };
+            .await?;
         }
         sleep(Duration::from_millis(1)).await;
     }

@@ -17,7 +17,7 @@ use crate::{
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine},
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
@@ -53,7 +53,7 @@ impl KvService for GrpcKvService {
 
         if req.key.is_empty() || req.value.is_empty() {
             return Err(Status::cancelled(
-                RobustMQError::ParameterCannotBeNull("key or value".to_string()).to_string(),
+                CommonError::ParameterCannotBeNull("key or value".to_string()).to_string(),
             ));
         }
 
@@ -76,7 +76,7 @@ impl KvService for GrpcKvService {
 
         if req.key.is_empty() {
             return Err(Status::cancelled(
-                RobustMQError::ParameterCannotBeNull("key".to_string()).to_string(),
+                CommonError::ParameterCannotBeNull("key".to_string()).to_string(),
             ));
         }
 
@@ -102,7 +102,7 @@ impl KvService for GrpcKvService {
 
         if req.key.is_empty() {
             return Err(Status::cancelled(
-                RobustMQError::ParameterCannotBeNull("key".to_string()).to_string(),
+                CommonError::ParameterCannotBeNull("key".to_string()).to_string(),
             ));
         }
 
@@ -131,7 +131,7 @@ impl KvService for GrpcKvService {
 
         if req.key.is_empty() {
             return Err(Status::cancelled(
-                RobustMQError::ParameterCannotBeNull("key".to_string()).to_string(),
+                CommonError::ParameterCannotBeNull("key".to_string()).to_string(),
             ));
         }
 

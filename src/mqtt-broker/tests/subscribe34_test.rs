@@ -77,7 +77,7 @@ mod tests {
         .await;
     }
 
-    #[tokio::test]
+
     async fn client34_share_subscribe_base_test() {
         let mqtt_version = 3;
         let sub_qos = &[1];

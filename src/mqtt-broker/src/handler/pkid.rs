@@ -18,7 +18,7 @@ use clients::{
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use protocol::placement_center::generate::placement::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
@@ -29,7 +29,7 @@ pub async fn pkid_save(
     client_poll: &Arc<ClientPool>,
     client_id: &String,
     pkid: u16,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if cache_manager.get_cluster_info().client_pkid_persistent {
         let conf = broker_mqtt_conf();
         let request = SetIdempotentDataRequest {
@@ -57,7 +57,7 @@ pub async fn pkid_exists(
     client_poll: &Arc<ClientPool>,
     client_id: &String,
     pkid: u16,
-) -> Result<bool, RobustMQError> {
+) -> Result<bool, CommonError> {
     if cache_manager.get_cluster_info().client_pkid_persistent {
         let conf = broker_mqtt_conf();
         let request = ExistsIdempotentDataRequest {
@@ -85,7 +85,7 @@ pub async fn pkid_delete(
     client_poll: &Arc<ClientPool>,
     client_id: &String,
     pkid: u16,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if cache_manager.get_cluster_info().client_pkid_persistent {
         let conf = broker_mqtt_conf();
         let request = DeleteIdempotentDataRequest {

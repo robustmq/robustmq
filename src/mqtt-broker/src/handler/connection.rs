@@ -17,10 +17,7 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{
-    errors::RobustMQError,
-    tools::{now_second, unique_id},
-};
+use common_base::{error::common::CommonError, tools::{now_second, unique_id}};
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{Connect, ConnectProperties};
@@ -204,7 +201,7 @@ pub async fn disconnect_connection(
     client_poll: &Arc<ClientPool>,
     connnection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     // Remove the connection cache
     cache_manager.remove_connection(connect_id);
     // Remove the client id bound connection information

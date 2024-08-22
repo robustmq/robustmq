@@ -1,5 +1,5 @@
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use std::sync::Arc;
 
 use crate::security::acl::MQTTAcl;
@@ -13,7 +13,7 @@ impl AclStorage {
         return AclStorage { client_poll };
     }
 
-    pub fn list_acl() -> Result<Vec<MQTTAcl>, RobustMQError> {
+    pub fn list_acl() -> Result<Vec<MQTTAcl>, CommonError> {
         let list = Vec::new();
         
         return Ok(list);

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use axum::async_trait;
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
 
@@ -37,11 +37,11 @@ impl PlacementAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for PlacementAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, RobustMQError> {
+    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
         return self.user_storage.user_list().await;
     }
 
-    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, RobustMQError> {
+    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError> {
         return self.user_storage.get_user(username).await;
     }
 }

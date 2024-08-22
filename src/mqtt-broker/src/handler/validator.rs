@@ -14,7 +14,6 @@
 use super::{
     cache_manager::CacheManager,
     connection::Connection,
-    error::MQTTBrokerError,
     flow_control::{is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded},
     pkid::pkid_exists,
     response::{
@@ -30,7 +29,7 @@ use crate::{
     subscribe::sub_common::sub_path_validator,
 };
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
 use futures::SinkExt;
 use log::error;
 use metadata_struct::mqtt::cluster::MQTTCluster;
@@ -177,7 +176,7 @@ pub fn connect_validator(
             protocol,
             ConnectReturnCode::ServerBusy,
             connect_properties,
-            Some(RobustMQError::ClusterIsInSelfProtection.to_string()),
+            Some(MQTTBrokerError::ClusterIsInSelfProtection.to_string()),
         ));
     }
 
@@ -417,7 +416,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
-                Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         } else {
             return Some(response_packet_mqtt_pubrec_fail(
@@ -425,7 +424,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
-                Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         }
     }
@@ -441,7 +440,8 @@ pub async fn publish_validator(
                             publish.pkid,
                             PubAckReason::PayloadFormatInvalid,
                             Some(
-                                RobustMQError::PacketLenthError(publish.payload.len()).to_string(),
+                                MQTTBrokerError::PacketLenthError(publish.payload.len())
+                                    .to_string(),
                             ),
                         ));
                     } else {
@@ -451,7 +451,8 @@ pub async fn publish_validator(
                             publish.pkid,
                             PubRecReason::PayloadFormatInvalid,
                             Some(
-                                RobustMQError::PacketLenthError(publish.payload.len()).to_string(),
+                                MQTTBrokerError::PacketLenthError(publish.payload.len())
+                                    .to_string(),
                             ),
                         ));
                     }
@@ -673,7 +674,7 @@ pub async fn un_subscribe_validator(
                     &connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::NoSubscriptionExisted],
-                    Some(RobustMQError::SubscriptionPathNotExists(path).to_string()),
+                    Some(MQTTBrokerError::SubscriptionPathNotExists(path).to_string()),
                 ));
             }
         }
