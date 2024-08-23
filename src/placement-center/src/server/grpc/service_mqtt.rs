@@ -78,7 +78,7 @@ impl MqttService for GrpcMqttService {
             }
         };
 
-        if let Some(node) = self.cluster_cache.get_node(&cluster_name, leader_broker) {
+        if let Some(node) = self.cluster_cache.get_node_addr(&cluster_name, leader_broker) {
             reply.broker_id = leader_broker;
             reply.broker_addr = node.node_inner_addr;
             reply.extend_info = node.extend;

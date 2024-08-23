@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
@@ -67,7 +66,7 @@ impl PlacementCacheManager {
         }
     }
 
-    pub fn get_node(&self, cluster_name: &String, node_id: u64) -> Option<BrokerNode> {
+    pub fn get_node_addr(&self, cluster_name: &String, node_id: u64) -> Option<BrokerNode> {
         if let Some(data) = self.node_list.get_mut(cluster_name) {
             if let Some(value) = data.get(&node_id) {
                 return Some(value.clone());
