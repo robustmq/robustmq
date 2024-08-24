@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     record::Record,
     storage::{ShardConfig, StorageAdapter},
@@ -51,15 +50,7 @@ impl MemoryStorageAdapter {
     }
 }
 
-impl MemoryStorageAdapter {
-    pub fn create_key_index(&self, shard_name: String, key: String, offset: usize) {}
-
-    pub fn delete_value_index(&self, shard_name: String, key: String) {}
-
-    pub fn create_timestamp_index(&self, shard_name: String, key: String, create_time: u128) {}
-
-    pub fn delete_timestamp_index(&self, shard_name: String, key: String) {}
-}
+impl MemoryStorageAdapter {}
 
 #[async_trait]
 impl StorageAdapter for MemoryStorageAdapter {
@@ -177,19 +168,19 @@ impl StorageAdapter for MemoryStorageAdapter {
 
     async fn stream_read_by_timestamp(
         &self,
-        shard_name: String,
-        start_timestamp: u128,
-        end_timestamp: u128,
-        record_num: Option<usize>,
-        record_size: Option<usize>,
+        _: String,
+        _: u128,
+        _: u128,
+        _: Option<usize>,
+        _: Option<usize>,
     ) -> Result<Option<Vec<Record>>, CommonError> {
         return Ok(None);
     }
 
     async fn stream_read_by_key(
         &self,
-        shard_name: String,
-        key: String,
+        _: String,
+        _: String,
     ) -> Result<Option<Record>, CommonError> {
         return Ok(None);
     }

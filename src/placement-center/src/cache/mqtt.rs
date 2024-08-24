@@ -56,7 +56,7 @@ impl MqttCacheManager {
         }
     }
 
-    #[warn(dead_code)]
+    #[allow(dead_code)]
     pub fn remove_topic(&self, cluster_name: &String, topic_name: &String) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
             data.remove(topic_name);

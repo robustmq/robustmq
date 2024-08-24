@@ -55,7 +55,7 @@ where
 {
     async fn update_cache(
         &self,
-        request: Request<UpdateCacheRequest>,
+        _: Request<UpdateCacheRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         return Ok(Response::new(CommonReply::default()));
     }

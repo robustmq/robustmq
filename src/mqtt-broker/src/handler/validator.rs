@@ -29,7 +29,7 @@ use crate::{
     subscribe::sub_common::sub_path_validator,
 };
 use clients::poll::ClientPool;
-use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use futures::SinkExt;
 use log::error;
 use metadata_struct::mqtt::cluster::MQTTCluster;

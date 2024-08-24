@@ -22,7 +22,7 @@ use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, info};
 use metadata_struct::mqtt::cluster::MQTTCluster;
-use protocol::mqtt::common::{ConnectProperties, MQTTProtocol};
+use protocol::mqtt::common::MQTTProtocol;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
 use tokio::{

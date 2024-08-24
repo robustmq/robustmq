@@ -313,10 +313,8 @@ impl RaftMachineStorage {
 
         match deserialize::<HashMap<String, Vec<HashMap<String, String>>>>(data) {
             Ok(data) => {
-                for (family, value) in data {
-                    let cf = self
-                        .rocksdb_engine_handler
-                        .get_column_family(family.to_string());
+                for (_, value) in data {
+                    let cf = self.rocksdb_engine_handler.get_column_family();
                     for raw in value {
                         for (key, val) in &raw {
                             info!("key:{:?},val{:?}", key, val.to_string());

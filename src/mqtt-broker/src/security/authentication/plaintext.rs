@@ -11,14 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::sync::Arc;
 
 use crate::handler::cache_manager::CacheManager;
 
 use super::Authentication;
 use axum::async_trait;
-use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
+use common_base::error::mqtt_broker::MQTTBrokerError;
 
 pub struct Plaintext {
     username: String,

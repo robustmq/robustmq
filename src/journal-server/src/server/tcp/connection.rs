@@ -54,6 +54,7 @@ impl ConnectionManager {
         return connection_id;
     }
 
+    #[allow(dead_code)]
     pub fn remove(&self, connection_id: u64) {
         self.connections.remove(&connection_id);
     }
@@ -115,10 +116,6 @@ impl Connection {
             addr,
             write,
         }
-    }
-
-    pub fn connection_id(&self) -> u64 {
-        return self.connection_id;
     }
 
     pub async fn write_frame(&mut self, resp: StorageEnginePacket) {

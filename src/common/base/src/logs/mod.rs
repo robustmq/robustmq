@@ -52,7 +52,7 @@ pub fn init_log(log_config_file: &String, log_path: &String) {
 
     match create_fold(&log_path) {
         Ok(()) => {}
-        Err(e) => {
+        Err(_) => {
             panic!("Failed to initialize log directory {}", log_path);
         }
     }

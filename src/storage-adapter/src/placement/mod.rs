@@ -43,13 +43,13 @@ impl PlacementStorageAdapter {
 impl StorageAdapter for PlacementStorageAdapter {
     async fn create_shard(
         &self,
-        shard_name: String,
-        shard_config: ShardConfig,
+        _: String,
+        _: ShardConfig,
     ) -> Result<(), CommonError> {
         return Ok(());
     }
 
-    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
+    async fn delete_shard(&self, _: String) -> Result<(), CommonError> {
         return Ok(());
     }
 

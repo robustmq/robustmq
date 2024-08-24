@@ -49,7 +49,8 @@ impl JournalCacheManager {
         }
         return 1;
     }
-
+    
+    #[allow(dead_code)]
     pub fn get_shard(&self, cluster_name: String, shard_name: String) -> Option<ShardInfo> {
         let key = self.shard_key(cluster_name, shard_name);
         if let Some(shard) = self.shard_list.get(&key) {

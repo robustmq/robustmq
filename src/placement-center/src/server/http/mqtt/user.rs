@@ -31,7 +31,7 @@ pub async fn user_delete(State(_state): State<HttpServerState>) -> String {
     return "".to_string();
 }
 
-pub async fn user_list(State(state): State<HttpServerState>) -> String {
+pub async fn user_list(State(_state): State<HttpServerState>) -> String {
     
     return "".to_string();
 }
