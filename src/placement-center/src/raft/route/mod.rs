@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 pub mod cluster;
 pub mod journal;
 pub mod kv;
@@ -87,6 +86,13 @@ impl DataRoute {
                     .route_cluster
                     .delete_idempotent_data(storage_data.value);
             }
+            StorageDataType::MQTTCreateAcl => {
+                return self.route_cluster.create_acl(storage_data.value);
+            }
+            StorageDataType::MQTTDeleteAcl => {
+                return self.route_cluster.delete_acl(storage_data.value);
+            }
+
             StorageDataType::JournalCreateShard => {
                 return self.route_journal.create_shard(storage_data.value);
             }

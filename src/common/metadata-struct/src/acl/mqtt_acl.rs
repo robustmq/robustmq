@@ -11,6 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MQTTAcl {
     pub allow: MQTTAclAllow,
     pub ip_addr: String,
@@ -20,17 +24,21 @@ pub struct MQTTAcl {
     pub topic: String,
 }
 
-pub enum MQTTAclAllow {
-    Deny,
-    Allow,
+impl MQTTAcl {
+    pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
+        return Ok(serde_json::to_vec(&self)?);
+    }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub enum MQTTAclAccess {
     Subscribe,
     Publish,
     PubSub,
 }
 
-pub fn authentication_acl() -> bool {
-    return false;
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
+pub enum MQTTAclAllow {
+    Allow,
+    Deny,
 }

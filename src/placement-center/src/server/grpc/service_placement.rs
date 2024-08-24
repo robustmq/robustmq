@@ -27,12 +27,11 @@ use prost::Message;
 use protocol::placement_center::generate::common::CommonReply;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::generate::placement::{
-    CreateAclRequest, DeleteAclRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest,
-    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetAclReply, GetAclRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, RegisterNodeRequest,
-    ReportMonitorRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-    SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
-    UnRegisterNodeRequest,
+    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
+    ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest,
+    HeartbeatRequest, RegisterNodeRequest, ReportMonitorRequest, SendRaftConfChangeReply,
+    SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest,
+    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
@@ -320,23 +319,5 @@ impl PlacementCenterService for GrpcPlacementService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
-    }
-
-    async fn get_acl(&self, _: Request<GetAclRequest>) -> Result<Response<GetAclReply>, Status> {
-        return Ok(Response::new(GetAclReply::default()));
-    }
-
-    async fn create_acl(
-        &self,
-        _: Request<CreateAclRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
-        return Ok(Response::new(CommonReply::default()));
-    }
-
-    async fn delete_acl(
-        &self,
-        _: Request<DeleteAclRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
-        return Ok(Response::new(CommonReply::default()));
     }
 }
