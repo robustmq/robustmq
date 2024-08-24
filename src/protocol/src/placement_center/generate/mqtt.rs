@@ -150,6 +150,34 @@ pub struct SaveLastWillMessageRequest {
     #[prost(bytes = "vec", tag = "3")]
     pub last_will_message: ::prost::alloc::vec::Vec<u8>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListAclRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListAclReply {
+    #[prost(bytes = "vec", repeated, tag = "2")]
+    pub acls: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteAclRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub username: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CreateAclRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "2")]
+    pub acl: ::prost::alloc::vec::Vec<u8>,
+}
 /// Generated client implementations.
 pub mod mqtt_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -553,6 +581,75 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "SaveLastWillMessage"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn list_acl(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListAclRequest>,
+        ) -> std::result::Result<tonic::Response<super::ListAclReply>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/ListAcl");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("mqtt.MqttService", "ListAcl"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn delete_acl(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteAclRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/DeleteAcl",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "DeleteAcl"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn create_acl(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateAclRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/CreateAcl",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "CreateAcl"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -643,6 +740,24 @@ pub mod mqtt_service_server {
         async fn save_last_will_message(
             &self,
             request: tonic::Request<super::SaveLastWillMessageRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn list_acl(
+            &self,
+            request: tonic::Request<super::ListAclRequest>,
+        ) -> std::result::Result<tonic::Response<super::ListAclReply>, tonic::Status>;
+        async fn delete_acl(
+            &self,
+            request: tonic::Request<super::DeleteAclRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn create_acl(
+            &self,
+            request: tonic::Request<super::CreateAclRequest>,
         ) -> std::result::Result<
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
@@ -1316,6 +1431,144 @@ pub mod mqtt_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = SaveLastWillMessageSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/ListAcl" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListAclSvc<T: MqttService>(pub Arc<T>);
+                    impl<
+                        T: MqttService,
+                    > tonic::server::UnaryService<super::ListAclRequest>
+                    for ListAclSvc<T> {
+                        type Response = super::ListAclReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListAclRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::list_acl(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ListAclSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/DeleteAcl" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteAclSvc<T: MqttService>(pub Arc<T>);
+                    impl<
+                        T: MqttService,
+                    > tonic::server::UnaryService<super::DeleteAclRequest>
+                    for DeleteAclSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteAclRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::delete_acl(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DeleteAclSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/CreateAcl" => {
+                    #[allow(non_camel_case_types)]
+                    struct CreateAclSvc<T: MqttService>(pub Arc<T>);
+                    impl<
+                        T: MqttService,
+                    > tonic::server::UnaryService<super::CreateAclRequest>
+                    for CreateAclSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateAclRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::create_acl(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = CreateAclSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

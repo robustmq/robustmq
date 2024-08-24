@@ -149,9 +149,10 @@ pub fn broker_mqtt_conf() -> &'static BrokerMQTTConfig {
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::{config::broker_mqtt::BrokerMQTTConfig, tools::read_file};
-    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
+    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path, BrokerMQTTConfig};
+    use crate::tools::read_file;
 
     #[test]
     fn config_default_test() {

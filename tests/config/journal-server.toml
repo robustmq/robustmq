@@ -41,4 +41,4 @@ response_queue_size = 2000
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "./logs/tests/js"
+log_path = "/tmp/logs/tests/js"

@@ -83,6 +83,8 @@ pub enum StorageDataType {
     MQTTDeleteSession,
     MQTTUpdateSession,
     MQTTSaveLastWillMessage,
+    MQTTCreateAcl,
+    MQTTDeleteAcl,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::PlacementCenterInterface;
 use crate::{
     placement::{retry_call, PlacementCenterService},
@@ -22,7 +21,12 @@ use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest
+        CreateAclRequest, CreateSessionRequest, CreateTopicRequest, CreateUserRequest,
+        DeleteAclRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
+        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+        ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
+        ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest,
+        UpdateSessionRequest,
     },
 };
 use std::sync::Arc;
@@ -335,6 +339,81 @@ pub async fn placement_save_last_will_message(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::SaveLastWillMessage,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn list_acl(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListAclRequest,
+) -> Result<ListAclReply, CommonError> {
+    let request_data = ListAclRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::ListAcl,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListAclReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn create_acl(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: CreateAclRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = CreateAclRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::CreateAcl,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn delete_acl(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteAclRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = DeleteAclRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::DeleteAcl,
         client_poll,
         addrs,
         request_data,

@@ -16,7 +16,10 @@ use crate::{
     core::share_sub::ShareSubLeader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
-        mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
+        mqtt::{
+            acl::AclStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
+            user::MQTTUserStorage,
+        },
         rocksdb::RocksDBEngine,
     },
 };
@@ -24,11 +27,12 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, CreateSessionRequest, CreateTopicRequest,
-        CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest,
-        ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
+        mqtt_service_server::MqttService, CreateAclRequest, CreateSessionRequest,
+        CreateTopicRequest, CreateUserRequest, DeleteAclRequest, DeleteSessionRequest,
+        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+        ListAclReply, ListAclRequest, ListSessionReply, ListSessionRequest, ListTopicReply,
+        ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest,
+        SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
 };
 use std::sync::Arc;
@@ -78,7 +82,10 @@ impl MqttService for GrpcMqttService {
             }
         };
 
-        if let Some(node) = self.cluster_cache.get_node_addr(&cluster_name, leader_broker) {
+        if let Some(node) = self
+            .cluster_cache
+            .get_node_addr(&cluster_name, leader_broker)
+        {
             reply.broker_id = leader_broker;
             reply.broker_addr = node.node_inner_addr;
             reply.extend_info = node.extend;
@@ -389,6 +396,77 @@ impl MqttService for GrpcMqttService {
         match self
             .placement_center_storage
             .apply_propose_message(data, "save_last_will_message".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+    async fn list_acl(
+        &self,
+        request: Request<ListAclRequest>,
+    ) -> Result<Response<ListAclReply>, Status> {
+        let req = request.into_inner();
+        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
+        match acl_storage.list(&req.cluster_name) {
+            Ok(list) => {
+                let mut acls = Vec::new();
+                for acl in list {
+                    match acl.encode() {
+                        Ok(data) => {
+                            acls.push(data);
+                        }
+                        Err(e) => {
+                            return Err(Status::cancelled(e.to_string()));
+                        }
+                    }
+                }
+
+                return Ok(Response::new(ListAclReply { acls }));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn create_acl(
+        &self,
+        request: Request<CreateAclRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTCreateAcl,
+            CreateAclRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "mqtt_create_acl".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_acl(
+        &self,
+        request: Request<DeleteAclRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTDeleteAcl,
+            DeleteAclRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "mqtt_delete_acl".to_string())
             .await
         {
             Ok(_) => return Ok(Response::new(CommonReply::default())),

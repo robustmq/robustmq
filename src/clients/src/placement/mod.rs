@@ -70,6 +70,9 @@ pub enum PlacementCenterInterface {
     SetIdempotentData,
     ExistsIdempotentData,
     DeleteIdempotentData,
+    CreateAcl,
+    DeleteAcl,
+    ListAcl,
 }
 
 pub mod journal;

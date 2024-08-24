@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::cache_manager::CacheManager;
 use authentication::{plaintext::Plaintext, Authentication};
 use axum::async_trait;
@@ -28,7 +27,6 @@ use protocol::mqtt::common::{ConnectProperties, Login};
 use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::{storage_is_mysql, storage_is_placement};
 
-pub mod acl;
 pub mod authentication;
 pub mod mysql;
 pub mod placement;
@@ -172,4 +170,9 @@ pub fn build_driver(
     }
 
     return Err(CommonError::UnavailableStorageType);
+}
+
+
+pub fn authentication_acl() -> bool {
+    return false;
 }

@@ -14,6 +14,7 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     storage::{
+        mqtt::acl::AclStorage,
         placement::{
             cluster::ClusterStorage, config::ResourceConfigStorage, idempotent::IdempotentStorage,
             node::NodeStorage,
@@ -25,11 +26,17 @@ use common_base::{
     error::common::CommonError,
     tools::{now_mills, unique_id},
 };
-use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
+use metadata_struct::{
+    acl::mqtt_acl::MQTTAcl,
+    placement::{broker_node::BrokerNode, cluster::ClusterInfo},
+};
 use prost::Message as _;
-use protocol::placement_center::generate::placement::{
-    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
-    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+use protocol::placement_center::generate::{
+    mqtt::{CreateAclRequest, DeleteAclRequest},
+    placement::{
+        DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
+        SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    },
 };
 use std::sync::Arc;
 
@@ -115,6 +122,19 @@ impl DataRouteCluster {
         let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         return idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num);
+    }
+
+    pub fn create_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = CreateAclRequest::decode(value.as_ref())?;
+        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
+        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        return acl_storage.save(&req.cluster_name, acl);
+    }
+
+    pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = DeleteAclRequest::decode(value.as_ref())?;
+        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
+        return acl_storage.delete(&req.cluster_name, &req.username);
     }
 }
 

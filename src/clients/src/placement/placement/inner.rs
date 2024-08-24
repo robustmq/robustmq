@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use common_base::error::common::CommonError;
 use prost::Message;
 use protocol::placement_center::generate::{
