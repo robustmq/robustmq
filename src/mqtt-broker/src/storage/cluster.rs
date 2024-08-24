@@ -211,10 +211,7 @@ impl ClusterStorage {
 mod tests {
     use crate::storage::cluster::ClusterStorage;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path,
-        logs::{init_broker_mqtt_log, init_log},
-    };
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use metadata_struct::mqtt::cluster::MQTTCluster;
     use std::sync::Arc;
 

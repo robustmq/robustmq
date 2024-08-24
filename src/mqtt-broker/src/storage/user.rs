@@ -143,7 +143,7 @@ impl UserStorage {
 mod tests {
     use crate::storage::user::UserStorage;
     use clients::poll::ClientPool;
-    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::init_log};
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use std::sync::Arc;
 
     #[tokio::test]
