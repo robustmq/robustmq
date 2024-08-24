@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use protocol::journal_server::generate::protocol::{fetch::FetchReq, produce::ProduceReq};
 
 pub struct Services {}
 
@@ -19,7 +20,7 @@ impl Services {
         return Services {};
     }
 
-    pub fn produce(&self) {}
+    pub fn produce(&self, _: ProduceReq) {}
 
-    pub fn fetch(&self) {}
+    pub fn fetch(&self, _: FetchReq) {}
 }

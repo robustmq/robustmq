@@ -12,34 +12,13 @@
 // limitations under the License.
 
 use super::preferred_election::PreferredElection;
-use crate::{
-    cache::journal::JournalCacheManager, raft::apply::RaftMachineApply,
-    storage::rocksdb::RocksDBEngine,
-};
-use std::sync::{Arc, RwLock};
 use log::info;
-use tokio::sync::broadcast;
 
-pub struct StorageEngineController {
-    engine_cache: Arc<RwLock<JournalCacheManager>>,
-    placement_center_storage: Arc<RaftMachineApply>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    stop_send: broadcast::Sender<bool>,
-}
+pub struct StorageEngineController {}
 
 impl StorageEngineController {
-    pub fn new(
-        engine_cache: Arc<RwLock<JournalCacheManager>>,
-        placement_center_storage: Arc<RaftMachineApply>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        stop_send: broadcast::Sender<bool>,
-    ) -> StorageEngineController {
-        let controller = StorageEngineController {
-            engine_cache,
-            placement_center_storage,
-            rocksdb_engine_handler,
-            stop_send,
-        };
+    pub fn new() -> StorageEngineController {
+        let controller = StorageEngineController {};
         controller.load_cache();
         return controller;
     }
@@ -80,7 +59,7 @@ impl StorageEngineController {
     }
 
     pub fn preferred_replica_election(&self) {
-        let election = PreferredElection::new(self.engine_cache.clone());
+        let election = PreferredElection::new();
         tokio::spawn(async move {
             election.start().await;
         });

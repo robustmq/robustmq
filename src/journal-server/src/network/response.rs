@@ -11,11 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use protocol::journal_server::{
     codec::StorageEnginePacket,
     generate::protocol::{
-        header::{ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon},
+        header::{ApiKey, ApiType, ApiVersion, Header, RequestCommon},
         produce::{ProduceResp, ProduceRespBody},
     },
 };

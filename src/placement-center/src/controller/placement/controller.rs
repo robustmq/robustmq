@@ -11,12 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::heartbeat::BrokerHeartbeat;
-use crate::{
-    cache::placement::PlacementCacheManager, raft::apply::RaftMachineApply,
-    storage::rocksdb::RocksDBEngine,
-};
+use crate::{cache::placement::PlacementCacheManager, raft::apply::RaftMachineApply};
 use common_base::config::placement_center::placement_center_conf;
 use std::sync::Arc;
 use tokio::{select, sync::broadcast};

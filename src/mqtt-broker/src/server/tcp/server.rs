@@ -28,10 +28,7 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    error::{mqtt_broker::MQTTBrokerError, common::CommonError},
-};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::mqtt_broker::MQTTBrokerError};
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::mqtt::{

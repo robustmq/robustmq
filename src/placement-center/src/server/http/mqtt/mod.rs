@@ -38,8 +38,14 @@ pub fn mqtt_routes() -> Router<HttpServerState> {
         .route(&v1_path(&path_list(ROUTE_MQTT_USER)), get(user_list))
         
         // acl
-
+        .route(&v1_path(&path_get(ROUTE_MQTT_ACL)), get(cluster_get))
+        .route(&v1_path(&path_update(ROUTE_MQTT_ACL)), put(cluster_set))
+        .route(&v1_path(&path_list(ROUTE_MQTT_ACL)), get(cluster_list))
+        
         // session
+        .route(&v1_path(&path_get(ROUTE_MQTT_SESSION)), get(cluster_get))
+        .route(&v1_path(&path_update(ROUTE_MQTT_SESSION)), put(cluster_set))
+        .route(&v1_path(&path_list(ROUTE_MQTT_SESSION)), get(cluster_list))
         
         // cluster
         .route(&v1_path(&path_get(ROUTE_CLUSTER)), get(cluster_get))

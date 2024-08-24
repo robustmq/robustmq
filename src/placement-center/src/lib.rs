@@ -21,6 +21,7 @@ use cache::placement::PlacementCacheManager;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use common_base::runtime::create_runtime;
+use controller::journal::controller::StorageEngineController;
 use controller::mqtt::MQTTController;
 use controller::placement::controller::ClusterController;
 use log::info;
@@ -164,10 +165,7 @@ impl PlacementCenter {
         );
 
         self.server_runtime.spawn(async move {
-            info!(
-                "RobustMQ Meta Grpc Server start success. bind addr:{}",
-                ip
-            );
+            info!("RobustMQ Meta Grpc Server start success. bind addr:{}", ip);
             Server::builder()
                 .add_service(PlacementCenterServiceServer::new(placement_handler))
                 .add_service(KvServiceServer::new(kv_handler))
@@ -187,7 +185,7 @@ impl PlacementCenter {
     ) {
         let ctrl = ClusterController::new(
             self.cluster_cache.clone(),
-            placement_center_storage,
+            placement_center_storage.clone(),
             stop_send.clone(),
         );
         self.daemon_runtime.spawn(async move {
@@ -203,6 +201,11 @@ impl PlacementCenter {
         );
         self.daemon_runtime.spawn(async move {
             mqtt_controller.start().await;
+        });
+
+        let journal_controller = StorageEngineController::new();
+        self.daemon_runtime.spawn(async move {
+            journal_controller.start().await;
         });
     }
 

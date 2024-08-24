@@ -30,10 +30,10 @@ impl Command {
     pub fn apply(&self) -> StorageEnginePacket {
         match self.packet.clone() {
             StorageEnginePacket::ProduceReq(data) => {
-                self.services.produce();
+                self.services.produce(data);
             }
             StorageEnginePacket::FetchReq(data) => {
-                self.services.fetch();
+                self.services.fetch(data);
             }
             _ => {
                 error!(

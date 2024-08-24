@@ -4,21 +4,27 @@ use paho_mqtt::{
 };
 use std::{process, time::Duration};
 
+#[allow(dead_code)]
 pub fn broker_addr() -> String {
     return "tcp://127.0.0.1:1883".to_string();
 }
 
+#[allow(dead_code)]
 pub fn username() -> String {
     return "admin".to_string();
 }
 
+#[allow(dead_code)]
 pub fn password() -> String {
     return "pwd123".to_string();
 }
+
+#[allow(dead_code)]
 pub fn err_password() -> String {
     return "pwd1235".to_string();
 }
 
+#[allow(dead_code)]
 pub fn build_v5_pros() -> Properties {
     let mut props = Properties::new();
     props
@@ -46,6 +52,7 @@ pub fn build_v5_pros() -> Properties {
     return props;
 }
 
+#[allow(dead_code)]
 pub fn build_v5_conn_pros(props: Properties, err_pwd: bool) -> ConnectOptions {
     let pwd = if err_pwd { err_password() } else { password() };
     let conn_opts = ConnectOptionsBuilder::new_v5()
@@ -59,6 +66,7 @@ pub fn build_v5_conn_pros(props: Properties, err_pwd: bool) -> ConnectOptions {
     return conn_opts;
 }
 
+#[allow(dead_code)]
 pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool) -> ConnectOptions {
     let pwd = if err_pwd { err_password() } else { password() };
     let conn_opts = ConnectOptionsBuilder::with_mqtt_version(mqtt_version)
@@ -71,6 +79,7 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool) -> ConnectOptions {
     return conn_opts;
 }
 
+#[allow(dead_code)]
 pub fn build_create_pros(client_id: &String, addr: &String) -> CreateOptions {
     let create_opts = if client_id.is_empty() {
         CreateOptionsBuilder::new()
@@ -85,6 +94,7 @@ pub fn build_create_pros(client_id: &String, addr: &String) -> CreateOptions {
     return create_opts;
 }
 
+#[allow(dead_code)]
 pub fn distinct_conn(cli: Client) {
     let disconnect_opts = DisconnectOptionsBuilder::new()
         .reason_code(ReasonCode::DisconnectWithWillMessage)
@@ -92,6 +102,7 @@ pub fn distinct_conn(cli: Client) {
     cli.disconnect(disconnect_opts).unwrap();
 }
 
+#[allow(dead_code)]
 pub fn connect_server34(mqtt_version: u32, client_id: &String, addr: &String) -> Client {
     let create_opts = build_create_pros(client_id, addr);
     let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -111,6 +122,7 @@ pub fn connect_server34(mqtt_version: u32, client_id: &String, addr: &String) ->
     return cli;
 }
 
+#[allow(dead_code)]
 pub fn connect_server5(client_id: &String, addr: &String) -> Client {
     let mqtt_version = 5;
     let props = build_v5_pros();

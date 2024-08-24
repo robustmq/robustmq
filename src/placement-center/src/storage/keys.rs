@@ -90,6 +90,7 @@ pub fn key_shard(cluster_name: &String, shard_name: &String) -> String {
     return format!("/journal/shard/{}/{}", cluster_name, shard_name);
 }
 
+#[allow(dead_code)]
 pub fn key_shard_prefix(cluster_name: &String) -> String {
     return format!("/journal/shard/{}", cluster_name);
 }
@@ -101,10 +102,12 @@ pub fn key_segment(cluster_name: &String, shard_name: &String, segement_seq: u64
     );
 }
 
+#[allow(dead_code)]
 pub fn key_segment_cluster_prefix(cluster_name: &String) -> String {
     return format!("/journal/segment/{}", cluster_name);
 }
 
+#[allow(dead_code)]
 pub fn key_segment_shard_prefix(cluster_name: &String, shard_name: &String) -> String {
     return format!("/journal/segment/{}/{}", cluster_name, shard_name);
 }

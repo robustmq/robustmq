@@ -103,12 +103,6 @@ pub(crate) async fn mqtt_interface_call(
                 MQTTBrokerInterface::SendLastWillMessage => {
                     inner_send_last_will_message(client, request).await
                 }
-                _ => {
-                    return Err(CommonError::CommmonError(format!(
-                        "mqtt service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
             };
             match result {
                 Ok(data) => return Ok(data),

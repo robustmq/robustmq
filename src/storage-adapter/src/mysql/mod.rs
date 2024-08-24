@@ -82,7 +82,7 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn create_shard(
         &self,
         shard_name: String,
-        shard_config: ShardConfig,
+        _: ShardConfig,
     ) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {

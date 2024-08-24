@@ -62,6 +62,7 @@ impl RuntimeBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn max_blocking_threads(&mut self, val: usize) -> &mut Self {
         self.builder.max_blocking_threads(val);
         self
