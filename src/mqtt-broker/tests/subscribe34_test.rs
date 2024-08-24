@@ -76,8 +76,8 @@ mod tests {
         )
         .await;
     }
-
-
+    
+    #[allow(dead_code)]
     async fn client34_share_subscribe_base_test() {
         let mqtt_version = 3;
         let sub_qos = &[1];
@@ -181,7 +181,7 @@ mod tests {
         // subscribe
         let rx = cli.start_consuming();
         match cli.subscribe_many(sub_topics, sub_qos) {
-            Ok(da) => {}
+            Ok(_) => {}
             Err(e) => {
                 panic!("{}", e)
             }

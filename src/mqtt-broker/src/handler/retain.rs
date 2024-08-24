@@ -250,10 +250,6 @@ mod tests {
     use super::message_expiry_interval;
     use crate::handler::cache_manager::CacheManager;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path,
-        logs::{init_broker_mqtt_log, init_log},
-    };
     use metadata_struct::mqtt::cluster::MQTTCluster;
     use protocol::mqtt::common::PublishProperties;
     use std::sync::Arc;

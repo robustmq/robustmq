@@ -188,6 +188,7 @@ mod test {
         match pkid_save(&cache_manager, &client_poll, &client_id, pkid).await {
             Ok(()) => {}
             Err(e) => {
+                println!("{}", e);
                 assert!(false);
             }
         }
@@ -196,14 +197,16 @@ mod test {
             Ok(flag) => {
                 assert!(flag);
             }
-            Err(_) => {
+            Err(e) => {
+                println!("{}", e);
                 assert!(false);
             }
         }
 
         match pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await {
             Ok(_) => {}
-            Err(_) => {
+            Err(e) => {
+                println!("{}", e);
                 assert!(false);
             }
         }
@@ -212,7 +215,8 @@ mod test {
             Ok(flag) => {
                 assert!(!flag);
             }
-            Err(_) => {
+            Err(e) => {
+                println!("{}", e);
                 assert!(false);
             }
         }

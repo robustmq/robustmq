@@ -230,9 +230,7 @@ mod tests {
     use bytes::Bytes;
     use clients::poll::ClientPool;
     use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path,
-        logs::{init_broker_mqtt_log, init_log},
-        tools::unique_id,
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::init_log, tools::unique_id,
     };
     use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
     use protocol::mqtt::common::{Publish, PublishProperties};

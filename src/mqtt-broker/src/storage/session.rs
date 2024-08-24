@@ -112,10 +112,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn get_session(
-        &self,
-        client_id: String,
-    ) -> Result<Option<MQTTSession>, CommonError> {
+    pub async fn get_session(&self, client_id: String) -> Result<Option<MQTTSession>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -209,7 +206,7 @@ impl SessionStorage {
 mod tests {
     use crate::storage::session::SessionStorage;
     use clients::poll::ClientPool;
-    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::{init_broker_mqtt_log, init_log}, tools::now_second};
+    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, tools::now_second};
     use metadata_struct::mqtt::session::MQTTSession;
     use std::sync::Arc;
 
