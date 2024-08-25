@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cache_manager::CacheManager, keep_alive::client_keep_live_time};
+use super::{cache::CacheManager, keep_alive::client_keep_live_time};
 use crate::{
     server::connection_manager::ConnectionManager, storage::session::SessionStorage,
     subscribe::subscribe_manager::SubscribeManager,

@@ -13,6 +13,7 @@
 
 use crate::handler::connection::Connection;
 use crate::security::AuthDriver;
+use crate::storage::acl::AclStorage;
 use crate::storage::user::UserStorage;
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage};
 use crate::subscribe::subscriber::SubscribeData;
@@ -21,6 +22,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use log::warn;
+use metadata_struct::acl::mqtt_acl::MQTTAcl;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -98,6 +100,9 @@ pub struct CacheManager {
     // (username, User)
     pub user_info: DashMap<String, MQTTUser>,
 
+    // (username, MQTTACL)
+    pub acl_info: DashMap<String, MQTTAcl>,
+
     // (client_id, Session)
     pub session_info: DashMap<String, MQTTSession>,
 
@@ -142,6 +147,7 @@ impl CacheManager {
             heartbeat_data: DashMap::with_capacity(8),
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
+            acl_info: DashMap::with_capacity(8),
         };
         return cache;
     }
@@ -469,6 +475,18 @@ impl CacheManager {
         for (_, topic) in topic_list {
             self.add_topic(&topic.topic_name, &topic);
         }
+
+        // load adll acl
+        let acl_storage = AclStorage::new(self.client_poll.clone());
+        let al_list = match acl_storage.list_acl().await {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the topic list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
     }
 
     pub async fn init_system_user(&self) {

@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use super::{
-    cache_manager::{CacheManager, ConnectionLiveTime},
+    cache::{CacheManager, ConnectionLiveTime},
     connection::disconnect_connection,
 };
 use crate::{
@@ -159,7 +159,7 @@ pub struct KeepAliveRunInfo {
 #[cfg(test)]
 mod test {
     use super::keep_live_time;
-    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::cache::CacheManager;
     use crate::handler::connection::Connection;
     use crate::handler::keep_alive::ClientKeepAlive;
     use crate::server::connection_manager::ConnectionManager;

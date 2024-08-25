@@ -14,7 +14,7 @@
 use clients::poll::ClientPool;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, runtime::create_runtime};
 use handler::keep_alive::ClientKeepAlive;
-use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
+use handler::{cache::CacheManager, heartbreat::report_heartbeat};
 use log::info;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;

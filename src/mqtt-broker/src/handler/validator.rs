@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use super::{
-    cache_manager::CacheManager,
+    cache::CacheManager,
     connection::Connection,
     flow_control::{is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded},
     pkid::pkid_exists,

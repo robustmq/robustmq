@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
 use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;

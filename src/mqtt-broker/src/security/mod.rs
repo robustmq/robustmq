@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 use authentication::{plaintext::Plaintext, Authentication};
 use axum::async_trait;
 use clients::poll::ClientPool;

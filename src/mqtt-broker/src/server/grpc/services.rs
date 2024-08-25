@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;

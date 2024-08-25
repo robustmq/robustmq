@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache_manager::{CacheManager, QosAckPacketInfo};
+use super::cache::{CacheManager, QosAckPacketInfo};
 use crate::{
     server::connection_manager::ConnectionManager,
     storage::topic::TopicStorage,
@@ -248,7 +248,7 @@ pub fn message_expiry_interval(
 #[cfg(test)]
 mod tests {
     use super::message_expiry_interval;
-    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::cache::CacheManager;
     use clients::poll::ClientPool;
     use metadata_struct::mqtt::cluster::MQTTCluster;
     use protocol::mqtt::common::PublishProperties;

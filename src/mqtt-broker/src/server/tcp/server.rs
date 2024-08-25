@@ -13,7 +13,7 @@
 
 use crate::{
     handler::{
-        cache_manager::CacheManager,
+        cache::CacheManager,
         command::Command,
         connection::disconnect_connection,
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
