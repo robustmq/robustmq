@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache_manager::CacheManager;
-use crate::handler::cache_manager::QosAckPackageData;
+use crate::handler::cache::CacheManager;
+use crate::handler::cache::QosAckPackageData;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
@@ -427,7 +427,7 @@ pub async fn publish_message_qos0(
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::cache::CacheManager;
     use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
     use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, path_regex_match};
     use clients::poll::ClientPool;

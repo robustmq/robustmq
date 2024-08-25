@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use super::sub_common::{decode_share_info, get_share_sub_leader, is_share_sub, path_regex_match};
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 use crate::subscribe::subscriber::Subscriber;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;

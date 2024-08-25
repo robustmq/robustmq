@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use super::services::GrpcBrokerServices;
-use crate::{handler::cache_manager::CacheManager, subscribe::subscribe_manager::SubscribeManager};
+use crate::{handler::cache::CacheManager, subscribe::subscribe_manager::SubscribeManager};
 use clients::poll::ClientPool;
 
 use log::info;

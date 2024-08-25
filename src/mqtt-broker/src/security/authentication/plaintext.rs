@@ -13,7 +13,7 @@
 
 use std::sync::Arc;
 
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 
 use super::Authentication;
 use axum::async_trait;
@@ -48,7 +48,7 @@ impl Authentication for Plaintext {
 #[cfg(test)]
 mod test {
     use super::Plaintext;
-    use crate::{handler::cache_manager::CacheManager, security::authentication::Authentication};
+    use crate::{handler::cache::CacheManager, security::authentication::Authentication};
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use metadata_struct::mqtt::user::MQTTUser;

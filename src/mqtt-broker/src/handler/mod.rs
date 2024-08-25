@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-pub mod cache_manager;
+pub mod cache;
 pub mod connection;
 pub mod flow_control;
 pub mod keep_alive;

@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use super::cache::{cache_info, index, metrics};
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use axum::routing::get;
 use axum::Router;

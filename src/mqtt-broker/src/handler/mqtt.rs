@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache_manager::{CacheManager, ConnectionLiveTime};
-use crate::handler::cache_manager::{QosAckPackageData, QosAckPackageType};
+use crate::handler::cache::{CacheManager, ConnectionLiveTime};
+use crate::handler::cache::{QosAckPackageData, QosAckPackageType};
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::lastwill::save_last_will_message;
 use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};

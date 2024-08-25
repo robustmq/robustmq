@@ -12,7 +12,7 @@
 // limitations under the License.
 
 
-use super::{cache_manager::CacheManager, lastwill::last_will_delay_interval};
+use super::{cache::CacheManager, lastwill::last_will_delay_interval};
 use crate::storage::session::SessionStorage;
 use clients::poll::ClientPool;
 use common_base::{
@@ -127,7 +127,7 @@ fn session_expiry_interval(
 #[cfg(test)]
 mod test {
     use super::session_expiry_interval;
-    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::cache::CacheManager;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use metadata_struct::mqtt::session::MQTTSession;

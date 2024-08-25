@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache_manager::CacheManager;
+use super::cache::CacheManager;
 use clients::{
     placement::placement::call::{
         delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
@@ -114,7 +114,7 @@ mod test {
     use super::pkid_delete;
     use super::pkid_exists;
     use super::pkid_save;
-    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::cache::CacheManager;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use std::sync::Arc;
