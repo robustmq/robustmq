@@ -16,6 +16,22 @@ then
  exit
 fi
 
+start_standalone(){
+
+}
+
+stop_standalone(){
+
+}
+
+start_mod(){
+
+}
+
+stop_mod(){
+
+}
+
 if [ $action = "start" ]
   then
     if [[ -z $conf ]]
@@ -28,14 +44,6 @@ if [ $action = "start" ]
     num=` ps -ef | grep ${mod} | grep -v grep | wc -l`
     if [ $num -gt 1 ]
     then
-        echo "
-         _____     ____    ______            _____ ________ _         _    _____
-        ||    \\ //    \\ ||     ||||     ||||     --------||\\      //|| //    \\
-        ||----//||      ||||____// ||     || \\____   ||   || \\    // ||||      ||
-        ||   // ||      ||||     \\||     ||      ||  ||   ||  \\  //  ||||      || 
-        ||_|__\\ \\____// ||__|__||||__|__|| __|__||  ||   ||   \\//   || \\___\\//       
-                                                                                \\
-        "
         echo "${mod} started successfully."
     fi
   elif [ $action = "stop" ]
