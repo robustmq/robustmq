@@ -45,7 +45,11 @@ RobustMQ has long wanted to support multi-protocol and have a full Serverless ar
 
 In the first phase, the basic framework of the cluster (such as metadata storage service, storage adaptation layer, bring your own storage layer, etc.) and the functions related to MQTT protocol will be developed. The goal is to complete the RobustMQ architecture and adapt it to the MQTT protocol, and achieve production availability on the MQTT protocol.
 
-In the second phase, the development of AMQP protocol-related functions is initiated.
+Welcome to our development plan.
+- [《RobustMQ 2024 Development Plan》](https://github.com/robustmq/robustmq/wiki/RobustMQ-2024-Development-Plan)
+- [《RobustMQ Long‐Term Evolution Initiative》](https://github.com/robustmq/robustmq/wiki/RobustMQ-Long%E2%80%90Term-Evolution-Initiative)
+
+> We are still young and development plans can change quickly.
 
 ## RobustMQ MQTT
 1. Cluster deployment, horizontal unaware expansion.
