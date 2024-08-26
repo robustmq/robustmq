@@ -10,7 +10,7 @@
 ## Introduction
 RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture.
 
-## Why RobustMQ
+## Features
 - 100% Rust: A message queuing kernel implemented entirely in Rust.
 - Multi-protocol: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessing, JNS, SQS and other mainstream message protocols.
 - Layered architecture: computing, storage, scheduling independent three-tier architecture, each layer has the ability of cluster deployment, rapid horizontal scaling capacity.
@@ -23,7 +23,7 @@ RobustMQ is a next-generation high-performance cloud-native converged message qu
 
 RobustMQ is a typical distributed layered architecture, which is composed of the control layer, the Placement Center, the access layer, the Storage Adapter, and the Journal Engine.
 
-Click [Robust Architecture](docs/en/architecture.md) for detailed system architecture design.
+Click [RobustMQ Tutorial](http://www.robustmq.com/docs/robustmq-tutorial/1-2/) for detailed system architecture design.
 
 ## Planning
 RobustMQ has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs. So there are several stages in the development perspective:
@@ -32,8 +32,7 @@ In the first phase, the basic framework of the cluster (such as metadata storage
 
 In the second phase, the development of AMQP protocol-related functions is initiated.
 
-## Feature
-### RobustMQ MQTT
+## RobustMQ MQTT
 1. Cluster deployment, horizontal unaware expansion.
 2. A single machine can carry millions of connections.
 3. Support MQTT3.1/3.1.1/5.0 protocol.
@@ -42,19 +41,7 @@ In the second phase, the development of AMQP protocol-related functions is initi
 6. Support reserved messages, testament messages, shared subscriptions, etc
 7. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
 
-### RobustMQ AMQP
-In the planning
-
-### RobustMQ Kafka
-In the planning
-
-### RobustMQ RocketMQ
-In the planning
-
-### RobustMQ ...
-In the planning
-
-## Quick start
+## Get Started
 To start the order, you need to start the Placement Center first, and then start the MQTT Broker.
 ### Binary packages run
 #### Stand-alone mode
@@ -135,6 +122,19 @@ make release
 ## Tests
 ### MQTT functional tests 
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
+
+## Multiple protocols
+### RobustMQ AMQP
+In the planning
+
+### RobustMQ Kafka
+In the planning
+
+### RobustMQ RocketMQ
+In the planning
+
+### RobustMQ ...
+In the planning
 
 ## Contributing
 Please refer to contribution [guidelines](docs/en/contribution.md) for more information.
