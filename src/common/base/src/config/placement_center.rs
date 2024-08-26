@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn meta_default() {
         let path =
-            &"/Users/bytedance/Desktop/code/robustmq-project/robustmq/config/placement-center.toml"
+            &"./config/placement-center.toml"
                 .to_string();
         init_placement_center_conf_by_path(path);
         let conf: &PlacementCenterConfig = placement_center_conf();
