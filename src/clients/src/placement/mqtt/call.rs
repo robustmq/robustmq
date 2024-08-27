@@ -362,7 +362,7 @@ pub async fn list_acl(
 ) -> Result<ListAclReply, CommonError> {
     let request_data = ListAclRequest::encode_to_vec(&request);
     match retry_call(
-        PlacementCenterService::Placement,
+        PlacementCenterService::Mqtt,
         PlacementCenterInterface::ListAcl,
         client_poll,
         addrs,
@@ -387,7 +387,7 @@ pub async fn create_acl(
 ) -> Result<CommonReply, CommonError> {
     let request_data = CreateAclRequest::encode_to_vec(&request);
     match retry_call(
-        PlacementCenterService::Placement,
+        PlacementCenterService::Mqtt,
         PlacementCenterInterface::CreateAcl,
         client_poll,
         addrs,
@@ -412,7 +412,7 @@ pub async fn delete_acl(
 ) -> Result<CommonReply, CommonError> {
     let request_data = DeleteAclRequest::encode_to_vec(&request);
     match retry_call(
-        PlacementCenterService::Placement,
+        PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteAcl,
         client_poll,
         addrs,
