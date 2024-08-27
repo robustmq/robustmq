@@ -134,7 +134,8 @@ impl DataRouteCluster {
     pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        return acl_storage.delete(&req.cluster_name, &req.username);
+        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        return acl_storage.delete(&req.cluster_name, &acl);
     }
 }
 

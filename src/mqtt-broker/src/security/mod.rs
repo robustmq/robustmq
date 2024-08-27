@@ -29,6 +29,7 @@ use storage_adapter::{storage_is_mysql, storage_is_placement};
 
 pub mod authentication;
 pub mod mysql;
+pub mod redis;
 pub mod placement;
 
 #[async_trait]

@@ -64,8 +64,8 @@ impl AclStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, delete_acl: MQTTAcl) -> Result<(), CommonError> {
-        let mut acl_list = self.get(cluster_name, &delete_acl.username)?;
+    pub fn delete(&self, cluster_name: &String, delete_acl: &MQTTAcl) -> Result<(), CommonError> {
+        let acl_list = self.get(cluster_name, &delete_acl.username)?;
 
         if !self.acl_exists(&acl_list, &delete_acl) {
             return Ok(());
