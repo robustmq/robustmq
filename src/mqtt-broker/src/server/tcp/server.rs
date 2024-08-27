@@ -449,7 +449,7 @@ fn read_frame_process(
                         match pkg {
                             Ok(data) => {
                                 let pack: MQTTPacket = data.try_into().unwrap();
-                                info!("revc tcp packet:{:?}", pack);
+                                debug!("revc tcp packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
                                 match request_queue_sx.send(package).await {

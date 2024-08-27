@@ -2,13 +2,13 @@ appenders:
   stdout:
     kind: console
     encoder:
-        pattern: "{d(%Y-%m-%d %H:%M:%S)} {f}:{L} {h({l})} {m}{n}"
+        pattern: "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}"
 
   server:
     kind: rolling_file
     path: "{$path}/server.log"
     encoder:
-        pattern: "{d(%Y-%m-%d %H:%M:%S)} {f}:{L} {h({l})} {m}{n}"
+        pattern: "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}"
     policy:
         trigger:
             kind: size
@@ -20,7 +20,7 @@ appenders:
             count: 50
 
 root:
-  level: info
+  level: debug
   appenders:
     - stdout
     - server

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cache::CacheManager, retain::save_topic_retain_message};
+use super::{cache::CacheManager, retain::save_topic_retain_message, topic::try_init_topic};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use bytes::Bytes;
 use clients::poll::ClientPool;
@@ -34,18 +34,20 @@ where
 {
     match build_publish_message_by_lastwill(last_will, last_will_properties) {
         Ok((topic_name, publish_res, publish_properteis)) => {
-            if publish_res.is_none() {
+            if publish_res.is_none() || topic_name.is_empty() {
                 // If building a publish message from lastwill fails, the message is ignored without throwing an error.
                 return Ok(());
             }
 
             let publish = publish_res.unwrap();
 
-            let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
-                tp
-            } else {
-                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
-            };
+            let topic = try_init_topic(
+                &topic_name,
+                cache_manager,
+                &message_storage_adapter,
+                client_poll,
+            )
+            .await?;
 
             match save_topic_retain_message(
                 cache_manager,

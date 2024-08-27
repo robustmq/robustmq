@@ -10,7 +10,7 @@ mod tests {
     use paho_mqtt::{MessageBuilder, PropertyCode, QOS_1};
 
     #[tokio::test]
-    async fn retain_message() {
+    async fn retain_message_test() {
         let client_id = unique_id();
         let addr = broker_addr();
         let topic = format!("/tests/{}", unique_id());
