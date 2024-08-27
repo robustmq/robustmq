@@ -28,7 +28,7 @@ mod tests {
 
         // build will message
         let mut props = Properties::new();
-        props.push_u32(PropertyCode::WillDelayInterval, 5).unwrap();
+        props.push_u32(PropertyCode::WillDelayInterval, 2).unwrap();
         let will_message_content = "will message content".to_string();
         let will_topic = format!("/tests/{}", unique_id());
         let will = MessageBuilder::new()

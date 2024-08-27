@@ -21,7 +21,7 @@ use crate::{
 };
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
-use log::error;
+use log::{debug, error};
 use metadata_struct::mqtt::session::MQTTSession;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
@@ -69,6 +69,7 @@ impl SessionExpire {
     pub async fn lastwill_expire_send(&self) {
         let lastwill_list = self.get_expire_lastwill_messsage();
         if lastwill_list.len() > 0 {
+            debug!("Will message due, list:{:?}", lastwill_list);
             self.send_expire_lastwill_messsage(lastwill_list).await;
         }
         sleep(Duration::from_secs(10)).await;
