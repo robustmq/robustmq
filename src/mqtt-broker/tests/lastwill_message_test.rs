@@ -4,7 +4,7 @@ mod common;
 mod tests {
     use std::{process, time::Duration};
 
-    use common_base::tools::unique_id;
+    use common_base::tools::{now_second, unique_id};
     use paho_mqtt::{
         Client, ConnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode, QOS_1,
     };
@@ -61,6 +61,7 @@ mod tests {
         distinct_conn(cli);
 
         // sub will message topic
+        let start = now_second();
         let sub_topics = &[will_topic.clone()];
         let client_id = unique_id();
         let cli = connect_server5(&client_id, &addr);
@@ -77,6 +78,7 @@ mod tests {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                 println!("recv message: {}", payload);
                 if payload == will_message_content {
+                    println!("{}", now_second() - start);
                     assert!(true);
                     break;
                 }
