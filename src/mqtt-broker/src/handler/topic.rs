@@ -15,8 +15,8 @@ use crate::handler::cache::CacheManager;
 use crate::storage::topic::TopicStorage;
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::tools::unique_id;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
@@ -85,21 +85,20 @@ pub fn get_topic_name(
         None
     };
 
-    if publish.topic.is_empty() && topic_alias.is_none() {
+    let topic = String::from_utf8(publish.topic.to_vec())?;
+
+    if topic.is_empty() && topic_alias.is_none() {
         return Err(MQTTBrokerError::TopicNameIsEmpty);
     }
 
-    let topic_name = if publish.topic.is_empty() {
+    let topic_name = if topic.is_empty() {
         if let Some(tn) = metadata_cache.get_topic_alias(connect_id, topic_alias.unwrap()) {
             tn
         } else {
             return Err(MQTTBrokerError::TopicNameInvalid());
         }
     } else {
-        match String::from_utf8(publish.topic.to_vec()) {
-            Ok(da) => da,
-            Err(e) => return Err(e.into()),
-        }
+        topic
     };
     topic_name_validator(&topic_name)?;
     return Ok(topic_name);
