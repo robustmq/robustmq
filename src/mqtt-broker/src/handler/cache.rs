@@ -337,6 +337,7 @@ impl CacheManager {
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
+        println!("safasdfasdf{}",1);
         if let Some(conn) = self.connection_info.get(&connect_id) {
             if let Some(topic_name) = conn.topic_alias.get(&topic_alias) {
                 return Some(topic_name.clone());
