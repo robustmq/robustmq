@@ -337,7 +337,7 @@ impl CacheManager {
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
-        println!("safasdfasdf{}",1);
+        println!("safasdfasdf{}", 1);
         if let Some(conn) = self.connection_info.get(&connect_id) {
             if let Some(topic_name) = conn.topic_alias.get(&topic_alias) {
                 return Some(topic_name.clone());
@@ -479,7 +479,7 @@ impl CacheManager {
 
         // load adll acl
         let acl_storage = AclStorage::new(self.client_poll.clone());
-        let al_list = match acl_storage.list_acl().await {
+        let acl_list = match acl_storage.list_acl().await {
             Ok(list) => list,
             Err(e) => {
                 panic!(
@@ -488,6 +488,9 @@ impl CacheManager {
                 );
             }
         };
+        for acl in acl_list {
+            self.add_acl(acl);
+        }
     }
 
     pub async fn init_system_user(&self) {
@@ -520,6 +523,10 @@ impl CacheManager {
     pub fn add_ack_packet(&self, client_id: &String, pkid: u16, packet: QosAckPacketInfo) {
         let key = self.key(client_id, pkid);
         self.qos_ack_packet.insert(key, packet);
+    }
+
+    pub fn add_acl(&self, acl: MQTTAcl) {
+        
     }
 
     pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {
