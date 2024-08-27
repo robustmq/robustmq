@@ -8,7 +8,7 @@ mod tests {
     use crate::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
-    async fn user_properties() {
+    async fn user_properties_test() {
         let client_id = unique_id();
         let addr = broker_addr();
         let topic = format!("/tests/{}", unique_id());

@@ -11,11 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::cache::CacheManager;
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
+use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, CommonReply, UpdateCacheRequest,
@@ -91,6 +91,11 @@ where
                 return Err(Status::cancelled(e.to_string()));
             }
         };
+        debug!(
+            "Received will message from placement center, source client id: {},data:{:?}",
+            req.client_id, data
+        );
+        
         match send_last_will_message(
             &req.client_id,
             &self.cache_manager,

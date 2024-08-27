@@ -7,7 +7,7 @@ mod tests {
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, QOS_1};
 
     #[tokio::test]
-    async fn topic_alias() {
+    async fn topic_alias_test() {
         let client_id = unique_id();
         let addr = broker_addr();
         let topic_alias = 1;
