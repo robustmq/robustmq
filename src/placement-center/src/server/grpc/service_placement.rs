@@ -97,7 +97,7 @@ impl PlacementCenterService for GrpcPlacementService {
         {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+                return Err(Status::internal(e.to_string()));
             }
         }
     }

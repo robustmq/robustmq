@@ -16,7 +16,8 @@
 use super::server::HttpServerState;
 use axum::extract::State;
 use common_base::{http_response::success_response, metrics::dump_metrics};
-use metadata_struct::placement::broker_node::BrokerNode;
+use dashmap::DashMap;
+use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -45,7 +46,7 @@ pub struct RaftInfo {
 
 pub async fn index(State(state): State<HttpServerState>) -> String {
     let storage = state.raft_storage.read().unwrap();
-    let placement_cache = state.placement_cache.read().unwrap();
+    let placement_cache = state.raft_metadata.read().unwrap();
     let hs = storage.hard_state();
     let cs = storage.conf_state();
     let uncommit_index = storage.uncommit_index();
@@ -72,6 +73,21 @@ pub async fn index(State(state): State<HttpServerState>) -> String {
     };
 
     return success_response(resp);
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CacheInfo {
+    pub cluster_list: DashMap<String, ClusterInfo>,
+    pub node_list: DashMap<String, DashMap<u64, BrokerNode>>,
+    pub node_heartbeat: DashMap<String, DashMap<u64, u64>>,
+}
+pub async fn caches(State(state): State<HttpServerState>) -> String {
+    let cache: CacheInfo = CacheInfo {
+        cluster_list: state.cluster_cache.cluster_list.clone(),
+        node_list: state.cluster_cache.node_list.clone(),
+        node_heartbeat: state.cluster_cache.node_heartbeat.clone(),
+    };
+    return success_response(cache);
 }
 
 pub async fn metrics() -> String {
