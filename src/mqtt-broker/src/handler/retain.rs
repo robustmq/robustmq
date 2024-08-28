@@ -11,7 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::{CacheManager, QosAckPacketInfo};
+use super::{
+    cache::{CacheManager, QosAckPacketInfo},
+    constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE},
+};
 use crate::{
     server::connection_manager::ConnectionManager,
     storage::topic::TopicStorage,
@@ -126,13 +129,19 @@ pub async fn try_send_retain_message(
                             topic: Bytes::from(topic_name),
                             payload: msg.payload,
                         };
+                        let mut user_properties = msg.user_properties.clone();
+                        user_properties.push((
+                            SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
+                            SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
+                        ));
+
                         let properties = PublishProperties {
                             payload_format_indicator: msg.format_indicator,
                             message_expiry_interval: msg.expiry_interval,
                             topic_alias: None,
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,
-                            user_properties: msg.user_properties,
+                            user_properties: user_properties,
                             subscription_identifiers: sub_id.clone(),
                             content_type: msg.content_type,
                         };

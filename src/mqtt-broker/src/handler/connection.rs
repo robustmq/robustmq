@@ -28,7 +28,7 @@ use std::sync::{
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone,Debug)]
 pub struct Connection {
     // Connection ID
     pub connect_id: u64,

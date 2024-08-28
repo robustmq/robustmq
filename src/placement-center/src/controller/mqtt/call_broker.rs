@@ -16,13 +16,13 @@ use clients::{
     poll::ClientPool,
 };
 use common_base::tools::now_second;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
 
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-    storage::{mqtt::session::MQTTSessionStorage, rocksdb::RocksDBEngine},
+    storage::{mqtt::session::MQTTSessionStorage, placement::node, rocksdb::RocksDBEngine},
 };
 use std::sync::Arc;
 
@@ -62,7 +62,7 @@ impl MQTTBrokerCall {
         for raw in chunks {
             let client_ids: Vec<String> = raw.iter().map(|x| x.client_id.clone()).collect();
             let mut success = true;
-            info!(
+            debug!(
                 "Session [{:?}] has expired. Call Broker to delete the Session information.",
                 client_ids
             );
@@ -85,7 +85,7 @@ impl MQTTBrokerCall {
                     }
                 }
             }
-
+            debug!("Session expired call Broker status: {}", success);
             if success {
                 let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
                 for ms in raw {
@@ -96,6 +96,10 @@ impl MQTTBrokerCall {
                             } else {
                                 0
                             };
+                            debug!(
+                                "Save the upcoming will message to the cache with client ID:{}",
+                                ms.client_id
+                            );
                             self.mqtt_cache_manager
                                 .add_expire_last_will(ExpireLastWill {
                                     client_id: ms.client_id.clone(),
@@ -115,14 +119,11 @@ impl MQTTBrokerCall {
             client_id: client_id.clone(),
             last_will_message: lastwill.encode(),
         };
-        match send_last_will_message(
-            self.client_poll.clone(),
-            self.placement_cache_manager
-                .get_cluster_node_addr(&self.cluster_name),
-            request,
-        )
-        .await
-        {
+
+        let node_addr = self
+            .placement_cache_manager
+            .get_cluster_node_addr(&self.cluster_name);
+        match send_last_will_message(self.client_poll.clone(), node_addr, request).await {
             Ok(_) => self
                 .mqtt_cache_manager
                 .remove_expire_last_will(&self.cluster_name, &client_id),

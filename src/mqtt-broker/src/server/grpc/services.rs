@@ -11,11 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::handler::cache::CacheManager;
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
+use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_server::generate::mqtt::{
     mqtt_broker_service_server::MqttBrokerService, CommonReply, UpdateCacheRequest,
@@ -65,6 +65,7 @@ where
         request: Request<DeleteSessionRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
+        debug!("Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",req.cluster_name,req.client_id);
         if self.cache_manager.cluster_name != req.cluster_name {
             return Err(Status::cancelled("Cluster name does not match".to_string()));
         }
@@ -91,6 +92,11 @@ where
                 return Err(Status::cancelled(e.to_string()));
             }
         };
+        debug!(
+            "Received will message from placement center, source client id: {},data:{:?}",
+            req.client_id, data
+        );
+
         match send_last_will_message(
             &req.client_id,
             &self.cache_manager,
@@ -105,7 +111,7 @@ where
                 return Ok(Response::new(CommonReply::default()));
             }
             Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+                return Err(Status::internal(e.to_string()));
             }
         }
     }

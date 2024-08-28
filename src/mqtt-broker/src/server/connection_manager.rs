@@ -16,7 +16,7 @@ use axum::extract::ws::{Message, WebSocket};
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use futures::{stream::SplitSink, SinkExt};
-use log::{error, info};
+use log::{debug, error, info};
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTProtocol,
@@ -187,7 +187,7 @@ impl ConnectionManager {
         connection_id: u64,
         resp: MQTTPacketWrapper,
     ) -> Result<(), CommonError> {
-        info!("response packet:{resp:?},connection_id:{connection_id}");
+        debug!("response packet:{resp:?},connection_id:{connection_id}");
 
         // write tls stream
         if let Some(connection) = self.get_connect(connection_id) {

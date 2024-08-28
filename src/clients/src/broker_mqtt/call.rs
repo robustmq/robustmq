@@ -81,7 +81,7 @@ pub async fn send_last_will_message(
     let request_data = SendLastWillMessageRequest::encode_to_vec(&request);
     match retry_call(
         MQTTBrokerService::Mqtt,
-        MQTTBrokerInterface::UpdateCache,
+        MQTTBrokerInterface::SendLastWillMessage,
         client_poll,
         addrs,
         request_data,

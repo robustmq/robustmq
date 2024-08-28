@@ -26,3 +26,4 @@ pub mod heartbreat;
 pub mod pkid;
 pub mod command;
 pub mod mqtt;
+pub mod constant;

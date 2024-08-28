@@ -54,6 +54,7 @@ use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
 use super::flow_control::is_flow_control;
+use super::topic::topic_name_validator;
 
 #[derive(Clone)]
 pub struct MqttService<S> {
@@ -311,10 +312,10 @@ where
         };
 
         let topic = match try_init_topic(
-            topic_name.clone(),
-            self.cache_manager.clone(),
-            self.message_storage_adapter.clone(),
-            self.client_poll.clone(),
+            &topic_name,
+            &self.cache_manager,
+            &self.message_storage_adapter,
+            &self.client_poll,
         )
         .await
         {
