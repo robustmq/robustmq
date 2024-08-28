@@ -143,7 +143,7 @@ pub fn broker_mqtt_conf() -> &'static BrokerMQTTConfig {
         }
         None => {
             panic!(
-                "Placement center configuration is not initialized, check the configuration file."
+                "MQTT Broker configuration is not initialized, check the configuration file."
             );
         }
     }
