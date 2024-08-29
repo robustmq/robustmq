@@ -143,3 +143,18 @@ pub fn storage_key_mqtt_acl(cluster_name: &String, username: &String) -> String 
 pub fn storage_key_mqtt_acl_prefix(cluster_name: &String) -> String {
     return format!("/mqtt/acl/{}", cluster_name);
 }
+
+pub fn storage_key_mqtt_blacklist(
+    cluster_name: &String,
+    black_list_type: &String,
+    resource_name: &String,
+) -> String {
+    return format!(
+        "/mqtt/blacklist/{}/{}/{}",
+        cluster_name, black_list_type, resource_name
+    );
+}
+
+pub fn storage_key_mqtt_blacklist_prefix(cluster_name: &String) -> String {
+    return format!("/mqtt/blacklist/{}", cluster_name);
+}

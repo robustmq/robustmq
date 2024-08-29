@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
@@ -15,5 +17,22 @@ pub enum MQTTAclBlackListType {
     Ip,
     ClientIdMatch,
     UserMatch,
-    IpCIDR
+    IPCIDR,
+}
+
+impl fmt::Display for MQTTAclBlackListType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MQTTAclBlackListType::ClientId => "ClientId",
+                MQTTAclBlackListType::User => "User",
+                MQTTAclBlackListType::Ip => "Ip",
+                MQTTAclBlackListType::ClientIdMatch => "ClientIdMatch",
+                MQTTAclBlackListType::UserMatch => "UserMatch",
+                MQTTAclBlackListType::IPCIDR => "IPCIDR",
+            }
+        )
+    }
 }

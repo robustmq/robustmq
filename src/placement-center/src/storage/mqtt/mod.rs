@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod acl;
+pub mod blacklist;
 pub mod lastwill;
 pub mod session;
 pub mod topic;
