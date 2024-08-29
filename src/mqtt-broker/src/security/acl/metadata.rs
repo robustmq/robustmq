@@ -3,7 +3,6 @@ use metadata_struct::acl::{mqtt_acl::MQTTAcl, mqtt_acl_blacklist::MQTTAclBlackLi
 #[derive(Clone)]
 pub struct AclMetadata {}
 
-
 impl AclMetadata {
     pub fn new() -> Self {
         return AclMetadata {};
@@ -12,6 +11,8 @@ impl AclMetadata {
     pub fn parse_mqtt_acl(&self, acl: MQTTAcl) {}
 
     pub fn parse_mqtt_blacklist(&self, blacklist: MQTTAclBlackList) {}
+
+    
 }
 
 #[cfg(test)]

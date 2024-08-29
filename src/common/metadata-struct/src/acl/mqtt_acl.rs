@@ -16,12 +16,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MQTTAcl {
-    pub allow: MQTTAclAllow,
-    pub ip_addr: String,
     pub username: String,
-    pub client_id: String,
-    pub access: MQTTAclAccess,
+    pub permission: MQTTAclPermission,
+    pub action: MQTTAclAction,
     pub topic: String,
+    pub qos: String,
+    pub retain: u16,
 }
 
 impl MQTTAcl {
@@ -31,14 +31,15 @@ impl MQTTAcl {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclAccess {
+pub enum MQTTAclAction {
+    All,
     Subscribe,
     Publish,
     PubSub,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclAllow {
+pub enum MQTTAclPermission {
     Allow,
     Deny,
 }

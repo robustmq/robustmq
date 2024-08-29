@@ -13,4 +13,7 @@ pub enum MQTTAclBlackListType {
     ClientId,
     User,
     Ip,
+    ClientIdMatch,
+    UserMatch,
+    IpCIDR
 }
