@@ -12,3 +12,4 @@
 // limitations under the License.
 
 pub mod mqtt_acl;
+pub mod mqtt_acl_blacklist;

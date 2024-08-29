@@ -119,7 +119,7 @@ where
 
         match self
             .auth_driver
-            .check_login(&login, &connect_properties, &addr)
+            .check_login_auth(&login, &connect_properties, &addr)
             .await
         {
             Ok(flag) => {
