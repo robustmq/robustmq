@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use common_base::error::common::CommonError;
-use metadata_struct::acl::mqtt_acl_blacklist::MQTTAclBlackList;
+use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
 
 use crate::storage::{
     engine::{engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster},

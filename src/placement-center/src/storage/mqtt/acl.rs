@@ -32,12 +32,23 @@ impl AclStorage {
     }
 
     pub fn save(&self, cluster_name: &String, acl: MQTTAcl) -> Result<(), CommonError> {
-        let mut acl_list = self.get(cluster_name, &acl.username)?;
+        let mut acl_list = self.get(
+            cluster_name,
+            &acl.resource_type.to_string(),
+            &acl.resource_name,
+        )?;
+
         if self.acl_exists(&acl_list, &acl) {
             return Ok(());
         }
+
         acl_list.push(acl.clone());
-        let key = storage_key_mqtt_acl(cluster_name, &acl.username);
+
+        let key = storage_key_mqtt_acl(
+            cluster_name,
+            &acl.resource_type.to_string(),
+            &acl.resource_name,
+        );
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, acl_list);
     }
 
@@ -65,7 +76,11 @@ impl AclStorage {
     }
 
     pub fn delete(&self, cluster_name: &String, delete_acl: &MQTTAcl) -> Result<(), CommonError> {
-        let acl_list = self.get(cluster_name, &delete_acl.username)?;
+        let acl_list = self.get(
+            cluster_name,
+            &delete_acl.resource_type.to_string(),
+            &delete_acl.resource_name,
+        )?;
 
         if !self.acl_exists(&acl_list, &delete_acl) {
             return Ok(());
@@ -73,26 +88,31 @@ impl AclStorage {
 
         let mut new_acl_list = Vec::new();
         for raw in acl_list {
-            if !(raw.allow == delete_acl.allow
-                && raw.ip_addr == delete_acl.ip_addr
-                && raw.client_id == delete_acl.client_id
-                && raw.access == delete_acl.access
-                && raw.topic == delete_acl.topic)
+            if !(raw.permission == delete_acl.permission
+                && raw.action == delete_acl.action
+                && raw.topic == delete_acl.topic
+                && raw.qos == delete_acl.qos
+                && raw.ip == delete_acl.ip
+                && raw.retain == delete_acl.retain)
             {
                 new_acl_list.push(raw);
             }
         }
-
-        let key = storage_key_mqtt_acl(cluster_name, &delete_acl.username);
+        let key = storage_key_mqtt_acl(
+            cluster_name,
+            &delete_acl.resource_type.to_string(),
+            &delete_acl.resource_name,
+        );
         return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, new_acl_list);
     }
 
     pub fn get(
         &self,
         cluster_name: &String,
-        username: &String,
+        resource_type: &String,
+        resource_name: &String,
     ) -> Result<Vec<MQTTAcl>, CommonError> {
-        let key = storage_key_mqtt_acl(cluster_name, &username);
+        let key = storage_key_mqtt_acl(cluster_name, &resource_type, &resource_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<Vec<MQTTAcl>>(&data.data) {
                 Ok(session) => {
@@ -113,11 +133,12 @@ impl AclStorage {
 
     fn acl_exists(&self, acl_list: &Vec<MQTTAcl>, acl: &MQTTAcl) -> bool {
         for raw in acl_list {
-            if raw.allow == acl.allow
-                && raw.ip_addr == acl.ip_addr
-                && raw.client_id == acl.client_id
-                && raw.access == acl.access
+            if !(raw.permission == acl.permission
+                && raw.action == acl.action
                 && raw.topic == acl.topic
+                && raw.qos == acl.qos
+                && raw.ip == acl.ip
+                && raw.retain == acl.retain)
             {
                 return true;
             }

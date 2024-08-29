@@ -11,22 +11,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
+
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MQTTAcl {
-    pub username: String,
+    pub resource_name: String,
+    pub resource_type: MQTTAclResourceType,
     pub permission: MQTTAclPermission,
     pub action: MQTTAclAction,
     pub topic: String,
     pub qos: String,
+    pub ip: String,
     pub retain: u16,
 }
 
 impl MQTTAcl {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         return Ok(serde_json::to_vec(&self)?);
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
+pub enum MQTTAclResourceType {
+    ClientId,
+    User,
+    Ip,
+}
+
+impl fmt::Display for MQTTAclResourceType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MQTTAclResourceType::ClientId => "ClientId",
+                MQTTAclResourceType::User => "User",
+                MQTTAclResourceType::Ip => "Ip",
+            }
+        )
     }
 }
 

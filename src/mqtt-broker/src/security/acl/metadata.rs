@@ -1,4 +1,4 @@
-use metadata_struct::acl::{mqtt_acl::MQTTAcl, mqtt_acl_blacklist::MQTTAclBlackList};
+use metadata_struct::acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList};
 
 #[derive(Clone)]
 pub struct AclMetadata {}
