@@ -13,7 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Storage {
     pub storage_type: String,
     #[serde(default)]
@@ -22,7 +22,7 @@ pub struct Storage {
     pub mysql_addr: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Auth {
     pub storage_type: String,
     #[serde(default)]
@@ -31,8 +31,10 @@ pub struct Auth {
     pub mysql_addr: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Log {
     pub log_config: String,
     pub log_path: String,
 }
+
+

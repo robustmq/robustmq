@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::handler::cache::CacheManager;
-use authentication::{plaintext::Plaintext, Authentication};
+use acl::check_resource_acl;
 use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::{
@@ -20,6 +20,7 @@ use common_base::{
     error::{common::CommonError, mqtt_broker::MQTTBrokerError},
 };
 use dashmap::DashMap;
+use login::{plaintext::Plaintext, Authentication};
 use metadata_struct::mqtt::user::MQTTUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
@@ -27,10 +28,11 @@ use protocol::mqtt::common::{ConnectProperties, Login};
 use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::{storage_is_mysql, storage_is_placement};
 
-pub mod authentication;
+pub mod acl;
+pub mod login;
 pub mod mysql;
-pub mod redis;
 pub mod placement;
+pub mod redis;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
@@ -76,7 +78,7 @@ impl AuthDriver {
         return self.driver.read_all_user().await;
     }
 
-    pub async fn check_login(
+    pub async fn check_login_auth(
         &self,
         login: &Option<Login>,
         _: &Option<ConnectProperties>,
@@ -95,6 +97,10 @@ impl AuthDriver {
         }
 
         return Ok(false);
+    }
+
+    pub async fn check_acl_auth(&self) -> Result<bool, CommonError> {
+        return check_resource_acl(&self.cache_manager.acl_metadata);
     }
 
     async fn plaintext_check_login(
@@ -172,7 +178,6 @@ pub fn build_driver(
 
     return Err(CommonError::UnavailableStorageType);
 }
-
 
 pub fn authentication_acl() -> bool {
     return false;
