@@ -24,7 +24,7 @@ use super::{
     topic::topic_name_validator,
 };
 use crate::{
-    security::{authentication::is_ip_blacklist, authentication_acl},
+    security::{login::is_ip_blacklist, authentication_acl},
     server::connection_manager::ConnectionManager,
     subscribe::sub_common::sub_path_validator,
 };

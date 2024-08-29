@@ -82,7 +82,7 @@ impl DataRouteCluster {
                 create_time: now_mills(),
             };
             self.cluster_cache.add_cluster(cluster_info.clone());
-            return cluster_storage.save(cluster_info);
+            cluster_storage.save(cluster_info)?;
         }
 
         // update node

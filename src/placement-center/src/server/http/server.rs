@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::index::{index, metrics};
+use super::index::{caches, index, metrics};
 use super::mqtt::mqtt_routes;
 use crate::raft::metadata::RaftGroupMetadata;
 use crate::{
@@ -29,10 +29,11 @@ use std::{
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_METRICS: &str = "/metrics";
+pub const ROUTE_CACHES: &str = "/caches";
 
 #[derive(Clone)]
 pub struct HttpServerState {
-    pub placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+    pub raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
     pub cluster_cache: Arc<PlacementCacheManager>,
     pub engine_cache: Arc<JournalCacheManager>,
@@ -46,7 +47,7 @@ impl HttpServerState {
         engine_cache: Arc<JournalCacheManager>,
     ) -> Self {
         return Self {
-            placement_cache,
+            raft_metadata: placement_cache,
             raft_storage,
             cluster_cache,
             engine_cache,
@@ -69,6 +70,7 @@ pub async fn start_http_server(state: HttpServerState) {
 fn routes(state: HttpServerState) -> Router {
     let common = Router::new()
         .route(ROUTE_ROOT, get(index))
+        .route(ROUTE_CACHES, get(caches))
         .route(ROUTE_METRICS, get(metrics));
 
     let mqtt = mqtt_routes();

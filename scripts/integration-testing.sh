@@ -53,7 +53,7 @@ stop_server(){
     stop_placement_center
 }
 
-rm -rf /tmp/logs/tests/
+rm -rf /tmp/robust/tests/mqtt-broker
 rm -rf /tmp/robust/tests/placement-center
 
 placement_center_process_name="placement-center"
@@ -65,6 +65,7 @@ start_placement_center
 # Start mqtt-broker
 start_mqtt_broker_1
 
+sleep 3
 # Run Cargo Test
 cargo test --package mqtt-broker
 

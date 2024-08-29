@@ -11,17 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
+
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MQTTAcl {
-    pub allow: MQTTAclAllow,
-    pub ip_addr: String,
-    pub username: String,
-    pub client_id: String,
-    pub access: MQTTAclAccess,
+    pub resource_name: String,
+    pub resource_type: MQTTAclResourceType,
+    pub permission: MQTTAclPermission,
+    pub action: MQTTAclAction,
     pub topic: String,
+    pub qos: String,
+    pub ip: String,
+    pub retain: u16,
 }
 
 impl MQTTAcl {
@@ -31,14 +35,36 @@ impl MQTTAcl {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclAccess {
+pub enum MQTTAclResourceType {
+    ClientId,
+    User,
+    Ip,
+}
+
+impl fmt::Display for MQTTAclResourceType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                MQTTAclResourceType::ClientId => "ClientId",
+                MQTTAclResourceType::User => "User",
+                MQTTAclResourceType::Ip => "Ip",
+            }
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
+pub enum MQTTAclAction {
+    All,
     Subscribe,
     Publish,
     PubSub,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclAllow {
+pub enum MQTTAclPermission {
     Allow,
     Deny,
 }

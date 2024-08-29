@@ -72,7 +72,7 @@ impl ClusterStorage {
                 info!("Node {} has been successfully registered", config.broker_id);
             }
             Err(e) => {
-                panic!("{}", e.to_string())
+                panic!("Register node fail,{}", e.to_string())
             }
         }
     }

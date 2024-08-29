@@ -48,7 +48,7 @@ impl Authentication for Plaintext {
 #[cfg(test)]
 mod test {
     use super::Plaintext;
-    use crate::{handler::cache::CacheManager, security::authentication::Authentication};
+    use crate::{handler::cache::CacheManager, security::login::Authentication};
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use metadata_struct::mqtt::user::MQTTUser;
