@@ -13,12 +13,12 @@
 
 
 use super::{
-    path_create, path_delete, path_get, path_list, path_update, server::HttpServerState, v1_path,
+    create_path, delete_path, get_path, list_path, update_path, server::HttpServerState, v1_path,
 };
 use axum::routing::{delete, get, post, put};
 use axum::Router;
-use cluster::{cluster_get, cluster_list, cluster_set};
-use user::{user_create, user_delete, user_get, user_list, user_update};
+use cluster::{get_cluster, list_cluster, set_cluster};
+use user::{create_user, delete_user, get_user, list_user, update_user};
 
 pub mod cluster;
 pub mod user;
@@ -31,24 +31,24 @@ pub const ROUTE_CLUSTER: &str = "/mqtt/cluster";
 pub fn mqtt_routes() -> Router<HttpServerState> {
     return Router::new()
         // user
-        .route(&v1_path(&path_get(ROUTE_MQTT_USER)), get(user_get))
-        .route(&v1_path(&path_create(ROUTE_MQTT_USER)), post(user_create))
-        .route(&v1_path(&path_update(ROUTE_MQTT_USER)), put(user_update))
-        .route(&v1_path(&path_delete(ROUTE_MQTT_USER)), delete(user_delete))
-        .route(&v1_path(&path_list(ROUTE_MQTT_USER)), get(user_list))
+        .route(&v1_path(&get_path(ROUTE_MQTT_USER)), get(get_user))
+        .route(&v1_path(&create_path(ROUTE_MQTT_USER)), post(create_user))
+        .route(&v1_path(&update_path(ROUTE_MQTT_USER)), put(update_user))
+        .route(&v1_path(&delete_path(ROUTE_MQTT_USER)), delete(delete_user))
+        .route(&v1_path(&list_path(ROUTE_MQTT_USER)), get(list_user))
         
         // acl
-        .route(&v1_path(&path_get(ROUTE_MQTT_ACL)), get(cluster_get))
-        .route(&v1_path(&path_update(ROUTE_MQTT_ACL)), put(cluster_set))
-        .route(&v1_path(&path_list(ROUTE_MQTT_ACL)), get(cluster_list))
+        .route(&v1_path(&get_path(ROUTE_MQTT_ACL)), get(get_cluster))
+        .route(&v1_path(&update_path(ROUTE_MQTT_ACL)), put(set_cluster))
+        .route(&v1_path(&list_path(ROUTE_MQTT_ACL)), get(list_cluster))
         
         // session
-        .route(&v1_path(&path_get(ROUTE_MQTT_SESSION)), get(cluster_get))
-        .route(&v1_path(&path_update(ROUTE_MQTT_SESSION)), put(cluster_set))
-        .route(&v1_path(&path_list(ROUTE_MQTT_SESSION)), get(cluster_list))
+        .route(&v1_path(&get_path(ROUTE_MQTT_SESSION)), get(get_cluster))
+        .route(&v1_path(&update_path(ROUTE_MQTT_SESSION)), put(set_cluster))
+        .route(&v1_path(&list_path(ROUTE_MQTT_SESSION)), get(list_cluster))
         
         // cluster
-        .route(&v1_path(&path_get(ROUTE_CLUSTER)), get(cluster_get))
-        .route(&v1_path(&path_update(ROUTE_CLUSTER)), put(cluster_set))
-        .route(&v1_path(&path_list(ROUTE_CLUSTER)), get(cluster_list));
+        .route(&v1_path(&get_path(ROUTE_CLUSTER)), get(get_cluster))
+        .route(&v1_path(&update_path(ROUTE_CLUSTER)), put(set_cluster))
+        .route(&v1_path(&list_path(ROUTE_CLUSTER)), get(list_cluster));
 }
