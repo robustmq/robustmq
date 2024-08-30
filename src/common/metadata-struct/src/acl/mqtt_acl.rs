@@ -23,8 +23,8 @@ pub struct MQTTAcl {
     pub permission: MQTTAclPermission,
     pub action: MQTTAclAction,
     pub topic: String,
-    pub qos: String,
     pub ip: String,
+    pub qos: String,
     pub retain: u16,
 }
 
@@ -38,7 +38,6 @@ impl MQTTAcl {
 pub enum MQTTAclResourceType {
     ClientId,
     User,
-    Ip,
 }
 
 impl fmt::Display for MQTTAclResourceType {
@@ -49,7 +48,6 @@ impl fmt::Display for MQTTAclResourceType {
             match self {
                 MQTTAclResourceType::ClientId => "ClientId",
                 MQTTAclResourceType::User => "User",
-                MQTTAclResourceType::Ip => "Ip",
             }
         )
     }

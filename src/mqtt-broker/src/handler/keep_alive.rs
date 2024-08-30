@@ -216,7 +216,8 @@ mod test {
         cache_manager.add_session(client_id.clone(), session);
 
         let keep_alive = 2;
-        let connection = Connection::new(1, &client_id, 100, 100, 100, 100, keep_alive);
+        let addr = "127.0.0.1".to_string();
+        let connection = Connection::new(1, &client_id, 100, 100, 100, 100, keep_alive, addr);
         cache_manager.add_connection(connect_id, connection);
 
         let start = now_second();

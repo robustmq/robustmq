@@ -123,7 +123,7 @@ where
                                 properties,
                                 last_will,
                                 last_will_peoperties,
-                                login,
+                                &login,
                                 addr,
                             )
                             .await,
@@ -137,7 +137,7 @@ where
                                 properties,
                                 last_will,
                                 last_will_peoperties,
-                                login,
+                                &login,
                                 addr,
                             )
                             .await,
@@ -151,7 +151,7 @@ where
                                 properties,
                                 last_will,
                                 last_will_peoperties,
-                                login,
+                                &login,
                                 addr,
                             )
                             .await,
@@ -168,8 +168,13 @@ where
                 let ack_pkg = resp_pkg.unwrap();
                 if let MQTTPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
+                        let username = if let Some(user) = login {
+                            user.username
+                        } else {
+                            "".to_string()
+                        };
                         self.metadata_cache
-                            .login_success(tcp_connection.connection_id);
+                            .login_success(tcp_connection.connection_id, username);
                         info!("connect [{}] login success", tcp_connection.connection_id);
                     }
                 }

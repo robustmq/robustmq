@@ -283,9 +283,9 @@ impl CacheManager {
         }
     }
 
-    pub fn login_success(&self, connect_id: u64) {
+    pub fn login_success(&self, connect_id: u64, user_name: String) {
         if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
-            conn.is_login = true;
+            conn.login_success(user_name)
         }
     }
 
