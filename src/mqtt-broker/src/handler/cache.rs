@@ -525,7 +525,7 @@ impl CacheManager {
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn add_acl(&self, acl: MQTTAcl) {}
+    pub fn add_acl(&self, _: MQTTAcl) {}
 
     pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {
         let key = self.key(client_id, pkid);

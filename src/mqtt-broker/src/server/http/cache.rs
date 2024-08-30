@@ -15,10 +15,7 @@ use std::collections::HashMap;
 
 use super::server::HttpServerState;
 use crate::{
-    handler::{
-        cache::{ClientPkidData, ConnectionLiveTime},
-        connection::Connection,
-    },
+    handler::cache::{ClientPkidData, ConnectionLiveTime},
     subscribe::{
         subscribe_manager::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},

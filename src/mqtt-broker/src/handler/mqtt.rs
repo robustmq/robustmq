@@ -54,7 +54,6 @@ use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
 use super::flow_control::is_flow_control;
-use super::topic::topic_name_validator;
 
 #[derive(Clone)]
 pub struct MqttService<S> {

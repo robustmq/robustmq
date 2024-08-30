@@ -14,10 +14,7 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     storage::{
-        mqtt::{
-            acl::AclStorage,
-            blacklist::{self, MQTTBlackListStorage},
-        },
+        mqtt::{acl::AclStorage, blacklist::MQTTBlackListStorage},
         placement::{
             cluster::ClusterStorage, config::ResourceConfigStorage, idempotent::IdempotentStorage,
             node::NodeStorage,

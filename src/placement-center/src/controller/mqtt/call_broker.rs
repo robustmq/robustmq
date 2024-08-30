@@ -16,13 +16,13 @@ use clients::{
     poll::ClientPool,
 };
 use common_base::tools::now_second;
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
 
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-    storage::{mqtt::session::MQTTSessionStorage, placement::node, rocksdb::RocksDBEngine},
+    storage::{mqtt::session::MQTTSessionStorage, rocksdb::RocksDBEngine},
 };
 use std::sync::Arc;
 
