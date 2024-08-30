@@ -178,6 +178,36 @@ pub struct CreateAclRequest {
     #[prost(bytes = "vec", tag = "2")]
     pub acl: ::prost::alloc::vec::Vec<u8>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListBlacklistRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListBlacklistReply {
+    #[prost(bytes = "vec", repeated, tag = "2")]
+    pub acls: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CreateBlacklistRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", tag = "2")]
+    pub acl: ::prost::alloc::vec::Vec<u8>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DeleteBlacklistRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub blacklist_type: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub resource_name: ::prost::alloc::string::String,
+}
 /// Generated client implementations.
 pub mod mqtt_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -650,6 +680,81 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateAcl"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn list_blacklist(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListBlacklistRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListBlacklistReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/ListBlacklist",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "ListBlacklist"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn delete_blacklist(
+            &mut self,
+            request: impl tonic::IntoRequest<super::DeleteBlacklistRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/DeleteBlacklist",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "DeleteBlacklist"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn create_blacklist(
+            &mut self,
+            request: impl tonic::IntoRequest<super::CreateBlacklistRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/CreateBlacklist",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "CreateBlacklist"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -758,6 +863,27 @@ pub mod mqtt_service_server {
         async fn create_acl(
             &self,
             request: tonic::Request<super::CreateAclRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn list_blacklist(
+            &self,
+            request: tonic::Request<super::ListBlacklistRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ListBlacklistReply>,
+            tonic::Status,
+        >;
+        async fn delete_blacklist(
+            &self,
+            request: tonic::Request<super::DeleteBlacklistRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn create_blacklist(
+            &self,
+            request: tonic::Request<super::CreateBlacklistRequest>,
         ) -> std::result::Result<
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
@@ -1569,6 +1695,144 @@ pub mod mqtt_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = CreateAclSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/ListBlacklist" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListBlacklistSvc<T: MqttService>(pub Arc<T>);
+                    impl<
+                        T: MqttService,
+                    > tonic::server::UnaryService<super::ListBlacklistRequest>
+                    for ListBlacklistSvc<T> {
+                        type Response = super::ListBlacklistReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ListBlacklistRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::list_blacklist(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ListBlacklistSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/DeleteBlacklist" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteBlacklistSvc<T: MqttService>(pub Arc<T>);
+                    impl<
+                        T: MqttService,
+                    > tonic::server::UnaryService<super::DeleteBlacklistRequest>
+                    for DeleteBlacklistSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::DeleteBlacklistRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::delete_blacklist(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = DeleteBlacklistSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/CreateBlacklist" => {
+                    #[allow(non_camel_case_types)]
+                    struct CreateBlacklistSvc<T: MqttService>(pub Arc<T>);
+                    impl<
+                        T: MqttService,
+                    > tonic::server::UnaryService<super::CreateBlacklistRequest>
+                    for CreateBlacklistSvc<T> {
+                        type Response = super::super::common::CommonReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::CreateBlacklistRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::create_blacklist(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = CreateBlacklistSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

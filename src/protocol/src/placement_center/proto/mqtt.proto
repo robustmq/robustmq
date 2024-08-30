@@ -51,6 +51,12 @@ service MqttService {
   rpc DeleteAcl(DeleteAclRequest) returns(common.CommonReply) {}
 
   rpc CreateAcl(CreateAclRequest) returns(common.CommonReply) {}
+
+  rpc ListBlacklist(ListBlacklistRequest) returns(ListBlacklistReply) {}
+
+  rpc DeleteBlacklist(DeleteBlacklistRequest) returns(common.CommonReply) {}
+
+  rpc CreateBlacklist(CreateBlacklistRequest) returns(common.CommonReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -162,4 +168,22 @@ message DeleteAclRequest{
 message CreateAclRequest{
     string cluster_name = 1;
     bytes acl = 2;
+}
+message ListBlacklistRequest{
+    string cluster_name = 1;
+}
+
+message ListBlacklistReply{
+    repeated bytes acls = 2;
+}
+
+message CreateBlacklistRequest{
+    string cluster_name = 1;
+    bytes acl = 2;
+}
+
+message DeleteBlacklistRequest{
+    string cluster_name = 1;
+    string blacklist_type = 2;
+    string resource_name = 3;
 }

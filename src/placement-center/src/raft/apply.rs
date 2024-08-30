@@ -85,6 +85,8 @@ pub enum StorageDataType {
     MQTTSaveLastWillMessage,
     MQTTCreateAcl,
     MQTTDeleteAcl,
+    MQTTCreateBlacklist,
+    MQTTDeleteBlacklist,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
