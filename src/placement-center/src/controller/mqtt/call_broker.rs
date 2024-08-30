@@ -123,6 +123,12 @@ impl MQTTBrokerCall {
         let node_addr = self
             .placement_cache_manager
             .get_cluster_node_addr(&self.cluster_name);
+
+        if node_addr.len() == 0 {
+            error!("Get cluster {} Node access address is empty, there is no cluster node address available.",self.cluster_name);
+            return;
+        }
+
         match send_last_will_message(self.client_poll.clone(), node_addr, request).await {
             Ok(_) => self
                 .mqtt_cache_manager

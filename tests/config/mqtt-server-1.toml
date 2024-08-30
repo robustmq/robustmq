@@ -54,4 +54,4 @@ storage_type = "memory"
 
 [log]
 log_config = "./config/log4rs.yaml"
-log_path = "/tmp/logs/tests/mqtt"
+log_path ="/tmp/robust/tests/mqtt-broker/logs1"

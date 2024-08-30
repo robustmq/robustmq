@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use crate::handler::connection::Connection;
+use crate::security::acl::metadata::AclMetadata;
 use crate::security::AuthDriver;
 use crate::storage::acl::AclStorage;
 use crate::storage::user::UserStorage;
@@ -100,9 +101,6 @@ pub struct CacheManager {
     // (username, User)
     pub user_info: DashMap<String, MQTTUser>,
 
-    // (username, MQTTACL)
-    pub acl_info: DashMap<String, MQTTAcl>,
-
     // (client_id, Session)
     pub session_info: DashMap<String, MQTTSession>,
 
@@ -129,6 +127,9 @@ pub struct CacheManager {
 
     // (client_id_pkid, QosPkidData)
     pub client_pkid_data: DashMap<String, ClientPkidData>,
+
+    // acl metadata
+    pub acl_metadata: AclMetadata,
 }
 
 impl CacheManager {
@@ -147,7 +148,7 @@ impl CacheManager {
             heartbeat_data: DashMap::with_capacity(8),
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
-            acl_info: DashMap::with_capacity(8),
+            acl_metadata: AclMetadata::new(),
         };
         return cache;
     }
@@ -337,7 +338,6 @@ impl CacheManager {
     }
 
     pub fn get_topic_alias(&self, connect_id: u64, topic_alias: u16) -> Option<String> {
-
         if let Some(conn) = self.connection_info.get(&connect_id) {
             if let Some(topic_name) = conn.topic_alias.get(&topic_alias) {
                 return Some(topic_name.clone());
@@ -525,9 +525,7 @@ impl CacheManager {
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn add_acl(&self, acl: MQTTAcl) {
-        
-    }
+    pub fn add_acl(&self, acl: MQTTAcl) {}
 
     pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {
         let key = self.key(client_id, pkid);

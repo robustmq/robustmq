@@ -43,6 +43,11 @@ async fn retry_call(
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
+    if addrs.len() == 0 {
+        return Err(CommonError::CommmonError(
+            "Call address list cannot be empty".to_string(),
+        ));
+    }
     let mut times = 1;
     loop {
         let index = times % addrs.len();
