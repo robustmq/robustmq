@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <img alt="RobustMQ Logo" src="docs/images/RobustMQ-logo-formal.png" width="300">
+    <img alt="RobustMQ Logo" src="docs/images/robustmq-logo.png" width="300">
   </picture>
 </p>
  <h3 align="center">

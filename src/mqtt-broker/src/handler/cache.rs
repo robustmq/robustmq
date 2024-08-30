@@ -283,9 +283,9 @@ impl CacheManager {
         }
     }
 
-    pub fn login_success(&self, connect_id: u64) {
+    pub fn login_success(&self, connect_id: u64, user_name: String) {
         if let Some(mut conn) = self.connection_info.get_mut(&connect_id) {
-            conn.is_login = true;
+            conn.login_success(user_name)
         }
     }
 
@@ -525,7 +525,7 @@ impl CacheManager {
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn add_acl(&self, acl: MQTTAcl) {}
+    pub fn add_acl(&self, _: MQTTAcl) {}
 
     pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {
         let key = self.key(client_id, pkid);

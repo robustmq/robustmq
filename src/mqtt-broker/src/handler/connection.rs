@@ -17,18 +17,24 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{error::common::CommonError, tools::{now_second, unique_id}};
+use common_base::{
+    error::common::CommonError,
+    tools::{now_second, unique_id},
+};
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use protocol::mqtt::common::{Connect, ConnectProperties};
-use std::sync::{
-    atomic::{AtomicIsize, Ordering},
-    Arc,
+use std::{
+    net::SocketAddr,
+    sync::{
+        atomic::{AtomicIsize, Ordering},
+        Arc,
+    },
 };
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
-#[derive(Default, Clone,Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Connection {
     // Connection ID
     pub connect_id: u64,
@@ -36,6 +42,10 @@ pub struct Connection {
     pub client_id: String,
     // Mark whether the link is already logged in
     pub is_login: bool,
+    //
+    pub source_ip_addr: String,
+    //
+    pub login_user: String,
     // When the client does not report a heartbeat, the maximum survival time of the connection,
     pub keep_alive: u16,
     // Records the Topic alias information for the connection dimension
@@ -65,6 +75,7 @@ impl Connection {
         topic_alias_max: u16,
         request_problem_info: u8,
         keep_alive: u16,
+        source_ip_addr: String,
     ) -> Connection {
         return Connection {
             connect_id,
@@ -79,11 +90,14 @@ impl Connection {
             receive_qos_message: Arc::new(AtomicIsize::new(0)),
             sender_qos_message: Arc::new(AtomicIsize::new(0)),
             create_time: now_second(),
+            source_ip_addr,
+            ..Default::default()
         };
     }
 
-    pub fn login_success(&mut self) {
+    pub fn login_success(&mut self, user_name: String) {
         self.is_login = true;
+        self.login_user = user_name;
     }
 
     pub fn is_response_proplem_info(&self) -> bool {
@@ -121,6 +135,7 @@ pub fn build_connection(
     cluster: &MQTTCluster,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
+    addr: &SocketAddr,
 ) -> Connection {
     let keep_alive = client_keep_live_time(cluster, connect.keep_alive);
 
@@ -172,6 +187,7 @@ pub fn build_connection(
         topic_alias_max,
         request_problem_info,
         keep_alive,
+        addr.to_string(),
     );
 }
 
@@ -258,17 +274,19 @@ mod test {
             authentication_method: None,
             authentication_data: None,
         };
+        let addr = format!("0.0.0.0:8080").parse().unwrap();
         let mut conn = build_connection(
             connect_id,
             &client_id,
             &cluster,
             &connect,
             &Some(connect_properties),
+            &addr,
         );
         assert_eq!(conn.connect_id, connect_id);
         assert_eq!(conn.client_id, client_id);
         assert!(!conn.is_login);
-        conn.login_success();
+        conn.login_success("".into());
         assert!(conn.is_login);
         assert_eq!(conn.keep_alive, 10);
         assert_eq!(conn.client_max_receive_maximum, 100);

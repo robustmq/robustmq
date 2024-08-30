@@ -17,8 +17,8 @@ use crate::{
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
         mqtt::{
-            acl::AclStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
-            user::MQTTUserStorage,
+            acl::AclStorage, blacklist::MQTTBlackListStorage, session::MQTTSessionStorage,
+            topic::MQTTTopicStorage, user::MQTTUserStorage,
         },
         rocksdb::RocksDBEngine,
     },
@@ -27,12 +27,13 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, CreateAclRequest, CreateSessionRequest,
-        CreateTopicRequest, CreateUserRequest, DeleteAclRequest, DeleteSessionRequest,
-        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-        ListAclReply, ListAclRequest, ListSessionReply, ListSessionRequest, ListTopicReply,
-        ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest,
-        SetTopicRetainMessageRequest, UpdateSessionRequest,
+        mqtt_service_server::MqttService, CreateAclRequest, CreateBlacklistRequest,
+        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest,
+        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
+        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+        ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest,
+        ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
 };
 use std::sync::Arc;
@@ -467,6 +468,78 @@ impl MqttService for GrpcMqttService {
         match self
             .placement_center_storage
             .apply_propose_message(data, "mqtt_delete_acl".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn list_blacklist(
+        &self,
+        request: Request<ListBlacklistRequest>,
+    ) -> Result<Response<ListBlacklistReply>, Status> {
+        let req = request.into_inner();
+        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        match blacklist_storage.list(&req.cluster_name) {
+            Ok(list) => {
+                let mut acls = Vec::new();
+                for acl in list {
+                    match acl.encode() {
+                        Ok(data) => {
+                            acls.push(data);
+                        }
+                        Err(e) => {
+                            return Err(Status::cancelled(e.to_string()));
+                        }
+                    }
+                }
+
+                return Ok(Response::new(ListBlacklistReply { acls }));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn create_blacklist(
+        &self,
+        request: Request<CreateBlacklistRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTCreateBlacklist,
+            CreateBlacklistRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "create_blacklist".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_blacklist(
+        &self,
+        request: Request<DeleteBlacklistRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTDeleteBlacklist,
+            DeleteBlacklistRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_blacklist".to_string())
             .await
         {
             Ok(_) => return Ok(Response::new(CommonReply::default())),

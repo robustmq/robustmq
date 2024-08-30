@@ -39,6 +39,7 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::error;
+use metadata_struct::acl::mqtt_acl::MQTTAclAction;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -54,7 +55,6 @@ use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
 use super::flow_control::is_flow_control;
-use super::topic::topic_name_validator;
 
 #[derive(Clone)]
 pub struct MqttService<S> {
@@ -98,7 +98,7 @@ where
         connect_properties: Option<ConnectProperties>,
         last_will: Option<LastWill>,
         last_will_properties: Option<LastWillProperties>,
-        login: Option<Login>,
+        login: &Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
         let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
@@ -150,6 +150,7 @@ where
             &cluster,
             &connnect,
             &connect_properties,
+            &addr,
         );
 
         let (session, new_session) = match build_session(
@@ -310,6 +311,27 @@ where
                 }
             }
         };
+
+        match self
+            .auth_driver
+            .check_acl_auth(&connection, &topic_name, MQTTAclAction::Publish)
+            .await
+        {
+            Ok(res) => {
+                if !res {
+                    return Some(response_packet_mqtt_distinct_by_reason(
+                        &self.protocol,
+                        Some(DisconnectReasonCode::NotAuthorized),
+                    ));
+                }
+            }
+            Err(e) => {
+                return Some(response_packet_mqtt_distinct_by_reason(
+                    &self.protocol,
+                    Some(DisconnectReasonCode::NotAuthorized),
+                ));
+            }
+        }
 
         let topic = match try_init_topic(
             &topic_name,

@@ -15,7 +15,7 @@ use super::{cache::CacheManager, retain::save_topic_retain_message, topic::try_i
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
+use common_base::error::common::CommonError;
 use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;

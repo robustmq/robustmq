@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::{cache::CacheManager, connection::Connection};
 use acl::check_resource_acl;
 use axum::async_trait;
 use clients::poll::ClientPool;
@@ -21,7 +21,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use login::{plaintext::Plaintext, Authentication};
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::{acl::mqtt_acl::MQTTAclAction, mqtt::user::MQTTUser};
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login};
@@ -99,8 +99,13 @@ impl AuthDriver {
         return Ok(false);
     }
 
-    pub async fn check_acl_auth(&self) -> Result<bool, CommonError> {
-        return check_resource_acl(&self.cache_manager.acl_metadata);
+    pub async fn check_acl_auth(
+        &self,
+        connection: &Connection,
+        topic_name: &String,
+        action: MQTTAclAction,
+    ) -> Result<bool, CommonError> {
+        return check_resource_acl(&self.cache_manager, connection, topic_name, action);
     }
 
     async fn plaintext_check_login(

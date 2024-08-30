@@ -14,7 +14,7 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     storage::{
-        mqtt::acl::AclStorage,
+        mqtt::{acl::AclStorage, blacklist::MQTTBlackListStorage},
         placement::{
             cluster::ClusterStorage, config::ResourceConfigStorage, idempotent::IdempotentStorage,
             node::NodeStorage,
@@ -27,12 +27,12 @@ use common_base::{
     tools::{now_mills, unique_id},
 };
 use metadata_struct::{
-    acl::mqtt_acl::MQTTAcl,
+    acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
     placement::{broker_node::BrokerNode, cluster::ClusterInfo},
 };
 use prost::Message as _;
 use protocol::placement_center::generate::{
-    mqtt::{CreateAclRequest, DeleteAclRequest},
+    mqtt::{CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest},
     placement::{
         DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
         SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
@@ -136,6 +136,23 @@ impl DataRouteCluster {
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
         let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
         return acl_storage.delete(&req.cluster_name, &acl);
+    }
+
+    pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = CreateBlacklistRequest::decode(value.as_ref())?;
+        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        let blacklist = serde_json::from_slice::<MQTTAclBlackList>(&req.acl)?;
+        return blacklist_storage.save(&req.cluster_name, blacklist);
+    }
+
+    pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = DeleteBlacklistRequest::decode(value.as_ref())?;
+        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        return blacklist_storage.delete(
+            &req.cluster_name,
+            &req.blacklist_type,
+            &req.resource_name,
+        );
     }
 }
 

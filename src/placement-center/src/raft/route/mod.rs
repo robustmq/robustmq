@@ -92,6 +92,12 @@ impl DataRoute {
             StorageDataType::MQTTDeleteAcl => {
                 return self.route_cluster.delete_acl(storage_data.value);
             }
+            StorageDataType::MQTTCreateBlacklist => {
+                return self.route_cluster.create_blacklist(storage_data.value);
+            }
+            StorageDataType::MQTTDeleteBlacklist => {
+                return self.route_cluster.delete_blacklist(storage_data.value);
+            }
 
             StorageDataType::JournalCreateShard => {
                 return self.route_journal.create_shard(storage_data.value);
