@@ -24,7 +24,7 @@ use login::{plaintext::Plaintext, Authentication};
 use metadata_struct::{acl::mqtt_acl::MQTTAclAction, mqtt::user::MQTTUser};
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
-use protocol::mqtt::common::{ConnectProperties, Login};
+use protocol::mqtt::common::{ConnectProperties, Login, QoS};
 use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::{storage_is_mysql, storage_is_placement};
 
@@ -104,8 +104,17 @@ impl AuthDriver {
         connection: &Connection,
         topic_name: &String,
         action: MQTTAclAction,
+        retain: bool,
+        qos: QoS,
     ) -> Result<bool, CommonError> {
-        return check_resource_acl(&self.cache_manager, connection, topic_name, action);
+        return check_resource_acl(
+            &self.cache_manager,
+            connection,
+            topic_name,
+            action,
+            retain,
+            qos,
+        );
     }
 
     async fn plaintext_check_login(

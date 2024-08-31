@@ -314,7 +314,13 @@ where
 
         match self
             .auth_driver
-            .check_acl_auth(&connection, &topic_name, MQTTAclAction::Publish)
+            .check_acl_auth(
+                &connection,
+                &topic_name,
+                MQTTAclAction::Publish,
+                publish.retain,
+                publish.qos,
+            )
             .await
         {
             Ok(res) => {

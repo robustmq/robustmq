@@ -18,14 +18,12 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
 pub struct MQTTAcl {
-    pub resource_name: String,
     pub resource_type: MQTTAclResourceType,
-    pub permission: MQTTAclPermission,
-    pub action: MQTTAclAction,
+    pub resource_name: String,
     pub topic: String,
     pub ip: String,
-    pub qos: String,
-    pub retain: u16,
+    pub action: MQTTAclAction,
+    pub permission: MQTTAclPermission,
 }
 
 impl MQTTAcl {
@@ -59,6 +57,8 @@ pub enum MQTTAclAction {
     Subscribe,
     Publish,
     PubSub,
+    Retain,
+    Qos,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]

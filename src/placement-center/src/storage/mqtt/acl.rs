@@ -91,9 +91,7 @@ impl AclStorage {
             if !(raw.permission == delete_acl.permission
                 && raw.action == delete_acl.action
                 && raw.topic == delete_acl.topic
-                && raw.qos == delete_acl.qos
-                && raw.ip == delete_acl.ip
-                && raw.retain == delete_acl.retain)
+                && raw.ip == delete_acl.ip)
             {
                 new_acl_list.push(raw);
             }
@@ -136,9 +134,7 @@ impl AclStorage {
             if !(raw.permission == acl.permission
                 && raw.action == acl.action
                 && raw.topic == acl.topic
-                && raw.qos == acl.qos
-                && raw.ip == acl.ip
-                && raw.retain == acl.retain)
+                && raw.ip == acl.ip)
             {
                 return true;
             }
