@@ -13,10 +13,8 @@
 
 use std::{
     fs,
-    net::{IpAddr, Ipv4Addr},
     path::{self, Path},
     time::{SystemTime, UNIX_EPOCH},
-    u32,
 };
 
 use local_ip_address::local_ip;

@@ -99,11 +99,10 @@ impl AuthDriver {
         return Ok(false);
     }
 
-    pub async fn check_acl_auth(
+    pub async fn check_pub_acl_auth(
         &self,
         connection: &Connection,
         topic_name: &String,
-        action: MQTTAclAction,
         retain: bool,
         qos: QoS,
     ) -> Result<bool, CommonError> {
@@ -111,10 +110,14 @@ impl AuthDriver {
             &self.cache_manager,
             connection,
             topic_name,
-            action,
+            MQTTAclAction::Publish,
             retain,
             qos,
         );
+    }
+
+    pub async fn check_sub_acl_auth(&self) {
+        
     }
 
     async fn plaintext_check_login(
