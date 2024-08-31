@@ -39,7 +39,6 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::error;
-use metadata_struct::acl::mqtt_acl::MQTTAclAction;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -314,7 +313,7 @@ where
 
         match self
             .auth_driver
-            .check_acl_auth(&connection, &topic_name, MQTTAclAction::Publish)
+            .check_pub_acl_auth(&connection, &topic_name, publish.retain, publish.qos)
             .await
         {
             Ok(res) => {
@@ -325,7 +324,7 @@ where
                     ));
                 }
             }
-            Err(e) => {
+            Err(_) => {
                 return Some(response_packet_mqtt_distinct_by_reason(
                     &self.protocol,
                     Some(DisconnectReasonCode::NotAuthorized),
