@@ -17,20 +17,20 @@ pub fn is_allow_acl(
     action: MQTTAclAction,
     retain: bool,
     _: QoS,
-) -> Result<bool, CommonError> {
+) -> bool {
     // check super user
     if is_super_user(cache_mamanger, &connection.login_user) {
-        return Ok(true);
+        return true;
     }
 
     // check blacklist
     if is_blacklist(cache_mamanger, &connection) {
-        return Ok(false);
+        return false;
     }
 
     // chack acl
     if is_acl_deny(cache_mamanger, &connection, &topic_name, action) {
-        return Ok(false);
+        return false;
     }
 
     // check retain acl
@@ -41,11 +41,11 @@ pub fn is_allow_acl(
             &topic_name,
             MQTTAclAction::Retain,
         ) {
-            return Ok(false);
+            return false;
         }
     }
 
-    return Ok(true);
+    return true;
 }
 
 fn is_super_user(cache_manager: &Arc<CacheManager>, username: &String) -> bool {

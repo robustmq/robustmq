@@ -311,25 +311,15 @@ where
             }
         };
 
-        match self
+        if !self
             .auth_driver
-            .check_pub_acl_auth(&connection, &topic_name, publish.retain, publish.qos)
+            .allow_publish(&connection, &topic_name, publish.retain, publish.qos)
             .await
         {
-            Ok(res) => {
-                if !res {
-                    return Some(response_packet_mqtt_distinct_by_reason(
-                        &self.protocol,
-                        Some(DisconnectReasonCode::NotAuthorized),
-                    ));
-                }
-            }
-            Err(_) => {
-                return Some(response_packet_mqtt_distinct_by_reason(
-                    &self.protocol,
-                    Some(DisconnectReasonCode::NotAuthorized),
-                ));
-            }
+            return Some(response_packet_mqtt_distinct_by_reason(
+                &self.protocol,
+                Some(DisconnectReasonCode::NotAuthorized),
+            ));
         }
 
         let topic = match try_init_topic(
@@ -705,6 +695,20 @@ where
         .await
         {
             return packet;
+        }
+
+        if !self
+            .auth_driver
+            .allow_subscribe(&connection, &subscribe)
+            .await
+        {
+            return response_packet_mqtt_suback(
+                &self.protocol,
+                &connection,
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::NotAuthorized],
+                None,
+            );
         }
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
