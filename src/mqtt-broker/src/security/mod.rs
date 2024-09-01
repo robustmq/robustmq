@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::handler::{cache::CacheManager, connection::Connection};
-use acl::check_resource_acl;
+use acl::is_allow_acl;
 use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::{
@@ -124,7 +124,7 @@ impl AuthDriver {
         retain: bool,
         qos: QoS,
     ) -> Result<bool, CommonError> {
-        return check_resource_acl(
+        return is_allow_acl(
             &self.cache_manager,
             connection,
             topic_name,
@@ -134,7 +134,9 @@ impl AuthDriver {
         );
     }
 
-    pub async fn check_sub_acl_auth(&self) {}
+    pub async fn check_sub_acl_auth(&self) {
+        
+    }
 
     async fn plaintext_check_login(
         &self,

@@ -6,7 +6,7 @@ mod tests {
 
     use common_base::tools::{now_second, unique_id};
     use paho_mqtt::{
-        Client, ConnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, ReasonCode, QOS_1,
+        Client, ConnectOptionsBuilder, MessageBuilder, Properties, PropertyCode, QOS_1,
     };
 
     use crate::common::{
