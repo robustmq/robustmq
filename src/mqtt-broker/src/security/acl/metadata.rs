@@ -1,4 +1,3 @@
-use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::acl::{
     mqtt_acl::{MQTTAcl, MQTTAclResourceType},

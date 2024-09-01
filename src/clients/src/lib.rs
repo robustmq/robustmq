@@ -19,10 +19,10 @@ pub mod broker_mqtt;
 pub mod placement;
 pub mod poll;
 
-const MAX_RETRY_TIMES: usize = 10;
+// const MAX_RETRY_TIMES: usize = 10;
 
 pub fn retry_times() -> usize {
-    return MAX_RETRY_TIMES;
+    return 0;
 }
 
 pub fn retry_sleep_time(times: usize) -> u64 {

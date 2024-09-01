@@ -496,11 +496,11 @@ impl MqttService for GrpcMqttService {
                         }
                     }
                 }
-
                 return Ok(Response::new(ListBlacklistReply { blacklists }));
             }
             Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+                println!("error:{:?}", e);
+                return Err(Status::internal(e.to_string()));
             }
         }
     }

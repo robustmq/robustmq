@@ -706,6 +706,7 @@ dependencies = [
  "mobc",
  "prost 0.12.3",
  "protocol",
+ "serde_json",
  "thiserror",
  "tokio",
  "tonic",
