@@ -12,9 +12,9 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use metadata_struct::adapter::record::Record;
 use std::sync::Arc;
-use storage_adapter::{record::Record, storage::StorageAdapter};
-
+use storage_adapter::storage::StorageAdapter;
 #[derive(Clone)]
 pub struct MessageStorage<T> {
     storage_adapter: Arc<T>,

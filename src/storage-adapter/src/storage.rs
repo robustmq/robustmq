@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::record::Record;
 use axum::async_trait;
 use common_base::error::common::CommonError;
+use metadata_struct::adapter::record::Record;
 
 #[derive(Default)]
 pub struct ShardConfig {}
@@ -27,10 +26,7 @@ pub trait StorageAdapter {
         shard_config: ShardConfig,
     ) -> Result<(), CommonError>;
 
-    async fn delete_shard(
-        &self,
-        shard_name: String,
-    ) -> Result<(), CommonError>;
+    async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError>;
 
     // kv storage model: Set data
     async fn set(&self, key: String, value: Record) -> Result<(), CommonError>;

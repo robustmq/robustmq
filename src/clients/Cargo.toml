@@ -32,3 +32,4 @@ mobc.workspace = true
 prost.workspace = true
 dashmap.workspace = true
 log.workspace = true
+metadata-struct.workspace = true

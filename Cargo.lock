@@ -702,6 +702,7 @@ dependencies = [
  "dashmap",
  "lazy_static",
  "log",
+ "metadata-struct",
  "mobc",
  "prost 0.12.3",
  "protocol",
@@ -1903,7 +1904,6 @@ dependencies = [
  "protocol",
  "serde",
  "serde_json",
- "storage-adapter",
  "thiserror",
 ]
 
@@ -3346,6 +3346,7 @@ dependencies = [
  "clients",
  "common-base",
  "dashmap",
+ "metadata-struct",
  "mysql",
  "protocol",
  "serde",

@@ -4,7 +4,6 @@ use metadata_struct::acl::{
     mqtt_acl::{MQTTAcl, MQTTAclResourceType},
     mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType},
 };
-use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub struct AclMetadata {
@@ -12,9 +11,9 @@ pub struct AclMetadata {
     pub blacklist_user: DashMap<String, MQTTAclBlackList>,
     pub blacklist_client_id: DashMap<String, MQTTAclBlackList>,
     pub blacklist_ip: DashMap<String, MQTTAclBlackList>,
-    pub blacklist_user_match: Arc<RwLock<Vec<MQTTAclBlackList>>>,
-    pub blacklist_client_id_match: Arc<RwLock<Vec<MQTTAclBlackList>>>,
-    pub blacklist_ip_match: Arc<RwLock<Vec<MQTTAclBlackList>>>,
+    pub blacklist_user_match: DashMap<String, Vec<MQTTAclBlackList>>,
+    pub blacklist_client_id_match: DashMap<String, Vec<MQTTAclBlackList>>,
+    pub blacklist_ip_match: DashMap<String, Vec<MQTTAclBlackList>>,
 
     // acl
     pub acl_user: DashMap<String, Vec<MQTTAcl>>,
@@ -27,9 +26,9 @@ impl AclMetadata {
             blacklist_user: DashMap::with_capacity(2),
             blacklist_client_id: DashMap::with_capacity(2),
             blacklist_ip: DashMap::with_capacity(2),
-            blacklist_user_match: Arc::new(RwLock::new(Vec::new())),
-            blacklist_client_id_match: Arc::new(RwLock::new(Vec::new())),
-            blacklist_ip_match: Arc::new(RwLock::new(Vec::new())),
+            blacklist_user_match: DashMap::with_capacity(2),
+            blacklist_client_id_match: DashMap::with_capacity(2),
+            blacklist_ip_match: DashMap::with_capacity(2),
 
             acl_user: DashMap::with_capacity(2),
             acl_client_id: DashMap::with_capacity(2),
@@ -56,7 +55,7 @@ impl AclMetadata {
         }
     }
 
-    pub fn parse_mqtt_blacklist(&self, blacklist: MQTTAclBlackList) -> Result<(), CommonError> {
+    pub fn parse_mqtt_blacklist(&self, blacklist: MQTTAclBlackList) {
         match blacklist.blacklist_type {
             MQTTAclBlackListType::ClientId => {
                 self.blacklist_client_id
@@ -71,37 +70,66 @@ impl AclMetadata {
                     .insert(blacklist.resource_name.clone(), blacklist);
             }
             MQTTAclBlackListType::ClientIdMatch => {
-                let mut data = match self.blacklist_client_id_match.write() {
-                    Ok(da) => da,
-                    Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
-                    }
-                };
-
-                data.push(blacklist)
+                let key = self.get_client_id_match_key();
+                if let Some(mut data) = self.blacklist_client_id_match.get_mut(&key) {
+                    data.push(blacklist)
+                } else {
+                    self.blacklist_client_id_match.insert(key, vec![blacklist]);
+                }
             }
             MQTTAclBlackListType::UserMatch => {
-                let mut data = match self.blacklist_user_match.write() {
-                    Ok(da) => da,
-                    Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
-                    }
-                };
-
-                data.push(blacklist)
+                let key = self.get_user_match_key();
+                if let Some(mut data) = self.blacklist_user_match.get_mut(&key) {
+                    data.push(blacklist)
+                } else {
+                    self.blacklist_user_match.insert(key, vec![blacklist]);
+                }
             }
             MQTTAclBlackListType::IPCIDR => {
-                let mut data = match self.blacklist_ip_match.write() {
-                    Ok(da) => da,
-                    Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
-                    }
-                };
-
-                data.push(blacklist)
+                let key = self.get_ip_cidr_key();
+                if let Some(mut data) = self.blacklist_ip_match.get_mut(&key) {
+                    data.push(blacklist)
+                } else {
+                    self.blacklist_ip_match.insert(key, vec![blacklist]);
+                }
             }
         }
-        return Ok(());
+    }
+
+    pub fn get_blacklist_user_match(&self) -> Option<Vec<MQTTAclBlackList>> {
+        let key = self.get_user_match_key();
+        if let Some(data) = self.blacklist_user_match.get(&key) {
+            return Some(data.clone());
+        }
+        return None;
+    }
+
+    pub fn get_blacklist_client_id_match(&self) -> Option<Vec<MQTTAclBlackList>> {
+        let key = self.get_client_id_match_key();
+        if let Some(data) = self.blacklist_client_id_match.get(&key) {
+            return Some(data.clone());
+        }
+        return None;
+    }
+
+    pub fn get_blacklist_ip_match(&self) -> Option<Vec<MQTTAclBlackList>> {
+        let key = self.get_ip_cidr_key();
+        if let Some(data) = self.blacklist_ip_match.get(&key) {
+            return Some(data.clone());
+        }
+        return None;
+    }
+
+    fn get_client_id_match_key(&self) -> String {
+        return "ClientIdMatch".to_string();
+    }
+
+    fn get_user_match_key(&self) -> String {
+        return "UserMatch".to_string();
+    }
+
+    fn get_ip_cidr_key(&self) -> String {
+        return "IPCIDR".to_string();
     }
 }
 

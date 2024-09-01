@@ -141,7 +141,7 @@ impl DataRouteCluster {
     pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        let blacklist = serde_json::from_slice::<MQTTAclBlackList>(&req.acl)?;
+        let blacklist = serde_json::from_slice::<MQTTAclBlackList>(&req.blacklist)?;
         return blacklist_storage.save(&req.cluster_name, blacklist);
     }
 

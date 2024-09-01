@@ -179,7 +179,7 @@ message ListBlacklistReply{
 
 message CreateBlacklistRequest{
     string cluster_name = 1;
-    bytes acl = 2;
+    bytes blacklist = 2;
 }
 
 message DeleteBlacklistRequest{
