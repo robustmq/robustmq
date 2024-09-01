@@ -542,8 +542,8 @@ impl CacheManager {
         self.acl_metadata.parse_mqtt_acl(acl);
     }
 
-    pub fn add_blacklist(&self, acl: MQTTAclBlackList) {
-        self.acl_metadata.parse_mqtt_blacklist(acl);
+    pub fn add_blacklist(&self, blacklist: MQTTAclBlackList) {
+        self.acl_metadata.parse_mqtt_blacklist(blacklist);
     }
 
     pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {

@@ -135,7 +135,9 @@ impl AclMetadata {
 #[cfg(test)]
 mod test {
     #[tokio::test]
-    pub async fn parse_mqtt_acl_test() {}
+    pub async fn parse_mqtt_acl_test() {
+        
+    }
 
     #[tokio::test]
     pub async fn parse_mqtt_blacklist() {}

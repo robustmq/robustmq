@@ -11,8 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::{cache::CacheManager, connection::Connection};
-use acl::check_resource_acl;
+use crate::{
+    handler::{cache::CacheManager, connection::Connection},
+    subscribe::sub_common::get_sub_topic_id_list,
+};
+use acl::is_allow_acl;
 use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::{
@@ -30,7 +33,7 @@ use metadata_struct::{
 };
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
-use protocol::mqtt::common::{ConnectProperties, Login, QoS};
+use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
 use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::{storage_is_mysql, storage_is_placement};
 
@@ -117,14 +120,14 @@ impl AuthDriver {
         return Ok(false);
     }
 
-    pub async fn check_pub_acl_auth(
+    pub async fn allow_publish(
         &self,
         connection: &Connection,
         topic_name: &String,
         retain: bool,
         qos: QoS,
-    ) -> Result<bool, CommonError> {
-        return check_resource_acl(
+    ) -> bool {
+        return is_allow_acl(
             &self.cache_manager,
             connection,
             topic_name,
@@ -134,7 +137,24 @@ impl AuthDriver {
         );
     }
 
-    pub async fn check_sub_acl_auth(&self) {}
+    pub async fn allow_subscribe(&self, connection: &Connection, subscribe: &Subscribe) -> bool {
+        for filter in subscribe.filters.clone() {
+            let topic_list = get_sub_topic_id_list(self.cache_manager.clone(), filter.path).await;
+            for topic in topic_list {
+                if !is_allow_acl(
+                    &self.cache_manager,
+                    connection,
+                    &topic,
+                    MQTTAclAction::Publish,
+                    false,
+                    filter.qos,
+                ) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
     async fn plaintext_check_login(
         &self,

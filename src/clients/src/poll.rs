@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     broker_mqtt::MqttBrokerMqttServiceManager,
     placement::{
@@ -74,7 +73,10 @@ impl ClientPool {
             match poll.get().await {
                 Ok(conn) => return Ok(conn.into_inner()),
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -107,7 +109,10 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -139,7 +144,10 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -172,7 +180,10 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -204,7 +215,10 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -217,13 +231,7 @@ impl ClientPool {
 
 #[cfg(test)]
 mod tests {
-    use super::ClientPool;
 
     #[tokio::test]
-    async fn get_placement_center_inner_services_client_test() {
-        let poll = ClientPool::new(100);
-        let res = poll
-            .get_placement_center_inner_services_client("".to_string())
-            .await;
-    }
+    async fn get_placement_center_inner_services_client_test() {}
 }

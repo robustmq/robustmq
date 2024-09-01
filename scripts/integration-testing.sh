@@ -67,7 +67,7 @@ start_mqtt_broker_1
 
 sleep 3
 # Run Cargo Test
-cargo test --package mqtt-broker
+cargo test --package mqtt-broker --package clients
 
 if [ $? -ne 0 ]; then
     echo "Test case failed to run"
