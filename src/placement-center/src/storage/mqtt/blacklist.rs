@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use common_base::error::common::CommonError;
 use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use std::sync::Arc;
 
 use crate::storage::{
     engine::{engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster},
@@ -38,9 +38,9 @@ impl MQTTBlackListStorage {
             Ok(data) => {
                 let mut results = Vec::new();
                 for raw in data {
-                    match serde_json::from_slice::<Vec<MQTTAclBlackList>>(&raw.data) {
-                        Ok(acl_list) => {
-                            results.extend(acl_list);
+                    match serde_json::from_slice::<MQTTAclBlackList>(&raw.data) {
+                        Ok(blacklist) => {
+                            results.push(blacklist);
                         }
                         Err(e) => {
                             return Err(e.into());

@@ -21,7 +21,13 @@ use common_base::{
 };
 use dashmap::DashMap;
 use login::{plaintext::Plaintext, Authentication};
-use metadata_struct::{acl::mqtt_acl::MQTTAclAction, mqtt::user::MQTTUser};
+use metadata_struct::{
+    acl::{
+        mqtt_acl::{MQTTAcl, MQTTAclAction},
+        mqtt_blacklist::MQTTAclBlackList,
+    },
+    mqtt::user::MQTTUser,
+};
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS};
@@ -37,6 +43,10 @@ pub mod redis;
 #[async_trait]
 pub trait AuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError>;
+
+    async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError>;
+
+    async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError>;
 
     async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError>;
 }
@@ -78,6 +88,14 @@ impl AuthDriver {
         return self.driver.read_all_user().await;
     }
 
+    pub async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
+        return self.driver.read_all_acl().await;
+    }
+
+    pub async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+        return self.driver.read_all_blacklist().await;
+    }
+
     pub async fn check_login_auth(
         &self,
         login: &Option<Login>,
@@ -116,9 +134,7 @@ impl AuthDriver {
         );
     }
 
-    pub async fn check_sub_acl_auth(&self) {
-        
-    }
+    pub async fn check_sub_acl_auth(&self) {}
 
     async fn plaintext_check_login(
         &self,

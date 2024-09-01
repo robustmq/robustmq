@@ -485,22 +485,22 @@ impl MqttService for GrpcMqttService {
         let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
         match blacklist_storage.list(&req.cluster_name) {
             Ok(list) => {
-                let mut acls = Vec::new();
+                let mut blacklists = Vec::new();
                 for acl in list {
                     match acl.encode() {
                         Ok(data) => {
-                            acls.push(data);
+                            blacklists.push(data);
                         }
                         Err(e) => {
                             return Err(Status::cancelled(e.to_string()));
                         }
                     }
                 }
-
-                return Ok(Response::new(ListBlacklistReply { acls }));
+                return Ok(Response::new(ListBlacklistReply { blacklists }));
             }
             Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+                println!("error:{:?}", e);
+                return Err(Status::internal(e.to_string()));
             }
         }
     }

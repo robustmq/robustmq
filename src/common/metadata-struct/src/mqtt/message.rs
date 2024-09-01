@@ -15,7 +15,8 @@ use bytes::Bytes;
 use common_base::{error::common::CommonError, tools::now_second};
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
-use storage_adapter::record::Record;
+
+use crate::adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct MQTTMessage {

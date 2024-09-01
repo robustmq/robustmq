@@ -73,19 +73,14 @@ fn check_black_list(cache_mamanger: &Arc<CacheManager>, connection: &Connection)
         }
     }
 
-    match cache_mamanger.acl_metadata.blacklist_user_match.read() {
-        Ok(data) => {
-            for raw in data.clone() {
-                let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
-                if re.is_match(&connection.login_user) {
-                    if raw.end_time < now_second() {
-                        return true;
-                    }
+    if let Some(data) = cache_mamanger.acl_metadata.get_blacklist_user_match() {
+        for raw in data {
+            let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
+            if re.is_match(&connection.login_user) {
+                if raw.end_time < now_second() {
+                    return true;
                 }
             }
-        }
-        Err(_) => {
-            return false;
         }
     }
 
@@ -100,19 +95,14 @@ fn check_black_list(cache_mamanger: &Arc<CacheManager>, connection: &Connection)
         }
     }
 
-    match cache_mamanger.acl_metadata.blacklist_client_id_match.read() {
-        Ok(data) => {
-            for raw in data.clone() {
-                let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
-                if re.is_match(&connection.client_id) {
-                    if raw.end_time < now_second() {
-                        return true;
-                    }
+    if let Some(data) = cache_mamanger.acl_metadata.get_blacklist_client_id_match() {
+        for raw in data {
+            let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
+            if re.is_match(&connection.client_id) {
+                if raw.end_time < now_second() {
+                    return true;
                 }
             }
-        }
-        Err(_) => {
-            return false;
         }
     }
 
@@ -127,22 +117,17 @@ fn check_black_list(cache_mamanger: &Arc<CacheManager>, connection: &Connection)
         }
     }
 
-    match cache_mamanger.acl_metadata.blacklist_user_match.read() {
-        Ok(data) => {
-            for raw in data.clone() {
-                if ip_match(connection.source_ip_addr.clone(), raw.resource_name.clone()) {
-                    if raw.end_time < now_second() {
-                        return true;
-                    }
+    if let Some(data) = cache_mamanger.acl_metadata.get_blacklist_ip_match() {
+        for raw in data {
+            if ip_match(connection.source_ip_addr.clone(), raw.resource_name.clone()) {
+                if raw.end_time < now_second() {
+                    return true;
                 }
             }
         }
-        Err(_) => {
-            return false;
-        }
     }
 
-    return true;
+    return false;
 }
 
 fn check_acl(
@@ -163,7 +148,7 @@ fn check_acl(
                 && raw.action == action
                 && raw.permission == MQTTAclPermission::Deny
             {
-                return false;
+                return true;
             }
         }
     }
@@ -179,11 +164,11 @@ fn check_acl(
                 && raw.action == action
                 && raw.permission == MQTTAclPermission::Deny
             {
-                return false;
+                return true;
             }
         }
     }
-    return true;
+    return false;
 }
 
 fn ip_match(source_ip_addr: String, ip_role: String) -> bool {
@@ -201,8 +186,11 @@ fn ip_match(source_ip_addr: String, ip_role: String) -> bool {
 #[cfg(test)]
 mod test {
     #[tokio::test]
-    pub async fn parse_mqtt_acl_test() {}
+    pub async fn check_super_user_test() {}
 
     #[tokio::test]
-    pub async fn parse_mqtt_blacklist() {}
+    pub async fn check_black_list_test() {}
+
+    #[tokio::test]
+    pub async fn check_acl_test() {}
 }

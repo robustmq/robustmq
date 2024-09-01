@@ -11,12 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    record::{Header, Record},
-    storage::{ShardConfig, StorageAdapter},
-};
+use crate::storage::{ShardConfig, StorageAdapter};
 use axum::async_trait;
 use common_base::{error::common::CommonError, tools::now_second};
+use metadata_struct::adapter::record::{Header, Record};
 use mysql::{params, prelude::Queryable, Pool};
 
 use self::schema::{TMqttKvMsg, TMqttRecord};
@@ -79,11 +77,7 @@ impl MySQLStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for MySQLStorageAdapter {
-    async fn create_shard(
-        &self,
-        shard_name: String,
-        _: ShardConfig,
-    ) -> Result<(), CommonError> {
+    async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let show_table_sql = format!(
@@ -394,12 +388,9 @@ impl StorageAdapter for MySQLStorageAdapter {
 
 #[cfg(test)]
 mod tests {
+    use crate::storage::{ShardConfig, StorageAdapter};
+    use metadata_struct::adapter::record::{Header, Record};
     use third_driver::mysql::build_mysql_conn_pool;
-
-    use crate::{
-        record::{Header, Record},
-        storage::{ShardConfig, StorageAdapter},
-    };
 
     use super::MySQLStorageAdapter;
 

@@ -174,12 +174,12 @@ message ListBlacklistRequest{
 }
 
 message ListBlacklistReply{
-    repeated bytes acls = 2;
+    repeated bytes blacklists = 2;
 }
 
 message CreateBlacklistRequest{
     string cluster_name = 1;
-    bytes acl = 2;
+    bytes blacklist = 2;
 }
 
 message DeleteBlacklistRequest{

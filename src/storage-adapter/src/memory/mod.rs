@@ -11,13 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    record::Record,
-    storage::{ShardConfig, StorageAdapter},
-};
+use crate::storage::{ShardConfig, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
+use metadata_struct::adapter::record::Record;
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
@@ -189,8 +187,8 @@ impl StorageAdapter for MemoryStorageAdapter {
 #[cfg(test)]
 mod tests {
     use super::MemoryStorageAdapter;
-    use crate::{record::Record, storage::StorageAdapter};
-
+    use crate::storage::StorageAdapter;
+    use metadata_struct::adapter::record::Record;
     #[tokio::test]
     async fn stream_read_write() {
         let storage_adapter = MemoryStorageAdapter::new();

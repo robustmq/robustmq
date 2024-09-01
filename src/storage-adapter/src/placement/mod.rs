@@ -11,17 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::{
-    record::Record,
-    storage::{ShardConfig, StorageAdapter},
-};
+use crate::storage::{ShardConfig, StorageAdapter};
 use axum::async_trait;
 use clients::{
     placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
     poll::ClientPool,
 };
 use common_base::error::common::CommonError;
+use metadata_struct::adapter::record::Record;
 use protocol::placement_center::generate::kv::{
     DeleteRequest, ExistsRequest, GetRequest, SetRequest,
 };
@@ -41,11 +38,7 @@ impl PlacementStorageAdapter {
 
 #[async_trait]
 impl StorageAdapter for PlacementStorageAdapter {
-    async fn create_shard(
-        &self,
-        _: String,
-        _: ShardConfig,
-    ) -> Result<(), CommonError> {
+    async fn create_shard(&self, _: String, _: ShardConfig) -> Result<(), CommonError> {
         return Ok(());
     }
 

@@ -16,8 +16,9 @@ use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use inner::{
-    inner_create_acl, inner_create_session, inner_create_topic, inner_create_user,
-    inner_delete_acl, inner_delete_session, inner_delete_topic, inner_delete_user, inner_list_acl,
+    inner_create_acl, inner_create_blacklist, inner_create_session, inner_create_topic,
+    inner_create_user, inner_delete_acl, inner_delete_blacklist, inner_delete_session,
+    inner_delete_topic, inner_delete_user, inner_list_acl, inner_list_blacklist,
     inner_list_session, inner_list_topic, inner_list_user, inner_save_last_will_message,
     inner_set_topic_retain_message, inner_update_session,
 };
@@ -95,11 +96,22 @@ pub(crate) async fn mqtt_interface_call(
                     inner_save_last_will_message(client, request.clone()).await
                 }
                 PlacementCenterInterface::ListAcl => inner_list_acl(client, request.clone()).await,
+
                 PlacementCenterInterface::CreateAcl => {
                     inner_create_acl(client, request.clone()).await
                 }
                 PlacementCenterInterface::DeleteAcl => {
                     inner_delete_acl(client, request.clone()).await
+                }
+                PlacementCenterInterface::ListBlackList => {
+                    inner_list_blacklist(client, request.clone()).await
+                }
+
+                PlacementCenterInterface::CreateBlackList => {
+                    inner_create_blacklist(client, request.clone()).await
+                }
+                PlacementCenterInterface::DeleteBlackList => {
+                    inner_delete_blacklist(client, request.clone()).await
                 }
                 _ => {
                     return Err(CommonError::CommmonError(format!(
