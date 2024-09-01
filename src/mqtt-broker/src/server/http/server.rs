@@ -11,7 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::{cache_info, index, metrics};
+use super::{
+    cache::{cache_info, index, metrics},
+    publish::{connection_list, http_publish},
+};
 use crate::handler::cache::CacheManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use axum::routing::get;
@@ -21,6 +24,8 @@ use log::info;
 use std::{net::SocketAddr, sync::Arc};
 
 pub const ROUTE_ROOT: &str = "/";
+pub const ROUTE_PUBLISTH: &str = "/publish";
+pub const ROUTE_CONNECTION: &str = "/connection";
 pub const ROUTE_CACHE: &str = "/caches";
 pub const ROUTE_METRICS: &str = "/metrics";
 
@@ -55,6 +60,8 @@ fn routes_v1(state: HttpServerState) -> Router {
     let meta = Router::new()
         .route(ROUTE_ROOT, get(index))
         .route(ROUTE_CACHE, get(cache_info))
+        .route(ROUTE_PUBLISTH, get(http_publish))
+        .route(ROUTE_CONNECTION, get(connection_list))
         .route(ROUTE_METRICS, get(metrics));
 
     let app = Router::new().merge(meta);
