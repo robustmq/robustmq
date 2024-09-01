@@ -21,12 +21,12 @@ use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        CreateAclRequest, CreateSessionRequest, CreateTopicRequest, CreateUserRequest,
-        DeleteAclRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
-        ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply,
-        ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest,
-        UpdateSessionRequest,
+        CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
+        CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
+        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+        ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+        ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
 };
 use std::sync::Arc;
@@ -414,6 +414,81 @@ pub async fn delete_acl(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteAcl,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn list_blacklist(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListBlacklistRequest,
+) -> Result<ListBlacklistReply, CommonError> {
+    let request_data = ListBlacklistRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::ListBlackList,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListBlacklistReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn create_blacklist(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: CreateBlacklistRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = CreateBlacklistRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::CreateBlackList,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn delete_blacklist(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteBlacklistRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = DeleteBlacklistRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::DeleteBlackList,
         client_poll,
         addrs,
         request_data,

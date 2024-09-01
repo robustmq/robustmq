@@ -15,7 +15,10 @@ use super::AuthStorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::{
+    acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
+    mqtt::user::MQTTUser,
+};
 use mysql::{prelude::Queryable, Pool};
 use third_driver::mysql::build_mysql_conn_pool;
 
@@ -91,6 +94,14 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 return Err(CommonError::CommmonError(e.to_string()));
             }
         }
+    }
+
+    async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
+        return Ok(Vec::new());
+    }
+
+    async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+        return Ok(Vec::new());
     }
 }
 

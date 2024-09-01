@@ -14,7 +14,6 @@
 use crate::handler::connection::Connection;
 use crate::security::acl::metadata::AclMetadata;
 use crate::security::AuthDriver;
-use crate::storage::acl::AclStorage;
 use crate::storage::user::UserStorage;
 use crate::storage::{cluster::ClusterStorage, topic::TopicStorage};
 use crate::subscribe::subscriber::SubscribeData;
@@ -24,6 +23,7 @@ use common_base::tools::now_second;
 use dashmap::DashMap;
 use log::warn;
 use metadata_struct::acl::mqtt_acl::MQTTAcl;
+use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
 use metadata_struct::mqtt::cluster::MQTTCluster;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
@@ -446,21 +446,6 @@ impl CacheManager {
         };
         self.set_cluster_info(cluster);
 
-        // load all user
-        let user_list = match auth_driver.read_all_user().await {
-            Ok(list) => list,
-            Err(e) => {
-                panic!(
-                    "Failed to load the user list with error message:{}",
-                    e.to_string()
-                );
-            }
-        };
-
-        for (_, user) in user_list {
-            self.add_user(user);
-        }
-
         // load all topic
         let topic_storage = TopicStorage::new(self.client_poll.clone());
         let topic_list = match topic_storage.topic_list().await {
@@ -477,19 +462,47 @@ impl CacheManager {
             self.add_topic(&topic.topic_name, &topic);
         }
 
-        // load adll acl
-        let acl_storage = AclStorage::new(self.client_poll.clone());
-        let acl_list = match acl_storage.list_acl().await {
+        // load all user
+        let user_list = match auth_driver.read_all_user().await {
             Ok(list) => list,
             Err(e) => {
                 panic!(
-                    "Failed to load the topic list with error message:{}",
+                    "Failed to load the user list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+
+        for (_, user) in user_list {
+            self.add_user(user);
+        }
+
+        // load all acl
+        let acl_list = match auth_driver.read_all_acl().await {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the acl list with error message:{}",
                     e.to_string()
                 );
             }
         };
         for acl in acl_list {
             self.add_acl(acl);
+        }
+
+        // load all blacklist
+        let blacklist_list = match auth_driver.read_all_blacklist().await {
+            Ok(list) => list,
+            Err(e) => {
+                panic!(
+                    "Failed to load the blacklist list with error message:{}",
+                    e.to_string()
+                );
+            }
+        };
+        for blacklist in blacklist_list {
+            self.add_blacklist(blacklist);
         }
     }
 
@@ -525,7 +538,13 @@ impl CacheManager {
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn add_acl(&self, _: MQTTAcl) {}
+    pub fn add_acl(&self, acl: MQTTAcl) {
+        self.acl_metadata.parse_mqtt_acl(acl);
+    }
+
+    pub fn add_blacklist(&self, acl: MQTTAclBlackList) {
+        self.acl_metadata.parse_mqtt_blacklist(acl);
+    }
 
     pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {
         let key = self.key(client_id, pkid);

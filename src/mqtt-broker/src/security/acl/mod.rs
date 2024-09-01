@@ -201,8 +201,11 @@ fn ip_match(source_ip_addr: String, ip_role: String) -> bool {
 #[cfg(test)]
 mod test {
     #[tokio::test]
-    pub async fn parse_mqtt_acl_test() {}
+    pub async fn check_super_user_test() {}
 
     #[tokio::test]
-    pub async fn parse_mqtt_blacklist() {}
+    pub async fn check_black_list_test() {}
+
+    #[tokio::test]
+    pub async fn check_acl_test() {}
 }

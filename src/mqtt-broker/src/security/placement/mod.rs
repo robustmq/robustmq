@@ -11,34 +11,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::sync::Arc;
+use super::AuthStorageAdapter;
+use crate::storage::{acl::AclStorage, blacklist::BlackListStorage, user::UserStorage};
 use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::mqtt::user::MQTTUser;
-use crate::storage::user::UserStorage;
-use super::AuthStorageAdapter;
+use metadata_struct::{
+    acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
+    mqtt::user::MQTTUser,
+};
+use std::sync::Arc;
 
 pub struct PlacementAuthStorageAdapter {
-    user_storage: UserStorage,
+    client_poll: Arc<ClientPool>,
 }
 
 impl PlacementAuthStorageAdapter {
     pub fn new(client_poll: Arc<ClientPool>) -> PlacementAuthStorageAdapter {
-        let user_storage = UserStorage::new(client_poll);
-        return PlacementAuthStorageAdapter { user_storage };
+        return PlacementAuthStorageAdapter { client_poll };
     }
 }
 
 #[async_trait]
 impl AuthStorageAdapter for PlacementAuthStorageAdapter {
     async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
-        return self.user_storage.user_list().await;
+        let user_storage = UserStorage::new(self.client_poll.clone());
+        return user_storage.user_list().await;
     }
 
     async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError> {
-        return self.user_storage.get_user(username).await;
+        let user_storage = UserStorage::new(self.client_poll.clone());
+        return user_storage.get_user(username).await;
+    }
+
+    async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
+        let acl_storage = AclStorage::new(self.client_poll.clone());
+        return acl_storage.list_acl().await;
+    }
+
+    async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+        let blacklist_storage = BlackListStorage::new(self.client_poll.clone());
+        return blacklist_storage.list_blacklist().await;
     }
 }

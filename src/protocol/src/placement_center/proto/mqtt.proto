@@ -174,7 +174,7 @@ message ListBlacklistRequest{
 }
 
 message ListBlacklistReply{
-    repeated bytes acls = 2;
+    repeated bytes blacklists = 2;
 }
 
 message CreateBlacklistRequest{

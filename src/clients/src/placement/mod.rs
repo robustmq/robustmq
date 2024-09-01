@@ -73,6 +73,9 @@ pub enum PlacementCenterInterface {
     CreateAcl,
     DeleteAcl,
     ListAcl,
+    CreateBlackList,
+    DeleteBlackList,
+    ListBlackList,
 }
 
 pub mod journal;

@@ -188,7 +188,7 @@ pub struct ListBlacklistRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListBlacklistReply {
     #[prost(bytes = "vec", repeated, tag = "2")]
-    pub acls: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+    pub blacklists: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
