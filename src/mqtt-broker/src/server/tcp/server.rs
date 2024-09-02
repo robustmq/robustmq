@@ -18,9 +18,12 @@ use crate::{
         connection::disconnect_connection,
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
     },
-    metrics::{metrics_request_queue, metrics_response_queue},
+    metrics::{
+        packets::{metrics_request_error_packet_incr, metrics_request_packet_incr},
+        server::{metrics_request_queue, metrics_response_queue},
+    },
     server::{
-        connection::NetworkConnection,
+        connection::{NetworkConnection, NetworkConnectionType},
         connection_manager::ConnectionManager,
         packet::{RequestPackage, ResponsePackage},
         tcp::tls_server::read_tls_frame_process,
@@ -59,6 +62,7 @@ pub struct TcpServer<S> {
     handler_process_num: usize,
     response_process_num: usize,
     stop_sx: broadcast::Sender<bool>,
+    network_connection_type: NetworkConnectionType,
 }
 
 impl<S> TcpServer<S>
@@ -86,10 +90,11 @@ where
             handler_process_num,
             response_process_num,
             stop_sx,
+            network_connection_type: NetworkConnectionType::TCP,
         }
     }
 
-    pub async fn start(&self, port: u32) {
+    pub async fn start(&mut self, port: u32) {
         let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
             Ok(tl) => tl,
             Err(e) => {
@@ -105,10 +110,11 @@ where
         self.handler_process(request_queue_rx, response_queue_sx)
             .await;
         self.response_process(response_queue_rx).await;
+        self.network_connection_type = NetworkConnectionType::TCP;
         info!("MQTT TCP Server started successfully, listening port: {port}");
     }
 
-    pub async fn start_tls(&self, port: u32) {
+    pub async fn start_tls(&mut self, port: u32) {
         let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
             Ok(tl) => tl,
             Err(e) => {
@@ -124,6 +130,7 @@ where
         self.handler_process(request_queue_rx, response_queue_sx)
             .await;
         self.response_process(response_queue_rx).await;
+        self.network_connection_type = NetworkConnectionType::TCPS;
         info!("MQTT TCP TLS Server started successfully, listening port: {port}");
     }
 
@@ -165,6 +172,7 @@ where
             let mut stop_rx = self.stop_sx.subscribe();
             let raw_request_queue_sx = request_queue_sx.clone();
             let raw_tls_acceptor = tls_acceptor.clone();
+            let network_type = self.network_connection_type.clone();
             tokio::spawn(async move {
                 debug!("TCP Server acceptor thread {} start successfully.", index);
                 loop {
@@ -209,7 +217,7 @@ where
                                     connection_manager.add_connection(connection.clone());
                                     connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
-                                    read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx);
+                                    read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx, network_type.clone());
                                 }
                                 Err(e) => {
                                     error!("TCP accept failed to create connection with error message :{:?}",e);
@@ -232,6 +240,7 @@ where
             let connection_manager = self.connection_manager.clone();
             let mut stop_rx = self.stop_sx.subscribe();
             let raw_request_queue_sx = request_queue_sx.clone();
+            let network_type = self.network_connection_type.clone();
 
             tokio::spawn(async move {
                 debug!("TCP Server acceptor thread {} start successfully.", index);
@@ -271,7 +280,7 @@ where
                                     connection_manager.add_connection(connection.clone());
                                     connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
-                                    read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx);
+                                    read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx,network_type.clone());
                                 }
                                 Err(e) => {
                                     error!("TCP accept failed to create connection with error message :{:?}",e);
@@ -396,7 +405,7 @@ where
 
                     val = response_queue_rx.recv()=>{
                         if let Some(packet) = val{
-                            metrics_request_queue("response-total", response_queue_rx.len() as i64);
+                            metrics_request_queue("response-total", response_queue_rx.len());
                             loop{
                                 let seq = if response_process_seq > process_handler.len(){
                                     1
@@ -432,6 +441,7 @@ fn read_frame_process(
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
+    network_type: NetworkConnectionType,
 ) {
     tokio::spawn(async move {
         loop {
@@ -448,6 +458,7 @@ fn read_frame_process(
                     if let Some(pkg) = val {
                         match pkg {
                             Ok(data) => {
+                                metrics_request_packet_incr(network_type.clone());
                                 let pack: MQTTPacket = data.try_into().unwrap();
                                 debug!("revc tcp packet:{:?}", pack);
                                 let package =
@@ -458,6 +469,7 @@ fn read_frame_process(
                                 }
                             }
                             Err(e) => {
+                                metrics_request_error_packet_incr(network_type.clone());
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
@@ -571,7 +583,7 @@ fn response_child_process(
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
                             let lable = format!("handler-{}",index);
-                            metrics_response_queue(&lable, response_process_rx.len() as i64);
+                            metrics_response_queue(&lable, response_process_rx.len());
 
                             if let Some(protocol) =
                             raw_connect_manager.get_connect_protocol(response_package.connection_id)
