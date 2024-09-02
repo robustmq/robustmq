@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::index::{caches, index, metrics};
+use super::index::{caches, index, metrics, list_cluster, list_node};
 use super::mqtt::mqtt_routes;
 use crate::raft::metadata::RaftGroupMetadata;
 use crate::{
@@ -26,10 +26,13 @@ use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
 };
+use super::list_path;
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_METRICS: &str = "/metrics";
 pub const ROUTE_CACHES: &str = "/caches";
+pub const ROUTE_CLUSTER: &str = "/cluster";
+pub const ROUTE_CLUSTER_NODE: &str = "/cluster/node";
 
 #[derive(Clone)]
 pub struct HttpServerState {
@@ -71,7 +74,9 @@ fn routes(state: HttpServerState) -> Router {
     let common = Router::new()
         .route(ROUTE_ROOT, get(index))
         .route(ROUTE_CACHES, get(caches))
-        .route(ROUTE_METRICS, get(metrics));
+        .route(ROUTE_METRICS, get(metrics))
+        .route(&list_path(ROUTE_CLUSTER), get(list_cluster))
+        .route(&list_path(ROUTE_CLUSTER_NODE), get(list_node));
 
     let mqtt = mqtt_routes();
 
