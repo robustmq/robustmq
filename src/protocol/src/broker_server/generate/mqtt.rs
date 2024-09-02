@@ -1,6 +1,15 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct UpdateCacheRequest {}
+pub struct UpdateCacheRequest {
+    #[prost(string, tag = "1")]
+    pub cluster_name: ::prost::alloc::string::String,
+    #[prost(enumeration = "MqttBrokerUpdateCacheActionType", tag = "2")]
+    pub action_type: i32,
+    #[prost(enumeration = "MqttBrokerUpdateCacheResourceType", tag = "3")]
+    pub resource_type: i32,
+    #[prost(bytes = "vec", tag = "4")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteSessionRequest {
@@ -24,6 +33,58 @@ pub struct SendLastWillMessageRequest {
     pub client_id: ::prost::alloc::string::String,
     #[prost(bytes = "vec", tag = "2")]
     pub last_will_message: ::prost::alloc::vec::Vec<u8>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum MqttBrokerUpdateCacheActionType {
+    Add = 0,
+    Delete = 1,
+}
+impl MqttBrokerUpdateCacheActionType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            MqttBrokerUpdateCacheActionType::Add => "Add",
+            MqttBrokerUpdateCacheActionType::Delete => "Delete",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "Add" => Some(Self::Add),
+            "Delete" => Some(Self::Delete),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum MqttBrokerUpdateCacheResourceType {
+    Session = 0,
+    User = 1,
+}
+impl MqttBrokerUpdateCacheResourceType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            MqttBrokerUpdateCacheResourceType::Session => "Session",
+            MqttBrokerUpdateCacheResourceType::User => "User",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "Session" => Some(Self::Session),
+            "User" => Some(Self::User),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 pub mod mqtt_broker_service_client {

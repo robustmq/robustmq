@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use crate::handler::cache::{update_cache_metadata, CacheManager};
 use crate::handler::lastwill::send_last_will_message;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
@@ -55,8 +55,10 @@ where
 {
     async fn update_cache(
         &self,
-        _: Request<UpdateCacheRequest>,
+        request: Request<UpdateCacheRequest>,
     ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        update_cache_metadata(req);
         return Ok(Response::new(CommonReply::default()));
     }
 
