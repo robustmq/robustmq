@@ -16,11 +16,14 @@ use super::{
     constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE},
 };
 use crate::{
-    metrics::packets::metrics_packets_sent, server::connection_manager::ConnectionManager, storage::topic::TopicStorage, subscribe::{
+    observability::metrics::packets::{record_retain_recv_metrics, record_retain_sent_metrics},
+    server::connection_manager::ConnectionManager,
+    storage::topic::TopicStorage,
+    subscribe::{
         sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0},
         sub_exclusive::{exclusive_publish_message_qos1, exclusive_publish_message_qos2},
         subscriber::Subscriber,
-    }
+    },
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
@@ -55,6 +58,7 @@ pub async fn save_topic_retain_message(
             }
         }
     } else {
+        record_retain_recv_metrics(publish.qos);
         let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
         let message_expire = message_expiry_interval(cache_manager, publish_properties);
         match topic_storage
@@ -125,7 +129,7 @@ pub async fn try_send_retain_message(
                             pkid,
                             retain,
                             topic: Bytes::from(topic_name),
-                            payload: msg.payload,
+                            payload: msg.payload.clone(),
                         };
                         let mut user_properties = msg.user_properties.clone();
                         user_properties.push((
@@ -144,6 +148,7 @@ pub async fn try_send_retain_message(
                             content_type: msg.content_type,
                         };
 
+                        record_retain_sent_metrics(publish.qos);
                         match qos {
                             QoS::AtMostOnce => {
                                 publish_message_qos0(

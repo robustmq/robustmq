@@ -24,3 +24,9 @@ pub struct BrokerNode {
     pub extend: String,
     pub create_time: u128,
 }
+
+impl BrokerNode {
+    pub fn encode(&self) -> Vec<u8> {
+        return serde_json::to_vec(&self).unwrap();
+    }
+}

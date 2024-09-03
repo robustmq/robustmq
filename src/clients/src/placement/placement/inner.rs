@@ -18,13 +18,30 @@ use protocol::placement_center::generate::{
     placement::{
         placement_center_service_client::PlacementCenterServiceClient, DeleteIdempotentDataRequest,
         DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
-        GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, RegisterNodeRequest,
-        SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-        SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
-        UnRegisterNodeRequest,
+        GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
+        NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+        SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
+        SetResourceConfigRequest, UnRegisterNodeRequest,
     },
 };
 use tonic::transport::Channel;
+
+pub(crate) async fn inner_node_list(
+    mut client: PlacementCenterServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match NodeListRequest::decode(request.as_ref()) {
+        Ok(request) => match client.node_list(request).await {
+            Ok(result) => {
+                return Ok(NodeListReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
 
 pub(crate) async fn inner_register_node(
     mut client: PlacementCenterServiceClient<Channel>,

@@ -300,6 +300,7 @@ where
                         topic_name.clone(),
                         msg.clone(),
                     ) {
+
                         match publish.qos {
                             QoS::AtMostOnce => {
                                 publish_message_qos0(

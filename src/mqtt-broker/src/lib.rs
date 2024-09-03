@@ -16,6 +16,7 @@ use common_base::{config::broker_mqtt::broker_mqtt_conf, runtime::create_runtime
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache::CacheManager, heartbreat::report_heartbeat};
 use log::info;
+use observability::system_topic::SystemTopic;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::tcp::start_tcp_server;
@@ -42,7 +43,7 @@ use tokio::{
 };
 
 pub mod handler;
-mod metrics;
+mod observability;
 mod security;
 mod server;
 pub mod storage;
@@ -126,6 +127,7 @@ where
         self.start_keep_alive_thread(stop_send.clone());
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_push_server();
+        self.start_system_topic_thread(stop_send.clone());
         self.awaiting_stop(stop_send);
     }
 
@@ -258,6 +260,17 @@ where
         );
         self.runtime.spawn(async move {
             keep_alive.start_heartbeat_check().await;
+        });
+    }
+
+    fn start_system_topic_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let system_topic = SystemTopic::new(
+            self.cache_manager.clone(),
+            self.message_storage_adapter.clone(),
+            self.client_poll.clone(),
+        );
+        self.runtime.spawn(async move {
+            system_topic.start_thread(stop_send).await;
         });
     }
 

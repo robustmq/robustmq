@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::metrics::packets::{metrics_packets_received, metrics_packets_received_error};
+use crate::observability::metrics::packets::{record_received_error_metrics, record_received_metrics};
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::packet::RequestPackage;
 
@@ -66,8 +66,8 @@ pub(crate) fn read_tls_frame_process(
                     if let Some(pkg) = val {
                         match pkg {
                             Ok(data) => {
-                                metrics_packets_received(network_type.clone());
                                 let pack: MQTTPacket = data.try_into().unwrap();
+                                record_received_metrics(&connection, &pack, &network_type);
                                 info!("revc tcp tls packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
@@ -78,7 +78,7 @@ pub(crate) fn read_tls_frame_process(
                                 }
                             }
                             Err(e) => {
-                                metrics_packets_received_error(network_type.clone());
+                                record_received_error_metrics(network_type.clone());
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }

@@ -13,6 +13,7 @@
 
 use crate::handler::cache::CacheManager;
 use crate::handler::cache::QosAckPackageData;
+use crate::observability::metrics::packets::record_sent_metrics;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
@@ -21,8 +22,8 @@ use bytes::BytesMut;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use log::error;
 use protocol::mqtt::codec::MQTTPacketWrapper;
 use protocol::mqtt::codec::MqttCodec;
@@ -171,6 +172,8 @@ pub async fn publish_message_to_client(
     connection_manager: &Arc<ConnectionManager>,
 ) -> Result<(), CommonError> {
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
+        record_sent_metrics(&resp, connection_manager);
+
         let response: MQTTPacketWrapper = MQTTPacketWrapper {
             protocol_version: protocol.clone().into(),
             packet: resp.packet,

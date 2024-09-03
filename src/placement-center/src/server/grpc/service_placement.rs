@@ -29,9 +29,10 @@ use protocol::placement_center::generate::placement::placement_center_service_se
 use protocol::placement_center::generate::placement::{
     DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
     ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest,
-    HeartbeatRequest, RegisterNodeRequest, ReportMonitorRequest, SendRaftConfChangeReply,
-    SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest,
-    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest, ReportMonitorRequest,
+    SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
+    SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
+    UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
@@ -47,15 +48,15 @@ pub struct GrpcPlacementService {
 
 impl GrpcPlacementService {
     pub fn new(
-        placement_center_storage: Arc<RaftMachineApply>,
-        placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+        raft_machine_apply: Arc<RaftMachineApply>,
+        raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcPlacementService {
-            placement_center_storage,
-            placement_cache,
+            placement_center_storage: raft_machine_apply,
+            placement_cache: raft_metadata,
             cluster_cache,
             rocksdb_engine_handler,
             client_poll,
@@ -69,6 +70,20 @@ impl GrpcPlacementService {
 
 #[tonic::async_trait]
 impl PlacementCenterService for GrpcPlacementService {
+    async fn node_list(
+        &self,
+        request: Request<NodeListRequest>,
+    ) -> Result<Response<NodeListReply>, Status> {
+        let req = request.into_inner();
+        let mut nodes = Vec::new();
+        if let Some(node_list) = self.cluster_cache.node_list.get(&req.cluster_name) {
+            for (_, node) in node_list.clone() {
+                nodes.push(node.encode())
+            }
+        }
+        return Ok(Response::new(NodeListReply { nodes }));
+    }
+
     async fn register_node(
         &self,
         request: Request<RegisterNodeRequest>,

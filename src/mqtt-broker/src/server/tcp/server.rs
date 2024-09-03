@@ -18,7 +18,10 @@ use crate::{
         connection::disconnect_connection,
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
     },
-    metrics::{packets::{metrics_packets_received, metrics_packets_received_error}, server::{metrics_request_queue, metrics_response_queue}},
+    observability::{
+        metrics::packets::{record_received_error_metrics, record_received_metrics},
+        metrics::server::{metrics_request_queue, metrics_response_queue},
+    },
     server::{
         connection::{NetworkConnection, NetworkConnectionType},
         connection_manager::ConnectionManager,
@@ -455,8 +458,9 @@ fn read_frame_process(
                     if let Some(pkg) = val {
                         match pkg {
                             Ok(data) => {
-                                metrics_packets_received(network_type.clone());
                                 let pack: MQTTPacket = data.try_into().unwrap();
+                                record_received_metrics(&connection, &pack, &network_type);
+
                                 debug!("revc tcp packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
@@ -467,7 +471,7 @@ fn read_frame_process(
                                 }
                             }
                             Err(e) => {
-                                metrics_packets_received_error(network_type.clone());
+                                record_received_error_metrics(network_type.clone());
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
