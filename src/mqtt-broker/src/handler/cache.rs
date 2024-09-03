@@ -28,6 +28,9 @@ use metadata_struct::mqtt::cluster::MQTTCluster;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
+use protocol::broker_server::generate::mqtt::{
+    MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
+};
 use protocol::mqtt::common::{MQTTProtocol, PublishProperties, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -585,5 +588,18 @@ impl CacheManager {
 
     fn key(&self, client_id: &String, pkid: u16) -> String {
         return format!("{}_{}", client_id, pkid);
+    }
+}
+
+pub fn update_cache_metadata(request: UpdateCacheRequest) {
+    match request.resource_type() {
+        MqttBrokerUpdateCacheResourceType::Session => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Add => {}
+            MqttBrokerUpdateCacheActionType::Delete => {}
+        },
+        MqttBrokerUpdateCacheResourceType::User => match request.action_type() {
+            MqttBrokerUpdateCacheActionType::Add => {}
+            MqttBrokerUpdateCacheActionType::Delete => {}
+        },
     }
 }

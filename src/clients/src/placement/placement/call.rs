@@ -22,12 +22,38 @@ use protocol::placement_center::generate::{
     placement::{
         DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
         ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest,
-        HeartbeatRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-        SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
-        SetResourceConfigRequest, UnRegisterNodeRequest,
+        HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest,
+        SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
+        SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
+        UnRegisterNodeRequest,
     },
 };
 use std::sync::Arc;
+
+pub async fn node_list(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: NodeListRequest,
+) -> Result<NodeListReply, CommonError> {
+    let request_data = NodeListRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::ListNode,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match NodeListReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
 
 pub async fn register_node(
     client_poll: Arc<ClientPool>,
