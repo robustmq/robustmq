@@ -2,7 +2,8 @@ use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 
 use crate::{
-    handler::constant::METRICS_KEY_NETWORK_TYPE, server::connection::NetworkConnectionType,
+    handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS, METRICS_KEY_RETAIN},
+    server::connection::NetworkConnectionType,
 };
 
 lazy_static! {
@@ -26,7 +27,7 @@ lazy_static! {
     static ref PACKETS_SENT: IntGaugeVec = register_int_gauge_vec!(
         "packets.sent",
         "Number of packets sent",
-        &[METRICS_KEY_NETWORK_TYPE]
+        &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS,METRICS_KEY_RETAIN]
     )
     .unwrap();
 
@@ -47,14 +48,32 @@ lazy_static! {
     .unwrap();
 }
 
-pub fn metrics_request_error_packet_incr(network_type: NetworkConnectionType) {
+pub fn metrics_packets_received_error(network_type: NetworkConnectionType) {
     PACKETS_RECEIVED_ERROR
         .with_label_values(&[&network_type.to_string()])
         .inc();
 }
 
-pub fn metrics_request_packet_incr(network_type: NetworkConnectionType) {
+pub fn metrics_packets_received(network_type: NetworkConnectionType) {
     PACKETS_RECEIVED
+        .with_label_values(&[&network_type.to_string()])
+        .inc();
+}
+
+pub fn metrics_packets_sent(network_type: NetworkConnectionType, qos: String, retain: String) {
+    PACKETS_SENT
+        .with_label_values(&[&network_type.to_string(), &qos, &retain])
+        .inc();
+}
+
+pub fn metrics_bytes_received(network_type: NetworkConnectionType) {
+    BYTES_RECEIVED
+        .with_label_values(&[&network_type.to_string()])
+        .inc();
+}
+
+pub fn metrics_bytes_sent(network_type: NetworkConnectionType) {
+    BYTES_SENT
         .with_label_values(&[&network_type.to_string()])
         .inc();
 }

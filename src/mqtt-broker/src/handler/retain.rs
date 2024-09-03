@@ -16,13 +16,11 @@ use super::{
     constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE},
 };
 use crate::{
-    server::connection_manager::ConnectionManager,
-    storage::topic::TopicStorage,
-    subscribe::{
+    metrics::packets::metrics_packets_sent, server::connection_manager::ConnectionManager, storage::topic::TopicStorage, subscribe::{
         sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0},
         sub_exclusive::{exclusive_publish_message_qos1, exclusive_publish_message_qos2},
         subscriber::Subscriber,
-    },
+    }
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;

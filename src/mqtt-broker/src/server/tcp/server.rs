@@ -18,10 +18,7 @@ use crate::{
         connection::disconnect_connection,
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
     },
-    metrics::{
-        packets::{metrics_request_error_packet_incr, metrics_request_packet_incr},
-        server::{metrics_request_queue, metrics_response_queue},
-    },
+    metrics::{packets::{metrics_packets_received, metrics_packets_received_error}, server::{metrics_request_queue, metrics_response_queue}},
     server::{
         connection::{NetworkConnection, NetworkConnectionType},
         connection_manager::ConnectionManager,
@@ -458,18 +455,19 @@ fn read_frame_process(
                     if let Some(pkg) = val {
                         match pkg {
                             Ok(data) => {
-                                metrics_request_packet_incr(network_type.clone());
+                                metrics_packets_received(network_type.clone());
                                 let pack: MQTTPacket = data.try_into().unwrap();
                                 debug!("revc tcp packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
+
                                 match request_queue_sx.send(package).await {
                                     Ok(_) => {}
                                     Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
                                 }
                             }
                             Err(e) => {
-                                metrics_request_error_packet_incr(network_type.clone());
+                                metrics_packets_received_error(network_type.clone());
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
