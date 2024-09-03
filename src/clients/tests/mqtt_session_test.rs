@@ -7,7 +7,7 @@ mod tests {
             placement_update_session, placement_delete_session},
         poll::ClientPool,
     };
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::{mqtt::session::MQTTSession};
     use protocol::placement_center::generate::mqtt::{
         ListSessionRequest, CreateSessionRequest,
         UpdateSessionRequest, DeleteSessionRequest,
@@ -19,6 +19,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = "test1".to_string();
+        let client_id: String = "test_cluster_id".to_string();
         let connection_id: u64 = 1;
         let broker_id: u64 = 1;
         let reconnect_time: u64 = 10000000;
@@ -26,6 +27,19 @@ mod tests {
 
         let mqtt_session: MQTTSession = MQTTSession::default();
 
+        let request = CreateSessionRequest {
+            cluster_name: cluster_name.clone(),
+            client_id: client_id.clone(),
+            session: MQTTSession::encode(&mqtt_session),
+        };
+
+        match placement_create_session(client_poll.clone(), addrs.clone(), request).await {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{:?}", e);
+                assert!(false);
+            }
+        }
 
         let request = ListSessionRequest {
             cluster_name: cluster_name.clone(),
@@ -39,20 +53,6 @@ mod tests {
                     println!("{:?}", session);
                 }
             }
-            Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
-            }
-        }
-
-        let request = CreateSessionRequest {
-            cluster_name: cluster_name.clone(),
-            client_id: mqtt_session.client_id.clone(),
-            session: MQTTSession::encode(&mqtt_session),
-        };
-
-        match placement_create_session(client_poll.clone(), addrs.clone(), request).await {
-            Ok(_) => {}
             Err(e) => {
                 println!("{:?}", e);
                 assert!(false);
@@ -76,6 +76,24 @@ mod tests {
             }
         }
 
+        let request = ListSessionRequest {
+            cluster_name: cluster_name.clone(),
+            client_id: mqtt_session.client_id.clone(),
+        };
+
+        match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
+            Ok(data) => {
+                for raw in data.sessions {
+                    let session = serde_json::from_slice::<MQTTSession>(raw.as_slice()).unwrap();
+                    println!("{:?}", session);
+                }
+            }
+            Err(e) => {
+                println!("{:?}", e);
+                assert!(false);
+            }
+        }
+
         let request = DeleteSessionRequest {
             cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
@@ -83,6 +101,24 @@ mod tests {
 
         match placement_delete_session(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
+            Err(e) => {
+                println!("{:?}", e);
+                assert!(false);
+            }
+        }
+
+        let request = ListSessionRequest {
+            cluster_name: cluster_name.clone(),
+            client_id: mqtt_session.client_id.clone(),
+        };
+
+        match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
+            Ok(data) => {
+                for raw in data.sessions {
+                    let session = serde_json::from_slice::<MQTTSession>(raw.as_slice()).unwrap();
+                    println!("{:?}", session);
+                }
+            }
             Err(e) => {
                 println!("{:?}", e);
                 assert!(false);
