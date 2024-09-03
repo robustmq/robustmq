@@ -11,7 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::server::connection::NetworkConnection;
+use crate::observability::metrics::packets::{record_received_error_metrics, record_received_metrics};
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::packet::RequestPackage;
 
 use futures_util::StreamExt;
@@ -48,6 +49,7 @@ pub(crate) fn read_tls_frame_process(
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
+    network_type: NetworkConnectionType,
 ) {
     tokio::spawn(async move {
         loop {
@@ -65,6 +67,7 @@ pub(crate) fn read_tls_frame_process(
                         match pkg {
                             Ok(data) => {
                                 let pack: MQTTPacket = data.try_into().unwrap();
+                                record_received_metrics(&connection, &pack, &network_type);
                                 info!("revc tcp tls packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
@@ -75,6 +78,7 @@ pub(crate) fn read_tls_frame_process(
                                 }
                             }
                             Err(e) => {
+                                record_received_error_metrics(network_type.clone());
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }

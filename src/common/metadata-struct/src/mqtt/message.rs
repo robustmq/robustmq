@@ -38,6 +38,20 @@ pub struct MQTTMessage {
 }
 
 impl MQTTMessage {
+    pub fn build_system_topic_message(payload: String) -> Option<Record> {
+        let mut message = MQTTMessage::default();
+
+        match serde_json::to_vec(&message) {
+            Ok(data) => {
+                return Some(Record::build_b(data));
+            }
+
+            Err(_) => {
+                return None;
+            }
+        }
+    }
+
     pub fn build_message(
         client_id: &String,
         publish: &Publish,

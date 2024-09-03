@@ -1,6 +1,6 @@
 TARGET = robustmq
 BUILD_FOLD = ./build
-VERSION:=$(shell cat version.ini)
+VERSION:=$(shell cat config/version.ini)
 PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)
 
 release:

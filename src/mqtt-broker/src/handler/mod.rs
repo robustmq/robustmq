@@ -27,4 +27,3 @@ pub mod pkid;
 pub mod command;
 pub mod mqtt;
 pub mod constant;
-pub mod system_topic;

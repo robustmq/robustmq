@@ -1,6 +1,6 @@
 use crate::handler::constant::WILDCARD_RESOURCE;
 use crate::handler::{cache::CacheManager, connection::Connection};
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::tools::now_second;
 use ipnet::IpNet;
 use metadata_struct::acl::mqtt_acl::{MQTTAclAction, MQTTAclPermission};
 use protocol::mqtt::common::QoS;
