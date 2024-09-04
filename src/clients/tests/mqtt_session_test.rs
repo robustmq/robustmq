@@ -7,7 +7,7 @@ mod tests {
             placement_update_session, placement_delete_session},
         poll::ClientPool,
     };
-    use metadata_struct::{mqtt::session::MQTTSession};
+    use metadata_struct::mqtt::session::MQTTSession;
     use protocol::placement_center::generate::mqtt::{
         ListSessionRequest, CreateSessionRequest,
         UpdateSessionRequest, DeleteSessionRequest,
@@ -32,8 +32,8 @@ mod tests {
             true,
             Some(last_will_delay_interval.clone())
         );
-
         mqtt_session.update_broker_id(Some(broker_id.clone()));
+        mqtt_session.update_connnction_id(Some(connection_id.clone()));
 
         
         let request = CreateSessionRequest {
@@ -41,7 +41,6 @@ mod tests {
             client_id: client_id.clone(),
             session: MQTTSession::encode(&mqtt_session),
         };
-        println!("CreateSessionRequest: {:?}", request);
 
         match placement_create_session(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
@@ -58,10 +57,14 @@ mod tests {
 
         match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
             Ok(data) => {
+                let mut flag: bool = false;
                 for raw in data.sessions {
                     let session = serde_json::from_slice::<MQTTSession>(raw.as_slice()).unwrap();
-                    println!("{:?}", session);
+                    if mqtt_session == session {
+                        flag = true;
+                    }
                 }
+                assert!(flag);
             }
             Err(e) => {
                 println!("{:?}", e);
@@ -76,12 +79,11 @@ mod tests {
         let request = UpdateSessionRequest {
             cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
-            connection_id: mqtt_session.connection_id.unwrap_or(connection_id.clone()),
+            connection_id: mqtt_session.connection_id.unwrap(),
             broker_id: mqtt_session.broker_id.unwrap_or(1100),
             reconnect_time: mqtt_session.reconnect_time.unwrap(),
             distinct_time: mqtt_session.distinct_time.unwrap(),
         };
-        println!("UpdateSessionRequest: {:?}", request);
 
         match placement_update_session(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
@@ -98,10 +100,14 @@ mod tests {
 
         match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
             Ok(data) => {
+                let mut flag: bool = false;
                 for raw in data.sessions {
                     let session = serde_json::from_slice::<MQTTSession>(raw.as_slice()).unwrap();
-                    println!("{:?}", session);
+                    if mqtt_session == session {
+                        flag = true;
+                    }
                 }
+                assert!(flag);
             }
             Err(e) => {
                 println!("{:?}", e);
@@ -113,7 +119,6 @@ mod tests {
             cluster_name: cluster_name.clone(),
             client_id: mqtt_session.client_id.clone(),
         };
-        println!("DeleteSessionRequest: {:?}", request);
 
         match placement_delete_session(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
@@ -130,10 +135,14 @@ mod tests {
 
         match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
             Ok(data) => {
+                let mut flag: bool = false;
                 for raw in data.sessions {
                     let session = serde_json::from_slice::<MQTTSession>(raw.as_slice()).unwrap();
-                    println!("{:?}", session);
+                    if mqtt_session == session {
+                        flag = true;
+                    }
                 }
+                assert!(!flag);
             }
             Err(e) => {
                 println!("{:?}", e);
