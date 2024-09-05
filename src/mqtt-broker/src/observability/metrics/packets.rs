@@ -18,7 +18,7 @@ use crate::{
 lazy_static! {
     // Number of packets received
     static ref PACKETS_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "packets.received",
+        "packets_received",
         "Number of packets received",
         &[METRICS_KEY_NETWORK_TYPE]
     )
@@ -26,7 +26,7 @@ lazy_static! {
 
     // Number of error packets received
     static ref PACKETS_RECEIVED_ERROR: IntGaugeVec = register_int_gauge_vec!(
-        "packets.received.error",
+        "packets_received_error",
         "Number of error packets received",
         &[METRICS_KEY_NETWORK_TYPE]
     )
@@ -34,7 +34,7 @@ lazy_static! {
 
     // Number of packets sent
     static ref PACKETS_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "packets.sent",
+        "packets_sent",
         "Number of packets sent",
         &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
     )
@@ -42,7 +42,7 @@ lazy_static! {
 
     // Number of bytes received
     static ref BYTES_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "bytes.received",
+        "bytes_received",
         "Number of bytes received",
         &[METRICS_KEY_NETWORK_TYPE]
     )
@@ -50,7 +50,7 @@ lazy_static! {
 
     // Number of bytes sent
     static ref BYTES_SENT: IntGaugeVec = register_int_gauge_vec!(
-        "bytes.sent",
+        "bytes_sent",
         "Number of bytes sent",
         &[METRICS_KEY_NETWORK_TYPE,METRICS_KEY_QOS]
     )
@@ -58,14 +58,14 @@ lazy_static! {
 
     // Number of reserved messages received
     static ref RETAIN_PACKETS_RECEIVED: IntGaugeVec = register_int_gauge_vec!(
-        "retain.packets.received",
+        "retain_packets_received",
         "Number of reserved messages received",
         &[METRICS_KEY_QOS]
     )
     .unwrap();
 
     static ref RETAIN_PACKETS_SEND: IntGaugeVec = register_int_gauge_vec!(
-        "retain.packets.sent",
+        "retain_packets_sent",
         "Number of reserved messages sent",
         &[METRICS_KEY_QOS]
     )

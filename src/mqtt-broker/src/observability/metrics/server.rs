@@ -5,7 +5,7 @@ use crate::handler::constant::{METRICS_KEY_LABLE_NAME, METRICS_KEY_TYPE_NAME};
 
 lazy_static! {
     static ref BROKER_NETWORK_QUEUE_NUM: IntGaugeVec = register_int_gauge_vec!(
-        "network.queue.num",
+        "network_queue_num",
         "broker network queue num",
         &[METRICS_KEY_LABLE_NAME, METRICS_KEY_TYPE_NAME]
     )
