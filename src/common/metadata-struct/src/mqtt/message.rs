@@ -38,9 +38,17 @@ pub struct MQTTMessage {
 }
 
 impl MQTTMessage {
-    pub fn build_system_topic_message(payload: String) -> Option<Record> {
+    pub fn build_system_topic_message(topic_name: String, payload: String) -> Option<Record> {
         let mut message = MQTTMessage::default();
-
+        message.client_id = "-".to_string();
+        message.dup = false;
+        message.qos = QoS::AtMostOnce;
+        message.pkid = 0;
+        message.retain = false;
+        message.topic = Bytes::from(topic_name);
+        message.payload = Bytes::from(payload);
+        message.create_time = now_second();
+        
         match serde_json::to_vec(&message) {
             Ok(data) => {
                 return Some(Record::build_b(data));

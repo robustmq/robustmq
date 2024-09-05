@@ -68,7 +68,10 @@ async fn build_node_cluster(client_poll: Arc<ClientPool>) -> Option<Record> {
                     return None;
                 }
             };
-            return MQTTMessage::build_system_topic_message(content);
+            return MQTTMessage::build_system_topic_message(
+                SYSTEM_TOPIC_BROKERS.to_string(),
+                content,
+            );
         }
         Err(e) => {
             error!(

@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+
+
+pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "./version.ini";
+
 pub fn banner() {
     const B: &str = r"                                              
          _____     ____    ______            _____ ________ _         _    _____
@@ -27,8 +31,11 @@ pub fn banner() {
     println!("{B}\n");
 }
 
+
+
 #[cfg(test)]
 mod tests {
+
     use super::banner;
 
     #[test]
