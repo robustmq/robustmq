@@ -22,7 +22,7 @@ pub struct ListUserRequest {
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub username: ::prost::alloc::string::String,
+    pub user_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
