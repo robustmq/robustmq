@@ -40,6 +40,11 @@ lock_try_mut_sleep_time_ms = 50
 [auth]
 storage_type = "placement"
 
+[prometheus]
+model = "push"
+push_gateway_server = "127.0.0.1:8081"
+interval = 10
+header = ""
 
 [system]
 runtime_worker_threads = 128

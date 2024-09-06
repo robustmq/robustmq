@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use clients::poll::ClientPool;
+use common_base::tools::now_second;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, runtime::create_runtime};
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache::CacheManager, heartbreat::report_heartbeat};
+use lazy_static::lazy_static;
 use log::info;
 use observability::system_topic::SystemTopic;
 use security::AuthDriver;
@@ -41,6 +43,10 @@ use tokio::{
     signal,
     sync::broadcast::{self},
 };
+
+lazy_static! {
+    pub static ref BROKER_START_TIME: u64 = now_second();
+}
 
 pub mod handler;
 mod observability;
