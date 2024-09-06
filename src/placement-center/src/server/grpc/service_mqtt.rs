@@ -102,8 +102,8 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
 
-        if !req.username.is_empty() {
-            match storage.get(&req.cluster_name, &req.username) {
+        if !req.user_name.is_empty() {
+            match storage.get(&req.cluster_name, &req.user_name) {
                 Ok(Some(data)) => {
                     return Ok(Response::new(ListUserReply {
                         users: vec![data.encode()],
