@@ -25,3 +25,4 @@ common-base.workspace = true
 serde_json.workspace = true
 protocol.workspace = true
 bytes.workspace = true
+log.workspace = true

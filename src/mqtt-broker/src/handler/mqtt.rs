@@ -31,6 +31,7 @@ use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
+use crate::observability::system_topic::event::st_report_connected_event;
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
@@ -225,6 +226,17 @@ where
             .add_session(client_id.clone(), session.clone());
         self.cache_manager
             .add_connection(connect_id, connection.clone());
+
+        st_report_connected_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_poll,
+            &session,
+            &connection,
+            connect_id,
+            &self.connnection_manager,
+        )
+        .await;
 
         return response_packet_mqtt_connect_success(
             &self.protocol,

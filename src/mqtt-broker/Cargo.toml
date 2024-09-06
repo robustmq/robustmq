@@ -48,3 +48,4 @@ mysql.workspace = true
 paho-mqtt.workspace = true
 log.workspace = true
 ipnet.workspace = true
+os_info.workspace = true

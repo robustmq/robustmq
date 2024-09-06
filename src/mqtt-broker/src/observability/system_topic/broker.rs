@@ -1,8 +1,10 @@
-use crate::handler::cache::CacheManager;
-
-use super::{write_topic_data, SYSTEM_TOPIC_BROKERS};
+use super::{
+    replace_topic_name, write_topic_data, SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_DATETIME,
+    SYSTEM_TOPIC_BROKERS_SYSDESCR, SYSTEM_TOPIC_BROKERS_UPTIME, SYSTEM_TOPIC_BROKERS_VERSION,
+};
+use crate::{handler::cache::CacheManager, BROKER_START_TIME};
 use clients::{placement::placement::call::node_list, poll::ClientPool};
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second, version::version};
 use log::error;
 use metadata_struct::{
     adapter::record::Record, mqtt::message::MQTTMessage, placement::broker_node::BrokerNode,
@@ -11,42 +13,123 @@ use protocol::placement_center::generate::placement::NodeListRequest;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 
-pub async fn report_cluster_status<S>(
-    client_poll: Arc<ClientPool>,
-    metadata_cache: Arc<CacheManager>,
-    message_storage_adapter: Arc<S>,
+pub(crate) async fn report_broker_info<S>(
+    client_poll: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    if let Some(record) = build_node_cluster(client_poll.clone()).await {
-        let topic_name = SYSTEM_TOPIC_BROKERS.to_string();
-        if let Some(topic) = metadata_cache.get_topic_by_name(&topic_name) {
-            write_topic_data(
-                message_storage_adapter.clone(),
-                topic_name,
-                topic.topic_id,
-                record,
-            )
-            .await;
-        } else {
-            error!(
-                "When writing a message to the system topic {}, the topic was found not to exist",
-                topic_name
-            );
-        }
+    report_cluster_status(client_poll, metadata_cache, message_storage_adapter).await;
+    report_broker_version(client_poll, metadata_cache, message_storage_adapter).await;
+    report_broker_time(client_poll, metadata_cache, message_storage_adapter).await;
+    report_broker_sysdescr(client_poll, metadata_cache, message_storage_adapter).await;
+}
+
+async fn report_cluster_status<S>(
+    client_poll: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
+) where
+    S: StorageAdapter + Clone + Send + Sync + 'static,
+{
+    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
+    if let Some(record) = build_node_cluster(&topic_name, client_poll).await {
+        write_topic_data(
+            message_storage_adapter,
+            metadata_cache,
+            client_poll,
+            topic_name,
+            record,
+        )
+        .await;
     }
 }
 
-async fn build_node_version() {
-    
+async fn report_broker_version<S>(
+    client_poll: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
+) where
+    S: StorageAdapter + Clone + Send + Sync + 'static,
+{
+    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_VERSION.to_string());
+    if let Some(record) = MQTTMessage::build_system_topic_message(topic_name.clone(), version()) {
+        write_topic_data(
+            message_storage_adapter,
+            metadata_cache,
+            client_poll,
+            topic_name,
+            record,
+        )
+        .await;
+    }
 }
 
-async fn build_node_cluster(client_poll: Arc<ClientPool>) -> Option<Record> {
+async fn report_broker_time<S>(
+    client_poll: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
+) where
+    S: StorageAdapter + Clone + Send + Sync + 'static,
+{
+    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_UPTIME.to_string());
+    let start_long_time: u64 = now_second() - BROKER_START_TIME.clone();
+    if let Some(record) =
+        MQTTMessage::build_system_topic_message(topic_name.clone(), start_long_time.to_string())
+    {
+        write_topic_data(
+            message_storage_adapter,
+            metadata_cache,
+            client_poll,
+            topic_name,
+            record,
+        )
+        .await;
+    }
+
+    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_DATETIME.to_string());
+    if let Some(record) =
+        MQTTMessage::build_system_topic_message(topic_name.clone(), now_second().to_string())
+    {
+        write_topic_data(
+            message_storage_adapter,
+            metadata_cache,
+            client_poll,
+            topic_name,
+            record,
+        )
+        .await;
+    }
+}
+
+async fn report_broker_sysdescr<S>(
+    client_poll: &Arc<ClientPool>,
+    metadata_cache: &Arc<CacheManager>,
+    message_storage_adapter: &Arc<S>,
+) where
+    S: StorageAdapter + Clone + Send + Sync + 'static,
+{
+    let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string());
+    let info = format!("{}", os_info::get());
+    if let Some(record) = MQTTMessage::build_system_topic_message(topic_name.clone(), info) {
+        write_topic_data(
+            &message_storage_adapter,
+            &metadata_cache,
+            &client_poll,
+            topic_name,
+            record,
+        )
+        .await;
+    }
+}
+
+async fn build_node_cluster(topic_name: &String, client_poll: &Arc<ClientPool>) -> Option<Record> {
     let conf = broker_mqtt_conf();
     let request = NodeListRequest {
         cluster_name: conf.cluster_name.clone(),
     };
-    match node_list(client_poll, conf.placement_center.clone(), request).await {
+    match node_list(client_poll.clone(), conf.placement_center.clone(), request).await {
         Ok(results) => {
             let mut node_list = Vec::new();
             for node in results.nodes {
@@ -68,10 +151,8 @@ async fn build_node_cluster(client_poll: Arc<ClientPool>) -> Option<Record> {
                     return None;
                 }
             };
-            return MQTTMessage::build_system_topic_message(
-                SYSTEM_TOPIC_BROKERS.to_string(),
-                content,
-            );
+
+            return MQTTMessage::build_system_topic_message(topic_name.to_string(), content);
         }
         Err(e) => {
             error!(
@@ -80,5 +161,15 @@ async fn build_node_cluster(client_poll: Arc<ClientPool>) -> Option<Record> {
             );
             return None;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[tokio::test]
+    async fn os_info_test() {
+        let info = os_info::get();
+        println!("{}", info);
     }
 }

@@ -11,12 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::adapter::record::Record;
 use bytes::Bytes;
 use common_base::{error::common::CommonError, tools::now_second};
+use log::error;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
-
-use crate::adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct MQTTMessage {
@@ -48,13 +48,14 @@ impl MQTTMessage {
         message.topic = Bytes::from(topic_name);
         message.payload = Bytes::from(payload);
         message.create_time = now_second();
-        
+
         match serde_json::to_vec(&message) {
             Ok(data) => {
                 return Some(Record::build_b(data));
             }
 
-            Err(_) => {
+            Err(e) => {
+                error!("Message encoding failed, error message :{}", e.to_string());
                 return None;
             }
         }
@@ -97,7 +98,8 @@ impl MQTTMessage {
                 return Some(Record::build_b(data));
             }
 
-            Err(_) => {
+            Err(e) => {
+                error!("Message encoding failed, error message :{}", e.to_string());
                 return None;
             }
         }
