@@ -2,14 +2,14 @@ use clients::poll::ClientPool;
 use common_base::tools::{get_local_ip, now_mills};
 use log::error;
 use metadata_struct::mqtt::{message::MQTTMessage, session::MQTTSession};
-use protocol::mqtt::common::{Login, MQTTProtocol};
+use protocol::mqtt::common::MQTTProtocol;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, os::unix::net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 
 use crate::{
     handler::{cache::CacheManager, connection::Connection},
-    server::{connection::NetworkConnection, connection_manager::ConnectionManager},
+    server::connection_manager::ConnectionManager,
 };
 
 use super::{write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED};
@@ -136,7 +136,6 @@ fn replace_name(mut topic_name: String, client_id: String) -> String {
         topic_name = topic_name.replace("${node}", &local_ip)
     }
     if topic_name.contains("${clientid}") {
-        let local_ip = get_local_ip();
         topic_name = topic_name.replace("${clientid}", &client_id)
     }
     return topic_name;
