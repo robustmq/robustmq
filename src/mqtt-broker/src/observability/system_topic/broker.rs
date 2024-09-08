@@ -10,7 +10,7 @@ use metadata_struct::{
     adapter::record::Record, mqtt::message::MQTTMessage, placement::broker_node::BrokerNode,
 };
 use protocol::placement_center::generate::placement::NodeListRequest;
-use std::sync::Arc;
+use std::{env, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 
 pub(crate) async fn report_broker_info<S>(
@@ -54,7 +54,12 @@ async fn report_broker_version<S>(
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_VERSION.to_string());
-    if let Some(record) = MQTTMessage::build_system_topic_message(topic_name.clone(), version()) {
+    let version = match env::var("CARGO_PKG_VERSION") {
+        Ok(data) => data,
+        Err(_) => "-".to_string(),
+    };
+
+    if let Some(record) = MQTTMessage::build_system_topic_message(topic_name.clone(), version) {
         write_topic_data(
             message_storage_adapter,
             metadata_cache,
