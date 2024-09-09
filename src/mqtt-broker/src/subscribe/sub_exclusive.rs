@@ -133,7 +133,7 @@ where
                 let record_num = 5;
                 let max_wait_ms = 100;
 
-                let cluster_qos = cache_manager.get_cluster_info().max_qos();
+                let cluster_qos = cache_manager.get_cluster_info().protocol.max_qos;
                 let qos = min_qos(cluster_qos, subscriber.qos);
 
                 let mut sub_ids = Vec::new();

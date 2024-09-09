@@ -24,7 +24,7 @@ mod tests {
         // simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
     }
     
-    #[warn(dead_code)]
+
     async fn simple_test(
         pub_topic: String,
         sub_topic: String,

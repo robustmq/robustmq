@@ -18,6 +18,7 @@ use handler::keep_alive::ClientKeepAlive;
 use handler::{cache::CacheManager, heartbreat::report_heartbeat};
 use lazy_static::lazy_static;
 use log::info;
+use observability::start_opservability;
 use observability::system_topic::SystemTopic;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
@@ -270,13 +271,17 @@ where
     }
 
     fn start_system_topic_thread(&self, stop_send: broadcast::Sender<bool>) {
-        let system_topic = SystemTopic::new(
-            self.cache_manager.clone(),
-            self.message_storage_adapter.clone(),
-            self.client_poll.clone(),
-        );
+        let cache_manager = self.cache_manager.clone();
+        let message_storage_adapter = self.message_storage_adapter.clone();
+        let client_poll = self.client_poll.clone();
         self.runtime.spawn(async move {
-            system_topic.start_thread(stop_send).await;
+            start_opservability(
+                cache_manager,
+                message_storage_adapter,
+                client_poll,
+                stop_send,
+            )
+            .await;
         });
     }
 

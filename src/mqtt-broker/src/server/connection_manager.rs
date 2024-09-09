@@ -149,7 +149,7 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.send_max_try_mut_times {
+                            if times > cluster.network.response_max_try_mut_times {
                                 return Err(CommonError::CommmonError(format!(
                                     "Failed to write data to the mqtt websocket client, error message: {:?}",
                                     e
@@ -159,7 +159,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.send_max_try_mut_times {
+                    if times > cluster.network.response_max_try_mut_times {
                         return Err(CommonError::CommmonError(format!(
                             "[write_frame]Connection management could not obtain an available websocket connection. Connection ID: {},len:{}",
                             connection_id,
@@ -169,7 +169,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.send_max_try_mut_times {
+                    if times > cluster.network.response_max_try_mut_times {
                         return Err(CommonError::CommmonError(
                             format!("[write_frame]Connection management failed to get websocket connection variable reference, connection ID: {connection_id}")
                         ));
@@ -177,7 +177,10 @@ impl ConnectionManager {
                 }
             }
             times = times + 1;
-            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
+            sleep(Duration::from_millis(
+                cluster.network.response_try_mut_sleep_time_ms,
+            ))
+            .await
         }
         return Ok(());
     }
@@ -206,7 +209,7 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.send_max_try_mut_times {
+                            if times > cluster.network.response_max_try_mut_times {
                                 return Err(CommonError::CommmonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
@@ -215,7 +218,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.send_max_try_mut_times {
+                    if times > cluster.network.response_max_try_mut_times {
                         return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
@@ -226,7 +229,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.send_max_try_mut_times {
+                    if times > cluster.network.response_max_try_mut_times {
                         return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
@@ -236,7 +239,10 @@ impl ConnectionManager {
                 }
             }
             times = times + 1;
-            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
+            sleep(Duration::from_millis(
+                cluster.network.response_try_mut_sleep_time_ms,
+            ))
+            .await
         }
         return Ok(());
     }
@@ -256,7 +262,7 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.send_max_try_mut_times {
+                            if times > cluster.network.response_max_try_mut_times {
                                 return Err(CommonError::CommmonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
@@ -265,7 +271,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.send_max_try_mut_times {
+                    if times > cluster.network.response_max_try_mut_times {
                         return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
@@ -276,7 +282,7 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.send_max_try_mut_times {
+                    if times > cluster.network.response_max_try_mut_times {
                         return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
@@ -286,14 +292,17 @@ impl ConnectionManager {
                 }
             }
             times = times + 1;
-            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
+            sleep(Duration::from_millis(
+                cluster.network.response_try_mut_sleep_time_ms,
+            ))
+            .await
         }
         return Ok(());
     }
 
     pub fn tcp_connect_num_check(&self) -> bool {
         let cluster = self.cache_manager.get_cluster_info();
-        if self.connections.len() >= cluster.tcp_max_connection_num as usize {
+        if self.connections.len() >= cluster.network.tcp_max_connection_num as usize {
             return true;
         }
         return false;

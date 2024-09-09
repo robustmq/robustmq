@@ -3,7 +3,7 @@ use common_base::tools::{get_local_ip, now_mills};
 use log::error;
 use metadata_struct::mqtt::{message::MQTTMessage, session::MQTTSession};
 use protocol::mqtt::common::{
-    DisconnectReasonCode, MQTTProtocol, Subscribe, SubscribeProperties, Unsubscribe,
+    DisconnectReasonCode, MQTTProtocol, Subscribe, Unsubscribe,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc};

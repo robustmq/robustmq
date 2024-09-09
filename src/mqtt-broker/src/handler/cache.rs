@@ -24,7 +24,7 @@ use dashmap::DashMap;
 use log::warn;
 use metadata_struct::acl::mqtt_acl::MQTTAcl;
 use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use metadata_struct::mqtt::session::MQTTSession;
 use metadata_struct::mqtt::topic::MQTTTopic;
 use metadata_struct::mqtt::user::MQTTUser;
@@ -99,7 +99,7 @@ pub struct CacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, MQTTCluster>,
+    pub cluster_info: DashMap<String, MQTTClusterDynamicConfig>,
 
     // (username, User)
     pub user_info: DashMap<String, MQTTUser>,
@@ -239,15 +239,15 @@ impl CacheManager {
         }
     }
 
-    pub fn set_cluster_info(&self, cluster: MQTTCluster) {
+    pub fn set_cluster_info(&self, cluster: MQTTClusterDynamicConfig) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);
     }
 
-    pub fn get_cluster_info(&self) -> MQTTCluster {
+    pub fn get_cluster_info(&self) -> MQTTClusterDynamicConfig {
         if let Some(cluster) = self.cluster_info.get(&self.cluster_name) {
             return cluster.clone();
         }
-        return MQTTCluster::new();
+        return MQTTClusterDynamicConfig::new();
     }
 
     pub fn add_user(&self, user: MQTTUser) {
@@ -439,7 +439,7 @@ impl CacheManager {
             .await
         {
             Ok(Some(cluster)) => cluster,
-            Ok(None) => MQTTCluster::new(),
+            Ok(None) => MQTTClusterDynamicConfig::new(),
             Err(e) => {
                 panic!(
                     "Failed to load the cluster configuration with error message:{}",

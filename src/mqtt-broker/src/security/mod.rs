@@ -107,7 +107,7 @@ impl AuthDriver {
     ) -> Result<bool, CommonError> {
         let cluster = self.cache_manager.get_cluster_info();
 
-        if cluster.is_secret_free_login() {
+        if cluster.security.secret_free_login {
             return Ok(true);
         }
 
