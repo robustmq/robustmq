@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{handler::cache::CacheManager, BROKER_START_TIME};
 use clients::{placement::placement::call::node_list, poll::ClientPool};
-use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second, version::version};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
 use log::error;
 use metadata_struct::{
     adapter::record::Record, mqtt::message::MQTTMessage, placement::broker_node::BrokerNode,
@@ -171,10 +171,21 @@ async fn build_node_cluster(topic_name: &String, client_poll: &Arc<ClientPool>) 
 
 #[cfg(test)]
 mod tests {
+    use std::env;
 
     #[tokio::test]
     async fn os_info_test() {
         let info = os_info::get();
         println!("{}", info);
+    }
+
+    #[tokio::test]
+    async fn version_test() {
+        let version = match env::var("CARGO_PKG_VERSION") {
+            Ok(data) => data,
+            Err(_) => "-".to_string(),
+        };
+        println!("{}", version);
+        assert_ne!(version, "-".to_string());
     }
 }

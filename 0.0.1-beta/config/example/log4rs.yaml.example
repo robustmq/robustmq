@@ -1,0 +1,57 @@
+appenders:
+  stdout:
+    kind: console
+
+  server:
+    kind: rolling_file
+    path: "{$path}/server.log"
+    encoder:
+        pattern: "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}"
+    policy:
+        trigger:
+            kind: size
+            limit: 1 gb
+        roller:
+            kind: fixed_window
+            pattern: "{$path}/server-{}.log"
+            base: 0
+            count: 50
+
+  requests:
+    kind: rolling_file
+    path: "{$path}/requests-log.log"
+    encoder:
+        pattern: "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}"
+    policy:
+        trigger:
+            kind: size
+            limit: 1 gb
+        roller:
+            kind: fixed_window
+            pattern: "{$path}/requests-log-{}.log"
+            base: 0
+            count: 50
+
+root:
+  level: info
+  appenders:
+    - stdout
+    - server
+
+loggers:
+  app::backend::db:
+    level: info
+  
+  placement_center::server:
+    level: info
+    appenders:
+      - stdout
+      - server
+    additive: false
+
+  placement_center::requests:
+    level: info
+    appenders:
+      - stdout
+      - requests
+    additive: false
