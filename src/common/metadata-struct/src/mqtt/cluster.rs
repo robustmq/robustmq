@@ -21,6 +21,7 @@ pub struct MQTTClusterDynamicConfig {
     pub feature: MQTTClusterDynamicConfigFeature,
     pub security: MQTTClusterDynamicConfigSecurity,
     pub network: MQTTClusterDynamicConfigNetwork,
+    pub slow: MQTTClusterDynamicSlowSub,
 }
 
 // MQTT cluster protocol related dynamic configuration
@@ -55,13 +56,21 @@ pub struct MQTTClusterDynamicConfigNetwork {
     pub response_try_mut_sleep_time_ms: u64,
 }
 
-// MQTT cluster Feature related dynamic configuration 
+// MQTT cluster Feature related dynamic configuration
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct MQTTClusterDynamicConfigFeature {
     pub retain_available: AvailableFlag,
     pub wildcard_subscription_available: AvailableFlag,
     pub subscription_identifiers_available: AvailableFlag,
     pub shared_subscription_available: AvailableFlag,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MQTTClusterDynamicSlowSub {
+    pub enable: bool,
+    pub whole_ms: u128,
+    pub internal_ms: u32,
+    pub response_ms: u32,
 }
 
 impl MQTTClusterDynamicConfig {
@@ -95,6 +104,12 @@ impl MQTTClusterDynamicConfig {
                 websockets_max_connection_num: 1000,
                 response_max_try_mut_times: 128,
                 response_try_mut_sleep_time_ms: 100,
+            },
+            slow: MQTTClusterDynamicSlowSub {
+                enable: false,
+                whole_ms: 0,
+                internal_ms: 0,
+                response_ms: 0,
             },
         };
     }
