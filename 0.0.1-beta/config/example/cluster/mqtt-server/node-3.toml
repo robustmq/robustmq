@@ -1,0 +1,70 @@
+#  Copyright 2023 RobustMQ Team
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+# 
+#      http:# www.apache.org/licenses/LICENSE-2.0
+# 
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+
+cluster_name = "mqtt-broker"
+broker_id = 9
+grpc_port = 9991
+http_port = 9992
+
+[storage]
+metadata = "memory"
+message = "memory"
+
+[mysql]
+server = "mysql:# root:123456@127.0.0.1:3306/mqtt"
+
+[journal]
+server = []
+
+[placement]
+# server = ["14.103.42.35:1228"]
+server = ["127.0.0.1:1228"]
+
+[mqtt]
+mqtt4_enable = true
+mqtt5_enable = true
+websocket_enable = true
+mqtt4_port = 1893
+mqtts4_port = 8893
+mqtt5_port = 1894
+mqtts5_port = 8894
+websocket_port = 8093
+websockets_port = 8094
+
+[system]
+system_user = "admin"
+system_password = "pwd123"
+
+[runtime]
+worker_threads = 16
+
+[network_tcp]
+accept_thread_num = 1
+handler_thread_num = 1
+response_thread_num = 1
+max_connection_num = 1000
+request_queue_size = 2000
+response_queue_size = 2000
+lock_max_try_mut_times = 30
+lock_try_mut_sleep_time_ms = 50
+
+[subscribe]
+share_model = "rewrite"
+# random, round_robin, sticky, hash
+shared_subscription_strategy = "round_robin"
+
+[log]
+log_path = "/tmp/logs9"
+log_segment_size = 1073741824
+log_file_num = 50

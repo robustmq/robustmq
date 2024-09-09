@@ -36,7 +36,6 @@ use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
-use std::env;
 use std::sync::{Arc, RwLock};
 use storage::placement::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;

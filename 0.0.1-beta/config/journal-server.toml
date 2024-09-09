@@ -1,0 +1,41 @@
+# Copyright 2023 RobustMQ Team
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http:#www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+cluster_name = "JournalCluster1"
+node_id = 1
+grpc_port = 2228
+prometheus_port = 2229
+nodes = { 1 = "127.0.0.1:2228" }
+runtime_work_threads = 100
+placement_center = ["14.103.42.35:1228"]
+# placement_center = ["127.0.0.1:1228"]
+data_path = [
+    "/tmp/robust/journal-server/storage/data1",
+    "/tmp/robust/journal-server/storage/data2",
+]
+
+[rocksdb]
+max_open_files = 10000
+
+[network]
+accept_thread_num = 1
+handler_thread_num = 20
+response_thread_num = 2
+max_connection_num = 1000
+request_queue_size = 2000
+response_queue_size = 2000
+
+[log]
+log_config = "./config/log4rs.yaml"
+log_path = "./logs/journal-server"

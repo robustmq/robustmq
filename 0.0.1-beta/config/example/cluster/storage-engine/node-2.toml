@@ -1,0 +1,27 @@
+#  Copyright 2023 RobustMQ Team
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+# 
+#      http:# www.apache.org/licenses/LICENSE-2.0
+# 
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+
+node_id = 2
+addr = "127.0.0.1"
+port = 2228
+admin_port = 2227
+nodes = { 1 = "127.0.0.1:1228", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:3228" }
+runtime_work_threads = 100
+data_path = "/tmp/robust2/data"
+log_path = "/tmp/robust2/logs"
+log_segment_size = 1099511627776
+log_file_num=50
+
+[rocksdb]
+max_open_files = 10000

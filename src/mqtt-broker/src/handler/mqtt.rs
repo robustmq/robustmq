@@ -31,7 +31,10 @@ use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
-use crate::observability::system_topic::event::st_report_connected_event;
+use crate::observability::system_topic::event::{
+    st_report_connected_event, st_report_disconnected_event, st_report_subscribed_event,
+    st_report_unsubscribed_event,
+};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
 use crate::storage::message::MessageStorage;
@@ -776,6 +779,16 @@ where
             .await;
 
         let pkid = subscribe.packet_identifier;
+        st_report_subscribed_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_poll,
+            &connection,
+            connect_id,
+            &self.connnection_manager,
+            &subscribe,
+        )
+        .await;
         return response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None);
     }
 
@@ -851,6 +864,17 @@ where
         self.cache_manager
             .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
+        st_report_unsubscribed_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_poll,
+            &connection,
+            connect_id,
+            &self.connnection_manager,
+            &un_subscribe,
+        )
+        .await;
+
         return response_packet_mqtt_unsuback(
             &connection,
             un_subscribe.pkid,
@@ -862,7 +886,7 @@ where
     pub async fn disconnect(
         &self,
         connect_id: u64,
-        _: Disconnect,
+        disconnect: Disconnect,
         _: Option<DisconnectProperties>,
     ) -> Option<MQTTPacket> {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
@@ -870,6 +894,20 @@ where
         } else {
             return None;
         };
+
+        if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
+            st_report_disconnected_event(
+                &self.message_storage_adapter,
+                &self.cache_manager,
+                &self.client_poll,
+                &session,
+                &connection,
+                connect_id,
+                &self.connnection_manager,
+                disconnect.reason_code,
+            )
+            .await;
+        }
 
         match disconnect_connection(
             &connection.client_id,
