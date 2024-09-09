@@ -104,7 +104,7 @@ where
         login: &Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
-        let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
+        let cluster: metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig =
             self.cache_manager.get_cluster_info();
 
         if let Some(res) = connect_validator(
@@ -727,7 +727,7 @@ where
         }
 
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-        let cluster_qos = self.cache_manager.get_cluster_info().max_qos();
+        let cluster_qos = self.cache_manager.get_cluster_info().protocol.max_qos;
         for filter in subscribe.filters.clone() {
             match min_qos(cluster_qos, filter.qos) {
                 QoS::AtMostOnce => {

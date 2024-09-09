@@ -19,7 +19,7 @@ use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::get_local_ip};
 use log::{error, info};
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
 use protocol::placement_center::generate::placement::{
     DeleteResourceConfigRequest, GetResourceConfigRequest, SetResourceConfigRequest,
@@ -120,7 +120,7 @@ impl ClusterStorage {
     pub async fn set_cluster_config(
         &self,
         cluster_name: String,
-        cluster: MQTTCluster,
+        cluster: MQTTClusterDynamicConfig,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
@@ -169,7 +169,7 @@ impl ClusterStorage {
     pub async fn get_cluster_config(
         &self,
         cluster_name: String,
-    ) -> Result<Option<MQTTCluster>, CommonError> {
+    ) -> Result<Option<MQTTClusterDynamicConfig>, CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = GetResourceConfigRequest {
@@ -188,7 +188,7 @@ impl ClusterStorage {
                 if data.config.is_empty() {
                     return Ok(None);
                 } else {
-                    match serde_json::from_slice::<MQTTCluster>(&data.config) {
+                    match serde_json::from_slice::<MQTTClusterDynamicConfig>(&data.config) {
                         Ok(data) => {
                             return Ok(Some(data));
                         }
@@ -212,7 +212,7 @@ mod tests {
     use crate::storage::cluster::ClusterStorage;
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -227,8 +227,8 @@ mod tests {
         let cluster_storage = ClusterStorage::new(client_poll);
 
         let cluster_name = "robust_test".to_string();
-        let mut cluster = MQTTCluster::default();
-        cluster.topic_alias_max = 999;
+        let mut cluster = MQTTClusterDynamicConfig::default();
+        cluster.protocol.topic_alias_max = 999;
         cluster_storage
             .set_cluster_config(cluster_name.clone(), cluster)
             .await
@@ -239,7 +239,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(result.topic_alias_max(), 999);
+        assert_eq!(result.protocol.topic_alias_max, 999);
 
         cluster_storage
             .delete_cluster_config(cluster_name.clone())

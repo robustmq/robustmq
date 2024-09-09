@@ -53,7 +53,7 @@ prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 lazy_static = "^1.4"
 futures = "0.3"
-thiserror = "1"                                                 #错误定义和处理
+thiserror = "1"                                                 
 bytes = { version = "1", features = ["serde"] }
 futures-util = "0.3.30"
 rocksdb = "0.22.0"

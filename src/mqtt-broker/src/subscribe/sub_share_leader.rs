@@ -300,7 +300,6 @@ where
                         topic_name.clone(),
                         msg.clone(),
                     ) {
-
                         match publish.qos {
                             QoS::AtMostOnce => {
                                 publish_message_qos0(
@@ -443,7 +442,7 @@ pub fn build_publish(
         sub_id.push(id);
     }
 
-    let cluster_qos = metadata_cache.get_cluster_info().max_qos();
+    let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
 
     let retain = if subscribe.preserve_retain {

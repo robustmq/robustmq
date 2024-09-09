@@ -22,7 +22,7 @@ use common_base::{
     tools::{now_second, unique_id},
 };
 use dashmap::DashMap;
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::common::{Connect, ConnectProperties};
 use std::{
     net::SocketAddr,
@@ -132,7 +132,7 @@ impl Connection {
 pub fn build_connection(
     connect_id: u64,
     client_id: &String,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
@@ -144,19 +144,19 @@ pub fn build_connection(
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
                 value
             } else {
-                cluster.receive_max()
+                cluster.protocol.receive_max
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                std::cmp::min(value, cluster.max_packet_size())
+                std::cmp::min(value, cluster.protocol.max_packet_size)
             } else {
-                cluster.max_packet_size()
+                cluster.protocol.max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                std::cmp::min(value, cluster.topic_alias_max())
+                std::cmp::min(value, cluster.protocol.topic_alias_max)
             } else {
-                cluster.topic_alias_max()
+                cluster.protocol.topic_alias_max
             };
 
             let request_problem_info = if let Some(value) = properties.request_problem_info {
@@ -173,9 +173,9 @@ pub fn build_connection(
             )
         } else {
             (
-                cluster.receive_max(),
-                cluster.max_packet_size(),
-                cluster.topic_alias_max(),
+                cluster.protocol.receive_max,
+                cluster.protocol.max_packet_size,
+                cluster.protocol.topic_alias_max,
                 0,
             )
         };
@@ -249,7 +249,7 @@ mod test {
     use super::response_information;
     use super::Connection;
     use super::REQUEST_RESPONSE_PREFIX_NAME;
-    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
     use protocol::mqtt::common::Connect;
     use protocol::mqtt::common::ConnectProperties;
 
@@ -257,7 +257,7 @@ mod test {
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = MQTTCluster::new();
+        let cluster = MQTTClusterDynamicConfig::new();
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),

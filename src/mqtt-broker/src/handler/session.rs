@@ -107,7 +107,7 @@ fn session_expiry_interval(
     cache_manager: &Arc<CacheManager>,
     connect_properties: &Option<ConnectProperties>,
 ) -> u64 {
-    let cluster_session_expiry_interval = cache_manager.get_cluster_info().session_expiry_interval;
+    let cluster_session_expiry_interval = cache_manager.get_cluster_info().protocol.session_expiry_interval;
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
             ck
@@ -161,7 +161,7 @@ mod test {
         let res = session_expiry_interval(&cache_manager, &None);
         assert_eq!(
             res,
-            cache_manager.get_cluster_info().session_expiry_interval as u64
+            cache_manager.get_cluster_info().protocol.session_expiry_interval as u64
         );
 
         let mut properteis = ConnectProperties::default();

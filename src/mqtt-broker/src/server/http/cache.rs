@@ -29,7 +29,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::{
-    cluster::MQTTCluster, session::MQTTSession, topic::MQTTTopic, user::MQTTUser,
+    cluster::MQTTClusterDynamicConfig, session::MQTTSession, topic::MQTTTopic, user::MQTTUser,
 };
 use serde::{Deserialize, Serialize};
 
@@ -85,7 +85,7 @@ pub struct MetadataCacheResult {
 
     // metadata_cache
     pub cluster_name: String,
-    pub cluster_info: DashMap<String, MQTTCluster>,
+    pub cluster_info: DashMap<String, MQTTClusterDynamicConfig>,
     pub user_info: DashMap<String, MQTTUser>,
     pub session_info: DashMap<String, MQTTSession>,
     pub connection_info: DashMap<u64, String>,

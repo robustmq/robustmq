@@ -1,6 +1,6 @@
 TARGET = robustmq
 BUILD_FOLD = ./build
-VERSION:=$(shell grep "version =" Cargo.toml | awk -F'"' '{print $2}' | head -n 1)
+VERSION:=$(shell grep "version =" Cargo.toml | awk -F'"' '{print $2}' | head -n 1 | sed 's/version = //g')
 PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)
 
 release:
