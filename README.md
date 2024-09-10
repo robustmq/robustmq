@@ -8,7 +8,7 @@
 </h3>
 
 ## Introduction
-RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture. 
+RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture. Click [RobustMQ Tutorial](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%ae%80%e4%bb%8b/%e4%bb%80%e4%b9%88%e6%98%af-robustmq/) for detailed system architecture design.
 
 > Tips: We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
 
@@ -39,8 +39,6 @@ RobustMQ is a typical distributed layered architecture with separate computing l
 
 - Standalone storage engine
   refers to a standalone storage engine, such as cloud object storage (e.g. AWS S3), HDFS Cluster, Data Lake Cluster (iceberg, hudi, etc.). The RobustMQ is similar to the RobustMQ Journal Server, Apache Bookeeper's distributed, segmented storage service. It is responsible for reliable storage of high-performance message data, and has the ability of rapid horizontal and horizontal expansion without perception.
-
-Click [RobustMQ Tutorial](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%ae%80%e4%bb%8b/%e4%bb%80%e4%b9%88%e6%98%af-robustmq/) for detailed system architecture design.
 
 ## Planning
 RobustMQ has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs. So there are several stages in the development perspective:
