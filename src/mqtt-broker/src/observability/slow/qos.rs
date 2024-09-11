@@ -16,12 +16,11 @@ pub struct SlowMessage {
 }
 
 pub fn try_record_slow_message(
-    cache_manager: Arc<CacheManager>,
+    _: Arc<CacheManager>,
     client_id: String,
     topic: String,
     time_ms: u16,
 ) {
-    
     let ip = get_local_ip();
     let slow = SlowMessage {
         client_id,

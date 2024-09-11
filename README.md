@@ -8,7 +8,11 @@
 </h3>
 
 ## Introduction
-RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture.
+RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture. 
+
+Technical documentation:
+- [《英文版》](docs/en/%20Introduction/What%20is%20RobustMQ.md)
+- [《中文版》](docs/cn/简介/什么是%20RobustMQ.md)
 
 > Tips: We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
 
@@ -74,12 +78,12 @@ $ cd robustmq-v0.0.1-release
 
 2. Start Placement Center
 ```
-$ bin/robustctl placement-center start
+$ bin/robust-server placement-center start
 ```
 
 3. Start MQTT Broker
 ```
-$ bin/robustctl broker-mqtt start
+$ bin/robust-server broker-mqtt start
 ```
 
 #### Cluster mode
@@ -90,16 +94,16 @@ $ cd robustmq-v0.0.1-release
 ```
 2. Start Placement Center
 ```
-$ bin/robustctl placement-center start config/cluster/placement-center/node-1.toml
-$ bin/robustctl placement-center start config/cluster/placement-center/node-2.toml
-$ bin/robustctl placement-center start config/cluster/placement-center/node-3.toml
+$ bin/robust-server placement-center start config/cluster/placement-center/node-1.toml
+$ bin/robust-server placement-center start config/cluster/placement-center/node-2.toml
+$ bin/robust-server placement-center start config/cluster/placement-center/node-3.toml
 ```
 
 3. Start MQTT Broker
 ```
-$ bin/robustctl broker-mqtt start config/cluster/mqtt-server/node-1.toml
-$ bin/robustctl broker-mqtt start config/cluster/mqtt-server/node-2.toml
-$ bin/robustctl broker-mqtt start config/cluster/mqtt-server/node-3.toml
+$ bin/robust-server broker-mqtt start config/cluster/mqtt-server/node-1.toml
+$ bin/robust-server broker-mqtt start config/cluster/mqtt-server/node-2.toml
+$ bin/robust-server broker-mqtt start config/cluster/mqtt-server/node-3.toml
 ```
 
 ### Cargo runs

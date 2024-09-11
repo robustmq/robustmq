@@ -20,6 +20,7 @@ use crate::storage::keys::key_name_snapshot;
 use crate::storage::keys::key_name_uncommit;
 use crate::storage::rocksdb::RocksDBEngine;
 use bincode::{deserialize, serialize};
+use log::debug;
 use log::error;
 use log::info;
 use prost::Message as _;
@@ -113,7 +114,7 @@ impl RaftMachineStorage {
             info!("commit_to {} but the entry does not exist", idx);
         }
 
-        println!(">> commit entry index:{}", idx);
+        debug!(">> commit entry index:{}", idx);
         // update uncommit index
         self.uncommit_index.remove(&idx);
         self.save_uncommit_index();
@@ -151,7 +152,7 @@ impl RaftMachineStorage {
         }
 
         for entry in entrys {
-            println!(">> save entry index:{}, value:{:?}", entry.index, entry);
+            debug!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
             self.rocksdb_engine_handler

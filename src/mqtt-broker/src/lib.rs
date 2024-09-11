@@ -19,7 +19,6 @@ use handler::{cache::CacheManager, heartbreat::report_heartbeat};
 use lazy_static::lazy_static;
 use log::info;
 use observability::start_opservability;
-use observability::system_topic::SystemTopic;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::tcp::start_tcp_server;
