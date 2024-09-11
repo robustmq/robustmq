@@ -19,8 +19,11 @@ use crate::{
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
     },
     observability::{
-        metrics::packets::{record_received_error_metrics, record_received_metrics},
-        metrics::server::{metrics_request_queue, metrics_response_queue},
+        metrics::{
+            packets::{record_received_error_metrics, record_received_metrics},
+            server::{metrics_request_queue, metrics_response_queue},
+        },
+        slow::request::try_record_total_request_ms,
     },
     server::{
         connection::{NetworkConnection, NetworkConnectionType},
@@ -31,7 +34,9 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::mqtt_broker::MQTTBrokerError};
+use common_base::{
+    config::broker_mqtt::broker_mqtt_conf, error::mqtt_broker::MQTTBrokerError, tools::now_mills,
+};
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::mqtt::{
@@ -241,7 +246,7 @@ where
             let mut stop_rx = self.stop_sx.subscribe();
             let raw_request_queue_sx = request_queue_sx.clone();
             let network_type = self.network_connection_type.clone();
-
+            let cache_manager = self.cache_manager.clone();
             tokio::spawn(async move {
                 debug!("TCP Server acceptor thread {} start successfully.", index);
                 loop {
@@ -280,7 +285,7 @@ where
                                     connection_manager.add_connection(connection.clone());
                                     connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
-                                    read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx,network_type.clone());
+                                    read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx,network_type.clone(),cache_manager.clone());
                                 }
                                 Err(e) => {
                                     error!("TCP accept failed to create connection with error message :{:?}",e);
@@ -442,6 +447,7 @@ fn read_frame_process(
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
+    cache_manager: Arc<CacheManager>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -465,8 +471,10 @@ fn read_frame_process(
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
 
-                                match request_queue_sx.send(package).await {
-                                    Ok(_) => {}
+                                match request_queue_sx.send(package.clone()).await {
+                                    Ok(_) => {
+                                        try_record_total_request_ms(cache_manager.clone(),package.clone());
+                                    }
                                     Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
                                 }
                             }
@@ -475,6 +483,7 @@ fn read_frame_process(
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
+
                     }
                 }
             }

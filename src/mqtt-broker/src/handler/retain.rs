@@ -121,7 +121,7 @@ pub async fn try_send_retain_message(
                             false
                         };
 
-                        let qos = min_qos(cluster.max_qos, subscriber.qos);
+                        let qos = min_qos(cluster.protocol.max_qos, subscriber.qos);
                         let pkid = 1;
                         let mut publish = Publish {
                             dup: false,
@@ -251,10 +251,10 @@ pub fn message_expiry_interval(
     let cluster = cache_manager.get_cluster_info();
     if let Some(properties) = publish_properties {
         if let Some(expire) = properties.message_expiry_interval {
-            return std::cmp::min(cluster.max_message_expiry_interval, expire as u64);
+            return std::cmp::min(cluster.protocol.max_message_expiry_interval, expire as u64);
         }
     }
-    return cluster.max_message_expiry_interval;
+    return cluster.protocol.max_message_expiry_interval;
 }
 
 #[cfg(test)]
@@ -262,7 +262,7 @@ mod tests {
     use super::message_expiry_interval;
     use crate::handler::cache::CacheManager;
     use clients::poll::ClientPool;
-    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
     use protocol::mqtt::common::PublishProperties;
     use std::sync::Arc;
 
@@ -271,8 +271,8 @@ mod tests {
         let client_poll = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let mut cluster = MQTTCluster::default();
-        cluster.max_message_expiry_interval = 10;
+        let mut cluster = MQTTClusterDynamicConfig::default();
+        cluster.protocol.max_message_expiry_interval = 10;
         cache_manager.set_cluster_info(cluster);
 
         let publish_properties = None;

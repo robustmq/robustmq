@@ -906,6 +906,16 @@ pub enum RetainForwardRule {
     Never,
 }
 
+impl From<RetainForwardRule> for u8 {
+    fn from(value: RetainForwardRule) -> Self {
+        match value {
+            RetainForwardRule::OnEverySubscribe => 0,
+            RetainForwardRule::OnNewSubscribe => 1,
+            RetainForwardRule::Never => 2,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SubscribeProperties {
     pub subscription_identifier: Option<usize>,

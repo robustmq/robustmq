@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use log::{error, warn};
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
     DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol, PingResp, PubAck,
@@ -29,7 +29,7 @@ use super::{
 
 pub fn response_packet_mqtt_connect_success(
     protocol: &MQTTProtocol,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
     client_id: String,
     auto_client_id: bool,
     session_expiry_interval: u32,
@@ -55,17 +55,23 @@ pub fn response_packet_mqtt_connect_success(
 
     let properties = ConnAckProperties {
         session_expiry_interval: Some(session_expiry_interval),
-        receive_max: Some(cluster.receive_max()),
-        max_qos: Some(cluster.max_qos().into()),
-        retain_available: Some(cluster.retain_available()),
-        max_packet_size: Some(cluster.max_packet_size()),
+        receive_max: Some(cluster.protocol.receive_max),
+        max_qos: Some(cluster.protocol.max_qos.into()),
+        retain_available: Some(cluster.feature.retain_available.clone() as u8),
+        max_packet_size: Some(cluster.protocol.max_packet_size),
         assigned_client_identifier,
-        topic_alias_max: Some(cluster.topic_alias_max()),
+        topic_alias_max: Some(cluster.protocol.topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
-        wildcard_subscription_available: Some(cluster.wildcard_subscription_available()),
-        subscription_identifiers_available: Some(cluster.subscription_identifiers_available()),
-        shared_subscription_available: Some(cluster.shared_subscription_available()),
+        wildcard_subscription_available: Some(
+            cluster.feature.wildcard_subscription_available.clone() as u8,
+        ),
+        subscription_identifiers_available: Some(
+            cluster.feature.subscription_identifiers_available.clone() as u8,
+        ),
+        shared_subscription_available: Some(
+            cluster.feature.shared_subscription_available.clone() as u8
+        ),
         server_keep_alive: Some(keep_live_time(keep_alive)),
         response_information: response_information(connect_properties),
         server_reference: None,

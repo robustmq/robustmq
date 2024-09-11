@@ -23,6 +23,7 @@ mod tests {
         // let sub_topic = format!("$share/tests/{}", unique_id());
         // simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
     }
+    
 
     async fn simple_test(
         pub_topic: String,

@@ -309,3 +309,26 @@ fn calc_mqtt_packet_len(
     }
     return Ok(size);
 }
+
+pub fn parse_mqtt_packet_to_name(packet:MQTTPacket) -> String{
+    let name = match packet {
+        MQTTPacket::Connect(protocol_version,connect, properties, last_will, last_will_peoperties, login) => {
+            "connect"
+        }
+        MQTTPacket::ConnAck(connack, conn_ack_properties) => "conn_ack",
+        MQTTPacket::Publish(publish, publish_properties ) => "publish",
+        MQTTPacket::PubAck(puback, pub_ack_properties) => "pub_ack",
+        MQTTPacket::PubRec(pubrec, pub_rec_properties) => "pub_rec",
+        MQTTPacket::PubRel(pubrel, pub_rel_properties) => "pub_rel",
+        MQTTPacket::PubComp(pubcomp, pub_comp_properties) => "pub_comp",
+        MQTTPacket::Subscribe(subscribe, subscribe_properties) => "subscribe",
+        MQTTPacket::SubAck(suback, suback_properties) => "sub_ack",
+        MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => "sub_ack",
+        MQTTPacket::UnsubAck(unsuback, unsuback_properties) => "unsub_ack",
+        MQTTPacket::PingReq(pingreq) => "ping",
+        MQTTPacket::PingResp(pingresp) => "pong",
+        MQTTPacket::Disconnect(disconnect, disconnect_properties) => "disconnect",
+        _=> "-",
+    };
+    return name.to_string();
+}

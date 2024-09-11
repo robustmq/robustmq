@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::net::SocketAddr;
 
+use common_base::tools::now_mills;
 use protocol::mqtt::common::MQTTPacket;
 
 #[derive(Clone, Debug)]
@@ -21,6 +21,7 @@ pub struct RequestPackage {
     pub connection_id: u64,
     pub addr: SocketAddr,
     pub packet: MQTTPacket,
+    pub receive_ms: u128,
 }
 
 impl RequestPackage {
@@ -29,6 +30,7 @@ impl RequestPackage {
             connection_id,
             addr,
             packet,
+            receive_ms: now_mills(),
         }
     }
 }

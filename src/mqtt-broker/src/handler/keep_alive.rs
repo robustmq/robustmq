@@ -21,7 +21,7 @@ use crate::{
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, info};
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::common::MQTTProtocol;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
@@ -139,12 +139,12 @@ pub fn keep_live_time(keep_alive: u16) -> u16 {
     return new_keep_alive as u16;
 }
 
-pub fn client_keep_live_time(cluster: &MQTTCluster, mut keep_alive: u16) -> u16 {
+pub fn client_keep_live_time(cluster: &MQTTClusterDynamicConfig, mut keep_alive: u16) -> u16 {
     if keep_alive <= 0 {
-        keep_alive = cluster.default_server_keep_alive;
+        keep_alive = cluster.protocol.default_server_keep_alive;
     }
-    if keep_alive > cluster.max_server_keep_alive {
-        keep_alive = cluster.max_server_keep_alive / 2;
+    if keep_alive > cluster.protocol.max_server_keep_alive {
+        keep_alive = cluster.protocol.max_server_keep_alive / 2;
     }
     return keep_alive;
 }

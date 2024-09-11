@@ -24,7 +24,7 @@ use super::{
     topic::topic_name_validator,
 };
 use crate::{
-    security::{login::is_ip_blacklist, authentication_acl},
+    security::{authentication_acl, login::is_ip_blacklist},
     server::connection_manager::ConnectionManager,
     subscribe::sub_common::sub_path_validator,
 };
@@ -32,7 +32,7 @@ use clients::poll::ClientPool;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use futures::SinkExt;
 use log::error;
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::{
@@ -163,7 +163,7 @@ pub async fn tcp_tls_establish_connection_check(
 
 pub fn connect_validator(
     protocol: &MQTTProtocol,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
@@ -171,7 +171,7 @@ pub fn connect_validator(
     login: &Option<Login>,
     addr: &SocketAddr,
 ) -> Option<MQTTPacket> {
-    if cluster.is_self_protection_status {
+    if cluster.security.is_self_protection_status {
         return Some(response_packet_mqtt_connect_fail(
             protocol,
             ConnectReturnCode::ServerBusy,
@@ -323,7 +323,8 @@ pub async fn publish_validator(
     }
 
     let cluster = cache_manager.get_cluster_info();
-    let max_packet_size = min(cluster.max_packet_size, connection.max_packet_size) as usize;
+    let max_packet_size =
+        min(cluster.protocol.max_packet_size, connection.max_packet_size) as usize;
     if publish.payload.len() > max_packet_size {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -396,7 +397,7 @@ pub async fn publish_validator(
     }
 
     if is_flow_control(protocol, publish.qos)
-        && connection.get_recv_qos_message() >= cluster.receive_max() as isize
+        && connection.get_recv_qos_message() >= cluster.protocol.receive_max as isize
     {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -420,7 +421,7 @@ pub async fn publish_validator(
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
             let cluster = cache_manager.get_cluster_info();
-            if alias > cluster.topic_alias_max {
+            if alias > cluster.protocol.topic_alias_max {
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         protocol,
@@ -609,14 +610,14 @@ pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -
 
 pub fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
-            return min(size, cluster.max_packet_size());
+            return min(size, cluster.protocol.max_packet_size);
         }
     }
-    return cluster.max_packet_size();
+    return cluster.protocol.max_packet_size;
 }
 
 pub fn client_id_validator(client_id: &String) -> bool {

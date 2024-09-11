@@ -30,7 +30,11 @@ pub async fn pkid_save(
     client_id: &String,
     pkid: u16,
 ) -> Result<(), CommonError> {
-    if cache_manager.get_cluster_info().client_pkid_persistent {
+    if cache_manager
+        .get_cluster_info()
+        .protocol
+        .client_pkid_persistent
+    {
         let conf = broker_mqtt_conf();
         let request = SetIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
@@ -58,7 +62,11 @@ pub async fn pkid_exists(
     client_id: &String,
     pkid: u16,
 ) -> Result<bool, CommonError> {
-    if cache_manager.get_cluster_info().client_pkid_persistent {
+    if cache_manager
+        .get_cluster_info()
+        .protocol
+        .client_pkid_persistent
+    {
         let conf = broker_mqtt_conf();
         let request = ExistsIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
@@ -86,7 +94,11 @@ pub async fn pkid_delete(
     client_id: &String,
     pkid: u16,
 ) -> Result<(), CommonError> {
-    if cache_manager.get_cluster_info().client_pkid_persistent {
+    if cache_manager
+        .get_cluster_info()
+        .protocol
+        .client_pkid_persistent
+    {
         let conf = broker_mqtt_conf();
         let request = DeleteIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
@@ -173,7 +185,7 @@ mod test {
             }
         }
         let mut cluset_info = cache_manager.get_cluster_info();
-        cluset_info.client_pkid_persistent = true;
+        cluset_info.protocol.client_pkid_persistent = true;
         cache_manager.set_cluster_info(cluset_info);
 
         match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
