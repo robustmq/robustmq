@@ -19,7 +19,7 @@ use crate::raft::peer::PeerMessage;
 use crate::storage::placement::raft::RaftMachineStorage;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
-use log::{error, info};
+use log::{debug, error, info};
 use metadata_struct::placement::broker_node::BrokerNode;
 use prost::Message as _;
 use raft::eraftpb::{
@@ -215,7 +215,7 @@ impl RaftMachine {
         // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
-            info!("save hardState!!!,len:{:?}", hs);
+            debug!("save hardState!!!,len:{:?}", hs);
             raft_node.mut_store().set_hard_state(hs.clone()).unwrap();
         }
 
@@ -228,7 +228,7 @@ impl RaftMachine {
         // A call to advance tells Raft that it is ready for processing.
         let mut light_rd = raft_node.advance(ready);
         if let Some(commit) = light_rd.commit_index() {
-            info!("save light rd!!!,commit:{:?}", commit);
+            debug!("save light rd!!!,commit:{:?}", commit);
             raft_node.mut_store().set_hard_state_comit(commit).unwrap();
         }
 

@@ -35,7 +35,7 @@ use crate::{
 };
 use clients::poll::ClientPool;
 use common_base::{
-    config::broker_mqtt::broker_mqtt_conf, error::mqtt_broker::MQTTBrokerError, tools::now_mills,
+    config::broker_mqtt::broker_mqtt_conf, error::mqtt_broker::MQTTBrokerError,
 };
 use futures_util::StreamExt;
 use log::{debug, error, info};
