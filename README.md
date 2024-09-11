@@ -10,9 +10,9 @@
 ## Introduction
 RobustMQ is a next-generation high-performance cloud-native converged message queue. The goal is to implement a message queue based on Rust that can be compatible with multiple mainstream message queue protocols and has complete Serveless architecture. 
 
-Technical documentation:
-- [《英文版》](docs/en/%20Introduction/What%20is%20RobustMQ.md)
-- [《中文版》](docs/cn/简介/什么是%20RobustMQ.md)
+Official documentation:
+- [《英文版》](http://www.robustmq.com/docs/robustmq-tutorial/introduction/)
+- [《中文版》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%ae%80%e4%bb%8b/%e4%bb%80%e4%b9%88%e6%98%af-robustmq/)
 
 > Tips: We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
 
