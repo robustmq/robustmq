@@ -76,7 +76,7 @@ impl UserStorage {
         let config = broker_mqtt_conf();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
-            username,
+            user_name: username.clone(),
         };
         match placement_list_user(
             self.client_poll.clone(),
@@ -109,7 +109,7 @@ impl UserStorage {
         let config = broker_mqtt_conf();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
-            username: "".to_string(),
+            user_name: "".to_string(),
         };
         match placement_list_user(
             self.client_poll.clone(),

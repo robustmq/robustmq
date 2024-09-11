@@ -86,7 +86,7 @@ impl ConnectionManager {
 
     pub fn connect_check(&self) -> Result<(), Error> {
         // Verify the connection limit
-        if self.connections.len() >= self.max_connection_num {
+        if self.connections.len() > self.max_connection_num {
             return Err(Error::ConnectionExceed {
                 total: self.max_connection_num,
             });

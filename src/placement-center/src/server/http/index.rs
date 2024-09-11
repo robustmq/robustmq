@@ -93,3 +93,11 @@ pub async fn caches(State(state): State<HttpServerState>) -> String {
 pub async fn metrics() -> String {
     return dump_metrics();
 }
+
+pub async fn list_cluster(State(state): State<HttpServerState>) -> String {
+    return success_response(state.cluster_cache.cluster_list.clone());
+}
+
+pub async fn list_node(State(state): State<HttpServerState>) -> String {
+    return success_response(state.cluster_cache.node_list.clone());
+}

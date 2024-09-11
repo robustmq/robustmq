@@ -1,4 +1,3 @@
-mod common;
 #[cfg(test)]
 mod tests {
     use crate::common::get_placement_addr;
@@ -19,7 +18,7 @@ mod tests {
     async fn mqtt_acl_test() {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = "test1".to_string();
+        let cluster_name: String = "test_cluster".to_string();
 
         let acl = MQTTAcl {
             resource_type: MQTTAclResourceType::User,
