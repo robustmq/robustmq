@@ -247,7 +247,7 @@ impl RaftMachine {
         let data_route = self.data_route.write().unwrap();
         for entry in entrys {
             if !entry.data.is_empty() {
-                info!("ready entrys entry type:{:?}", entry.get_entry_type());
+                debug!("ready entrys entry type:{:?}", entry.get_entry_type());
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
