@@ -11,4 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub struct CliCommand {}
 
+impl CliCommand {
+    pub fn new() -> Self {
+        return CliCommand {};
+    }
+
+    pub fn start(&self) {
+        println!("start success");
+    }
+}
