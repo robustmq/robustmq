@@ -1,210 +1,265 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetShareSubLeaderRequest {
+    /// The name of the group.
     #[prost(string, tag = "1")]
     pub group_name: ::prost::alloc::string::String,
+    /// The name of the cluster.
     #[prost(string, tag = "3")]
     pub cluster_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetShareSubLeaderReply {
+    /// The id of the broker.
     #[prost(uint64, tag = "1")]
     pub broker_id: u64,
+    /// The ip address of the broker
     #[prost(string, tag = "2")]
     pub broker_addr: ::prost::alloc::string::String,
+    /// The parameter for the extended information of the broker node.
     #[prost(string, tag = "3")]
     pub extend_info: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListUserRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The name of the user.
     #[prost(string, tag = "2")]
     pub user_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListUserReply {
+    /// The parameter contains a list of users, encoded from a `Vec<MQTTTopic>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub users: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The name of the user.
     #[prost(string, tag = "2")]
     pub user_name: ::prost::alloc::string::String,
+    /// The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub content: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteUserRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The name of the user.
     #[prost(string, tag = "2")]
     pub user_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListTopicRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The name of the topic.
     #[prost(string, tag = "2")]
     pub topic_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListTopicReply {
+    /// The parameter contains a list of topics, encoded from a `Vec<MQTTTopic>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub topics: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateTopicRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The name of the topic.
     #[prost(string, tag = "2")]
     pub topic_name: ::prost::alloc::string::String,
+    /// The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub content: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteTopicRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The name of the topic.
     #[prost(string, tag = "2")]
     pub topic_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SetTopicRetainMessageRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The name of the topic.
     #[prost(string, tag = "2")]
     pub topic_name: ::prost::alloc::string::String,
+    /// The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub retain_message: ::prost::alloc::vec::Vec<u8>,
+    /// The parameter is the expiration time of the retain message. The unit is seconds.
     #[prost(uint64, tag = "4")]
     pub retain_message_expired_at: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListSessionRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The id of the client.
     #[prost(string, tag = "2")]
     pub client_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListSessionReply {
+    /// The parameter contains a list of sessions, encoded from a `Vec<MQTTSession>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub sessions: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateSessionRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The id of the client.
     #[prost(string, tag = "2")]
     pub client_id: ::prost::alloc::string::String,
+    /// The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub session: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UpdateSessionRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The id of the client.
     #[prost(string, tag = "2")]
     pub client_id: ::prost::alloc::string::String,
+    /// The id of the connection.
     #[prost(uint64, tag = "3")]
     pub connection_id: u64,
+    /// The id of the broker.
     #[prost(uint64, tag = "4")]
     pub broker_id: u64,
+    /// The parameter is the time when session reconnects. The unit is seconds.
     #[prost(uint64, tag = "5")]
     pub reconnect_time: u64,
+    /// The parameter is the time when session disconnects. The unit is seconds.
     #[prost(uint64, tag = "6")]
     pub distinct_time: u64,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteSessionRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The id of the client.
     #[prost(string, tag = "2")]
     pub client_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SaveLastWillMessageRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The id of the client.
     #[prost(string, tag = "2")]
     pub client_id: ::prost::alloc::string::String,
+    /// The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub last_will_message: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListAclRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListAclReply {
+    /// The parameter contains a list of acls, encoded from a `Vec<MQTTAcl>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub acls: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteAclRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
     #[prost(bytes = "vec", tag = "2")]
     pub acl: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateAclRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
     #[prost(bytes = "vec", tag = "2")]
     pub acl: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListBlacklistRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListBlacklistReply {
+    /// The parameter contains a list of blacklist, encoded from a `Vec<MQTTAclBlackList>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub blacklists: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateBlacklistRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
     #[prost(bytes = "vec", tag = "2")]
     pub blacklist: ::prost::alloc::vec::Vec<u8>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteBlacklistRequest {
+    /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
+    /// The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
     #[prost(string, tag = "2")]
     pub blacklist_type: ::prost::alloc::string::String,
+    /// The name of the resource.
     #[prost(string, tag = "3")]
     pub resource_name: ::prost::alloc::string::String,
 }
@@ -293,6 +348,14 @@ pub mod mqtt_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
+        /// Returns a list of users based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `user_name: String` (Option): The name of the user.
+        ///
+        /// Returns:
+        /// - `users: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTUser>` into a binary format.
         pub async fn list_user(
             &mut self,
             request: impl tonic::IntoRequest<super::ListUserRequest>,
@@ -314,6 +377,14 @@ pub mod mqtt_service_client {
             req.extensions_mut().insert(GrpcMethod::new("mqtt.MqttService", "ListUser"));
             self.inner.unary(req, path, codec).await
         }
+        /// Creates the corresponding user based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `user_name: String`: The name of the user.
+        /// - `content: Vec<u8>`: The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         pub async fn create_user(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateUserRequest>,
@@ -339,6 +410,13 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateUser"));
             self.inner.unary(req, path, codec).await
         }
+        /// Deletes the corresponding user based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `user_name: String`: The name of the user.
+        ///
+        /// Returns: An empty struct.
         pub async fn delete_user(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteUserRequest>,
@@ -364,6 +442,14 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteUser"));
             self.inner.unary(req, path, codec).await
         }
+        /// Returns a list of sessions based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String` (Option): The id of the client.
+        ///
+        /// Returns:
+        /// - `sessions: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTSession>` into a binary format.
         pub async fn list_session(
             &mut self,
             request: impl tonic::IntoRequest<super::ListSessionRequest>,
@@ -389,6 +475,14 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "ListSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Creates the corresponding session based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        /// - `session: Vec<u8>`: The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         pub async fn create_session(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateSessionRequest>,
@@ -414,6 +508,17 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Updates the corresponding session based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        /// - `connection_id: u64` (Option): The id of the connection.
+        /// - `broker_id: u64` (Option): The id of the broker.
+        /// - `reconnect_time: u64` (Option): The parameter is the time when session reconnects. The unit is seconds.
+        /// - `distinct_time: u64` (Option): The parameter is the time when session disconnects. The unit is seconds.
+        ///
+        /// Returns: An empty struct.
         pub async fn update_session(
             &mut self,
             request: impl tonic::IntoRequest<super::UpdateSessionRequest>,
@@ -439,6 +544,13 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "UpdateSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Deletes the corresponding session based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        ///
+        /// Returns: An empty struct.
         pub async fn delete_session(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteSessionRequest>,
@@ -464,6 +576,14 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteSession"));
             self.inner.unary(req, path, codec).await
         }
+        /// Returns a list of topics based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        ///
+        /// Returns:
+        /// - `topics: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTTopic>` into a binary format.
         pub async fn list_topic(
             &mut self,
             request: impl tonic::IntoRequest<super::ListTopicRequest>,
@@ -486,6 +606,14 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "ListTopic"));
             self.inner.unary(req, path, codec).await
         }
+        /// Creates the corresponding topic based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        /// - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         pub async fn create_topic(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateTopicRequest>,
@@ -511,6 +639,13 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateTopic"));
             self.inner.unary(req, path, codec).await
         }
+        /// Deletes the corresponding topic based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        ///
+        /// Returns: An empty struct.
         pub async fn delete_topic(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteTopicRequest>,
@@ -536,6 +671,15 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteTopic"));
             self.inner.unary(req, path, codec).await
         }
+        /// Sets the retain message for the corresponding topic based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        /// - `retain_message: Vec<u8>`: The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
+        /// - `retain_message_expired_at: u64`: The parameter is the expiration time of the retain message. The unit is seconds.
+        ///
+        /// Returns: An empty struct.
         pub async fn set_topic_retain_message(
             &mut self,
             request: impl tonic::IntoRequest<super::SetTopicRetainMessageRequest>,
@@ -561,6 +705,16 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "SetTopicRetainMessage"));
             self.inner.unary(req, path, codec).await
         }
+        /// Gets the share sub leader based on the request
+        ///
+        /// Parameters:
+        /// - `group_name: String`: The name of the group.
+        /// - `cluster_name: String`: The name of the cluster.
+        ///
+        /// Returns:
+        /// - `broker_id: u64`: The ip address of the broker
+        /// - `broker_addr: String`: The ip address of the broker
+        /// - `extend_info: String`: The parameter for the extended information of the broker node.
         pub async fn get_share_sub_leader(
             &mut self,
             request: impl tonic::IntoRequest<super::GetShareSubLeaderRequest>,
@@ -586,6 +740,14 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "GetShareSubLeader"));
             self.inner.unary(req, path, codec).await
         }
+        /// Saves the client's will message based on request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        /// - `last_will_message: Vec<u8>`: The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         pub async fn save_last_will_message(
             &mut self,
             request: impl tonic::IntoRequest<super::SaveLastWillMessageRequest>,
@@ -611,6 +773,13 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "SaveLastWillMessage"));
             self.inner.unary(req, path, codec).await
         }
+        /// Returns a list of ACLs based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        ///
+        /// Returns:
+        /// - `acls: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAcl>` into a binary format.
         pub async fn list_acl(
             &mut self,
             request: impl tonic::IntoRequest<super::ListAclRequest>,
@@ -630,6 +799,13 @@ pub mod mqtt_service_client {
             req.extensions_mut().insert(GrpcMethod::new("mqtt.MqttService", "ListAcl"));
             self.inner.unary(req, path, codec).await
         }
+        /// Deletes the corresponding ACL based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         pub async fn delete_acl(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteAclRequest>,
@@ -655,6 +831,13 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteAcl"));
             self.inner.unary(req, path, codec).await
         }
+        /// Creates the corresponding ACL based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         pub async fn create_acl(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateAclRequest>,
@@ -680,6 +863,13 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateAcl"));
             self.inner.unary(req, path, codec).await
         }
+        /// Returns a list of blacklist based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        ///
+        /// Returns:
+        /// - `blacklists: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAclBlackList>` into a binary format.
         pub async fn list_blacklist(
             &mut self,
             request: impl tonic::IntoRequest<super::ListBlacklistRequest>,
@@ -705,6 +895,14 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "ListBlacklist"));
             self.inner.unary(req, path, codec).await
         }
+        /// Deletes the corresponding blacklist based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `blacklist_type: String`: The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
+        /// - `resource_name: String`: The name of the resource.
+        ///
+        /// Returns: An empty struct.
         pub async fn delete_blacklist(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteBlacklistRequest>,
@@ -730,6 +928,13 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteBlacklist"));
             self.inner.unary(req, path, codec).await
         }
+        /// Creates the corresponding blacklist based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         pub async fn create_blacklist(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateBlacklistRequest>,
@@ -764,10 +969,26 @@ pub mod mqtt_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with MqttServiceServer.
     #[async_trait]
     pub trait MqttService: Send + Sync + 'static {
+        /// Returns a list of users based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `user_name: String` (Option): The name of the user.
+        ///
+        /// Returns:
+        /// - `users: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTUser>` into a binary format.
         async fn list_user(
             &self,
             request: tonic::Request<super::ListUserRequest>,
         ) -> std::result::Result<tonic::Response<super::ListUserReply>, tonic::Status>;
+        /// Creates the corresponding user based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `user_name: String`: The name of the user.
+        /// - `content: Vec<u8>`: The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         async fn create_user(
             &self,
             request: tonic::Request<super::CreateUserRequest>,
@@ -775,6 +996,13 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Deletes the corresponding user based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `user_name: String`: The name of the user.
+        ///
+        /// Returns: An empty struct.
         async fn delete_user(
             &self,
             request: tonic::Request<super::DeleteUserRequest>,
@@ -782,6 +1010,14 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Returns a list of sessions based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String` (Option): The id of the client.
+        ///
+        /// Returns:
+        /// - `sessions: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTSession>` into a binary format.
         async fn list_session(
             &self,
             request: tonic::Request<super::ListSessionRequest>,
@@ -789,6 +1025,14 @@ pub mod mqtt_service_server {
             tonic::Response<super::ListSessionReply>,
             tonic::Status,
         >;
+        /// Creates the corresponding session based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        /// - `session: Vec<u8>`: The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         async fn create_session(
             &self,
             request: tonic::Request<super::CreateSessionRequest>,
@@ -796,6 +1040,17 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Updates the corresponding session based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        /// - `connection_id: u64` (Option): The id of the connection.
+        /// - `broker_id: u64` (Option): The id of the broker.
+        /// - `reconnect_time: u64` (Option): The parameter is the time when session reconnects. The unit is seconds.
+        /// - `distinct_time: u64` (Option): The parameter is the time when session disconnects. The unit is seconds.
+        ///
+        /// Returns: An empty struct.
         async fn update_session(
             &self,
             request: tonic::Request<super::UpdateSessionRequest>,
@@ -803,6 +1058,13 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Deletes the corresponding session based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        ///
+        /// Returns: An empty struct.
         async fn delete_session(
             &self,
             request: tonic::Request<super::DeleteSessionRequest>,
@@ -810,10 +1072,26 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Returns a list of topics based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        ///
+        /// Returns:
+        /// - `topics: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTTopic>` into a binary format.
         async fn list_topic(
             &self,
             request: tonic::Request<super::ListTopicRequest>,
         ) -> std::result::Result<tonic::Response<super::ListTopicReply>, tonic::Status>;
+        /// Creates the corresponding topic based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        /// - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         async fn create_topic(
             &self,
             request: tonic::Request<super::CreateTopicRequest>,
@@ -821,6 +1099,13 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Deletes the corresponding topic based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        ///
+        /// Returns: An empty struct.
         async fn delete_topic(
             &self,
             request: tonic::Request<super::DeleteTopicRequest>,
@@ -828,6 +1113,15 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Sets the retain message for the corresponding topic based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `topic_name: String`: The name of the topic.
+        /// - `retain_message: Vec<u8>`: The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
+        /// - `retain_message_expired_at: u64`: The parameter is the expiration time of the retain message. The unit is seconds.
+        ///
+        /// Returns: An empty struct.
         async fn set_topic_retain_message(
             &self,
             request: tonic::Request<super::SetTopicRetainMessageRequest>,
@@ -835,6 +1129,16 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Gets the share sub leader based on the request
+        ///
+        /// Parameters:
+        /// - `group_name: String`: The name of the group.
+        /// - `cluster_name: String`: The name of the cluster.
+        ///
+        /// Returns:
+        /// - `broker_id: u64`: The ip address of the broker
+        /// - `broker_addr: String`: The ip address of the broker
+        /// - `extend_info: String`: The parameter for the extended information of the broker node.
         async fn get_share_sub_leader(
             &self,
             request: tonic::Request<super::GetShareSubLeaderRequest>,
@@ -842,6 +1146,14 @@ pub mod mqtt_service_server {
             tonic::Response<super::GetShareSubLeaderReply>,
             tonic::Status,
         >;
+        /// Saves the client's will message based on request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `client_id: String`: The id of the client.
+        /// - `last_will_message: Vec<u8>`: The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         async fn save_last_will_message(
             &self,
             request: tonic::Request<super::SaveLastWillMessageRequest>,
@@ -849,10 +1161,24 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Returns a list of ACLs based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        ///
+        /// Returns:
+        /// - `acls: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAcl>` into a binary format.
         async fn list_acl(
             &self,
             request: tonic::Request<super::ListAclRequest>,
         ) -> std::result::Result<tonic::Response<super::ListAclReply>, tonic::Status>;
+        /// Deletes the corresponding ACL based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         async fn delete_acl(
             &self,
             request: tonic::Request<super::DeleteAclRequest>,
@@ -860,6 +1186,13 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Creates the corresponding ACL based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         async fn create_acl(
             &self,
             request: tonic::Request<super::CreateAclRequest>,
@@ -867,6 +1200,13 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Returns a list of blacklist based on the parameters of the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        ///
+        /// Returns:
+        /// - `blacklists: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAclBlackList>` into a binary format.
         async fn list_blacklist(
             &self,
             request: tonic::Request<super::ListBlacklistRequest>,
@@ -874,6 +1214,14 @@ pub mod mqtt_service_server {
             tonic::Response<super::ListBlacklistReply>,
             tonic::Status,
         >;
+        /// Deletes the corresponding blacklist based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `blacklist_type: String`: The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
+        /// - `resource_name: String`: The name of the resource.
+        ///
+        /// Returns: An empty struct.
         async fn delete_blacklist(
             &self,
             request: tonic::Request<super::DeleteBlacklistRequest>,
@@ -881,6 +1229,13 @@ pub mod mqtt_service_server {
             tonic::Response<super::super::common::CommonReply>,
             tonic::Status,
         >;
+        /// Creates the corresponding blacklist based on the request
+        ///
+        /// Parameters:
+        /// - `cluster_name: String`: The name of the cluster.
+        /// - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
+        ///
+        /// Returns: An empty struct.
         async fn create_blacklist(
             &self,
             request: tonic::Request<super::CreateBlacklistRequest>,
