@@ -162,6 +162,12 @@ In the planning
 ## Contributing
 Please refer to contribution [guidelines](docs/en/contribution.md) for more information.
 
+## Join Our Wechat Group
+If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
+<div align="center"> 
+  <img src="docs/images/WechatGroup.png" alt="WeChat QR Code" width=300 />
+</div>
+
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want
 
