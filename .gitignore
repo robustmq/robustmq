@@ -10,3 +10,4 @@ src/rlog/log/server.log
 .idea/modules.xml
 .idea/robustmq.iml
 .idea/vcs.xml
+logs

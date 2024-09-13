@@ -33,7 +33,3 @@ pub async fn start_tcp_server() {
     );
     tcp.start(conf.grpc_port).await;
 }
-
-pub async fn start_quic_server() {
-    let conf = journal_server_conf();
-}

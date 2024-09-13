@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     handler::{
-        cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
         retain::try_send_retain_message,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
@@ -22,12 +21,9 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-    tools::now_second,
-};
-use metadata_struct::mqtt::{cluster, message::MQTTMessage};
+use common_base::{error::common::CommonError, tools::now_second};
+use log::{error, info};
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
@@ -128,16 +124,16 @@ where
                 .insert(exclusive_key.clone(), sub_thread_stop_sx.clone());
 
             tokio::spawn(async move {
-                info(format!(
+                info!(
                         "Exclusive push thread for client_id [{}],topic_id [{}] was started successfully",
                         client_id, subscriber.topic_id
-                    ));
+                    );
                 let message_storage = MessageStorage::new(message_storage);
                 let group_id = format!("system_sub_{}_{}", client_id, subscriber.topic_id);
                 let record_num = 5;
                 let max_wait_ms = 100;
 
-                let cluster_qos = cache_manager.get_cluster_info().max_qos();
+                let cluster_qos = cache_manager.get_cluster_info().protocol.max_qos;
                 let qos = min_qos(cluster_qos, subscriber.qos);
 
                 let mut sub_ids = Vec::new();
@@ -159,11 +155,11 @@ where
                     match sub_thread_stop_rx.try_recv() {
                         Ok(flag) => {
                             if flag {
-                                info(format!(
+                                info!(
                                         "Exclusive Push thread for client_id [{}],topic_id [{}] was stopped successfully",
                                         client_id.clone(),
                                     subscriber.topic_id
-                                    ));
+                                    );
                                 break;
                             }
                         }
@@ -187,7 +183,7 @@ where
                                 let msg = match MQTTMessage::decode_record(record.clone()) {
                                     Ok(msg) => msg,
                                     Err(e) => {
-                                        error(format!("Storage layer message Decord failed with error message :{}",e.to_string()));
+                                        error!("Storage layer message Decord failed with error message :{}",e);
                                         match message_storage
                                             .commit_group_offset(
                                                 subscriber.topic_id.clone(),
@@ -198,7 +194,7 @@ where
                                         {
                                             Ok(_) => {}
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error!("{}", e);
                                             }
                                         }
                                         continue;
@@ -279,7 +275,7 @@ where
                                                 cache_manager.remove_ack_packet(&client_id, pkid);
                                             }
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error!("{}", e);
                                             }
                                         }
                                     }
@@ -314,7 +310,7 @@ where
                                                 cache_manager.remove_ack_packet(&client_id, pkid);
                                             }
                                             Err(e) => {
-                                                error(e.to_string());
+                                                error!("{}", e);
                                             }
                                         }
                                     }
@@ -332,12 +328,12 @@ where
                             }
                         }
                         Err(e) => {
-                            error(format!(
+                            error!(
                                     "Failed to read message from storage, failure message: {},topic:{},group{}",
                                     e.to_string(),
                                     subscriber.topic_id.clone(),
                                     group_id.clone()
-                                ));
+                                );
                             sleep(Duration::from_millis(max_wait_ms)).await;
                         }
                     }
@@ -363,7 +359,7 @@ pub async fn exclusive_publish_message_qos1(
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let mut retry_times = 0;
     loop {
         match stop_sx.subscribe().try_recv() {
@@ -419,10 +415,10 @@ pub async fn exclusive_publish_message_qos1(
                 }
             }
             Err(e) => {
-                error(format!(
+                error!(
                     "Failed to write QOS1 Publish message to response queue, failure message: {}",
-                    e.to_string()
-                ));
+                    e
+                );
                 sleep(Duration::from_secs(1)).await;
             }
         }
@@ -442,9 +438,9 @@ pub async fn exclusive_publish_message_qos2(
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     // 1. send Publish to Client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         metadata_cache,
         client_id,
@@ -452,11 +448,7 @@ pub async fn exclusive_publish_message_qos2(
         &Some(publish_properties.clone()),
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     // 2. wait PubRec ack
     loop {
@@ -473,7 +465,7 @@ pub async fn exclusive_publish_message_qos2(
                 break;
             }
         } else {
-            match qos2_send_publish(
+            qos2_send_publish(
                 connection_manager,
                 metadata_cache,
                 client_id,
@@ -481,11 +473,7 @@ pub async fn exclusive_publish_message_qos2(
                 &Some(publish_properties.clone()),
                 stop_sx,
             )
-            .await
-            {
-                Ok(()) => {}
-                Err(e) => return Err(e),
-            };
+            .await?;
         }
         sleep(Duration::from_millis(1)).await;
     }

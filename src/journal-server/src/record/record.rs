@@ -16,6 +16,7 @@ use bytes::Bytes;
 
 use super::header::Header;
 
+#[allow(dead_code)]
 pub struct Record {
     pub offset: u64,
     pub sequence: u32,

@@ -13,11 +13,16 @@
 // limitations under the License.
 
 use crate::storage::{
+    engine::{
+        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+        engine_save_by_cluster,
+    },
     keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix},
     rocksdb::RocksDBEngine,
     StorageDataWrap,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
+use metadata_struct::mqtt::session::MQTTSession;
 use std::sync::Arc;
 
 pub struct MQTTSessionStorage {
@@ -30,75 +35,48 @@ impl MQTTSessionStorage {
             rocksdb_engine_handler,
         }
     }
-    pub fn list(
-        &self,
-        cluster_name: &String,
-        client_id: Option<String>,
-    ) -> Result<Vec<StorageDataWrap>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
-        if client_id != None {
-            let key: String = storage_key_mqtt_session(cluster_name, &client_id.unwrap());
-            match self
-                .rocksdb_engine_handler
-                .read::<StorageDataWrap>(cf, &key)
-            {
-                Ok(Some(data)) => {
-                    return Ok(vec![data]);
-                }
-                Ok(None) => {
-                    return Ok(Vec::new());
-                }
-                Err(e) => {
-                    return Err(RobustMQError::CommmonError(e));
-                }
-            }
-        }
-        let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
-        let data_list = self.rocksdb_engine_handler.read_prefix(cf, &prefix_key);
-        let mut results = Vec::new();
-        for raw in data_list {
-            for (_, v) in raw {
-                match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
-                    Ok(v) => results.push(v),
-                    Err(_) => {
-                        continue;
-                    }
-                }
-            }
-        }
-        return Ok(results);
-    }
-
     pub fn save(
         &self,
         cluster_name: &String,
         client_id: &String,
-        content: Vec<u8>,
-    ) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
+        session: MQTTSession,
+    ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        let data = StorageDataWrap::new(content);
-        match self.rocksdb_engine_handler.write(cf, &key, &data) {
-            Ok(_) => {
-                return Ok(());
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session);
+    }
+
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, CommonError> {
+        let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
+        return engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key);
+    }
+
+    pub fn get(
+        &self,
+        cluster_name: &String,
+        client_id: &String,
+    ) -> Result<Option<MQTTSession>, CommonError> {
+        let key: String = storage_key_mqtt_session(cluster_name, client_id);
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
+            Ok(Some(data)) => match serde_json::from_slice::<MQTTSession>(&data.data) {
+                Ok(session) => {
+                    return Ok(Some(session));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
             }
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
+                return Err(e);
             }
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
+    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e));
-            }
-        }
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 }
 
@@ -121,30 +99,30 @@ mod tests {
         let client_id = "loboxu".to_string();
         let session = MQTTSession::default();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let client_id = "lobo1".to_string();
         let session = MQTTSession::default();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
-        let res = session_storage.list(&cluster_name, None).unwrap();
+        let res = session_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
         let res = session_storage
-            .list(&cluster_name, Some("lobo1".to_string()))
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
-        assert_eq!(res.len(), 1);
+        assert!(!res.is_none());
 
         session_storage
             .delete(&cluster_name, &"lobo1".to_string())
             .unwrap();
 
         let res = session_storage
-            .list(&cluster_name, Some("lobo1".to_string()))
+            .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
-        assert_eq!(res.len(), 0);
+        assert!(res.is_none());
     }
 }

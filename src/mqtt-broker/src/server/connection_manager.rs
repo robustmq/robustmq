@@ -11,15 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 use axum::extract::ws::{Message, WebSocket};
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-};
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use futures::{stream::SplitSink, SinkExt};
+use log::{debug, error, info};
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTProtocol,
@@ -103,36 +100,36 @@ impl ConnectionManager {
         if let Some((id, mut stream)) = self.tcp_write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
-                    info(format!(
+                    info!(
                         "server closes the tcp connection actively, connection id [{}]",
                         id
-                    ));
+                    );
                 }
-                Err(e) => error(e.to_string()),
+                Err(e) => error!("{}", e),
             }
         }
 
         if let Some((id, mut stream)) = self.tcp_tls_write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
-                    info(format!(
+                    info!(
                         "server closes the tcp connection actively, connection id [{}]",
                         id
-                    ));
+                    );
                 }
-                Err(e) => error(e.to_string()),
+                Err(e) => error!("{}", e),
             }
         }
 
         if let Some((id, mut stream)) = self.websocket_write_list.remove(&connection_id) {
             match stream.close().await {
                 Ok(_) => {
-                    info(format!(
+                    info!(
                         "server closes the websocket connection actively, connection id [{}]",
                         id
-                    ));
+                    );
                 }
-                Err(e) => error(e.to_string()),
+                Err(e) => error!("{}", e),
             }
         }
     }
@@ -141,7 +138,7 @@ impl ConnectionManager {
         &self,
         connection_id: u64,
         resp: Message,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
@@ -152,8 +149,8 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.send_max_try_mut_times {
-                                return Err(RobustMQError::CommmonError(format!(
+                            if times > cluster.network.response_max_try_mut_times {
+                                return Err(CommonError::CommmonError(format!(
                                     "Failed to write data to the mqtt websocket client, error message: {:?}",
                                     e
                                 )));
@@ -162,8 +159,8 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.send_max_try_mut_times {
-                        return Err(RobustMQError::CommmonError(format!(
+                    if times > cluster.network.response_max_try_mut_times {
+                        return Err(CommonError::CommmonError(format!(
                             "[write_frame]Connection management could not obtain an available websocket connection. Connection ID: {},len:{}",
                             connection_id,
                             self.tcp_write_list.len()
@@ -172,15 +169,18 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.send_max_try_mut_times {
-                        return Err(RobustMQError::CommmonError(
+                    if times > cluster.network.response_max_try_mut_times {
+                        return Err(CommonError::CommmonError(
                             format!("[write_frame]Connection management failed to get websocket connection variable reference, connection ID: {connection_id}")
                         ));
                     }
                 }
             }
             times = times + 1;
-            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
+            sleep(Duration::from_millis(
+                cluster.network.response_try_mut_sleep_time_ms,
+            ))
+            .await
         }
         return Ok(());
     }
@@ -189,10 +189,8 @@ impl ConnectionManager {
         &self,
         connection_id: u64,
         resp: MQTTPacketWrapper,
-    ) -> Result<(), RobustMQError> {
-        info(format!(
-            "response packet:{resp:?},connection_id:{connection_id}"
-        ));
+    ) -> Result<(), CommonError> {
+        debug!("response packet:{resp:?},connection_id:{connection_id}");
 
         // write tls stream
         if let Some(connection) = self.get_connect(connection_id) {
@@ -211,8 +209,8 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.send_max_try_mut_times {
-                                return Err(RobustMQError::CommmonError(format!(
+                            if times > cluster.network.response_max_try_mut_times {
+                                return Err(CommonError::CommmonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
                             }
@@ -220,8 +218,8 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.send_max_try_mut_times {
-                        return Err(RobustMQError::CommmonError(
+                    if times > cluster.network.response_max_try_mut_times {
+                        return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -231,8 +229,8 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.send_max_try_mut_times {
-                        return Err(RobustMQError::CommmonError(
+                    if times > cluster.network.response_max_try_mut_times {
+                        return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )
@@ -241,7 +239,10 @@ impl ConnectionManager {
                 }
             }
             times = times + 1;
-            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
+            sleep(Duration::from_millis(
+                cluster.network.response_try_mut_sleep_time_ms,
+            ))
+            .await
         }
         return Ok(());
     }
@@ -250,7 +251,7 @@ impl ConnectionManager {
         &self,
         connection_id: u64,
         resp: MQTTPacketWrapper,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();
         loop {
@@ -261,8 +262,8 @@ impl ConnectionManager {
                             break;
                         }
                         Err(e) => {
-                            if times > cluster.send_max_try_mut_times {
-                                return Err(RobustMQError::CommmonError(format!(
+                            if times > cluster.network.response_max_try_mut_times {
+                                return Err(CommonError::CommmonError(format!(
                                     "Failed to write data to the mqtt tcp client, error message: {e:?}"
                                 )));
                             }
@@ -270,8 +271,8 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Absent => {
-                    if times > cluster.send_max_try_mut_times {
-                        return Err(RobustMQError::CommmonError(
+                    if times > cluster.network.response_max_try_mut_times {
+                        return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management could not obtain an available tcp connection. Connection ID: {},len:{}",
                                 connection_id,
@@ -281,8 +282,8 @@ impl ConnectionManager {
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
-                    if times > cluster.send_max_try_mut_times {
-                        return Err(RobustMQError::CommmonError(
+                    if times > cluster.network.response_max_try_mut_times {
+                        return Err(CommonError::CommmonError(
                             format!(
                                 "[write_frame]Connection management failed to get tcp connection variable reference, connection ID: {}",connection_id
                             )
@@ -291,14 +292,17 @@ impl ConnectionManager {
                 }
             }
             times = times + 1;
-            sleep(Duration::from_millis(cluster.send_try_mut_sleep_time_ms)).await
+            sleep(Duration::from_millis(
+                cluster.network.response_try_mut_sleep_time_ms,
+            ))
+            .await
         }
         return Ok(());
     }
 
     pub fn tcp_connect_num_check(&self) -> bool {
         let cluster = self.cache_manager.get_cluster_info();
-        if self.connections.len() >= cluster.tcp_max_connection_num as usize {
+        if self.connections.len() >= cluster.network.tcp_max_connection_num as usize {
             return true;
         }
         return false;
@@ -313,7 +317,6 @@ impl ConnectionManager {
 
     pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MQTTProtocol> {
         if let Some(connec) = self.connections.get(&connect_id) {
-            println!("protocol:{:?}",connec.protocol.clone());
             return connec.protocol.clone();
         }
         return None;

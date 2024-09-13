@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
-    broker_mqtt::{Log, Network, System, TcpThread},
-    common::{Auth, Storage},
+    broker_mqtt::{Network, System, TcpThread},
+    common::{Auth, Log, Storage},
 };
 
 pub fn default_grpc_port() -> u32 {
@@ -83,9 +82,8 @@ pub fn default_storage() -> Storage {
 
 pub fn default_log() -> Log {
     Log {
-        log_path: format!("/tmp/robust-default"),
-        log_segment_size: 1073741824,
-        log_file_num: 50,
+        log_path: format!("./logs"),
+        log_config: format!("./config/log4rs.yaml"),
     }
 }
 

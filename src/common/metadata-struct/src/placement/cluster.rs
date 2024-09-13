@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -20,4 +19,10 @@ pub struct ClusterInfo {
     pub cluster_name: String,
     pub cluster_type: String,
     pub create_time: u128,
+}
+
+impl ClusterInfo {
+    pub fn encode(&self) -> Vec<u8> {
+        return serde_json::to_vec(&self).unwrap();
+    }
 }

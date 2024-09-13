@@ -11,18 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::sync::{Arc, RwLock};
-
-use crate::cache::journal::JournalCacheManager;
-
-pub struct PreferredElection {
-    engine_cache: Arc<RwLock<JournalCacheManager>>,
-}
+pub struct PreferredElection {}
 
 impl PreferredElection {
-    pub fn new(engine_cache: Arc<RwLock<JournalCacheManager>>) -> Self {
-        return PreferredElection { engine_cache };
+    pub fn new() -> Self {
+        return PreferredElection {};
     }
 
     pub async fn start(&self) {}

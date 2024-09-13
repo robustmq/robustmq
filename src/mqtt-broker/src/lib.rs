@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use clients::poll::ClientPool;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, log::info, runtime::create_runtime};
+use common_base::tools::now_second;
+use common_base::{config::broker_mqtt::broker_mqtt_conf, runtime::create_runtime};
 use handler::keep_alive::ClientKeepAlive;
-use handler::{cache_manager::CacheManager, heartbreat::report_heartbeat};
+use handler::{cache::CacheManager, heartbreat::report_heartbeat};
+use lazy_static::lazy_static;
+use log::info;
+use observability::start_opservability;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::tcp::start_tcp_server;
@@ -24,6 +28,7 @@ use server::{
     http::server::{start_http_server, HttpServerState},
 };
 use std::sync::Arc;
+use std::time::Duration;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
@@ -34,14 +39,19 @@ use subscribe::{
     sub_share_leader::SubscribeShareLeader, subscribe_manager::SubscribeManager,
 };
 use third_driver::mysql::build_mysql_conn_pool;
+use tokio::time::sleep;
 use tokio::{
     runtime::Runtime,
     signal,
     sync::broadcast::{self},
 };
 
-mod handler;
-mod metrics;
+lazy_static! {
+    pub static ref BROKER_START_TIME: u64 = now_second();
+}
+
+pub mod handler;
+mod observability;
 mod security;
 mod server;
 pub mod storage;
@@ -125,6 +135,7 @@ where
         self.start_keep_alive_thread(stop_send.clone());
         self.start_cluster_heartbeat_report(stop_send.clone());
         self.start_push_server();
+        self.start_system_topic_thread(stop_send.clone());
         self.awaiting_stop(stop_send);
     }
 
@@ -260,14 +271,37 @@ where
         });
     }
 
+    fn start_system_topic_thread(&self, stop_send: broadcast::Sender<bool>) {
+        let cache_manager = self.cache_manager.clone();
+        let message_storage_adapter = self.message_storage_adapter.clone();
+        let client_poll = self.client_poll.clone();
+        self.runtime.spawn(async move {
+            start_opservability(
+                cache_manager,
+                message_storage_adapter,
+                client_poll,
+                stop_send,
+            )
+            .await;
+        });
+    }
+
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+        self.runtime.spawn(async move {
+            sleep(Duration::from_millis(5)).await;
+            info!("MQTT Broker service started successfully...");
+        });
+
         // Wait for the stop signal
         self.runtime.block_on(async move {
             loop {
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match stop_send.send(true) {
                     Ok(_) => {
-                        info("When ctrl + c is received, the service starts to stop".to_string());
+                        info!(
+                            "{}",
+                            "When ctrl + c is received, the service starts to stop"
+                        );
                         self.stop_server().await;
                         break;
                     }

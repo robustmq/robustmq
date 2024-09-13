@@ -11,21 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
     connection::{Connection, ConnectionManager},
     packet::ResponsePackage,
 };
 use crate::{network::command::Command, server::tcp::packet::RequestPackage};
-use common_base::log::error_engine;
+
 use futures::StreamExt;
+use log::error;
 use protocol::journal_server::codec::StorageEngineCodec;
 use std::{fmt::Error, sync::Arc};
 use tokio::{io, sync::broadcast};
-use tokio::{
-    net::TcpListener,
-    sync::broadcast::{Receiver, Sender},
-};
+use tokio::{net::TcpListener, sync::broadcast::Sender};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 pub struct TcpServer {
@@ -34,9 +31,7 @@ pub struct TcpServer {
     handler_process_num: usize,
     response_process_num: usize,
     request_queue_sx: Sender<RequestPackage>,
-    request_queue_rx: Receiver<RequestPackage>,
     response_queue_sx: Sender<ResponsePackage>,
-    response_queue_rx: Receiver<ResponsePackage>,
     codec: StorageEngineCodec,
 }
 
@@ -51,8 +46,8 @@ impl TcpServer {
         max_try_mut_times: u64,
         try_mut_sleep_time_ms: u64,
     ) -> Self {
-        let (request_queue_sx, request_queue_rx) = broadcast::channel(request_queue_size);
-        let (response_queue_sx, response_queue_rx) = broadcast::channel(response_queue_size);
+        let (request_queue_sx, _) = broadcast::channel(request_queue_size);
+        let (response_queue_sx, _) = broadcast::channel(response_queue_size);
 
         let connection_manager = Arc::new(ConnectionManager::new(
             max_connection_num,
@@ -67,9 +62,7 @@ impl TcpServer {
             handler_process_num,
             response_process_num,
             request_queue_sx,
-            request_queue_rx,
             response_queue_sx,
-            response_queue_rx,
             codec,
         }
     }
@@ -106,7 +99,7 @@ impl TcpServer {
                         match cm.connect_check() {
                             Ok(_) => {}
                             Err(e) => {
-                                error_engine(format!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string()));
+                                error!("tcp connection failed to establish from IP: {}. Failure reason: {}",addr.to_string(),e.to_string());
                                 continue;
                             }
                         }
@@ -128,11 +121,11 @@ impl TcpServer {
                                             let package = RequestPackage::new(connection_id, data);
                                             match request_queue_sx.send(package) {
                                                 Ok(_) => {}
-                                                Err(err) => error_engine(format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                                Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
                                             }
                                         }
                                         Err(e) => {
-                                            error_engine(e.to_string());
+                                            error!("{}", e);
                                         }
                                     }
                                 }
@@ -140,7 +133,7 @@ impl TcpServer {
                         });
                     }
                     Err(e) => {
-                        error_engine(e.to_string());
+                        error!("{}", e);
                     }
                 };
             }
@@ -162,10 +155,10 @@ impl TcpServer {
                 let response_package = ResponsePackage::new(resquest_package.connection_id, resp);
                 match response_queue_sx.send(response_package) {
                     Ok(_) => {}
-                    Err(err) => error_engine(format!(
+                    Err(err) => error!(
                         "Failed to write data to the response queue, error message: {:?}",
                         err
-                    )),
+                    ),
                 }
             }
         });

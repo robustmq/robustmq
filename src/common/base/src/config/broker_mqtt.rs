@@ -15,14 +15,16 @@
  */
 
 use super::common::Auth;
+use super::common::Log;
+use super::common::Storage;
 use super::default_mqtt::{
     default_auth, default_grpc_port, default_http_port, default_log, default_network,
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
     default_network_websocket_port, default_network_websockets_port, default_storage,
     default_system, default_tcp_thread,
 };
-use super::{common::Storage, read_file};
 use crate::tools::create_fold;
+use crate::tools::read_file;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -98,31 +100,30 @@ pub struct System {
     pub default_password: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Log {
-    #[serde(default)]
-    pub log_path: String,
-    #[serde(default)]
-    pub log_segment_size: u64,
-    #[serde(default)]
-    pub log_file_num: u32,
-}
-
 static BROKER_MQTT_CONF: OnceLock<BrokerMQTTConfig> = OnceLock::new();
 
 pub fn init_broker_mqtt_conf_by_path(config_path: &String) -> &'static BrokerMQTTConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     BROKER_MQTT_CONF.get_or_init(|| {
-        let content = read_file(config_path);
-        println!("{}", content);
+        let content = match read_file(config_path) {
+            Ok(data) => data,
+            Err(e) => {
+                panic!("{}", e.to_string())
+            }
+        };
         let config: BrokerMQTTConfig = match toml::from_str(&content) {
             Ok(da) => da,
             Err(e) => {
                 panic!("{}", e)
             }
         };
-        create_fold(config.log.log_path.clone());
+        match create_fold(&config.log.log_path) {
+            Ok(()) => {}
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
         return config;
     })
 }
@@ -142,16 +143,16 @@ pub fn broker_mqtt_conf() -> &'static BrokerMQTTConfig {
         }
         None => {
             panic!(
-                "Placement center configuration is not initialized, check the configuration file."
+                "MQTT Broker configuration is not initialized, check the configuration file."
             );
         }
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::config::{broker_mqtt::BrokerMQTTConfig, read_file};
-
-    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
+    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path, BrokerMQTTConfig};
+    use crate::tools::read_file;
 
     #[test]
     fn config_default_test() {
@@ -160,7 +161,7 @@ mod tests {
             env!("CARGO_MANIFEST_DIR")
         );
 
-        let content = read_file(&path);
+        let content = read_file(&path).unwrap();
         println!("{}", content);
         let config: BrokerMQTTConfig = match toml::from_str(&content) {
             Ok(da) => da,
@@ -200,8 +201,7 @@ mod tests {
         assert_eq!(config.storage.mysql_addr, "".to_string());
 
         assert_eq!(config.log.log_path, "/tmp/robust-default".to_string());
-        assert_eq!(config.log.log_segment_size, 1073741824);
-        assert_eq!(config.log.log_file_num, 50);
+        assert_eq!(config.log.log_config, "");
 
         assert_eq!(config.auth.storage_type, "memory".to_string());
         assert_eq!(config.auth.journal_addr, "".to_string());
@@ -249,8 +249,7 @@ mod tests {
         assert_eq!(config.storage.mysql_addr, "".to_string());
 
         assert_eq!(config.log.log_path, "/tmp/robust-default".to_string());
-        assert_eq!(config.log.log_segment_size, 1073741824);
-        assert_eq!(config.log.log_file_num, 50);
+        assert_eq!(config.log.log_config, "");
 
         assert_eq!(config.auth.storage_type, "memory".to_string());
         assert_eq!(config.auth.journal_addr, "".to_string());

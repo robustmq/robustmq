@@ -11,28 +11,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use super::cache_manager::CacheManager;
+use super::{cache::CacheManager, keep_alive::client_keep_live_time};
 use crate::{
     server::connection_manager::ConnectionManager, storage::session::SessionStorage,
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::{
-    errors::RobustMQError,
+    error::common::CommonError,
     tools::{now_second, unique_id},
 };
 use dashmap::DashMap;
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::common::{Connect, ConnectProperties};
-use std::sync::{
-    atomic::{AtomicIsize, Ordering},
-    Arc,
+use std::{
+    net::SocketAddr,
+    sync::{
+        atomic::{AtomicIsize, Ordering},
+        Arc,
+    },
 };
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Connection {
     // Connection ID
     pub connect_id: u64,
@@ -40,8 +42,12 @@ pub struct Connection {
     pub client_id: String,
     // Mark whether the link is already logged in
     pub is_login: bool,
+    //
+    pub source_ip_addr: String,
+    //
+    pub login_user: String,
     // When the client does not report a heartbeat, the maximum survival time of the connection,
-    pub keep_alive: u32,
+    pub keep_alive: u16,
     // Records the Topic alias information for the connection dimension
     pub topic_alias: DashMap<u16, String>,
     // Record the maximum number of QOS1 and QOS2 packets that the client can send in connection dimension. Scope of data flow control.
@@ -68,7 +74,8 @@ impl Connection {
         max_packet_size: u32,
         topic_alias_max: u16,
         request_problem_info: u8,
-        keep_alive: u32,
+        keep_alive: u16,
+        source_ip_addr: String,
     ) -> Connection {
         return Connection {
             connect_id,
@@ -83,11 +90,14 @@ impl Connection {
             receive_qos_message: Arc::new(AtomicIsize::new(0)),
             sender_qos_message: Arc::new(AtomicIsize::new(0)),
             create_time: now_second(),
+            source_ip_addr,
+            ..Default::default()
         };
     }
 
-    pub fn login_success(&mut self) {
+    pub fn login_success(&mut self, user_name: String) {
         self.is_login = true;
+        self.login_user = user_name;
     }
 
     pub fn is_response_proplem_info(&self) -> bool {
@@ -122,30 +132,31 @@ impl Connection {
 pub fn build_connection(
     connect_id: u64,
     client_id: &String,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
+    addr: &SocketAddr,
 ) -> Connection {
-    let keep_alive = std::cmp::min(cluster.server_keep_alive(), connect.keep_alive);
+    let keep_alive = client_keep_live_time(cluster, connect.keep_alive);
 
     let (client_receive_maximum, max_packet_size, topic_alias_max, request_problem_info) =
         if let Some(properties) = connect_properties {
             let client_receive_maximum = if let Some(value) = properties.receive_maximum {
                 value
             } else {
-                cluster.receive_max()
+                cluster.protocol.receive_max
             };
 
             let max_packet_size = if let Some(value) = properties.max_packet_size {
-                std::cmp::min(value, cluster.max_packet_size())
+                std::cmp::min(value, cluster.protocol.max_packet_size)
             } else {
-                cluster.max_packet_size()
+                cluster.protocol.max_packet_size
             };
 
             let topic_alias_max = if let Some(value) = properties.topic_alias_max {
-                std::cmp::min(value, cluster.topic_alias_max())
+                std::cmp::min(value, cluster.protocol.topic_alias_max)
             } else {
-                cluster.topic_alias_max()
+                cluster.protocol.topic_alias_max
             };
 
             let request_problem_info = if let Some(value) = properties.request_problem_info {
@@ -162,9 +173,9 @@ pub fn build_connection(
             )
         } else {
             (
-                cluster.receive_max(),
-                cluster.max_packet_size(),
-                cluster.topic_alias_max(),
+                cluster.protocol.receive_max,
+                cluster.protocol.max_packet_size,
+                cluster.protocol.topic_alias_max,
                 0,
             )
         };
@@ -175,7 +186,8 @@ pub fn build_connection(
         max_packet_size,
         topic_alias_max,
         request_problem_info,
-        keep_alive as u32,
+        keep_alive,
+        addr.to_string(),
     );
 }
 
@@ -205,7 +217,7 @@ pub async fn disconnect_connection(
     client_poll: &Arc<ClientPool>,
     connnection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     // Remove the connection cache
     cache_manager.remove_connection(connect_id);
     // Remove the client id bound connection information
@@ -237,7 +249,7 @@ mod test {
     use super::response_information;
     use super::Connection;
     use super::REQUEST_RESPONSE_PREFIX_NAME;
-    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
     use protocol::mqtt::common::Connect;
     use protocol::mqtt::common::ConnectProperties;
 
@@ -245,7 +257,7 @@ mod test {
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = MQTTCluster::new();
+        let cluster = MQTTClusterDynamicConfig::new();
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),
@@ -262,17 +274,19 @@ mod test {
             authentication_method: None,
             authentication_data: None,
         };
+        let addr = format!("0.0.0.0:8080").parse().unwrap();
         let mut conn = build_connection(
             connect_id,
             &client_id,
             &cluster,
             &connect,
             &Some(connect_properties),
+            &addr,
         );
         assert_eq!(conn.connect_id, connect_id);
         assert_eq!(conn.client_id, client_id);
         assert!(!conn.is_login);
-        conn.login_success();
+        conn.login_success("".into());
         assert!(conn.is_login);
         assert_eq!(conn.keep_alive, 10);
         assert_eq!(conn.client_max_receive_maximum, 100);

@@ -11,13 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
-    cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
+    cache::placement::PlacementCacheManager,
     core::share_sub::ShareSubLeader,
     raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
-        mqtt::{session::MQTTSessionStorage, topic::MQTTTopicStorage, user::MQTTUserStorage},
+        mqtt::{
+            acl::AclStorage, blacklist::MQTTBlackListStorage, session::MQTTSessionStorage,
+            topic::MQTTTopicStorage, user::MQTTUserStorage,
+        },
         rocksdb::RocksDBEngine,
     },
 };
@@ -25,9 +27,11 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, CreateSessionRequest, CreateTopicRequest,
-        CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest,
+        mqtt_service_server::MqttService, CreateAclRequest, CreateBlacklistRequest,
+        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest,
+        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
+        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+        ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest,
         ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
         SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
@@ -37,7 +41,6 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
     cluster_cache: Arc<PlacementCacheManager>,
-    mqtt_cache: Arc<MqttCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
@@ -45,13 +48,11 @@ pub struct GrpcMqttService {
 impl GrpcMqttService {
     pub fn new(
         cluster_cache: Arc<PlacementCacheManager>,
-        mqtt_cache: Arc<MqttCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcMqttService {
             cluster_cache,
-            mqtt_cache,
             placement_center_storage,
             rocksdb_engine_handler,
         }
@@ -82,7 +83,10 @@ impl MqttService for GrpcMqttService {
             }
         };
 
-        if let Some(node) = self.cluster_cache.get_node(&cluster_name, leader_broker) {
+        if let Some(node) = self
+            .cluster_cache
+            .get_node_addr(&cluster_name, leader_broker)
+        {
             reply.broker_id = leader_broker;
             reply.broker_addr = node.node_inner_addr;
             reply.extend_info = node.extend;
@@ -97,23 +101,33 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListUserReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        let username = if req.username.is_empty() {
-            None
-        } else {
-            Some(req.username)
-        };
-        match storage.list(&req.cluster_name, username) {
-            Ok(data) => {
-                let mut result = Vec::new();
-                for raw in data {
-                    result.push(raw.data);
-                }
-                let reply = ListUserReply { users: result };
 
-                return Ok(Response::new(reply));
+        if !req.user_name.is_empty() {
+            match storage.get(&req.cluster_name, &req.user_name) {
+                Ok(Some(data)) => {
+                    return Ok(Response::new(ListUserReply {
+                        users: vec![data.encode()],
+                    }));
+                }
+                Ok(None) => {
+                    return Ok(Response::new(ListUserReply::default()));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+        } else {
+            match storage.list(&req.cluster_name) {
+                Ok(data) => {
+                    let mut result = Vec::new();
+                    for raw in data {
+                        result.push(raw.encode());
+                    }
+                    return Ok(Response::new(ListUserReply { users: result }));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
         }
     }
@@ -214,23 +228,32 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListTopicReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
-        let topic_name = if req.topic_name.is_empty() {
-            None
-        } else {
-            Some(req.topic_name)
-        };
-        match storage.list(&req.cluster_name, topic_name) {
-            Ok(data) => {
-                let mut result = Vec::new();
-                for raw in data {
-                    result.push(raw.data);
+        if !req.topic_name.is_empty() {
+            match storage.get(&req.cluster_name, &req.topic_name) {
+                Ok(Some(data)) => {
+                    return Ok(Response::new(ListTopicReply {
+                        topics: vec![data.encode()],
+                    }));
                 }
-                let reply = ListTopicReply { topics: result };
-
-                return Ok(Response::new(reply));
+                Ok(None) => {
+                    return Ok(Response::new(ListTopicReply::default()));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+        } else {
+            match storage.list(&req.cluster_name) {
+                Ok(data) => {
+                    let mut result = Vec::new();
+                    for raw in data {
+                        result.push(raw.encode());
+                    }
+                    return Ok(Response::new(ListTopicReply { topics: result }));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
         }
     }
@@ -241,22 +264,34 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<ListSessionReply>, Status> {
         let req = request.into_inner();
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        let client_id = if req.client_id.is_empty() {
-            None
-        } else {
-            Some(req.client_id)
-        };
-        match storage.list(&req.cluster_name, client_id) {
-            Ok(data) => {
-                let mut result = Vec::new();
-                for raw in data {
-                    result.push(raw.data);
+
+        if !req.client_id.is_empty() {
+            match storage.get(&req.cluster_name, &req.client_id) {
+                Ok(Some(data)) => {
+                    return Ok(Response::new(ListSessionReply {
+                        sessions: vec![data.encode()],
+                    }));
                 }
-                let reply = ListSessionReply { sessions: result };
-                return Ok(Response::new(reply));
+                Ok(None) => {
+                    return Ok(Response::new(ListSessionReply::default()));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+        } else {
+            match storage.list(&req.cluster_name) {
+                Ok(data) => {
+                    let mut result = Vec::new();
+                    for raw in data {
+                        result.push(raw.data);
+                    }
+                    let reply = ListSessionReply { sessions: result };
+                    return Ok(Response::new(reply));
+                }
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
             }
         }
     }
@@ -362,6 +397,149 @@ impl MqttService for GrpcMqttService {
         match self
             .placement_center_storage
             .apply_propose_message(data, "save_last_will_message".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+    async fn list_acl(
+        &self,
+        request: Request<ListAclRequest>,
+    ) -> Result<Response<ListAclReply>, Status> {
+        let req = request.into_inner();
+        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
+        match acl_storage.list(&req.cluster_name) {
+            Ok(list) => {
+                let mut acls = Vec::new();
+                for acl in list {
+                    match acl.encode() {
+                        Ok(data) => {
+                            acls.push(data);
+                        }
+                        Err(e) => {
+                            return Err(Status::cancelled(e.to_string()));
+                        }
+                    }
+                }
+
+                return Ok(Response::new(ListAclReply { acls }));
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn create_acl(
+        &self,
+        request: Request<CreateAclRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTCreateAcl,
+            CreateAclRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "mqtt_create_acl".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_acl(
+        &self,
+        request: Request<DeleteAclRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTDeleteAcl,
+            DeleteAclRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "mqtt_delete_acl".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn list_blacklist(
+        &self,
+        request: Request<ListBlacklistRequest>,
+    ) -> Result<Response<ListBlacklistReply>, Status> {
+        let req = request.into_inner();
+        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        match blacklist_storage.list(&req.cluster_name) {
+            Ok(list) => {
+                let mut blacklists = Vec::new();
+                for acl in list {
+                    match acl.encode() {
+                        Ok(data) => {
+                            blacklists.push(data);
+                        }
+                        Err(e) => {
+                            return Err(Status::cancelled(e.to_string()));
+                        }
+                    }
+                }
+                return Ok(Response::new(ListBlacklistReply { blacklists }));
+            }
+            Err(e) => {
+                println!("error:{:?}", e);
+                return Err(Status::internal(e.to_string()));
+            }
+        }
+    }
+
+    async fn create_blacklist(
+        &self,
+        request: Request<CreateBlacklistRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTCreateBlacklist,
+            CreateBlacklistRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "create_blacklist".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+    }
+
+    async fn delete_blacklist(
+        &self,
+        request: Request<DeleteBlacklistRequest>,
+    ) -> Result<Response<CommonReply>, Status> {
+        let req = request.into_inner();
+        let data = StorageData::new(
+            StorageDataType::MQTTDeleteBlacklist,
+            DeleteBlacklistRequest::encode_to_vec(&req),
+        );
+
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "delete_blacklist".to_string())
             .await
         {
             Ok(_) => return Ok(Response::new(CommonReply::default())),

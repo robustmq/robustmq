@@ -11,19 +11,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use axum::extract::State;
-
 use crate::server::http::server::HttpServerState;
+use axum::extract::State;
+use common_base::http_response::success_response;
 
-pub async fn cluster_get(State(state): State<HttpServerState>) -> String {
+pub async fn get_cluster(State(_state): State<HttpServerState>) -> String {
     return "".to_string();
 }
 
-pub async fn cluster_set(State(state): State<HttpServerState>) -> String {
+pub async fn set_cluster(State(_state): State<HttpServerState>) -> String {
     return "".to_string();
 }
 
-pub async fn cluster_list(State(state): State<HttpServerState>) -> String {
-    return "".to_string();
+pub async fn list_cluster(State(state): State<HttpServerState>) -> String {
+    return success_response(state.cluster_cache.cluster_list.clone());
 }

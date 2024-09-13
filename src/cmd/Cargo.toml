@@ -17,7 +17,7 @@ name = "cmd"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-default-run = "robustmq"
+default-run = "journal-server"
 
 [[bin]]
 name = "mqtt-server"
@@ -32,8 +32,8 @@ name = "placement-center"
 path = "src/placement-center/server.rs"
 
 [[bin]]
-name = "robustmq"
-path = "src/robust/robust.rs"
+name = "cli-command"
+path = "src/cli-command/command.rs"
 
 [dependencies]
 clap = { version = "4.4.7", features = ["derive"] }
@@ -43,3 +43,4 @@ tokio.workspace = true
 mqtt-broker.workspace = true
 placement-center.workspace = true
 journal-server.workspace = true
+cli-command.workspace = true

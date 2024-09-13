@@ -15,22 +15,23 @@
 use axum::extract::State;
 use crate::server::http::server::HttpServerState;
 
-pub async fn user_get(State(state): State<HttpServerState>) -> String {
+pub async fn get_user(State(_state): State<HttpServerState>) -> String {
     return "".to_string();
 }
 
-pub async fn user_create(State(state): State<HttpServerState>) -> String {
+pub async fn create_user(State(_state): State<HttpServerState>) -> String {
     return "".to_string();
 }
 
-pub async fn user_update(State(state): State<HttpServerState>) -> String {
+pub async fn update_user(State(_state): State<HttpServerState>) -> String {
     return "".to_string();
 }
 
-pub async fn user_delete(State(state): State<HttpServerState>) -> String {
+pub async fn delete_user(State(_state): State<HttpServerState>) -> String {
     return "".to_string();
 }
 
-pub async fn user_list(State(state): State<HttpServerState>) -> String {
+pub async fn list_user(State(_state): State<HttpServerState>) -> String {
+    
     return "".to_string();
 }

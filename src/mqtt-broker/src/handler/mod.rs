@@ -12,9 +12,8 @@
 // limitations under the License.
 
 
-pub mod cache_manager;
+pub mod cache;
 pub mod connection;
-pub mod error;
 pub mod flow_control;
 pub mod keep_alive;
 pub mod lastwill;
@@ -27,3 +26,4 @@ pub mod heartbreat;
 pub mod pkid;
 pub mod command;
 pub mod mqtt;
+pub mod constant;

@@ -11,97 +11,107 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use protocol::mqtt::common::QoS;
 use serde::{Deserialize, Serialize};
 
+// Dynamic configuration of MQTT cluster latitude
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MQTTCluster {
+pub struct MQTTClusterDynamicConfig {
+    pub protocol: MQTTClusterDynamicConfigProtocol,
+    pub feature: MQTTClusterDynamicConfigFeature,
+    pub security: MQTTClusterDynamicConfigSecurity,
+    pub network: MQTTClusterDynamicConfigNetwork,
+    pub slow: MQTTClusterDynamicSlowSub,
+}
+
+// MQTT cluster protocol related dynamic configuration
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MQTTClusterDynamicConfigProtocol {
     pub session_expiry_interval: u32,
     pub topic_alias_max: u16,
     pub max_qos: QoS,
-    pub retain_available: AvailableFlag,
-    pub wildcard_subscription_available: AvailableFlag,
     pub max_packet_size: u32,
-    pub subscription_identifiers_available: AvailableFlag,
-    pub shared_subscription_available: AvailableFlag,
-    pub server_keep_alive: u16,
+    pub max_server_keep_alive: u16,
+    pub default_server_keep_alive: u16,
     pub receive_max: u16,
-    pub secret_free_login: bool,
     pub max_message_expiry_interval: u64,
     pub client_pkid_persistent: bool,
+}
+
+// MQTT cluster security related dynamic configuration
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MQTTClusterDynamicConfigSecurity {
     pub is_self_protection_status: bool,
+    pub secret_free_login: bool,
+}
+
+// MQTT cluster network related dynamic configuration
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MQTTClusterDynamicConfigNetwork {
     pub tcp_max_connection_num: u64,
     pub tcps_max_connection_num: u64,
     pub websocket_max_connection_num: u64,
     pub websockets_max_connection_num: u64,
-    pub send_max_try_mut_times: u64,
-    pub send_try_mut_sleep_time_ms: u64,
+    pub response_max_try_mut_times: u64,
+    pub response_try_mut_sleep_time_ms: u64,
 }
 
-impl MQTTCluster {
+// MQTT cluster Feature related dynamic configuration
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MQTTClusterDynamicConfigFeature {
+    pub retain_available: AvailableFlag,
+    pub wildcard_subscription_available: AvailableFlag,
+    pub subscription_identifiers_available: AvailableFlag,
+    pub shared_subscription_available: AvailableFlag,
+}
+
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct MQTTClusterDynamicSlowSub {
+    pub enable: bool,
+    pub whole_ms: u128,
+    pub internal_ms: u32,
+    pub response_ms: u32,
+}
+
+impl MQTTClusterDynamicConfig {
     pub fn new() -> Self {
-        return MQTTCluster {
-            session_expiry_interval: 1800,
-            topic_alias_max: 65535,
-            max_qos: QoS::ExactlyOnce,
-            retain_available: AvailableFlag::Enable,
-            max_packet_size: 1024 * 1024 * 10,
-            wildcard_subscription_available: AvailableFlag::Enable,
-            subscription_identifiers_available: AvailableFlag::Enable,
-            shared_subscription_available: AvailableFlag::Enable,
-            server_keep_alive: 60,
-            receive_max: 65535,
-            secret_free_login: false,
-            max_message_expiry_interval: 315360000,
-            client_pkid_persistent: false,
-            is_self_protection_status: false,
-            tcp_max_connection_num: 1000,
-            tcps_max_connection_num: 1000,
-            websocket_max_connection_num: 1000,
-            websockets_max_connection_num: 1000,
-            send_max_try_mut_times: 128,
-            send_try_mut_sleep_time_ms: 100,
+        return MQTTClusterDynamicConfig {
+            protocol: MQTTClusterDynamicConfigProtocol {
+                session_expiry_interval: 1800,
+                topic_alias_max: 65535,
+                max_qos: QoS::ExactlyOnce,
+                max_packet_size: 1024 * 1024 * 10,
+                max_server_keep_alive: 3600,
+                default_server_keep_alive: 60,
+                receive_max: 65535,
+                client_pkid_persistent: false,
+                max_message_expiry_interval: 315360000,
+            },
+            feature: MQTTClusterDynamicConfigFeature {
+                retain_available: AvailableFlag::Enable,
+                wildcard_subscription_available: AvailableFlag::Enable,
+                subscription_identifiers_available: AvailableFlag::Enable,
+                shared_subscription_available: AvailableFlag::Enable,
+            },
+            security: MQTTClusterDynamicConfigSecurity {
+                secret_free_login: false,
+                is_self_protection_status: false,
+            },
+            network: MQTTClusterDynamicConfigNetwork {
+                tcp_max_connection_num: 1000,
+                tcps_max_connection_num: 1000,
+                websocket_max_connection_num: 1000,
+                websockets_max_connection_num: 1000,
+                response_max_try_mut_times: 128,
+                response_try_mut_sleep_time_ms: 100,
+            },
+            slow: MQTTClusterDynamicSlowSub {
+                enable: false,
+                whole_ms: 0,
+                internal_ms: 0,
+                response_ms: 0,
+            },
         };
-    }
-    pub fn receive_max(&self) -> u16 {
-        return self.receive_max;
-    }
-
-    pub fn max_qos(&self) -> QoS {
-        return self.max_qos;
-    }
-
-    pub fn server_keep_alive(&self) -> u16 {
-        return self.server_keep_alive;
-    }
-
-    pub fn retain_available(&self) -> u8 {
-        return self.retain_available.clone() as u8;
-    }
-
-    pub fn max_packet_size(&self) -> u32 {
-        return self.max_packet_size;
-    }
-
-    pub fn topic_alias_max(&self) -> u16 {
-        return self.topic_alias_max;
-    }
-
-    pub fn wildcard_subscription_available(&self) -> u8 {
-        return self.wildcard_subscription_available.clone() as u8;
-    }
-
-    pub fn subscription_identifiers_available(&self) -> u8 {
-        return self.subscription_identifiers_available.clone() as u8;
-    }
-
-    pub fn shared_subscription_available(&self) -> u8 {
-        return self.shared_subscription_available.clone() as u8;
-    }
-
-    pub fn is_secret_free_login(&self) -> bool {
-        return self.secret_free_login;
     }
 
     pub fn encode(&self) -> Vec<u8> {
@@ -112,27 +122,17 @@ impl MQTTCluster {
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub enum AvailableFlag {
     #[default]
-    Enable,
     Disable,
-}
-
-impl From<AvailableFlag> for u8 {
-    fn from(flag: AvailableFlag) -> Self {
-        match flag {
-            AvailableFlag::Enable => 1,
-            AvailableFlag::Disable => 0,
-        }
-    }
-}
-
-pub enum Available {
     Enable,
-    Disable,
 }
 
-pub fn available_flag(flag: Available) -> AvailableFlag {
-    match flag {
-        Available::Enable => return AvailableFlag::Enable,
-        Available::Disable => return AvailableFlag::Disable,
+#[cfg(test)]
+mod tests {
+    use crate::mqtt::cluster::AvailableFlag;
+
+    #[test]
+    fn client34_connect_test() {
+        assert_eq!(AvailableFlag::Disable as u8, 0);
+        assert_eq!(AvailableFlag::Enable as u8, 1);
     }
 }

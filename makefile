@@ -1,6 +1,6 @@
 TARGET = robustmq
-VERSION = v0.0.1-beta
 BUILD_FOLD = ./build
+VERSION:=$(shell grep "version =" Cargo.toml | awk -F'"' '{print $2}' | head -n 1 | sed 's/version = //g')
 PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)
 
 release:
@@ -16,10 +16,12 @@ release:
 	cp -rf bin/* $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin
 	cp -rf config/* $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/config
 	chmod -R 777 $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin/*
-	cd $(BUILD_FOLD) && tar zcvf ${PACKAGE_FOLD_NAME}.tar.gz ${PACKAGE_FOLD_NAME}
-	
+	cd $(BUILD_FOLD) && tar zcvf ${PACKAGE_FOLD_NAME}.tar.gz ${PACKAGE_FOLD_NAME} && rm -rf ${PACKAGE_FOLD_NAME}
 	echo "build release package success. ${PACKAGE_FOLD_NAME}.tar.gz "
 
+test: 
+	sh ./scripts/integration-testing.sh
+	
 clean:
 	cargo clean
 	rm -rf build

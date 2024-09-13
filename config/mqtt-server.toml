@@ -38,8 +38,13 @@ lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
 
 [auth]
-storage_type="placement"
+storage_type = "placement"
 
+[prometheus]
+model = "push"
+push_gateway_server = "127.0.0.1:8081"
+interval = 10
+header = ""
 
 [system]
 runtime_worker_threads = 128
@@ -47,12 +52,8 @@ default_user = "admin"
 default_password = "pwd123"
 
 [storage]
-#type = 'journal'
-#journal_addr = []
 storage_type = "memory"
 
-
 [log]
-log_path = "/tmp/logs"
-log_segment_size = 1073741824
-log_file_num = 50
+log_config = "./config/log4rs.yaml"
+log_path = "/tmp/robust/mqtt-broker/logs"

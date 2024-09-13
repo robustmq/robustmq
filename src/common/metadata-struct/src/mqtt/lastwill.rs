@@ -11,13 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use protocol::mqtt::common::{LastWill, LastWillProperties};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct LastWillData {
-    pub client_id:String,
+    pub client_id: String,
     pub last_will: Option<LastWill>,
     pub last_will_properties: Option<LastWillProperties>,
 }

@@ -11,12 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     placement::mqtt::call::{placement_create_user, placement_delete_user, placement_list_user},
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
 use protocol::placement_center::generate::mqtt::{
@@ -32,7 +31,7 @@ impl UserStorage {
         return UserStorage { client_poll };
     }
 
-    pub async fn save_user(&self, user_info: MQTTUser) -> Result<(), RobustMQError> {
+    pub async fn save_user(&self, user_info: MQTTUser) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
@@ -53,7 +52,7 @@ impl UserStorage {
         }
     }
 
-    pub async fn delete_user(&self, user_name: String) -> Result<(), RobustMQError> {
+    pub async fn delete_user(&self, user_name: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = DeleteUserRequest {
             cluster_name: config.cluster_name.clone(),
@@ -73,11 +72,11 @@ impl UserStorage {
         }
     }
 
-    pub async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, RobustMQError> {
+    pub async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
-            username,
+            user_name: username.clone(),
         };
         match placement_list_user(
             self.client_poll.clone(),
@@ -96,7 +95,7 @@ impl UserStorage {
                         return Ok(Some(data));
                     }
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
             }
@@ -106,11 +105,11 @@ impl UserStorage {
         }
     }
 
-    pub async fn user_list(&self) -> Result<DashMap<String, MQTTUser>, RobustMQError> {
+    pub async fn user_list(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
-            username: "".to_string(),
+            user_name: "".to_string(),
         };
         match placement_list_user(
             self.client_poll.clone(),
@@ -144,9 +143,7 @@ impl UserStorage {
 mod tests {
     use crate::storage::user::UserStorage;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-    };
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -155,9 +152,8 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
+
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let user_storage = UserStorage::new(client_poll);
         let username = "test".to_string();

@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #[cfg(test)]
 mod tests {
     use std::{sync::Arc, thread::sleep, time::Duration};
@@ -20,14 +19,14 @@ mod tests {
         placement::{mqtt::call::placement_get_share_sub_leader, placement::call::register_node},
         poll::ClientPool,
     };
-    use common_base::log::{error, info};
     use common_base::{
         config::placement_center::{init_placement_center_conf_by_config, PlacementCenterConfig},
-        log::init_placement_center_log,
+        logs::init_placement_center_log,
     };
+    use log::{error, info};
     use placement_center::PlacementCenter;
     use protocol::placement_center::generate::{
-        common::ClusterType, mqtt::GetShareSubLeaderRequest, placement::RegisterNodeRequest
+        common::ClusterType, mqtt::GetShareSubLeaderRequest, placement::RegisterNodeRequest,
     };
     use std::{
         fs,
@@ -66,10 +65,10 @@ mod tests {
 
         match register_node(client_poll.clone(), addrs.clone(), request).await {
             Ok(res) => {
-                info(format!("{:?}", res));
+                info!("{:?}", res);
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
                 assert!(false);
             }
         }
@@ -85,7 +84,7 @@ mod tests {
                 assert_eq!(rep.broker_id, node_id);
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
                 assert!(false);
             }
         }
@@ -117,13 +116,13 @@ mod tests {
         );
         conf.nodes = nodes;
         conf.data_path = "/tmp/robust-test/data".to_string();
-        conf.log_path = "/tmp/robust-test/log".to_string();
+        conf.log.log_path = "/tmp/robust-test/log".to_string();
         return conf;
     }
 
     pub fn test_clean(stop_send: Sender<bool>) {
         let conf = test_conf();
-        fs::remove_dir_all(conf.log_path).unwrap();
+        fs::remove_dir_all(conf.log.log_path).unwrap();
         fs::remove_dir_all(conf.data_path).unwrap();
         stop_send.send(true).unwrap();
     }

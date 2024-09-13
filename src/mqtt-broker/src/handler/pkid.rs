@@ -11,15 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use super::cache_manager::CacheManager;
+use super::cache::CacheManager;
 use clients::{
     placement::placement::call::{
         delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use protocol::placement_center::generate::placement::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
@@ -30,8 +29,12 @@ pub async fn pkid_save(
     client_poll: &Arc<ClientPool>,
     client_id: &String,
     pkid: u16,
-) -> Result<(), RobustMQError> {
-    if cache_manager.get_cluster_info().client_pkid_persistent {
+) -> Result<(), CommonError> {
+    if cache_manager
+        .get_cluster_info()
+        .protocol
+        .client_pkid_persistent
+    {
         let conf = broker_mqtt_conf();
         let request = SetIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
@@ -58,8 +61,12 @@ pub async fn pkid_exists(
     client_poll: &Arc<ClientPool>,
     client_id: &String,
     pkid: u16,
-) -> Result<bool, RobustMQError> {
-    if cache_manager.get_cluster_info().client_pkid_persistent {
+) -> Result<bool, CommonError> {
+    if cache_manager
+        .get_cluster_info()
+        .protocol
+        .client_pkid_persistent
+    {
         let conf = broker_mqtt_conf();
         let request = ExistsIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
@@ -86,8 +93,12 @@ pub async fn pkid_delete(
     client_poll: &Arc<ClientPool>,
     client_id: &String,
     pkid: u16,
-) -> Result<(), RobustMQError> {
-    if cache_manager.get_cluster_info().client_pkid_persistent {
+) -> Result<(), CommonError> {
+    if cache_manager
+        .get_cluster_info()
+        .protocol
+        .client_pkid_persistent
+    {
         let conf = broker_mqtt_conf();
         let request = DeleteIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
@@ -115,11 +126,9 @@ mod test {
     use super::pkid_delete;
     use super::pkid_exists;
     use super::pkid_save;
-    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::cache::CacheManager;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-    };
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -128,9 +137,8 @@ mod test {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
+
         let cluster_name = "test".to_string();
         let client_poll = Arc::new(ClientPool::new(10));
         let cache_manager = Arc::new(CacheManager::new(client_poll.clone(), cluster_name));
@@ -177,7 +185,7 @@ mod test {
             }
         }
         let mut cluset_info = cache_manager.get_cluster_info();
-        cluset_info.client_pkid_persistent = true;
+        cluset_info.protocol.client_pkid_persistent = true;
         cache_manager.set_cluster_info(cluset_info);
 
         match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
@@ -201,14 +209,16 @@ mod test {
             Ok(flag) => {
                 assert!(flag);
             }
-            Err(_) => {
+            Err(e) => {
+                println!("{}", e);
                 assert!(false);
             }
         }
 
         match pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await {
             Ok(_) => {}
-            Err(_) => {
+            Err(e) => {
+                println!("{}", e);
                 assert!(false);
             }
         }
@@ -217,7 +227,8 @@ mod test {
             Ok(flag) => {
                 assert!(!flag);
             }
-            Err(_) => {
+            Err(e) => {
+                println!("{}", e);
                 assert!(false);
             }
         }

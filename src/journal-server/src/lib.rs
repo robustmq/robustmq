@@ -11,28 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::poll::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common_base::{
-    config::journal_server::{journal_server_conf, JournalServerConfig}, log::info_meta, metrics::register_prometheus_export, runtime::create_runtime
+    config::journal_server::{journal_server_conf, JournalServerConfig},
+    metrics::register_prometheus_export,
+    runtime::create_runtime,
 };
+use log::info;
 use server::start_tcp_server;
 use std::sync::Arc;
-use tokio::{
-    runtime::Runtime,
-    signal,
-    sync::{broadcast, Mutex},
-};
+use tokio::{runtime::Runtime, signal, sync::broadcast};
 
 mod cluster;
 mod index;
+mod network;
 mod raft;
 mod record;
 mod server;
-mod storage;
-mod network;
 mod shard;
+mod storage;
 
 pub struct JournalServer {
     config: JournalServerConfig,
@@ -98,7 +96,10 @@ impl JournalServer {
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match self.stop_send.send(true) {
                     Ok(_) => {
-                        info_meta("When ctrl + c is received, the service starts to stop");
+                        info!(
+                            "{}",
+                            "When ctrl + c is received, the service starts to stop"
+                        );
                         self.stop_server().await;
                         break;
                     }

@@ -20,11 +20,11 @@ use cache::mqtt::MqttCacheManager;
 use cache::placement::PlacementCacheManager;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
-use common_base::log::info_meta;
 use common_base::runtime::create_runtime;
-use common_base::version::banner;
+use controller::journal::controller::StorageEngineController;
 use controller::mqtt::MQTTController;
 use controller::placement::controller::ClusterController;
+use log::info;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
@@ -37,12 +37,14 @@ use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 use storage::placement::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
+use tokio::time::sleep;
 use tonic::transport::Server;
 mod cache;
 mod controller;
@@ -120,8 +122,6 @@ impl PlacementCenter {
         self.start_grpc_server(placement_center_storage.clone());
 
         self.awaiting_stop(stop_send);
-
-        banner();
     }
 
     // Start HTTP Server
@@ -162,16 +162,12 @@ impl PlacementCenter {
 
         let mqtt_handler = GrpcMqttService::new(
             self.cluster_cache.clone(),
-            self.mqtt_cache.clone(),
             placement_center_storage.clone(),
             self.rocksdb_engine_handler.clone(),
         );
 
         self.server_runtime.spawn(async move {
-            info_meta(&format!(
-                "RobustMQ Meta Grpc Server start success. bind addr:{}",
-                ip
-            ));
+            info!("RobustMQ Meta Grpc Server start success. bind addr:{}", ip);
             Server::builder()
                 .add_service(PlacementCenterServiceServer::new(placement_handler))
                 .add_service(KvServiceServer::new(kv_handler))
@@ -189,15 +185,14 @@ impl PlacementCenter {
         placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) {
-        // let ctrl = ClusterController::new(
-        //     self.cluster_cache.clone(),
-        //     placement_center_storage,
-        //     self.rocksdb_engine_handler.clone(),
-        //     stop_send.clone(),
-        // );
-        // self.daemon_runtime.spawn(async move {
-        //     ctrl.start_node_heartbeat_check().await;
-        // });
+        let ctrl = ClusterController::new(
+            self.cluster_cache.clone(),
+            placement_center_storage.clone(),
+            stop_send.clone(),
+        );
+        self.daemon_runtime.spawn(async move {
+            ctrl.start_node_heartbeat_check().await;
+        });
 
         let mqtt_controller = MQTTController::new(
             self.rocksdb_engine_handler.clone(),
@@ -208,6 +203,11 @@ impl PlacementCenter {
         );
         self.daemon_runtime.spawn(async move {
             mqtt_controller.start().await;
+        });
+
+        let journal_controller = StorageEngineController::new();
+        self.daemon_runtime.spawn(async move {
+            journal_controller.start().await;
         });
     }
 
@@ -244,18 +244,23 @@ impl PlacementCenter {
             peers_manager.start().await;
         });
 
-        info_meta("Raft Node inter-node communication management thread started successfully");
+        info!("Raft Node inter-node communication management thread started successfully");
     }
 
     // Wait Stop Signal
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+        self.server_runtime.spawn(async move {
+            sleep(Duration::from_millis(5)).await;
+            info!("Placement Center service started successfully...");
+        });
+
         // Wait for the stop signal
         self.server_runtime.block_on(async move {
             loop {
                 signal::ctrl_c().await.expect("failed to listen for event");
                 match stop_send.send(true) {
                     Ok(_) => {
-                        info_meta("When ctrl + c is received, the service starts to stop");
+                        info!("When ctrl + c is received, the service starts to stop");
                         break;
                     }
                     Err(_) => {}

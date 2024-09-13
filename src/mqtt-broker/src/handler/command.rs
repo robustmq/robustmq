@@ -11,16 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::mqtt::MqttService;
 use crate::handler::response::response_packet_mqtt_distinct_by_reason;
-use crate::handler::{cache_manager::CacheManager, response::response_packet_mqtt_connect_fail};
+use crate::handler::{cache::CacheManager, response::response_packet_mqtt_connect_fail};
 use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
-use common_base::log::info;
+use log::info;
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
 };
@@ -124,7 +123,7 @@ where
                                 properties,
                                 last_will,
                                 last_will_peoperties,
-                                login,
+                                &login,
                                 addr,
                             )
                             .await,
@@ -138,7 +137,7 @@ where
                                 properties,
                                 last_will,
                                 last_will_peoperties,
-                                login,
+                                &login,
                                 addr,
                             )
                             .await,
@@ -152,7 +151,7 @@ where
                                 properties,
                                 last_will,
                                 last_will_peoperties,
-                                login,
+                                &login,
                                 addr,
                             )
                             .await,
@@ -169,12 +168,14 @@ where
                 let ack_pkg = resp_pkg.unwrap();
                 if let MQTTPacket::ConnAck(conn_ack, _) = ack_pkg.clone() {
                     if conn_ack.code == ConnectReturnCode::Success {
+                        let username = if let Some(user) = login {
+                            user.username
+                        } else {
+                            "".to_string()
+                        };
                         self.metadata_cache
-                            .login_success(tcp_connection.connection_id);
-                        info(format!(
-                            "connect [{}] login success",
-                            tcp_connection.connection_id
-                        ));
+                            .login_success(tcp_connection.connection_id, username);
+                        info!("connect [{}] login success", tcp_connection.connection_id);
                     }
                 }
                 return Some(ack_pkg);

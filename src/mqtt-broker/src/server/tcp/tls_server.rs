@@ -11,11 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::server::connection::NetworkConnection;
+use crate::observability::metrics::packets::{record_received_error_metrics, record_received_metrics};
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::packet::RequestPackage;
-use common_base::log::{debug, error, info};
+
 use futures_util::StreamExt;
+use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::common::MQTTPacket;
 use rustls_pemfile::{certs, private_key};
@@ -48,6 +49,7 @@ pub(crate) fn read_tls_frame_process(
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
+    network_type: NetworkConnectionType,
 ) {
     tokio::spawn(async move {
         loop {
@@ -55,7 +57,7 @@ pub(crate) fn read_tls_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            debug(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
+                            debug!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id);
                             break;
                         }
                     }
@@ -65,17 +67,19 @@ pub(crate) fn read_tls_frame_process(
                         match pkg {
                             Ok(data) => {
                                 let pack: MQTTPacket = data.try_into().unwrap();
-                                info(format!("revc tcp tls packet:{:?}", pack));
+                                record_received_metrics(&connection, &pack, &network_type);
+                                info!("revc tcp tls packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
                                 match request_queue_sx.send(package).await {
                                     Ok(_) => {
                                     }
-                                    Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
+                                    Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
                                 }
                             }
                             Err(e) => {
-                                debug(format!("TCP connection parsing packet format error message :{:?}",e))
+                                record_received_error_metrics(network_type.clone());
+                                debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
                     }

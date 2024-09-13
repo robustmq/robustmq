@@ -11,11 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::sync::Arc;
-use common_base::log::error_meta;
+use crate::storage::{
+    engine::{
+        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+        engine_save_by_cluster,
+    },
+    keys::{key_segment, key_segment_cluster_prefix, key_segment_shard_prefix},
+    rocksdb::RocksDBEngine,
+};
+use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
-use crate::storage::{keys::key_segment, rocksdb::RocksDBEngine};
+use std::sync::Arc;
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct SegmentInfo {
@@ -54,49 +60,100 @@ impl SegmentStorage {
         }
     }
 
-    pub fn save_segment(&self, segment: SegmentInfo) {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
+    pub fn save(&self, segment: SegmentInfo) -> Result<(), CommonError> {
         let shard_key = key_segment(
             &segment.cluster_name.clone(),
             &segment.shard_name.clone(),
             segment.segment_seq,
         );
-        match self.rocksdb_engine_handler.write(cf, &shard_key, &segment) {
-            Ok(_) => {}
-            Err(e) => {
-                error_meta(&e);
-            }
-        }
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, segment);
     }
 
-    pub fn get_segment(
+    #[allow(dead_code)]
+    pub fn get(
         &self,
-        cluster_name: String,
-        shard_name: String,
+        cluster_name: &String,
+        shard_name: &String,
         segment_seq: u64,
-    ) -> Option<SegmentInfo> {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
-        let shard_key: String = key_segment(&cluster_name, &shard_name, segment_seq);
-        match self
-            .rocksdb_engine_handler
-            .read::<SegmentInfo>(cf, &shard_key)
-        {
-            Ok(ci) => {
-                return ci;
+    ) -> Result<Option<SegmentInfo>, CommonError> {
+        let shard_key: String = key_segment(cluster_name, shard_name, segment_seq);
+
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
+            Ok(Some(data)) => match serde_json::from_slice::<SegmentInfo>(&data.data) {
+                Ok(segment) => {
+                    return Ok(Some(segment));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
             }
-            Err(_) => {}
+            Err(e) => Err(e),
         }
-        return None;
     }
 
-    pub fn delete_segment(&self, cluster_name: String, shard_name: String, segment_seq: u64) {
-        let cf = self.rocksdb_engine_handler.cf_cluster();
-        let shard_key = key_segment(&cluster_name, &shard_name, segment_seq);
-        match self.rocksdb_engine_handler.delete(cf, &shard_key) {
-            Ok(_) => {}
+    pub fn list_by_cluster(
+        &self,
+        cluster_name: &String,
+    ) -> Result<Vec<SegmentInfo>, CommonError> {
+        let prefix_key = key_segment_cluster_prefix(cluster_name);
+        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
+            Ok(data) => {
+                let mut results = Vec::new();
+                for raw in data {
+                    match serde_json::from_slice::<SegmentInfo>(&raw.data) {
+                        Ok(topic) => {
+                            results.push(topic);
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    }
+                }
+                return Ok(results);
+            }
             Err(e) => {
-                error_meta(&e);
+                return Err(e);
             }
         }
+    }
+
+    pub fn list_by_shard(
+        &self,
+        cluster_name: &String,
+        shard_name: &String,
+    ) -> Result<Vec<SegmentInfo>, CommonError> {
+        let prefix_key = key_segment_shard_prefix(cluster_name, shard_name);
+        match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
+            Ok(data) => {
+                let mut results = Vec::new();
+                for raw in data {
+                    match serde_json::from_slice::<SegmentInfo>(&raw.data) {
+                        Ok(topic) => {
+                            results.push(topic);
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    }
+                }
+                return Ok(results);
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        }
+    }
+
+    pub fn delete(
+        &self,
+        cluster_name: &String,
+        shard_name: &String,
+        segment_seq: u64,
+    ) -> Result<(), CommonError> {
+        let shard_key = key_segment(cluster_name, shard_name, segment_seq);
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key);
     }
 }

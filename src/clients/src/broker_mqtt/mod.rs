@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::{errors::RobustMQError, log::error};
+use common_base::error::common::CommonError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
+use log::error;
 use mobc::Manager;
 use protocol::broker_server::generate::mqtt::mqtt_broker_service_client::MqttBrokerServiceClient;
 use std::{sync::Arc, time::Duration};
@@ -42,7 +42,12 @@ async fn retry_call(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
+    if addrs.len() == 0 {
+        return Err(CommonError::CommmonError(
+            "Call address list cannot be empty".to_string(),
+        ));
+    }
     let mut times = 1;
     loop {
         let index = times % addrs.len();
@@ -64,7 +69,7 @@ async fn retry_call(
                 return Ok(data);
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
                 if times > retry_times() {
                     return Err(e);
                 }
@@ -78,7 +83,7 @@ async fn retry_call(
 async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<MqttBrokerServiceClient<Channel>, RobustMQError> {
+) -> Result<MqttBrokerServiceClient<Channel>, CommonError> {
     match client_poll.mqtt_broker_mqtt_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -94,7 +99,7 @@ pub(crate) async fn mqtt_interface_call(
     client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match mqtt_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
@@ -102,12 +107,6 @@ pub(crate) async fn mqtt_interface_call(
                 MQTTBrokerInterface::UpdateCache => inner_update_cache(client, request).await,
                 MQTTBrokerInterface::SendLastWillMessage => {
                     inner_send_last_will_message(client, request).await
-                }
-                _ => {
-                    return Err(RobustMQError::CommmonError(format!(
-                        "mqtt service does not support service interfaces [{:?}]",
-                        interface
-                    )))
                 }
             };
             match result {
@@ -137,7 +136,7 @@ impl MqttBrokerMqttServiceManager {
 #[tonic::async_trait]
 impl Manager for MqttBrokerMqttServiceManager {
     type Connection = MqttBrokerServiceClient<Channel>;
-    type Error = RobustMQError;
+    type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match MqttBrokerServiceClient::connect(format!("http://{}", self.addr.clone())).await {
@@ -145,7 +144,7 @@ impl Manager for MqttBrokerMqttServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(RobustMQError::CommmonError(format!(
+                return Err(CommonError::CommmonError(format!(
                     "{},{}",
                     err.to_string(),
                     self.addr.clone()

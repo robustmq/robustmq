@@ -11,12 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::heartbeat::BrokerHeartbeat;
-use crate::{
-    cache::placement::PlacementCacheManager, raft::apply::RaftMachineApply,
-    storage::rocksdb::RocksDBEngine,
-};
+use crate::{cache::placement::PlacementCacheManager, raft::apply::RaftMachineApply};
 use common_base::config::placement_center::placement_center_conf;
 use std::sync::Arc;
 use tokio::{select, sync::broadcast};
@@ -24,7 +20,6 @@ use tokio::{select, sync::broadcast};
 pub struct ClusterController {
     cluster_cache: Arc<PlacementCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
     stop_send: broadcast::Sender<bool>,
 }
 
@@ -32,13 +27,11 @@ impl ClusterController {
     pub fn new(
         cluster_cache: Arc<PlacementCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
         stop_send: broadcast::Sender<bool>,
     ) -> ClusterController {
         let controller = ClusterController {
             cluster_cache,
             placement_center_storage,
-            rocksdb_engine_handler,
             stop_send,
         };
         return controller;

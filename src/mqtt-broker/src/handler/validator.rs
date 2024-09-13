@@ -11,11 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
-    cache_manager::CacheManager,
+    cache::CacheManager,
     connection::Connection,
-    error::MQTTBrokerError,
     flow_control::{is_connection_rate_exceeded, is_flow_control, is_subscribe_rate_exceeded},
     pkid::pkid_exists,
     response::{
@@ -26,14 +24,15 @@ use super::{
     topic::topic_name_validator,
 };
 use crate::{
-    security::{acl::authentication_acl, authentication::is_ip_blacklist},
+    security::{authentication_acl, login::is_ip_blacklist},
     server::connection_manager::ConnectionManager,
     subscribe::sub_common::sub_path_validator,
 };
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, log::error};
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use futures::SinkExt;
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use log::error;
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::{
@@ -60,17 +59,17 @@ pub async fn tcp_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }
@@ -85,17 +84,17 @@ pub async fn tcp_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }
@@ -120,17 +119,17 @@ pub async fn tcp_tls_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }
@@ -145,17 +144,17 @@ pub async fn tcp_tls_establish_connection_check(
         };
         match write_frame_stream.send(packet_wrapper).await {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
 
         match write_frame_stream.close().await {
             Ok(_) => {
-                error(format!(
+                error!(
                     "tcp connection failed to establish from IP: {}",
                     addr.to_string()
-                ));
+                );
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
         return false;
     }
@@ -164,7 +163,7 @@ pub async fn tcp_tls_establish_connection_check(
 
 pub fn connect_validator(
     protocol: &MQTTProtocol,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
@@ -172,12 +171,12 @@ pub fn connect_validator(
     login: &Option<Login>,
     addr: &SocketAddr,
 ) -> Option<MQTTPacket> {
-    if cluster.is_self_protection_status {
+    if cluster.security.is_self_protection_status {
         return Some(response_packet_mqtt_connect_fail(
             protocol,
             ConnectReturnCode::ServerBusy,
             connect_properties,
-            Some(RobustMQError::ClusterIsInSelfProtection.to_string()),
+            Some(MQTTBrokerError::ClusterIsInSelfProtection.to_string()),
         ));
     }
 
@@ -290,91 +289,6 @@ pub async fn publish_validator(
     publish_properties: &Option<PublishProperties>,
 ) -> Option<MQTTPacket> {
     let is_puback = publish.qos != QoS::ExactlyOnce;
-    if publish.topic.is_empty() {
-        if is_puback {
-            return Some(response_packet_mqtt_puback_fail(
-                protocol,
-                connection,
-                publish.pkid,
-                PubAckReason::TopicNameInvalid,
-                None,
-            ));
-        } else {
-            return Some(response_packet_mqtt_pubrec_fail(
-                protocol,
-                connection,
-                publish.pkid,
-                PubRecReason::TopicNameInvalid,
-                None,
-            ));
-        }
-    }
-
-    let topic_name = match String::from_utf8(publish.topic.to_vec()) {
-        Ok(da) => da,
-        Err(e) => {
-            if is_puback {
-                return Some(response_packet_mqtt_puback_fail(
-                    protocol,
-                    connection,
-                    publish.pkid,
-                    PubAckReason::TopicNameInvalid,
-                    Some(e.to_string()),
-                ));
-            } else {
-                return Some(response_packet_mqtt_pubrec_fail(
-                    protocol,
-                    connection,
-                    publish.pkid,
-                    PubRecReason::TopicNameInvalid,
-                    Some(e.to_string()),
-                ));
-            }
-        }
-    };
-
-    match topic_name_validator(&topic_name) {
-        Ok(()) => {}
-        Err(e) => {
-            if is_puback {
-                return Some(response_packet_mqtt_puback_fail(
-                    protocol,
-                    connection,
-                    publish.pkid,
-                    PubAckReason::TopicNameInvalid,
-                    Some(e.to_string()),
-                ));
-            } else {
-                return Some(response_packet_mqtt_pubrec_fail(
-                    protocol,
-                    connection,
-                    publish.pkid,
-                    PubRecReason::TopicNameInvalid,
-                    Some(e.to_string()),
-                ));
-            }
-        }
-    }
-
-    if publish.payload.is_empty() {
-        if is_puback {
-            return Some(response_packet_mqtt_puback_fail(
-                protocol,
-                connection,
-                publish.pkid,
-                PubAckReason::PayloadFormatInvalid,
-                None,
-            ));
-        } else {
-            return Some(response_packet_mqtt_pubrec_fail(
-                protocol,
-                connection,
-                publish.pkid,
-                PubRecReason::PayloadFormatInvalid,
-                None,
-            ));
-        }
-    }
 
     if publish.qos == QoS::ExactlyOnce {
         match pkid_exists(
@@ -409,7 +323,8 @@ pub async fn publish_validator(
     }
 
     let cluster = cache_manager.get_cluster_info();
-    let max_packet_size = min(cluster.max_packet_size, connection.max_packet_size) as usize;
+    let max_packet_size =
+        min(cluster.protocol.max_packet_size, connection.max_packet_size) as usize;
     if publish.payload.len() > max_packet_size {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -417,7 +332,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
-                Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         } else {
             return Some(response_packet_mqtt_pubrec_fail(
@@ -425,7 +340,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
-                Some(RobustMQError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         }
     }
@@ -441,7 +356,8 @@ pub async fn publish_validator(
                             publish.pkid,
                             PubAckReason::PayloadFormatInvalid,
                             Some(
-                                RobustMQError::PacketLenthError(publish.payload.len()).to_string(),
+                                MQTTBrokerError::PacketLenthError(publish.payload.len())
+                                    .to_string(),
                             ),
                         ));
                     } else {
@@ -451,7 +367,8 @@ pub async fn publish_validator(
                             publish.pkid,
                             PubRecReason::PayloadFormatInvalid,
                             Some(
-                                RobustMQError::PacketLenthError(publish.payload.len()).to_string(),
+                                MQTTBrokerError::PacketLenthError(publish.payload.len())
+                                    .to_string(),
                             ),
                         ));
                     }
@@ -480,7 +397,7 @@ pub async fn publish_validator(
     }
 
     if is_flow_control(protocol, publish.qos)
-        && connection.get_recv_qos_message() >= cluster.receive_max() as isize
+        && connection.get_recv_qos_message() >= cluster.protocol.receive_max as isize
     {
         if is_puback {
             return Some(response_packet_mqtt_puback_fail(
@@ -504,7 +421,7 @@ pub async fn publish_validator(
     if let Some(properties) = publish_properties {
         if let Some(alias) = properties.topic_alias {
             let cluster = cache_manager.get_cluster_info();
-            if alias > cluster.topic_alias_max {
+            if alias > cluster.protocol.topic_alias_max {
                 if is_puback {
                     return Some(response_packet_mqtt_puback_fail(
                         protocol,
@@ -673,7 +590,7 @@ pub async fn un_subscribe_validator(
                     &connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::NoSubscriptionExisted],
-                    Some(RobustMQError::SubscriptionPathNotExists(path).to_string()),
+                    Some(MQTTBrokerError::SubscriptionPathNotExists(path).to_string()),
                 ));
             }
         }
@@ -693,14 +610,14 @@ pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -
 
 pub fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
-            return min(size, cluster.max_packet_size());
+            return min(size, cluster.protocol.max_packet_size);
         }
     }
-    return cluster.max_packet_size();
+    return cluster.protocol.max_packet_size;
 }
 
 pub fn client_id_validator(client_id: &String) -> bool {

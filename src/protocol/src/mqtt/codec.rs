@@ -239,3 +239,96 @@ impl codec::Decoder for MqttCodec {
         return self.decode_data(stream);
     }
 }
+
+pub fn calc_mqtt_packet_size(packet_wrapper: MQTTPacketWrapper)->usize{
+    match calc_mqtt_packet_len(packet_wrapper){
+        Ok(da) => {
+            return da;
+        }
+        Err(_) => {
+            return 0;
+        }
+    }
+}
+
+fn calc_mqtt_packet_len(
+    packet_wrapper: MQTTPacketWrapper
+) -> Result<usize,crate::mqtt::common::Error> {
+    let packet = packet_wrapper.packet;
+    let protocol_version = packet_wrapper.protocol_version;
+    let mut buffer = BytesMut::new();
+    let mut size = 0;
+    if protocol_version == 4 || protocol_version == 3{
+         size = match packet {
+            MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login) => {
+                crate::mqtt::mqttv4::connect::write(&connect, &login, &last_will, &mut buffer)?
+            }
+            MQTTPacket::ConnAck(connack, _) => crate::mqtt::mqttv4::connack::write(&connack, &mut buffer)?,
+            MQTTPacket::Publish(publish, None) => crate::mqtt::mqttv4::publish::write(&publish, &mut buffer)?,
+            MQTTPacket::PubAck(puback, None) => crate::mqtt::mqttv4::puback::write(&puback, &mut buffer)?,
+            MQTTPacket::PubRec(pubrec, None) => crate::mqtt::mqttv4::pubrec::write(&pubrec, &mut buffer)?,
+            MQTTPacket::PubRel(pubrel, None) => crate::mqtt::mqttv4::pubrel::write(&pubrel, &mut buffer)?,
+            MQTTPacket::PubComp(pubcomp, None) => crate::mqtt::mqttv4::pubcomp::write(&pubcomp, &mut buffer)?,
+            MQTTPacket::Subscribe(subscribe, None) => crate::mqtt::mqttv4::subscribe::write(&subscribe, &mut buffer)?,
+            MQTTPacket::SubAck(suback, None) => crate::mqtt::mqttv4::suback::write(&suback, &mut buffer)?,
+            MQTTPacket::Unsubscribe(unsubscribe, None) => crate::mqtt::mqttv4::unsubscribe::write(&unsubscribe, &mut buffer)?,
+            MQTTPacket::UnsubAck(unsuback, None) => crate::mqtt::mqttv4::unsuback::write(&unsuback, &mut buffer)?,
+            MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv4::ping::pingreq::write(&mut buffer)?,
+            MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv4::ping::pingresp::write(&mut buffer)?,
+            MQTTPacket::Disconnect(disconnect, None) => crate::mqtt::mqttv4::disconnect::write(&disconnect, &mut buffer)?,
+
+            //Packet::
+            _=> unreachable!(
+                "This branch only matches for packets with Properties, which is not possible in MQTT V4",
+            ),
+        };
+    }else if protocol_version == 5 {
+         size = match packet {
+            MQTTPacket::Connect(protocol_version,connect, properties, last_will, last_will_peoperties, login) => {
+                crate::mqtt::mqttv5::connect::write(&connect, &properties, &last_will,  &last_will_peoperties, &login, &mut buffer)?
+            }
+            MQTTPacket::ConnAck(connack, conn_ack_properties) => crate::mqtt::mqttv5::connack::write(&connack,&conn_ack_properties, &mut buffer)?,
+            MQTTPacket::Publish(publish, publish_properties ) => crate::mqtt::mqttv5::publish::write(&publish, &publish_properties,&mut buffer)?,
+            MQTTPacket::PubAck(puback, pub_ack_properties) => crate::mqtt::mqttv5::puback::write(&puback, &pub_ack_properties,&mut buffer)?,
+            MQTTPacket::PubRec(pubrec, pub_rec_properties) => crate::mqtt::mqttv5::pubrec::write(&pubrec, &pub_rec_properties,&mut buffer)?,
+            MQTTPacket::PubRel(pubrel, pub_rel_properties) => crate::mqtt::mqttv5::pubrel::write(&pubrel, &pub_rel_properties,&mut buffer)?,
+            MQTTPacket::PubComp(pubcomp, pub_comp_properties) => crate::mqtt::mqttv5::pubcomp::write(&pubcomp, &pub_comp_properties,&mut buffer)?,
+            MQTTPacket::Subscribe(subscribe, subscribe_properties) => crate::mqtt::mqttv5::subscribe::write(&subscribe,&subscribe_properties, &mut buffer)?,
+            MQTTPacket::SubAck(suback, suback_properties) => crate::mqtt::mqttv5::suback::write(&suback, &suback_properties,&mut buffer)?,
+            MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => crate::mqtt::mqttv5::unsubscribe::write(&unsubscribe, &unsubscribe_properties,&mut buffer)?,
+            MQTTPacket::UnsubAck(unsuback, unsuback_properties) => crate::mqtt::mqttv5::unsuback::write(&unsuback, &unsuback_properties,&mut buffer)?,
+            MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv5::ping::pingreq::write(&mut buffer)?,
+            MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv5::ping::pingresp::write(&mut buffer)?,
+            MQTTPacket::Disconnect(disconnect, disconnect_properties) => crate::mqtt::mqttv5::disconnect::write(&disconnect, &disconnect_properties,&mut buffer)?,
+
+            //Packet::
+            _=> unreachable!(
+                "This branch only matches for packets with Properties, which is not possible in MQTT V4",
+            ),
+        };
+    }
+    return Ok(size);
+}
+
+pub fn parse_mqtt_packet_to_name(packet:MQTTPacket) -> String{
+    let name = match packet {
+        MQTTPacket::Connect(protocol_version,connect, properties, last_will, last_will_peoperties, login) => {
+            "connect"
+        }
+        MQTTPacket::ConnAck(connack, conn_ack_properties) => "conn_ack",
+        MQTTPacket::Publish(publish, publish_properties ) => "publish",
+        MQTTPacket::PubAck(puback, pub_ack_properties) => "pub_ack",
+        MQTTPacket::PubRec(pubrec, pub_rec_properties) => "pub_rec",
+        MQTTPacket::PubRel(pubrel, pub_rel_properties) => "pub_rel",
+        MQTTPacket::PubComp(pubcomp, pub_comp_properties) => "pub_comp",
+        MQTTPacket::Subscribe(subscribe, subscribe_properties) => "subscribe",
+        MQTTPacket::SubAck(suback, suback_properties) => "sub_ack",
+        MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => "sub_ack",
+        MQTTPacket::UnsubAck(unsuback, unsuback_properties) => "unsub_ack",
+        MQTTPacket::PingReq(pingreq) => "ping",
+        MQTTPacket::PingResp(pingresp) => "pong",
+        MQTTPacket::Disconnect(disconnect, disconnect_properties) => "disconnect",
+        _=> "-",
+    };
+    return name.to_string();
+}

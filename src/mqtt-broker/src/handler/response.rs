@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::log::{error, warn};
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use log::{error, warn};
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
     DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol, PingResp, PubAck,
@@ -24,16 +23,18 @@ use protocol::mqtt::common::{
 
 use super::{
     connection::{response_information, Connection},
+    keep_alive::keep_live_time,
     validator::is_request_problem_info,
 };
 
 pub fn response_packet_mqtt_connect_success(
     protocol: &MQTTProtocol,
-    cluster: &MQTTCluster,
+    cluster: &MQTTClusterDynamicConfig,
     client_id: String,
     auto_client_id: bool,
     session_expiry_interval: u32,
     session_present: bool,
+    keep_alive: u16,
     connect_properties: &Option<ConnectProperties>,
 ) -> MQTTPacket {
     if !protocol.is_mqtt5() {
@@ -54,18 +55,24 @@ pub fn response_packet_mqtt_connect_success(
 
     let properties = ConnAckProperties {
         session_expiry_interval: Some(session_expiry_interval),
-        receive_max: Some(cluster.receive_max()),
-        max_qos: Some(cluster.max_qos().into()),
-        retain_available: Some(cluster.retain_available()),
-        max_packet_size: Some(cluster.max_packet_size()),
+        receive_max: Some(cluster.protocol.receive_max),
+        max_qos: Some(cluster.protocol.max_qos.into()),
+        retain_available: Some(cluster.feature.retain_available.clone() as u8),
+        max_packet_size: Some(cluster.protocol.max_packet_size),
         assigned_client_identifier,
-        topic_alias_max: Some(cluster.topic_alias_max()),
+        topic_alias_max: Some(cluster.protocol.topic_alias_max),
         reason_string: None,
         user_properties: Vec::new(),
-        wildcard_subscription_available: Some(cluster.wildcard_subscription_available()),
-        subscription_identifiers_available: Some(cluster.subscription_identifiers_available()),
-        shared_subscription_available: Some(cluster.shared_subscription_available()),
-        server_keep_alive: Some(cluster.server_keep_alive()),
+        wildcard_subscription_available: Some(
+            cluster.feature.wildcard_subscription_available.clone() as u8,
+        ),
+        subscription_identifiers_available: Some(
+            cluster.feature.subscription_identifiers_available.clone() as u8,
+        ),
+        shared_subscription_available: Some(
+            cluster.feature.shared_subscription_available.clone() as u8
+        ),
+        server_keep_alive: Some(keep_live_time(keep_alive)),
         response_information: response_information(connect_properties),
         server_reference: None,
         authentication_method: None,
@@ -86,7 +93,7 @@ pub fn response_packet_mqtt_connect_fail(
     connect_properties: &Option<ConnectProperties>,
     error_reason: Option<String>,
 ) -> MQTTPacket {
-    warn(format!("{code:?},{error_reason:?}"));
+    warn!("{code:?},{error_reason:?}");
     if !protocol.is_mqtt5() {
         let new_code = if code == ConnectReturnCode::ClientIdentifierNotValid {
             ConnectReturnCode::BadClientId
@@ -178,9 +185,7 @@ pub fn response_packet_mqtt_puback_fail(
     reason: PubAckReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
-    error(format!(
-        "reason:{reason:?}, reason string: {reason_string:?}"
-    ));
+    error!("reason:{reason:?}, reason string: {reason_string:?}");
     if !protocol.is_mqtt5() {
         let pub_ack = PubAck { pkid, reason: None };
         return MQTTPacket::PubAck(pub_ack, None);
@@ -224,9 +229,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     reason: PubRecReason,
     reason_string: Option<String>,
 ) -> MQTTPacket {
-    error(format!(
-        "reason:{reason:?}, reason string: {reason_string:?}"
-    ));
+    error!("reason:{reason:?}, reason string: {reason_string:?}");
     if !protocol.is_mqtt5() {
         return MQTTPacket::PubRec(PubRec { pkid, reason: None }, None);
     }

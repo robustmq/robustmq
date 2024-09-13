@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{placement::placement::call::send_raft_message, poll::ClientPool};
-use common_base::log::{debug_meta, error_meta, info_meta};
+use log::{debug, error, info};
 use protocol::placement_center::generate::placement::SendRaftMessageRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -42,21 +41,22 @@ impl PeersManager {
     }
 
     pub async fn start(&mut self) {
-        info_meta(&format!(
+        info!(
+            "{}",
             "Starts the thread that sends Raft messages to other nodes"
-        ));
+        );
         loop {
             if let Some(data) = self.peer_message_recv.recv().await {
                 let addr = data.to;
                 let request = SendRaftMessageRequest { message: data.data };
                 match send_raft_message(self.client_poll.clone(), vec![addr.clone()], request).await
                 {
-                    Ok(_) => debug_meta(&format!("Send Raft message to node {} Successful.", addr)),
-                    Err(e) => error_meta(&format!(
+                    Ok(_) => debug!("Send Raft message to node {} Successful.", addr),
+                    Err(e) => error!(
                         "Failed to send data to {}, error message: {}",
                         addr,
                         e.to_string()
-                    )),
+                    ),
                 }
             }
         }

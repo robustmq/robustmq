@@ -15,27 +15,28 @@
 pub mod index;
 pub mod mqtt;
 pub mod server;
+pub mod journal;
 
 pub(crate) fn v1_path(path: &str) -> String {
     return format!("/v1{}", path);
 }
 
-pub(crate) fn path_get(path: &str) -> String {
+pub(crate) fn get_path(path: &str) -> String {
     return format!("{}/get", path);
 }
 
-pub(crate) fn path_create(path: &str) -> String {
+pub(crate) fn create_path(path: &str) -> String {
     return format!("{}/create", path);
 }
 
-pub(crate) fn path_update(path: &str) -> String {
+pub(crate) fn update_path(path: &str) -> String {
     return format!("{}/update", path);
 }
 
-pub(crate) fn path_delete(path: &str) -> String {
+pub(crate) fn delete_path(path: &str) -> String {
     return format!("{}/delete", path);
 }
 
-pub(crate) fn path_list(path: &str) -> String {
+pub(crate) fn list_path(path: &str) -> String {
     return format!("{}/list", path);
 }

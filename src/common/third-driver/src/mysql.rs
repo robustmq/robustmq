@@ -12,14 +12,14 @@
 // limitations under the License.
 
 
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use mysql::Pool;
 
-pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, RobustMQError> {
+pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, CommonError> {
     match Pool::new(addr) {
         Ok(pool) => return Ok(pool),
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }

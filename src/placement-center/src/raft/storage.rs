@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::log::info_meta;
+use crate::storage::placement::raft::RaftMachineStorage;
+use log::info;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
@@ -26,7 +26,6 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
-use crate::storage::placement::raft::RaftMachineStorage;
 
 pub struct RaftRocksDBStorage {
     core: Arc<RwLock<RaftMachineStorage>>,
@@ -37,6 +36,7 @@ impl RaftRocksDBStorage {
         return RaftRocksDBStorage { core };
     }
 
+    #[allow(dead_code)]
     pub fn new_with_conf_state<T>(
         core: Arc<RwLock<RaftMachineStorage>>,
         conf_state: T,
@@ -49,6 +49,7 @@ impl RaftRocksDBStorage {
         return store;
     }
 
+    #[allow(dead_code)]
     pub fn initialize_with_conf_state<T>(&self, conf_state: T)
     where
         ConfState: From<T>,
@@ -223,7 +224,7 @@ impl RaftStorage for RaftRocksDBStorage {
     /// A snapshot's index must not less than the `request_index`.
     /// `to` indicates which peer is requesting the snapshot.
     fn snapshot(&self, request_index: u64, to: u64) -> RaftResult<Snapshot> {
-        info_meta(&format!("Node {} requests snapshot data", to));
+        info!("Node {} requests snapshot data", to);
         let mut core = self.write_lock();
         if core.trigger_snap_unavailable {
             return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable));

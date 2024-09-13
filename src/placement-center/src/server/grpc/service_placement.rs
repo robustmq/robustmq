@@ -17,27 +17,25 @@ use crate::cache::placement::PlacementCacheManager;
 use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
 use crate::raft::metadata::RaftGroupMetadata;
 use crate::storage::placement::config::ResourceConfigStorage;
-use crate::storage::placement::global_id::GlobalId;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{register_node, un_register_node};
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
 use prost::Message;
-use protocol::placement_center::generate::common::{CommonReply, GenerageIdType};
+use protocol::placement_center::generate::common::CommonReply;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::generate::placement::{
     DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
-    ExistsIdempotentDataRequest, GenerateUniqueNodeIdReply, GenerateUniqueNodeIdRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, RegisterNodeRequest,
-    ReportMonitorRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
+    ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest,
+    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest, ReportMonitorRequest,
+    SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
     SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
     UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
@@ -50,15 +48,15 @@ pub struct GrpcPlacementService {
 
 impl GrpcPlacementService {
     pub fn new(
-        placement_center_storage: Arc<RaftMachineApply>,
-        placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+        raft_machine_apply: Arc<RaftMachineApply>,
+        raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcPlacementService {
-            placement_center_storage,
-            placement_cache,
+            placement_center_storage: raft_machine_apply,
+            placement_cache: raft_metadata,
             cluster_cache,
             rocksdb_engine_handler,
             client_poll,
@@ -72,6 +70,20 @@ impl GrpcPlacementService {
 
 #[tonic::async_trait]
 impl PlacementCenterService for GrpcPlacementService {
+    async fn node_list(
+        &self,
+        request: Request<NodeListRequest>,
+    ) -> Result<Response<NodeListReply>, Status> {
+        let req = request.into_inner();
+        let mut nodes = Vec::new();
+        if let Some(node_list) = self.cluster_cache.node_list.get(&req.cluster_name) {
+            for (_, node) in node_list.clone() {
+                nodes.push(node.encode())
+            }
+        }
+        return Ok(Response::new(NodeListReply { nodes }));
+    }
+
     async fn register_node(
         &self,
         request: Request<RegisterNodeRequest>,
@@ -100,7 +112,7 @@ impl PlacementCenterService for GrpcPlacementService {
         {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+                return Err(Status::internal(e.to_string()));
             }
         }
     }
@@ -153,10 +165,8 @@ impl PlacementCenterService for GrpcPlacementService {
 
     async fn report_monitor(
         &self,
-        request: Request<ReportMonitorRequest>,
+        _: Request<ReportMonitorRequest>,
     ) -> Result<Response<CommonReply>, Status> {
-        let req = request.into_inner();
-
         return Ok(Response::new(CommonReply::default()));
     }
 
@@ -175,7 +185,7 @@ impl PlacementCenterService for GrpcPlacementService {
             Ok(_) => return Ok(Response::new(SendRaftMessageReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(
-                    RobustMQError::MetaLogCommitTimeout(e.to_string()).to_string(),
+                    PlacementCenterError::RaftLogCommitTimeout(e.to_string()).to_string(),
                 ));
             }
         }
@@ -196,37 +206,10 @@ impl PlacementCenterService for GrpcPlacementService {
             Ok(_) => return Ok(Response::new(SendRaftConfChangeReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(
-                    RobustMQError::MetaLogCommitTimeout(e.to_string()).to_string(),
+                    PlacementCenterError::RaftLogCommitTimeout(e.to_string()).to_string(),
                 ));
             }
         }
-    }
-
-    async fn generate_unique_id(
-        &self,
-        request: Request<GenerateUniqueNodeIdRequest>,
-    ) -> Result<Response<GenerateUniqueNodeIdReply>, Status> {
-        let req = request.into_inner();
-        let mut resp = GenerateUniqueNodeIdReply::default();
-        let generate = GlobalId::new(self.rocksdb_engine_handler.clone());
-
-        if req.generage_type() == GenerageIdType::UniqStr {
-            resp.id_str = generate.generate_uniq_str();
-            return Ok(Response::new(resp));
-        }
-
-        if req.generage_type() == GenerageIdType::UniqInt {
-            match generate.generate_uniq_id().await {
-                Ok(da) => {
-                    resp.id_int = da;
-                    return Ok(Response::new(resp));
-                }
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        }
-        return Ok(Response::new(resp));
     }
 
     async fn set_resource_config(
@@ -260,13 +243,9 @@ impl PlacementCenterService for GrpcPlacementService {
         match storage.get(req.cluster_name, req.resources) {
             Ok(data) => {
                 if let Some(res) = data {
-                    let reply = GetResourceConfigReply {
-                        config: res.data.to_vec(),
-                    };
-                    return Ok(Response::new(reply));
+                    return Ok(Response::new(GetResourceConfigReply { config: res }));
                 } else {
-                    let reply = GetResourceConfigReply { config: Vec::new() };
-                    return Ok(Response::new(reply));
+                    return Ok(Response::new(GetResourceConfigReply { config: Vec::new() }));
                 }
             }
             Err(e) => {
@@ -325,12 +304,9 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<ExistsIdempotentDataReply>, Status> {
         let req = request.into_inner();
         let storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
-        match storage.get(&req.cluster_name, &req.producer_id, req.seq_num) {
-            Ok(Some(_)) => {
-                return Ok(Response::new(ExistsIdempotentDataReply { exists: true }));
-            }
-            Ok(None) => {
-                return Ok(Response::new(ExistsIdempotentDataReply { exists: false }));
+        match storage.exists(&req.cluster_name, &req.producer_id, req.seq_num) {
+            Ok(flag) => {
+                return Ok(Response::new(ExistsIdempotentDataReply { exists: flag }));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

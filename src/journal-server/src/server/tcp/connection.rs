@@ -11,10 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::log::{error_engine, error_meta};
 use dashmap::DashMap;
 use futures::SinkExt;
+use log::error;
 use protocol::journal_server::codec::{StorageEngineCodec, StorageEnginePacket};
 use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
 use tokio::time::sleep;
@@ -55,6 +54,7 @@ impl ConnectionManager {
         return connection_id;
     }
 
+    #[allow(dead_code)]
     pub fn remove(&self, connection_id: u64) {
         self.connections.remove(&connection_id);
     }
@@ -68,13 +68,13 @@ impl ConnectionManager {
                 }
                 dashmap::try_result::TryResult::Absent => {
                     if times > self.max_try_mut_times {
-                        error_engine(format!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id));
+                        error!("[write_frame]Connection management could not obtain an available connection. Connection ID: {}",connection_id);
                         break;
                     }
                 }
                 dashmap::try_result::TryResult::Locked => {
                     if times > self.max_try_mut_times {
-                        error_engine(format!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id));
+                        error!("[write_frame]Connection management failed to get connection variable reference, connection ID: {}",connection_id);
                         break;
                     }
                 }
@@ -86,7 +86,7 @@ impl ConnectionManager {
 
     pub fn connect_check(&self) -> Result<(), Error> {
         // Verify the connection limit
-        if self.connections.len() >= self.max_connection_num {
+        if self.connections.len() > self.max_connection_num {
             return Err(Error::ConnectionExceed {
                 total: self.max_connection_num,
             });
@@ -118,17 +118,13 @@ impl Connection {
         }
     }
 
-    pub fn connection_id(&self) -> u64 {
-        return self.connection_id;
-    }
-
     pub async fn write_frame(&mut self, resp: StorageEnginePacket) {
         match self.write.send(resp).await {
             Ok(_) => {}
-            Err(err) => error_meta(&format!(
+            Err(err) => error!(
                 "Failed to write data to the response queue, error message ff: {:?}",
                 err
-            )),
+            ),
         }
     }
 }

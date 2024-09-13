@@ -20,6 +20,8 @@ import "common.proto";
 
 service PlacementCenterService {
 
+  rpc NodeList(NodeListRequest) returns(NodeListReply){}
+
   rpc RegisterNode(RegisterNodeRequest) returns(common.CommonReply){}
 
   rpc UnRegisterNode(UnRegisterNodeRequest) returns(common.CommonReply){}
@@ -31,8 +33,6 @@ service PlacementCenterService {
   rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
 
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
-
-  rpc GenerateUniqueId(GenerateUniqueNodeIdRequest) returns(GenerateUniqueNodeIdReply) {}
 
   rpc SetResourceConfig(SetResourceConfigRequest) returns(common.CommonReply) {}
 
@@ -68,6 +68,14 @@ message SendRaftConfChangeRequest{
 message SendRaftConfChangeReply{
 }
 
+message NodeListRequest{
+    string cluster_name = 1;
+}
+
+message NodeListReply{
+    repeated bytes nodes = 1;
+
+}
 
 message RegisterNodeRequest{
     common.ClusterType cluster_type = 1;
@@ -91,15 +99,6 @@ message ReportMonitorRequest{
     float memory_rate = 4;
     float disk_rate = 5;
     float network_rate = 6;
-}
-
-message GenerateUniqueNodeIdRequest{
-    common.GenerageIdType generage_type = 1;
-}
-
-message GenerateUniqueNodeIdReply{
-     uint64 id_int = 1;
-     string id_str = 2;
 }
 
 message SetResourceConfigRequest{

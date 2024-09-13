@@ -11,15 +11,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_client::MqttServiceClient, CreateSessionRequest, CreateTopicRequest,
-        CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest,
+        mqtt_service_client::MqttServiceClient, CreateAclRequest, CreateBlacklistRequest,
+        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest,
+        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
+        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+        ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest,
         ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
         SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
@@ -29,16 +30,16 @@ use tonic::transport::Channel;
 pub(crate) async fn inner_get_share_sub_leader(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match GetShareSubLeaderRequest::decode(request.as_ref()) {
         Ok(request) => match client.get_share_sub_leader(request).await {
             Ok(result) => {
                 return Ok(GetShareSubLeaderReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -46,16 +47,16 @@ pub(crate) async fn inner_get_share_sub_leader(
 pub(crate) async fn inner_create_user(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match CreateUserRequest::decode(request.as_ref()) {
         Ok(request) => match client.create_user(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -63,16 +64,16 @@ pub(crate) async fn inner_create_user(
 pub(crate) async fn inner_list_user(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match ListUserRequest::decode(request.as_ref()) {
         Ok(request) => match client.list_user(request).await {
             Ok(result) => {
                 return Ok(ListUserReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -80,16 +81,16 @@ pub(crate) async fn inner_list_user(
 pub(crate) async fn inner_delete_user(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match DeleteUserRequest::decode(request.as_ref()) {
         Ok(request) => match client.delete_user(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -97,16 +98,16 @@ pub(crate) async fn inner_delete_user(
 pub(crate) async fn inner_create_topic(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match CreateTopicRequest::decode(request.as_ref()) {
         Ok(request) => match client.create_topic(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -114,16 +115,16 @@ pub(crate) async fn inner_create_topic(
 pub(crate) async fn inner_list_topic(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match ListTopicRequest::decode(request.as_ref()) {
         Ok(request) => match client.list_topic(request).await {
             Ok(result) => {
                 return Ok(ListTopicReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -131,16 +132,16 @@ pub(crate) async fn inner_list_topic(
 pub(crate) async fn inner_delete_topic(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match DeleteTopicRequest::decode(request.as_ref()) {
         Ok(request) => match client.delete_topic(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -148,16 +149,16 @@ pub(crate) async fn inner_delete_topic(
 pub(crate) async fn inner_set_topic_retain_message(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match SetTopicRetainMessageRequest::decode(request.as_ref()) {
         Ok(request) => match client.set_topic_retain_message(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -165,16 +166,16 @@ pub(crate) async fn inner_set_topic_retain_message(
 pub(crate) async fn inner_create_session(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match CreateSessionRequest::decode(request.as_ref()) {
         Ok(request) => match client.create_session(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -182,16 +183,16 @@ pub(crate) async fn inner_create_session(
 pub(crate) async fn inner_list_session(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match ListSessionRequest::decode(request.as_ref()) {
         Ok(request) => match client.list_session(request).await {
             Ok(result) => {
                 return Ok(ListSessionReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -199,16 +200,16 @@ pub(crate) async fn inner_list_session(
 pub(crate) async fn inner_delete_session(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match DeleteSessionRequest::decode(request.as_ref()) {
         Ok(request) => match client.delete_session(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -216,16 +217,16 @@ pub(crate) async fn inner_delete_session(
 pub(crate) async fn inner_update_session(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match UpdateSessionRequest::decode(request.as_ref()) {
         Ok(request) => match client.update_session(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }
@@ -233,16 +234,118 @@ pub(crate) async fn inner_update_session(
 pub(crate) async fn inner_save_last_will_message(
     mut client: MqttServiceClient<Channel>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match SaveLastWillMessageRequest::decode(request.as_ref()) {
         Ok(request) => match client.save_last_will_message(request).await {
             Ok(result) => {
                 return Ok(CommonReply::encode_to_vec(&result.into_inner()));
             }
-            Err(e) => return Err(RobustMQError::MetaGrpcStatus(e)),
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => {
-            return Err(RobustMQError::CommmonError(e.to_string()));
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_list_acl(
+    mut client: MqttServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match ListAclRequest::decode(request.as_ref()) {
+        Ok(request) => match client.list_acl(request).await {
+            Ok(result) => {
+                return Ok(ListAclReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_create_acl(
+    mut client: MqttServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match CreateAclRequest::decode(request.as_ref()) {
+        Ok(request) => match client.create_acl(request).await {
+            Ok(result) => {
+                return Ok(CommonReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_delete_acl(
+    mut client: MqttServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match DeleteAclRequest::decode(request.as_ref()) {
+        Ok(request) => match client.delete_acl(request).await {
+            Ok(result) => {
+                return Ok(CommonReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_list_blacklist(
+    mut client: MqttServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match ListBlacklistRequest::decode(request.as_ref()) {
+        Ok(request) => match client.list_blacklist(request).await {
+            Ok(result) => {
+                return Ok(ListBlacklistReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_create_blacklist(
+    mut client: MqttServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match CreateBlacklistRequest::decode(request.as_ref()) {
+        Ok(request) => match client.create_blacklist(request).await {
+            Ok(result) => {
+                return Ok(CommonReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
+
+pub(crate) async fn inner_delete_blacklist(
+    mut client: MqttServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match DeleteBlacklistRequest::decode(request.as_ref()) {
+        Ok(request) => match client.delete_blacklist(request).await {
+            Ok(result) => {
+                return Ok(CommonReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
         }
     }
 }

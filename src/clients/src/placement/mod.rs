@@ -11,16 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use self::{
     journal::journal_interface_call, kv::kv_interface_call, mqtt::mqtt_interface_call,
     placement::placement_interface_call,
 };
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
-use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
-};
+use common_base::error::common::CommonError;
+use log::error;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -41,6 +38,7 @@ pub enum PlacementCenterInterface {
     Exists,
 
     // placement inner interface
+    ListNode,
     RegisterNode,
     UnRegisterNode,
     Heartbeat,
@@ -73,6 +71,12 @@ pub enum PlacementCenterInterface {
     SetIdempotentData,
     ExistsIdempotentData,
     DeleteIdempotentData,
+    CreateAcl,
+    DeleteAcl,
+    ListAcl,
+    CreateBlackList,
+    DeleteBlackList,
+    ListBlackList,
 }
 
 pub mod journal;
@@ -86,7 +90,7 @@ async fn retry_call(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     let mut times = 1;
     loop {
         let index = times % addrs.len();
@@ -138,7 +142,7 @@ async fn retry_call(
                 return Ok(data);
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
                 if times > retry_times() {
                     return Err(e);
                 }

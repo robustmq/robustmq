@@ -18,7 +18,9 @@ use crate::{
 use std::sync::Arc;
 
 pub struct SegmentReplicaAlgorithm {
+    #[allow(dead_code)]
     cluster_cache: Arc<PlacementCacheManager>,
+    #[allow(dead_code)]
     engine_cache: Arc<JournalCacheManager>,
 }
 

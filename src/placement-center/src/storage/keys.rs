@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 /** ===========Raft========== */
 pub fn key_name_by_first_index() -> String {
     return "/raft/first_index".to_string();
@@ -74,20 +73,31 @@ pub fn key_resource_idempotent(cluster_name: &String, produce_id: &String, seq_n
     return format!("/idempotent/{}/{}/{}", cluster_name, produce_id, seq_num);
 }
 
-pub fn key_resource_acl(cluster_name: String, resource_key: String) -> String {
-    return format!("/acl/{}/{}", cluster_name, resource_key);
+/** ===========Journal========== */
+pub fn key_shard(cluster_name: &String, shard_name: &String) -> String {
+    return format!("/journal/shard/{}/{}", cluster_name, shard_name);
 }
 
-/** ===========Journal========== */
-pub fn key_shard(cluster_name: &String, shard_name: String) -> String {
-    return format!("/journal/{}/shard/{}", cluster_name, shard_name);
+#[allow(dead_code)]
+pub fn key_shard_prefix(cluster_name: &String) -> String {
+    return format!("/journal/shard/{}", cluster_name);
 }
 
 pub fn key_segment(cluster_name: &String, shard_name: &String, segement_seq: u64) -> String {
     return format!(
-        "/journal/{}/segment/{}/{}",
+        "/journal/segment/{}/{}/{}",
         cluster_name, shard_name, segement_seq
     );
+}
+
+#[allow(dead_code)]
+pub fn key_segment_cluster_prefix(cluster_name: &String) -> String {
+    return format!("/journal/segment/{}", cluster_name);
+}
+
+#[allow(dead_code)]
+pub fn key_segment_shard_prefix(cluster_name: &String, shard_name: &String) -> String {
+    return format!("/journal/segment/{}/{}", cluster_name, shard_name);
 }
 
 /** ===========MQTT========== */
@@ -122,7 +132,36 @@ pub fn storage_key_mqtt_last_will_prefix(cluster_name: &String) -> String {
     return format!("/mqtt/lastwill/{}", cluster_name);
 }
 
-
 pub fn storage_key_mqtt_node_sub_group_leader(cluster_name: &String) -> String {
     return format!("/mqtt/sub_group_leader/{}", cluster_name);
+}
+
+pub fn storage_key_mqtt_acl(
+    cluster_name: &String,
+    resource_type: &String,
+    resource_name: &String,
+) -> String {
+    return format!(
+        "/mqtt/acl/{}/{}/{}",
+        cluster_name, resource_type, resource_name
+    );
+}
+
+pub fn storage_key_mqtt_acl_prefix(cluster_name: &String) -> String {
+    return format!("/mqtt/acl/{}", cluster_name);
+}
+
+pub fn storage_key_mqtt_blacklist(
+    cluster_name: &String,
+    black_list_type: &String,
+    resource_name: &String,
+) -> String {
+    return format!(
+        "/mqtt/blacklist/{}/{}/{}",
+        cluster_name, black_list_type, resource_name
+    );
+}
+
+pub fn storage_key_mqtt_blacklist_prefix(cluster_name: &String) -> String {
+    return format!("/mqtt/blacklist/{}", cluster_name);
 }

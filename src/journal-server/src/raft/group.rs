@@ -16,11 +16,13 @@ use dashmap::DashMap;
 
 use super::machine::SegmentStatusMachine;
 
+#[allow(dead_code)]
 pub struct RaftGroupManager {
     pub segment_groups: DashMap<String, SegmentStatusMachine>,
 }
 
 impl RaftGroupManager {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         let segment_groups = DashMap::new();
         return RaftGroupManager { segment_groups };

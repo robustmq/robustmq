@@ -11,12 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use super::{cache_manager::CacheManager, retain::save_topic_retain_message};
+use super::{cache::CacheManager, retain::save_topic_retain_message, topic::try_init_topic};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use std::sync::Arc;
@@ -29,24 +28,26 @@ pub async fn send_last_will_message<S>(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     message_storage_adapter: Arc<S>,
-) -> Result<(), RobustMQError>
+) -> Result<(), CommonError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     match build_publish_message_by_lastwill(last_will, last_will_properties) {
         Ok((topic_name, publish_res, publish_properteis)) => {
-            if publish_res.is_none() {
+            if publish_res.is_none() || topic_name.is_empty() {
                 // If building a publish message from lastwill fails, the message is ignored without throwing an error.
                 return Ok(());
             }
 
             let publish = publish_res.unwrap();
 
-            let topic = if let Some(tp) = cache_manager.get_topic_by_name(&topic_name) {
-                tp
-            } else {
-                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
-            };
+            let topic = try_init_topic(
+                &topic_name,
+                cache_manager,
+                &message_storage_adapter,
+                client_poll,
+            )
+            .await?;
 
             match save_topic_retain_message(
                 cache_manager,
@@ -93,7 +94,7 @@ where
 fn build_publish_message_by_lastwill(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
-) -> Result<(String, Option<Publish>, Option<PublishProperties>), RobustMQError> {
+) -> Result<(String, Option<Publish>, Option<PublishProperties>), CommonError> {
     if let Some(will) = last_will {
         if will.topic.is_empty() || will.message.is_empty() {
             return Ok(("".to_string(), None, None));
@@ -102,7 +103,7 @@ fn build_publish_message_by_lastwill(
         let topic_name = match String::from_utf8(will.topic.to_vec()) {
             Ok(da) => da,
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         };
 
@@ -139,7 +140,7 @@ pub async fn save_last_will_message(
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     client_poll: &Arc<ClientPool>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if last_will.is_none() {
         return Ok(());
     }

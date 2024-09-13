@@ -14,57 +14,51 @@
  * limitations under the License.
  */
 
+use super::default_placement_center::{
+    default_addr, default_cluster_name, default_data_path, default_grpc_port,
+    default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port, default_log,
+    default_max_open_files, default_node_id, default_nodes, default_rocksdb,
+    default_runtime_work_threads,
+};
+use crate::tools::{create_fold, read_file};
+use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
-
-use serde::Deserialize;
 use toml::Table;
 
-use crate::{config::read_file, tools::create_fold};
+use super::common::Log;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
 pub struct PlacementCenterConfig {
+    #[serde(default = "default_cluster_name")]
     pub cluster_name: String,
+    #[serde(default = "default_node_id")]
     pub node_id: u64,
+    #[serde(default = "default_addr")]
     pub addr: String,
-    pub grpc_port: u16,
-    pub http_port: u16,
+    #[serde(default = "default_grpc_port")]
+    pub grpc_port: u32,
+    #[serde(default = "default_http_port")]
+    pub http_port: u32,
+    #[serde(default = "default_runtime_work_threads")]
     pub runtime_work_threads: usize,
+    #[serde(default = "default_data_path")]
     pub data_path: String,
-    pub log_path: String,
-    pub log_segment_size: u64,
-    pub log_file_num: u32,
+    #[serde(default = "default_log")]
+    pub log: Log,
+    #[serde(default = "default_nodes")]
     pub nodes: Table,
+    #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
+    #[serde(default = "default_heartbeat_timeout_ms")]
     pub heartbeat_timeout_ms: u64,
+    #[serde(default = "default_heartbeat_check_time_ms")]
     pub heartbeat_check_time_ms: u64,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Rocksdb {
+    #[serde(default = "default_max_open_files")]
     pub max_open_files: Option<i32>,
-}
-
-impl Default for PlacementCenterConfig {
-    fn default() -> Self {
-        PlacementCenterConfig {
-            cluster_name: "test".to_string(),
-            node_id: 1,
-            addr: "127.0.0.1".to_string(),
-            grpc_port: 3112,
-            http_port: 3113,
-            runtime_work_threads: 10,
-            log_segment_size: 1024 * 1024 * 1024 * 1024 * 1024,
-            log_file_num: 50,
-            data_path: "/tmp/robust_tmp_tests/data".to_string(),
-            log_path: "/tmp/robust_tmp_tests/logs".to_string(),
-            nodes: Table::new(),
-            heartbeat_timeout_ms: 30000,
-            heartbeat_check_time_ms: 1000,
-            rocksdb: Rocksdb {
-                max_open_files: Some(100),
-            },
-        }
-    }
 }
 
 static PLACEMENT_CENTER_CONF: OnceLock<PlacementCenterConfig> = OnceLock::new();
@@ -73,10 +67,25 @@ pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static Plac
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     PLACEMENT_CENTER_CONF.get_or_init(|| {
-        let content = read_file(config_path);
+        let content = match read_file(config_path) {
+            Ok(data) => data,
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
+        };
         let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
-        create_fold(pc_config.data_path.clone());
-        create_fold(pc_config.log_path.clone());
+        match create_fold(&pc_config.data_path) {
+            Ok(()) => {}
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
+        match create_fold(&pc_config.log.log_path) {
+            Ok(()) => {}
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
         return pc_config;
     })
 }
@@ -86,8 +95,18 @@ pub fn init_placement_center_conf_by_config(
 ) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
-    create_fold(config.data_path.clone());
-    create_fold(config.log_path.clone());
+    match create_fold(&config.data_path) {
+        Ok(()) => {}
+        Err(e) => {
+            panic!("{}", e);
+        }
+    }
+    match create_fold(&config.log.log_path) {
+        Ok(()) => {}
+        Err(e) => {
+            panic!("{}", e);
+        }
+    }
     PLACEMENT_CENTER_CONF.get_or_init(|| {
         return config;
     })
@@ -108,17 +127,45 @@ pub fn placement_center_conf() -> &'static PlacementCenterConfig {
 
 #[cfg(test)]
 mod tests {
+    use super::{placement_center_conf, Log, PlacementCenterConfig, Rocksdb};
     use crate::config::placement_center::init_placement_center_conf_by_path;
-
-    use super::{placement_center_conf, PlacementCenterConfig};
+    use toml::Table;
 
     #[test]
     fn meta_default() {
-        let path =
-            &"/Users/bytedance/Desktop/code/robustmq-project/robustmq/config/placement-center.toml"
-                .to_string();
-        init_placement_center_conf_by_path(path);
-        let conf: &PlacementCenterConfig = placement_center_conf();
-        assert_eq!(conf.grpc_port, 1228);
+        let path = format!(
+            "{}/src/config/test/placement-center.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_placement_center_conf_by_path(&path);
+        let config: &PlacementCenterConfig = placement_center_conf();
+        assert_eq!(config.cluster_name, "placement-test");
+        assert_eq!(config.node_id, 1);
+        assert_eq!(config.addr, "127.0.0.1");
+        assert_eq!(config.grpc_port, 1228);
+        assert_eq!(config.http_port, 1227);
+        assert_eq!(config.runtime_work_threads, 100);
+        assert_eq!(config.data_path, "/tmp/robust/placement-center/data");
+        assert_eq!(
+            config.log,
+            Log {
+                log_path: format!("./logs/placement-center"),
+                log_config: format!("./config/log4rs.yaml"),
+            }
+        );
+        let mut nodes = Table::new();
+        nodes.insert(
+            "1".to_string(),
+            toml::Value::String(format!("{}:{}", "127.0.0.1", "1228")),
+        );
+        assert_eq!(config.nodes, nodes);
+        assert_eq!(
+            config.rocksdb,
+            Rocksdb {
+                max_open_files: Some(10000 as i32)
+            }
+        );
+        assert_eq!(config.heartbeat_timeout_ms, 30000);
+        assert_eq!(config.heartbeat_check_time_ms, 1000);
     }
 }

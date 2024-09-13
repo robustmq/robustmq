@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::handler::cache_manager::CacheManager;
-use crate::handler::cache_manager::QosAckPackageData;
+use crate::handler::cache::CacheManager;
+use crate::handler::cache::QosAckPackageData;
+use crate::observability::metrics::packets::record_sent_metrics;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::ResponsePackage;
 use crate::storage::message::MessageStorage;
@@ -22,7 +22,9 @@ use bytes::BytesMut;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
-use common_base::{errors::RobustMQError, log::error};
+use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
+use log::error;
 use protocol::mqtt::codec::MQTTPacketWrapper;
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::common::MQTTProtocol;
@@ -40,7 +42,7 @@ use tokio::time::{sleep, timeout};
 
 const SHARE_SUB_PREFIX: &str = "$share";
 
-pub fn path_contain_sub(topic_name: &String) -> bool {
+pub fn path_contain_sub(_: &String) -> bool {
     return true;
 }
 
@@ -129,7 +131,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 pub async fn get_share_sub_leader(
     client_poll: Arc<ClientPool>,
     group_name: String,
-) -> Result<GetShareSubLeaderReply, RobustMQError> {
+) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_mqtt_conf();
     let req = GetShareSubLeaderRequest {
         cluster_name: conf.cluster_name.clone(),
@@ -168,8 +170,10 @@ pub async fn wait_packet_ack(sx: &Sender<QosAckPackageData>) -> Option<QosAckPac
 pub async fn publish_message_to_client(
     resp: ResponsePackage,
     connection_manager: &Arc<ConnectionManager>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
+        record_sent_metrics(&resp, connection_manager);
+
         let response: MQTTPacketWrapper = MQTTPacketWrapper {
             protocol_version: protocol.clone().into(),
             packet: resp.packet,
@@ -180,9 +184,7 @@ pub async fn publish_message_to_client(
             match codec.encode_data(response, &mut buff) {
                 Ok(()) => {}
                 Err(e) => {
-                    error(format!(
-                        "Websocket encode back packet failed with error message: {e:?}"
-                    ));
+                    error!("Websocket encode back packet failed with error message: {e:?}");
                 }
             }
             return connection_manager
@@ -203,7 +205,7 @@ pub async fn qos2_send_publish(
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     stop_sx: &broadcast::Sender<bool>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), MQTTBrokerError> {
     let mut retry_times = 0;
     let mut stop_rx = stop_sx.subscribe();
     loop {
@@ -216,7 +218,7 @@ pub async fn qos2_send_publish(
 
         if let Some(conn) = metadata_cache.get_connection(connect_id) {
             if publish.payload.len() > (conn.max_packet_size as usize) {
-                return Err(RobustMQError::PacketLenthError(publish.payload.len()));
+                return Err(MQTTBrokerError::PacketLenthError(publish.payload.len()));
             }
         }
 
@@ -263,10 +265,10 @@ pub async fn qos2_send_publish(
                         break;
                     }
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Failed to write QOS2 Publish message to response queue, failure message: {}",
                             e.to_string()
-                        ));
+                        );
                         sleep(Duration::from_millis(1)).await;
                     }
                 }
@@ -324,10 +326,10 @@ pub async fn qos2_send_pubrel(
                         break;
                     }
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Failed to write PubRel message to response queue, failure message: {}",
                             e.to_string()
-                        ));
+                        );
                     }
                 }
             }
@@ -353,7 +355,7 @@ pub async fn loop_commit_offset<S>(
                 break;
             }
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
             }
         }
     }
@@ -418,17 +420,17 @@ pub async fn publish_message_qos0(
     match publish_message_to_client(resp.clone(), connection_manager).await {
         Ok(_) => {}
         Err(e) => {
-            error(format!(
+            error!(
                 "Failed Publish message to response queue, failure message: {}",
                 e.to_string()
-            ));
+            );
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::cache_manager::CacheManager;
+    use crate::handler::cache::CacheManager;
     use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
     use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, path_regex_match};
     use clients::poll::ClientPool;

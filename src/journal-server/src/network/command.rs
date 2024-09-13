@@ -11,9 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{response::build_produce_resp, services::Services};
-use common_base::log::error_engine;
+
+use log::error;
 use protocol::journal_server::codec::StorageEnginePacket;
 
 pub struct Command {
@@ -30,16 +30,16 @@ impl Command {
     pub fn apply(&self) -> StorageEnginePacket {
         match self.packet.clone() {
             StorageEnginePacket::ProduceReq(data) => {
-                self.services.produce();
+                self.services.produce(data);
             }
             StorageEnginePacket::FetchReq(data) => {
-                self.services.fetch();
+                self.services.fetch(data);
             }
             _ => {
-                error_engine(format!(
+                error!(
                     "server received an unrecognized request, request info: {:?}",
                     self.packet
-                ));
+                );
             }
         }
         return build_produce_resp();

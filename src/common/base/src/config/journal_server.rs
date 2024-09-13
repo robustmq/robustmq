@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-use super::read_file;
-use crate::tools::create_fold;
+use crate::tools::{create_fold, read_file};
 use serde::Deserialize;
 use std::sync::OnceLock;
 use toml::Table;
 
-#[derive(Debug, Deserialize, Clone)]
+use super::common::Log;
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct JournalServerConfig {
     pub cluster_name: String,
     pub node_id: u64,
@@ -28,16 +29,14 @@ pub struct JournalServerConfig {
     pub prometheus_port: u16,
     pub runtime_work_threads: usize,
     pub data_path: Vec<String>,
-    pub log_path: String,
-    pub log_segment_size: u64,
-    pub log_file_num: u32,
     pub placement_center: Vec<String>,
     pub nodes: Table,
     pub rocksdb: Rocksdb,
     pub network: Network,
+    pub log: Log,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct Network {
     pub accept_thread_num: usize,
     pub handler_thread_num: usize,
@@ -47,38 +46,9 @@ pub struct Network {
     pub response_queue_size: usize,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct Rocksdb {
     pub max_open_files: Option<i32>,
-}
-
-impl Default for JournalServerConfig {
-    fn default() -> Self {
-        JournalServerConfig {
-            cluster_name: "default".to_string(),
-            node_id: 1,
-            grpc_port: 1227,
-            placement_center: Vec::new(),
-            prometheus_port: 1226,
-            runtime_work_threads: 10,
-            log_segment_size: 1024 * 1024 * 1024 * 1024 * 1024,
-            log_file_num: 50,
-            data_path: Vec::new(),
-            log_path: "/tmp/logs".to_string(),
-            nodes: Table::new(),
-            rocksdb: Rocksdb {
-                max_open_files: Some(100),
-            },
-            network: Network {
-                accept_thread_num: 1,
-                handler_thread_num: 1,
-                response_thread_num: 1,
-                max_connection_num: 1,
-                request_queue_size: 100,
-                response_queue_size: 100,
-            },
-        }
-    }
 }
 
 static STORAGE_ENGINE_CONFIG: OnceLock<JournalServerConfig> = OnceLock::new();
@@ -87,12 +57,27 @@ pub fn init_journal_server_conf_by_path(config_path: &String) -> &'static Journa
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     STORAGE_ENGINE_CONFIG.get_or_init(|| {
-        let content = read_file(config_path);
+        let content = match read_file(config_path) {
+            Ok(data) => data,
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
+        };
         let pc_config: JournalServerConfig = toml::from_str(&content).unwrap();
         for fold in pc_config.data_path.clone() {
-            create_fold(fold);
+            match create_fold(&fold) {
+                Ok(()) => {}
+                Err(e) => {
+                    panic!("{}", e);
+                }
+            }
         }
-        create_fold(pc_config.log_path.clone());
+        match create_fold(&pc_config.log.log_path) {
+            Ok(()) => {}
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
         return pc_config;
     })
 }

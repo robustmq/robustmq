@@ -11,10 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::connection_manager::ConnectionManager;
 use crate::{
-    handler::{cache_manager::CacheManager, command::Command}, security::AuthDriver, subscribe::subscribe_manager::SubscribeManager
+    handler::{cache::CacheManager, command::Command},
+    security::AuthDriver,
+    subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -47,7 +48,7 @@ pub async fn start_tcp_server<S>(
         auth_driver.clone(),
     );
 
-    let server = TcpServer::<S>::new(
+    let mut server = TcpServer::<S>::new(
         command.clone(),
         conf.tcp_thread.accept_thread_num,
         conf.tcp_thread.handler_thread_num,
@@ -60,7 +61,7 @@ pub async fn start_tcp_server<S>(
     );
     server.start(conf.network.tcp_port).await;
 
-    let server = TcpServer::<S>::new(
+    let mut server = TcpServer::<S>::new(
         command,
         conf.tcp_thread.accept_thread_num,
         conf.tcp_thread.handler_thread_num,

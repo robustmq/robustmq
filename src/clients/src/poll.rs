@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     broker_mqtt::MqttBrokerMqttServiceManager,
     placement::{
@@ -19,7 +18,7 @@ use crate::{
         placement::PlacementServiceManager,
     },
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use mobc::Pool;
 use protocol::{
@@ -60,7 +59,7 @@ impl ClientPool {
     pub async fn get_placement_center_inner_services_client(
         &self,
         addr: String,
-    ) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
+    ) -> Result<PlacementCenterServiceClient<Channel>, CommonError> {
         let module = "PlacementService".to_string();
         let key = format!("{}_{}_{}", "PlacementServer", module, addr);
         if !self.placement_center_inner_pools.contains_key(&key) {
@@ -74,11 +73,14 @@ impl ClientPool {
             match poll.get().await {
                 Ok(conn) => return Ok(conn.into_inner()),
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -87,7 +89,7 @@ impl ClientPool {
     pub async fn placement_center_journal_services_client(
         &self,
         addr: String,
-    ) -> Result<EngineServiceClient<Channel>, RobustMQError> {
+    ) -> Result<EngineServiceClient<Channel>, CommonError> {
         let module = "JournalService".to_string();
         let key = format!("{}_{}_{}", "JournalServer", module, addr);
         if !self
@@ -107,11 +109,14 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -120,7 +125,7 @@ impl ClientPool {
     pub async fn placement_center_kv_services_client(
         &self,
         addr: String,
-    ) -> Result<KvServiceClient<Channel>, RobustMQError> {
+    ) -> Result<KvServiceClient<Channel>, CommonError> {
         let module = "KvServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
@@ -139,12 +144,15 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
 
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -153,7 +161,7 @@ impl ClientPool {
     pub async fn placement_center_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<MqttServiceClient<Channel>, RobustMQError> {
+    ) -> Result<MqttServiceClient<Channel>, CommonError> {
         let module = "MqttServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
@@ -172,11 +180,14 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -185,7 +196,7 @@ impl ClientPool {
     pub async fn mqtt_broker_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<MqttBrokerServiceClient<Channel>, RobustMQError> {
+    ) -> Result<MqttBrokerServiceClient<Channel>, CommonError> {
         let module = "BrokerMqttServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
@@ -204,11 +215,14 @@ impl ClientPool {
                     return Ok(conn.into_inner());
                 }
                 Err(e) => {
-                    return Err(RobustMQError::NoAvailableConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
-        return Err(RobustMQError::NoAvailableConnection(
+        return Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
         ));
@@ -217,13 +231,7 @@ impl ClientPool {
 
 #[cfg(test)]
 mod tests {
-    use super::ClientPool;
 
     #[tokio::test]
-    async fn get_placement_center_inner_services_client_test() {
-        let poll = ClientPool::new(100);
-        let res = poll
-            .get_placement_center_inner_services_client("".to_string())
-            .await;
-    }
+    async fn get_placement_center_inner_services_client_test() {}
 }

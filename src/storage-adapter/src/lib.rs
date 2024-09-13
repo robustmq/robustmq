@@ -16,8 +16,8 @@ pub mod journal;
 pub mod memory;
 pub mod mysql;
 pub mod placement;
-pub mod record;
 pub mod storage;
+pub mod local_rocksdb;
 
 #[derive(Debug)]
 pub enum StorageType {

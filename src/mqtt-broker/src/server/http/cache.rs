@@ -11,15 +11,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::collections::HashMap;
 
 use super::server::HttpServerState;
 use crate::{
-    handler::{
-        cache_manager::{ClientPkidData, ConnectionLiveTime},
-        connection::Connection,
-    },
+    handler::cache::{ClientPkidData, ConnectionLiveTime},
     subscribe::{
         subscribe_manager::{ShareLeaderSubscribeData, ShareSubShareSub},
         subscriber::{SubscribeData, Subscriber},
@@ -33,7 +29,7 @@ use common_base::{
 };
 use dashmap::DashMap;
 use metadata_struct::mqtt::{
-    cluster::MQTTCluster, session::MQTTSession, topic::MQTTTopic, user::MQTTUser,
+    cluster::MQTTClusterDynamicConfig, session::MQTTSession, topic::MQTTTopic, user::MQTTUser,
 };
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +38,11 @@ pub async fn metrics() -> String {
 }
 
 pub async fn cache_info(State(state): State<HttpServerState>) -> String {
+    let connection_info = DashMap::with_capacity(8);
+    for raw in state.cache_metadata.connection_info.clone() {
+        let data = format!("{:?}", raw.1);
+        connection_info.insert(raw.0, data);
+    }
     let result = MetadataCacheResult {
         config: broker_mqtt_conf().clone(),
 
@@ -49,7 +50,7 @@ pub async fn cache_info(State(state): State<HttpServerState>) -> String {
         cluster_info: state.cache_metadata.cluster_info.clone(),
         user_info: state.cache_metadata.user_info.clone(),
         session_info: state.cache_metadata.session_info.clone(),
-        // connection_info: state.cache_metadata.connection_info.clone(),
+        connection_info: connection_info,
         topic_info: state.cache_metadata.topic_info.clone(),
         topic_id_name: state.cache_metadata.topic_id_name.clone(),
         subscribe_filter: state.cache_metadata.subscribe_filter.clone(),
@@ -84,10 +85,10 @@ pub struct MetadataCacheResult {
 
     // metadata_cache
     pub cluster_name: String,
-    pub cluster_info: DashMap<String, MQTTCluster>,
+    pub cluster_info: DashMap<String, MQTTClusterDynamicConfig>,
     pub user_info: DashMap<String, MQTTUser>,
     pub session_info: DashMap<String, MQTTSession>,
-    // pub connection_info: DashMap<u64, Connection>,
+    pub connection_info: DashMap<u64, String>,
     pub topic_info: DashMap<String, MQTTTopic>,
     pub topic_id_name: DashMap<String, String>,
     pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,

@@ -11,15 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     broker_mqtt::call::{broker_mqtt_delete_session, send_last_will_message},
     poll::ClientPool,
 };
-use common_base::{
-    log::{error, info, warn},
-    tools::now_second,
-};
+use common_base::tools::now_second;
+use log::{debug, error, warn};
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
 
@@ -65,11 +62,11 @@ impl MQTTBrokerCall {
         for raw in chunks {
             let client_ids: Vec<String> = raw.iter().map(|x| x.client_id.clone()).collect();
             let mut success = true;
-            info(format!(
+            debug!(
                 "Session [{:?}] has expired. Call Broker to delete the Session information.",
                 client_ids
-            ));
-            
+            );
+
             for addr in self
                 .placement_cache_manager
                 .get_cluster_node_addr(&self.cluster_name)
@@ -84,11 +81,11 @@ impl MQTTBrokerCall {
                     Ok(_) => {}
                     Err(e) => {
                         success = false;
-                        warn(e.to_string());
+                        warn!("{}", e);
                     }
                 }
             }
-
+            debug!("Session expired call Broker status: {}", success);
             if success {
                 let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
                 for ms in raw {
@@ -99,6 +96,10 @@ impl MQTTBrokerCall {
                             } else {
                                 0
                             };
+                            debug!(
+                                "Save the upcoming will message to the cache with client ID:{}",
+                                ms.client_id
+                            );
                             self.mqtt_cache_manager
                                 .add_expire_last_will(ExpireLastWill {
                                     client_id: ms.client_id.clone(),
@@ -106,7 +107,7 @@ impl MQTTBrokerCall {
                                     cluster_name: self.cluster_name.clone(),
                                 });
                         }
-                        Err(e) => error(e.to_string()),
+                        Err(e) => error!("{}", e),
                     }
                 }
             }
@@ -118,19 +119,22 @@ impl MQTTBrokerCall {
             client_id: client_id.clone(),
             last_will_message: lastwill.encode(),
         };
-        match send_last_will_message(
-            self.client_poll.clone(),
-            self.placement_cache_manager
-                .get_cluster_node_addr(&self.cluster_name),
-            request,
-        )
-        .await
-        {
+
+        let node_addr = self
+            .placement_cache_manager
+            .get_cluster_node_addr(&self.cluster_name);
+
+        if node_addr.len() == 0 {
+            error!("Get cluster {} Node access address is empty, there is no cluster node address available.",self.cluster_name);
+            return;
+        }
+
+        match send_last_will_message(self.client_poll.clone(), node_addr, request).await {
             Ok(_) => self
                 .mqtt_cache_manager
                 .remove_expire_last_will(&self.cluster_name, &client_id),
             Err(e) => {
-                error(e.to_string());
+                error!("{}", e);
             }
         }
     }

@@ -11,19 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::placement::placement::call::{
     delete_resource_config, get_resource_config, heartbeat, register_node, set_resource_config,
     un_register_node,
 };
 use clients::poll::ClientPool;
-use common_base::errors::RobustMQError;
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    log::{error, info},
-    tools::get_local_ip,
-};
-use metadata_struct::mqtt::cluster::MQTTCluster;
+use common_base::error::common::CommonError;
+use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::get_local_ip};
+use log::{error, info};
+use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
 use protocol::placement_center::generate::placement::{
     DeleteResourceConfigRequest, GetResourceConfigRequest, SetResourceConfigRequest,
@@ -73,13 +69,10 @@ impl ClusterStorage {
         .await
         {
             Ok(_) => {
-                info(format!(
-                    "Node {} has been successfully registered",
-                    config.broker_id
-                ));
+                info!("Node {} has been successfully registered", config.broker_id);
             }
             Err(e) => {
-                panic!("{}", e.to_string())
+                panic!("Register node fail,{}", e.to_string())
             }
         }
     }
@@ -99,9 +92,9 @@ impl ClusterStorage {
         .await
         {
             Ok(_) => {
-                info(format!("Node {} exits successfully", config.broker_id));
+                info!("Node {} exits successfully", config.broker_id);
             }
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
     }
 
@@ -120,15 +113,15 @@ impl ClusterStorage {
         .await
         {
             Ok(_) => {}
-            Err(e) => error(e.to_string()),
+            Err(e) => error!("{}", e),
         }
     }
 
     pub async fn set_cluster_config(
         &self,
         cluster_name: String,
-        cluster: MQTTCluster,
-    ) -> Result<(), RobustMQError> {
+        cluster: MQTTClusterDynamicConfig,
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = SetResourceConfigRequest {
@@ -151,7 +144,7 @@ impl ClusterStorage {
         }
     }
 
-    pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), RobustMQError> {
+    pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = DeleteResourceConfigRequest {
@@ -176,7 +169,7 @@ impl ClusterStorage {
     pub async fn get_cluster_config(
         &self,
         cluster_name: String,
-    ) -> Result<Option<MQTTCluster>, RobustMQError> {
+    ) -> Result<Option<MQTTClusterDynamicConfig>, CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = GetResourceConfigRequest {
@@ -195,12 +188,12 @@ impl ClusterStorage {
                 if data.config.is_empty() {
                     return Ok(None);
                 } else {
-                    match serde_json::from_slice::<MQTTCluster>(&data.config) {
+                    match serde_json::from_slice::<MQTTClusterDynamicConfig>(&data.config) {
                         Ok(data) => {
                             return Ok(Some(data));
                         }
                         Err(e) => {
-                            return Err(RobustMQError::CommmonError(e.to_string()));
+                            return Err(CommonError::CommmonError(e.to_string()));
                         }
                     }
                 }
@@ -218,10 +211,8 @@ impl ClusterStorage {
 mod tests {
     use crate::storage::cluster::ClusterStorage;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-    };
-    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
     use std::sync::Arc;
 
     #[tokio::test]
@@ -230,16 +221,14 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let cluster_storage = ClusterStorage::new(client_poll);
 
         let cluster_name = "robust_test".to_string();
-        let mut cluster = MQTTCluster::default();
-        cluster.topic_alias_max = 999;
+        let mut cluster = MQTTClusterDynamicConfig::default();
+        cluster.protocol.topic_alias_max = 999;
         cluster_storage
             .set_cluster_config(cluster_name.clone(), cluster)
             .await
@@ -250,7 +239,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(result.topic_alias_max(), 999);
+        assert_eq!(result.protocol.topic_alias_max, 999);
 
         cluster_storage
             .delete_cluster_config(cluster_name.clone())
@@ -262,6 +251,5 @@ mod tests {
             .await
             .unwrap();
         assert!(result.is_none());
-
     }
 }

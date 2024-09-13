@@ -40,7 +40,7 @@ clients.workspace = true
 metadata-struct.workspace = true
 # raft = { version = "0.7", features = ["prost-codec"], default-features = false }
 #prost = "0.11"
-# raft = { path = "/Users/bytedance/Desktop/code/robustmq-project/raft-rs",  features = ["prost-codec"], default-features = false }
+
 raft = { git = "https://github.com/robustmq/raft-rs",  features = ["prost-codec"], default-features = false }
 prost = "0.12.3"
 
@@ -48,3 +48,4 @@ slog = "2"
 slog-term = "2.9.0"
 slog-async = "2.8.0"
 time = "0.3.36"
+log.workspace = true

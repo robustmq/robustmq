@@ -8,10 +8,6 @@ enum ClusterType{
     AMQPBrokerServer = 3;
 }
 
-enum GenerageIdType{
-    UniqInt = 0;
-    UniqStr = 1;
-}
 message CommonReply{
     
 }

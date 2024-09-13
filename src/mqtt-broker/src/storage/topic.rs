@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     placement::mqtt::call::{
         placement_create_topic, placement_delete_topic, placement_list_topic,
@@ -19,7 +18,10 @@ use clients::{
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::{
+    config::broker_mqtt::broker_mqtt_conf,
+    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
+};
 use dashmap::DashMap;
 use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
 use protocol::placement_center::generate::mqtt::{
@@ -36,7 +38,7 @@ impl TopicStorage {
         return TopicStorage { client_poll };
     }
 
-    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), RobustMQError> {
+    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -57,7 +59,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn delete_topic(&self, topic_name: String) -> Result<(), RobustMQError> {
+    pub async fn delete_topic(&self, topic_name: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = DeleteTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -77,7 +79,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn topic_list(&self) -> Result<DashMap<String, MQTTTopic>, RobustMQError> {
+    pub async fn topic_list(&self) -> Result<DashMap<String, MQTTTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -110,7 +112,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MQTTTopic>, RobustMQError> {
+    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MQTTTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -131,7 +133,7 @@ impl TopicStorage {
                 match serde_json::from_slice::<MQTTTopic>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
             }
@@ -146,7 +148,7 @@ impl TopicStorage {
         topic_name: &String,
         retain_message: &MQTTMessage,
         retain_message_expired_at: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -168,7 +170,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn delete_retain_message(&self, topic_name: &String) -> Result<(), RobustMQError> {
+    pub async fn delete_retain_message(&self, topic_name: &String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -194,11 +196,11 @@ impl TopicStorage {
     pub async fn get_retain_message(
         &self,
         topic_name: String,
-    ) -> Result<Option<MQTTMessage>, RobustMQError> {
+    ) -> Result<Option<MQTTMessage>, CommonError> {
         let topic = match self.get_topic(topic_name.clone()).await {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(RobustMQError::TopicDoesNotExist(topic_name.clone()));
+                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
             }
             Err(e) => {
                 return Err(e);
@@ -212,7 +214,7 @@ impl TopicStorage {
             let message = match serde_json::from_slice::<MQTTMessage>(retain_message.as_slice()) {
                 Ok(data) => data,
                 Err(e) => {
-                    return Err(RobustMQError::CommmonError(e.to_string()));
+                    return Err(CommonError::CommmonError(e.to_string()));
                 }
             };
             return Ok(Some(message));
@@ -228,8 +230,7 @@ mod tests {
     use bytes::Bytes;
     use clients::poll::ClientPool;
     use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-        tools::unique_id,
+        config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::init_log, tools::unique_id,
     };
     use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
     use protocol::mqtt::common::{Publish, PublishProperties};
@@ -241,9 +242,11 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
+        let log_config = format!("{}/../../config/log4rs.yaml", env!("CARGO_MANIFEST_DIR"));
+        let log_path = format!("{}/../../logs/tests", env!("CARGO_MANIFEST_DIR"));
 
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
+        init_log(&log_config, &log_path);
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);
@@ -284,12 +287,11 @@ mod tests {
         );
 
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);
 
-        let topic_name: String = "test_password".to_string();
+        let topic_name: String = unique_id();
         let client_id = unique_id();
         let content = "Robust Data".to_string();
 

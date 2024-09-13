@@ -11,9 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use super::cache_manager::{CacheManager, QosAckPacketInfo};
+use super::{
+    cache::{CacheManager, QosAckPacketInfo},
+    constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE},
+};
 use crate::{
+    observability::metrics::packets::{record_retain_recv_metrics, record_retain_sent_metrics},
     server::connection_manager::ConnectionManager,
     storage::topic::TopicStorage,
     subscribe::{
@@ -24,7 +27,8 @@ use crate::{
 };
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{errors::RobustMQError, log::error, tools::now_second};
+use common_base::{error::common::CommonError, tools::now_second};
+use log::error;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};
 use std::sync::Arc;
@@ -37,7 +41,7 @@ pub async fn save_topic_retain_message(
     client_id: &String,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     if !publish.retain {
         return Ok(());
     }
@@ -54,6 +58,7 @@ pub async fn save_topic_retain_message(
             }
         }
     } else {
+        record_retain_recv_metrics(publish.qos);
         let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
         let message_expire = message_expiry_interval(cache_manager, publish_properties);
         match topic_storage
@@ -116,7 +121,7 @@ pub async fn try_send_retain_message(
                             false
                         };
 
-                        let qos = min_qos(cluster.max_qos, subscriber.qos);
+                        let qos = min_qos(cluster.protocol.max_qos, subscriber.qos);
                         let pkid = 1;
                         let mut publish = Publish {
                             dup: false,
@@ -124,19 +129,26 @@ pub async fn try_send_retain_message(
                             pkid,
                             retain,
                             topic: Bytes::from(topic_name),
-                            payload: msg.payload,
+                            payload: msg.payload.clone(),
                         };
+                        let mut user_properties = msg.user_properties.clone();
+                        user_properties.push((
+                            SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string(),
+                            SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
+                        ));
+
                         let properties = PublishProperties {
                             payload_format_indicator: msg.format_indicator,
                             message_expiry_interval: msg.expiry_interval,
                             topic_alias: None,
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,
-                            user_properties: msg.user_properties,
+                            user_properties: user_properties,
                             subscription_identifiers: sub_id.clone(),
                             content_type: msg.content_type,
                         };
 
+                        record_retain_sent_metrics(publish.qos);
                         match qos {
                             QoS::AtMostOnce => {
                                 publish_message_qos0(
@@ -181,7 +193,7 @@ pub async fn try_send_retain_message(
                                         cache_manager.remove_ack_packet(&client_id, pkid);
                                     }
                                     Err(e) => {
-                                        error(e.to_string());
+                                        error!("{}", e);
                                     }
                                 }
                             }
@@ -216,7 +228,7 @@ pub async fn try_send_retain_message(
                                         cache_manager.remove_ack_packet(&client_id, pkid);
                                     }
                                     Err(e) => {
-                                        error(e.to_string());
+                                        error!("{}", e);
                                     }
                                 }
                             }
@@ -225,10 +237,7 @@ pub async fn try_send_retain_message(
                     Ok(None) => {
                         continue;
                     }
-                    Err(e) => error(format!(
-                        "send retain message error, error message:{}",
-                        e.to_string()
-                    )),
+                    Err(e) => error!("send retain message error, error message:{}", e),
                 }
             }
         }
@@ -242,43 +251,28 @@ pub fn message_expiry_interval(
     let cluster = cache_manager.get_cluster_info();
     if let Some(properties) = publish_properties {
         if let Some(expire) = properties.message_expiry_interval {
-            return std::cmp::min(cluster.max_message_expiry_interval, expire as u64);
+            return std::cmp::min(cluster.protocol.max_message_expiry_interval, expire as u64);
         }
     }
-    return cluster.max_message_expiry_interval;
+    return cluster.protocol.max_message_expiry_interval;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::cache_manager::CacheManager;
+    use super::message_expiry_interval;
+    use crate::handler::cache::CacheManager;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-    };
-    use metadata_struct::mqtt::cluster::MQTTCluster;
+    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
     use protocol::mqtt::common::PublishProperties;
     use std::sync::Arc;
-
-    use super::message_expiry_interval;
-
-    #[tokio::test]
-    async fn save_topic_retain_message_test() {
-        let path = format!(
-            "{}/../../config/mqtt-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-
-        init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
-    }
 
     #[test]
     fn message_expiry_interval_test() {
         let client_poll = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let mut cluster = MQTTCluster::default();
-        cluster.max_message_expiry_interval = 10;
+        let mut cluster = MQTTClusterDynamicConfig::default();
+        cluster.protocol.max_message_expiry_interval = 10;
         cache_manager.set_cluster_info(cluster);
 
         let publish_properties = None;

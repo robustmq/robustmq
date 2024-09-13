@@ -1,0 +1,26 @@
+appenders:
+  stdout:
+    kind: console
+    encoder:
+        pattern: "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}"
+
+  server:
+    kind: rolling_file
+    path: "{$path}/server.log"
+    encoder:
+        pattern: "{d(%Y-%m-%d %H:%M:%S)} {h({l})} {m}{n}"
+    policy:
+        trigger:
+            kind: size
+            limit: 1 gb
+        roller:
+            kind: fixed_window
+            pattern: "{$path}/server-{}.log"
+            base: 0
+            count: 50
+
+root:
+  level: info
+  appenders:
+    - stdout
+    - server

@@ -11,11 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
+use metadata_struct::adapter::record::Record;
 use std::sync::Arc;
-use storage_adapter::{record::Record, storage::StorageAdapter};
-
+use storage_adapter::storage::StorageAdapter;
 #[derive(Clone)]
 pub struct MessageStorage<T> {
     storage_adapter: Arc<T>,
@@ -34,7 +33,7 @@ where
         &self,
         topic_id: String,
         record: Vec<Record>,
-    ) -> Result<Vec<usize>, RobustMQError> {
+    ) -> Result<Vec<usize>, CommonError> {
         let shard_name = topic_id;
         match self.storage_adapter.stream_write(shard_name, record).await {
             Ok(id) => {
@@ -52,7 +51,7 @@ where
         topic_id: String,
         group_id: String,
         record_num: u128,
-    ) -> Result<Vec<Record>, RobustMQError> {
+    ) -> Result<Vec<Record>, CommonError> {
         let shard_name = topic_id;
         match self
             .storage_adapter
@@ -77,7 +76,7 @@ where
         topic_id: String,
         group_id: String,
         offset: u128,
-    ) -> Result<bool, RobustMQError> {
+    ) -> Result<bool, CommonError> {
         let shard_name = topic_id;
         match self
             .storage_adapter
@@ -91,20 +90,5 @@ where
                 return Err(e);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use storage_adapter::memory::MemoryStorageAdapter;
-
-    use super::MessageStorage;
-
-    #[tokio::test]
-    async fn topic_message_test() {
-        let storage_adapter =  Arc::new(MemoryStorageAdapter::new());
-        let message_storage = MessageStorage::new(storage_adapter);
     }
 }

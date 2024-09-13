@@ -11,9 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::storage::rocksdb::RocksDBEngine;
-use common_base::errors::RobustMQError;
+use crate::storage::{
+    engine::{
+        engine_delete_by_cluster, engine_exists_by_cluster, engine_get_by_cluster,
+        engine_save_by_cluster,
+    },
+    rocksdb::RocksDBEngine,
+};
+use common_base::error::common::CommonError;
 use std::sync::Arc;
 
 pub struct KvStorage {
@@ -27,42 +32,32 @@ impl KvStorage {
         }
     }
 
-    pub fn set(&self, key: String, value: String) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_data();
-        match self.rocksdb_engine_handler.write(cf, &key, &value) {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
-            }
-        }
-        return Ok(());
+    pub fn set(&self, key: String, value: String) -> Result<(), CommonError> {
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, value);
     }
 
-    pub fn delete(&self, key: String) -> Result<(), RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_data();
-        match self.rocksdb_engine_handler.delete(cf, &key) {
-            Ok(_) => {}
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
-            }
-        }
-        return Ok(());
+    pub fn delete(&self, key: String) -> Result<(), CommonError> {
+        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
-    pub fn get(&self, key: String) -> Result<Option<String>, RobustMQError> {
-        let cf = self.rocksdb_engine_handler.cf_data();
-        match self.rocksdb_engine_handler.read::<String>(cf, &key) {
-            Ok(cluster_info) => {
-                return Ok(cluster_info);
+    pub fn get(&self, key: String) -> Result<Option<String>, CommonError> {
+        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
+            Ok(Some(data)) => match serde_json::from_slice::<String>(&data.data) {
+                Ok(data) => {
+                    return Ok(Some(data));
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
+            Ok(None) => {
+                return Ok(None);
             }
-            Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
-            }
+            Err(e) => Err(e),
         }
     }
 
-    pub fn exists(&self, key: String) -> bool {
-        let cf = self.rocksdb_engine_handler.cf_data();
-        return self.rocksdb_engine_handler.exist(cf, &key);
+    pub fn exists(&self, key: String) -> Result<bool, CommonError> {
+        return engine_exists_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 }

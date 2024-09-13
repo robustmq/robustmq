@@ -11,10 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     cache::placement::PlacementCacheManager,
     storage::{
+        mqtt::{acl::AclStorage, blacklist::MQTTBlackListStorage},
         placement::{
             cluster::ClusterStorage, config::ResourceConfigStorage, idempotent::IdempotentStorage,
             node::NodeStorage,
@@ -23,17 +23,22 @@ use crate::{
     },
 };
 use common_base::{
-    errors::RobustMQError,
+    error::common::CommonError,
     tools::{now_mills, unique_id},
 };
-use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
+use metadata_struct::{
+    acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
+    placement::{broker_node::BrokerNode, cluster::ClusterInfo},
+};
 use prost::Message as _;
-use protocol::placement_center::generate::placement::{
-    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
-    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+use protocol::placement_center::generate::{
+    mqtt::{CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest},
+    placement::{
+        DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
+        SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    },
 };
 use std::sync::Arc;
-use tonic::Status;
 
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -51,10 +56,8 @@ impl DataRouteCluster {
         };
     }
 
-    pub fn add_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+    pub fn add_node(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())?;
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
         let node = BrokerNode {
@@ -79,12 +82,7 @@ impl DataRouteCluster {
                 create_time: now_mills(),
             };
             self.cluster_cache.add_cluster(cluster_info.clone());
-            match cluster_storage.save(cluster_info) {
-                Ok(_) => {}
-                Err(e) => {
-                    return Err(e);
-                }
-            }
+            cluster_storage.save(cluster_info)?;
         }
 
         // update node
@@ -92,10 +90,8 @@ impl DataRouteCluster {
         return node_storage.save(&cluster_name, node);
     }
 
-    pub fn delete_node(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+    pub fn delete_node(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
         self.cluster_cache.remove_node(&cluster_name, node_id);
@@ -104,36 +100,59 @@ impl DataRouteCluster {
         return node_storage.delete(&cluster_name, node_id);
     }
 
-    pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = SetResourceConfigRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+    pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         return config_storage.save(req.cluster_name, req.resources, req.config);
     }
 
-    pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = DeleteResourceConfigRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+    pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
         return config_storage.delete(req.cluster_name, req.resources);
     }
 
-    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = SetIdempotentDataRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+    pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = SetIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         return idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num);
     }
 
-    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), RobustMQError> {
-        let req = DeleteIdempotentDataRequest::decode(value.as_ref())
-            .map_err(|e| Status::invalid_argument(e.to_string()))
-            .unwrap();
+    pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
         return idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num);
+    }
+
+    pub fn create_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = CreateAclRequest::decode(value.as_ref())?;
+        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
+        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        return acl_storage.save(&req.cluster_name, acl);
+    }
+
+    pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = DeleteAclRequest::decode(value.as_ref())?;
+        let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
+        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        return acl_storage.delete(&req.cluster_name, &acl);
+    }
+
+    pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = CreateBlacklistRequest::decode(value.as_ref())?;
+        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        let blacklist = serde_json::from_slice::<MQTTAclBlackList>(&req.blacklist)?;
+        return blacklist_storage.save(&req.cluster_name, blacklist);
+    }
+
+    pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
+        let req = DeleteBlacklistRequest::decode(value.as_ref())?;
+        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        return blacklist_storage.delete(
+            &req.cluster_name,
+            &req.blacklist_type,
+            &req.resource_name,
+        );
     }
 }
 

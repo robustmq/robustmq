@@ -11,17 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::{
     handler::{
-        cache_manager::CacheManager,
+        cache::CacheManager,
         command::Command,
         connection::disconnect_connection,
         validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
     },
-    metrics::{metrics_request_queue, metrics_response_queue},
+    observability::{
+        metrics::{
+            packets::{record_received_error_metrics, record_received_metrics},
+            server::{metrics_request_queue, metrics_response_queue},
+        },
+        slow::request::try_record_total_request_ms,
+    },
     server::{
-        connection::NetworkConnection,
+        connection::{NetworkConnection, NetworkConnectionType},
         connection_manager::ConnectionManager,
         packet::{RequestPackage, ResponsePackage},
         tcp::tls_server::read_tls_frame_process,
@@ -30,11 +35,10 @@ use crate::{
 };
 use clients::poll::ClientPool;
 use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    errors::RobustMQError,
-    log::{debug, error, info},
+    config::broker_mqtt::broker_mqtt_conf, error::mqtt_broker::MQTTBrokerError,
 };
 use futures_util::StreamExt;
+use log::{debug, error, info};
 use protocol::mqtt::{
     codec::{MQTTPacketWrapper, MqttCodec},
     common::MQTTPacket,
@@ -63,6 +67,7 @@ pub struct TcpServer<S> {
     handler_process_num: usize,
     response_process_num: usize,
     stop_sx: broadcast::Sender<bool>,
+    network_connection_type: NetworkConnectionType,
 }
 
 impl<S> TcpServer<S>
@@ -90,10 +95,11 @@ where
             handler_process_num,
             response_process_num,
             stop_sx,
+            network_connection_type: NetworkConnectionType::TCP,
         }
     }
 
-    pub async fn start(&self, port: u32) {
+    pub async fn start(&mut self, port: u32) {
         let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
             Ok(tl) => tl,
             Err(e) => {
@@ -109,12 +115,11 @@ where
         self.handler_process(request_queue_rx, response_queue_sx)
             .await;
         self.response_process(response_queue_rx).await;
-        info(format!(
-            "MQTT TCP Server started successfully, listening port: {port}"
-        ));
+        self.network_connection_type = NetworkConnectionType::TCP;
+        info!("MQTT TCP Server started successfully, listening port: {port}");
     }
 
-    pub async fn start_tls(&self, port: u32) {
+    pub async fn start_tls(&mut self, port: u32) {
         let listener = match TcpListener::bind(format!("0.0.0.0:{}", port)).await {
             Ok(tl) => tl,
             Err(e) => {
@@ -130,9 +135,8 @@ where
         self.handler_process(request_queue_rx, response_queue_sx)
             .await;
         self.response_process(response_queue_rx).await;
-        info(format!(
-            "MQTT TCP TLS Server started successfully, listening port: {port}"
-        ));
+        self.network_connection_type = NetworkConnectionType::TCPS;
+        info!("MQTT TCP TLS Server started successfully, listening port: {port}");
     }
 
     async fn acceptor_tls_process(
@@ -173,18 +177,16 @@ where
             let mut stop_rx = self.stop_sx.subscribe();
             let raw_request_queue_sx = request_queue_sx.clone();
             let raw_tls_acceptor = tls_acceptor.clone();
+            let network_type = self.network_connection_type.clone();
             tokio::spawn(async move {
-                debug(format!(
-                    "TCP Server acceptor thread {} start successfully.",
-                    index
-                ));
+                debug!("TCP Server acceptor thread {} start successfully.", index);
                 loop {
                     select! {
                         val = stop_rx.recv() =>{
                             match val{
                                 Ok(flag) => {
                                     if flag {
-                                        debug(format!("TCP Server acceptor thread {} stopped successfully.",index));
+                                        debug!("TCP Server acceptor thread {} stopped successfully.",index);
                                         break;
                                     }
                                 }
@@ -194,11 +196,11 @@ where
                         val = listener.accept()=>{
                             match val{
                                 Ok((stream, addr)) => {
-                                    info(format!("accept tcp tls connection:{:?}",addr));
+                                    info!("accept tcp tls connection:{:?}",addr);
                                     let stream = match raw_tls_acceptor.accept(stream).await{
                                         Ok(da) => da,
                                         Err(e) => {
-                                            error(format!("Tls Accepter failed to read Stream with error message :{e:?}"));
+                                            error!("Tls Accepter failed to read Stream with error message :{e:?}");
                                             continue;
                                         }
                                     };
@@ -220,10 +222,10 @@ where
                                     connection_manager.add_connection(connection.clone());
                                     connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
-                                    read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx);
+                                    read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx, network_type.clone());
                                 }
                                 Err(e) => {
-                                    error(format!("TCP accept failed to create connection with error message :{:?}",e));
+                                    error!("TCP accept failed to create connection with error message :{:?}",e);
                                 }
                             }
                         }
@@ -243,19 +245,17 @@ where
             let connection_manager = self.connection_manager.clone();
             let mut stop_rx = self.stop_sx.subscribe();
             let raw_request_queue_sx = request_queue_sx.clone();
-
+            let network_type = self.network_connection_type.clone();
+            let cache_manager = self.cache_manager.clone();
             tokio::spawn(async move {
-                debug(format!(
-                    "TCP Server acceptor thread {} start successfully.",
-                    index
-                ));
+                debug!("TCP Server acceptor thread {} start successfully.", index);
                 loop {
                     select! {
                         val = stop_rx.recv() =>{
                             match val{
                                 Ok(flag) => {
                                     if flag {
-                                        debug(format!("TCP Server acceptor thread {} stopped successfully.",index));
+                                        debug!("TCP Server acceptor thread {} stopped successfully.",index);
                                         break;
                                     }
                                 }
@@ -265,7 +265,7 @@ where
                         val = listener.accept()=>{
                             match val{
                                 Ok((stream, addr)) => {
-                                    info(format!("accept tcp connection:{:?}",addr));
+                                    info!("accept tcp connection:{:?}",addr);
 
                                     let (r_stream, w_stream) = io::split(stream);
                                     let codec = MqttCodec::new(None);
@@ -285,10 +285,10 @@ where
                                     connection_manager.add_connection(connection.clone());
                                     connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
 
-                                    read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx);
+                                    read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx,network_type.clone(),cache_manager.clone());
                                 }
                                 Err(e) => {
-                                    error(format!("TCP accept failed to create connection with error message :{:?}",e));
+                                    error!("TCP accept failed to create connection with error message :{:?}",e);
                                 }
                             }
                         }
@@ -327,7 +327,7 @@ where
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    debug("TCP Server handler thread stopped successfully.".to_string());
+                                    debug!("{}","TCP Server handler thread stopped successfully.");
                                     break;
                                 }
                             }
@@ -350,17 +350,17 @@ where
                                         Ok(_) => {
                                             break;
                                         }
-                                        Err(err) => error(format!(
+                                        Err(err) => error!(
                                             "Failed to try write data to the handler process queue, error message: {:?}",
                                             err
-                                        )),
+                                        ),
                                     }
                                     process_handler_seq = process_handler_seq + 1;
                                 }else{
                                     // In exceptional cases, if no available child handler can be found, the request packet is dropped.
                                     // If the client does not receive a return packet, it will retry the request.
                                     // Rely on repeated requests from the client to ensure that the request will eventually be processed successfully.
-                                    error("No request packet processing thread available".to_string());
+                                    error!("{}","No request packet processing thread available");
                                     break;
                                 }
                             }
@@ -400,7 +400,7 @@ where
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    debug("TCP Server response process thread stopped successfully.".to_string());
+                                    debug!("{}","TCP Server response process thread stopped successfully.");
                                     break;
                                 }
                             }
@@ -410,7 +410,7 @@ where
 
                     val = response_queue_rx.recv()=>{
                         if let Some(packet) = val{
-                            metrics_request_queue("response-total", response_queue_rx.len() as i64);
+                            metrics_request_queue("response-total", response_queue_rx.len());
                             loop{
                                 let seq = if response_process_seq > process_handler.len(){
                                     1
@@ -423,14 +423,14 @@ where
                                         Ok(_) => {
                                             break;
                                         }
-                                        Err(err) => error(format!(
+                                        Err(err) => error!(
                                             "Failed to write data to the response process queue, error message: {:?}",
                                             err
-                                        )),
+                                        ),
                                     }
                                     response_process_seq = response_process_seq + 1;
                                 }else{
-                                    error("No request packet processing thread available".to_string());
+                                    error!("{}","No request packet processing thread available");
                                 }
                             }
                         }
@@ -446,6 +446,8 @@ fn read_frame_process(
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
+    network_type: NetworkConnectionType,
+    cache_manager: Arc<CacheManager>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -453,7 +455,7 @@ fn read_frame_process(
                 val = connection_stop_rx.recv() =>{
                     if let Some(flag) = val{
                         if flag {
-                            debug(format!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id));
+                            debug!("TCP connection 【{}】 acceptor thread stopped successfully.",connection.connection_id);
                             break;
                         }
                     }
@@ -463,18 +465,25 @@ fn read_frame_process(
                         match pkg {
                             Ok(data) => {
                                 let pack: MQTTPacket = data.try_into().unwrap();
-                                info(format!("revc tcp packet:{:?}", pack));
+                                record_received_metrics(&connection, &pack, &network_type);
+
+                                debug!("revc tcp packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
-                                match request_queue_sx.send(package).await {
-                                    Ok(_) => {}
-                                    Err(err) => error(format!("Failed to write data to the request queue, error message: {:?}",err)),
+
+                                match request_queue_sx.send(package.clone()).await {
+                                    Ok(_) => {
+                                        try_record_total_request_ms(cache_manager.clone(),package.clone());
+                                    }
+                                    Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
                                 }
                             }
                             Err(e) => {
-                                debug(format!("TCP connection parsing packet format error message :{:?}",e))
+                                record_received_error_metrics(network_type.clone());
+                                debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
+
                     }
                 }
             }
@@ -502,17 +511,17 @@ fn handler_child_process<S>(
         let mut raw_command = command.clone();
 
         tokio::spawn(async move {
-            debug(format!(
+            debug!(
                 "TCP Server handler process thread {} start successfully.",
                 index
-            ));
+            );
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    debug(format!("TCP Server handler process thread {} stopped successfully.",index));
+                                    debug!("TCP Server handler process thread {} stopped successfully.",index);
                                     break;
                                 }
                             }
@@ -529,16 +538,16 @@ fn handler_child_process<S>(
                                     let response_package = ResponsePackage::new(packet.connection_id, resp);
                                     match raw_response_queue_sx.send(response_package).await {
                                         Ok(_) => {}
-                                        Err(err) => error(format!(
+                                        Err(err) => error!(
                                             "Failed to write data to the response queue, error message: {:?}",
                                             err
-                                        )),
+                                        ),
                                     }
                                 } else {
-                                    info("No backpacking is required for this request".to_string());
+                                    info!("{}","No backpacking is required for this request");
                                 }
                             } else {
-                                error(RobustMQError::NotFoundConnectionInCache(packet.connection_id).to_string());
+                                error!("{}", MQTTBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }
@@ -567,9 +576,7 @@ fn response_child_process(
         let raw_client_poll = client_poll.clone();
         let raw_subscribe_manager = subscribe_manager.clone();
         tokio::spawn(async move {
-            debug(format!(
-                "TCP Server response process thread {index} start successfully."
-            ));
+            debug!("TCP Server response process thread {index} start successfully.");
 
             loop {
                 select! {
@@ -577,7 +584,7 @@ fn response_child_process(
                         match val{
                             Ok(flag) => {
                                 if flag {
-                                    debug(format!("TCP Server response process thread {index} stopped successfully."));
+                                    debug!("TCP Server response process thread {index} stopped successfully.");
                                     break;
                                 }
                             }
@@ -587,7 +594,7 @@ fn response_child_process(
                     val = response_process_rx.recv()=>{
                         if let Some(response_package) = val{
                             let lable = format!("handler-{}",index);
-                            metrics_response_queue(&lable, response_process_rx.len() as i64);
+                            metrics_response_queue(&lable, response_process_rx.len());
 
                             if let Some(protocol) =
                             raw_connect_manager.get_connect_protocol(response_package.connection_id)
@@ -601,7 +608,7 @@ fn response_child_process(
                                     .await{
                                         Ok(()) => {},
                                         Err(e) => {
-                                            error(e.to_string());
+                                            error!("{}",e);
                                             raw_connect_manager.clonse_connect(response_package.connection_id).await;
                                             break;
                                         }
@@ -619,7 +626,7 @@ fn response_child_process(
                                         &raw_subscribe_manager,
                                     ).await{
                                         Ok(()) => {},
-                                        Err(e) => error(e.to_string())
+                                        Err(e) => error!("{}",e)
                                     };
                                 }
                                 break;

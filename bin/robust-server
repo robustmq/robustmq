@@ -1,0 +1,64 @@
+#!/bin/sh
+workdir=$(cd $(dirname $0); pwd)
+mkdir -p ${workdir}/../logs
+mod=$1
+action=$2
+conf=$3
+if [[ -z $mod ]]
+then
+ echo "Enter the name of the component to start, for example: mqtt-server | journal-server | placement-center"
+ exit
+fi
+
+if [[ -z $action ]]
+then
+ echo "Pleasemake sure the positon variable is start or stop."
+ exit
+fi
+
+start_standalone(){
+
+}
+
+stop_standalone(){
+
+}
+
+start_mod(){
+
+}
+
+stop_mod(){
+
+}
+
+if [ $action = "start" ]
+  then
+    if [[ -z $conf ]]
+    then
+        conf=${workdir}/../config/${mod}.toml
+    fi
+    echo "config:$conf"
+    echo "${mod} is starting...."
+    nohup ${workdir}/../libs/${mod} --conf=$conf >> ${workdir}/../logs/${mod}-nohub.log 2>&1 &
+    num=` ps -ef | grep ${mod} | grep -v grep | wc -l`
+    if [ $num -gt 1 ]
+    then
+        echo "${mod} started successfully."
+    fi
+  elif [ $action = "stop" ]
+  then
+    no=`ps -ef | grep ${mod}  | grep conf | grep -v grep | awk '{print $2}'`
+    if [[ -n $no ]]
+    then
+        echo "Currently running process number: $no"
+        kill $no
+        num=`ps -ef | grep ${mod} | grep conf | grep -v grep | wc -l`
+        if [ $num -eq 0 ]
+        then
+            echo "${mod} stop successfully."
+        fi
+    fi
+  else
+    echo "Pleasemake sure the positon variable is start or stop."
+fi

@@ -11,18 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::PlacementCenterInterface;
 use crate::{
     placement::{retry_call, PlacementCenterService},
     poll::ClientPool,
 };
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest
+        CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
+        CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
+        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+        ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+        ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
 };
 use std::sync::Arc;
@@ -31,7 +35,7 @@ pub async fn placement_get_share_sub_leader(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: GetShareSubLeaderRequest,
-) -> Result<GetShareSubLeaderReply, RobustMQError> {
+) -> Result<GetShareSubLeaderReply, CommonError> {
     let request_data = GetShareSubLeaderRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -44,7 +48,7 @@ pub async fn placement_get_share_sub_leader(
     {
         Ok(data) => match GetShareSubLeaderReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -56,7 +60,7 @@ pub async fn placement_create_user(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateUserRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = CreateUserRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -69,7 +73,7 @@ pub async fn placement_create_user(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -81,7 +85,7 @@ pub async fn placement_delete_user(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteUserRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = DeleteUserRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -94,7 +98,7 @@ pub async fn placement_delete_user(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -106,7 +110,7 @@ pub async fn placement_list_user(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListUserRequest,
-) -> Result<ListUserReply, RobustMQError> {
+) -> Result<ListUserReply, CommonError> {
     let request_data = ListUserRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -119,7 +123,7 @@ pub async fn placement_list_user(
     {
         Ok(data) => match ListUserReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -130,7 +134,7 @@ pub async fn placement_create_topic(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateTopicRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = CreateTopicRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -143,7 +147,7 @@ pub async fn placement_create_topic(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -155,7 +159,7 @@ pub async fn placement_delete_topic(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteTopicRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = DeleteTopicRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -168,7 +172,7 @@ pub async fn placement_delete_topic(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -180,7 +184,7 @@ pub async fn placement_list_topic(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListTopicRequest,
-) -> Result<ListTopicReply, RobustMQError> {
+) -> Result<ListTopicReply, CommonError> {
     let request_data = ListTopicRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -193,7 +197,7 @@ pub async fn placement_list_topic(
     {
         Ok(data) => match ListTopicReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -205,7 +209,7 @@ pub async fn placement_set_topic_retain_message(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetTopicRetainMessageRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = SetTopicRetainMessageRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -218,7 +222,7 @@ pub async fn placement_set_topic_retain_message(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -230,7 +234,7 @@ pub async fn placement_create_session(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateSessionRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = CreateSessionRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -243,7 +247,7 @@ pub async fn placement_create_session(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -255,7 +259,7 @@ pub async fn placement_delete_session(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSessionRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = DeleteSessionRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -268,7 +272,7 @@ pub async fn placement_delete_session(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -280,7 +284,7 @@ pub async fn placement_list_session(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListSessionRequest,
-) -> Result<ListSessionReply, RobustMQError> {
+) -> Result<ListSessionReply, CommonError> {
     let request_data = ListSessionRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -293,7 +297,7 @@ pub async fn placement_list_session(
     {
         Ok(data) => match ListSessionReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -305,7 +309,7 @@ pub async fn placement_update_session(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UpdateSessionRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = UpdateSessionRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -318,7 +322,7 @@ pub async fn placement_update_session(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -330,7 +334,7 @@ pub async fn placement_save_last_will_message(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SaveLastWillMessageRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = SaveLastWillMessageRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
@@ -343,7 +347,7 @@ pub async fn placement_save_last_will_message(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -351,34 +355,152 @@ pub async fn placement_save_last_will_message(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
+pub async fn list_acl(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListAclRequest,
+) -> Result<ListAclReply, CommonError> {
+    let request_data = ListAclRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::ListAcl,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListAclReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
 
-    use protocol::placement_center::generate::mqtt::GetShareSubLeaderRequest;
+pub async fn create_acl(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: CreateAclRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = CreateAclRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::CreateAcl,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
 
-    use crate::placement::mqtt::call::placement_get_share_sub_leader;
-    use crate::poll::ClientPool;
+pub async fn delete_acl(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteAclRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = DeleteAclRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::DeleteAcl,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
 
-    #[tokio::test]
-    async fn get_share_sub() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
-        let addrs = vec!["127.0.0.1:1228".to_string()];
-        let cluster_name = "test-cluster-name".to_string();
-        let group_name = "test-group-name".to_string();
-        let request = GetShareSubLeaderRequest {
-            group_name,
-            cluster_name,
-        };
-        match placement_get_share_sub_leader(client_poll, addrs, request).await {
-            Ok(da) => {
-                println!("{:?}", da);
-                assert!(true)
-            }
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
+pub async fn list_blacklist(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListBlacklistRequest,
+) -> Result<ListBlacklistReply, CommonError> {
+    let request_data = ListBlacklistRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::ListBlackList,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListBlacklistReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn create_blacklist(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: CreateBlacklistRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = CreateBlacklistRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::CreateBlackList,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
+pub async fn delete_blacklist(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteBlacklistRequest,
+) -> Result<CommonReply, CommonError> {
+    let request_data = DeleteBlacklistRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Mqtt,
+        PlacementCenterInterface::DeleteBlackList,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match CommonReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
         }
     }
 }

@@ -123,21 +123,9 @@ impl EngineService for GrpcEngineService {
 
     async fn get_shard(
         &self,
-        request: Request<GetShardRequest>,
+        _: Request<GetShardRequest>,
     ) -> Result<Response<GetShardReply>, Status> {
-        let req = request.into_inner();
-        // let shard_info = self
-        //     .cluster_storage
-        //     .get_shard(req.cluster_name.clone(), req.shard_name);
-        let mut result = GetShardReply::default();
-        // if shard_info.is_none() {
-        //     let si = shard_info.unwrap();
-        //     result.cluster_name = req.cluster_name;
-        //     result.shard_id = si.shard_id;
-        //     result.shard_name = si.shard_name;
-        //     result.replica = si.replica;
-        //     result.replicas = serialize(&si.replicas).unwrap();
-        // }
+        let result = GetShardReply::default();
 
         return Ok(Response::new(result));
     }

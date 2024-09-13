@@ -14,3 +14,4 @@
 
 mod cache;
 pub mod server;
+mod publish;

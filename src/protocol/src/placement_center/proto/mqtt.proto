@@ -20,123 +20,405 @@ import "common.proto";
 
 service MqttService {
 
+  //Returns a list of users based on the parameters of the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `user_name: String` (Option): The name of the user.
+  //
+  //Returns:
+  // - `users: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTUser>` into a binary format.
   rpc ListUser(ListUserRequest) returns(ListUserReply){}
 
+  //Creates the corresponding user based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `user_name: String`: The name of the user.
+  // - `content: Vec<u8>`: The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
+  //
+  //Returns: An empty struct.
   rpc CreateUser(CreateUserRequest) returns(common.CommonReply){}
 
+  //Deletes the corresponding user based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `user_name: String`: The name of the user.
+  //
+  //Returns: An empty struct.
   rpc DeleteUser(DeleteUserRequest) returns(common.CommonReply){}
 
+  //Returns a list of sessions based on the parameters of the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `client_id: String` (Option): The id of the client.
+  //
+  //Returns:
+  // - `sessions: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTSession>` into a binary format.
   rpc ListSession(ListSessionRequest) returns(ListSessionReply){}
-  
+
+  //Creates the corresponding session based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `client_id: String`: The id of the client.
+  // - `session: Vec<u8>`: The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
+  //
+  //Returns: An empty struct.
   rpc CreateSession(CreateSessionRequest) returns(common.CommonReply){}
 
+  //Updates the corresponding session based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `client_id: String`: The id of the client.
+  // - `connection_id: u64` (Option): The id of the connection.
+  // - `broker_id: u64` (Option): The id of the broker.
+  // - `reconnect_time: u64` (Option): The parameter is the time when session reconnects. The unit is seconds.
+  // - `distinct_time: u64` (Option): The parameter is the time when session disconnects. The unit is seconds.
+  //
+  //Returns: An empty struct.
   rpc UpdateSession(UpdateSessionRequest) returns(common.CommonReply){}
- 
+
+  //Deletes the corresponding session based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `client_id: String`: The id of the client.
+  //
+  //Returns: An empty struct.
   rpc DeleteSession(DeleteSessionRequest) returns(common.CommonReply){}
 
+  //Returns a list of topics based on the parameters of the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic_name: String`: The name of the topic.
+  //
+  //Returns:
+  // - `topics: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTTopic>` into a binary format.
   rpc ListTopic(ListTopicRequest) returns(ListTopicReply){}
 
+  //Creates the corresponding topic based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic_name: String`: The name of the topic.
+  // - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
+  //
+  //Returns: An empty struct.
   rpc CreateTopic(CreateTopicRequest) returns(common.CommonReply){}
 
+  //Deletes the corresponding topic based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic_name: String`: The name of the topic.
+  //
+  //Returns: An empty struct.
   rpc DeleteTopic(DeleteTopicRequest) returns(common.CommonReply){}
-  
+
+  //Sets the retain message for the corresponding topic based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `topic_name: String`: The name of the topic.
+  // - `retain_message: Vec<u8>`: The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
+  // - `retain_message_expired_at: u64`: The parameter is the expiration time of the retain message. The unit is seconds.
+  //
+  //Returns: An empty struct.
   rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(common.CommonReply){}
 
+  //Gets the share sub leader based on the request
+  //
+  //Parameters:
+  // - `group_name: String`: The name of the group.
+  // - `cluster_name: String`: The name of the cluster.
+  //
+  //Returns:
+  // - `broker_id: u64`: The ip address of the broker
+  // - `broker_addr: String`: The ip address of the broker
+  // - `extend_info: String`: The parameter for the extended information of the broker node.
   rpc GetShareSubLeader(GetShareSubLeaderRequest) returns(GetShareSubLeaderReply){}
 
+  //Saves the client's will message based on request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `client_id: String`: The id of the client.
+  // - `last_will_message: Vec<u8>`: The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
+  //
+  //Returns: An empty struct.
   rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns(common.CommonReply){}
+
+  //Returns a list of ACLs based on the parameters of the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  //
+  //Returns:
+  // - `acls: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAcl>` into a binary format.
+  rpc ListAcl(ListAclRequest) returns(ListAclReply) {}
+
+  //Deletes the corresponding ACL based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster. 
+  // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+  //
+  //Returns: An empty struct.
+  rpc DeleteAcl(DeleteAclRequest) returns(common.CommonReply) {}
+
+  //Creates the corresponding ACL based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+  //
+  //Returns: An empty struct.
+  rpc CreateAcl(CreateAclRequest) returns(common.CommonReply) {}
+
+  //Returns a list of blacklist based on the parameters of the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  //
+  //Returns:
+  // - `blacklists: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAclBlackList>` into a binary format.
+  rpc ListBlacklist(ListBlacklistRequest) returns(ListBlacklistReply) {}
+
+  //Deletes the corresponding blacklist based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `blacklist_type: String`: The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
+  // - `resource_name: String`: The name of the resource.
+  //
+  //Returns: An empty struct.
+  rpc DeleteBlacklist(DeleteBlacklistRequest) returns(common.CommonReply) {}
+
+  //Creates the corresponding blacklist based on the request
+  //
+  //Parameters:
+  // - `cluster_name: String`: The name of the cluster.
+  // - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
+  //
+  //Returns: An empty struct.
+  rpc CreateBlacklist(CreateBlacklistRequest) returns(common.CommonReply) {}
 }
 
 message GetShareSubLeaderRequest{
+    //The name of the group.
     string group_name = 1;
+
+    //The name of the cluster.
     string cluster_name = 3;
 }
 
 message GetShareSubLeaderReply{
+    //The id of the broker.
     uint64 broker_id = 1;
+
+    //The ip address of the broker
     string broker_addr = 2;
+
+    //The parameter for the extended information of the broker node.
     string extend_info = 3;
 }
 
 message ListUserRequest{
+    //The name of the cluster.
     string cluster_name = 1;
-    string username = 2;
+
+    //The name of the user.
+    string user_name = 2;
 }
 
 message ListUserReply{
+    //The parameter contains a list of users, encoded from a `Vec<MQTTTopic>` into a binary format.
     repeated bytes users = 1;
 }
 
 message CreateUserRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The name of the user.
     string user_name = 2;
+
+    //The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
     bytes content = 3;
 }
 
 message DeleteUserRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The name of the user.
     string user_name = 2;
 }
 
 message ListTopicRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The name of the topic.
     string topic_name = 2;
 }
 
 message ListTopicReply{
+    //The parameter contains a list of topics, encoded from a `Vec<MQTTTopic>` into a binary format.
     repeated bytes topics = 1;
 }
 
 message CreateTopicRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The name of the topic.
     string topic_name = 2;
+
+    //The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
     bytes content = 3;
 }
 
 
 message DeleteTopicRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The name of the topic.
     string topic_name = 2;
 }
 
 message SetTopicRetainMessageRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The name of the topic.
     string topic_name = 2;
+
+    //The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
     bytes retain_message = 3;
+
+    //The parameter is the expiration time of the retain message. The unit is seconds.
     uint64 retain_message_expired_at = 4;
 }
 
 message ListSessionRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The id of the client.
     string client_id = 2;
 }
 
 message ListSessionReply{
+    //The parameter contains a list of sessions, encoded from a `Vec<MQTTSession>` into a binary format.
     repeated bytes sessions = 1;
 }
 
 message CreateSessionRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The id of the client.
     string client_id = 2;
+
+    //The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
     bytes session = 3;
 }
 
 message UpdateSessionRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The id of the client.
     string client_id = 2;
+
+    //The id of the connection.
     uint64 connection_id = 3;
+
+    //The id of the broker.
     uint64 broker_id = 4;
+
+    //The parameter is the time when session reconnects. The unit is seconds.
     uint64 reconnect_time = 5;
+
+    //The parameter is the time when session disconnects. The unit is seconds.
     uint64 distinct_time = 6;
 }
 
 message DeleteSessionRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The id of the client.
     string client_id = 2;
 }
 
 message SaveLastWillMessageRequest{
+    //The name of the cluster.
     string cluster_name = 1;
+
+    //The id of the client.
     string client_id = 2;
+
+    //The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
     bytes  last_will_message = 3;
+}
+message ListAclRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+}
+
+message ListAclReply{
+    //The parameter contains a list of acls, encoded from a `Vec<MQTTAcl>` into a binary format.
+    repeated bytes acls = 2;
+}
+
+message DeleteAclRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+
+    //The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+    bytes acl = 2;
+}
+
+message CreateAclRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+
+    //The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+    bytes acl = 2;
+}
+message ListBlacklistRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+}
+
+message ListBlacklistReply{
+    //The parameter contains a list of blacklist, encoded from a `Vec<MQTTAclBlackList>` into a binary format.
+    repeated bytes blacklists = 2;
+}
+
+message CreateBlacklistRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+
+    //The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
+    bytes blacklist = 2;
+}
+
+message DeleteBlacklistRequest{
+    //The name of the cluster.
+    string cluster_name = 1;
+
+    //The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
+    string blacklist_type = 2;
+
+    //The name of the resource.
+    string resource_name = 3;
 }

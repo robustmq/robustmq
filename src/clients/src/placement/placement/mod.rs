@@ -11,11 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use inner::{
-    inner_delete_idempotent, inner_delete_resource_config, inner_exist_idempotent,
-    inner_get_resource_config, inner_set_idempotent, inner_set_resource_config,
+    inner_delete_idempotent, inner_delete_resource_config, inner_exist_idempotent, inner_get_resource_config, inner_node_list, inner_set_idempotent, inner_set_resource_config
 };
 use mobc::Manager;
 use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
@@ -39,10 +37,13 @@ pub(crate) async fn placement_interface_call(
     client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match placement_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
+                PlacementCenterInterface::ListNode => {
+                    inner_node_list(client, request.clone()).await
+                }
                 PlacementCenterInterface::RegisterNode => {
                     inner_register_node(client, request.clone()).await
                 }
@@ -77,7 +78,7 @@ pub(crate) async fn placement_interface_call(
                     inner_delete_idempotent(client, request.clone()).await
                 }
                 _ => {
-                    return Err(RobustMQError::CommmonError(format!(
+                    return Err(CommonError::CommmonError(format!(
                         "placement service does not support service interfaces [{:?}]",
                         interface
                     )))
@@ -99,7 +100,7 @@ pub(crate) async fn placement_interface_call(
 async fn placement_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<PlacementCenterServiceClient<Channel>, RobustMQError> {
+) -> Result<PlacementCenterServiceClient<Channel>, CommonError> {
     match client_poll
         .get_placement_center_inner_services_client(addr)
         .await
@@ -126,7 +127,7 @@ impl PlacementServiceManager {
 #[tonic::async_trait]
 impl Manager for PlacementServiceManager {
     type Connection = PlacementCenterServiceClient<Channel>;
-    type Error = RobustMQError;
+    type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match PlacementCenterServiceClient::connect(format!("http://{}", self.addr.clone())).await {
@@ -134,7 +135,7 @@ impl Manager for PlacementServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(RobustMQError::CommmonError(format!(
+                return Err(CommonError::CommmonError(format!(
                     "manager connect error:{},{}",
                     err.to_string(),
                     self.addr.clone()

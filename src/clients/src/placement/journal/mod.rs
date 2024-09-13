@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use crate::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use mobc::Manager;
 use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
 use tonic::transport::Channel;
@@ -33,7 +33,7 @@ pub async fn journal_interface_call(
     client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
-) -> Result<Vec<u8>, RobustMQError> {
+) -> Result<Vec<u8>, CommonError> {
     match journal_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
@@ -50,7 +50,7 @@ pub async fn journal_interface_call(
                     inner_delete_segment(client, request.clone()).await
                 }
                 _ => {
-                    return Err(RobustMQError::CommmonError(format!(
+                    return Err(CommonError::CommmonError(format!(
                         "journal service does not support service interfaces [{:?}]",
                         interface
                     )))
@@ -72,7 +72,7 @@ pub async fn journal_interface_call(
 pub async fn journal_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<EngineServiceClient<Channel>, RobustMQError> {
+) -> Result<EngineServiceClient<Channel>, CommonError> {
     match client_poll.placement_center_journal_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -97,7 +97,7 @@ impl JournalServiceManager {
 #[tonic::async_trait]
 impl Manager for JournalServiceManager {
     type Connection = EngineServiceClient<Channel>;
-    type Error = RobustMQError;
+    type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         match EngineServiceClient::connect(format!("http://{}", self.addr.clone())).await {
@@ -105,7 +105,7 @@ impl Manager for JournalServiceManager {
                 return Ok(client);
             }
             Err(err) => {
-                return Err(RobustMQError::CommmonError(format!(
+                return Err(CommonError::CommmonError(format!(
                     "{},{}",
                     err.to_string(),
                     self.addr.clone()

@@ -20,6 +20,7 @@ pub struct Header {
 }
 
 impl Header {
+    #[allow(dead_code)]
     pub fn new(key: String, value: Bytes) -> Self {
         Header { key, value }
     }

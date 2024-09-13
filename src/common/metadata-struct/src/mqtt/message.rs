@@ -11,12 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
+use crate::adapter::record::Record;
 use bytes::Bytes;
-use common_base::{errors::RobustMQError, tools::now_second};
+use common_base::{error::common::CommonError, tools::now_second};
+use log::error;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
-use storage_adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default)]
 pub struct MQTTMessage {
@@ -38,6 +38,29 @@ pub struct MQTTMessage {
 }
 
 impl MQTTMessage {
+    pub fn build_system_topic_message(topic_name: String, payload: String) -> Option<Record> {
+        let mut message = MQTTMessage::default();
+        message.client_id = "-".to_string();
+        message.dup = false;
+        message.qos = QoS::AtMostOnce;
+        message.pkid = 0;
+        message.retain = false;
+        message.topic = Bytes::from(topic_name);
+        message.payload = Bytes::from(payload);
+        message.create_time = now_second();
+
+        match serde_json::to_vec(&message) {
+            Ok(data) => {
+                return Some(Record::build_b(data));
+            }
+
+            Err(e) => {
+                error!("Message encoding failed, error message :{}", e.to_string());
+                return None;
+            }
+        }
+    }
+
     pub fn build_message(
         client_id: &String,
         publish: &Publish,
@@ -75,17 +98,18 @@ impl MQTTMessage {
                 return Some(Record::build_b(data));
             }
 
-            Err(_) => {
+            Err(e) => {
+                error!("Message encoding failed, error message :{}", e.to_string());
                 return None;
             }
         }
     }
 
-    pub fn decode_record(record: Record) -> Result<MQTTMessage, RobustMQError> {
+    pub fn decode_record(record: Record) -> Result<MQTTMessage, CommonError> {
         let data: MQTTMessage = match serde_json::from_slice(record.data.as_slice()) {
             Ok(da) => da,
             Err(e) => {
-                return Err(RobustMQError::CommmonError(e.to_string()));
+                return Err(CommonError::CommmonError(e.to_string()));
             }
         };
         return Ok(data);

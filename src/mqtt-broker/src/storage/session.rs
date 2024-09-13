@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use clients::{
     placement::mqtt::call::{
         placement_create_session, placement_delete_session, placement_list_session,
@@ -19,7 +18,7 @@ use clients::{
     },
     poll::ClientPool,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, errors::RobustMQError};
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use dashmap::DashMap;
 use metadata_struct::mqtt::session::MQTTSession;
 use protocol::placement_center::generate::mqtt::{
@@ -41,7 +40,7 @@ impl SessionStorage {
         &self,
         client_id: &String,
         session: &MQTTSession,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -69,7 +68,7 @@ impl SessionStorage {
         broker_id: u64,
         reconnect_time: u64,
         distinct_time: u64,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = UpdateSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -93,7 +92,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn delete_session(&self, client_id: String) -> Result<(), RobustMQError> {
+    pub async fn delete_session(&self, client_id: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = DeleteSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -113,10 +112,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn get_session(
-        &self,
-        client_id: String,
-    ) -> Result<Option<MQTTSession>, RobustMQError> {
+    pub async fn get_session(&self, client_id: String) -> Result<Option<MQTTSession>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -137,7 +133,7 @@ impl SessionStorage {
                 match serde_json::from_slice::<MQTTSession>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
-                        return Err(RobustMQError::CommmonError(e.to_string()));
+                        return Err(CommonError::CommmonError(e.to_string()));
                     }
                 }
             }
@@ -147,7 +143,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn list_session(&self) -> Result<DashMap<String, MQTTSession>, RobustMQError> {
+    pub async fn list_session(&self) -> Result<DashMap<String, MQTTSession>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -184,7 +180,7 @@ impl SessionStorage {
         &self,
         client_id: &String,
         last_will_message: Vec<u8>,
-    ) -> Result<(), RobustMQError> {
+    ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SaveLastWillMessageRequest {
             cluster_name: config.cluster_name.clone(),
@@ -210,10 +206,7 @@ impl SessionStorage {
 mod tests {
     use crate::storage::session::SessionStorage;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, log::init_broker_mqtt_log,
-        tools::now_second,
-    };
+    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, tools::now_second};
     use metadata_struct::mqtt::session::MQTTSession;
     use std::sync::Arc;
 
@@ -223,9 +216,7 @@ mod tests {
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
-
         init_broker_mqtt_conf_by_path(&path);
-        init_broker_mqtt_log();
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let session_storage = SessionStorage::new(client_poll);

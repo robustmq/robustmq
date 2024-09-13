@@ -11,42 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::preferred_election::PreferredElection;
-use crate::{
-    cache::journal::JournalCacheManager,
-    raft::apply::RaftMachineApply,
-    storage::{
-        journal::shard::ShardStorage,
-        placement::{cluster::ClusterStorage, node::NodeStorage},
-        rocksdb::RocksDBEngine,
-    },
-};
-use common_base::log::info_meta;
-use protocol::placement_center::generate::common::ClusterType;
-use std::sync::{Arc, RwLock};
-use tokio::sync::broadcast;
+use log::info;
 
-pub struct StorageEngineController {
-    engine_cache: Arc<RwLock<JournalCacheManager>>,
-    placement_center_storage: Arc<RaftMachineApply>,
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    stop_send: broadcast::Sender<bool>,
-}
+pub struct StorageEngineController {}
 
 impl StorageEngineController {
-    pub fn new(
-        engine_cache: Arc<RwLock<JournalCacheManager>>,
-        placement_center_storage: Arc<RaftMachineApply>,
-        rocksdb_engine_handler: Arc<RocksDBEngine>,
-        stop_send: broadcast::Sender<bool>,
-    ) -> StorageEngineController {
-        let controller = StorageEngineController {
-            engine_cache,
-            placement_center_storage,
-            rocksdb_engine_handler,
-            stop_send,
-        };
+    pub fn new() -> StorageEngineController {
+        let controller = StorageEngineController {};
         controller.load_cache();
         return controller;
     }
@@ -54,7 +26,7 @@ impl StorageEngineController {
     pub async fn start(&self) {
         self.resource_manager_thread();
         self.preferred_replica_election();
-        info_meta("Storage Engine Controller started successfully");
+        info!("Storage Engine Controller started successfully");
     }
 
     pub fn load_cache(&self) {
@@ -87,7 +59,7 @@ impl StorageEngineController {
     }
 
     pub fn preferred_replica_election(&self) {
-        let election = PreferredElection::new(self.engine_cache.clone());
+        let election = PreferredElection::new();
         tokio::spawn(async move {
             election.start().await;
         });

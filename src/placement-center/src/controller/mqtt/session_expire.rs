@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::call_broker::MQTTBrokerCall;
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
@@ -21,8 +20,9 @@ use crate::{
     },
 };
 use clients::poll::ClientPool;
-use common_base::{log::error, tools::now_second};
-use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
+use common_base::tools::now_second;
+use log::{debug, error};
+use metadata_struct::mqtt::session::MQTTSession;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -69,6 +69,7 @@ impl SessionExpire {
     pub async fn lastwill_expire_send(&self) {
         let lastwill_list = self.get_expire_lastwill_messsage();
         if lastwill_list.len() > 0 {
+            debug!("Will message due, list:{:?}", lastwill_list);
             self.send_expire_lastwill_messsage(lastwill_list).await;
         }
         sleep(Duration::from_secs(10)).await;
@@ -76,7 +77,7 @@ impl SessionExpire {
 
     async fn get_expire_session_list(&self) -> Vec<MQTTSession> {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
-        let cf = self.rocksdb_engine_handler.cf_mqtt();
+        let cf = self.rocksdb_engine_handler.cf_cluster();
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         let mut sessions = Vec::new();
@@ -105,19 +106,19 @@ impl SessionExpire {
                 Ok(data) => match serde_json::from_slice::<MQTTSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Session expired, failed to parse Session data, error message :{}",
                             e.to_string()
-                        ));
+                        );
                         iter.next();
                         continue;
                     }
                 },
                 Err(e) => {
-                    error(format!(
+                    error!(
                         "Session expired, failed to parse Session data, error message :{}",
                         e.to_string()
-                    ));
+                    );
                     iter.next();
                     continue;
                 }
@@ -171,17 +172,7 @@ impl SessionExpire {
         for lastwill in last_will_list {
             match lastwill_storage.get(&self.cluster_name, &lastwill.client_id) {
                 Ok(Some(data)) => {
-                    let value = match serde_json::from_slice::<LastWillData>(data.data.as_slice()) {
-                        Ok(data) => data,
-                        Err(e) => {
-                            error(format!(
-                                    "Sending Last will message process, failed to parse Session data, error message :{}",
-                                    e.to_string()
-                                ));
-                            continue;
-                        }
-                    };
-                    call.send_last_will_message(lastwill.client_id.clone(), value)
+                    call.send_last_will_message(lastwill.client_id.clone(), data)
                         .await;
                 }
                 Ok(None) => {
@@ -190,7 +181,7 @@ impl SessionExpire {
                 }
                 Err(e) => {
                     sleep(Duration::from_millis(100)).await;
-                    error(e.to_string());
+                    error!("{}", e);
                     continue;
                 }
             }
@@ -298,7 +289,7 @@ mod tests {
 
         session.client_id = client_id.clone();
         session_storage
-            .save(&cluster_name, &client_id, session.encode())
+            .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let start = now_second();

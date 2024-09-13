@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
@@ -50,7 +49,8 @@ impl JournalCacheManager {
         }
         return 1;
     }
-
+    
+    #[allow(dead_code)]
     pub fn get_shard(&self, cluster_name: String, shard_name: String) -> Option<ShardInfo> {
         let key = self.shard_key(cluster_name, shard_name);
         if let Some(shard) = self.shard_list.get(&key) {
@@ -67,28 +67,11 @@ impl JournalCacheManager {
         );
 
         self.segment_list.insert(key.clone(), segment.clone());
-
-        if let Some(mut shard) = self.shard_list.get_mut(&key) {
-            if !shard.segments.contains(&segment.segment_seq) {
-                shard.segments.push(segment.segment_seq);
-                shard.last_segment_seq = segment.segment_seq;
-            }
-        }
     }
 
     pub fn remove_segment(&self, cluster_name: String, shard_name: String, segment_seq: u64) {
         let key = self.segment_key(cluster_name.clone(), shard_name.clone(), segment_seq);
         self.segment_list.remove(&key);
-
-        if let Some(mut shard) = self.get_shard(cluster_name.clone(), shard_name.clone()) {
-            match shard.segments.binary_search(&segment_seq) {
-                Ok(index) => {
-                    shard.segments.remove(index);
-                    self.add_shard(shard);
-                }
-                Err(_) => {}
-            }
-        }
     }
 
     fn shard_key(&self, cluster_name: String, shard_name: String) -> String {

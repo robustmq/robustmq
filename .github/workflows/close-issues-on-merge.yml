@@ -1,0 +1,34 @@
+name: Close Issues on Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  close-issues:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+    - name: Close Issues
+      uses: actions/github-script@v4
+      with:
+        script: |
+          const issues = await github.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            sort: 'created',
+            direction: 'desc'
+          });
+          for (const issue of issues.data) {
+            if (issue.body.includes(`close #${github.event.pull_request.number}`)) {
+              await github.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            }
+          }
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

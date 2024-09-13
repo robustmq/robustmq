@@ -11,16 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::sub_common::{decode_share_info, get_share_sub_leader, is_share_sub, path_regex_match};
-use crate::handler::cache_manager::CacheManager;
+use crate::handler::cache::CacheManager;
 use crate::subscribe::subscriber::Subscriber;
 use clients::poll::ClientPool;
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    log::{error, info},
-};
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
+use log::{error, info};
 use protocol::mqtt::common::{Filter, MQTTProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
@@ -89,7 +86,7 @@ impl SubscribeManager {
     }
 
     pub async fn start(&self) {
-        info("Subscribe manager thread started successfully.".to_string());
+        info!("Subscribe manager thread started successfully.");
         loop {
             self.parse_subscribe_by_new_topic().await;
             sleep(Duration::from_secs(1)).await;
@@ -176,7 +173,7 @@ impl SubscribeManager {
                         if let Some(sx) = self.exclusive_push_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
-                                Err(e) => error(e.to_string()),
+                                Err(e) => error!("{}", e),
                             }
                             self.exclusive_subscribe.remove(&key);
                         }
@@ -198,7 +195,7 @@ impl SubscribeManager {
                         if let Some(sx) = self.share_leader_push_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
-                                Err(e) => error(e.to_string()),
+                                Err(e) => error!("{}", e),
                             }
                         }
                     }
@@ -211,7 +208,7 @@ impl SubscribeManager {
                         if let Some(sx) = self.share_follower_resub_thread.get(&key) {
                             match sx.send(true) {
                                 Ok(_) => {}
-                                Err(e) => error(e.to_string()),
+                                Err(e) => error!("{}", e),
                             }
                         }
                     }
@@ -306,7 +303,7 @@ impl SubscribeManager {
                             }
                         }
                         Err(e) => {
-                            error(e.to_string());
+                            error!("{}", e);
                         }
                     }
                 }

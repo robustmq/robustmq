@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::{
     sub_common::{
         loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
@@ -21,7 +20,7 @@ use super::{
 };
 use crate::{
     handler::{
-        cache_manager::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
         retain::try_send_retain_message,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
@@ -31,10 +30,10 @@ use crate::{
 use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::{
-    errors::RobustMQError,
-    log::{error, info},
+    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
     tools::now_second,
 };
+use log::{error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
@@ -98,10 +97,7 @@ where
                             .remove(&share_leader_key);
                     }
                     Err(err) => {
-                        error(format!(
-                            "stop sub share thread error, error message:{}",
-                            err.to_string()
-                        ));
+                        error!("stop sub share thread error, error message:{}", err);
                     }
                 }
             }
@@ -139,7 +135,8 @@ where
                     share_leader_key.clone(),
                     sub_data.clone(),
                     subscribe_manager,
-                ).await;
+                )
+                .await;
             }
         }
     }
@@ -176,10 +173,10 @@ where
         let message_storage = self.message_storage.clone();
 
         tokio::spawn(async move {
-            info(format!(
+            info!(
                 "Share leader push data thread for GroupName {},Topic [{}] was started successfully",
                 group_name, topic_name
-            ));
+            );
 
             let message_storage: MessageStorage<S> = MessageStorage::new(message_storage);
             let group_id = format!("system_sub_{}_{}", group_name, topic_id);
@@ -194,10 +191,10 @@ where
                         match val {
                             Ok(flag) => {
                                 if flag {
-                                    info(format!(
+                                    info!(
                                         "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
                                         group_name, topic_name
-                                    ));
+                                    );
                                     break;
                                 }
                             }
@@ -261,10 +258,10 @@ where
                 let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "Storage layer message Decord failed with error message :{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                         loop_commit_offset(message_storage, topic_id, group_id, record.offset)
                             .await;
                         return (cursor_point, sub_list);
@@ -367,8 +364,8 @@ where
                                         break;
                                     }
                                     Err(e) => {
-                                        error(format!("SharSub Leader failed to send QOS1 message to {}, error message :{},
-                                         trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string()));
+                                        error!("SharSub Leader failed to send QOS1 message to {}, error message :{},
+                                         trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string());
                                         loop_times = loop_times + 1;
                                     }
                                 }
@@ -408,7 +405,7 @@ where
                                         break;
                                     }
                                     Err(e) => {
-                                        error(e.to_string());
+                                        error!("{}", e);
                                         loop_times = loop_times + 1;
                                     }
                                 }
@@ -422,12 +419,12 @@ where
             return (cursor_point, sub_list);
         }
         Err(e) => {
-            error(format!(
+            error!(
                 "Failed to read message from storage, failure message: {},topic:{},group{}",
                 e.to_string(),
                 topic_id.clone(),
                 group_id.clone()
-            ));
+            );
             sleep(Duration::from_millis(max_wait_ms)).await;
             return (cursor_point, sub_list);
         }
@@ -445,7 +442,7 @@ pub fn build_publish(
         sub_id.push(id);
     }
 
-    let cluster_qos = metadata_cache.get_cluster_info().max_qos();
+    let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
 
     let retain = if subscribe.preserve_retain {
@@ -490,11 +487,11 @@ async fn share_leader_publish_message_qos1(
     pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
-) -> Result<(), RobustMQError> {
+) -> Result<(), CommonError> {
     let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
         id
     } else {
-        return Err(RobustMQError::CommmonError(format!(
+        return Err(CommonError::CommmonError(format!(
             "Client [{}] failed to get connect id, no connection available.",
             client_id.clone()
         )));
@@ -502,7 +499,7 @@ async fn share_leader_publish_message_qos1(
 
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
         if publish.payload.len() > (conn.max_packet_size as usize) {
-            return Err(RobustMQError::PacketLenthError(publish.payload.len()));
+            return Err(MQTTBrokerError::PacketLenthError(publish.payload.len()).into());
         }
     }
 
@@ -532,13 +529,13 @@ async fn share_leader_publish_message_qos1(
                     return Ok(());
                 }
             }
-            return Err(RobustMQError::CommmonError(
+            return Err(CommonError::CommmonError(
                 "QOS1 publishes a message and waits for the PubAck packet to fail to be received"
                     .to_string(),
             ));
         }
         Err(e) => {
-            return Err(RobustMQError::CommmonError(format!(
+            return Err(CommonError::CommmonError(format!(
                 "Failed to write QOS1 Publish message to response queue, failure message: {}",
                 e.to_string()
             )));
@@ -563,12 +560,12 @@ async fn share_leader_publish_message_qos2<S>(
     group_id: &String,
     offset: u128,
     message_storage: &MessageStorage<S>,
-) -> Result<(), RobustMQError>
+) -> Result<(), CommonError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     // 1. send Publish to Client
-    match qos2_send_publish(
+    qos2_send_publish(
         connection_manager,
         cache_manager,
         client_id,
@@ -576,11 +573,7 @@ where
         &Some(publish_properties.clone()),
         stop_sx,
     )
-    .await
-    {
-        Ok(()) => {}
-        Err(e) => return Err(e),
-    };
+    .await?;
 
     // 2. wait pub rec
     loop {
@@ -600,9 +593,7 @@ where
                 break;
             }
         } else {
-            return Err(RobustMQError::SubPublishWaitPubRecTimeout(
-                client_id.clone(),
-            ));
+            return Err(MQTTBrokerError::SubPublishWaitPubRecTimeout(client_id.clone()).into());
         }
     }
 

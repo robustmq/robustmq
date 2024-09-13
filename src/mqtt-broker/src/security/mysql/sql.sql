@@ -17,3 +17,6 @@ CREATE TABLE `mqtt_acl` (
 `clientid` varchar(100) DEFAULT NULL COMMENT 'ClientId',
 `access` int(2) NOT NULL COMMENT '1: subscribe, 2: publish, 3: pubsub', `topic` varchar(100) NOT NULL DEFAULT '' COMMENT 'Topic Filter', PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `mqtt_user` ( `username`, `password`, `salt`) VALUES
+('robustmq', 'robustmq@2024', NULL);

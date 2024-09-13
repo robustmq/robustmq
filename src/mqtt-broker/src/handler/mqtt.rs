@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use crate::handler::cache_manager::{CacheManager, ConnectionLiveTime};
-use crate::handler::cache_manager::{QosAckPackageData, QosAckPackageType};
+use crate::handler::cache::{CacheManager, ConnectionLiveTime};
+use crate::handler::cache::{QosAckPackageData, QosAckPackageType};
 use crate::handler::connection::{build_connection, get_client_id};
 use crate::handler::lastwill::save_last_will_message;
 use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};
@@ -32,13 +31,18 @@ use crate::handler::topic::{get_topic_name, try_init_topic};
 use crate::handler::validator::{
     connect_validator, publish_validator, subscribe_validator, un_subscribe_validator,
 };
+use crate::observability::system_topic::event::{
+    st_report_connected_event, st_report_disconnected_event, st_report_subscribed_event,
+    st_report_unsubscribed_event,
+};
 use crate::security::AuthDriver;
 use crate::server::connection_manager::ConnectionManager;
+use crate::storage::message::MessageStorage;
 use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
-use crate::{security::authentication::authentication_login, storage::message::MessageStorage};
 use clients::poll::ClientPool;
-use common_base::{log::error, tools::now_second};
+use common_base::tools::now_second;
+use log::error;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -97,12 +101,12 @@ where
         connect_properties: Option<ConnectProperties>,
         last_will: Option<LastWill>,
         last_will_properties: Option<LastWillProperties>,
-        login: Option<Login>,
+        login: &Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
-        let cluster: metadata_struct::mqtt::cluster::MQTTCluster =
+        let cluster: metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig =
             self.cache_manager.get_cluster_info();
-        
+
         if let Some(res) = connect_validator(
             &self.protocol,
             &cluster,
@@ -116,8 +120,11 @@ where
             return res;
         }
 
-
-        match self.auth_driver.check_login(&login, &connect_properties, &addr).await {
+        match self
+            .auth_driver
+            .check_login_auth(&login, &connect_properties, &addr)
+            .await
+        {
             Ok(flag) => {
                 if !flag {
                     return response_packet_mqtt_connect_fail(
@@ -146,6 +153,7 @@ where
             &cluster,
             &connnect,
             &connect_properties,
+            &addr,
         );
 
         let (session, new_session) = match build_session(
@@ -222,6 +230,17 @@ where
         self.cache_manager
             .add_connection(connect_id, connection.clone());
 
+        st_report_connected_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_poll,
+            &session,
+            &connection,
+            connect_id,
+            &self.connnection_manager,
+        )
+        .await;
+
         return response_packet_mqtt_connect_success(
             &self.protocol,
             &cluster,
@@ -229,6 +248,7 @@ where
             new_client_id,
             session.session_expiry as u32,
             new_session,
+            connection.keep_alive,
             &connect_properties,
         );
     }
@@ -306,11 +326,22 @@ where
             }
         };
 
+        if !self
+            .auth_driver
+            .allow_publish(&connection, &topic_name, publish.retain, publish.qos)
+            .await
+        {
+            return Some(response_packet_mqtt_distinct_by_reason(
+                &self.protocol,
+                Some(DisconnectReasonCode::NotAuthorized),
+            ));
+        }
+
         let topic = match try_init_topic(
-            topic_name.clone(),
-            self.cache_manager.clone(),
-            self.message_storage_adapter.clone(),
-            self.client_poll.clone(),
+            &topic_name,
+            &self.cache_manager,
+            &self.message_storage_adapter,
+            &self.client_poll,
         )
         .await
         {
@@ -510,10 +541,10 @@ where
                 }) {
                     Ok(_) => {}
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "publish ack send ack manager message error, error message:{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                     }
                 }
             }
@@ -538,10 +569,10 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "publish rec send ack manager message error, error message:{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                     }
                 }
             }
@@ -570,10 +601,10 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error(format!(
+                        error!(
                             "publish comp send ack manager message error, error message:{}",
-                            e.to_string()
-                        ));
+                            e
+                        );
                     }
                 }
             }
@@ -681,8 +712,22 @@ where
             return packet;
         }
 
+        if !self
+            .auth_driver
+            .allow_subscribe(&connection, &subscribe)
+            .await
+        {
+            return response_packet_mqtt_suback(
+                &self.protocol,
+                &connection,
+                subscribe.packet_identifier,
+                vec![SubscribeReasonCode::NotAuthorized],
+                None,
+            );
+        }
+
         let mut return_codes: Vec<SubscribeReasonCode> = Vec::new();
-        let cluster_qos = self.cache_manager.get_cluster_info().max_qos();
+        let cluster_qos = self.cache_manager.get_cluster_info().protocol.max_qos;
         for filter in subscribe.filters.clone() {
             match min_qos(cluster_qos, filter.qos) {
                 QoS::AtMostOnce => {
@@ -734,6 +779,16 @@ where
             .await;
 
         let pkid = subscribe.packet_identifier;
+        st_report_subscribed_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_poll,
+            &connection,
+            connect_id,
+            &self.connnection_manager,
+            &subscribe,
+        )
+        .await;
         return response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None);
     }
 
@@ -809,6 +864,17 @@ where
         self.cache_manager
             .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
+        st_report_unsubscribed_event(
+            &self.message_storage_adapter,
+            &self.cache_manager,
+            &self.client_poll,
+            &connection,
+            connect_id,
+            &self.connnection_manager,
+            &un_subscribe,
+        )
+        .await;
+
         return response_packet_mqtt_unsuback(
             &connection,
             un_subscribe.pkid,
@@ -820,7 +886,7 @@ where
     pub async fn disconnect(
         &self,
         connect_id: u64,
-        _: Disconnect,
+        disconnect: Disconnect,
         _: Option<DisconnectProperties>,
     ) -> Option<MQTTPacket> {
         let connection = if let Some(se) = self.cache_manager.connection_info.get(&connect_id) {
@@ -828,6 +894,20 @@ where
         } else {
             return None;
         };
+
+        if let Some(session) = self.cache_manager.get_session_info(&connection.client_id) {
+            st_report_disconnected_event(
+                &self.message_storage_adapter,
+                &self.cache_manager,
+                &self.client_poll,
+                &session,
+                &connection,
+                connect_id,
+                &self.connnection_manager,
+                disconnect.reason_code,
+            )
+            .await;
+        }
 
         match disconnect_connection(
             &connection.client_id,

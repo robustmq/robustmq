@@ -13,7 +13,7 @@
 
 
 use crate::poll::ClientPool;
-use common_base::errors::RobustMQError;
+use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::broker_server::generate::mqtt::{
     CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest
@@ -26,7 +26,7 @@ pub async fn broker_mqtt_delete_session(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSessionRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = DeleteSessionRequest::encode_to_vec(&request);
     match retry_call(
         MQTTBrokerService::Mqtt,
@@ -39,7 +39,7 @@ pub async fn broker_mqtt_delete_session(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -51,7 +51,7 @@ pub async fn broker_mqtt_update_cache(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UpdateCacheRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = UpdateCacheRequest::encode_to_vec(&request);
     match retry_call(
         MQTTBrokerService::Mqtt,
@@ -64,7 +64,7 @@ pub async fn broker_mqtt_update_cache(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);
@@ -77,11 +77,11 @@ pub async fn send_last_will_message(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SendLastWillMessageRequest,
-) -> Result<CommonReply, RobustMQError> {
+) -> Result<CommonReply, CommonError> {
     let request_data = SendLastWillMessageRequest::encode_to_vec(&request);
     match retry_call(
         MQTTBrokerService::Mqtt,
-        MQTTBrokerInterface::UpdateCache,
+        MQTTBrokerInterface::SendLastWillMessage,
         client_poll,
         addrs,
         request_data,
@@ -90,7 +90,7 @@ pub async fn send_last_will_message(
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
             Ok(da) => return Ok(da),
-            Err(e) => return Err(RobustMQError::CommmonError(e.to_string())),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         },
         Err(e) => {
             return Err(e);

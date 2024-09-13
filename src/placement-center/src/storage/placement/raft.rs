@@ -11,7 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use crate::storage::keys::key_name_by_conf_state;
 use crate::storage::keys::key_name_by_entry;
 use crate::storage::keys::key_name_by_first_index;
@@ -21,9 +20,9 @@ use crate::storage::keys::key_name_snapshot;
 use crate::storage::keys::key_name_uncommit;
 use crate::storage::rocksdb::RocksDBEngine;
 use bincode::{deserialize, serialize};
-use common_base::config::placement_center::placement_center_conf;
-use common_base::log::error_meta;
-use common_base::log::info_meta;
+use log::debug;
+use log::error;
+use log::info;
 use prost::Message as _;
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
@@ -47,7 +46,6 @@ pub struct RaftMachineStorage {
 
 impl RaftMachineStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let config = placement_center_conf();
         let uncommit_index = HashMap::new();
 
         let mut rc = RaftMachineStorage {
@@ -89,9 +87,7 @@ impl RaftMachineStorage {
         if value == None {
             HardState::default()
         } else {
-            return HardState::decode(value.unwrap().as_ref())
-                .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
-                .unwrap();
+            return HardState::decode(value.unwrap().as_ref()).unwrap();
         }
     }
 
@@ -115,10 +111,10 @@ impl RaftMachineStorage {
     pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
         let entry = self.entry_by_idx(idx);
         if entry.is_none() {
-            info_meta(&format!("commit_to {} but the entry does not exist", idx))
+            info!("commit_to {} but the entry does not exist", idx);
         }
 
-        println!(">> commit entry index:{}", idx);
+        debug!(">> commit entry index:{}", idx);
         // update uncommit index
         self.uncommit_index.remove(&idx);
         self.save_uncommit_index();
@@ -156,7 +152,7 @@ impl RaftMachineStorage {
         }
 
         for entry in entrys {
-            println!(">> save entry index:{}, value:{:?}", entry.index, entry);
+            debug!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
             self.rocksdb_engine_handler
@@ -171,6 +167,7 @@ impl RaftMachineStorage {
         return Ok(());
     }
 
+    #[allow(dead_code)]
     pub fn entrys(&self, low: u64, high: u64) -> Vec<Entry> {
         let mut entry_list: Vec<Entry> = Vec::new();
         for idx in low..=high {
@@ -198,7 +195,7 @@ impl RaftMachineStorage {
                 }
             }
             Err(e) => {
-                error_meta(&format!("Failed to read the first index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index));
+                error!("Failed to read the first index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index);
                 self.snapshot_metadata.index + 1
             }
         }
@@ -219,7 +216,7 @@ impl RaftMachineStorage {
                 }
             }
             Err(e) => {
-                error_meta(&format!("Failed to read the last index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index));
+                error!("Failed to read the last index. The failure message is {}, and the current snapshot index is {}",e, self.snapshot_metadata.index);
                 self.snapshot_metadata.index
             }
         }
@@ -240,10 +237,10 @@ impl RaftMachineStorage {
                     return Some(et);
                 }
             }
-            Err(e) => error_meta(&format!(
+            Err(e) => error!(
                 "Failed to read entry. The failure information is {}, and the current index is {}",
                 e, idx
-            )),
+            ),
         }
         return None;
     }
@@ -301,11 +298,11 @@ impl RaftMachineStorage {
                 if let Some(value) = data {
                     match deserialize(value.as_ref()) {
                         Ok(v) => return v,
-                        Err(err) => error_meta(&err.to_string()),
+                        Err(err) => error!("{}", err),
                     }
                 }
             }
-            Err(err) => error_meta(&err),
+            Err(err) => error!("{}", err),
         }
         return HashMap::new();
     }
@@ -317,23 +314,21 @@ impl RaftMachineStorage {
 
         match deserialize::<HashMap<String, Vec<HashMap<String, String>>>>(data) {
             Ok(data) => {
-                for (family, value) in data {
-                    let cf = self
-                        .rocksdb_engine_handler
-                        .get_column_family(family.to_string());
+                for (_, value) in data {
+                    let cf = self.rocksdb_engine_handler.get_column_family();
                     for raw in value {
                         for (key, val) in &raw {
-                            info_meta(&format!("key:{:?},val{:?}", key, val.to_string()));
+                            info!("key:{:?},val{:?}", key, val.to_string());
                             match self
                                 .rocksdb_engine_handler
                                 .write_str(cf, key, val.to_string())
                             {
                                 Ok(_) => {}
                                 Err(err) => {
-                                    error_meta(&format!(
+                                    error!(
                                         "Error occurred during apply snapshot. Error message: {}",
                                         err
-                                    ));
+                                    );
                                 }
                             }
                         }
@@ -341,7 +336,7 @@ impl RaftMachineStorage {
                 }
             }
             Err(err) => {
-                error_meta(&format!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string()));
+                error!("Failed to parse the snapshot data during snapshot data recovery, error message :{}",err.to_string());
             }
         }
     }
@@ -438,7 +433,7 @@ mod tests {
     use super::RaftMachineStorage;
     use common_base::{
         config::placement_center::{init_placement_center_conf_by_config, PlacementCenterConfig},
-        log::init_placement_center_log,
+        logs::init_placement_center_log,
     };
 
     #[test]
