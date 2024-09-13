@@ -37,12 +37,14 @@ use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 use storage::placement::raft::RaftMachineStorage;
 use storage::rocksdb::RocksDBEngine;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
+use tokio::time::sleep;
 use tonic::transport::Server;
 mod cache;
 mod controller;
@@ -247,6 +249,11 @@ impl PlacementCenter {
 
     // Wait Stop Signal
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+        self.server_runtime.spawn(async move {
+            sleep(Duration::from_millis(5)).await;
+            info!("Placement Center service started successfully...");
+        });
+
         // Wait for the stop signal
         self.server_runtime.block_on(async move {
             loop {

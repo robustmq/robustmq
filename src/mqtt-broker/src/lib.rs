@@ -19,7 +19,6 @@ use handler::{cache::CacheManager, heartbreat::report_heartbeat};
 use lazy_static::lazy_static;
 use log::info;
 use observability::start_opservability;
-use observability::system_topic::SystemTopic;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
 use server::tcp::start_tcp_server;
@@ -29,6 +28,7 @@ use server::{
     http::server::{start_http_server, HttpServerState},
 };
 use std::sync::Arc;
+use std::time::Duration;
 use storage::cluster::ClusterStorage;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
@@ -39,6 +39,7 @@ use subscribe::{
     sub_share_leader::SubscribeShareLeader, subscribe_manager::SubscribeManager,
 };
 use third_driver::mysql::build_mysql_conn_pool;
+use tokio::time::sleep;
 use tokio::{
     runtime::Runtime,
     signal,
@@ -286,6 +287,11 @@ where
     }
 
     pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+        self.runtime.spawn(async move {
+            sleep(Duration::from_millis(5)).await;
+            info!("MQTT Broker service started successfully...");
+        });
+
         // Wait for the stop signal
         self.runtime.block_on(async move {
             loop {

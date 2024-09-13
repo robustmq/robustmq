@@ -21,6 +21,7 @@ members = [
     "src/amqp-plugins",
     "src/amqp-broker",
     "src/placement-center",
+    "src/cli-command",
     "src/clients",
     "src/cmd",
     "src/common/base",
@@ -90,6 +91,7 @@ mqtt-broker = { path = "src/mqtt-broker" }
 amqp-broker = { path = "src/amqp-broker" }
 amqp-plugins = { path = "src/amqp-plugins" }
 placement-center = { path = "src/placement-center" }
+cli-command = { path = "src/cli-command" }
 clients = { path = "src/clients" }
 journal-server = { path = "src/journal-server" }
 journal-remote = { path = "src/journal-remote" }
