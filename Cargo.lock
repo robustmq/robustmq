@@ -57,7 +57,7 @@ checksum = "0942ffc6dcaadf03badf6e6a2d0228460359d5e34b57ccdc720b7382dfbd5ec5"
 
 [[package]]
 name = "amqp-broker"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -66,7 +66,7 @@ dependencies = [
 
 [[package]]
 name = "amqp-plugins"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -694,7 +694,7 @@ checksum = "702fc72eb24e5a1e48ce58027a675bc24edd52096d5397d4aea7c6dd9eca0bd1"
 
 [[package]]
 name = "clients"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -723,7 +723,7 @@ dependencies = [
 
 [[package]]
 name = "cmd"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "clap",
  "common-base",
@@ -742,7 +742,7 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
 name = "common-base"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "env_logger",
@@ -1697,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "journal-server"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -1898,7 +1898,7 @@ checksum = "523dc4f511e55ab87b694dc30d0f820d60906ef06413f93d4d7a1385599cc149"
 
 [[package]]
 name = "metadata-struct"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "bytes",
  "common-base",
@@ -1989,7 +1989,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-bridge-elasticsearch"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -1998,7 +1998,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-bridge-kafka"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -2007,7 +2007,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-bridge-redis"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -2016,7 +2016,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-broker"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "axum-extra",
@@ -2471,7 +2471,7 @@ checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
 
 [[package]]
 name = "placement-center"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bincode",
@@ -2730,7 +2730,7 @@ dependencies = [
 
 [[package]]
 name = "protocol"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bincode",
@@ -2808,7 +2808,7 @@ dependencies = [
 
 [[package]]
 name = "raft-rocksdb"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "thiserror",
 ]
@@ -2957,7 +2957,7 @@ dependencies = [
 
 [[package]]
 name = "rocksdb-engine"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "thiserror",
 ]
@@ -3353,7 +3353,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "storage-adapter"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -3373,7 +3373,7 @@ dependencies = [
 
 [[package]]
 name = "storage-remote"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
@@ -3489,7 +3489,7 @@ dependencies = [
 
 [[package]]
 name = "third-driver"
-version = "0.0.1-beta"
+version = "0.1.0-beta"
 dependencies = [
  "common-base",
  "mysql",
