@@ -20,6 +20,7 @@ mod tests {
         poll::ClientPool,
     };
 
+    use common_base::tools::unique_id;
     use metadata_struct::acl::mqtt_acl::{
         MQTTAcl, MQTTAclAction, MQTTAclPermission, MQTTAclResourceType,
     };
@@ -32,7 +33,7 @@ mod tests {
     async fn mqtt_acl_test() {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
-        let cluster_name: String = "test_cluster".to_string();
+        let cluster_name: String = format!("test_cluster_{}", unique_id());
 
         let acl = MQTTAcl {
             resource_type: MQTTAclResourceType::User,
@@ -102,7 +103,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MQTTAcl>(raw.as_slice()).unwrap();
+                    let tmp = serde_json::from_slice::<MQTTAcl>(raw.as_slice()).unwrap_or_else(|e|panic!("{e} {:02x?}", raw.as_slice()));
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name
                         && tmp.topic == acl.topic

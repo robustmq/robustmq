@@ -218,11 +218,14 @@ mod tests {
     };
     use metadata_struct::placement::broker_node::BrokerNode;
     use protocol::placement_center::generate::common::ClusterType;
-    use std::sync::Arc;
+    use std::{fs::remove_dir_all, sync::Arc};
 
     #[test]
     fn node_leader_info_test() {
-        let config = PlacementCenterConfig::default();
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());
@@ -263,11 +266,16 @@ mod tests {
         share_sub.delete_node(&cluster_name, broker_id).unwrap();
         let result = share_sub.read_node_sub_info(&cluster_name).unwrap();
         assert!(!result.contains_key(&broker_id));
+
+        remove_dir_all(config.data_path).unwrap();
     }
 
     #[test]
     fn get_leader_node_test() {
-        let config = PlacementCenterConfig::default();
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -328,5 +336,7 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 1);
+        
+        remove_dir_all(config.data_path).unwrap();
     }
 }

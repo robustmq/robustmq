@@ -98,14 +98,17 @@ mod tests {
     use crate::storage::mqtt::user::MQTTUserStorage;
     use crate::storage::rocksdb::RocksDBEngine;
     use common_base::config::placement_center::PlacementCenterConfig;
+    use common_base::tools::unique_id;
     use metadata_struct::mqtt::user::MQTTUser;
+    use std::fs::remove_dir_all;
     use std::sync::Arc;
 
     #[tokio::test]
     async fn user_storage_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = "/tmp/tmp_test".to_string();
-        config.data_path = "/tmp/tmp_test".to_string();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+        
         let rs = Arc::new(RocksDBEngine::new(&config));
         let user_storage = MQTTUserStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
@@ -140,5 +143,7 @@ mod tests {
             .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
         assert!(res.is_none());
+
+        remove_dir_all(config.data_path).unwrap();
     }
 }

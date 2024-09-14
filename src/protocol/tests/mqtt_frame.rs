@@ -32,6 +32,7 @@ mod tests {
     use tokio_util::codec::{Framed, FramedRead, FramedWrite};
 
     #[tokio::test]
+    #[ignore]
     async fn mqtt_frame_server() {
         let ip = "127.0.0.1:1884";
         let listener = TcpListener::bind(ip).await.unwrap();
@@ -58,6 +59,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn mqtt4_frame_server() {
         let ip = "127.0.0.1:1884";
         let listener = TcpListener::bind(ip).await.unwrap();
@@ -133,6 +135,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn mqtt5_frame_server() {
         let ip = "127.0.0.1:1884";
         let listener = TcpListener::bind(ip).await.unwrap();
@@ -154,7 +157,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt5_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:1883").await.unwrap();
         let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
 
         // send connect package

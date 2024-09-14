@@ -395,6 +395,7 @@ mod tests {
     use super::MySQLStorageAdapter;
 
     #[tokio::test]
+    #[ignore]
     async fn mysql_set() {
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
@@ -417,6 +418,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn mysql_create_table() {
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
@@ -430,6 +432,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn mysql_drop_table() {
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
@@ -439,6 +442,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn mysql_stream_write() {
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
@@ -469,6 +473,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn mysql_stream_read_and_commit() {
         let addr = "mysql://root:123456@127.0.0.1:3306/mqtt";
         let pool = build_mysql_conn_pool(addr).unwrap();
