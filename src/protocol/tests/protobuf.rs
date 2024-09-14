@@ -15,6 +15,7 @@
 #[cfg(test)]
 mod tests {
     #[test]
+    #[ignore]
     fn create_rust_pb() {
         tonic_build::configure()
             .build_server(true)

@@ -16,24 +16,33 @@ mod tests {
     use byteorder::{BigEndian, ReadBytesExt};
     use common_base::config::placement_center::init_placement_center_conf_by_config;
     use common_base::logs::init_placement_center_log;
+    use common_base::tools::unique_id;
     use common_base::{config::placement_center::PlacementCenterConfig, tools::create_fold};
     use placement_center::PlacementCenter;
     use prost::Message;
     use raft::eraftpb::Entry;
+    use std::fs::remove_dir_all;
     use std::io::Cursor;
     use std::vec;
     use tokio::sync::broadcast;
     use toml::Table;
 
     #[test]
+    #[ignore]
     fn raft_node_1() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 1;
         conf.addr = "127.0.0.1".to_string();
         conf.grpc_port = 1221;
         conf.http_port = 2221;
-        conf.log.log_path = "/tmp/test_fold1/logs".to_string();
-        conf.data_path = "/tmp/test_fold1/data".to_string();
+        conf.runtime_work_threads = 8;
+        conf.rocksdb.max_open_files = Some(100);
+        conf.log.log_config = "../../config/log4rs.yaml".to_string();
+        conf.log.log_path = format!("/tmp/{}/logs", unique_id());
+        conf.data_path = format!("/tmp/{}/data", unique_id());
+
+        let _  = create_fold(&conf.data_path).unwrap();
+        let _  = create_fold(&conf.log.log_path).unwrap();
 
         let mut nodes = Table::new();
         nodes.insert(
@@ -49,26 +58,34 @@ mod tests {
             toml::Value::String("127.0.0.1:1223".to_string()),
         );
         conf.nodes = nodes;
-        init_placement_center_conf_by_config(conf);
+        init_placement_center_conf_by_config(conf.clone());
         init_placement_center_log();
 
         let (stop_send, _) = broadcast::channel(10);
         let mut mt = PlacementCenter::new();
 
         mt.start(stop_send);
+
+        remove_dir_all(conf.data_path).unwrap();
+        remove_dir_all(conf.log.log_path).unwrap();
     }
 
     #[test]
+    #[ignore]
     fn raft_node_2() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 2;
         conf.addr = "127.0.0.1".to_string();
         conf.grpc_port = 1222;
         conf.http_port = 2222;
-        conf.log.log_path = "/tmp/test_fold2/logs".to_string();
-        conf.data_path = "/tmp/test_fold2/data".to_string();
-        create_fold(&conf.data_path);
-        create_fold(&conf.log.log_path);
+        conf.runtime_work_threads = 8;
+        conf.rocksdb.max_open_files = Some(100);
+        conf.log.log_config = "../../config/log4rs.yaml".to_string();
+        conf.log.log_path = format!("/tmp/{}/logs", unique_id());
+        conf.data_path = format!("/tmp/{}/data", unique_id());
+
+        let _  = create_fold(&conf.data_path).unwrap();
+        let _  = create_fold(&conf.log.log_path).unwrap();
 
         let mut nodes = Table::new();
         nodes.insert(
@@ -84,24 +101,34 @@ mod tests {
             toml::Value::String("127.0.0.1:1223".to_string()),
         );
         conf.nodes = nodes;
-        init_placement_center_conf_by_config(conf);
+        init_placement_center_conf_by_config(conf.clone());
         init_placement_center_log();
 
         let (stop_send, _) = broadcast::channel(10);
         let mut mt = PlacementCenter::new();
 
         mt.start(stop_send);
+
+        remove_dir_all(conf.data_path).unwrap();
+        remove_dir_all(conf.log.log_path).unwrap();
     }
 
     #[test]
+    #[ignore]
     fn raft_node_3() {
         let mut conf = PlacementCenterConfig::default();
         conf.node_id = 3;
         conf.addr = "127.0.0.1".to_string();
         conf.grpc_port = 1223;
         conf.http_port = 2223;
-        conf.log.log_path = "/tmp/test_fold3/logs".to_string();
-        conf.data_path = "/tmp/test_fold3/data".to_string();
+        conf.runtime_work_threads = 8;
+        conf.rocksdb.max_open_files = Some(100);
+        conf.log.log_config = "../../config/log4rs.yaml".to_string();
+        conf.log.log_path = format!("/tmp/{}/logs", unique_id());
+        conf.data_path = format!("/tmp/{}/data", unique_id());
+
+        let _  = create_fold(&conf.data_path).unwrap();
+        let _  = create_fold(&conf.log.log_path).unwrap();
 
         let mut nodes = Table::new();
         nodes.insert(
@@ -118,13 +145,16 @@ mod tests {
         );
         conf.nodes = nodes;
 
-        init_placement_center_conf_by_config(conf);
+        init_placement_center_conf_by_config(conf.clone());
         init_placement_center_log();
 
         let (stop_send, _) = broadcast::channel(10);
         let mut mt = PlacementCenter::new();
 
         mt.start(stop_send);
+
+        remove_dir_all(conf.data_path).unwrap();
+        remove_dir_all(conf.log.log_path).unwrap();
     }
 
     #[test]

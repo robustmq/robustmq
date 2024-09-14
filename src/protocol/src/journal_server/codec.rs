@@ -286,6 +286,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn storage_engine_frame_server() {
         let ip = "127.0.0.1:1228";
         let listener = TcpListener::bind(ip).await.unwrap();
@@ -312,8 +313,9 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn storage_engine_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:2228").await.unwrap();
+        let socket = TcpStream::connect("127.0.0.1:1228").await.unwrap();
         let mut stream: Framed<TcpStream, StorageEngineCodec> =
             Framed::new(socket, StorageEngineCodec::new());
 

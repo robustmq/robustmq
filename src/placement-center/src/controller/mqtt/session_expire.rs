@@ -210,7 +210,7 @@ impl SessionExpire {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Duration};
+    use std::{fs::remove_dir_all, sync::Arc, time::Duration};
 
     use clients::poll::ClientPool;
     use common_base::{
@@ -229,7 +229,10 @@ mod tests {
 
     #[test]
     fn is_session_expire_test() {
-        let config = PlacementCenterConfig::default();
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -247,6 +250,7 @@ mod tests {
             cluster_name,
         );
 
+
         let mut session = MQTTSession::default();
         session.session_expiry = now_second() - 100;
         session.distinct_time = Some(5);
@@ -258,11 +262,16 @@ mod tests {
         session.session_expiry = now_second() + 100;
         session.distinct_time = None;
         assert!(!session_expire.is_session_expire(&session));
+
+        remove_dir_all(config.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn get_expire_session_list_test() {
-        let config = PlacementCenterConfig::default();
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -312,11 +321,16 @@ mod tests {
             sleep(Duration::from_millis(1000)).await;
         }
         assert_eq!((now_second() - start), 3);
+
+        remove_dir_all(config.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn is_send_last_will_test() {
-        let config = PlacementCenterConfig::default();
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -348,11 +362,16 @@ mod tests {
             cluster_name: "test1".to_string(),
         };
         assert!(!session_expire.is_send_last_will(&lastwill));
+
+        remove_dir_all(config.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn get_expire_lastwill_messsage_test() {
-        let config = PlacementCenterConfig::default();
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
@@ -399,5 +418,7 @@ mod tests {
         }
 
         assert_eq!((now_second() - start), 3);
+        
+        remove_dir_all(config.data_path).unwrap();
     }
 }

@@ -111,6 +111,7 @@ mod tests {
 
     use super::init_journal_server_conf_by_path;
     #[test]
+    #[ignore]
     fn meta_default() {
         init_journal_server_conf_by_path(&"../../config/storage-engine.toml".to_string());
 

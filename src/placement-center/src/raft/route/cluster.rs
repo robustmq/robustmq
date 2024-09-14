@@ -158,7 +158,7 @@ impl DataRouteCluster {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{fs::remove_dir_all, sync::Arc};
 
     use crate::{
         cache::placement::PlacementCacheManager,
@@ -168,7 +168,7 @@ mod tests {
             rocksdb::RocksDBEngine,
         },
     };
-    use common_base::config::placement_center::PlacementCenterConfig;
+    use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
     use prost::Message as _;
     use protocol::placement_center::generate::{
         common::ClusterType, placement::RegisterNodeRequest,
@@ -176,6 +176,10 @@ mod tests {
 
     #[test]
     fn register_unregister_node() {
+        let mut config = PlacementCenterConfig::default();
+        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.max_open_files = Some(10);
+
         let cluster_name = "test-cluster".to_string();
         let node_id = 1;
         let node_ip = "127.0.0.1".to_string();
@@ -187,7 +191,7 @@ mod tests {
         req.cluster_name = cluster_name.clone();
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(&PlacementCenterConfig::default()));
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(&config));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
 
         let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
@@ -222,5 +226,7 @@ mod tests {
             .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
+
+        remove_dir_all(config.data_path).unwrap();
     }
 }
