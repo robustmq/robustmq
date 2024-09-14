@@ -426,23 +426,22 @@ impl RaftMachineStorage {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::{fs::remove_dir_all, sync::Arc};
 
     use crate::storage::rocksdb::RocksDBEngine;
 
     use super::RaftMachineStorage;
     use common_base::{
-        config::placement_center::{init_placement_center_conf_by_config, PlacementCenterConfig},
-        logs::init_placement_center_log,
+        config::placement_center::PlacementCenterConfig,
+        tools::unique_id
     };
 
     #[test]
     fn write_read_test() {
         let mut conf = PlacementCenterConfig::default();
-        conf.data_path = "/tmp/tmp_test".to_string();
-        conf.data_path = "/tmp/tmp_test".to_string();
-        init_placement_center_conf_by_config(conf.clone());
-        init_placement_center_log();
+        conf.data_path = format!("/tmp/robustmq_{}", unique_id());
+        conf.rocksdb.max_open_files = Some(10);
+
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&conf));
         let rds = RaftMachineStorage::new(rocksdb_engine_handler);
 
@@ -455,5 +454,7 @@ mod tests {
         let _ = rds.save_last_index(last_index);
         let last_index = rds.last_index();
         assert_eq!(last_index, last_index);
+
+        remove_dir_all(conf.data_path).unwrap();
     }
 }

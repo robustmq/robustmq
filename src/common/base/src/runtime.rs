@@ -173,6 +173,6 @@ mod tests {
             sleep(Duration::from_millis(5));
         });
 
-        sleep(Duration::from_secs(500));
+        sleep(Duration::from_secs(5));
     }
 }

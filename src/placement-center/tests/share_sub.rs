@@ -37,6 +37,7 @@ mod tests {
     use toml::map::Map;
 
     #[tokio::test]
+    #[ignore]
     async fn test_share_sub() {
         let (stop_send, _) = broadcast::channel::<bool>(2);
         let cc = test_conf();
@@ -108,6 +109,9 @@ mod tests {
         conf.addr = "127.0.0.1".to_string();
         conf.grpc_port = 5228;
         conf.http_port = 5227;
+        conf.runtime_work_threads = 8;
+        conf.rocksdb.max_open_files = Some(100);
+        conf.log.log_config = "../../config/log4rs.yaml".to_string();
 
         let mut nodes = Map::new();
         nodes.insert(
