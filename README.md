@@ -133,6 +133,7 @@ cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/n
 
 ## Development
 ### Run all test cases
+You need to install the cargo-nextes command first. Please refer to documentation[《Integration testing》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84/%e6%b5%8b%e8%af%95%e7%94%a8%e4%be%8b/)
 ```
 make test
 ```
