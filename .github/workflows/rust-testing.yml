@@ -11,12 +11,9 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
+    - uses: taiki-e/install-action@nextest
     - uses: actions/checkout@v3
-    - name: Build
-      run: make release
     - name: Run tests
       run: make test
