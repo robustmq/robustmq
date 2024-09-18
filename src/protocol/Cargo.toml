@@ -22,8 +22,8 @@ license.workspace = true
 [dependencies]
 bytes.workspace = true
 axum.workspace = true
-thiserror.workspace = true
 tonic.workspace = true
+thiserror.workspace = true
 prost.workspace = true
 tonic-build.workspace = true
 tokio-util.workspace = true
