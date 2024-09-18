@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Robust Community Slack
+    url: https://robust.com/slack
+    about: Get free help from the Robust community
+  - name: Robust Community Discussion
+    url: https://github.com/robustmq/robustmq/discussions
+    about: Get free help from the Robust community

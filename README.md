@@ -161,12 +161,18 @@ In the planning
 In the planning
 
 ## Contributing
-Please refer to contribution [guidelines](docs/en/contribution.md) for more information.
 
-## Join Our Wechat Group
+### Contribution Guidelines
+Please refer to [contribution guidelines](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e8%b4%a1%e7%8c%ae%e6%8c%87%e5%8d%97/) for more information.
+
+### Contact us
+- Slack
+Join [RobustMQ Slack](https://app.slack.com/client/T07MFH344Q7/C07MPETNHAA)
+
+- Wechat Group
 If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
 <div align="center"> 
-  <img src="docs/images/WechatGroup.png" alt="WeChat QR Code" width=300 />
+  <img src="docs/images/WechatGroup.png" alt="WeChat QR Code" width=200 />
 </div>
 
 ## License

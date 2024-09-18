@@ -1,0 +1,88 @@
+name: Build linux artifacts
+description: Build linux artifacts
+inputs:
+  arch:
+    description: Architecture to build
+    required: true
+  cargo-profile:
+    description: Cargo profile to build
+    required: true
+  version:
+    description: Version of the artifact
+    required: true
+  disable-run-tests:
+    description: Disable running integration tests
+    required: true
+  dev-mode:
+    description: Enable dev mode, only build standard robust
+    required: false
+    default: 'false'
+  working-dir:
+    description: Working directory to build the artifacts
+    required: false
+    default: .
+runs:
+  using: composite
+  steps:
+    - name: Run integration test
+      if: ${{ inputs.disable-run-tests == 'false' }}
+      shell: bash
+      # NOTE: If the BUILD_JOBS > 4, it's always OOM in EC2 instance.
+      run: |
+        cd ${{ inputs.working-dir }} && \
+        make run-it-in-container BUILD_JOBS=4
+
+    - name: Upload sqlness logs
+      if: ${{ failure() && inputs.disable-run-tests == 'false' }} # Only upload logs when the integration tests failed.
+      uses: actions/upload-artifact@v3
+      with:
+        name: sqlness-logs
+        path: /tmp/robust-*.log
+        retention-days: 3
+
+    - name: Build standard robust
+      uses: ./.github/actions/build-robust-binary
+      with:
+        base-image: ubuntu
+        features: pyo3_backend,servers/dashboard
+        cargo-profile: ${{ inputs.cargo-profile }}
+        artifacts-dir: robust-linux-${{ inputs.arch }}-pyo3-${{ inputs.version }}
+        version: ${{ inputs.version }}
+        working-dir: ${{ inputs.working-dir }}
+
+    - name: Build robust without pyo3
+      if: ${{ inputs.dev-mode == 'false' }}
+      uses: ./.github/actions/build-robust-binary
+      with:
+        base-image: ubuntu
+        features: servers/dashboard
+        cargo-profile: ${{ inputs.cargo-profile }}
+        artifacts-dir: robust-linux-${{ inputs.arch }}-${{ inputs.version }}
+        version: ${{ inputs.version }}
+        working-dir: ${{ inputs.working-dir }}
+
+    - name: Clean up the target directory # Clean up the target directory for the centos7 base image, or it will still use the objects of last build.
+      shell: bash
+      run: |
+        rm -rf ./target/
+
+    - name: Build robust on centos base image
+      uses: ./.github/actions/build-robust-binary
+      if: ${{ inputs.arch == 'amd64' && inputs.dev-mode == 'false' }} # Only build centos7 base image for amd64.
+      with:
+        base-image: centos
+        features: servers/dashboard
+        cargo-profile: ${{ inputs.cargo-profile }}
+        artifacts-dir: robust-linux-${{ inputs.arch }}-centos-${{ inputs.version }}
+        version: ${{ inputs.version }}
+        working-dir: ${{ inputs.working-dir }}
+
+    - name: Build robust on android base image
+      uses: ./.github/actions/build-robust-binary
+      if: ${{ inputs.arch == 'amd64' && inputs.dev-mode == 'false' }} # Only build android base image on amd64.
+      with:
+        base-image: android
+        artifacts-dir: robust-android-arm64-${{ inputs.version }}
+        version: ${{ inputs.version }}
+        working-dir: ${{ inputs.working-dir }}
+        build-android-artifacts: true
