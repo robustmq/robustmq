@@ -20,10 +20,6 @@ inputs:
     description: Working directory to build the artifacts
     required: false
     default: .
-  build-android-artifacts:
-    description: Build android artifacts
-    required: false
-    default: 'false'
 runs:
   using: composite
   steps:
@@ -45,21 +41,5 @@ runs:
       with:
         artifacts-dir: ${{ inputs.artifacts-dir }}
         target-file: ./target/$PROFILE_TARGET/robust
-        version: ${{ inputs.version }}
-        working-dir: ${{ inputs.working-dir }}
-
-    # TODO(zyy17): We can remove build-android-artifacts flag in the future.
-    - name: Build robust binary
-      shell: bash
-      if: ${{ inputs.build-android-artifacts == 'true' }}
-      run: |
-        cd ${{ inputs.working-dir }} && make strip-android-bin
-
-    - name: Upload android artifacts
-      uses: ./.github/actions/upload-artifacts
-      if: ${{ inputs.build-android-artifacts == 'true' }}
-      with:
-        artifacts-dir: ${{ inputs.artifacts-dir }}
-        target-file: ./target/aarch64-linux-android/release/robust
         version: ${{ inputs.version }}
         working-dir: ${{ inputs.working-dir }}
