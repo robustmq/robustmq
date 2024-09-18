@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 use clap::command;
 use clap::Parser;
 use common_base::config::journal_server::init_journal_server_conf_by_path;

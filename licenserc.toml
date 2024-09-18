@@ -15,6 +15,7 @@
 headerPath = "Apache-2.0.txt"
 
 includes = [
+    "*.sh",
     "*.rs",
     "*.py",
 ]
