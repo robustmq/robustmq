@@ -15,9 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: taiki-e/install-action@v2
-      with:
-        tool: nextest
+    - uses: taiki-e/install-action@nextest
     - uses: actions/checkout@v3
     - name: Build
       run: make release
