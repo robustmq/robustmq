@@ -170,7 +170,7 @@ mod tests {
     #[tokio::test]
     async fn retain_message_expire_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
@@ -210,15 +210,15 @@ mod tests {
         }
         assert_eq!((now_second() - start), 3);
 
-        remove_dir_all(config.data_path).unwrap();
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn last_will_message_expire_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
-        
+
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
         let lastwill_storage = MQTTLastWillStorage::new(rocksdb_engine_handler.clone());
@@ -259,7 +259,7 @@ mod tests {
         }
 
         assert_eq!((now_second() - start), 3);
-        
-        remove_dir_all(config.data_path).unwrap();
+
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

@@ -45,9 +45,9 @@ impl RaftGroupMetadata {
         let mut local = BrokerNode::default();
         local.cluster_type = ClusterType::PlacementCenter.as_str_name().to_string();
         local.cluster_name = config.cluster_name.clone();
-        local.node_inner_addr = format!("{}:{}", config.addr.clone(), config.grpc_port);
-        local.node_ip = config.addr.clone();
-        local.node_id = config.node_id;
+        local.node_inner_addr = format!("{}:{}", config.node.addr.clone(), config.network.grpc_port);
+        local.node_ip = config.node.addr.clone();
+        local.node_id = config.node.node_id;
 
         let mut peers = HashMap::new();
         for (node_id, addr) in config.nodes.clone() {

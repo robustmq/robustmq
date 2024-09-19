@@ -432,15 +432,12 @@ mod tests {
     use crate::storage::rocksdb::RocksDBEngine;
 
     use super::RaftMachineStorage;
-    use common_base::{
-        config::placement_center::PlacementCenterConfig,
-        tools::unique_id
-    };
+    use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
 
     #[test]
     fn write_read_test() {
         let mut conf = PlacementCenterConfig::default();
-        conf.data_path = format!("/tmp/robustmq_{}", unique_id());
+        conf.rocksdb.data_path = format!("/tmp/robustmq_{}", unique_id());
         conf.rocksdb.max_open_files = Some(10);
 
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&conf));
@@ -456,6 +453,6 @@ mod tests {
         let last_index = rds.last_index();
         assert_eq!(last_index, last_index);
 
-        remove_dir_all(conf.data_path).unwrap();
+        remove_dir_all(conf.rocksdb.data_path).unwrap();
     }
 }

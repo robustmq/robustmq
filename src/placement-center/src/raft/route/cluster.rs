@@ -178,7 +178,7 @@ mod tests {
     #[test]
     fn register_unregister_node() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = "test-cluster".to_string();
@@ -228,6 +228,6 @@ mod tests {
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
 
-        remove_dir_all(config.data_path).unwrap();
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

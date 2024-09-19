@@ -18,7 +18,6 @@ use prost::Message as _;
 use protocol::placement_center::generate::kv::{DeleteRequest, SetRequest};
 use std::sync::Arc;
 pub struct DataRouteKv {
-    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
     kv_storage: KvStorage,
 }
 
@@ -26,7 +25,6 @@ impl DataRouteKv {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
         let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
         return DataRouteKv {
-            rocksdb_engine_handler,
             kv_storage,
         };
     }

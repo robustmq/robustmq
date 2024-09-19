@@ -348,7 +348,7 @@ impl RaftMachine {
         Config {
             // The unique ID for the Raft node.
             // id: self.config.node_id,
-            id: conf.node_id,
+            id: conf.node.node_id,
             // Election tick is for how long the follower may campaign again after
             // it doesn't receive any message from the leader.
             election_tick: 10,

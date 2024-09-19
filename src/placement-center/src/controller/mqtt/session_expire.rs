@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn is_session_expire_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
@@ -251,7 +251,6 @@ mod tests {
             cluster_name,
         );
 
-
         let mut session = MQTTSession::default();
         session.session_expiry = now_second() - 100;
         session.distinct_time = Some(5);
@@ -264,13 +263,13 @@ mod tests {
         session.distinct_time = None;
         assert!(!session_expire.is_session_expire(&session));
 
-        remove_dir_all(config.data_path).unwrap();
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn get_expire_session_list_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
@@ -323,13 +322,13 @@ mod tests {
         }
         assert_eq!((now_second() - start), 3);
 
-        remove_dir_all(config.data_path).unwrap();
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn is_send_last_will_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
@@ -364,13 +363,13 @@ mod tests {
         };
         assert!(!session_expire.is_send_last_will(&lastwill));
 
-        remove_dir_all(config.data_path).unwrap();
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[tokio::test]
     async fn get_expire_lastwill_messsage_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
@@ -419,7 +418,7 @@ mod tests {
         }
 
         assert_eq!((now_second() - start), 3);
-        
-        remove_dir_all(config.data_path).unwrap();
+
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }
