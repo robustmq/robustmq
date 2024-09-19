@@ -13,13 +13,21 @@
 // limitations under the License.
 
 use super::{
-    placement_center::Rocksdb,
     common::Log,
+    placement_center::{Heartbeat, Network, Node, Rocksdb, System},
 };
 use toml::Table;
 
 pub fn default_cluster_name() -> String {
     "placement-center".to_string()
+}
+
+pub fn default_node() -> Node {
+    Node {
+        node_id: default_node_id(),
+        addr: default_addr(),
+        nodes: default_nodes(),
+    }
 }
 
 pub fn default_node_id() -> u64 {
@@ -30,12 +38,25 @@ pub fn default_addr() -> String {
     "127.0.0.1".to_string()
 }
 
+pub fn default_network() -> Network {
+    Network {
+        grpc_port: default_grpc_port(),
+        http_port: default_http_port(),
+    }
+}
+
 pub fn default_grpc_port() -> u32 {
     1228
 }
 
 pub fn default_http_port() -> u32 {
     1227
+}
+
+pub fn default_system() -> System {
+    System {
+        runtime_work_threads: default_runtime_work_threads(),
+    }
 }
 
 pub fn default_runtime_work_threads() -> usize {
@@ -57,7 +78,11 @@ pub fn default_nodes() -> Table {
     let mut nodes = Table::new();
     nodes.insert(
         default_node_id().to_string(),
-        toml::Value::String(format!("{}:{}", default_addr(), default_grpc_port().to_string()))
+        toml::Value::String(format!(
+            "{}:{}",
+            default_addr(),
+            default_grpc_port().to_string()
+        )),
     );
     nodes
 }
@@ -68,7 +93,16 @@ pub fn default_max_open_files() -> Option<i32> {
 
 pub fn default_rocksdb() -> Rocksdb {
     Rocksdb {
-        max_open_files: default_max_open_files()
+        max_open_files: default_max_open_files(),
+        data_path: default_data_path(),
+        ..Default::default()
+    }
+}
+
+pub fn default_heartbeat() -> Heartbeat {
+    Heartbeat {
+        heartbeat_check_time_ms: default_heartbeat_check_time_ms(),
+        heartbeat_timeout_ms: default_heartbeat_timeout_ms(),
     }
 }
 

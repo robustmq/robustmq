@@ -38,7 +38,7 @@ impl RocksDBEngine {
     /// Create a rocksdb instance
     pub fn new(config: &PlacementCenterConfig) -> Self {
         let opts: Options = Self::open_db_opts(config);
-        let db_path = format!("{}/{}", config.data_path, "_storage_rocksdb");
+        let db_path = format!("{}/{}", config.rocksdb.data_path, "_storage_rocksdb");
 
         // init RocksDB
         if !Path::new(&db_path).exists() {
@@ -229,10 +229,16 @@ impl RocksDBEngine {
 mod tests {
     use super::RocksDBEngine;
     use crate::storage::keys::key_name_by_last_index;
-    use common_base::{config::placement_center::PlacementCenterConfig, tools::{create_fold, unique_id}};
+    use common_base::{
+        config::placement_center::PlacementCenterConfig,
+        tools::{create_fold, unique_id},
+    };
     use serde::{Deserialize, Serialize};
     use std::{sync::Arc, time::Duration};
-    use tokio::{fs::{remove_dir, remove_dir_all}, time::sleep};
+    use tokio::{
+        fs::{remove_dir, remove_dir_all},
+        time::sleep,
+    };
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
     struct User {
@@ -243,7 +249,7 @@ mod tests {
     #[tokio::test]
     async fn multi_rocksdb_instance() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(1000);
 
         let rs_handler = Arc::new(RocksDBEngine::new(&config));
@@ -271,13 +277,13 @@ mod tests {
 
         sleep(Duration::from_secs(10)).await;
 
-        remove_dir_all(config.data_path).await.unwrap();
+        remove_dir_all(config.rocksdb.data_path).await.unwrap();
     }
 
     #[tokio::test]
     async fn init_family() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let rs = RocksDBEngine::new(&config);
@@ -300,7 +306,7 @@ mod tests {
         let res6 = rs.delete(rs.cf_cluster(), key);
         assert!(res6.is_ok());
 
-        match remove_dir(config.data_path).await {
+        match remove_dir(config.rocksdb.data_path).await {
             Ok(_) => {}
             Err(err) => {
                 println!("{:?}", err)
@@ -311,7 +317,7 @@ mod tests {
     #[tokio::test]
     async fn read_all() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/robustmq_{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/robustmq_{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let rs = RocksDBEngine::new(&config);
@@ -336,13 +342,13 @@ mod tests {
             assert_eq!(index, res1);
         }
 
-        remove_dir_all(config.data_path).await.unwrap();
+        remove_dir_all(config.rocksdb.data_path).await.unwrap();
     }
 
     #[tokio::test]
     async fn read_prefix() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let rs = RocksDBEngine::new(&config);
@@ -377,6 +383,6 @@ mod tests {
         let result = rs.read_prefix(rs.cf_cluster(), "/v4");
         assert_eq!(result.len(), 1);
 
-        remove_dir_all(config.data_path).await.unwrap();
+        remove_dir_all(config.rocksdb.data_path).await.unwrap();
     }
 }

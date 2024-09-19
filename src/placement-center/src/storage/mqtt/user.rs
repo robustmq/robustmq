@@ -107,9 +107,9 @@ mod tests {
     #[tokio::test]
     async fn user_storage_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
-        
+
         let rs = Arc::new(RocksDBEngine::new(&config));
         let user_storage = MQTTUserStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
@@ -145,6 +145,6 @@ mod tests {
             .unwrap();
         assert!(res.is_none());
 
-        remove_dir_all(config.data_path).unwrap();
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

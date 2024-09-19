@@ -29,10 +29,10 @@
  */
 
 use super::default_placement_center::{
-    default_addr, default_cluster_name, default_data_path, default_grpc_port,
+    default_addr, default_cluster_name, default_data_path, default_grpc_port, default_heartbeat,
     default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port, default_log,
-    default_max_open_files, default_node_id, default_nodes, default_rocksdb,
-    default_runtime_work_threads,
+    default_max_open_files, default_network, default_node, default_node_id, default_nodes,
+    default_rocksdb, default_runtime_work_threads, default_system,
 };
 use crate::tools::{create_fold, read_file};
 use serde::{Deserialize, Serialize};
@@ -41,28 +41,52 @@ use toml::Table;
 
 use super::common::Log;
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct PlacementCenterConfig {
     #[serde(default = "default_cluster_name")]
     pub cluster_name: String,
-    #[serde(default = "default_node_id")]
-    pub node_id: u64,
-    #[serde(default = "default_addr")]
-    pub addr: String,
-    #[serde(default = "default_grpc_port")]
-    pub grpc_port: u32,
-    #[serde(default = "default_http_port")]
-    pub http_port: u32,
-    #[serde(default = "default_runtime_work_threads")]
-    pub runtime_work_threads: usize,
-    #[serde(default = "default_data_path")]
-    pub data_path: String,
+    #[serde(default = "default_node")]
+    pub node: Node,
+    #[serde(default = "default_network")]
+    pub network: Network,
     #[serde(default = "default_log")]
     pub log: Log,
     #[serde(default = "default_nodes")]
     pub nodes: Table,
+    #[serde(default = "default_system")]
+    pub system: System,
     #[serde(default = "default_rocksdb")]
     pub rocksdb: Rocksdb,
+    #[serde(default = "default_heartbeat")]
+    pub heartbeat: Heartbeat,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct Node {
+    #[serde(default = "default_node_id")]
+    pub node_id: u64,
+    #[serde(default = "default_addr")]
+    pub addr: String,
+    #[serde(default = "default_nodes")]
+    pub nodes: Table,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct Network {
+    #[serde(default = "default_grpc_port")]
+    pub grpc_port: u32,
+    #[serde(default = "default_http_port")]
+    pub http_port: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct System {
+    #[serde(default = "default_runtime_work_threads")]
+    pub runtime_work_threads: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
+pub struct Heartbeat {
     #[serde(default = "default_heartbeat_timeout_ms")]
     pub heartbeat_timeout_ms: u64,
     #[serde(default = "default_heartbeat_check_time_ms")]
@@ -71,6 +95,8 @@ pub struct PlacementCenterConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
 pub struct Rocksdb {
+    #[serde(default = "default_data_path")]
+    pub data_path: String,
     #[serde(default = "default_max_open_files")]
     pub max_open_files: Option<i32>,
 }
@@ -87,8 +113,9 @@ pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static Plac
                 panic!("{}", e.to_string());
             }
         };
+
         let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
-        match create_fold(&pc_config.data_path) {
+        match create_fold(&pc_config.rocksdb.data_path) {
             Ok(()) => {}
             Err(e) => {
                 panic!("{}", e);
@@ -109,7 +136,7 @@ pub fn init_placement_center_conf_by_config(
 ) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
-    match create_fold(&config.data_path) {
+    match create_fold(&config.rocksdb.data_path) {
         Ok(()) => {}
         Err(e) => {
             panic!("{}", e);
@@ -141,7 +168,7 @@ pub fn placement_center_conf() -> &'static PlacementCenterConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::{placement_center_conf, Log, PlacementCenterConfig, Rocksdb};
+    use super::{placement_center_conf, Log, PlacementCenterConfig};
     use crate::config::placement_center::init_placement_center_conf_by_path;
     use toml::Table;
 
@@ -153,13 +180,19 @@ mod tests {
         );
         init_placement_center_conf_by_path(&path);
         let config: &PlacementCenterConfig = placement_center_conf();
+        println!("{:?}", config);
         assert_eq!(config.cluster_name, "placement-test");
-        assert_eq!(config.node_id, 1);
-        assert_eq!(config.addr, "127.0.0.1");
-        assert_eq!(config.grpc_port, 1228);
-        assert_eq!(config.http_port, 1227);
-        assert_eq!(config.runtime_work_threads, 100);
-        assert_eq!(config.data_path, "/tmp/robust/placement-center/data");
+        assert_eq!(config.node.node_id, 1);
+        assert_eq!(config.node.addr, "127.0.0.1");
+        assert_eq!(config.network.grpc_port, 1228);
+        assert_eq!(config.network.http_port, 1227);
+        assert_eq!(config.system.runtime_work_threads, 100);
+        println!("{}", config.rocksdb.data_path);
+        println!("{}", "/tmp/robust/placement-center/data".to_string());
+        assert_eq!(
+            config.rocksdb.data_path,
+            "/tmp/robust/placement-center/data".to_string()
+        );
         assert_eq!(
             config.log,
             Log {
@@ -173,13 +206,8 @@ mod tests {
             toml::Value::String(format!("{}:{}", "127.0.0.1", "1228")),
         );
         assert_eq!(config.nodes, nodes);
-        assert_eq!(
-            config.rocksdb,
-            Rocksdb {
-                max_open_files: Some(10000 as i32)
-            }
-        );
-        assert_eq!(config.heartbeat_timeout_ms, 30000);
-        assert_eq!(config.heartbeat_check_time_ms, 1000);
+        assert_eq!(config.rocksdb.max_open_files, Some(10000 as i32));
+        assert_eq!(config.heartbeat.heartbeat_timeout_ms, 30000);
+        assert_eq!(config.heartbeat.heartbeat_check_time_ms, 1000);
     }
 }

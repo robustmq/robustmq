@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn node_leader_info_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
@@ -268,13 +268,13 @@ mod tests {
         let result = share_sub.read_node_sub_info(&cluster_name).unwrap();
         assert!(!result.contains_key(&broker_id));
 
-        remove_dir_all(config.data_path).unwrap();
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 
     #[test]
     fn get_leader_node_test() {
         let mut config = PlacementCenterConfig::default();
-        config.data_path = format!("/tmp/{}", unique_id());
+        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
@@ -337,7 +337,7 @@ mod tests {
             .get_leader_node(&cluster_name, &group_name)
             .unwrap();
         assert_eq!(node, 1);
-        
-        remove_dir_all(config.data_path).unwrap();
+
+        remove_dir_all(config.rocksdb.data_path).unwrap();
     }
 }

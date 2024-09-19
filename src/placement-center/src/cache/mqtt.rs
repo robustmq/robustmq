@@ -73,14 +73,7 @@ impl MqttCacheManager {
             self.user_list.insert(cluster_name.clone(), data);
         }
     }
-
-    #[warn(dead_code)]
-    pub fn remove_user(&self, cluster_name: &String, username: &String) {
-        if let Some(data) = self.expire_last_wills.get_mut(cluster_name) {
-            data.remove(username);
-        }
-    }
-
+    
     pub fn add_expire_last_will(&self, expire_last_will: ExpireLastWill) {
         if let Some(data) = self
             .expire_last_wills

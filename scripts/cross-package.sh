@@ -1,3 +1,4 @@
+#!/bin/sh
 # Copyright 2023 RobustMQ Team
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+rustup target list | while read -r line; do
+    echo "$line"
+done
 
-cluster_name = "placement-test"
-
-[node]
-node_id = 1

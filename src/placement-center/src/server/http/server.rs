@@ -61,7 +61,7 @@ impl HttpServerState {
 
 pub async fn start_http_server(state: HttpServerState) {
     let config = placement_center_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.http_port).parse().unwrap();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.http_port).parse().unwrap();
     let app = routes(state);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     info!(

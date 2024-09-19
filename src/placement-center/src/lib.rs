@@ -74,8 +74,8 @@ pub struct PlacementCenter {
 impl PlacementCenter {
     pub fn new() -> PlacementCenter {
         let config = placement_center_conf();
-        let server_runtime = create_runtime("server-runtime", config.runtime_work_threads);
-        let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+        let server_runtime = create_runtime("server-runtime", config.system.runtime_work_threads);
+        let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
 
         let client_poll = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
@@ -140,7 +140,9 @@ impl PlacementCenter {
     // Start Grpc Server
     pub fn start_grpc_server(&self, placement_center_storage: Arc<RaftMachineApply>) {
         let config = placement_center_conf();
-        let ip = format!("0.0.0.0:{}", config.grpc_port).parse().unwrap();
+        let ip = format!("0.0.0.0:{}", config.network.grpc_port)
+            .parse()
+            .unwrap();
         let placement_handler = GrpcPlacementService::new(
             placement_center_storage.clone(),
             self.placement_cache.clone(),
