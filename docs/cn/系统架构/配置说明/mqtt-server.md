@@ -1,9 +1,7 @@
-##### 默认的配置文件路径 config/mqtt-server.toml,可以通过参数 --conf 指定配置文件路径
-```
-mqtt-server --conf config/mqtt-server.toml
-```
 
-##### 配置文件示例
+## 配置说明
+
+### 基础配置
 ```
 # 定义MQTT Broker集群的名称，用于标识和管理
 cluster_name = "mqtt-broker"
@@ -21,7 +19,7 @@ http_port = 9982
 placement_center = ["127.0.0.1:1228"]
 ```
 
-##### 网络配置
+### 网络配置
 ```
 [network]
 # MQTT协议, 默认1883和8883
@@ -40,7 +38,7 @@ tls_cert = "./config/example/certs/cert.pem"
 tls_key = "./config/example/certs/key.pem"
 ```
 
-##### TCP协议相关配置
+### TCP协议相关配置
 ```
 [tcp_thread]
 # 接受客户端连接的线程数量, 默认1
@@ -68,7 +66,7 @@ lock_max_try_mut_times = 30
 lock_try_mut_sleep_time_ms = 50
 ```
 
-##### 系统配置
+### 系统配置
 ```
 [system]
 # 运行时工作线程数, 默认16
@@ -79,7 +77,7 @@ default_user = "admin"
 default_password = "pwd123"
 ```
 
-##### 存储配置
+### 存储配置
 ```
 [storage]
 # 存储类型, 默认为memory, 支持memory, mysql
@@ -87,7 +85,7 @@ storage_type = "memory"
 mysql_addr = ""
 ```
 
-##### 认证配置
+### 认证配置
 ```
 [auth]
 storage_type = "placement"
@@ -95,7 +93,7 @@ journal_addr = ""
 mysql_addr = ""
 ```
 
-##### 日志配置
+### 日志配置
 ```
 [log]
 # 日志配置文件路径, 默认./config/log4rs.yaml
