@@ -32,8 +32,12 @@ name = "placement-center"
 path = "src/placement-center/server.rs"
 
 [[bin]]
-name = "cli-command"
-path = "src/cli-command/command.rs"
+name = "cli-command-mqtt"
+path = "src/cli-command/mqtt-server/command.rs"
+
+[[bin]]
+name = "cli-command-placement"
+path = "src/cli-command/placement-center/command.rs"
 
 [dependencies]
 clap = { version = "4.4.7", features = ["derive"] }

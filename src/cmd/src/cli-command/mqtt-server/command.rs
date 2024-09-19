@@ -13,23 +13,27 @@
 // limitations under the License.
 
 use clap::Parser;
-use cli_command::{CliCommand, CliCommandAParam};
+use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
 
 #[derive(Parser, Debug)]
-#[command(author="robustmq-command", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
+#[command(author="RobustMQ", version="0.0.1", about="Command line tool for mqtt broker", long_about = None)]
 #[command(next_line_help = true)]
 
 struct CliCommandArgsParams {
-    service: String,
+    #[arg(short, long,default_value_t =String::from("127.0.0.1:9981"))]
+    server: String,
+
+    #[arg(short, long,default_value_t =String::from("status"))]
     action: String,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = CliCommandArgsParams::parse();
-    let cli = CliCommand::new();
-    let params = CliCommandAParam {
-        service: args.service,
+    let cmd = MqttBrokerCommand::new();
+    let params = MqttCliCommandParam {
+        server: args.server,
         action: args.action,
     };
-    cli.start(params);
+    cmd.start(params).await;
 }

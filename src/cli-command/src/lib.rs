@@ -14,20 +14,3 @@
 
 pub mod mqtt;
 pub mod placement;
-
-pub struct CliCommandAParam {
-    pub service: String,
-    pub action: String,
-}
-
-pub struct CliCommand {}
-
-impl CliCommand {
-    pub fn new() -> Self {
-        return CliCommand {};
-    }
-
-    pub fn start(&self, params: CliCommandAParam) {
-        println!("start success");
-    }
-}

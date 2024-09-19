@@ -16,6 +16,8 @@ release: ## Build debug version robustmq.
 	cp -rf target/release/mqtt-server $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/libs 
 	cp -rf target/release/placement-center $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/libs 
 	cp -rf target/release/journal-server $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/libs 
+	cp -rf target/release/cli-command-mqtt $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/libs 
+	cp -rf target/release/cli-command-placement $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/libs 
 	cp -rf bin/* $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin
 	cp -rf config/* $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/config
 	chmod -R 777 $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}/bin/*
