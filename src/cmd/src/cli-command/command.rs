@@ -12,11 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use cli_command::CliCommand;
+use clap::Parser;
+use cli_command::{CliCommand, CliCommandAParam};
 
+#[derive(Parser, Debug)]
+#[command(author="robustmq-command", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
+#[command(next_line_help = true)]
 
-fn main() {
-    let cli = CliCommand::new();
-    cli.start();
+struct CliCommandArgsParams {
+    service: String,
+    action: String,
 }
 
+fn main() {
+    let args = CliCommandArgsParams::parse();
+    let cli = CliCommand::new();
+    let params = CliCommandAParam {
+        service: args.service,
+        action: args.action,
+    };
+    cli.start(params);
+}

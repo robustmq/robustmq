@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod mqtt;
+pub mod placement;
+
+pub struct CliCommandAParam {
+    pub service: String,
+    pub action: String,
+}
+
 pub struct CliCommand {}
 
 impl CliCommand {
@@ -19,7 +27,7 @@ impl CliCommand {
         return CliCommand {};
     }
 
-    pub fn start(&self) {
+    pub fn start(&self, params: CliCommandAParam) {
         println!("start success");
     }
 }
