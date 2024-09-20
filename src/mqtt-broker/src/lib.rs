@@ -179,8 +179,14 @@ where
     fn start_http_server(&self) {
         let http_state =
             HttpServerState::new(self.cache_manager.clone(), self.subscribe_manager.clone());
-        self.runtime
-            .spawn(async move { start_http_server(http_state).await });
+        self.runtime.spawn(async move {
+            match start_http_server(http_state).await {
+                Ok(_) => {}
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            }
+        });
     }
 
     fn start_websocket_server(&self, stop_send: broadcast::Sender<bool>) {

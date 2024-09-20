@@ -14,7 +14,7 @@
 
 use super::placement::GrpcPlacementServices;
 use crate::{
-    handler::cache::CacheManager, server::grpc::admin::GrpcAdminServices,
+    handler::cache::CacheManager, server::grpc::admin::services::GrpcAdminServices,
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;

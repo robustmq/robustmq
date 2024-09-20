@@ -12,22 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    cache::{cache_info, index, metrics},
-    publish::{connection_list, http_publish},
-};
+use super::{connection::connection_list, prometheus::metrics, publish::http_publish};
 use crate::handler::cache::CacheManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use axum::routing::get;
 use axum::Router;
-use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use log::info;
 use std::{net::SocketAddr, sync::Arc};
 
-pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_PUBLISTH: &str = "/publish";
 pub const ROUTE_CONNECTION: &str = "/connection";
-pub const ROUTE_CACHE: &str = "/caches";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
@@ -45,22 +40,21 @@ impl HttpServerState {
     }
 }
 
-pub async fn start_http_server(state: HttpServerState) {
+pub async fn start_http_server(state: HttpServerState) -> Result<(), CommonError> {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.http_port).parse().unwrap();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.http_port).parse()?;
     let app = routes_v1(state);
-    let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(ip).await?;
     info!(
         "Broker HTTP Server start success. bind addr:{}",
         config.http_port
     );
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await?;
+    return Ok(());
 }
 
 fn routes_v1(state: HttpServerState) -> Router {
     let meta = Router::new()
-        .route(ROUTE_ROOT, get(index))
-        .route(ROUTE_CACHE, get(cache_info))
         .route(ROUTE_PUBLISTH, get(http_publish))
         .route(ROUTE_CONNECTION, get(connection_list))
         .route(ROUTE_METRICS, get(metrics));

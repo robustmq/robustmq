@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-use std::{io, string::FromUtf8Error};
+use std::{io, net::AddrParseError, string::FromUtf8Error};
 
 use thiserror::Error;
 use tonic::Status;
@@ -66,6 +66,9 @@ pub enum CommonError {
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
+
+    #[error("{0}")]
+    AddrParseError(#[from] AddrParseError),
 
     #[error("{0}")]
     CommmonError(String),
