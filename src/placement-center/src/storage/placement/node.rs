@@ -35,9 +35,9 @@ impl NodeStorage {
         }
     }
 
-    pub fn save(&self, cluster_name: &String, node: BrokerNode) -> Result<(), CommonError> {
-        let node_key = key_node(&cluster_name, node.node_id);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node);
+    pub fn save(&self, node: &BrokerNode) -> Result<(), CommonError> {
+        let node_key = key_node(&node.cluster_name, node.node_id);
+        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node.clone());
     }
 
     pub fn delete(&self, cluster_name: &String, node_id: u64) -> Result<(), CommonError> {

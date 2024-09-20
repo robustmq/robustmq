@@ -35,9 +35,13 @@ impl ClusterStorage {
         }
     }
 
-    pub fn save(&self, cluster_info: ClusterInfo) -> Result<(), CommonError> {
+    pub fn save(&self, cluster_info: &ClusterInfo) -> Result<(), CommonError> {
         let key = key_cluster(&cluster_info.cluster_type, &cluster_info.cluster_name);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, cluster_info);
+        return engine_save_by_cluster(
+            self.rocksdb_engine_handler.clone(),
+            key,
+            cluster_info.clone(),
+        );
     }
 
     #[allow(dead_code)]
@@ -62,11 +66,7 @@ impl ClusterStorage {
     }
 
     #[allow(dead_code)]
-    pub fn delete(
-        &self,
-        cluster_type: &String,
-        cluster_name: &String,
-    ) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_type: &String, cluster_name: &String) -> Result<(), CommonError> {
         let key: String = key_cluster(cluster_type, cluster_name);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }

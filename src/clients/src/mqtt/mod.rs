@@ -16,15 +16,10 @@ use crate::{poll::ClientPool, retry_sleep_time, retry_times};
 use admin::admin_interface_call;
 use common_base::error::common::CommonError;
 use log::error;
-use mobc::Manager;
-use placement::{
-    inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache},
-    placement_interface_call,
-};
-use protocol::broker_server::generate::placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
+
+use placement::placement_interface_call;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
-use tonic::transport::Channel;
 
 #[derive(Clone)]
 pub enum MQTTBrokerService {
