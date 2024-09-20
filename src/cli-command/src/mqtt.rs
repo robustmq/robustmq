@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
+use clients::{mqtt::admin::call::cluster_status, poll::ClientPool};
+use protocol::broker_server::generate::admin::ClusterStatusRequest;
+
+use crate::{error_info, grpc_addr};
+
+#[derive(Clone)]
 pub struct MqttCliCommandParam {
     pub server: String,
     pub action: String,
@@ -39,9 +47,28 @@ impl MqttBrokerCommand {
 
     pub async fn start(&self, params: MqttCliCommandParam) {
         let action_type = MqttActionType::from(params.action.clone());
+        let client_poll = Arc::new(ClientPool::new(100));
         match action_type {
             MqttActionType::STATUS => {
-                println!("mqtt status");
+                self.status(client_poll.clone(), params.clone()).await;
+            }
+        }
+    }
+
+    async fn status(&self, client_poll: Arc<ClientPool>, params: MqttCliCommandParam) {
+        let request = ClusterStatusRequest {};
+        match cluster_status(client_poll, grpc_addr(params.server), request).await {
+            Ok(data) => {
+                println!("cluster name: {}", data.cluster_name);
+                println!("node list:");
+                for node in data.nodes {
+                    println!("- {}", node);
+                }
+                println!("MQTT broker cluster up and running")
+            }
+            Err(e) => {
+                println!("MQTT broker cluster normal exception");
+                error_info(e.to_string());
             }
         }
     }

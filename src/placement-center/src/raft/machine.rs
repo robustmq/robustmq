@@ -171,9 +171,14 @@ impl RaftMachine {
                 self.placement_cluster
                     .write()
                     .unwrap()
-                    .set_role(raft_node.raft.state)
+                    .set_role(raft_node.raft.state);
+
+                let local_node = self.placement_cluster.read().unwrap().local.clone();
+                self.placement_cluster
+                    .write()
+                    .unwrap()
+                    .set_leader(local_node);
             }
-            // info!(&format!("{:?}",raft_node.raft.state));
             self.on_ready(&mut raft_node).await;
         }
     }

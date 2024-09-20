@@ -14,3 +14,11 @@
 
 pub mod mqtt;
 pub mod placement;
+
+pub(crate) fn error_info(err: String) {
+    println!("Exception:{}", err);
+}
+
+pub(crate) fn grpc_addr(addr: String) -> Vec<String> {
+    vec![format!("{}", addr)]
+}

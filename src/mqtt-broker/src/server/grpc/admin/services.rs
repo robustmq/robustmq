@@ -17,7 +17,7 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::config::placement_center::placement_center_conf;
+use common_base::config::{broker_mqtt::broker_mqtt_conf, placement_center::placement_center_conf};
 use protocol::broker_server::generate::admin::{
     mqtt_broker_admin_service_server::MqttBrokerAdminService, ClusterStatusReply,
     ClusterStatusRequest,
@@ -59,7 +59,7 @@ where
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
         let mut reply = ClusterStatusReply::default();
-        let config = placement_center_conf();
+        let config = broker_mqtt_conf();
         reply.cluster_name = config.cluster_name.clone();
         let mut broker_node_list = Vec::new();
         let cluster_storage = ClusterStorage::new(self.client_poll.clone());

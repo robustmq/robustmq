@@ -23,3 +23,6 @@ license.workspace = true
 bytes.workspace = true
 axum.workspace = true
 thiserror.workspace = true
+clients.workspace = true
+common-base.workspace = true
+protocol.workspace = true

@@ -26,7 +26,7 @@ pub async fn cluster_status(
     let request_data = ClusterStatusRequest::encode_to_vec(&request);
     match retry_call(
         MQTTBrokerService::Admin,
-        MQTTBrokerPlacementInterface::DeleteSession,
+        MQTTBrokerPlacementInterface::ClusterStatus,
         client_poll,
         addrs,
         request_data,
