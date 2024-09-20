@@ -14,7 +14,9 @@
 
 use common_base::error::common::CommonError;
 use inner::{
-    inner_delete_idempotent, inner_delete_resource_config, inner_exist_idempotent, inner_get_resource_config, inner_node_list, inner_set_idempotent, inner_set_resource_config
+    inner_cluster_status, inner_delete_idempotent, inner_delete_resource_config,
+    inner_exist_idempotent, inner_get_resource_config, inner_node_list, inner_set_idempotent,
+    inner_set_resource_config,
 };
 use mobc::Manager;
 use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
@@ -41,7 +43,11 @@ pub(crate) async fn placement_interface_call(
 ) -> Result<Vec<u8>, CommonError> {
     match placement_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
-            let result = match interface {
+            let result: Result<Vec<u8>, CommonError> = match interface {
+                PlacementCenterInterface::ClusterStatus => {
+                    inner_cluster_status(client, request.clone()).await
+                }
+
                 PlacementCenterInterface::ListNode => {
                     inner_node_list(client, request.clone()).await
                 }

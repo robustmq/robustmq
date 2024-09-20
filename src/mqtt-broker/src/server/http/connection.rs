@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod prometheus;
-pub mod server;
-mod publish;
-mod connection;
+use axum::extract::State;
+use common_base::http_response::success_response;
+
+use super::server::HttpServerState;
+
+pub async fn connection_list(State(_): State<HttpServerState>) -> String {
+    return success_response("data");
+}

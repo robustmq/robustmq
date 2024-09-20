@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod prometheus;
-pub mod server;
-mod publish;
-mod connection;
+use common_base::metrics::dump_metrics;
+
+pub async fn metrics() -> String {
+    return dump_metrics();
+}

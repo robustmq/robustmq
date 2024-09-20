@@ -20,6 +20,8 @@ import "common.proto";
 
 service PlacementCenterService {
 
+  rpc ClusterStatus(ClusterStatusRequest) returns(ClusterStatusReply){}
+
   rpc NodeList(NodeListRequest) returns(NodeListReply){}
 
   rpc RegisterNode(RegisterNodeRequest) returns(common.CommonReply){}
@@ -45,6 +47,15 @@ service PlacementCenterService {
   rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns(ExistsIdempotentDataReply) {}
 
   rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(common.CommonReply) {}
+}
+
+message ClusterStatusRequest{
+
+}
+
+message ClusterStatusReply{
+    string leader = 1;
+    repeated string nodes = 2;
 }
 
 message HeartbeatRequest{

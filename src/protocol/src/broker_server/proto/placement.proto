@@ -15,8 +15,8 @@
  */
 
 syntax = "proto3";
-package mqtt;
-service MqttBrokerService {
+package placement;
+service MQTTBrokerPlacementService {
     rpc updateCache(UpdateCacheRequest) returns(CommonReply){}
     rpc deleteSession(DeleteSessionRequest) returns(CommonReply){}
     rpc sendLastWillMessage(SendLastWillMessageRequest) returns(CommonReply){}

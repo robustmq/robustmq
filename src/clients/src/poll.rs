@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    broker_mqtt::MqttBrokerMqttServiceManager,
+    mqtt::{admin::MqttBrokerAdminServiceManager, placement::MqttBrokerPlacementServiceManager},
     placement::{
         journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager,
         placement::PlacementServiceManager,
@@ -23,7 +23,10 @@ use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use mobc::Pool;
 use protocol::{
-    broker_server::generate::mqtt::mqtt_broker_service_client::MqttBrokerServiceClient,
+    broker_server::generate::{
+        admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient,
+        placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient,
+    },
     placement_center::generate::{
         journal::engine_service_client::EngineServiceClient,
         kv::kv_service_client::KvServiceClient, mqtt::mqtt_service_client::MqttServiceClient,
@@ -42,7 +45,8 @@ pub struct ClientPool {
     placement_center_mqtt_service_pools: DashMap<String, Pool<MQTTServiceManager>>,
 
     // mqtt broker
-    mqtt_broker_mqtt_service_pools: DashMap<String, Pool<MqttBrokerMqttServiceManager>>,
+    mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
+    mqtt_broker_admin_service_pools: DashMap<String, Pool<MqttBrokerAdminServiceManager>>,
 }
 
 impl ClientPool {
@@ -53,7 +57,8 @@ impl ClientPool {
             placement_center_journal_service_pools: DashMap::with_capacity(128),
             placement_center_kv_service_pools: DashMap::with_capacity(128),
             placement_center_mqtt_service_pools: DashMap::with_capacity(128),
-            mqtt_broker_mqtt_service_pools: DashMap::with_capacity(128),
+            mqtt_broker_placement_service_pools: DashMap::with_capacity(128),
+            mqtt_broker_admin_service_pools: DashMap::with_capacity(128),
         }
     }
 
@@ -197,20 +202,55 @@ impl ClientPool {
     pub async fn mqtt_broker_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<MqttBrokerServiceClient<Channel>, CommonError> {
-        let module = "BrokerMqttServices".to_string();
+    ) -> Result<MqttBrokerPlacementServiceClient<Channel>, CommonError> {
+        let module = "BrokerPlacementServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
-        if !self.mqtt_broker_mqtt_service_pools.contains_key(&key) {
-            let manager = MqttBrokerMqttServiceManager::new(addr.clone());
+        if !self.mqtt_broker_placement_service_pools.contains_key(&key) {
+            let manager = MqttBrokerPlacementServiceManager::new(addr.clone());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
-            self.mqtt_broker_mqtt_service_pools
+            self.mqtt_broker_placement_service_pools
                 .insert(key.clone(), pool);
         }
 
-        if let Some(poll) = self.mqtt_broker_mqtt_service_pools.get(&key) {
+        if let Some(poll) = self.mqtt_broker_placement_service_pools.get(&key) {
+            match poll.get().await {
+                Ok(conn) => {
+                    return Ok(conn.into_inner());
+                }
+                Err(e) => {
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
+                }
+            };
+        }
+        return Err(CommonError::NoAvailableGrpcConnection(
+            module,
+            "connection pool is not initialized".to_string(),
+        ));
+    }
+
+    pub async fn mqtt_broker_admin_services_client(
+        &self,
+        addr: String,
+    ) -> Result<MqttBrokerAdminServiceClient<Channel>, CommonError> {
+        let module = "BrokerAdminServices".to_string();
+        let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
+
+        if !self.mqtt_broker_placement_service_pools.contains_key(&key) {
+            let manager = MqttBrokerAdminServiceManager::new(addr.clone());
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
+            self.mqtt_broker_admin_service_pools
+                .insert(key.clone(), pool);
+        }
+
+        if let Some(poll) = self.mqtt_broker_admin_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
                     return Ok(conn.into_inner());

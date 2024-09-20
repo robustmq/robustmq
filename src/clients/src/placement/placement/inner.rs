@@ -17,15 +17,33 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     placement::{
-        placement_center_service_client::PlacementCenterServiceClient, DeleteIdempotentDataRequest,
-        DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
-        GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
-        NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+        placement_center_service_client::PlacementCenterServiceClient, ClusterStatusReply,
+        ClusterStatusRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest,
+        ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
+        GetResourceConfigRequest, HeartbeatRequest, NodeListReply, NodeListRequest,
+        RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
         SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
         SetResourceConfigRequest, UnRegisterNodeRequest,
     },
 };
 use tonic::transport::Channel;
+
+pub(crate) async fn inner_cluster_status(
+    mut client: PlacementCenterServiceClient<Channel>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match ClusterStatusRequest::decode(request.as_ref()) {
+        Ok(request) => match client.cluster_status(request).await {
+            Ok(result) => {
+                return Ok(ClusterStatusReply::encode_to_vec(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => {
+            return Err(CommonError::CommmonError(e.to_string()));
+        }
+    }
+}
 
 pub(crate) async fn inner_node_list(
     mut client: PlacementCenterServiceClient<Channel>,

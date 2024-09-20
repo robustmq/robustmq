@@ -12,11 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use cli_command::CliCommand;
-
-
-fn main() {
-    let cli = CliCommand::new();
-    cli.start();
-}
-
+pub mod services;

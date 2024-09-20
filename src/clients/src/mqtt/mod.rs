@@ -12,113 +12,58 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::{
-    journal::journal_interface_call, kv::kv_interface_call, mqtt::mqtt_interface_call,
-    placement::placement_interface_call,
-};
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
+use admin::admin_interface_call;
 use common_base::error::common::CommonError;
 use log::error;
+use mobc::Manager;
+use placement::{
+    inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache},
+    placement_interface_call,
+};
+use protocol::broker_server::generate::placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
+use tonic::transport::Channel;
 
 #[derive(Clone)]
-pub enum PlacementCenterService {
-    Journal,
-    Kv,
+pub enum MQTTBrokerService {
     Placement,
-    Mqtt,
+    Admin,
 }
 
 #[derive(Clone, Debug)]
-pub enum PlacementCenterInterface {
-    // kv interface
-    Set,
-    Get,
-    Delete,
-    Exists,
-
-    // placement inner interface
-    ClusterStatus,
-    ListNode,
-    RegisterNode,
-    UnRegisterNode,
-    Heartbeat,
-    SendRaftMessage,
-    SendRaftConfChange,
-
-    // journal service interface
-    CreateShard,
-    DeleteShard,
-    CreateSegment,
-    DeleteSegment,
-
-    // mqtt service interface
-    GetShareSub,
-    CreateUser,
-    DeleteUser,
-    ListUser,
-    CreateTopic,
-    DeleteTopic,
-    ListTopic,
-    SetTopicRetainMessage,
-    CreateSession,
+pub enum MQTTBrokerPlacementInterface {
+    // placement
     DeleteSession,
-    ListSession,
-    UpdateSession,
-    SaveLastWillMessage,
-    SetReourceConfig,
-    GetReourceConfig,
-    DeleteReourceConfig,
-    SetIdempotentData,
-    ExistsIdempotentData,
-    DeleteIdempotentData,
-    CreateAcl,
-    DeleteAcl,
-    ListAcl,
-    CreateBlackList,
-    DeleteBlackList,
-    ListBlackList,
+    UpdateCache,
+    SendLastWillMessage,
+
+    // admin
+    ClusterStatus,
 }
 
-pub mod journal;
-pub mod kv;
-pub mod mqtt;
+pub mod admin;
 pub mod placement;
 
 async fn retry_call(
-    service: PlacementCenterService,
-    interface: PlacementCenterInterface,
+    service: MQTTBrokerService,
+    interface: MQTTBrokerPlacementInterface,
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
+    if addrs.len() == 0 {
+        return Err(CommonError::CommmonError(
+            "Call address list cannot be empty".to_string(),
+        ));
+    }
     let mut times = 1;
     loop {
         let index = times % addrs.len();
         let addr = addrs.get(index).unwrap().clone();
         let result = match service {
-            PlacementCenterService::Journal => {
-                journal_interface_call(
-                    interface.clone(),
-                    client_poll.clone(),
-                    addr,
-                    request.clone(),
-                )
-                .await
-            }
-
-            PlacementCenterService::Kv => {
-                kv_interface_call(
-                    interface.clone(),
-                    client_poll.clone(),
-                    addr,
-                    request.clone(),
-                )
-                .await
-            }
-
-            PlacementCenterService::Placement => {
+            MQTTBrokerService::Placement => {
                 placement_interface_call(
                     interface.clone(),
                     client_poll.clone(),
@@ -127,9 +72,8 @@ async fn retry_call(
                 )
                 .await
             }
-
-            PlacementCenterService::Mqtt => {
-                mqtt_interface_call(
+            MQTTBrokerService::Admin => {
+                admin_interface_call(
                     interface.clone(),
                     client_poll.clone(),
                     addr,
@@ -154,3 +98,6 @@ async fn retry_call(
         sleep(Duration::from_secs(retry_sleep_time(times) as u64)).await;
     }
 }
+
+#[cfg(test)]
+mod tests {}

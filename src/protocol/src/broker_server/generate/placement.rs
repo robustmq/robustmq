@@ -101,15 +101,15 @@ impl MqttBrokerUpdateCacheResourceType {
     }
 }
 /// Generated client implementations.
-pub mod mqtt_broker_service_client {
+pub mod mqtt_broker_placement_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
-    pub struct MqttBrokerServiceClient<T> {
+    pub struct MqttBrokerPlacementServiceClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl MqttBrokerServiceClient<tonic::transport::Channel> {
+    impl MqttBrokerPlacementServiceClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -120,7 +120,7 @@ pub mod mqtt_broker_service_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> MqttBrokerServiceClient<T>
+    impl<T> MqttBrokerPlacementServiceClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -138,7 +138,7 @@ pub mod mqtt_broker_service_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> MqttBrokerServiceClient<InterceptedService<T, F>>
+        ) -> MqttBrokerPlacementServiceClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -152,7 +152,9 @@ pub mod mqtt_broker_service_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            MqttBrokerServiceClient::new(InterceptedService::new(inner, interceptor))
+            MqttBrokerPlacementServiceClient::new(
+                InterceptedService::new(inner, interceptor),
+            )
         }
         /// Compress requests with the given encoding.
         ///
@@ -200,11 +202,16 @@ pub mod mqtt_broker_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttBrokerService/updateCache",
+                "/placement.MQTTBrokerPlacementService/updateCache",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("mqtt.MqttBrokerService", "updateCache"));
+                .insert(
+                    GrpcMethod::new(
+                        "placement.MQTTBrokerPlacementService",
+                        "updateCache",
+                    ),
+                );
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_session(
@@ -222,11 +229,16 @@ pub mod mqtt_broker_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttBrokerService/deleteSession",
+                "/placement.MQTTBrokerPlacementService/deleteSession",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("mqtt.MqttBrokerService", "deleteSession"));
+                .insert(
+                    GrpcMethod::new(
+                        "placement.MQTTBrokerPlacementService",
+                        "deleteSession",
+                    ),
+                );
             self.inner.unary(req, path, codec).await
         }
         pub async fn send_last_will_message(
@@ -244,24 +256,27 @@ pub mod mqtt_broker_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttBrokerService/sendLastWillMessage",
+                "/placement.MQTTBrokerPlacementService/sendLastWillMessage",
             );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(
-                    GrpcMethod::new("mqtt.MqttBrokerService", "sendLastWillMessage"),
+                    GrpcMethod::new(
+                        "placement.MQTTBrokerPlacementService",
+                        "sendLastWillMessage",
+                    ),
                 );
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod mqtt_broker_service_server {
+pub mod mqtt_broker_placement_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with MqttBrokerServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with MqttBrokerPlacementServiceServer.
     #[async_trait]
-    pub trait MqttBrokerService: Send + Sync + 'static {
+    pub trait MqttBrokerPlacementService: Send + Sync + 'static {
         async fn update_cache(
             &self,
             request: tonic::Request<super::UpdateCacheRequest>,
@@ -276,7 +291,7 @@ pub mod mqtt_broker_service_server {
         ) -> std::result::Result<tonic::Response<super::CommonReply>, tonic::Status>;
     }
     #[derive(Debug)]
-    pub struct MqttBrokerServiceServer<T: MqttBrokerService> {
+    pub struct MqttBrokerPlacementServiceServer<T: MqttBrokerPlacementService> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
@@ -284,7 +299,7 @@ pub mod mqtt_broker_service_server {
         max_encoding_message_size: Option<usize>,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: MqttBrokerService> MqttBrokerServiceServer<T> {
+    impl<T: MqttBrokerPlacementService> MqttBrokerPlacementServiceServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -336,9 +351,10 @@ pub mod mqtt_broker_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for MqttBrokerServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>>
+    for MqttBrokerPlacementServiceServer<T>
     where
-        T: MqttBrokerService,
+        T: MqttBrokerPlacementService,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -354,11 +370,11 @@ pub mod mqtt_broker_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/mqtt.MqttBrokerService/updateCache" => {
+                "/placement.MQTTBrokerPlacementService/updateCache" => {
                     #[allow(non_camel_case_types)]
-                    struct updateCacheSvc<T: MqttBrokerService>(pub Arc<T>);
+                    struct updateCacheSvc<T: MqttBrokerPlacementService>(pub Arc<T>);
                     impl<
-                        T: MqttBrokerService,
+                        T: MqttBrokerPlacementService,
                     > tonic::server::UnaryService<super::UpdateCacheRequest>
                     for updateCacheSvc<T> {
                         type Response = super::CommonReply;
@@ -372,7 +388,10 @@ pub mod mqtt_broker_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttBrokerService>::update_cache(&inner, request)
+                                <T as MqttBrokerPlacementService>::update_cache(
+                                        &inner,
+                                        request,
+                                    )
                                     .await
                             };
                             Box::pin(fut)
@@ -401,11 +420,11 @@ pub mod mqtt_broker_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/mqtt.MqttBrokerService/deleteSession" => {
+                "/placement.MQTTBrokerPlacementService/deleteSession" => {
                     #[allow(non_camel_case_types)]
-                    struct deleteSessionSvc<T: MqttBrokerService>(pub Arc<T>);
+                    struct deleteSessionSvc<T: MqttBrokerPlacementService>(pub Arc<T>);
                     impl<
-                        T: MqttBrokerService,
+                        T: MqttBrokerPlacementService,
                     > tonic::server::UnaryService<super::DeleteSessionRequest>
                     for deleteSessionSvc<T> {
                         type Response = super::CommonReply;
@@ -419,7 +438,10 @@ pub mod mqtt_broker_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttBrokerService>::delete_session(&inner, request)
+                                <T as MqttBrokerPlacementService>::delete_session(
+                                        &inner,
+                                        request,
+                                    )
                                     .await
                             };
                             Box::pin(fut)
@@ -448,11 +470,13 @@ pub mod mqtt_broker_service_server {
                     };
                     Box::pin(fut)
                 }
-                "/mqtt.MqttBrokerService/sendLastWillMessage" => {
+                "/placement.MQTTBrokerPlacementService/sendLastWillMessage" => {
                     #[allow(non_camel_case_types)]
-                    struct sendLastWillMessageSvc<T: MqttBrokerService>(pub Arc<T>);
+                    struct sendLastWillMessageSvc<T: MqttBrokerPlacementService>(
+                        pub Arc<T>,
+                    );
                     impl<
-                        T: MqttBrokerService,
+                        T: MqttBrokerPlacementService,
                     > tonic::server::UnaryService<super::SendLastWillMessageRequest>
                     for sendLastWillMessageSvc<T> {
                         type Response = super::CommonReply;
@@ -466,7 +490,7 @@ pub mod mqtt_broker_service_server {
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttBrokerService>::send_last_will_message(
+                                <T as MqttBrokerPlacementService>::send_last_will_message(
                                         &inner,
                                         request,
                                     )
@@ -513,7 +537,7 @@ pub mod mqtt_broker_service_server {
             }
         }
     }
-    impl<T: MqttBrokerService> Clone for MqttBrokerServiceServer<T> {
+    impl<T: MqttBrokerPlacementService> Clone for MqttBrokerPlacementServiceServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -525,7 +549,7 @@ pub mod mqtt_broker_service_server {
             }
         }
     }
-    impl<T: MqttBrokerService> Clone for _Inner<T> {
+    impl<T: MqttBrokerPlacementService> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(Arc::clone(&self.0))
         }
@@ -535,8 +559,8 @@ pub mod mqtt_broker_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: MqttBrokerService> tonic::server::NamedService
-    for MqttBrokerServiceServer<T> {
-        const NAME: &'static str = "mqtt.MqttBrokerService";
+    impl<T: MqttBrokerPlacementService> tonic::server::NamedService
+    for MqttBrokerPlacementServiceServer<T> {
+        const NAME: &'static str = "placement.MQTTBrokerPlacementService";
     }
 }

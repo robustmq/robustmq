@@ -16,14 +16,12 @@ use super::{
     replace_topic_name, write_topic_data, SYSTEM_TOPIC_BROKERS, SYSTEM_TOPIC_BROKERS_DATETIME,
     SYSTEM_TOPIC_BROKERS_SYSDESCR, SYSTEM_TOPIC_BROKERS_UPTIME, SYSTEM_TOPIC_BROKERS_VERSION,
 };
-use crate::{handler::cache::CacheManager, BROKER_START_TIME};
-use clients::{placement::placement::call::node_list, poll::ClientPool};
-use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::now_second};
+use crate::{handler::cache::CacheManager, storage::cluster::ClusterStorage, BROKER_START_TIME};
+use clients::poll::ClientPool;
+use common_base::tools::now_second;
 use log::error;
-use metadata_struct::{
-    adapter::record::Record, mqtt::message::MQTTMessage, placement::broker_node::BrokerNode,
-};
-use protocol::placement_center::generate::placement::NodeListRequest;
+use metadata_struct::{adapter::record::Record, mqtt::message::MQTTMessage};
+
 use std::{env, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
 
@@ -144,43 +142,27 @@ async fn report_broker_sysdescr<S>(
 }
 
 async fn build_node_cluster(topic_name: &String, client_poll: &Arc<ClientPool>) -> Option<Record> {
-    let conf = broker_mqtt_conf();
-    let request = NodeListRequest {
-        cluster_name: conf.cluster_name.clone(),
-    };
-    match node_list(client_poll.clone(), conf.placement_center.clone(), request).await {
-        Ok(results) => {
-            let mut node_list = Vec::new();
-            for node in results.nodes {
-                match serde_json::from_slice::<BrokerNode>(&node) {
-                    Ok(data) => node_list.push(data),
-                    Err(e) => {
-                        error!("Retrieving cluster Node list, parsing Node information failed, error message :{}",e.to_string());
-                    }
-                }
-            }
-
-            let content = match serde_json::to_string(&node_list) {
-                Ok(content) => content,
-                Err(e) => {
-                    error!(
-                        "Failed to serialize node-list, failure message :{}",
-                        e.to_string()
-                    );
-                    return None;
-                }
-            };
-
-            return MQTTMessage::build_system_topic_message(topic_name.to_string(), content);
+    let cluster_storage = ClusterStorage::new(client_poll.clone());
+    let node_list = match cluster_storage.node_list().await {
+        Ok(data) => data,
+        Err(e) => {
+            error!("{}", e.to_string());
+            return None;
         }
+    };
+
+    let content = match serde_json::to_string(&node_list) {
+        Ok(content) => content,
         Err(e) => {
             error!(
-                "Failed to get cluster Node list with error message : {}",
+                "Failed to serialize node-list, failure message :{}",
                 e.to_string()
             );
             return None;
         }
-    }
+    };
+
+    return MQTTMessage::build_system_topic_message(topic_name.to_string(), content);
 }
 
 #[cfg(test)]

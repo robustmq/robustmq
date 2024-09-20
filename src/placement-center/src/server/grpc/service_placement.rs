@@ -41,12 +41,12 @@ use prost::Message;
 use protocol::placement_center::generate::common::CommonReply;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::generate::placement::{
-    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
-    ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest,
-    HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest, ReportMonitorRequest,
-    SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-    SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
-    UnRegisterNodeRequest,
+    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest,
+    DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
+    NodeListRequest, RegisterNodeRequest, ReportMonitorRequest, SendRaftConfChangeReply,
+    SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest,
+    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use std::sync::{Arc, RwLock};
@@ -54,7 +54,7 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
     placement_center_storage: Arc<RaftMachineApply>,
-    placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+    raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
     cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_poll: Arc<ClientPool>,
@@ -70,7 +70,7 @@ impl GrpcPlacementService {
     ) -> Self {
         GrpcPlacementService {
             placement_center_storage: raft_machine_apply,
-            placement_cache: raft_metadata,
+            raft_metadata,
             cluster_cache,
             rocksdb_engine_handler,
             client_poll,
@@ -78,12 +78,39 @@ impl GrpcPlacementService {
     }
 
     fn rewrite_leader(&self) -> bool {
-        return !self.placement_cache.read().unwrap().is_leader();
+        return !self.raft_metadata.read().unwrap().is_leader();
     }
 }
 
 #[tonic::async_trait]
 impl PlacementCenterService for GrpcPlacementService {
+    
+    async fn cluster_status(
+        &self,
+        _: Request<ClusterStatusRequest>,
+    ) -> Result<Response<ClusterStatusReply>, Status> {
+        let mut reply = ClusterStatusReply::default();
+        match self.raft_metadata.read() {
+            Ok(data) => {
+                if let Some(leader) = data.leader.clone() {
+                    reply.leader = format!("{}@{}", leader.node_ip, leader.node_id);
+                }
+
+                let mut nodes = Vec::new();
+                for (_, node) in data.peers.clone() {
+                    nodes.push(format!("{}@{}", node.node_ip, node.node_id));
+                }
+
+                reply.nodes = nodes;
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
+
+        return Ok(Response::new(reply));
+    }
+
     async fn node_list(
         &self,
         request: Request<NodeListRequest>,
@@ -105,7 +132,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
 
         if self.rewrite_leader() {
-            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
+            let leader_addr = self.raft_metadata.read().unwrap().leader_addr();
             match register_node(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),
@@ -138,7 +165,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
 
         if self.rewrite_leader() {
-            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
+            let leader_addr = self.raft_metadata.read().unwrap().leader_addr();
             match un_register_node(self.client_poll.clone(), vec![leader_addr], req).await {
                 Ok(resp) => return Ok(Response::new(resp)),
                 Err(e) => return Err(Status::cancelled(e.to_string())),

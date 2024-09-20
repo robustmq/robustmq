@@ -21,15 +21,36 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     placement::{
-        DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply,
-        ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest,
-        HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest,
-        SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
-        SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
-        UnRegisterNodeRequest,
+        ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest
     },
 };
 use std::sync::Arc;
+
+pub async fn cluster_status(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ClusterStatusRequest,
+) -> Result<ClusterStatusReply, CommonError> {
+    let request_data = ClusterStatusRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Placement,
+        PlacementCenterInterface::ClusterStatus,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ClusterStatusReply::decode(data.as_ref()) {
+            Ok(da) => return Ok(da),
+            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => {
+            return Err(e);
+        }
+    }
+}
+
 
 pub async fn node_list(
     client_poll: Arc<ClientPool>,

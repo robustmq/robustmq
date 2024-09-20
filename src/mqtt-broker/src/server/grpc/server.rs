@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::services::GrpcBrokerServices;
-use crate::{handler::cache::CacheManager, subscribe::subscribe_manager::SubscribeManager};
+use super::placement::GrpcPlacementServices;
+use crate::{
+    handler::cache::CacheManager, server::grpc::admin::services::GrpcAdminServices,
+    subscribe::subscribe_manager::SubscribeManager,
+};
 use clients::poll::ClientPool;
-
+use common_base::error::common::CommonError;
 use log::info;
-use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
+use protocol::broker_server::generate::{
+    admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer,
+    placement::mqtt_broker_placement_service_server::MqttBrokerPlacementServiceServer,
+};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tonic::transport::Server;
@@ -49,19 +55,26 @@ where
             message_storage_adapter,
         };
     }
-    pub async fn start(&self) {
-        let addr = format!("0.0.0.0:{}", self.port).parse().unwrap();
+    pub async fn start(&self) -> Result<(), CommonError> {
+        let addr = format!("0.0.0.0:{}", self.port).parse()?;
         info!("Broker Grpc Server start success. port:{}", self.port);
-        let service_handler = GrpcBrokerServices::new(
+        let placement_handler = GrpcPlacementServices::new(
+            self.metadata_cache.clone(),
+            self.subscribe_manager.clone(),
+            self.client_poll.clone(),
+            self.message_storage_adapter.clone(),
+        );
+        let admin_handler = GrpcAdminServices::new(
             self.metadata_cache.clone(),
             self.subscribe_manager.clone(),
             self.client_poll.clone(),
             self.message_storage_adapter.clone(),
         );
         Server::builder()
-            .add_service(MqttBrokerServiceServer::new(service_handler))
+            .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
+            .add_service(MqttBrokerAdminServiceServer::new(admin_handler))
             .serve(addr)
-            .await
-            .unwrap();
+            .await?;
+        return Ok(());
     }
 }

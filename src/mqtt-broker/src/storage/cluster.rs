@@ -13,17 +13,18 @@
 // limitations under the License.
 
 use clients::placement::placement::call::{
-    delete_resource_config, get_resource_config, heartbeat, register_node, set_resource_config,
-    un_register_node,
+    delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
+    set_resource_config, un_register_node,
 };
 use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::get_local_ip};
-use log::{error, info};
 use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
+use metadata_struct::placement::broker_node::BrokerNode;
 use protocol::placement_center::generate::placement::{
-    DeleteResourceConfigRequest, GetResourceConfigRequest, SetResourceConfigRequest,
+    DeleteResourceConfigRequest, GetResourceConfigRequest, NodeListRequest,
+    SetResourceConfigRequest,
 };
 use protocol::placement_center::generate::{
     common::ClusterType,
@@ -40,7 +41,32 @@ impl ClusterStorage {
         return ClusterStorage { client_poll };
     }
 
-    pub async fn register_node(&self) {
+    pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
+        let conf = broker_mqtt_conf();
+        let request = NodeListRequest {
+            cluster_name: conf.cluster_name.clone(),
+        };
+
+        let reply = node_list(
+            self.client_poll.clone(),
+            conf.placement_center.clone(),
+            request,
+        )
+        .await?;
+
+        let mut node_list: Vec<BrokerNode> = Vec::new();
+        for node in reply.nodes {
+            match serde_json::from_slice::<BrokerNode>(&node) {
+                Ok(data) => node_list.push(data),
+                Err(e) => {
+                    return Err(CommonError::CommmonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}",e.to_string())));
+                }
+            }
+        }
+        return Ok(node_list);
+    }
+
+    pub async fn register_node(&self) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let local_ip = get_local_ip();
         let mut req = RegisterNodeRequest::default();
@@ -50,7 +76,6 @@ impl ClusterStorage {
         req.node_ip = local_ip.clone();
         req.node_inner_addr = format!("{}:{}", local_ip, config.grpc_port);
 
-        //  mqtt broker extend info
         let node = MQTTNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
             http_addr: format!("{}:{}", local_ip, config.http_port),
@@ -62,60 +87,47 @@ impl ClusterStorage {
         };
         req.extend_info = serde_json::to_string(&node).unwrap();
 
-        match register_node(
+        register_node(
             self.client_poll.clone(),
             config.placement_center.clone(),
             req.clone(),
         )
-        .await
-        {
-            Ok(_) => {
-                info!("Node {} has been successfully registered", config.broker_id);
-            }
-            Err(e) => {
-                panic!("Register node fail,{}", e.to_string())
-            }
-        }
+        .await?;
+
+        return Ok(());
     }
 
-    pub async fn unregister_node(&self) {
+    pub async fn unregister_node(&self) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let mut req = UnRegisterNodeRequest::default();
         req.cluster_type = ClusterType::MqttBrokerServer.into();
         req.cluster_name = config.cluster_name.clone();
         req.node_id = config.broker_id;
 
-        match un_register_node(
+        un_register_node(
             self.client_poll.clone(),
             config.placement_center.clone(),
             req.clone(),
         )
-        .await
-        {
-            Ok(_) => {
-                info!("Node {} exits successfully", config.broker_id);
-            }
-            Err(e) => error!("{}", e),
-        }
+        .await?;
+        return Ok(());
     }
 
-    pub async fn heartbeat(&self) {
+    pub async fn heartbeat(&self) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let mut req = HeartbeatRequest::default();
         req.cluster_name = config.cluster_name.clone();
         req.cluster_type = ClusterType::MqttBrokerServer.into();
         req.node_id = config.broker_id;
 
-        match heartbeat(
+        heartbeat(
             self.client_poll.clone(),
             config.placement_center.clone(),
             req.clone(),
         )
-        .await
-        {
-            Ok(_) => {}
-            Err(e) => error!("{}", e),
-        }
+        .await?;
+
+        return Ok(());
     }
 
     pub async fn set_cluster_config(
@@ -131,18 +143,14 @@ impl ClusterStorage {
             config: cluster.encode(),
         };
 
-        match set_resource_config(
+        set_resource_config(
             self.client_poll.clone(),
             config.placement_center.clone(),
             request,
         )
-        .await
-        {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
-        }
+        .await?;
+
+        return Ok(());
     }
 
     pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), CommonError> {
@@ -153,18 +161,13 @@ impl ClusterStorage {
             resources,
         };
 
-        match delete_resource_config(
+        delete_resource_config(
             self.client_poll.clone(),
             config.placement_center.clone(),
             request,
         )
-        .await
-        {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
-        }
+        .await?;
+        return Ok(());
     }
 
     pub async fn get_cluster_config(
@@ -217,7 +220,10 @@ mod tests {
     use std::sync::Arc;
 
     #[tokio::test]
-    async fn cluster_test() {
+    async fn cluster_node_test() {}
+
+    #[tokio::test]
+    async fn cluster_config_test() {
         let path = format!(
             "{}/../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
