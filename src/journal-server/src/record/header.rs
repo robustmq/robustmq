@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use bytes::Bytes;
-
+#[allow(dead_code)]
 pub struct Header {
     pub key: String,
     pub value: Bytes,

@@ -95,6 +95,7 @@ impl SegmentStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn list_by_cluster(
         &self,
         cluster_name: &String,
@@ -121,6 +122,7 @@ impl SegmentStorage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn list_by_shard(
         &self,
         cluster_name: &String,

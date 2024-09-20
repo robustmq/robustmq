@@ -36,6 +36,7 @@ pub const ROUTE_CLUSTER: &str = "/cluster";
 pub const ROUTE_CLUSTER_NODE: &str = "/cluster/node";
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct HttpServerState {
     pub raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,

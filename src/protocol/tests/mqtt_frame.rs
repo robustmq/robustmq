@@ -123,6 +123,7 @@ mod tests {
     }
 
     /// Build the connect content package for the mqtt4 protocol
+    #[allow(dead_code)]
     fn build_mqtt4_pg_connect_ack() -> MQTTPacketWrapper {
         let ack: ConnAck = ConnAck {
             session_present: false,

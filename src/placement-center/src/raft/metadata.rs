@@ -31,6 +31,7 @@ pub enum NodeState {
 }
 
 #[derive(Clone, Default, Debug)]
+#[allow(dead_code)]
 pub struct RaftGroupMetadata {
     pub local: BrokerNode,
     pub leader: Option<BrokerNode>,
@@ -39,6 +40,7 @@ pub struct RaftGroupMetadata {
     pub peers: HashMap<u64, BrokerNode>,
 }
 
+#[allow(dead_code)]
 impl RaftGroupMetadata {
     pub fn new() -> RaftGroupMetadata {
         let config = placement_center_conf();

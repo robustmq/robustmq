@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[allow(dead_code)]
 pub trait StorageFormat {
     fn create_segment(&self);
     fn append(&self);
