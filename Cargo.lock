@@ -698,6 +698,9 @@ version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
+ "clients",
+ "common-base",
+ "protocol",
  "thiserror",
 ]
 

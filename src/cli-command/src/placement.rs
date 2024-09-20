@@ -12,6 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
+use clients::{placement::placement::call::cluster_status, poll::ClientPool};
+use protocol::placement_center::generate::placement::ClusterStatusRequest;
+
+use crate::{error_info, grpc_addr};
+
+#[derive(Clone)]
 pub struct PlacementCliCommandParam {
     pub server: String,
     pub action: String,
@@ -38,9 +46,28 @@ impl PlacementCenterCommand {
     }
     pub async fn start(&self, params: PlacementCliCommandParam) {
         let action_type = PlacementActionType::from(params.action.clone());
+        let client_poll = Arc::new(ClientPool::new(100));
         match action_type {
             PlacementActionType::STATUS => {
-                println!("placement status");
+                self.status(client_poll.clone(), params.clone()).await;
+            }
+        }
+    }
+
+    async fn status(&self, client_poll: Arc<ClientPool>, params: PlacementCliCommandParam) {
+        let request = ClusterStatusRequest {};
+        match cluster_status(client_poll, grpc_addr(params.server), request).await {
+            Ok(data) => {
+                println!("Leader Node: {}", data.leader);
+                println!("Node list:");
+                for node in data.nodes {
+                    println!("- {}", node);
+                }
+                println!("Placement center cluster up and running")
+            }
+            Err(e) => {
+                println!("Placement center cluster normal exception");
+                error_info(e.to_string());
             }
         }
     }

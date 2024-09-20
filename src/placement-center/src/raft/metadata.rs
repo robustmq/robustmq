@@ -94,7 +94,6 @@ impl RaftGroupMetadata {
         self.raft_role = role;
     }
 
-    #[allow(dead_code)]
     pub fn set_leader(&mut self, leader: BrokerNode) {
         self.leader = Some(leader);
     }
