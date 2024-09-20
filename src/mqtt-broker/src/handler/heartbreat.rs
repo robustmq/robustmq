@@ -14,7 +14,7 @@
 
 use crate::storage::cluster::ClusterStorage;
 use clients::poll::ClientPool;
-use log::debug;
+use log::{debug, error};
 use std::{sync::Arc, time::Duration};
 use tokio::{select, sync::broadcast, time::sleep};
 
@@ -42,6 +42,11 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast
 
 async fn report(client_poll: Arc<ClientPool>) {
     let cluster_storage = ClusterStorage::new(client_poll);
-    cluster_storage.heartbeat().await;
+    match cluster_storage.heartbeat().await {
+        Ok(()) => {}
+        Err(e) => {
+            error!("{}", e.to_string());
+        }
+    }
     sleep(Duration::from_secs(5)).await;
 }

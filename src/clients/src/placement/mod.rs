@@ -39,6 +39,7 @@ pub enum PlacementCenterInterface {
     Exists,
 
     // placement inner interface
+    ClusterStatus,
     ListNode,
     RegisterNode,
     UnRegisterNode,

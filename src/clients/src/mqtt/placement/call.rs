@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::poll::ClientPool;
+use crate::{
+    mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService},
+    poll::ClientPool,
+};
 use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::broker_server::generate::placement::{
-    CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest
+    CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
 };
 use std::sync::Arc;
-
-use super::{retry_call, MQTTBrokerInterface, MQTTBrokerService};
 
 pub async fn broker_mqtt_delete_session(
     client_poll: Arc<ClientPool>,
@@ -29,8 +30,8 @@ pub async fn broker_mqtt_delete_session(
 ) -> Result<CommonReply, CommonError> {
     let request_data = DeleteSessionRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Mqtt,
-        MQTTBrokerInterface::DeleteSession,
+        MQTTBrokerService::Placement,
+        MQTTBrokerPlacementInterface::DeleteSession,
         client_poll,
         addrs,
         request_data,
@@ -54,8 +55,8 @@ pub async fn broker_mqtt_update_cache(
 ) -> Result<CommonReply, CommonError> {
     let request_data = UpdateCacheRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Mqtt,
-        MQTTBrokerInterface::UpdateCache,
+        MQTTBrokerService::Placement,
+        MQTTBrokerPlacementInterface::UpdateCache,
         client_poll,
         addrs,
         request_data,
@@ -72,7 +73,6 @@ pub async fn broker_mqtt_update_cache(
     }
 }
 
-
 pub async fn send_last_will_message(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
@@ -80,8 +80,8 @@ pub async fn send_last_will_message(
 ) -> Result<CommonReply, CommonError> {
     let request_data = SendLastWillMessageRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Mqtt,
-        MQTTBrokerInterface::SendLastWillMessage,
+        MQTTBrokerService::Placement,
+        MQTTBrokerPlacementInterface::SendLastWillMessage,
         client_poll,
         addrs,
         request_data,

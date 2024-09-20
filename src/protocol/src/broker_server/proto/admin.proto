@@ -1,29 +1,13 @@
 syntax = "proto3";
 package admin;
 service MQTTBrokerAdminService {
-    rpc status(StatusRequest) returns(StatusReply){}
+    rpc cluster_status(ClusterStatusRequest) returns(ClusterStatusReply){}
 }
 
-message StatusRequest{
+message ClusterStatusRequest{
 
 }
-message StatusReply{
+message ClusterStatusReply{
     string cluster_name = 1;
-    repeated BrokerNodeStatus nodes = 2;
-    PlacementStatus placement= 3;
-}
-
-message BrokerNodeStatus{
-    string node = 1;
-    string status = 2;
-}
-
-message PlacementStatus{
-    uint64 leader_id = 1;
-    repeated PlacementNodeStatus nodes = 2;
-}
-
-message PlacementNodeStatus{
-    string node = 1;
-    string status = 2;
+    repeated string nodes = 2;
 }

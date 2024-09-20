@@ -1,39 +1,27 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StatusRequest {}
+pub struct ClusterStatusRequest {}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StatusReply {
+pub struct ClusterStatusReply {
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "2")]
-    pub nodes: ::prost::alloc::vec::Vec<BrokerNodeStatus>,
-    #[prost(message, optional, tag = "3")]
-    pub placement: ::core::option::Option<PlacementStatus>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BrokerNodeStatus {
-    #[prost(string, tag = "1")]
-    pub node: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub status: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PlacementStatus {
-    #[prost(uint64, tag = "1")]
-    pub leader_id: u64,
-    #[prost(message, repeated, tag = "2")]
-    pub nodes: ::prost::alloc::vec::Vec<PlacementNodeStatus>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PlacementNodeStatus {
-    #[prost(string, tag = "1")]
-    pub node: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub status: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
+    pub nodes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Generated client implementations.
 pub mod mqtt_broker_admin_service_client {
@@ -122,10 +110,13 @@ pub mod mqtt_broker_admin_service_client {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
         }
-        pub async fn status(
+        pub async fn cluster_status(
             &mut self,
-            request: impl tonic::IntoRequest<super::StatusRequest>,
-        ) -> std::result::Result<tonic::Response<super::StatusReply>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::ClusterStatusRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ClusterStatusReply>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -137,11 +128,13 @@ pub mod mqtt_broker_admin_service_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/admin.MQTTBrokerAdminService/status",
+                "/admin.MQTTBrokerAdminService/cluster_status",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("admin.MQTTBrokerAdminService", "status"));
+                .insert(
+                    GrpcMethod::new("admin.MQTTBrokerAdminService", "cluster_status"),
+                );
             self.inner.unary(req, path, codec).await
         }
     }
@@ -153,10 +146,13 @@ pub mod mqtt_broker_admin_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with MqttBrokerAdminServiceServer.
     #[async_trait]
     pub trait MqttBrokerAdminService: Send + Sync + 'static {
-        async fn status(
+        async fn cluster_status(
             &self,
-            request: tonic::Request<super::StatusRequest>,
-        ) -> std::result::Result<tonic::Response<super::StatusReply>, tonic::Status>;
+            request: tonic::Request<super::ClusterStatusRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ClusterStatusReply>,
+            tonic::Status,
+        >;
     }
     #[derive(Debug)]
     pub struct MqttBrokerAdminServiceServer<T: MqttBrokerAdminService> {
@@ -238,25 +234,29 @@ pub mod mqtt_broker_admin_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/admin.MQTTBrokerAdminService/status" => {
+                "/admin.MQTTBrokerAdminService/cluster_status" => {
                     #[allow(non_camel_case_types)]
-                    struct statusSvc<T: MqttBrokerAdminService>(pub Arc<T>);
+                    struct cluster_statusSvc<T: MqttBrokerAdminService>(pub Arc<T>);
                     impl<
                         T: MqttBrokerAdminService,
-                    > tonic::server::UnaryService<super::StatusRequest>
-                    for statusSvc<T> {
-                        type Response = super::StatusReply;
+                    > tonic::server::UnaryService<super::ClusterStatusRequest>
+                    for cluster_statusSvc<T> {
+                        type Response = super::ClusterStatusReply;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::StatusRequest>,
+                            request: tonic::Request<super::ClusterStatusRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttBrokerAdminService>::status(&inner, request).await
+                                <T as MqttBrokerAdminService>::cluster_status(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -268,7 +268,7 @@ pub mod mqtt_broker_admin_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = statusSvc(inner);
+                        let method = cluster_statusSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

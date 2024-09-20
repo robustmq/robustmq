@@ -13,10 +13,14 @@
 // limitations under the License.
 
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
+use admin::admin_interface_call;
 use common_base::error::common::CommonError;
-use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
 use log::error;
 use mobc::Manager;
+use placement::{
+    inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache},
+    placement_interface_call,
+};
 use protocol::broker_server::generate::placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
@@ -24,22 +28,27 @@ use tonic::transport::Channel;
 
 #[derive(Clone)]
 pub enum MQTTBrokerService {
-    Mqtt,
+    Placement,
+    Admin,
 }
 
 #[derive(Clone, Debug)]
-pub enum MQTTBrokerInterface {
+pub enum MQTTBrokerPlacementInterface {
+    // placement
     DeleteSession,
     UpdateCache,
     SendLastWillMessage,
+
+    // admin
+    ClusterStatus,
 }
 
-pub mod call;
-pub mod inner;
+pub mod admin;
+pub mod placement;
 
 async fn retry_call(
     service: MQTTBrokerService,
-    interface: MQTTBrokerInterface,
+    interface: MQTTBrokerPlacementInterface,
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
@@ -54,8 +63,17 @@ async fn retry_call(
         let index = times % addrs.len();
         let addr = addrs.get(index).unwrap().clone();
         let result = match service {
-            MQTTBrokerService::Mqtt => {
-                mqtt_interface_call(
+            MQTTBrokerService::Placement => {
+                placement_interface_call(
+                    interface.clone(),
+                    client_poll.clone(),
+                    addr,
+                    request.clone(),
+                )
+                .await
+            }
+            MQTTBrokerService::Admin => {
+                admin_interface_call(
                     interface.clone(),
                     client_poll.clone(),
                     addr,
@@ -78,84 +96,6 @@ async fn retry_call(
             }
         }
         sleep(Duration::from_secs(retry_sleep_time(times) as u64)).await;
-    }
-}
-
-async fn mqtt_client(
-    client_poll: Arc<ClientPool>,
-    addr: String,
-) -> Result<MqttBrokerPlacementServiceClient<Channel>, CommonError> {
-    match client_poll.mqtt_broker_mqtt_services_client(addr).await {
-        Ok(client) => {
-            return Ok(client);
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
-}
-
-pub(crate) async fn mqtt_interface_call(
-    interface: MQTTBrokerInterface,
-    client_poll: Arc<ClientPool>,
-    addr: String,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match mqtt_client(client_poll.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result = match interface {
-                MQTTBrokerInterface::DeleteSession => inner_delete_session(client, request).await,
-                MQTTBrokerInterface::UpdateCache => inner_update_cache(client, request).await,
-                MQTTBrokerInterface::SendLastWillMessage => {
-                    inner_send_last_will_message(client, request).await
-                }
-            };
-            match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct MqttBrokerPlacementServiceManager {
-    pub addr: String,
-}
-
-impl MqttBrokerPlacementServiceManager {
-    pub fn new(addr: String) -> Self {
-        Self { addr }
-    }
-}
-
-#[tonic::async_trait]
-impl Manager for MqttBrokerPlacementServiceManager {
-    type Connection = MqttBrokerPlacementServiceClient<Channel>;
-    type Error = CommonError;
-
-    async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match MqttBrokerPlacementServiceClient::connect(format!("http://{}", self.addr.clone())).await {
-            Ok(client) => {
-                return Ok(client);
-            }
-            Err(err) => {
-                return Err(CommonError::CommmonError(format!(
-                    "{},{}",
-                    err.to_string(),
-                    self.addr.clone()
-                )))
-            }
-        };
-    }
-
-    async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
-        Ok(conn)
     }
 }
 

@@ -18,6 +18,7 @@ use crate::{
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
+use common_base::error::common::CommonError;
 use log::info;
 use protocol::broker_server::generate::{
     admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer,
@@ -54,8 +55,8 @@ where
             message_storage_adapter,
         };
     }
-    pub async fn start(&self) {
-        let addr = format!("0.0.0.0:{}", self.port).parse().unwrap();
+    pub async fn start(&self) -> Result<(), CommonError> {
+        let addr = format!("0.0.0.0:{}", self.port).parse()?;
         info!("Broker Grpc Server start success. port:{}", self.port);
         let placement_handler = GrpcPlacementServices::new(
             self.metadata_cache.clone(),
@@ -69,14 +70,11 @@ where
             self.client_poll.clone(),
             self.message_storage_adapter.clone(),
         );
-        match Server::builder()
+        Server::builder()
             .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))
             .serve(addr)
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => panic!("{}", e.to_string()),
-        }
+            .await?;
+        return Ok(());
     }
 }

@@ -1,3 +1,28 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ClusterStatusRequest {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ClusterStatusReply {
+    #[prost(string, tag = "1")]
+    pub leader: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
+    pub nodes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HeartbeatRequest {
@@ -234,6 +259,33 @@ pub mod placement_center_service_client {
         pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
             self.inner = self.inner.max_encoding_message_size(limit);
             self
+        }
+        pub async fn cluster_status(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ClusterStatusRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ClusterStatusReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/placement.PlacementCenterService/ClusterStatus",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new("placement.PlacementCenterService", "ClusterStatus"),
+                );
+            self.inner.unary(req, path, codec).await
         }
         pub async fn node_list(
             &mut self,
@@ -614,6 +666,13 @@ pub mod placement_center_service_server {
     /// Generated trait containing gRPC methods that should be implemented for use with PlacementCenterServiceServer.
     #[async_trait]
     pub trait PlacementCenterService: Send + Sync + 'static {
+        async fn cluster_status(
+            &self,
+            request: tonic::Request<super::ClusterStatusRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::ClusterStatusReply>,
+            tonic::Status,
+        >;
         async fn node_list(
             &self,
             request: tonic::Request<super::NodeListRequest>,
@@ -783,6 +842,56 @@ pub mod placement_center_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
+                "/placement.PlacementCenterService/ClusterStatus" => {
+                    #[allow(non_camel_case_types)]
+                    struct ClusterStatusSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<
+                        T: PlacementCenterService,
+                    > tonic::server::UnaryService<super::ClusterStatusRequest>
+                    for ClusterStatusSvc<T> {
+                        type Response = super::ClusterStatusReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ClusterStatusRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as PlacementCenterService>::cluster_status(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ClusterStatusSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 "/placement.PlacementCenterService/NodeList" => {
                     #[allow(non_camel_case_types)]
                     struct NodeListSvc<T: PlacementCenterService>(pub Arc<T>);

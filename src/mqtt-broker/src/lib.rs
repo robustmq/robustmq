@@ -18,7 +18,7 @@ use common_base::{config::broker_mqtt::broker_mqtt_conf, runtime::create_runtime
 use handler::keep_alive::ClientKeepAlive;
 use handler::{cache::CacheManager, heartbreat::report_heartbeat};
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use observability::start_opservability;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
@@ -331,13 +331,29 @@ where
             metadata_cache.load_metadata_cache(auth_driver).await;
 
             let cluster_storage = ClusterStorage::new(client_poll.clone());
-            cluster_storage.register_node().await;
+            match cluster_storage.register_node().await {
+                Ok(_) => {
+                    let config = broker_mqtt_conf();
+                    info!("Node {} has been successfully registered", config.broker_id);
+                }
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            }
         });
     }
 
     async fn stop_server(&self) {
         let cluster_storage = ClusterStorage::new(self.client_poll.clone());
-        cluster_storage.unregister_node().await;
+        match cluster_storage.unregister_node().await {
+            Ok(()) => {
+                let config = broker_mqtt_conf();
+                info!("Node {} exits successfully", config.broker_id);
+            }
+            Err(e) => {
+                error!("{}", e.to_string());
+            }
+        }
         self.connection_manager.close_all_connect().await;
     }
 }
