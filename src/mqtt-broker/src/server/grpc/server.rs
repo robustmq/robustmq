@@ -15,9 +15,8 @@
 use super::services::GrpcBrokerServices;
 use crate::{handler::cache::CacheManager, subscribe::subscribe_manager::SubscribeManager};
 use clients::poll::ClientPool;
-
 use log::info;
-use protocol::broker_server::generate::mqtt::mqtt_broker_service_server::MqttBrokerServiceServer;
+use protocol::broker_server::generate::placement::mqtt_broker_placement_service_server::MqttBrokerPlacementServiceServer;
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tonic::transport::Server;
@@ -59,7 +58,7 @@ where
             self.message_storage_adapter.clone(),
         );
         Server::builder()
-            .add_service(MqttBrokerServiceServer::new(service_handler))
+            .add_service(MqttBrokerPlacementServiceServer::new(service_handler))
             .serve(addr)
             .await
             .unwrap();

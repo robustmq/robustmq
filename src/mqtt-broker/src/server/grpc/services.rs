@@ -18,10 +18,10 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use protocol::broker_server::generate::mqtt::{
-    mqtt_broker_service_server::MqttBrokerService, CommonReply, UpdateCacheRequest,
+use protocol::broker_server::generate::placement::{
+    mqtt_broker_placement_service_server::MqttBrokerPlacementService, CommonReply, UpdateCacheRequest,
 };
-use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
+use protocol::broker_server::generate::placement::{DeleteSessionRequest, SendLastWillMessageRequest};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
@@ -50,7 +50,7 @@ impl<S> GrpcBrokerServices<S> {
 }
 
 #[tonic::async_trait]
-impl<S> MqttBrokerService for GrpcBrokerServices<S>
+impl<S> MqttBrokerPlacementService for GrpcBrokerServices<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {

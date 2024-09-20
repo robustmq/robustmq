@@ -17,7 +17,7 @@ use common_base::error::common::CommonError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
 use log::error;
 use mobc::Manager;
-use protocol::broker_server::generate::mqtt::mqtt_broker_service_client::MqttBrokerServiceClient;
+use protocol::broker_server::generate::placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
 use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
 use tonic::transport::Channel;
@@ -84,7 +84,7 @@ async fn retry_call(
 async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<MqttBrokerServiceClient<Channel>, CommonError> {
+) -> Result<MqttBrokerPlacementServiceClient<Channel>, CommonError> {
     match client_poll.mqtt_broker_mqtt_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -124,23 +124,23 @@ pub(crate) async fn mqtt_interface_call(
 }
 
 #[derive(Clone)]
-pub(crate) struct MqttBrokerMqttServiceManager {
+pub(crate) struct MqttBrokerPlacementServiceManager {
     pub addr: String,
 }
 
-impl MqttBrokerMqttServiceManager {
+impl MqttBrokerPlacementServiceManager {
     pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }
 
 #[tonic::async_trait]
-impl Manager for MqttBrokerMqttServiceManager {
-    type Connection = MqttBrokerServiceClient<Channel>;
+impl Manager for MqttBrokerPlacementServiceManager {
+    type Connection = MqttBrokerPlacementServiceClient<Channel>;
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        match MqttBrokerServiceClient::connect(format!("http://{}", self.addr.clone())).await {
+        match MqttBrokerPlacementServiceClient::connect(format!("http://{}", self.addr.clone())).await {
             Ok(client) => {
                 return Ok(client);
             }

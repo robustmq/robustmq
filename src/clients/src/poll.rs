@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    broker_mqtt::MqttBrokerMqttServiceManager,
+    mqtt::MqttBrokerPlacementServiceManager,
     placement::{
         journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager,
         placement::PlacementServiceManager,
@@ -22,14 +22,11 @@ use crate::{
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use mobc::Pool;
-use protocol::{
-    broker_server::generate::mqtt::mqtt_broker_service_client::MqttBrokerServiceClient,
-    placement_center::generate::{
-        journal::engine_service_client::EngineServiceClient,
-        kv::kv_service_client::KvServiceClient, mqtt::mqtt_service_client::MqttServiceClient,
-        placement::placement_center_service_client::PlacementCenterServiceClient,
-    },
-};
+use protocol::{broker_server::generate::placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient, placement_center::generate::{
+    journal::engine_service_client::EngineServiceClient, kv::kv_service_client::KvServiceClient,
+    mqtt::mqtt_service_client::MqttServiceClient,
+    placement::placement_center_service_client::PlacementCenterServiceClient,
+}};
 use tonic::transport::Channel;
 
 #[derive(Clone)]
@@ -42,7 +39,7 @@ pub struct ClientPool {
     placement_center_mqtt_service_pools: DashMap<String, Pool<MQTTServiceManager>>,
 
     // mqtt broker
-    mqtt_broker_mqtt_service_pools: DashMap<String, Pool<MqttBrokerMqttServiceManager>>,
+    mqtt_broker_mqtt_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
 }
 
 impl ClientPool {
@@ -197,12 +194,12 @@ impl ClientPool {
     pub async fn mqtt_broker_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<MqttBrokerServiceClient<Channel>, CommonError> {
+    ) -> Result<MqttBrokerPlacementServiceClient<Channel>, CommonError> {
         let module = "BrokerMqttServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
         if !self.mqtt_broker_mqtt_service_pools.contains_key(&key) {
-            let manager = MqttBrokerMqttServiceManager::new(addr.clone());
+            let manager = MqttBrokerPlacementServiceManager::new(addr.clone());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);

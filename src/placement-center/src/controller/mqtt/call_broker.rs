@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use clients::{
-    broker_mqtt::call::{broker_mqtt_delete_session, send_last_will_message},
+    mqtt::call::{broker_mqtt_delete_session, send_last_will_message},
     poll::ClientPool,
 };
 use common_base::tools::now_second;
 use log::{debug, error, warn};
 use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
-use protocol::broker_server::generate::mqtt::{DeleteSessionRequest, SendLastWillMessageRequest};
+use protocol::broker_server::generate::placement::{DeleteSessionRequest, SendLastWillMessageRequest};
 
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},

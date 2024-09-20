@@ -15,7 +15,7 @@
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::broker_server::generate::mqtt::{
+use protocol::broker_server::generate::placement::{
     CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest
 };
 use std::sync::Arc;
