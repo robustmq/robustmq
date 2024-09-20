@@ -14,13 +14,13 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Header {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Record {
     pub offset: u128,
     pub header: Option<Vec<Header>>,
@@ -85,5 +85,3 @@ impl Record {
         };
     }
 }
-
-

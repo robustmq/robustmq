@@ -2508,7 +2508,7 @@ dependencies = [
  "prost 0.12.3",
  "protocol",
  "raft",
- "rocksdb",
+ "rocksdb-engine",
  "serde",
  "serde_json",
  "slog",
@@ -2979,7 +2979,13 @@ dependencies = [
 name = "rocksdb-engine"
 version = "0.1.0-beta"
 dependencies = [
+ "common-base",
+ "log",
+ "rocksdb",
+ "serde",
+ "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -3383,6 +3389,7 @@ dependencies = [
  "metadata-struct",
  "mysql",
  "protocol",
+ "rocksdb-engine",
  "serde",
  "serde_json",
  "third-driver",

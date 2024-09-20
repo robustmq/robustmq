@@ -212,7 +212,10 @@ impl ShareSubLeader {
 #[cfg(test)]
 mod tests {
     use super::ShareSubLeader;
-    use crate::{cache::placement::PlacementCacheManager, storage::rocksdb::RocksDBEngine};
+    use crate::{
+        cache::placement::PlacementCacheManager,
+        storage::rocksdb::{column_family_list, RocksDBEngine},
+    };
     use common_base::{
         config::placement_center::PlacementCenterConfig,
         tools::{now_mills, unique_id},
@@ -227,7 +230,11 @@ mod tests {
         config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let share_sub = ShareSubLeader::new(cluster_cache, rocksdb_engine_handler.clone());
         let cluster_name = unique_id();
@@ -278,7 +285,11 @@ mod tests {
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         cluster_cache.add_node(BrokerNode {
             cluster_name: cluster_name.clone(),
