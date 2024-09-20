@@ -152,7 +152,7 @@ mod tests {
         mqtt::{
             lastwill::MQTTLastWillStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
         },
-        rocksdb::RocksDBEngine,
+        rocksdb::{column_family_list, RocksDBEngine},
     };
     use common_base::{
         config::placement_center::PlacementCenterConfig,
@@ -174,7 +174,11 @@ mod tests {
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
 
@@ -220,7 +224,11 @@ mod tests {
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let lastwill_storage = MQTTLastWillStorage::new(rocksdb_engine_handler.clone());
         let session_storage = MQTTSessionStorage::new(rocksdb_engine_handler.clone());
 

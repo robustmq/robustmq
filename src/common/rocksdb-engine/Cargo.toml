@@ -20,3 +20,11 @@ license.workspace = true
 
 [dependencies]
 thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+common-base.workspace = true
+log.workspace = true
+rocksdb.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

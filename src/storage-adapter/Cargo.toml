@@ -34,3 +34,4 @@ serde_json.workspace = true
 third-driver.workspace = true
 mysql.workspace = true
 metadata-struct.workspace = true
+rocksdb-engine.workspace = true

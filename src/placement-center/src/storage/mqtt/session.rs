@@ -95,7 +95,7 @@ impl MQTTSessionStorage {
 #[cfg(test)]
 mod tests {
     use crate::storage::mqtt::session::MQTTSessionStorage;
-    use crate::storage::rocksdb::RocksDBEngine;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
     use common_base::config::placement_center::PlacementCenterConfig;
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::session::MQTTSession;
@@ -107,8 +107,12 @@ mod tests {
         let mut config = PlacementCenterConfig::default();
         config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
-        
-        let rs = Arc::new(RocksDBEngine::new(&config));
+
+        let rs = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let session_storage = MQTTSessionStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
         let client_id = "loboxu".to_string();

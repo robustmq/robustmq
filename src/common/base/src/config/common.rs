@@ -21,6 +21,9 @@ pub struct Storage {
     pub journal_addr: String,
     #[serde(default)]
     pub mysql_addr: String,
+    #[serde(default)]
+    pub rocksdb_data_path: String,
+    pub rocksdb_max_open_files: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq, Eq)]
@@ -37,5 +40,3 @@ pub struct Log {
     pub log_config: String,
     pub log_path: String,
 }
-
-
