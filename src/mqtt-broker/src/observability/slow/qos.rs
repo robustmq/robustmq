@@ -29,6 +29,7 @@ pub struct SlowMessage {
     create_time: u128,
 }
 
+#[allow(dead_code)]
 pub fn try_record_slow_message(
     _: Arc<CacheManager>,
     client_id: String,

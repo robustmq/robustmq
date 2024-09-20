@@ -125,7 +125,8 @@ impl ShareSubLeader {
         }
         return Ok(());
     }
-
+    
+    #[allow(dead_code)]
     pub fn delete_node(&self, cluster_name: &String, broker_id: u64) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,

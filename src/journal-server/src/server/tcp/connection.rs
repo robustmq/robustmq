@@ -100,6 +100,7 @@ impl ConnectionManager {
 
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
+#[allow(dead_code)]
 pub struct Connection {
     pub connection_id: u64,
     pub addr: SocketAddr,
