@@ -226,7 +226,6 @@ impl RocksDBEngine {
 }
 
 #[cfg(test)]
-#[allow(dead_code)]
 mod tests {
     use super::RocksDBEngine;
     use crate::storage::keys::key_name_by_last_index;
