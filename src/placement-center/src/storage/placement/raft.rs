@@ -429,7 +429,7 @@ impl RaftMachineStorage {
 mod tests {
     use std::{fs::remove_dir_all, sync::Arc};
 
-    use crate::storage::rocksdb::RocksDBEngine;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     use super::RaftMachineStorage;
     use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
@@ -440,7 +440,11 @@ mod tests {
         conf.rocksdb.data_path = format!("/tmp/robustmq_{}", unique_id());
         conf.rocksdb.max_open_files = Some(10);
 
-        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&conf));
+        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
+            &conf.rocksdb.data_path,
+            conf.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let rds = RaftMachineStorage::new(rocksdb_engine_handler);
 
         let first_index = 1;

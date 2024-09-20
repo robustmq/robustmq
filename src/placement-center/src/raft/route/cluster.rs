@@ -165,8 +165,9 @@ mod tests {
         cache::placement::PlacementCacheManager,
         raft::route::cluster::DataRouteCluster,
         storage::{
-            placement::cluster::ClusterStorage, placement::node::NodeStorage,
-            rocksdb::RocksDBEngine,
+            placement::cluster::ClusterStorage,
+            placement::node::NodeStorage,
+            rocksdb::{column_family_list, RocksDBEngine},
         },
     };
     use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
@@ -192,7 +193,11 @@ mod tests {
         req.cluster_name = cluster_name.clone();
         req.extend_info = "{}".to_string();
         let data = RegisterNodeRequest::encode_to_vec(&req);
-        let rocksdb_engine = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
 
         let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);

@@ -78,6 +78,8 @@ pub fn default_storage() -> Storage {
         storage_type: "memory".to_string(),
         journal_addr: "".to_string(),
         mysql_addr: "".to_string(),
+        rocksdb_data_path: "".to_string(),
+        rocksdb_max_open_files: None,
     }
 }
 

@@ -39,7 +39,7 @@ use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use storage::placement::raft::RaftMachineStorage;
-use storage::rocksdb::RocksDBEngine;
+use storage::rocksdb::{column_family_list, RocksDBEngine};
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -78,7 +78,11 @@ impl PlacementCenter {
         let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
 
         let client_poll = Arc::new(ClientPool::new(100));
-        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
 
         let engine_cache = Arc::new(JournalCacheManager::new());
         let cluster_cache: Arc<PlacementCacheManager> =

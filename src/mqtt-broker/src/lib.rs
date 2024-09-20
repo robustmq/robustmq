@@ -31,10 +31,11 @@ use server::{
 use std::sync::Arc;
 use std::time::Duration;
 use storage::cluster::ClusterStorage;
+use storage_adapter::local_rocksdb::RocksDBStorageAdapter;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
 use storage_adapter::storage::StorageAdapter;
-use storage_adapter::{storage_is_memory, storage_is_mysql};
+use storage_adapter::{storage_is_memory, storage_is_mysql, storage_is_rocksdb};
 use subscribe::{
     sub_exclusive::SubscribeExclusive, sub_share_follower::SubscribeShareFollower,
     sub_share_leader::SubscribeShareLeader, subscribe_manager::SubscribeManager,
@@ -76,6 +77,16 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
         }
         let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
         let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
+        let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+        server.start(stop_send);
+    } else if storage_is_rocksdb(&storage_type) {
+        if conf.storage.rocksdb_data_path.is_empty() {
+            panic!("storaget type is [rocksdb],[storage.rocksdb_path] cannot be empty");
+        }
+        let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
+            conf.storage.rocksdb_data_path.as_str(),
+            conf.storage.rocksdb_max_open_files.unwrap_or(10000),
+        ));
         let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
         server.start(stop_send);
     } else {

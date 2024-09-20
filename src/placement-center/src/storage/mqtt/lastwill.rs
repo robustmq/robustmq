@@ -94,7 +94,10 @@ mod tests {
     use std::{fs::remove_dir_all, sync::Arc};
 
     use super::MQTTLastWillStorage;
-    use crate::storage::{mqtt::session::MQTTSessionStorage, rocksdb::RocksDBEngine};
+    use crate::storage::{
+        mqtt::session::MQTTSessionStorage,
+        rocksdb::{column_family_list, RocksDBEngine},
+    };
     use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
     use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
 
@@ -104,7 +107,11 @@ mod tests {
         config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
-        let rs = Arc::new(RocksDBEngine::new(&config));
+        let rs = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let session_storage = MQTTSessionStorage::new(rs.clone());
 
         let cluster_name = "test_cluster".to_string();

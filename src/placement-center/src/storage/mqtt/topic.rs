@@ -126,7 +126,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::storage::mqtt::topic::MQTTTopicStorage;
-    use crate::storage::rocksdb::RocksDBEngine;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
     use common_base::config::placement_center::PlacementCenterConfig;
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::topic::MQTTTopic;
@@ -138,7 +138,11 @@ mod tests {
         config.rocksdb.data_path = format!("/tmp/{}", unique_id());
         config.rocksdb.max_open_files = Some(10);
 
-        let rs = Arc::new(RocksDBEngine::new(&config));
+        let rs = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path.as_str(),
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let topic_storage = MQTTTopicStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
         let topic_name = "loboxu".to_string();

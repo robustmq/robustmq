@@ -225,7 +225,10 @@ mod tests {
     use crate::controller::mqtt::session_expire::ExpireLastWill;
     use crate::{
         cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-        storage::{mqtt::session::MQTTSessionStorage, rocksdb::RocksDBEngine},
+        storage::{
+            mqtt::session::MQTTSessionStorage,
+            rocksdb::{column_family_list, RocksDBEngine},
+        },
     };
 
     #[test]
@@ -235,7 +238,11 @@ mod tests {
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
             rocksdb_engine_handler.clone(),
@@ -273,7 +280,11 @@ mod tests {
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
             rocksdb_engine_handler.clone(),
@@ -332,7 +343,11 @@ mod tests {
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
             rocksdb_engine_handler.clone(),
@@ -373,7 +388,11 @@ mod tests {
         config.rocksdb.max_open_files = Some(10);
 
         let cluster_name = unique_id();
-        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(&config));
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &config.rocksdb.data_path,
+            config.rocksdb.max_open_files.unwrap(),
+            column_family_list(),
+        ));
         let placement_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let mqtt_cache_manager = Arc::new(MqttCacheManager::new(
             rocksdb_engine_handler.clone(),

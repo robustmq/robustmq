@@ -25,6 +25,7 @@ pub enum StorageType {
     Memory,
     Mysql,
     Placement,
+    RocksDB,
 }
 
 pub fn storage_is_journal(storage_type: &String) -> bool {
@@ -47,14 +48,20 @@ pub fn storage_is_mysql(storage_type: &String) -> bool {
     return st == storage_type.clone();
 }
 
+pub fn storage_is_rocksdb(storage_type: &String) -> bool {
+    let st = format!("{:?}", StorageType::RocksDB).to_lowercase();
+    return st == storage_type.clone();
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{storage_is_journal, storage_is_memory, storage_is_mysql};
+    use crate::{storage_is_journal, storage_is_memory, storage_is_mysql, storage_is_rocksdb};
 
     #[tokio::test]
     async fn storage_type_test() {
         assert!(storage_is_journal(&"journal".to_string()));
         assert!(storage_is_memory(&"memory".to_string()));
         assert!(storage_is_mysql(&"mysql".to_string()));
+        assert!(storage_is_rocksdb(&"rocksdb".to_string()));
     }
 }
