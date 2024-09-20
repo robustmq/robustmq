@@ -26,21 +26,21 @@ use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
 
-pub struct GrpcBrokerServices<S> {
+pub struct GrpcPlacementServices<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     client_poll: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
 
-impl<S> GrpcBrokerServices<S> {
+impl<S> GrpcPlacementServices<S> {
     pub fn new(
         metadata_cache: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         client_poll: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
-        return GrpcBrokerServices {
+        return GrpcPlacementServices {
             cache_manager: metadata_cache,
             subscribe_manager,
             client_poll,
@@ -50,7 +50,7 @@ impl<S> GrpcBrokerServices<S> {
 }
 
 #[tonic::async_trait]
-impl<S> MqttBrokerPlacementService for GrpcBrokerServices<S>
+impl<S> MqttBrokerPlacementService for GrpcPlacementServices<S>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {

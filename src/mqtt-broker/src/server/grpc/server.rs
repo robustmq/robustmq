@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::services::GrpcBrokerServices;
-use crate::{handler::cache::CacheManager, subscribe::subscribe_manager::SubscribeManager};
+use super::placement::GrpcPlacementServices;
+use crate::{
+    handler::cache::CacheManager, server::grpc::admin::GrpcAdminServices,
+    subscribe::subscribe_manager::SubscribeManager,
+};
 use clients::poll::ClientPool;
 use log::info;
-use protocol::broker_server::generate::placement::mqtt_broker_placement_service_server::MqttBrokerPlacementServiceServer;
+use protocol::broker_server::generate::{
+    admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer,
+    placement::mqtt_broker_placement_service_server::MqttBrokerPlacementServiceServer,
+};
 use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tonic::transport::Server;
@@ -51,16 +57,26 @@ where
     pub async fn start(&self) {
         let addr = format!("0.0.0.0:{}", self.port).parse().unwrap();
         info!("Broker Grpc Server start success. port:{}", self.port);
-        let service_handler = GrpcBrokerServices::new(
+        let placement_handler = GrpcPlacementServices::new(
             self.metadata_cache.clone(),
             self.subscribe_manager.clone(),
             self.client_poll.clone(),
             self.message_storage_adapter.clone(),
         );
-        Server::builder()
-            .add_service(MqttBrokerPlacementServiceServer::new(service_handler))
+        let admin_handler = GrpcAdminServices::new(
+            self.metadata_cache.clone(),
+            self.subscribe_manager.clone(),
+            self.client_poll.clone(),
+            self.message_storage_adapter.clone(),
+        );
+        match Server::builder()
+            .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
+            .add_service(MqttBrokerAdminServiceServer::new(admin_handler))
             .serve(addr)
             .await
-            .unwrap();
+        {
+            Ok(_) => {}
+            Err(e) => panic!("{}", e.to_string()),
+        }
     }
 }
