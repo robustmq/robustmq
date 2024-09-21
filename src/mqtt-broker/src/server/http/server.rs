@@ -13,30 +13,22 @@
 // limitations under the License.
 
 use super::{connection::connection_list, prometheus::metrics, publish::http_publish};
-use crate::handler::cache::CacheManager;
-use crate::subscribe::subscribe_manager::SubscribeManager;
 use axum::routing::get;
 use axum::Router;
 use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
 use log::info;
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 
 pub const ROUTE_PUBLISTH: &str = "/publish";
 pub const ROUTE_CONNECTION: &str = "/connection";
 pub const ROUTE_METRICS: &str = "/metrics";
 
 #[derive(Clone)]
-pub struct HttpServerState {
-    pub cache_metadata: Arc<CacheManager>,
-    pub subscribe_cache: Arc<SubscribeManager>,
-}
+pub struct HttpServerState {}
 
 impl HttpServerState {
-    pub fn new(cache_metadata: Arc<CacheManager>, subscribe_cache: Arc<SubscribeManager>) -> Self {
-        return Self {
-            cache_metadata,
-            subscribe_cache,
-        };
+    pub fn new() -> Self {
+        return Self {};
     }
 }
 

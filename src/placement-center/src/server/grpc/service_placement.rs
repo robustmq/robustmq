@@ -33,7 +33,7 @@ use crate::raft::metadata::RaftGroupMetadata;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
-use clients::placement::placement::call::{register_node, un_register_node};
+use clients::placement::placement::call::{heartbeat, register_node, un_register_node};
 use clients::poll::ClientPool;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
@@ -84,7 +84,6 @@ impl GrpcPlacementService {
 
 #[tonic::async_trait]
 impl PlacementCenterService for GrpcPlacementService {
-    
     async fn cluster_status(
         &self,
         _: Request<ClusterStatusRequest>,
@@ -139,9 +138,6 @@ impl PlacementCenterService for GrpcPlacementService {
             }
         }
 
-        // Params validate
-
-        // Raft state machine is used to store Node data
         let data = StorageData::new(
             StorageDataType::ClusterRegisterNode,
             RegisterNodeRequest::encode_to_vec(&req),
@@ -172,9 +168,6 @@ impl PlacementCenterService for GrpcPlacementService {
             }
         }
 
-        // Params validate
-
-        // Raft state machine is used to store Node data
         let data = StorageData::new(
             StorageDataType::ClusterUngisterNode,
             UnRegisterNodeRequest::encode_to_vec(&req),
@@ -196,12 +189,29 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        // Params validate
 
-        self.cluster_cache
-            .heart_time(&req.cluster_name, req.node_id, now_second());
+        if self.rewrite_leader() {
+            let leader_addr = self.raft_metadata.read().unwrap().leader_addr();
+            match heartbeat(self.client_poll.clone(), vec![leader_addr], req).await {
+                Ok(resp) => return Ok(Response::new(resp)),
+                Err(e) => return Err(Status::cancelled(e.to_string())),
+            }
+        }
 
-        return Ok(Response::new(CommonReply::default()));
+        let data = StorageData::new(
+            StorageDataType::ClusterNodeHeartbeat,
+            HeartbeatRequest::encode_to_vec(&req),
+        );
+        match self
+            .placement_center_storage
+            .apply_propose_message(data, "node_hearbeat".to_string())
+            .await
+        {
+            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        }
     }
 
     async fn report_monitor(

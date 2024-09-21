@@ -183,13 +183,17 @@ where
             self.message_storage_adapter.clone(),
         );
         self.runtime.spawn(async move {
-            server.start().await;
+            match server.start().await {
+                Ok(()) => {}
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            }
         });
     }
 
     fn start_http_server(&self) {
-        let http_state =
-            HttpServerState::new(self.cache_manager.clone(), self.subscribe_manager.clone());
+        let http_state = HttpServerState::new();
         self.runtime.spawn(async move {
             match start_http_server(http_state).await {
                 Ok(_) => {}

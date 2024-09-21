@@ -66,11 +66,15 @@ impl DataRoute {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         match storage_data.data_type {
             StorageDataType::ClusterRegisterNode => {
-                return self.route_cluster.add_node(storage_data.value);
+                return self.route_cluster.register_node(storage_data.value);
             }
             StorageDataType::ClusterUngisterNode => {
-                return self.route_cluster.delete_node(storage_data.value);
+                return self.route_cluster.unregister_node(storage_data.value);
             }
+            StorageDataType::ClusterNodeHeartbeat => {
+                return self.route_cluster.heartbeat(storage_data.value);
+            }
+
             StorageDataType::ClusterSetResourceConfig => {
                 return self.route_cluster.set_resource_config(storage_data.value);
             }

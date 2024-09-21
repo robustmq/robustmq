@@ -64,12 +64,7 @@ where
             self.client_poll.clone(),
             self.message_storage_adapter.clone(),
         );
-        let admin_handler = GrpcAdminServices::new(
-            self.metadata_cache.clone(),
-            self.subscribe_manager.clone(),
-            self.client_poll.clone(),
-            self.message_storage_adapter.clone(),
-        );
+        let admin_handler = GrpcAdminServices::new(self.client_poll.clone());
         Server::builder()
             .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))

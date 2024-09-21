@@ -41,9 +41,9 @@ impl PlacementCacheManager {
         return cache;
     }
 
-    pub fn add_cluster(&self, cluster: ClusterInfo) {
+    pub fn add_cluster(&self, cluster: &ClusterInfo) {
         self.cluster_list
-            .insert(cluster.cluster_name.clone(), cluster);
+            .insert(cluster.cluster_name.clone(), cluster.clone());
     }
 
     pub fn add_node(&self, node: BrokerNode) {
@@ -103,7 +103,7 @@ impl PlacementCacheManager {
         match cluster.list(None) {
             Ok(result) => {
                 for cluster in result {
-                    self.add_cluster(cluster);
+                    self.add_cluster(&cluster);
                 }
             }
             Err(_) => {}

@@ -57,12 +57,14 @@ pub fn build_v5_pros() -> Properties {
     props
         .push_val(PropertyCode::RequestProblemInformation, 1)
         .unwrap();
+    
     props
         .push_string_pair(PropertyCode::UserProperty, "lobo1", "1")
         .unwrap();
     props
         .push_string_pair(PropertyCode::UserProperty, "lobo2", "2")
         .unwrap();
+
     return props;
 }
 
