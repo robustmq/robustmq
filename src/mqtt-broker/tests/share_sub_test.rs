@@ -22,28 +22,24 @@ mod tests {
 
     #[tokio::test]
     async fn client5_subscribe_test() {
-        // let sub_qos = &[0];
-        // let topic = format!("/tests/{}", unique_id());
-        // let sub_topic = format!("$share/tests/{}", unique_id());
-        // simple_test(topic.clone(), sub_topic.clone(), sub_qos, "2".to_string()).await;
+        let sub_qos = &[0];
+        let topic = format!("/tests/{}", unique_id());
+        let sub_topic = format!("$share/{}", topic);
+        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "2".to_string()).await;
 
-        // let sub_qos = &[1];
-        // let topic = format!("/tests/{}", unique_id());
-        // let sub_topic = format!("$share/tests/{}", unique_id());
-        // simple_test(topic.clone(), sub_topic.clone(), sub_qos, "1".to_string()).await;
+        let sub_qos = &[1];
+        let topic = format!("/tests/{}", unique_id());
+        let sub_topic = format!("$share/{}", topic);
+        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "1".to_string()).await;
 
-        // let sub_qos = &[2];
-        // let topic = format!("/tests/{}", unique_id());
-        // let sub_topic = format!("$share/tests/{}", unique_id());
-        // simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
+        let sub_qos = &[2];
+        let topic = format!("/tests/{}", unique_id());
+        let sub_topic = format!("$share/{}", topic);
+        simple_test(topic.clone(), sub_topic.clone(), sub_qos, "3".to_string()).await;
     }
-    
-    #[allow(dead_code)]
+
     async fn simple_test(
-        pub_topic: String,
-        sub_topic: String,
-        sub_qos: &[i32],
-        payload_flag: String,
+        pub_topic: String, sub_topic: String, sub_qos: &[i32], payload_flag: String,
     ) {
         let client_id = unique_id();
         let addr = broker_addr();
