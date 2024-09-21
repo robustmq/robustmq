@@ -26,13 +26,15 @@ start_placement_center(){
 stop_placement_center(){
     pc_no=`ps aux | grep -v grep | grep "$placement_center_process_name" | awk '{print $2}'`
     echo "placement center num: $pc_no"
-    kill $pc_no
-    sleep 3
+    if [ -n "$pc_no" ]; then
+        kill $pc_no
+        sleep 3
 
-    while ps aux | grep -v grep | grep "$placement_center_process_name" > /dev/null; do
-        echo "”Process $placement_center_process_name stopped successfully"
-        sleep 1  
-    done
+        while ps aux | grep -v grep | grep "$placement_center_process_name" > /dev/null; do
+            echo "”Process $placement_center_process_name stopped successfully"
+            sleep 1  
+        done
+    fi
 }
 
 start_mqtt_broker_1(){
@@ -48,13 +50,15 @@ start_mqtt_broker_1(){
 stop_mqtt_broker_1(){
     mqtt_no=`ps aux | grep -v grep | grep "$mqtt_server_process_name-1" | awk '{print $2}'`
     echo "mqtt server num: $mqtt_no"
-    kill $mqtt_no
-    sleep 3
+    if [ -n "$mqtt_no" ]; then
+        kill $mqtt_no
+        sleep 3
 
-    while ps aux | grep -v grep | grep "$mqtt_server_process_name-1" > /dev/null; do
-        echo "”Process $mqtt_server_process_name-1 stopped successfully"
-        sleep 1  
-    done
+        while ps aux | grep -v grep | grep "$mqtt_server_process_name-1" > /dev/null; do
+            echo "”Process $mqtt_server_process_name-1 stopped successfully"
+            sleep 1  
+        done
+    fi
 }
 
 stop_server(){

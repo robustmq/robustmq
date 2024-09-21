@@ -45,7 +45,7 @@ pub struct RaftMachine {
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
-    data_route: Arc<RwLock<DataRoute>>,
+    data_route: Arc<DataRoute>,
     entry_num: AtomicUsize,
     peer_message_send: Sender<PeerMessage>,
     stop_recv: broadcast::Receiver<bool>,
@@ -55,7 +55,7 @@ pub struct RaftMachine {
 impl RaftMachine {
     pub fn new(
         placement_cluster: Arc<RwLock<RaftGroupMetadata>>,
-        data_route: Arc<RwLock<DataRoute>>,
+        data_route: Arc<DataRoute>,
         peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
@@ -250,14 +250,13 @@ impl RaftMachine {
         raft_node: &mut RawNode<RaftRocksDBStorage>,
         entrys: Vec<Entry>,
     ) {
-        let data_route = self.data_route.write().unwrap();
         for entry in entrys {
             if !entry.data.is_empty() {
                 debug!("ready entrys entry type:{:?}", entry.get_entry_type());
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
-                        match data_route.route(entry.get_data().to_vec()) {
+                        match self.data_route.route(entry.get_data().to_vec()) {
                             Ok(_) => {}
                             Err(err) => {
                                 error!("{}", err);

@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod common;
+
 #[cfg(test)]
 mod tests {
     use protocol::placement_center::generate::kv::{
         kv_service_client::KvServiceClient, DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
 
+    use crate::common::pc_addr;
+
     #[tokio::test]
     async fn kv_storage() {
-        let mut client = KvServiceClient::connect("http://127.0.0.1:1228")
-            .await
-            .unwrap();
+        let mut client = KvServiceClient::connect(pc_addr()).await.unwrap();
         let key = "test".to_string();
         let value = "test_value".to_string();
         let set_req = SetRequest {

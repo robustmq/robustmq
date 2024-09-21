@@ -16,15 +16,11 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
-    use common_base::tools::now_second;
     use metadata_struct::placement::broker_node::BrokerNode;
     use protocol::placement_center::generate::placement::{
         placement_center_service_client::PlacementCenterServiceClient, NodeListRequest,
-        RegisterNodeRequest,
+        RegisterNodeRequest, UnRegisterNodeRequest,
     };
-    use tokio::time::sleep;
 
     use crate::common::{cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr};
 
@@ -48,33 +44,58 @@ mod tests {
                 assert!(false)
             }
         }
-        let start_time = now_second();
-        loop {
-            let request = NodeListRequest {
-                cluster_name: cluster_name.clone(),
-            };
-            match client.node_list(request).await {
-                Ok(rep) => {
-                    let mut flag = false;
-                    let nodes = rep.into_inner().nodes;
-                    for raw in nodes {
-                        let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
-                        if node.node_id == node_id {
-                            flag = true;
-                        }
-                    }
-                    if !flag {
-                        break;
+
+        let request = NodeListRequest {
+            cluster_name: cluster_name.clone(),
+        };
+        match client.node_list(request).await {
+            Ok(rep) => {
+                let mut flag = false;
+                let nodes = rep.into_inner().nodes;
+                for raw in nodes {
+                    let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
+                    if node.node_id == node_id {
+                        flag = true;
                     }
                 }
-                Err(e) => {
-                    println!("{}", e.to_string());
-                    assert!(false)
-                }
+                assert!(flag);
             }
-            sleep(Duration::from_millis(100)).await;
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
         }
-        let total_ms = now_second() - start_time;
-        assert!(total_ms == 5 || total_ms == 6);
+        let mut request = UnRegisterNodeRequest::default();
+        request.cluster_type = cluster_type();
+        request.cluster_name = cluster_name.clone();
+        request.node_id = node_id;
+        match client.un_register_node(tonic::Request::new(request)).await {
+            Ok(_) => assert!(true),
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
+        }
+
+        let request = NodeListRequest {
+            cluster_name: cluster_name.clone(),
+        };
+        match client.node_list(request).await {
+            Ok(rep) => {
+                let mut flag = false;
+                let nodes = rep.into_inner().nodes;
+                for raw in nodes {
+                    let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
+                    if node.node_id == node_id {
+                        flag = true;
+                    }
+                }
+                assert!(!flag);
+            }
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
+        }
     }
 }

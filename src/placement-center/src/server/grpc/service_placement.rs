@@ -36,7 +36,6 @@ use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{heartbeat, register_node, un_register_node};
 use clients::poll::ClientPool;
 use common_base::error::placement_center::PlacementCenterError;
-use common_base::tools::now_second;
 use prost::Message;
 use protocol::placement_center::generate::common::CommonReply;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;

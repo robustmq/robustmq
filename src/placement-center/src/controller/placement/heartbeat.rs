@@ -58,7 +58,7 @@ impl BrokerHeartbeat {
                     self.cluster_cache.node_heartbeat.get(&cluster_name)
                 {
                     if let Some(time) = cluster_heartbeat.get(&node_id) {
-                        if now_second() - time.clone() >= self.timeout_ms {
+                        if now_second() - time.clone() >= self.timeout_ms / 1000 {
                             let cluster_name = node.cluster_name.clone();
                             if let Some(_) = self.cluster_cache.cluster_list.get(&cluster_name) {
                                 let mut req = UnRegisterNodeRequest::default();

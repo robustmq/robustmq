@@ -39,19 +39,19 @@ mod tests {
         simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), Some(data), false)
             .await;
 
-        // // connect response information
-        // let topic = unique_id();
-        // let requset_topic = format!("/request/{}", topic);
-        // let response_topic = format!("/response/{}", topic);
-        // simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), None, true).await;
+        // connect response information
+        let topic = unique_id();
+        let requset_topic = format!("/request/{}", topic);
+        let response_topic = format!("/response/{}", topic);
+        simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), None, true).await;
 
-        // // connect response information correlation data
-        // let topic = unique_id();
-        // let requset_topic = format!("/request/{}", topic);
-        // let response_topic = format!("/response/{}", topic);
-        // let data = "123456".to_string();
-        // simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), Some(data), true)
-        //     .await;
+        // connect response information correlation data
+        let topic = unique_id();
+        let requset_topic = format!("/request/{}", topic);
+        let response_topic = format!("/response/{}", topic);
+        let data = "123456".to_string();
+        simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), Some(data), true)
+            .await;
     }
 
     async fn simple_test(
