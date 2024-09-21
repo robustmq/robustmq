@@ -17,8 +17,8 @@ mod common;
 #[cfg(test)]
 mod tests {
     use crate::common::{
-        broker_addr, build_create_pros, build_v3_conn_pros, build_v5_conn_pros, build_v5_pros,
-        distinct_conn,
+        broker_addr, broker_ws_addr, build_create_pros, build_v3_conn_pros, build_v5_conn_pros,
+        build_v5_pros, distinct_conn,
     };
     use common_base::tools::unique_id;
     use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
@@ -30,35 +30,61 @@ mod tests {
         let mqtt_version = 3;
         let client_id = unique_id();
         let addr = broker_addr();
-        v3_wrong_password_test(mqtt_version, &client_id, &addr);
-        v3_session_present_test(mqtt_version, &client_id, &addr);
+        v3_wrong_password_test(mqtt_version, &client_id, &addr, false);
+        v3_session_present_test(mqtt_version, &client_id, &addr, false);
 
         let mqtt_version = 4;
         let client_id = unique_id();
         let addr = broker_addr();
-        v3_wrong_password_test(mqtt_version, &client_id, &addr);
-        v3_session_present_test(mqtt_version, &client_id, &addr);
+        v3_wrong_password_test(mqtt_version, &client_id, &addr, false);
+        v3_session_present_test(mqtt_version, &client_id, &addr, false);
+    }
+
+    #[tokio::test]
+    async fn client34_connect_ws_test() {
+        let mqtt_version = 3;
+        let client_id = unique_id();
+        let addr = broker_ws_addr();
+        v3_wrong_password_test(mqtt_version, &client_id, &addr, true);
+        v3_session_present_test(mqtt_version, &client_id, &addr, true);
+
+        let mqtt_version = 4;
+        let client_id = unique_id();
+        let addr = broker_ws_addr();
+        v3_wrong_password_test(mqtt_version, &client_id, &addr, true);
+        v3_session_present_test(mqtt_version, &client_id, &addr, true);
     }
 
     #[tokio::test]
     async fn client5_connect_test() {
         let client_id = unique_id();
         let addr = broker_addr();
-        v5_wrong_password_test(&client_id, &addr);
-        v5_session_present_test(&client_id, &addr);
-        v5_response_test(&client_id, &addr);
-        v5_assigned_client_id_test(&addr);
-        v5_request_response_test(&client_id, &addr);
+        v5_wrong_password_test(&client_id, &addr, false);
+        v5_session_present_test(&client_id, &addr, false);
+        v5_response_test(&client_id, &addr, false);
+        v5_assigned_client_id_test(&addr, false);
+        v5_request_response_test(&client_id, &addr, false);
     }
 
-    fn v3_wrong_password_test(mqtt_version: u32, client_id: &String, addr: &String) {
+    #[tokio::test]
+    async fn client5_connect_ws_test() {
+        let client_id = unique_id();
+        let addr = broker_ws_addr();
+        v5_wrong_password_test(&client_id, &addr, true);
+        v5_session_present_test(&client_id, &addr, true);
+        v5_response_test(&client_id, &addr, true);
+        v5_assigned_client_id_test(&addr, true);
+        v5_request_response_test(&client_id, &addr, true);
+    }
+
+    fn v3_wrong_password_test(mqtt_version: u32, client_id: &String, addr: &String, ws: bool) {
         let create_opts = build_create_pros(client_id, addr);
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
             println!("Error creating the client: {:?}", err);
             process::exit(1);
         });
 
-        let conn_opts = build_v3_conn_pros(mqtt_version, true);
+        let conn_opts = build_v3_conn_pros(mqtt_version, true, ws);
 
         match cli.connect(conn_opts) {
             Ok(_) => {
@@ -71,7 +97,7 @@ mod tests {
         }
     }
 
-    fn v3_session_present_test(mqtt_version: u32, client_id: &String, addr: &String) {
+    fn v3_session_present_test(mqtt_version: u32, client_id: &String, addr: &String, ws: bool) {
         let create_opts = build_create_pros(client_id, addr);
 
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -79,13 +105,18 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v3_conn_pros(mqtt_version, false);
+        let conn_opts = build_v3_conn_pros(mqtt_version, false, ws);
 
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                assert_eq!(mqtt_version, resp.mqtt_version);
+                if ws {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                    assert_eq!(4, resp.mqtt_version);
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                    assert_eq!(mqtt_version, resp.mqtt_version);
+                }
                 assert!(resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
             }
@@ -103,13 +134,18 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v3_conn_pros(mqtt_version, false);
+        let conn_opts = build_v3_conn_pros(mqtt_version, false, ws);
 
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                assert_eq!(mqtt_version, resp.mqtt_version);
+                if ws {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                    assert_eq!(4, resp.mqtt_version);
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                    assert_eq!(mqtt_version, resp.mqtt_version);
+                }
                 assert!(!resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
             }
@@ -122,7 +158,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_wrong_password_test(client_id: &String, addr: &String) {
+    fn v5_wrong_password_test(client_id: &String, addr: &String, ws: bool) {
         let create_opts = build_create_pros(client_id, addr);
 
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -131,7 +167,7 @@ mod tests {
         });
 
         let props = build_v5_pros();
-        let conn_opts = build_v5_conn_pros(props, true);
+        let conn_opts = build_v5_conn_pros(props, true, ws);
         match cli.connect(conn_opts) {
             Ok(_) => {
                 assert!(false)
@@ -143,7 +179,7 @@ mod tests {
         }
     }
 
-    fn v5_session_present_test(client_id: &String, addr: &String) {
+    fn v5_session_present_test(client_id: &String, addr: &String, ws: bool) {
         let mqtt_version = 5;
         let props = build_v5_pros();
 
@@ -153,11 +189,15 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(props.clone(), false);
+        let conn_opts = build_v5_conn_pros(props.clone(), false, ws);
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                if ws {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 assert!(resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
@@ -175,12 +215,16 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(props.clone(), false);
+        let conn_opts = build_v5_conn_pros(props.clone(), false, ws);
 
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                if ws {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 assert!(!resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
@@ -193,7 +237,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_assigned_client_id_test(addr: &String) {
+    fn v5_assigned_client_id_test(addr: &String, ws: bool) {
         let mqtt_version = 5;
         let client_id = "".to_string();
         let props = build_v5_pros();
@@ -204,11 +248,15 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(props.clone(), false);
+        let conn_opts = build_v5_conn_pros(props.clone(), false, ws);
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                if ws {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 assert!(resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
@@ -230,7 +278,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_request_response_test(client_id: &String, addr: &String) {
+    fn v5_request_response_test(client_id: &String, addr: &String, ws: bool) {
         let mqtt_version = 5;
 
         let pros = build_v5_pros();
@@ -242,13 +290,17 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(pros.clone(), false);
+        let conn_opts = build_v5_conn_pros(pros.clone(), false, ws);
 
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
                 // response
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                if ws {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 assert!(!resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
@@ -265,7 +317,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_response_test(client_id: &String, addr: &String) {
+    fn v5_response_test(client_id: &String, addr: &String, ws: bool) {
         let mqtt_version = 5;
 
         let mut pros = build_v5_pros();
@@ -278,13 +330,17 @@ mod tests {
             process::exit(1);
         });
 
-        let conn_opts = build_v5_conn_pros(pros.clone(), false);
+        let conn_opts = build_v5_conn_pros(pros.clone(), false, ws);
 
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
                 // response
-                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                if ws {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 assert!(!resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
