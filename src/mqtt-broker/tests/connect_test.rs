@@ -233,9 +233,7 @@ mod tests {
     fn v5_request_response_test(client_id: &String, addr: &String) {
         let mqtt_version = 5;
 
-        let mut pros = build_v5_pros();
-        pros.push_val(PropertyCode::RequestResponseInformation, 0)
-            .unwrap();
+        let pros = build_v5_pros();
 
         let create_opts = build_create_pros(client_id, addr);
 
@@ -257,9 +255,7 @@ mod tests {
 
                 // properties
                 let resp_pros = response.properties();
-                assert!(resp_pros
-                    .get(PropertyCode::RequestResponseInformation)
-                    .is_none());
+                assert!(resp_pros.get_string(PropertyCode::ResponseInformation).is_none());
             }
             Err(e) => {
                 println!("Unable to connect:\n\t{:?}", e);
@@ -272,7 +268,9 @@ mod tests {
     fn v5_response_test(client_id: &String, addr: &String) {
         let mqtt_version = 5;
 
-        let pros = build_v5_pros();
+        let mut pros = build_v5_pros();
+        pros.push_val(PropertyCode::RequestResponseInformation, 1).unwrap();
+
         let create_opts = build_create_pros(client_id, addr);
 
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -294,60 +292,31 @@ mod tests {
                 // properties
                 let resp_pros = response.properties();
                 assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::SessionExpiryInterval)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
+                    resp_pros.get(PropertyCode::SessionExpiryInterval).unwrap().get_int().unwrap(),
                     3
                 );
 
                 assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::ReceiveMaximum)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
+                    resp_pros.get(PropertyCode::ReceiveMaximum).unwrap().get_int().unwrap(),
                     65535
                 );
 
-                assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::MaximumQos)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
-                    2
-                );
+                assert_eq!(resp_pros.get(PropertyCode::MaximumQos).unwrap().get_int().unwrap(), 2);
 
                 assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::RetainAvailable)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
+                    resp_pros.get(PropertyCode::RetainAvailable).unwrap().get_int().unwrap(),
                     1
                 );
 
                 assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::MaximumPacketSize)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
+                    resp_pros.get(PropertyCode::MaximumPacketSize).unwrap().get_int().unwrap(),
                     10485760
                 );
 
-                assert!(resp_pros
-                    .get(PropertyCode::AssignedClientIdentifer)
-                    .is_none());
+                assert!(resp_pros.get(PropertyCode::AssignedClientIdentifer).is_none());
 
                 assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::TopicAliasMaximum)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
+                    resp_pros.get(PropertyCode::TopicAliasMaximum).unwrap().get_int().unwrap(),
                     65535
                 );
 
@@ -383,20 +352,12 @@ mod tests {
                 );
 
                 assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::ServerKeepAlive)
-                        .unwrap()
-                        .get_int()
-                        .unwrap(),
+                    resp_pros.get(PropertyCode::ServerKeepAlive).unwrap().get_int().unwrap(),
                     40
                 );
 
                 assert_eq!(
-                    resp_pros
-                        .get(PropertyCode::ResponseInformation)
-                        .unwrap()
-                        .get_string()
-                        .unwrap(),
+                    resp_pros.get(PropertyCode::ResponseInformation).unwrap().get_string().unwrap(),
                     REQUEST_RESPONSE_PREFIX_NAME.to_string()
                 );
 
