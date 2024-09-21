@@ -41,30 +41,14 @@ pub fn err_password() -> String {
 #[allow(dead_code)]
 pub fn build_v5_pros() -> Properties {
     let mut props = Properties::new();
-    props
-        .push_u32(PropertyCode::SessionExpiryInterval, 3)
-        .unwrap();
+    props.push_u32(PropertyCode::SessionExpiryInterval, 3).unwrap();
     props.push_u16(PropertyCode::ReceiveMaximum, 128).unwrap();
-    props
-        .push_u32(PropertyCode::MaximumPacketSize, 2048)
-        .unwrap();
-    props
-        .push_u16(PropertyCode::TopicAliasMaximum, 128)
-        .unwrap();
-    props
-        .push_val(PropertyCode::RequestResponseInformation, 1)
-        .unwrap();
-    props
-        .push_val(PropertyCode::RequestProblemInformation, 1)
-        .unwrap();
-    
-    props
-        .push_string_pair(PropertyCode::UserProperty, "lobo1", "1")
-        .unwrap();
-    props
-        .push_string_pair(PropertyCode::UserProperty, "lobo2", "2")
-        .unwrap();
-
+    props.push_u32(PropertyCode::MaximumPacketSize, 2048).unwrap();
+    props.push_u16(PropertyCode::TopicAliasMaximum, 128).unwrap();
+    props.push_val(PropertyCode::RequestResponseInformation, 0).unwrap();
+    props.push_val(PropertyCode::RequestProblemInformation, 1).unwrap();
+    props.push_string_pair(PropertyCode::UserProperty, "lobo1", "1").unwrap();
+    props.push_string_pair(PropertyCode::UserProperty, "lobo2", "2").unwrap();
     return props;
 }
 
@@ -98,14 +82,9 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool) -> ConnectOptions {
 #[allow(dead_code)]
 pub fn build_create_pros(client_id: &String, addr: &String) -> CreateOptions {
     let create_opts = if client_id.is_empty() {
-        CreateOptionsBuilder::new()
-            .server_uri(addr.clone())
-            .finalize()
+        CreateOptionsBuilder::new().server_uri(addr.clone()).finalize()
     } else {
-        CreateOptionsBuilder::new()
-            .server_uri(addr.clone())
-            .client_id(client_id.clone())
-            .finalize()
+        CreateOptionsBuilder::new().server_uri(addr.clone()).client_id(client_id.clone()).finalize()
     };
     return create_opts;
 }
@@ -164,4 +143,37 @@ pub fn connect_server5(client_id: &String, addr: &String) -> Client {
         }
     }
     return cli;
+}
+
+#[allow(dead_code)]
+pub fn connect_server5_response_information(client_id: &String, addr: &String) -> (Client, String) {
+    let mqtt_version = 5;
+    let mut props = build_v5_pros();
+    props.push_val(PropertyCode::RequestResponseInformation, 1).unwrap();
+
+    let create_opts = build_create_pros(client_id, addr);
+    let cli = Client::new(create_opts).unwrap_or_else(|err| {
+        println!("Error creating the client: {:?}", err);
+        process::exit(1);
+    });
+
+    let conn_opts = build_v5_conn_pros(props.clone(), false);
+    let response_information = match cli.connect(conn_opts) {
+        Ok(response) => {
+            let resp = response.connect_response().unwrap();
+
+            assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+            assert_eq!(mqtt_version, resp.mqtt_version);
+            assert!(resp.session_present);
+            assert_eq!(response.reason_code(), ReasonCode::Success);
+
+            let resp_pros = response.properties();
+            resp_pros.get_string(PropertyCode::ResponseInformation).unwrap()
+        }
+        Err(e) => {
+            println!("Unable to connect:\n\t{:?}", e);
+            process::exit(1);
+        }
+    };
+    return (cli, response_information);
 }
