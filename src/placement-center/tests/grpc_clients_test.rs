@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod common;
 #[cfg(test)]
 mod tests {
     use protocol::placement_center::generate::{
-        common::ClusterType,
         journal::{
             engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest,
             DeleteSegmentRequest, DeleteShardRequest,
@@ -26,9 +26,14 @@ mod tests {
         },
     };
 
+    use crate::common::{
+        cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr, shard_name,
+        shard_replica,
+    };
+
     #[tokio::test]
     async fn test_register_node() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+        let mut client = PlacementCenterServiceClient::connect(pc_addr())
             .await
             .unwrap();
 
@@ -49,7 +54,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_heartbeat() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+        let mut client = PlacementCenterServiceClient::connect(pc_addr())
             .await
             .unwrap();
 
@@ -68,7 +73,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_unregister_node() {
-        let mut client = PlacementCenterServiceClient::connect("http://127.0.0.1:1228")
+        let mut client = PlacementCenterServiceClient::connect(pc_addr())
             .await
             .unwrap();
 
@@ -87,9 +92,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_shard() {
-        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
-            .await
-            .unwrap();
+        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
         let mut request = CreateShardRequest::default();
         request.cluster_name = cluster_name();
@@ -106,9 +109,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_shard() {
-        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
-            .await
-            .unwrap();
+        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
         let mut request = DeleteShardRequest::default();
         request.cluster_name = cluster_name();
@@ -124,9 +125,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_segment() {
-        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
-            .await
-            .unwrap();
+        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
         let mut request = CreateSegmentRequest::default();
         request.cluster_name = cluster_name();
@@ -142,9 +141,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_segment() {
-        let mut client = EngineServiceClient::connect("http://127.0.0.1:1228")
-            .await
-            .unwrap();
+        let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
         let mut request = DeleteSegmentRequest::default();
         request.cluster_name = cluster_name();
@@ -157,32 +154,5 @@ mod tests {
                 assert!(false)
             }
         }
-    }
-
-    fn shard_name() -> String {
-        return "test1".to_string();
-    }
-
-    fn shard_replica() -> u32 {
-        return 1;
-    }
-
-    fn cluster_type() -> i32 {
-        return ClusterType::JournalServer.into();
-    }
-    fn cluster_name() -> String {
-        return "tokio-test2".to_string();
-    }
-
-    fn node_id() -> u64 {
-        return 4;
-    }
-
-    fn node_ip() -> String {
-        return "127.0.0.4".to_string();
-    }
-
-    fn extend_info() -> String {
-        return "extend info".to_string();
     }
 }
