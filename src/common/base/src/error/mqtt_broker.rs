@@ -30,8 +30,8 @@ pub enum MQTTBrokerError {
     #[error("topic name is not available")]
     TopicNameInvalid(),
 
-    #[error("Topic name is incorrectly formatted")]
-    TopicNameIncorrectlyFormatted,
+    #[error("Topic {0} is incorrectly formatted")]
+    TopicNameIncorrectlyFormatted(String),
 
     #[error("Connection ID [0] information not found in cache.")]
     NotFoundConnectionInCache(u64),

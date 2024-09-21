@@ -26,14 +26,13 @@ mod tests {
         common::ClusterType, mqtt::GetShareSubLeaderRequest, placement::RegisterNodeRequest,
     };
     use std::{sync::Arc, thread::sleep, time::Duration};
-
     use crate::common::pc_addr;
 
     #[tokio::test]
     async fn test_share_sub() {
         let client_poll = Arc::new(ClientPool::new(3));
         let mut addrs = Vec::new();
-        addrs.push(pc_addr());
+        addrs.push("127.0.0.1:1228".to_string());
 
         let cluster_type = ClusterType::MqttBrokerServer.try_into().unwrap();
         let cluster_name = unique_id();

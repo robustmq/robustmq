@@ -224,11 +224,11 @@ impl PlacementCenter {
         raft_message_recv: Receiver<RaftMessage>,
         stop_recv: broadcast::Receiver<bool>,
     ) {
-        let data_route = Arc::new(RwLock::new(DataRoute::new(
+        let data_route = Arc::new(DataRoute::new(
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
-        )));
+        ));
 
         let mut raft: RaftMachine = RaftMachine::new(
             self.placement_cache.clone(),
