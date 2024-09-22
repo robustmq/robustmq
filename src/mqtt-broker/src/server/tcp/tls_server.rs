@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::observability::metrics::packets::{record_received_error_metrics, record_received_metrics};
+use crate::observability::metrics::packets::{
+    record_received_error_metrics, record_received_metrics,
+};
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::packet::RequestPackage;
 
@@ -36,10 +38,7 @@ pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>
 pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
     Ok(private_key(&mut BufReader::new(File::open(path)?))
         .unwrap()
-        .ok_or(io::Error::new(
-            ErrorKind::Other,
-            "no private key found".to_string(),
-        ))?)
+        .ok_or(io::Error::new(ErrorKind::Other, "no private key found".to_string()))?)
 }
 
 pub(crate) fn read_tls_frame_process(
@@ -47,10 +46,8 @@ pub(crate) fn read_tls_frame_process(
         tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
         MqttCodec,
     >,
-    connection: NetworkConnection,
-    request_queue_sx: Sender<RequestPackage>,
-    mut connection_stop_rx: Receiver<bool>,
-    network_type: NetworkConnectionType,
+    connection: NetworkConnection, request_queue_sx: Sender<RequestPackage>,
+    mut connection_stop_rx: Receiver<bool>, network_type: NetworkConnectionType,
 ) {
     tokio::spawn(async move {
         loop {
@@ -83,6 +80,9 @@ pub(crate) fn read_tls_frame_process(
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
+                    } else {
+                        debug!("TLS TCP connection closed");
+                        break;
                     }
                 }
             }
