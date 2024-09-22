@@ -1,47 +1,101 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::{
-    handler::{
-        cache::CacheManager,
-        command::Command,
-        connection::disconnect_connection,
-        validator::{tcp_establish_connection_check, tcp_tls_establish_connection_check},
-    },
-    observability::{
-        metrics::{
-            packets::{record_received_error_metrics, record_received_metrics},
-            server::{metrics_request_queue, metrics_response_queue},
-        },
-        slow::request::try_record_total_request_ms,
-    },
-    server::{
-        connection::{NetworkConnection, NetworkConnectionType},
-        connection_manager::ConnectionManager,
-        packet::{RequestPackage, ResponsePackage},
-        tcp::{
-            handler::handler_process,
-            tls_server::{acceptor_tls_process, read_tls_frame_process},
-        },
-    },
+    handler::{cache::CacheManager, connection::disconnect_connection},
+    observability::metrics::server::{metrics_request_queue, metrics_response_queue},
+    server::{connection_manager::ConnectionManager, packet::ResponsePackage},
     subscribe::subscribe_manager::SubscribeManager,
 };
 use clients::poll::ClientPool;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::mqtt_broker::MQTTBrokerError};
-use futures_util::StreamExt;
-use log::{debug, error, info};
-use protocol::mqtt::{
-    codec::{MQTTPacketWrapper, MqttCodec},
-    common::MQTTPacket,
-};
-use std::{collections::HashMap, path::Path, sync::Arc};
-use storage_adapter::storage::StorageAdapter;
+use log::{debug, error};
+use protocol::mqtt::{codec::MQTTPacketWrapper, common::MQTTPacket};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::broadcast;
 use tokio::{
-    io, select,
+    select,
     sync::mpsc::{self, Receiver, Sender},
 };
-use tokio::{net::TcpListener, sync::broadcast};
-use tokio_rustls::{rustls::ServerConfig, TlsAcceptor};
-use tokio_util::codec::{FramedRead, FramedWrite};
 
-use super::tls_server::{load_certs, load_key};
+pub(crate) async fn response_process(
+    response_process_num: usize,
+    connection_manager: Arc<ConnectionManager>,
+    cache_manager: Arc<CacheManager>,
+    subscribe_manager: Arc<SubscribeManager>,
+    mut response_queue_rx: Receiver<ResponsePackage>,
+    client_poll: Arc<ClientPool>,
+    stop_sx: broadcast::Sender<bool>,
+) {
+    let mut stop_rx = stop_sx.subscribe();
+    tokio::spawn(async move {
+        let mut process_handler: HashMap<usize, Sender<ResponsePackage>> = HashMap::new();
+        response_child_process(
+            response_process_num,
+            &mut process_handler,
+            stop_sx.clone(),
+            connection_manager,
+            cache_manager,
+            subscribe_manager,
+            client_poll,
+        );
+
+        let mut response_process_seq = 1;
+        loop {
+            select! {
+                val = stop_rx.recv() =>{
+                    match val{
+                        Ok(flag) => {
+                            if flag {
+                                debug!("{}","TCP Server response process thread stopped successfully.");
+                                break;
+                            }
+                        }
+                        Err(_) => {}
+                    }
+                }
+
+                val = response_queue_rx.recv()=>{
+                    if let Some(packet) = val{
+                        metrics_request_queue("response-total", response_queue_rx.len());
+                        loop{
+                            let seq = if response_process_seq > process_handler.len(){
+                                1
+                            } else {
+                                response_process_seq
+                            };
+
+                            if let Some(handler_sx) = process_handler.get(&seq){
+                                match handler_sx.try_send(packet.clone()){
+                                    Ok(_) => {
+                                        break;
+                                    }
+                                    Err(err) => error!(
+                                        "Failed to write data to the response process queue, error message: {:?}",
+                                        err
+                                    ),
+                                }
+                                response_process_seq = response_process_seq + 1;
+                            }else{
+                                error!("{}","No request packet processing thread available");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 
 pub(crate) fn response_child_process(
     response_process_num: usize,

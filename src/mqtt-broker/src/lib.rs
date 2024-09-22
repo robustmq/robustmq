@@ -22,7 +22,7 @@ use log::{error, info};
 use observability::start_opservability;
 use security::AuthDriver;
 use server::connection_manager::ConnectionManager;
-use server::tcp::start_tcp_server;
+use server::tcp::server::start_tcp_server;
 use server::websocket::server::{websocket_server, websockets_server, WebSocketServerState};
 use server::{
     grpc::server::GrpcServer,

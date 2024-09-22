@@ -22,7 +22,7 @@ metadata = "memory"
 message = "memory"
 
 [mysql]
-server = "mysql:# root:123456@127.0.0.1:3306/mqtt"
+server = "mysql:#root:123456@127.0.0.1:3306/mqtt"
 
 [journal]
 server = []
