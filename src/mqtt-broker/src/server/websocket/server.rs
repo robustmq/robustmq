@@ -57,12 +57,9 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        sucscribe_manager: Arc<SubscribeManager>,
-        cache_manager: Arc<CacheManager>,
-        connection_manager: Arc<ConnectionManager>,
-        message_storage_adapter: Arc<S>,
-        client_poll: Arc<ClientPool>,
-        auth_driver: Arc<AuthDriver>,
+        sucscribe_manager: Arc<SubscribeManager>, cache_manager: Arc<CacheManager>,
+        connection_manager: Arc<ConnectionManager>, message_storage_adapter: Arc<S>,
+        client_poll: Arc<ClientPool>, auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return Self {
@@ -82,17 +79,10 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websocket_port)
-        .parse()
-        .unwrap();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websocket_port).parse().unwrap();
     let app = routes_v1(state);
-    info!(
-        "Broker WebSocket Server start success. port:{}",
-        config.network.websocket_port
-    );
-    match axum_server::bind(ip)
-        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
-        .await
+    info!("Broker WebSocket Server start success. port:{}", config.network.websocket_port);
+    match axum_server::bind(ip).serve(app.into_make_service_with_connect_info::<SocketAddr>()).await
     {
         Ok(()) => {}
         Err(e) => panic!("{}", e.to_string()),
@@ -104,9 +94,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websockets_port)
-        .parse()
-        .unwrap();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websockets_port).parse().unwrap();
     let app = routes_v1(state);
 
     let tls_config = match RustlsConfig::from_pem_file(
@@ -121,10 +109,7 @@ where
         }
     };
 
-    info!(
-        "Broker WebSocket TLS Server start success. port:{}",
-        config.network.websockets_port
-    );
+    info!("Broker WebSocket TLS Server start success. port:{}", config.network.websockets_port);
     match axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
@@ -145,10 +130,8 @@ where
 }
 
 async fn ws_handler<S>(
-    ws: WebSocketUpgrade,
-    State(state): State<WebSocketServerState<S>>,
-    user_agent: Option<TypedHeader<UserAgent>>,
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ws: WebSocketUpgrade, State(state): State<WebSocketServerState<S>>,
+    user_agent: Option<TypedHeader<UserAgent>>, ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> Response
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
@@ -168,26 +151,21 @@ where
         state.auth_driver.clone(),
     );
     let codec = MqttCodec::new(None);
-    ws.protocols(["mqtt", "mqttv3.1"])
-        .on_upgrade(move |socket| {
-            handle_socket(
-                socket,
-                addr,
-                command,
-                codec,
-                state.connection_manager.clone(),
-                state.stop_sx.clone(),
-            )
-        })
+    ws.protocols(["mqtt", "mqttv3.1"]).on_upgrade(move |socket| {
+        handle_socket(
+            socket,
+            addr,
+            command,
+            codec,
+            state.connection_manager.clone(),
+            state.stop_sx.clone(),
+        )
+    })
 }
 
 async fn handle_socket<S>(
-    socket: WebSocket,
-    addr: SocketAddr,
-    mut command: Command<S>,
-    mut codec: MqttCodec,
-    connection_manager: Arc<ConnectionManager>,
-    stop_sx: broadcast::Sender<bool>,
+    socket: WebSocket, addr: SocketAddr, mut command: Command<S>, mut codec: MqttCodec,
+    connection_manager: Arc<ConnectionManager>, stop_sx: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -297,10 +275,14 @@ async fn handle_socket<S>(
                             }
                             break;
                         }
-                        Err(e) => error!(
-                            "websocket server parsing request packet error, error message :{e:?}"
-                        ),
+                        Err(e) => {
+                            error!("websocket server parsing request packet error, error message :{e:?}");
+                            break;
+                        },
                     }
+                } else {
+                    debug!("websocket server close");
+                    break;
                 }
             }
         }

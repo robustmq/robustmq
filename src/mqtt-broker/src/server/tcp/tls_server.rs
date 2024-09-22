@@ -13,7 +13,9 @@
 // limitations under the License.
 use crate::handler::validator::tcp_tls_establish_connection_check;
 use crate::observability::metrics::packets::{
+    
     record_received_error_metrics, record_received_metrics,
+,
 };
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
@@ -44,100 +46,10 @@ pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>
 pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
     Ok(private_key(&mut BufReader::new(File::open(path)?))
         .unwrap()
-        .ok_or(io::Error::new(ErrorKind::Other, "no private key found".to_string()))?)
-}
-
-pub(crate) async fn acceptor_tls_process(
-    accept_thread_num: usize, listener_arc: Arc<TcpListener>, stop_sx: broadcast::Sender<bool>,
-    network_connection_type: NetworkConnectionType, connection_manager: Arc<ConnectionManager>,
-    request_queue_sx: Sender<RequestPackage>,
-) {
-    let conf = broker_mqtt_conf();
-
-    let certs = match load_certs(&Path::new(&conf.network.tls_cert)) {
-        Ok(data) => data,
-        Err(e) => {
-            panic!("{}", e.to_string());
-        }
-    };
-
-    let key = match load_key(&Path::new(&conf.network.tls_key)) {
-        Ok(data) => data,
-        Err(e) => {
-            panic!("{}", e.to_string());
-        }
-    };
-
-    let config = match ServerConfig::builder().with_no_client_auth().with_single_cert(certs, key) {
-        Ok(data) => data,
-        Err(e) => {
-            panic!("{}", e.to_string());
-        }
-    };
-    let tls_acceptor = TlsAcceptor::from(Arc::new(config));
-
-    for index in 1..=accept_thread_num {
-        let listener = listener_arc.clone();
-        let connection_manager = connection_manager.clone();
-        let mut stop_rx = stop_sx.subscribe();
-        let raw_request_queue_sx = request_queue_sx.clone();
-        let raw_tls_acceptor = tls_acceptor.clone();
-        let network_type = network_connection_type.clone();
-        tokio::spawn(async move {
-            debug!("TCP Server acceptor thread {} start successfully.", index);
-            loop {
-                select! {
-                    val = stop_rx.recv() =>{
-                        match val{
-                            Ok(flag) => {
-                                if flag {
-                                    debug!("TCP Server acceptor thread {} stopped successfully.",index);
-                                    break;
-                                }
-                            }
-                            Err(_) => {}
-                        }
-                    }
-                    val = listener.accept()=>{
-                        match val{
-                            Ok((stream, addr)) => {
-                                info!("accept tcp tls connection:{:?}",addr);
-                                let stream = match raw_tls_acceptor.accept(stream).await{
-                                    Ok(da) => da,
-                                    Err(e) => {
-                                        error!("Tls Accepter failed to read Stream with error message :{e:?}");
-                                        continue;
-                                    }
-                                };
-                                let (r_stream, w_stream) = tokio::io::split(stream);
-                                let codec = MqttCodec::new(None);
-                                let read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                                let mut  write_frame_stream = FramedWrite::new(w_stream, codec.clone());
-
-                                if !tcp_tls_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
-                                    continue;
-                                }
-
-                                let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
-                                let connection = NetworkConnection::new(
-                                    crate::server::connection::NetworkConnectionType::TCPS,
-                                    addr,
-                                    Some(connection_stop_sx.clone())
-                                );
-                                connection_manager.add_connection(connection.clone());
-                                connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
-
-                                read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx, network_type.clone());
-                            }
-                            Err(e) => {
-                                error!("TCP accept failed to create connection with error message :{:?}",e);
-                            }
-                        }
-                    }
-                };
-            }
-        });
-    }
+        .ok_or(io::Error::new(
+            ErrorKind::Other,
+            "no private key found".to_string(),
+        ))?)
 }
 
 pub(crate) fn read_tls_frame_process(
@@ -179,6 +91,9 @@ pub(crate) fn read_tls_frame_process(
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
+                    } else {
+                        debug!("TLS TCP connection closed");
+                        break;
                     }
                 }
             }
