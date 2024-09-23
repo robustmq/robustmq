@@ -149,8 +149,7 @@ pub(crate) fn response_child_process(
                                         Ok(()) => {},
                                         Err(e) => {
                                             error!("{}",e);
-                                            raw_connect_manager.clonse_connect(response_package.connection_id).await;
-                                            break;
+                                            raw_connect_manager.close_connect(response_package.connection_id).await;
                                         }
                                     }
                             }
@@ -169,7 +168,6 @@ pub(crate) fn response_child_process(
                                         Err(e) => error!("{}",e)
                                     };
                                 }
-                                break;
                             }
                         }
                     }

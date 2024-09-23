@@ -124,7 +124,7 @@ impl Connection {
         match self.write.send(resp).await {
             Ok(_) => {}
             Err(err) => error!(
-                "Failed to write data to the response queue, error message ff: {:?}",
+                "Failed to write data to the response queue, error message: {:?}",
                 err
             ),
         }

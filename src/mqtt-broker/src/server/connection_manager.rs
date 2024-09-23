@@ -89,11 +89,11 @@ impl ConnectionManager {
 
     pub async fn close_all_connect(&self) {
         for (connect_id, _) in self.connections.clone() {
-            self.clonse_connect(connect_id).await;
+            self.close_connect(connect_id).await;
         }
     }
 
-    pub async fn clonse_connect(&self, connection_id: u64) {
+    pub async fn close_connect(&self, connection_id: u64) {
         if let Some((_, connection)) = self.connections.remove(&connection_id) {
             connection.stop_connection().await;
         }
