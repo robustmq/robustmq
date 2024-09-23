@@ -16,7 +16,7 @@ use super::MQTTBrokerPlacementInterface;
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use inner::inner_cluster_status;
-use mobc::Manager;
+use mobc::{Connection, Manager};
 use protocol::broker_server::generate::admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use std::sync::Arc;
 use tonic::transport::Channel;
@@ -27,7 +27,7 @@ pub mod inner;
 async fn admin_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<MqttBrokerAdminServiceClient<Channel>, CommonError> {
+) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
     match client_poll.mqtt_broker_admin_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -71,7 +71,7 @@ pub(crate) async fn admin_interface_call(
 }
 
 #[derive(Clone)]
-pub(crate) struct MqttBrokerAdminServiceManager {
+pub struct MqttBrokerAdminServiceManager {
     pub addr: String,
 }
 

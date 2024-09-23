@@ -13,23 +13,24 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use mobc::Connection;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     placement::{
-        placement_center_service_client::PlacementCenterServiceClient, ClusterStatusReply,
-        ClusterStatusRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest,
-        ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
-        GetResourceConfigRequest, HeartbeatRequest, NodeListReply, NodeListRequest,
-        RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+        ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest,
+        DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
+        GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
+        NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
         SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
         SetResourceConfigRequest, UnRegisterNodeRequest,
     },
 };
-use tonic::transport::Channel;
+
+use super::PlacementServiceManager;
 
 pub(crate) async fn inner_cluster_status(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match ClusterStatusRequest::decode(request.as_ref()) {
@@ -46,7 +47,7 @@ pub(crate) async fn inner_cluster_status(
 }
 
 pub(crate) async fn inner_node_list(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match NodeListRequest::decode(request.as_ref()) {
@@ -63,7 +64,7 @@ pub(crate) async fn inner_node_list(
 }
 
 pub(crate) async fn inner_register_node(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match RegisterNodeRequest::decode(request.as_ref()) {
@@ -80,7 +81,7 @@ pub(crate) async fn inner_register_node(
 }
 
 pub(crate) async fn inner_unregister_node(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match UnRegisterNodeRequest::decode(request.as_ref()) {
@@ -97,7 +98,7 @@ pub(crate) async fn inner_unregister_node(
 }
 
 pub(crate) async fn inner_heartbeat(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match HeartbeatRequest::decode(request.as_ref()) {
@@ -114,7 +115,7 @@ pub(crate) async fn inner_heartbeat(
 }
 
 pub(crate) async fn inner_send_raft_message(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match SendRaftMessageRequest::decode(request.as_ref()) {
@@ -131,7 +132,7 @@ pub(crate) async fn inner_send_raft_message(
 }
 
 pub(crate) async fn inner_send_raft_conf_change(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match SendRaftConfChangeRequest::decode(request.as_ref()) {
@@ -148,7 +149,7 @@ pub(crate) async fn inner_send_raft_conf_change(
 }
 
 pub(crate) async fn inner_set_resource_config(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match SetResourceConfigRequest::decode(request.as_ref()) {
@@ -165,7 +166,7 @@ pub(crate) async fn inner_set_resource_config(
 }
 
 pub(crate) async fn inner_get_resource_config(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match GetResourceConfigRequest::decode(request.as_ref()) {
@@ -182,7 +183,7 @@ pub(crate) async fn inner_get_resource_config(
 }
 
 pub(crate) async fn inner_delete_resource_config(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteResourceConfigRequest::decode(request.as_ref()) {
@@ -199,7 +200,7 @@ pub(crate) async fn inner_delete_resource_config(
 }
 
 pub(crate) async fn inner_set_idempotent(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match SetIdempotentDataRequest::decode(request.as_ref()) {
@@ -216,15 +217,13 @@ pub(crate) async fn inner_set_idempotent(
 }
 
 pub(crate) async fn inner_exist_idempotent(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match ExistsIdempotentDataRequest::decode(request.as_ref()) {
         Ok(request) => match client.exists_idempotent_data(request).await {
             Ok(result) => {
-                return Ok(ExistsIdempotentDataReply::encode_to_vec(
-                    &result.into_inner(),
-                ));
+                return Ok(ExistsIdempotentDataReply::encode_to_vec(&result.into_inner()));
             }
             Err(e) => return Err(CommonError::GrpcServerStatus(e)),
         },
@@ -235,7 +234,7 @@ pub(crate) async fn inner_exist_idempotent(
 }
 
 pub(crate) async fn inner_delete_idempotent(
-    mut client: PlacementCenterServiceClient<Channel>,
+    mut client: Connection<PlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteIdempotentDataRequest::decode(request.as_ref()) {

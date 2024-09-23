@@ -16,7 +16,7 @@ use super::MQTTBrokerPlacementInterface;
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
-use mobc::Manager;
+use mobc::{Connection, Manager};
 use protocol::broker_server::generate::placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
 use std::sync::Arc;
 use tonic::transport::Channel;
@@ -27,7 +27,7 @@ pub mod inner;
 async fn placement_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<MqttBrokerPlacementServiceClient<Channel>, CommonError> {
+) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
     match client_poll.mqtt_broker_mqtt_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -77,7 +77,7 @@ pub(crate) async fn placement_interface_call(
 }
 
 #[derive(Clone)]
-pub(crate) struct MqttBrokerPlacementServiceManager {
+pub struct MqttBrokerPlacementServiceManager {
     pub addr: String,
 }
 

@@ -13,18 +13,17 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use mobc::Connection;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
-    kv::{
-        kv_service_client::KvServiceClient, DeleteRequest, ExistsReply, ExistsRequest, GetReply,
-        GetRequest, SetRequest,
-    },
+    kv::{DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest},
 };
-use tonic::transport::Channel;
+
+use super::KvServiceManager;
 
 pub(crate) async fn inner_get(
-    mut client: KvServiceClient<Channel>,
+    mut client: Connection<KvServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match GetRequest::decode(request.as_ref()) {
@@ -41,7 +40,7 @@ pub(crate) async fn inner_get(
 }
 
 pub(crate) async fn inner_set(
-    mut client: KvServiceClient<Channel>,
+    mut client: Connection<KvServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match SetRequest::decode(request.as_ref()) {
@@ -58,7 +57,7 @@ pub(crate) async fn inner_set(
 }
 
 pub(crate) async fn inner_delete(
-    mut client: KvServiceClient<Channel>,
+    mut client: Connection<KvServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteRequest::decode(request.as_ref()) {
@@ -75,7 +74,7 @@ pub(crate) async fn inner_delete(
 }
 
 pub(crate) async fn inner_exists(
-    mut client: KvServiceClient<Channel>,
+    mut client: Connection<KvServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match ExistsRequest::decode(request.as_ref()) {

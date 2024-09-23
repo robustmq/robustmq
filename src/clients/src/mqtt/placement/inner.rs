@@ -13,15 +13,16 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use mobc::Connection;
 use prost::Message;
 use protocol::broker_server::generate::placement::{
-    mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient, CommonReply,
-    DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
+    CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
 };
-use tonic::transport::Channel;
+
+use super::MqttBrokerPlacementServiceManager;
 
 pub(crate) async fn inner_delete_session(
-    mut client: MqttBrokerPlacementServiceClient<Channel>,
+    mut client: Connection<MqttBrokerPlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteSessionRequest::decode(request.as_ref()) {
@@ -38,7 +39,7 @@ pub(crate) async fn inner_delete_session(
 }
 
 pub(crate) async fn inner_update_cache(
-    mut client: MqttBrokerPlacementServiceClient<Channel>,
+    mut client: Connection<MqttBrokerPlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match UpdateCacheRequest::decode(request.as_ref()) {
@@ -55,7 +56,7 @@ pub(crate) async fn inner_update_cache(
 }
 
 pub(crate) async fn inner_send_last_will_message(
-    mut client: MqttBrokerPlacementServiceClient<Channel>,
+    mut client: Connection<MqttBrokerPlacementServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match SendLastWillMessageRequest::decode(request.as_ref()) {

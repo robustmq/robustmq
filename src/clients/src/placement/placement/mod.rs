@@ -18,7 +18,7 @@ use inner::{
     inner_exist_idempotent, inner_get_resource_config, inner_node_list, inner_set_idempotent,
     inner_set_resource_config,
 };
-use mobc::Manager;
+use mobc::{Connection, Manager};
 use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
 use std::sync::Arc;
 use tonic::transport::Channel;
@@ -107,11 +107,8 @@ pub(crate) async fn placement_interface_call(
 async fn placement_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<PlacementCenterServiceClient<Channel>, CommonError> {
-    match client_poll
-        .placement_center_inner_services_client(addr)
-        .await
-    {
+) -> Result<Connection<PlacementServiceManager>, CommonError> {
+    match client_poll.placement_center_inner_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }
@@ -121,7 +118,7 @@ async fn placement_client(
     }
 }
 
-pub(crate) struct PlacementServiceManager {
+pub struct PlacementServiceManager {
     pub addr: String,
 }
 
