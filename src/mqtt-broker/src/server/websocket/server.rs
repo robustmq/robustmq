@@ -235,7 +235,7 @@ async fn handle_socket<S>(
                                             Ok(()) => {},
                                             Err(e) => {
                                                 error!("websocket returns failure to write the packet to the client with error message {e:?}");
-                                                connection_manager.clonse_connect(tcp_connection.connection_id).await;
+                                                connection_manager.close_connect(tcp_connection.connection_id).await;
                                                 break;
                                             }
                                         }

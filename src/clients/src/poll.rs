@@ -112,7 +112,7 @@ impl ClientPool {
         if let Some(poll) = self.placement_center_journal_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.into_inner());
+                    return Ok(conn.clone());
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
@@ -147,7 +147,7 @@ impl ClientPool {
         if let Some(poll) = self.placement_center_kv_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.into_inner());
+                    return Ok(conn.clone());
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
@@ -183,7 +183,7 @@ impl ClientPool {
         if let Some(poll) = self.placement_center_mqtt_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.into_inner());
+                    return Ok(conn.clone());
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
@@ -218,7 +218,7 @@ impl ClientPool {
         if let Some(poll) = self.mqtt_broker_placement_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.into_inner());
+                    return Ok(conn.clone());
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
@@ -253,7 +253,7 @@ impl ClientPool {
         if let Some(poll) = self.mqtt_broker_admin_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.into_inner());
+                    return Ok(conn.clone());
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(

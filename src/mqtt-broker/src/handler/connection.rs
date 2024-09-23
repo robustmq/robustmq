@@ -239,7 +239,7 @@ pub async fn disconnect_connection(
     }
 
     // Close the real network connection
-    connnection_manager.clonse_connect(connect_id).await;
+    connnection_manager.close_connect(connect_id).await;
     return Ok(());
 }
 
