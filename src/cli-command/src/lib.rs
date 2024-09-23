@@ -22,3 +22,4 @@ pub(crate) fn error_info(err: String) {
 pub(crate) fn grpc_addr(addr: String) -> Vec<String> {
     vec![format!("{}", addr)]
 }
+
