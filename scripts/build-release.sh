@@ -16,8 +16,8 @@
 platform=$1
 version=$2
 
-if [ "$platform" != "mac" -a "$platform" != "linux" -a "$platform" != "win" -a "$platform" != "arm" ]; then
-    echo "platform Error, optional: win,linux, mac, arm"
+if [ "$platform" != "mac" -a "$platform" != "linux" -a "$platform" != "win" ]; then
+    echo "platform Error, optional: win,linux, mac"
     exit
 fi
 
@@ -65,37 +65,67 @@ cross_build(){
 
     # bundel file
 	cd ${build} && tar zcvf ${package_name}.tar.gz ${package_name} && rm -rf ${package_name}
-
+    cd ..
 	echo "build release package success. ${package_name}.tar.gz "
 }
 
 build_linux_release(){
-    platform_linux_gnu="x86_64-unknown-linux-gnu"
+    version=$1
 
-    platform_linux_musl="x86_64-unknown-linux-musl"
+    # Intel 64
+    platform_name="x86_64-unknown-linux-gnu"
+    package_name="linux-gnu-intel64"
+    cross_build $platform_name $package_name $version
+
+    platform_name="x86_64-unknown-linux-musl"
+    package_name="linux-musl-intel64"
+    cross_build $platform_name $package_name $version
+
+    # Arm 64
+    platform_name="aarch64-unknown-linux-gnu"
+    package_name="linux-gnu-arm64"
+    cross_build $platform_name $package_name $version
+
+    platform_name="aarch64-unknown-linux-musl"
+    package_name="linux-musl-arm64"
+    cross_build $platform_name $package_name $version
 }
 
 build_mac_release(){
     version=$1
-    platform_mac="x86_64-apple-darwin"
-    package_name="apple-intel-64"
-    cross_build $platform_mac $package_name $version
+
+    # Intel 64
+    platform_name="x86_64-apple-darwin"
+    package_name="apple-mac-intel64"
+    cross_build $platform_name $package_name $version
+
+    # Arm 64
+    platform_name="aarch64-apple-darwin"
+    package_name="apple-mac-arm64"
+    cross_build $platform_name $package_name $version
 }
 
 build_win_release(){
-    platform_win64="x86_64-pc-windows-gnu"
+    version=$1
 
+    # Intel 64
+    platform_name="x86_64-pc-windows-gnu"
+    package_name="windows-gnu-intel64"
+    cross_build $platform_name $package_name $version
 
-    platform_win32="i686-pc-windows-gnu"
-}
+    # Intel 32
+    platform_name="i686-pc-windows-gnu"
+    package_name="windows-gnu-intel32"
+    cross_build $platform_name $package_name $version
 
-build_arm_release(){
-    platform_arm64="aarch64-unknown-linux-gnu"
-    platform_arm32="armv7-unknown-linux-gnueabihf"
+    # Arm 64
+    platform_name="aarch64-pc-windows-gnullvm"
+    package_name="windows-gnu-arm32"
+    cross_build $platform_name $package_name $version
 }
 
 if [ "$platform" = "linux" ]; then
-   build_linux_release
+   build_linux_release $version
 fi
 
 if [ "$platform" = "mac" ]; then
@@ -103,10 +133,10 @@ if [ "$platform" = "mac" ]; then
 fi
 
 if [ "$platform" = "win" ]; then
-    build_win_release
+    build_win_release $version
 fi
 
 if [ "$platform" = "arm" ]; then
-    build_arm_release
+    build_arm_release $version
 fi
 

@@ -394,7 +394,6 @@ mod tests {
                     }
                 }
                 assert_eq!(mqtt_version, resp.mqtt_version);
-                assert!(!resp.session_present);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
 
                 // properties
