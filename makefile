@@ -4,9 +4,9 @@ BUILD_FOLD = ./build
 VERSION:=$(shell grep "version =" Cargo.toml | awk -F'"' '{print $2}' | head -n 1 | sed 's/version = //g')
 PACKAGE_FOLD_NAME = ${TARGET}-$(VERSION)
 
-##@ Build
-.PHONY: release
-release: ## Build debug version robustmq.
+##@ Build Mac Release
+.PHONY: build-mac-release
+build-mac-release: ## Build debug version robustmq.
 	mkdir -p ${BUILD_FOLD}
 	cargo build --release
 	mkdir -p $(BUILD_FOLD)/${PACKAGE_FOLD_NAME}
