@@ -88,12 +88,6 @@ pub async fn try_send_retain_message(
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
-    let sub_id = if let Some(id) = subscriber.subscription_identifier {
-        vec![id]
-    } else {
-        Vec::new()
-    };
-
     if subscriber.retain_forward_rule == RetainForwardRule::Never {
         return;
     }
@@ -145,7 +139,7 @@ pub async fn try_send_retain_message(
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,
                             user_properties: user_properties,
-                            subscription_identifiers: sub_id.clone(),
+                            subscription_identifiers: subscriber.subscription_identifier.clone(),
                             content_type: msg.content_type,
                         };
 

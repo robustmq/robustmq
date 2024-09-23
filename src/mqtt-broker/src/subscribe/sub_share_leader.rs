@@ -438,10 +438,6 @@ pub fn build_publish(
     topic_name: String,
     msg: MQTTMessage,
 ) -> Option<(Publish, PublishProperties)> {
-    let mut sub_id = Vec::new();
-    if let Some(id) = subscribe.subscription_identifier {
-        sub_id.push(id);
-    }
 
     let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
@@ -472,7 +468,7 @@ pub fn build_publish(
         response_topic: msg.response_topic,
         correlation_data: msg.correlation_data,
         user_properties: msg.user_properties,
-        subscription_identifiers: sub_id.clone(),
+        subscription_identifiers: subscribe.subscription_identifier.clone(),
         content_type: msg.content_type,
     };
     return Some((publish, properties));

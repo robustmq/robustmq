@@ -81,16 +81,10 @@ where
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
         for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread.clone() {
-            if !self
-                .subscribe_manager
-                .exclusive_subscribe
-                .contains_key(&exclusive_key)
-            {
+            if !self.subscribe_manager.exclusive_subscribe.contains_key(&exclusive_key) {
                 match sx.send(true) {
                     Ok(_) => {
-                        self.subscribe_manager
-                            .exclusive_push_thread
-                            .remove(&exclusive_key);
+                        self.subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
                     }
                     Err(_) => {}
                 }
@@ -104,11 +98,7 @@ where
         for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_subscribe.clone() {
             let client_id = subscriber.client_id.clone();
 
-            if self
-                .subscribe_manager
-                .exclusive_push_thread
-                .contains_key(&exclusive_key)
-            {
+            if self.subscribe_manager.exclusive_push_thread.contains_key(&exclusive_key) {
                 continue;
             }
 
@@ -136,11 +126,6 @@ where
 
                 let cluster_qos = cache_manager.get_cluster_info().protocol.max_qos;
                 let qos = min_qos(cluster_qos, subscriber.qos);
-
-                let mut sub_ids = Vec::new();
-                if let Some(id) = subscriber.subscription_identifier {
-                    sub_ids.push(id);
-                }
 
                 try_send_retain_message(
                     client_id.clone(),
@@ -206,11 +191,8 @@ where
                                     continue;
                                 }
 
-                                let retain = if subscriber.preserve_retain {
-                                    msg.retain
-                                } else {
-                                    false
-                                };
+                                let retain =
+                                    if subscriber.preserve_retain { msg.retain } else { false };
 
                                 let mut publish = Publish {
                                     dup: false,
@@ -228,7 +210,9 @@ where
                                     response_topic: msg.response_topic,
                                     correlation_data: msg.correlation_data,
                                     user_properties: msg.user_properties,
-                                    subscription_identifiers: sub_ids.clone(),
+                                    subscription_identifiers: subscriber
+                                        .subscription_identifier
+                                        .clone(),
                                     content_type: msg.content_type,
                                 };
 
@@ -340,9 +324,7 @@ where
                     }
                 }
 
-                subscribe_manager
-                    .exclusive_push_thread
-                    .remove(&exclusive_key);
+                subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
             });
         }
     }
