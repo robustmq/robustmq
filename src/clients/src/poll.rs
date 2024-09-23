@@ -77,7 +77,7 @@ impl ClientPool {
         }
         if let Some(poll) = self.placement_center_inner_pools.get(&key) {
             match poll.get().await {
-                Ok(conn) => return Ok(conn.into_inner()),
+                Ok(conn) => return Ok(conn.clone()),
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
                         module,
