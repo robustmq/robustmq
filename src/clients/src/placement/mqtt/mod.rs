@@ -23,7 +23,7 @@ use inner::{
     inner_list_session, inner_list_topic, inner_list_user, inner_save_last_will_message,
     inner_set_topic_retain_message, inner_update_session,
 };
-use mobc::Manager;
+use mobc::{Connection, Manager};
 use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
 use std::sync::Arc;
 use tonic::transport::Channel;
@@ -34,11 +34,8 @@ mod inner;
 async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<MqttServiceClient<Channel>, CommonError> {
-    match client_poll
-        .placement_center_mqtt_services_client(addr)
-        .await
-    {
+) -> Result<Connection<MQTTServiceManager>, CommonError> {
+    match client_poll.placement_center_mqtt_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
         }
@@ -135,7 +132,7 @@ pub(crate) async fn mqtt_interface_call(
 }
 
 #[derive(Clone)]
-pub(crate) struct MQTTServiceManager {
+pub struct MQTTServiceManager {
     pub addr: String,
 }
 

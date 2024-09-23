@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use common_base::config::placement_center::placement_center_conf;
-use log::info;
 use metadata_struct::placement::broker_node::BrokerNode;
 use protocol::placement_center::generate::common::ClusterType;
 use raft::StateRole;

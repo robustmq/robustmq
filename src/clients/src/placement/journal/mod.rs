@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
-use mobc::Manager;
+use mobc::{Connection, Manager};
 use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
 use tonic::transport::Channel;
 
@@ -72,7 +72,7 @@ pub async fn journal_interface_call(
 pub async fn journal_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<EngineServiceClient<Channel>, CommonError> {
+) -> Result<Connection<JournalServiceManager>, CommonError> {
     match client_poll.placement_center_journal_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -84,7 +84,7 @@ pub async fn journal_client(
 }
 
 #[derive(Clone)]
-pub(crate) struct JournalServiceManager {
+pub struct JournalServiceManager {
     pub addr: String,
 }
 

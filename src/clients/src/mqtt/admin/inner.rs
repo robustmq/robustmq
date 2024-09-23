@@ -13,15 +13,14 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::broker_server::generate::admin::{
-    mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient, ClusterStatusReply,
-    ClusterStatusRequest,
-};
+use mobc::Connection;
 use prost::Message;
-use tonic::transport::Channel;
+use protocol::broker_server::generate::admin::{ClusterStatusReply, ClusterStatusRequest};
+
+use super::MqttBrokerAdminServiceManager;
 
 pub(crate) async fn inner_cluster_status(
-    mut client: MqttBrokerAdminServiceClient<Channel>,
+    mut client: Connection<MqttBrokerAdminServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match ClusterStatusRequest::decode(request.as_ref()) {

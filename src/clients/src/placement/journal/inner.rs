@@ -13,18 +13,17 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
+use mobc::Connection;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
-    journal::{
-        engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest,
-        DeleteSegmentRequest, DeleteShardRequest,
-    },
+    journal::{CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest},
 };
-use tonic::transport::Channel;
+
+use super::JournalServiceManager;
 
 pub(crate) async fn inner_create_shard(
-    mut client: EngineServiceClient<Channel>,
+    mut client: Connection<JournalServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match CreateShardRequest::decode(request.as_ref()) {
@@ -41,7 +40,7 @@ pub(crate) async fn inner_create_shard(
 }
 
 pub(crate) async fn inner_delete_shard(
-    mut client: EngineServiceClient<Channel>,
+    mut client: Connection<JournalServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteShardRequest::decode(request.as_ref()) {
@@ -58,7 +57,7 @@ pub(crate) async fn inner_delete_shard(
 }
 
 pub(crate) async fn inner_create_segment(
-    mut client: EngineServiceClient<Channel>,
+    mut client: Connection<JournalServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match CreateSegmentRequest::decode(request.as_ref()) {
@@ -75,7 +74,7 @@ pub(crate) async fn inner_create_segment(
 }
 
 pub(crate) async fn inner_delete_segment(
-    mut client: EngineServiceClient<Channel>,
+    mut client: Connection<JournalServiceManager>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteSegmentRequest::decode(request.as_ref()) {

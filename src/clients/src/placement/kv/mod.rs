@@ -16,7 +16,7 @@ use crate::poll::ClientPool;
 use self::inner::{inner_delete, inner_exists, inner_get, inner_set};
 use super::PlacementCenterInterface;
 use common_base::error::common::CommonError;
-use mobc::Manager;
+use mobc::{Connection, Manager};
 use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
 use std::sync::Arc;
 use tonic::transport::Channel;
@@ -27,7 +27,7 @@ mod inner;
 async fn kv_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<KvServiceClient<Channel>, CommonError> {
+) -> Result<Connection<KvServiceManager>, CommonError> {
     match client_poll.placement_center_kv_services_client(addr).await {
         Ok(client) => {
             return Ok(client);
@@ -70,7 +70,7 @@ pub(crate) async fn kv_interface_call(
 }
 
 #[derive(Clone)]
-pub(crate) struct KvServiceManager {
+pub struct KvServiceManager {
     pub addr: String,
 }
 

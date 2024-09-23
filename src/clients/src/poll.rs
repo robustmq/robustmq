@@ -21,20 +21,7 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use log::debug;
-use mobc::Pool;
-use protocol::{
-    broker_server::generate::{
-        admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient,
-        placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient,
-    },
-    placement_center::generate::{
-        journal::engine_service_client::EngineServiceClient,
-        kv::kv_service_client::KvServiceClient, mqtt::mqtt_service_client::MqttServiceClient,
-        placement::placement_center_service_client::PlacementCenterServiceClient,
-    },
-};
-use tonic::transport::Channel;
+use mobc::{Connection, Pool};
 
 #[derive(Clone)]
 pub struct ClientPool {
@@ -66,7 +53,7 @@ impl ClientPool {
     pub async fn placement_center_inner_services_client(
         &self,
         addr: String,
-    ) -> Result<PlacementCenterServiceClient<Channel>, CommonError> {
+    ) -> Result<Connection<PlacementServiceManager>, CommonError> {
         let module = "PlacementService".to_string();
         let key = format!("{}_{}_{}", "PlacementServer", module, addr);
         if !self.placement_center_inner_pools.contains_key(&key) {
@@ -76,7 +63,7 @@ impl ClientPool {
         }
         if let Some(poll) = self.placement_center_inner_pools.get(&key) {
             match poll.get().await {
-                Ok(conn) => return Ok(conn.clone()),
+                Ok(conn) => return Ok(conn),
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
                 }
@@ -91,7 +78,7 @@ impl ClientPool {
     pub async fn placement_center_journal_services_client(
         &self,
         addr: String,
-    ) -> Result<EngineServiceClient<Channel>, CommonError> {
+    ) -> Result<Connection<JournalServiceManager>, CommonError> {
         let module = "JournalService".to_string();
         let key = format!("{}_{}_{}", "JournalServer", module, addr);
         if !self.placement_center_journal_service_pools.contains_key(&key) {
@@ -102,7 +89,7 @@ impl ClientPool {
         if let Some(poll) = self.placement_center_journal_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.clone());
+                    return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
@@ -118,7 +105,7 @@ impl ClientPool {
     pub async fn placement_center_kv_services_client(
         &self,
         addr: String,
-    ) -> Result<KvServiceClient<Channel>, CommonError> {
+    ) -> Result<Connection<KvServiceManager>, CommonError> {
         let module = "KvServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
@@ -131,7 +118,7 @@ impl ClientPool {
         if let Some(poll) = self.placement_center_kv_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.clone());
+                    return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
@@ -148,20 +135,19 @@ impl ClientPool {
     pub async fn placement_center_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<MqttServiceClient<Channel>, CommonError> {
+    ) -> Result<Connection<MQTTServiceManager>, CommonError> {
         let module = "MqttServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
-        if !self.placement_center_kv_service_pools.contains_key(&key) {
+        if !self.placement_center_mqtt_service_pools.contains_key(&key) {
             let manager = MQTTServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
             self.placement_center_mqtt_service_pools.insert(key.clone(), pool);
         }
-
         if let Some(poll) = self.placement_center_mqtt_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.clone());
+                    return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
@@ -177,7 +163,7 @@ impl ClientPool {
     pub async fn mqtt_broker_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<MqttBrokerPlacementServiceClient<Channel>, CommonError> {
+    ) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
         let module = "BrokerPlacementServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
@@ -190,7 +176,7 @@ impl ClientPool {
         if let Some(poll) = self.mqtt_broker_placement_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.clone());
+                    return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
@@ -206,11 +192,11 @@ impl ClientPool {
     pub async fn mqtt_broker_admin_services_client(
         &self,
         addr: String,
-    ) -> Result<MqttBrokerAdminServiceClient<Channel>, CommonError> {
+    ) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
         let module = "BrokerAdminServices".to_string();
         let key = format!("{}_{}_{}", "MQTTBroker", module, addr);
 
-        if !self.mqtt_broker_placement_service_pools.contains_key(&key) {
+        if !self.mqtt_broker_admin_service_pools.contains_key(&key) {
             let manager = MqttBrokerAdminServiceManager::new(addr.clone());
             let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
             self.mqtt_broker_admin_service_pools.insert(key.clone(), pool);
@@ -219,7 +205,7 @@ impl ClientPool {
         if let Some(poll) = self.mqtt_broker_admin_service_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => {
-                    return Ok(conn.clone());
+                    return Ok(conn);
                 }
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
@@ -231,11 +217,4 @@ impl ClientPool {
             "connection pool is not initialized".to_string(),
         ));
     }
-}
-
-#[cfg(test)]
-mod tests {
-
-    #[tokio::test]
-    async fn get_placement_center_inner_services_client_test() {}
 }
