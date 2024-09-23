@@ -109,7 +109,7 @@ async fn placement_client(
     addr: String,
 ) -> Result<PlacementCenterServiceClient<Channel>, CommonError> {
     match client_poll
-        .get_placement_center_inner_services_client(addr)
+        .placement_center_inner_services_client(addr)
         .await
     {
         Ok(client) => {
