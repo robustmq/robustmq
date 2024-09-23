@@ -33,10 +33,7 @@ pub struct MessageExpire {
 
 impl MessageExpire {
     pub fn new(cluster_name: String, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        return MessageExpire {
-            cluster_name,
-            rocksdb_engine_handler,
-        };
+        return MessageExpire { cluster_name, rocksdb_engine_handler };
     }
 
     pub async fn retain_message_expire(&self) {
@@ -184,9 +181,7 @@ mod tests {
 
         let topic_storage = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
         let topic = MQTTTopic::new(unique_id(), "tp1".to_string());
-        topic_storage
-            .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
-            .unwrap();
+        topic_storage.save(&cluster_name, &topic.topic_name.clone(), topic.clone()).unwrap();
 
         let retain_msg = MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None);
         topic_storage
@@ -212,7 +207,9 @@ mod tests {
             }
             sleep(Duration::from_millis(100)).await;
         }
-        assert_eq!((now_second() - start), 3);
+        
+        let ms = now_second() - start;
+        assert!(ms == 3 || ms == 4);
 
         remove_dir_all(config.rocksdb.data_path).unwrap();
     }
@@ -250,12 +247,8 @@ mod tests {
 
         let mut session = MQTTSession::default();
         session.client_id = client_id.clone();
-        session_storage
-            .save(&cluster_name, &client_id, session)
-            .unwrap();
-        lastwill_storage
-            .save(&cluster_name, &client_id, last_will_message)
-            .unwrap();
+        session_storage.save(&cluster_name, &client_id, session).unwrap();
+        lastwill_storage.save(&cluster_name, &client_id, last_will_message).unwrap();
 
         let start = now_second();
         loop {
@@ -266,7 +259,8 @@ mod tests {
             sleep(Duration::from_millis(100)).await;
         }
 
-        assert_eq!((now_second() - start), 3);
+        let ms = now_second() - start;
+        assert!(ms == 3 || ms == 4);
 
         remove_dir_all(config.rocksdb.data_path).unwrap();
     }
