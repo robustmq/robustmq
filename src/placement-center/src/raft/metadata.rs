@@ -72,15 +72,11 @@ impl RaftGroupMetadata {
         }
     }
 
-    // Add Meta node
     pub fn add_peer(&mut self, id: u64, node: BrokerNode) {
-        info!("add peer node:{:?}", node);
         self.peers.insert(id, node);
     }
 
-    // Add Meta node
     pub fn remove_peer(&mut self, id: u64) {
-        info!("remove peer node id:{:?}", id);
         self.peers.remove(&id);
     }
 

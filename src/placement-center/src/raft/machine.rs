@@ -79,6 +79,7 @@ impl RaftMachine {
 
     pub async fn run(&mut self) {
         let mut raft_node: RawNode<RaftRocksDBStorage> = self.new_node().await;
+
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
