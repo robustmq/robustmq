@@ -78,7 +78,7 @@ mod tests {
         let start = now_second();
         let sub_topics = &[will_topic.clone()];
         let client_id = unique_id();
-        let cli = connect_server5(&client_id, &addr);
+        let cli = connect_server5(&client_id, &addr, false, false);
         let sub_qos = &[1];
         let rx = cli.start_consuming();
         match cli.subscribe_many(sub_topics, sub_qos) {

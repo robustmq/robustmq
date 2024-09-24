@@ -84,13 +84,11 @@ async fn publish34_qos(num: i32, qos: i32) {
 async fn publish5_qos(num: i32, qos: i32, retained: bool) {
     let client_id = unique_id();
     let addr = broker_addr();
-    let cli = connect_server5(&client_id, &addr);
+    let cli = connect_server5(&client_id, &addr, false, false);
     let topic = "/tests/t1".to_string();
 
     let mut props = Properties::new();
-    props
-        .push_u32(PropertyCode::MessageExpiryInterval, 50)
-        .unwrap();
+    props.push_u32(PropertyCode::MessageExpiryInterval, 50).unwrap();
     for i in 0..num {
         let payload = format!("mqtt {i} message");
         let msg = MessageBuilder::new()

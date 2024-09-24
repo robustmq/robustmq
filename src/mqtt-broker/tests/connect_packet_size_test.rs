@@ -16,34 +16,56 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use crate::common::{broker_addr, broker_ssl_addr, connect_server5_packet_size, distinct_conn};
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, QOS_1};
 
-    use crate::common::{broker_addr, connect_server5, distinct_conn};
+    #[tokio::test]
+    async fn client5_packet_size_test_tcp() {
+        let topic = unique_id();
+        let topic = format!("/packet_tcp/{}", topic);
+        let addr = broker_addr();
+        simple_test(addr, topic, 0, 128, false).await;
+    }
 
     #[tokio::test]
-    async fn user_properties_test() {
+    #[ignore]
+    async fn client5_packet_size_test_tcp_ssl() {
+        let topic = unique_id();
+        let topic = format!("/packet_tcp_ssl/{}", topic);
+        let addr = broker_ssl_addr();
+        simple_test(addr, topic, 0, 128, true).await;
+    }
+
+    async fn simple_test(addr: String, topic: String, sub_qos: i32, packet_size: i32, ssl: bool) {
         let client_id = unique_id();
-        let addr = broker_addr();
-        let topic = format!("/tests/{}", unique_id());
-        let sub_topics = &[topic.clone()];
+        let cli = connect_server5_packet_size(&client_id, &addr, packet_size, false, ssl);
 
-        let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content = format!("mqtt message");
-
+        let message_content = vec!['a'; (packet_size + 1) as usize].iter().collect::<String>();
         // publish
-        let mut props = Properties::new();
-        props.push_u32(PropertyCode::MessageExpiryInterval, 50).unwrap();
-        props.push_string_pair(PropertyCode::UserProperty, "age", "1").unwrap();
-        props.push_string_pair(PropertyCode::UserProperty, "name", "robustmq").unwrap();
-
         let msg = MessageBuilder::new()
-            .properties(props.clone())
-            .payload(message_content.clone())
             .topic(topic.clone())
+            .payload(message_content.clone())
             .qos(QOS_1)
-            .retained(false)
             .finalize();
+
+        match cli.publish(msg) {
+            Ok(_) => {
+                assert!(false);
+            }
+            Err(e) => {
+                assert!(true);
+            }
+        }
+
+        let message_content = vec!['a'; packet_size as usize].iter().collect::<String>();
+        // publish
+        let msg = MessageBuilder::new()
+            .topic(topic.clone())
+            .payload(message_content.clone())
+            .qos(QOS_1)
+            .finalize();
+
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
@@ -53,37 +75,29 @@ mod tests {
         }
 
         // subscribe
-        let sub_qos = &[1];
         let rx = cli.start_consuming();
-        match cli.subscribe_many(sub_topics, sub_qos) {
+        match cli.subscribe(topic.as_str(), sub_qos) {
             Ok(_) => {}
             Err(e) => {
                 panic!("{}", e)
             }
         }
+
         for msg in rx.iter() {
             if let Some(msg) = msg {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                if payload == message_content {
-                    assert!(true);
-                } else {
-                    assert!(false);
-                }
-                let user_properties =
-                    msg.properties().get_string_pair_at(PropertyCode::UserProperty, 0).unwrap();
-                assert_eq!(user_properties.0, "age".to_string());
-                assert_eq!(user_properties.1, "1".to_string());
 
-                let user_properties =
-                    msg.properties().get_string_pair_at(PropertyCode::UserProperty, 1).unwrap();
-                assert_eq!(user_properties.0, "name".to_string());
-                assert_eq!(user_properties.1, "robustmq".to_string());
+                println!("len: {} {}", payload.len(), payload);
+
+                assert!(payload.len() <= packet_size as usize);
+                assert_eq!(message_content, payload);
 
                 break;
             } else {
                 assert!(false);
             }
         }
+
         distinct_conn(cli);
     }
 }

@@ -162,7 +162,7 @@ pub fn connect_server34(mqtt_version: u32, client_id: &String, addr: &String) ->
 }
 
 #[allow(dead_code)]
-pub fn connect_server5(client_id: &String, addr: &String) -> Client {
+pub fn connect_server5(client_id: &String, addr: &String, ws: bool, ssl: bool) -> Client {
     let mqtt_version = 5;
     let props = build_v5_pros();
 
@@ -172,11 +172,70 @@ pub fn connect_server5(client_id: &String, addr: &String) -> Client {
         process::exit(1);
     });
 
-    let conn_opts = build_v5_conn_pros(props.clone(), false, false, false);
+    let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
     match cli.connect(conn_opts) {
         Ok(response) => {
             let resp = response.connect_response().unwrap();
-            assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+            if ws {
+                if ssl {
+                    assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
+                } else {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                }
+            } else {
+                if ssl {
+                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                }
+            }
+            assert_eq!(mqtt_version, resp.mqtt_version);
+            assert!(resp.session_present);
+            assert_eq!(response.reason_code(), ReasonCode::Success);
+        }
+        Err(e) => {
+            println!("Unable to connect:\n\t{:?}", e);
+            process::exit(1);
+        }
+    }
+    return cli;
+}
+
+#[allow(dead_code)]
+pub fn connect_server5_packet_size(
+    client_id: &String,
+    addr: &String,
+    packet_size: i32,
+    ws: bool,
+    ssl: bool,
+) -> Client {
+    let mqtt_version = 5;
+    let mut props = build_v5_pros();
+    props.push_int(PropertyCode::MaximumPacketSize, packet_size).unwrap();
+
+    let create_opts = build_create_pros(client_id, addr);
+    let cli = Client::new(create_opts).unwrap_or_else(|err| {
+        println!("Error creating the client: {:?}", err);
+        process::exit(1);
+    });
+
+    let conn_opts = build_v5_conn_pros(props.clone(), false, ws, ssl);
+    match cli.connect(conn_opts) {
+        Ok(response) => {
+            let resp = response.connect_response().unwrap();
+            if ws {
+                if ssl {
+                    assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
+                } else {
+                    assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
+                }
+            } else {
+                if ssl {
+                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+                } else {
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
+                }
+            }
             assert_eq!(mqtt_version, resp.mqtt_version);
             assert!(resp.session_present);
             assert_eq!(response.reason_code(), ReasonCode::Success);

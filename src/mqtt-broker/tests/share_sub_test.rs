@@ -39,13 +39,16 @@ mod tests {
     }
 
     async fn simple_test(
-        pub_topic: String, sub_topic: String, sub_qos: &[i32], payload_flag: String,
+        pub_topic: String,
+        sub_topic: String,
+        sub_qos: &[i32],
+        payload_flag: String,
     ) {
         let client_id = unique_id();
         let addr = broker_addr();
         let sub_topics = &[sub_topic.clone()];
 
-        let cli = connect_server5(&client_id, &addr);
+        let cli = connect_server5(&client_id, &addr, false, false);
         let message_content = format!("mqtt {payload_flag} message");
 
         // publish
