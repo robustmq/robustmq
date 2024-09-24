@@ -91,7 +91,7 @@ impl SubscribeManager {
         info!("Subscribe manager thread started successfully.");
         loop {
             self.parse_subscribe_by_new_topic().await;
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_secs(10)).await;
         }
     }
 
@@ -172,7 +172,8 @@ impl SubscribeManager {
                         let mut flag = false;
                         for (sub_key, share_sub) in data.sub_list {
                             if share_sub.client_id == *client_id
-                                && share_sub.group_name.unwrap() == group_name
+                                && (share_sub.group_name != None
+                                    && share_sub.group_name.unwrap() == group_name)
                                 && share_sub.sub_path == sub_name
                             {
                                 let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
@@ -239,6 +240,7 @@ impl SubscribeManager {
             if is_share_sub(filter.path.clone()) {
                 let conf = broker_mqtt_conf();
                 let (group_name, sub_name) = decode_share_info(filter.path.clone());
+
                 if path_regex_match(topic_name.clone(), sub_name.clone()) {
                     match get_share_sub_leader(self.client_poll.clone(), group_name.clone()).await {
                         Ok(reply) => {
@@ -308,7 +310,7 @@ impl SubscribeManager {
                 protocol: protocol.clone(),
                 client_id: client_id.clone(),
                 topic_name: topic_name.clone(),
-                group_name: None,
+                group_name: Some(group_name.clone()),
                 topic_id: topic_id.clone(),
                 qos: filter.qos,
                 nolocal: filter.nolocal,
@@ -323,7 +325,7 @@ impl SubscribeManager {
                 protocol: protocol.clone(),
                 client_id: client_id.clone(),
                 topic_name: topic_name.clone(),
-                group_name: None,
+                group_name: Some(group_name.clone()),
                 topic_id: topic_id.clone(),
                 qos: filter.qos,
                 nolocal: filter.nolocal,
@@ -341,7 +343,7 @@ impl SubscribeManager {
                 topic_id: topic_id.clone(),
                 topic_name: topic_name.clone(),
                 sub_name: sub_name.clone(),
-                sub_list: DashMap::with_capacity(8),
+                sub_list,
             };
 
             self.share_leader_subscribe.insert(share_leader_key.clone(), data);

@@ -188,6 +188,7 @@ where
                                 };
 
                                 if is_message_expire(&msg) {
+                                    println!("{}", "ffff");
                                     loop_commit_offset(
                                         &message_storage,
                                         &subscriber.topic_id,

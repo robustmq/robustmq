@@ -257,6 +257,7 @@ where
                 };
 
                 if is_message_expire(&msg) {
+                    println!("{}", "ffff");
                     loop_commit_offset(message_storage, topic_id, group_id, record.offset).await;
                     continue;
                 }
@@ -269,6 +270,7 @@ where
                     }
 
                     cursor_point = choose_available_sub(cursor_point, sub_list);
+                    println!("cursor_point:{}",cursor_point);
                     let subscribe = sub_list.get(cursor_point).unwrap();
 
                     if let Some((publish, properties)) =
@@ -317,7 +319,8 @@ fn try_loop_times(sub_len: usize) -> usize {
 }
 
 fn choose_available_sub(cursor_point: usize, sub_list: &Vec<Subscriber>) -> usize {
-    return if cursor_point < sub_list.len() { cursor_point + 1 } else { 0 };
+    let current_point = cursor_point + 1;
+    return if current_point < sub_list.len() { current_point } else { 0 };
 }
 
 async fn qos_publish<S>(

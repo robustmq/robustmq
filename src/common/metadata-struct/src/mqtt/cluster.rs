@@ -86,7 +86,7 @@ impl MQTTClusterDynamicConfig {
                 default_server_keep_alive: 60,
                 receive_max: 65535,
                 client_pkid_persistent: false,
-                max_message_expiry_interval: 315360000,
+                max_message_expiry_interval: 3600,
             },
             feature: MQTTClusterDynamicConfigFeature {
                 retain_available: AvailableFlag::Enable,

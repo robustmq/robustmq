@@ -19,7 +19,7 @@ use log::error;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize, Default)]
+#[derive(Clone, Serialize, Deserialize, Default, Debug)]
 pub struct MQTTMessage {
     pub client_id: String,
     pub dup: bool,
@@ -84,6 +84,14 @@ impl MQTTMessage {
             message.user_properties = properties.user_properties.clone();
             message.subscription_identifiers = properties.subscription_identifiers.clone();
             message.content_type = properties.content_type.clone();
+        } else {
+            message.format_indicator = None;
+            message.expiry_interval = expiry_interval;
+            message.response_topic = None;
+            message.correlation_data = None;
+            message.user_properties = Vec::new();
+            message.subscription_identifiers = Vec::new();
+            message.content_type = None;
         }
         message.create_time = now_second();
         return message;

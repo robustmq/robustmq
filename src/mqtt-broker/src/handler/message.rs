@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
+use super::cache::CacheManager;
 use common_base::tools::now_second;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::PublishProperties;
-use super::cache::CacheManager;
+use std::sync::Arc;
 
 pub fn is_message_expire(message: &MQTTMessage) -> bool {
-    return message.expiry_interval > now_second();
+    return message.expiry_interval < now_second();
 }
 
 pub fn build_message_expire(
