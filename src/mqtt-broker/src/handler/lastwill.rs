@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cache::CacheManager, retain::save_topic_retain_message, topic::try_init_topic};
+use super::{
+    cache::CacheManager, message::build_message_expire, retain::save_topic_retain_message,
+    topic::try_init_topic,
+};
 use crate::storage::{message::MessageStorage, session::SessionStorage};
 use bytes::Bytes;
 use clients::poll::ClientPool;
@@ -34,7 +37,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     match build_publish_message_by_lastwill(last_will, last_will_properties) {
-        Ok((topic_name, publish_res, publish_properteis)) => {
+        Ok((topic_name, publish_res, publish_properties)) => {
             if publish_res.is_none() || topic_name.is_empty() {
                 // If building a publish message from lastwill fails, the message is ignored without throwing an error.
                 return Ok(());
@@ -42,13 +45,9 @@ where
 
             let publish = publish_res.unwrap();
 
-            let topic = try_init_topic(
-                &topic_name,
-                cache_manager,
-                &message_storage_adapter,
-                client_poll,
-            )
-            .await?;
+            let topic =
+                try_init_topic(&topic_name, cache_manager, &message_storage_adapter, client_poll)
+                    .await?;
 
             match save_topic_retain_message(
                 cache_manager,
@@ -56,7 +55,7 @@ where
                 &topic_name,
                 client_id,
                 &publish,
-                &publish_properteis,
+                &publish_properties,
             )
             .await
             {
@@ -69,8 +68,9 @@ where
             // Persisting stores message data
             let message_storage = MessageStorage::new(message_storage_adapter.clone());
 
+            let message_expire = build_message_expire(cache_manager, &publish_properties);
             if let Some(record) =
-                MQTTMessage::build_record(client_id, &publish, &publish_properteis)
+                MQTTMessage::build_record(client_id, &publish, &publish_properties, message_expire)
             {
                 match message_storage
                     .append_topic_message(topic.topic_id.clone(), vec![record])
@@ -152,9 +152,7 @@ pub async fn save_last_will_message(
         last_will: last_will.clone(),
         last_will_properties: last_will_properties.clone(),
     };
-    return session_storage
-        .save_last_will_messae(&client_id, lastwill.encode())
-        .await;
+    return session_storage.save_last_will_messae(&client_id, lastwill.encode()).await;
 }
 
 pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties>) -> Option<u64> {
@@ -251,10 +249,7 @@ mod test {
         assert_eq!(pp_tmp.message_expiry_interval.unwrap(), 3);
         assert!(pp_tmp.topic_alias.is_none());
         assert_eq!(pp_tmp.response_topic.unwrap(), "t2".to_string());
-        assert_eq!(
-            pp_tmp.correlation_data.unwrap(),
-            Bytes::from("t3".to_string())
-        );
+        assert_eq!(pp_tmp.correlation_data.unwrap(), Bytes::from("t3".to_string()));
         assert!(pp_tmp.user_properties.is_empty());
         assert!(pp_tmp.subscription_identifiers.is_empty());
         assert_eq!(pp_tmp.content_type.unwrap(), "t1".to_string())

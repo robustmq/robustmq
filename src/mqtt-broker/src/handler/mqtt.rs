@@ -59,6 +59,7 @@ use storage_adapter::storage::StorageAdapter;
 
 use super::connection::disconnect_connection;
 use super::flow_control::is_flow_control;
+use super::message::build_message_expire;
 
 #[derive(Clone)]
 pub struct MqttService<S> {
@@ -121,11 +122,7 @@ where
             return res;
         }
 
-        match self
-            .auth_driver
-            .check_login_auth(&login, &connect_properties, &addr)
-            .await
-        {
+        match self.auth_driver.check_login_auth(&login, &connect_properties, &addr).await {
             Ok(flag) => {
                 if !flag {
                     return response_packet_mqtt_connect_fail(
@@ -180,14 +177,8 @@ where
             }
         };
 
-        match save_session(
-            connect_id,
-            session.clone(),
-            new_session,
-            &client_id,
-            &self.client_poll,
-        )
-        .await
+        match save_session(connect_id, session.clone(), new_session, &client_id, &self.client_poll)
+            .await
         {
             Ok(()) => {}
             Err(e) => {
@@ -226,10 +217,8 @@ where
         };
         self.cache_manager.report_heartbeat(&client_id, live_time);
 
-        self.cache_manager
-            .add_session(client_id.clone(), session.clone());
-        self.cache_manager
-            .add_connection(connect_id, connection.clone());
+        self.cache_manager.add_session(client_id.clone(), session.clone());
+        self.cache_manager.add_connection(connect_id, connection.clone());
 
         st_report_connected_event(
             &self.message_storage_adapter,
@@ -295,37 +284,33 @@ where
 
         let is_puback = publish.qos != QoS::ExactlyOnce;
 
-        let topic_name = match get_topic_name(
-            connect_id,
-            &self.cache_manager,
-            &publish,
-            &publish_properties,
-        ) {
-            Ok(da) => da,
-            Err(e) => {
-                if is_flow_control(&self.protocol, publish.qos) {
-                    connection.recv_qos_message_decr();
-                }
+        let topic_name =
+            match get_topic_name(connect_id, &self.cache_manager, &publish, &publish_properties) {
+                Ok(da) => da,
+                Err(e) => {
+                    if is_flow_control(&self.protocol, publish.qos) {
+                        connection.recv_qos_message_decr();
+                    }
 
-                if is_puback {
-                    return Some(response_packet_mqtt_puback_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubAckReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
-                } else {
-                    return Some(response_packet_mqtt_pubrec_fail(
-                        &self.protocol,
-                        &connection,
-                        publish.pkid,
-                        PubRecReason::UnspecifiedError,
-                        Some(e.to_string()),
-                    ));
+                    if is_puback {
+                        return Some(response_packet_mqtt_puback_fail(
+                            &self.protocol,
+                            &connection,
+                            publish.pkid,
+                            PubAckReason::UnspecifiedError,
+                            Some(e.to_string()),
+                        ));
+                    } else {
+                        return Some(response_packet_mqtt_pubrec_fail(
+                            &self.protocol,
+                            &connection,
+                            publish.pkid,
+                            PubRecReason::UnspecifiedError,
+                            Some(e.to_string()),
+                        ));
+                    }
                 }
-            }
-        };
+            };
 
         if !self
             .auth_driver
@@ -413,13 +398,12 @@ where
 
         // Persisting stores message data
         let message_storage = MessageStorage::new(self.message_storage_adapter.clone());
+
+        let message_expire = build_message_expire(&self.cache_manager, &publish_properties);
         let offset = if let Some(record) =
-            MQTTMessage::build_record(&client_id, &publish, &publish_properties)
+            MQTTMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
         {
-            match message_storage
-                .append_topic_message(topic.topic_id.clone(), vec![record])
-                .await
-            {
+            match message_storage.append_topic_message(topic.topic_id.clone(), vec![record]).await {
                 Ok(da) => {
                     format!("{:?}", da)
                 }
@@ -452,8 +436,7 @@ where
         };
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
-        self.cache_manager
-            .add_topic_alias(connect_id, &topic_name, &publish_properties);
+        self.cache_manager.add_topic_alias(connect_id, &topic_name, &publish_properties);
 
         match publish.qos {
             QoS::AtMostOnce => {
@@ -477,13 +460,8 @@ where
                 ));
             }
             QoS::ExactlyOnce => {
-                match pkid_save(
-                    &self.cache_manager,
-                    &self.client_poll,
-                    &client_id,
-                    publish.pkid,
-                )
-                .await
+                match pkid_save(&self.cache_manager, &self.client_poll, &client_id, publish.pkid)
+                    .await
                 {
                     Ok(()) => {}
                     Err(e) => {
@@ -542,10 +520,7 @@ where
                 }) {
                     Ok(_) => {}
                     Err(e) => {
-                        error!(
-                            "publish ack send ack manager message error, error message:{}",
-                            e
-                        );
+                        error!("publish ack send ack manager message error, error message:{}", e);
                     }
                 }
             }
@@ -570,10 +545,7 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error!(
-                            "publish rec send ack manager message error, error message:{}",
-                            e
-                        );
+                        error!("publish rec send ack manager message error, error message:{}", e);
                     }
                 }
             }
@@ -602,10 +574,7 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error!(
-                            "publish comp send ack manager message error, error message:{}",
-                            e
-                        );
+                        error!("publish comp send ack manager message error, error message:{}", e);
                     }
                 }
             }
@@ -630,14 +599,7 @@ where
 
         let client_id = connection.client_id.clone();
 
-        match pkid_exists(
-            &self.cache_manager,
-            &self.client_poll,
-            &client_id,
-            pub_rel.pkid,
-        )
-        .await
-        {
+        match pkid_exists(&self.cache_manager, &self.client_poll, &client_id, pub_rel.pkid).await {
             Ok(res) => {
                 if !res {
                     return response_packet_mqtt_pubcomp_fail(
@@ -660,14 +622,7 @@ where
             }
         };
 
-        match pkid_delete(
-            &self.cache_manager,
-            &self.client_poll,
-            &client_id,
-            pub_rel.pkid,
-        )
-        .await
-        {
+        match pkid_delete(&self.cache_manager, &self.client_poll, &client_id, pub_rel.pkid).await {
             Ok(()) => {
                 connection.recv_qos_message_decr();
             }
@@ -713,11 +668,7 @@ where
             return packet;
         }
 
-        if !self
-            .auth_driver
-            .allow_subscribe(&connection, &subscribe)
-            .await
-        {
+        if !self.auth_driver.allow_subscribe(&connection, &subscribe).await {
             return response_packet_mqtt_suback(
                 &self.protocol,
                 &connection,
@@ -808,8 +759,7 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager
-            .report_heartbeat(&connection.client_id, live_time);
+        self.cache_manager.report_heartbeat(&connection.client_id, live_time);
         return response_packet_mqtt_ping_resp();
     }
 
@@ -859,11 +809,9 @@ where
             }
         }
 
-        self.sucscribe_manager
-            .remove_subscribe(&connection.client_id, &un_subscribe.filters);
+        self.sucscribe_manager.remove_subscribe(&connection.client_id, &un_subscribe.filters);
 
-        self.cache_manager
-            .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
+        self.cache_manager.remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
         st_report_unsubscribed_event(
             &self.message_storage_adapter,

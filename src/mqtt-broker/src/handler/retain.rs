@@ -15,6 +15,7 @@
 use super::{
     cache::{CacheManager, QosAckPacketInfo},
     constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE},
+    message::build_message_expire,
 };
 use crate::{
     observability::metrics::packets::{record_retain_recv_metrics, record_retain_sent_metrics},
@@ -60,7 +61,9 @@ pub async fn save_topic_retain_message(
         }
     } else {
         record_retain_recv_metrics(publish.qos);
-        let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
+        let message_expire = build_message_expire(cache_manager, publish_properties);
+        let retain_message =
+            MQTTMessage::build_message(client_id, publish, publish_properties, message_expire);
         let message_expire = message_expiry_interval(cache_manager, publish_properties);
         match topic_storage.set_retain_message(topic_name, &retain_message, message_expire).await {
             Ok(_) => {
@@ -132,7 +135,7 @@ pub async fn try_send_retain_message(
 
                         let properties = PublishProperties {
                             payload_format_indicator: msg.format_indicator,
-                            message_expiry_interval: msg.expiry_interval,
+                            message_expiry_interval: Some(msg.expiry_interval as u32),
                             topic_alias: None,
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,

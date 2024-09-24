@@ -29,7 +29,7 @@ pub struct MQTTMessage {
     pub topic: Bytes,
     pub payload: Bytes,
     pub format_indicator: Option<u8>,
-    pub expiry_interval: Option<u32>,
+    pub expiry_interval: u64,
     pub response_topic: Option<String>,
     pub correlation_data: Option<Bytes>,
     pub user_properties: Vec<(String, String)>,
@@ -66,6 +66,7 @@ impl MQTTMessage {
         client_id: &String,
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
+        expiry_interval: u64,
     ) -> MQTTMessage {
         let mut message = MQTTMessage::default();
         message.client_id = client_id.clone();
@@ -77,7 +78,7 @@ impl MQTTMessage {
         message.payload = publish.payload.clone();
         if let Some(properties) = publish_properties {
             message.format_indicator = properties.payload_format_indicator;
-            message.expiry_interval = properties.message_expiry_interval;
+            message.expiry_interval = expiry_interval;
             message.response_topic = properties.response_topic.clone();
             message.correlation_data = properties.correlation_data.clone();
             message.user_properties = properties.user_properties.clone();
@@ -92,8 +93,10 @@ impl MQTTMessage {
         client_id: &String,
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
+        expiry_interval: u64,
     ) -> Option<Record> {
-        let msg = MQTTMessage::build_message(client_id, publish, publish_properties);
+        let msg =
+            MQTTMessage::build_message(client_id, publish, publish_properties, expiry_interval);
         match serde_json::to_vec(&msg) {
             Ok(data) => {
                 return Some(Record::build_b(data));

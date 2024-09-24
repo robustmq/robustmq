@@ -15,6 +15,7 @@
 use crate::{
     handler::{
         cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        message::is_message_expire,
         retain::try_send_retain_message,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
@@ -175,24 +176,36 @@ where
                                     Ok(msg) => msg,
                                     Err(e) => {
                                         error!("Storage layer message Decord failed with error message :{}",e);
-                                        match message_storage
-                                            .commit_group_offset(
-                                                subscriber.topic_id.clone(),
-                                                group_id.clone(),
-                                                record.offset,
-                                            )
-                                            .await
-                                        {
-                                            Ok(_) => {}
-                                            Err(e) => {
-                                                error!("{}", e);
-                                            }
-                                        }
+                                        loop_commit_offset(
+                                            &message_storage,
+                                            &subscriber.topic_id,
+                                            &group_id,
+                                            record.offset,
+                                        )
+                                        .await;
                                         continue;
                                     }
                                 };
 
+                                if is_message_expire(&msg) {
+                                    loop_commit_offset(
+                                        &message_storage,
+                                        &subscriber.topic_id,
+                                        &group_id,
+                                        record.offset,
+                                    )
+                                    .await;
+                                    continue;
+                                }
+
                                 if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
+                                    loop_commit_offset(
+                                        &message_storage,
+                                        &subscriber.topic_id,
+                                        &group_id,
+                                        record.offset,
+                                    )
+                                    .await;
                                     continue;
                                 }
 
@@ -210,7 +223,7 @@ where
 
                                 let properties = PublishProperties {
                                     payload_format_indicator: msg.format_indicator,
-                                    message_expiry_interval: msg.expiry_interval,
+                                    message_expiry_interval: Some(msg.expiry_interval as u32),
                                     topic_alias: None,
                                     response_topic: msg.response_topic,
                                     correlation_data: msg.correlation_data,
