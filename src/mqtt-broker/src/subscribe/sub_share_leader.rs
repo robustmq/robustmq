@@ -86,16 +86,10 @@ where
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
         for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread.clone() {
-            if !self
-                .subscribe_manager
-                .share_leader_subscribe
-                .contains_key(&share_leader_key)
-            {
+            if !self.subscribe_manager.share_leader_subscribe.contains_key(&share_leader_key) {
                 match sx.send(true) {
                     Ok(_) => {
-                        self.subscribe_manager
-                            .share_leader_push_thread
-                            .remove(&share_leader_key);
+                        self.subscribe_manager.share_leader_push_thread.remove(&share_leader_key);
                     }
                     Err(err) => {
                         error!("stop sub share thread error, error message:{}", err);
@@ -109,16 +103,12 @@ where
         // Periodically verify if any push tasks are not started. If so, the thread is started
         for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
             if sub_data.sub_list.len() == 0 {
-                if let Some(sx) = self
-                    .subscribe_manager
-                    .share_leader_push_thread
-                    .get(&share_leader_key)
+                if let Some(sx) =
+                    self.subscribe_manager.share_leader_push_thread.get(&share_leader_key)
                 {
                     match sx.send(true) {
                         Ok(_) => {
-                            self.subscribe_manager
-                                .share_leader_subscribe
-                                .remove(&share_leader_key);
+                            self.subscribe_manager.share_leader_subscribe.remove(&share_leader_key);
                         }
                         Err(_) => {}
                     }
@@ -127,11 +117,7 @@ where
 
             // start push data thread
             let subscribe_manager = self.subscribe_manager.clone();
-            if !self
-                .subscribe_manager
-                .share_leader_push_thread
-                .contains_key(&share_leader_key)
-            {
+            if !self.subscribe_manager.share_leader_push_thread.contains_key(&share_leader_key) {
                 self.push_by_round_robin(
                     share_leader_key.clone(),
                     sub_data.clone(),
@@ -221,9 +207,7 @@ where
                 }
             }
 
-            subscribe_manager
-                .share_leader_push_thread
-                .remove(&share_leader_key);
+            subscribe_manager.share_leader_push_thread.remove(&share_leader_key);
         });
     }
 }
@@ -259,10 +243,7 @@ where
                 let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
                     Err(e) => {
-                        error!(
-                            "Storage layer message Decord failed with error message :{}",
-                            e
-                        );
+                        error!("Storage layer message Decord failed with error message :{}", e);
                         loop_commit_offset(message_storage, topic_id, group_id, record.offset)
                             .await;
                         return (cursor_point, sub_list);
@@ -438,15 +419,10 @@ pub fn build_publish(
     topic_name: String,
     msg: MQTTMessage,
 ) -> Option<(Publish, PublishProperties)> {
-
     let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
 
-    let retain = if subscribe.preserve_retain {
-        msg.retain
-    } else {
-        false
-    };
+    let retain = if subscribe.preserve_retain { msg.retain } else { false };
 
     if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
         return None;
@@ -461,6 +437,11 @@ pub fn build_publish(
         payload: msg.payload,
     };
 
+    let mut sub_ids = Vec::new();
+    if let Some(id) = subscribe.subscription_identifier {
+        sub_ids.push(id);
+    }
+
     let properties = PublishProperties {
         payload_format_indicator: msg.format_indicator,
         message_expiry_interval: msg.expiry_interval,
@@ -468,7 +449,7 @@ pub fn build_publish(
         response_topic: msg.response_topic,
         correlation_data: msg.correlation_data,
         user_properties: msg.user_properties,
-        subscription_identifiers: subscribe.subscription_identifier.clone(),
+        subscription_identifiers: sub_ids,
         content_type: msg.content_type,
     };
     return Some((publish, properties));

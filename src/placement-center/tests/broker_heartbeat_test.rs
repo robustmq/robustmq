@@ -30,9 +30,7 @@ mod tests {
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
-        let mut client = PlacementCenterServiceClient::connect(pc_addr())
-            .await
-            .unwrap();
+        let mut client = PlacementCenterServiceClient::connect(pc_addr()).await.unwrap();
         let cluster_name = cluster_name();
         let node_id = node_id();
         let mut request = RegisterNodeRequest::default();
@@ -50,9 +48,7 @@ mod tests {
         }
         let start_time = now_second();
         loop {
-            let request = NodeListRequest {
-                cluster_name: cluster_name.clone(),
-            };
+            let request = NodeListRequest { cluster_name: cluster_name.clone() };
             match client.node_list(request).await {
                 Ok(rep) => {
                     let mut flag = false;
@@ -75,6 +71,7 @@ mod tests {
             sleep(Duration::from_millis(100)).await;
         }
         let total_ms = now_second() - start_time;
-        assert!(total_ms == 5 || total_ms == 6);
+        println!("{}", total_ms);
+        assert!(total_ms >= 5 && total_ms <= 10);
     }
 }

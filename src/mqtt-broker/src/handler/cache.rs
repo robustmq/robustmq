@@ -530,6 +530,7 @@ impl CacheManager {
     }
 
     pub fn report_heartbeat(&self, client_id: &String, live_time: ConnectionLiveTime) {
+        
         self.heartbeat_data.insert(client_id.clone(), live_time);
     }
 
