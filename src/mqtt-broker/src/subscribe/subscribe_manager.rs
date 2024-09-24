@@ -165,48 +165,53 @@ impl SubscribeManager {
                     continue;
                 }
 
-                // exclusive
-                for (key, subscriber) in self.exclusive_subscribe.clone() {
-                    if subscriber.client_id == *client_id && subscriber.sub_path == path {
-                        if let Some(sx) = self.exclusive_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error!("{}", e),
+                if is_share_sub(path.clone()) {
+                    let (group_name, sub_name) = decode_share_info(path.clone());
+                    // share leader
+                    for (key, data) in self.share_leader_subscribe.clone() {
+                        let mut flag = false;
+                        for (sub_key, share_sub) in data.sub_list {
+                            if share_sub.client_id == *client_id
+                                && share_sub.group_name.unwrap() == group_name
+                                && share_sub.sub_path == sub_name
+                            {
+                                let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
+                                mut_data.sub_list.remove(&sub_key);
+                                flag = true;
                             }
-                            self.exclusive_subscribe.remove(&key);
                         }
-                    }
-                }
 
-                // share leader
-                for (key, data) in self.share_leader_subscribe.clone() {
-                    let mut flag = false;
-                    for (sub_key, share_sub) in data.sub_list {
-                        if share_sub.client_id == *client_id && share_sub.sub_path == path {
-                            let mut_data = self.share_leader_subscribe.get_mut(&key).unwrap();
-                            mut_data.sub_list.remove(&sub_key);
-                            flag = true;
-                        }
-                    }
-
-                    if flag {
-                        if let Some(sx) = self.share_leader_push_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error!("{}", e),
+                        if flag {
+                            if let Some(sx) = self.share_leader_push_thread.get(&key) {
+                                match sx.send(true) {
+                                    Ok(_) => {}
+                                    Err(e) => error!("{}", e),
+                                }
                             }
                         }
                     }
-                }
 
-                // share follower
-                for (key, data) in self.share_follower_subscribe.clone() {
-                    if data.client_id == *client_id && data.filter.path == path {
-                        self.share_follower_subscribe.remove(&key);
-                        if let Some(sx) = self.share_follower_resub_thread.get(&key) {
-                            match sx.send(true) {
-                                Ok(_) => {}
-                                Err(e) => error!("{}", e),
+                    // share follower
+                    for (key, data) in self.share_follower_subscribe.clone() {
+                        if data.client_id == *client_id && data.filter.path == path {
+                            self.share_follower_subscribe.remove(&key);
+                            if let Some(sx) = self.share_follower_resub_thread.get(&key) {
+                                match sx.send(true) {
+                                    Ok(_) => {}
+                                    Err(e) => error!("{}", e),
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    for (key, subscriber) in self.exclusive_subscribe.clone() {
+                        if subscriber.client_id == *client_id && subscriber.sub_path == path {
+                            if let Some(sx) = self.exclusive_push_thread.get(&key) {
+                                match sx.send(true) {
+                                    Ok(_) => {}
+                                    Err(e) => error!("{}", e),
+                                }
+                                self.exclusive_subscribe.remove(&key);
                             }
                         }
                     }
