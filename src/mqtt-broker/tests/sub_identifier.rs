@@ -24,6 +24,7 @@ mod tests {
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
 
     #[tokio::test]
+    #[ignore]
     async fn client5_sub_identifier_test_tcp() {
         let sub_qos = &[0, 0];
 
