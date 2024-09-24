@@ -17,11 +17,7 @@ use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use inner::{
-    inner_create_acl, inner_create_blacklist, inner_create_session, inner_create_topic,
-    inner_create_user, inner_delete_acl, inner_delete_blacklist, inner_delete_session,
-    inner_delete_topic, inner_delete_user, inner_list_acl, inner_list_blacklist,
-    inner_list_session, inner_list_topic, inner_list_user, inner_save_last_will_message,
-    inner_set_topic_retain_message, inner_update_session,
+    inner_create_acl, inner_create_blacklist, inner_create_session, inner_create_topic, inner_create_user, inner_delete_acl, inner_delete_blacklist, inner_delete_session, inner_delete_topic, inner_delete_user, inner_get_placement_center_leader_address, inner_is_placement_leader, inner_list_acl, inner_list_blacklist, inner_list_session, inner_list_topic, inner_list_user, inner_save_last_will_message, inner_set_topic_retain_message, inner_update_session
 };
 use mobc::{Connection, Manager};
 use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
@@ -48,87 +44,149 @@ async fn mqtt_client(
 pub(crate) async fn mqtt_interface_call(
     interface: PlacementCenterInterface,
     client_poll: Arc<ClientPool>,
-    addr: String,
+    mut addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match mqtt_client(client_poll.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result = match interface {
-                PlacementCenterInterface::GetShareSub => {
-                    inner_get_share_sub_leader(client, request.clone()).await
-                }
-                PlacementCenterInterface::ListUser => {
-                    inner_list_user(client, request.clone()).await
-                }
-                PlacementCenterInterface::CreateUser => {
-                    inner_create_user(client, request.clone()).await
-                }
-                PlacementCenterInterface::DeleteUser => {
-                    inner_delete_user(client, request.clone()).await
-                }
-                PlacementCenterInterface::ListTopic => {
-                    inner_list_topic(client, request.clone()).await
-                }
-                PlacementCenterInterface::CreateTopic => {
-                    inner_create_topic(client, request.clone()).await
-                }
-                PlacementCenterInterface::DeleteTopic => {
-                    inner_delete_topic(client, request.clone()).await
-                }
-                PlacementCenterInterface::SetTopicRetainMessage => {
-                    inner_set_topic_retain_message(client, request.clone()).await
-                }
-                PlacementCenterInterface::ListSession => {
-                    inner_list_session(client, request.clone()).await
-                }
-                PlacementCenterInterface::CreateSession => {
-                    inner_create_session(client, request.clone()).await
-                }
-                PlacementCenterInterface::DeleteSession => {
-                    inner_delete_session(client, request.clone()).await
-                }
-                PlacementCenterInterface::UpdateSession => {
-                    inner_update_session(client, request.clone()).await
-                }
-                PlacementCenterInterface::SaveLastWillMessage => {
-                    inner_save_last_will_message(client, request.clone()).await
-                }
-                PlacementCenterInterface::ListAcl => inner_list_acl(client, request.clone()).await,
+    loop {
+        match mqtt_client(client_poll.clone(), addr.clone()).await {
+            Ok(client) => {
+                let forward_info = match should_forward_to_leader_with_address(
+                    client.clone(),
+                    interface.clone(),
+                ).await {
+                    Ok(result) => {
+                        result
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    },
+                };
 
-                PlacementCenterInterface::CreateAcl => {
-                    inner_create_acl(client, request.clone()).await
+                let (should_forward, forward_address) = forward_info;
+                if should_forward {
+                    addr = forward_address.unwrap();
+                    continue;
                 }
-                PlacementCenterInterface::DeleteAcl => {
-                    inner_delete_acl(client, request.clone()).await
-                }
-                PlacementCenterInterface::ListBlackList => {
-                    inner_list_blacklist(client, request.clone()).await
-                }
+                let result = match interface {
+                    PlacementCenterInterface::GetShareSubLeader => {
+                        inner_get_share_sub_leader(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::ListUser => {
+                        inner_list_user(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::CreateUser => {
+                        inner_create_user(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::DeleteUser => {
+                        inner_delete_user(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::ListTopic => {
+                        inner_list_topic(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::CreateTopic => {
+                        inner_create_topic(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::DeleteTopic => {
+                        inner_delete_topic(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::SetTopicRetainMessage => {
+                        inner_set_topic_retain_message(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::ListSession => {
+                        inner_list_session(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::CreateSession => {
+                        inner_create_session(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::DeleteSession => {
+                        inner_delete_session(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::UpdateSession => {
+                        inner_update_session(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::SaveLastWillMessage => {
+                        inner_save_last_will_message(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::ListAcl => {
+                        inner_list_acl(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::CreateAcl => {
+                        inner_create_acl(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::DeleteAcl => {
+                        inner_delete_acl(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::ListBlackList => {
+                        inner_list_blacklist(client, request.clone()).await
+                    }
 
-                PlacementCenterInterface::CreateBlackList => {
-                    inner_create_blacklist(client, request.clone()).await
-                }
-                PlacementCenterInterface::DeleteBlackList => {
-                    inner_delete_blacklist(client, request.clone()).await
-                }
-                _ => {
-                    return Err(CommonError::CommmonError(format!(
-                        "mqtt service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
-            };
-            match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
+                    PlacementCenterInterface::CreateBlackList => {
+                        inner_create_blacklist(client, request.clone()).await
+                    }
+                    PlacementCenterInterface::DeleteBlackList => {
+                        inner_delete_blacklist(client, request.clone()).await
+                    }
+                    _ => {
+                        return Err(CommonError::CommmonError(format!(
+                            "mqtt service does not support service interfaces [{:?}]",
+                            interface
+                        )))
+                    }
+                };
+                match result {
+                    Ok(data) => return Ok(data),
+                    Err(e) => {
+                        return Err(e);
+                    }
                 }
             }
-        }
-        Err(e) => {
-            return Err(e);
+            Err(e) => {
+                return Err(e);
+            }
         }
     }
+}
+
+pub(crate) async fn should_forward_to_leader_with_address(
+    client: MqttServiceClient<Channel>,
+    interface: PlacementCenterInterface,
+) -> Result<(bool, Option<String>), CommonError> {
+    if !interface.should_forward_to_leader() {
+        return Ok((false, None));
+    }
+
+    let is_leader: Result<bool, CommonError> = match inner_is_placement_leader(client.clone()).await {
+        Ok(result) => {
+            Ok(result)
+        },
+        Err(e) => {
+            Err(e)
+        }
+    };
+    if is_leader.is_err() {
+        return Err(is_leader.err().unwrap());
+    }
+
+    if !is_leader.ok().unwrap() {
+        let get_leader_address: Result<Option<String>, CommonError> = match inner_get_placement_center_leader_address(client.clone()).await {
+            Ok(result) => {
+                Ok(result)
+            },
+            Err(e) => {
+                Err(e)
+            }
+        };
+        if get_leader_address.is_err() {
+            return Err(get_leader_address.err().unwrap());
+        }
+        let address = get_leader_address.ok();
+        if address.is_none() || address.clone().unwrap().is_none() {
+            return Err(CommonError::CommmonError("Get leader address fail".to_string()));
+        }
+        return Ok((true, address.unwrap()));
+    }
+
+    Ok((false, None))
 }
 
 #[derive(Clone)]

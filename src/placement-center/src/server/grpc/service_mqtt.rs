@@ -15,7 +15,7 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     core::share_sub::ShareSubLeader,
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+    raft::{apply::{RaftMachineApply, StorageData, StorageDataType}, metadata::RaftGroupMetadata},
     storage::{
         mqtt::{
             acl::AclStorage, blacklist::MQTTBlackListStorage, session::MQTTSessionStorage,
@@ -28,22 +28,17 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, CreateAclRequest, CreateBlacklistRequest,
-        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest,
-        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
-        ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest,
-        ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
+        mqtt_service_server::MqttService, CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, Empty, GetPlacementCenterLeaderAddressReply, GetShareSubLeaderReply, GetShareSubLeaderRequest, IsPlacementCenterLeaderReply, ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest
     },
 };
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
     cluster_cache: Arc<PlacementCacheManager>,
     placement_center_storage: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
 }
 
 impl GrpcMqttService {
@@ -51,12 +46,22 @@ impl GrpcMqttService {
         cluster_cache: Arc<PlacementCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
     ) -> Self {
         GrpcMqttService {
             cluster_cache,
             placement_center_storage,
             rocksdb_engine_handler,
+            raft_metadata: raft_metadata,
         }
+    }
+
+    fn is_leader(&self) -> bool {
+        self.raft_metadata.read().unwrap().is_leader()
+    }
+
+    fn get_leader_address(&self) -> String {
+        self.raft_metadata.read().unwrap().leader_addr()
     }
 }
 
@@ -548,5 +553,27 @@ impl MqttService for GrpcMqttService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+    }
+
+    async fn is_placement_center_leader(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<IsPlacementCenterLeaderReply>, Status> {
+        Ok(Response::new(
+            IsPlacementCenterLeaderReply {
+                is_leader: self.is_leader() 
+            }
+        ))
+    }
+
+    async fn get_placement_center_leader_address(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<GetPlacementCenterLeaderAddressReply>, Status> {
+        Ok(Response::new(
+            GetPlacementCenterLeaderAddressReply {
+                address: self.get_leader_address()
+            }
+        ))
     }
 }
