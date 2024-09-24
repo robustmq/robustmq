@@ -137,6 +137,11 @@ where
                 )
                 .await;
 
+                let mut sub_ids = Vec::new();
+                if let Some(id) = subscriber.subscription_identifier {
+                    sub_ids.push(id);
+                }
+
                 loop {
                     match sub_thread_stop_rx.try_recv() {
                         Ok(flag) => {
@@ -210,9 +215,7 @@ where
                                     response_topic: msg.response_topic,
                                     correlation_data: msg.correlation_data,
                                     user_properties: msg.user_properties,
-                                    subscription_identifiers: subscriber
-                                        .subscription_identifier
-                                        .clone(),
+                                    subscription_identifiers: sub_ids.clone(),
                                     content_type: msg.content_type,
                                 };
 

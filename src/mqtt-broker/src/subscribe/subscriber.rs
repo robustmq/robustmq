@@ -27,7 +27,7 @@ pub struct Subscriber {
     pub nolocal: bool,
     pub preserve_retain: bool,
     pub retain_forward_rule: RetainForwardRule,
-    pub subscription_identifier: Vec<usize>,
+    pub subscription_identifier: Option<usize>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

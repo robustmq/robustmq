@@ -62,10 +62,7 @@ pub async fn save_topic_retain_message(
         record_retain_recv_metrics(publish.qos);
         let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
         let message_expire = message_expiry_interval(cache_manager, publish_properties);
-        match topic_storage
-            .set_retain_message(topic_name, &retain_message, message_expire)
-            .await
-        {
+        match topic_storage.set_retain_message(topic_name, &retain_message, message_expire).await {
             Ok(_) => {
                 cache_manager
                     .update_topic_retain_message(&topic_name, Some(retain_message.encode()));
@@ -110,11 +107,7 @@ pub async fn try_send_retain_message(
                             continue;
                         }
 
-                        let retain = if subscriber.preserve_retain {
-                            msg.retain
-                        } else {
-                            false
-                        };
+                        let retain = if subscriber.preserve_retain { msg.retain } else { false };
 
                         let qos = min_qos(cluster.protocol.max_qos, subscriber.qos);
                         let pkid = 1;
@@ -132,6 +125,11 @@ pub async fn try_send_retain_message(
                             SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string(),
                         ));
 
+                        let mut sub_ids = Vec::new();
+                        if let Some(id) = subscriber.subscription_identifier {
+                            sub_ids.push(id);
+                        }
+
                         let properties = PublishProperties {
                             payload_format_indicator: msg.format_indicator,
                             message_expiry_interval: msg.expiry_interval,
@@ -139,7 +137,7 @@ pub async fn try_send_retain_message(
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,
                             user_properties: user_properties,
-                            subscription_identifiers: subscriber.subscription_identifier.clone(),
+                            subscription_identifiers: sub_ids,
                             content_type: msg.content_type,
                         };
 

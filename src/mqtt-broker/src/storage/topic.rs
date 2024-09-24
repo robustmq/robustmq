@@ -157,7 +157,6 @@ impl TopicStorage {
             retain_message: retain_message.encode(),
             retain_message_expired_at,
         };
-        println!("{}",1);
         match placement_set_topic_retain_message(
             self.client_poll.clone(),
             config.placement_center.clone(),
@@ -166,7 +165,6 @@ impl TopicStorage {
         .await
         {
             Ok(_) => {
-                println!("{}",2);
                 return Ok(());
             }
             Err(e) => return Err(e),

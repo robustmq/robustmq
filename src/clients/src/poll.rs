@@ -41,12 +41,12 @@ impl ClientPool {
     pub fn new(max_open_connection: u64) -> Self {
         Self {
             max_open_connection,
-            placement_center_inner_pools: DashMap::with_capacity(128),
-            placement_center_journal_service_pools: DashMap::with_capacity(128),
-            placement_center_kv_service_pools: DashMap::with_capacity(128),
-            placement_center_mqtt_service_pools: DashMap::with_capacity(128),
-            mqtt_broker_placement_service_pools: DashMap::with_capacity(128),
-            mqtt_broker_admin_service_pools: DashMap::with_capacity(128),
+            placement_center_inner_pools: DashMap::with_capacity(2),
+            placement_center_journal_service_pools: DashMap::with_capacity(2),
+            placement_center_kv_service_pools: DashMap::with_capacity(2),
+            placement_center_mqtt_service_pools: DashMap::with_capacity(2),
+            mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
+            mqtt_broker_admin_service_pools: DashMap::with_capacity(2),
         }
     }
 

@@ -40,6 +40,7 @@ pub struct ShareLeaderSubscribeData {
     pub group_name: String,
     pub topic_id: String,
     pub topic_name: String,
+    pub sub_name: String,
     // (client_id_sub_path, subscriber)
     pub sub_list: DashMap<String, Subscriber>,
 }
@@ -49,16 +50,16 @@ pub struct SubscribeManager {
     client_poll: Arc<ClientPool>,
     metadata_cache: Arc<CacheManager>,
 
-    // (client_id_topic_id, Subscriber)
+    // (client_id_sub_name_topic_id, Subscriber)
     pub exclusive_subscribe: DashMap<String, Subscriber>,
 
-    // (client_id_topic_id, Sender<bool>)
+    // (client_id_sub_name_topic_id, Sender<bool>)
     pub exclusive_push_thread: DashMap<String, Sender<bool>>,
 
-    // (group_name_topic_id, ShareLeaderSubscribeData)
+    // (group_name_sub_name_topic_id, ShareLeaderSubscribeData)
     pub share_leader_subscribe: DashMap<String, ShareLeaderSubscribeData>,
 
-    // (group_name_topic_id, Sender<bool>)
+    // (group_name_sub_name_topic_id, Sender<bool>)
     pub share_leader_push_thread: DashMap<String, Sender<bool>>,
 
     // (client_id_group_name_sub_name,ShareSubShareSub)
@@ -245,6 +246,7 @@ impl SubscribeManager {
                                     sub_identifier,
                                     filter,
                                     group_name.clone(),
+                                    sub_name.clone(),
                                 )
                                 .await;
                             } else {
@@ -291,46 +293,12 @@ impl SubscribeManager {
         sub_identifier: Option<usize>,
         filter: Filter,
         group_name: String,
+        sub_name: String,
     ) {
-        let leader_key = self.share_leader_key(group_name.clone(), topic_id.clone());
+        let share_leader_key = self.share_leader_key(&group_name, &sub_name, &topic_id);
         let leader_sub_key = self.share_leader_sub_key(client_id.clone(), filter.path.clone());
 
-        if let Some(share_sub) = self.share_leader_subscribe.get_mut(&leader_key) {
-            if let Some(mut raw) = share_sub.sub_list.get_mut(&leader_sub_key) {
-                if let Some(id) = sub_identifier {
-                    if !raw.subscription_identifier.iter().any(|&x| x == id) {
-                        raw.subscription_identifier.push(id);
-                    }
-                }
-            } else {
-                let mut sub_ids = Vec::new();
-
-                if let Some(id) = sub_identifier {
-                    sub_ids.push(id);
-                }
-
-                let sub = Subscriber {
-                    protocol: protocol.clone(),
-                    client_id: client_id.clone(),
-                    topic_name: topic_name.clone(),
-                    group_name: None,
-                    topic_id: topic_id.clone(),
-                    qos: filter.qos,
-                    nolocal: filter.nolocal,
-                    preserve_retain: filter.preserve_retain,
-                    retain_forward_rule: filter.retain_forward_rule.clone(),
-                    subscription_identifier: sub_ids,
-                    sub_path: filter.path.clone(),
-                };
-                share_sub.sub_list.insert(leader_sub_key, sub);
-            }
-        } else {
-            let mut sub_ids = Vec::new();
-
-            if let Some(id) = sub_identifier {
-                sub_ids.push(id);
-            }
-
+        if let Some(share_sub) = self.share_leader_subscribe.get_mut(&share_leader_key) {
             let sub = Subscriber {
                 protocol: protocol.clone(),
                 client_id: client_id.clone(),
@@ -341,7 +309,22 @@ impl SubscribeManager {
                 nolocal: filter.nolocal,
                 preserve_retain: filter.preserve_retain,
                 retain_forward_rule: filter.retain_forward_rule.clone(),
-                subscription_identifier: sub_ids,
+                subscription_identifier: sub_identifier,
+                sub_path: filter.path.clone(),
+            };
+            share_sub.sub_list.insert(leader_sub_key, sub);
+        } else {
+            let sub = Subscriber {
+                protocol: protocol.clone(),
+                client_id: client_id.clone(),
+                topic_name: topic_name.clone(),
+                group_name: None,
+                topic_id: topic_id.clone(),
+                qos: filter.qos,
+                nolocal: filter.nolocal,
+                preserve_retain: filter.preserve_retain,
+                retain_forward_rule: filter.retain_forward_rule.clone(),
+                subscription_identifier: sub_identifier,
                 sub_path: filter.path.clone(),
             };
 
@@ -352,9 +335,11 @@ impl SubscribeManager {
                 group_name: group_name.clone(),
                 topic_id: topic_id.clone(),
                 topic_name: topic_name.clone(),
+                sub_name: sub_name.clone(),
                 sub_list: DashMap::with_capacity(8),
             };
-            self.share_leader_subscribe.insert(leader_key.clone(), data);
+
+            self.share_leader_subscribe.insert(share_leader_key.clone(), data);
         }
     }
 
@@ -393,45 +378,36 @@ impl SubscribeManager {
         filter: Filter,
     ) {
         if path_regex_match(topic_name.clone(), filter.path.clone()) {
-            let key = self.exclusive_key(client_id.clone(), topic_id.clone());
-            if let Some(mut sub) = self.exclusive_subscribe.get_mut(&key) {
-                if let Some(id) = sub_identifier {
-                    if !sub.subscription_identifier.iter().any(|&x| x == id) {
-                        sub.subscription_identifier.push(id);
-                    }
-                }
-            } else {
-                let mut sub_ids = Vec::new();
+            let key = self.exclusive_key(&client_id, &filter.path, &topic_id);
+            let sub = Subscriber {
+                protocol: protocol.clone(),
+                client_id: client_id.clone(),
+                topic_name: topic_name.clone(),
+                group_name: None,
+                topic_id: topic_id.clone(),
+                qos: filter.qos,
+                nolocal: filter.nolocal,
+                preserve_retain: filter.preserve_retain,
+                retain_forward_rule: filter.retain_forward_rule.clone(),
+                subscription_identifier: sub_identifier,
+                sub_path: filter.path.clone(),
+            };
 
-                if let Some(id) = sub_identifier {
-                    sub_ids.push(id);
-                }
-
-                let sub = Subscriber {
-                    protocol: protocol.clone(),
-                    client_id: client_id.clone(),
-                    topic_name: topic_name.clone(),
-                    group_name: None,
-                    topic_id: topic_id.clone(),
-                    qos: filter.qos,
-                    nolocal: filter.nolocal,
-                    preserve_retain: filter.preserve_retain,
-                    retain_forward_rule: filter.retain_forward_rule.clone(),
-                    subscription_identifier: sub_ids,
-                    sub_path: filter.path.clone(),
-                };
-
-                self.exclusive_subscribe.insert(key, sub);
-            }
+            self.exclusive_subscribe.insert(key, sub);
         }
     }
 
-    fn exclusive_key(&self, client_id: String, topic_id: String) -> String {
-        return format!("{}_{}", client_id, topic_id);
+    fn exclusive_key(&self, client_id: &String, sub_name: &String, topic_id: &String) -> String {
+        return format!("{}_{}_{}", client_id, sub_name, topic_id);
     }
 
-    fn share_leader_key(&self, group_name: String, topic_id: String) -> String {
-        return format!("{}_{}", group_name, topic_id);
+    fn share_leader_key(
+        &self,
+        group_name: &String,
+        sub_name: &String,
+        topic_id: &String,
+    ) -> String {
+        return format!("{}_{}_{}", group_name, sub_name, topic_id);
     }
 
     fn share_leader_sub_key(&self, client_id: String, sub_path: String) -> String {
