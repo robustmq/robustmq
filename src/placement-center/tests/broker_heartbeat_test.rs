@@ -72,6 +72,6 @@ mod tests {
         }
         let total_ms = now_second() - start_time;
         println!("{}", total_ms);
-        assert!(total_ms == 5 && total_ms <= 10);
+        assert!(total_ms >= 5 && total_ms <= 10);
     }
 }
