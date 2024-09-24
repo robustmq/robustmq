@@ -45,7 +45,7 @@ mod tests {
         let addr = broker_addr();
         let sub_topics = &[sub_topic.clone()];
 
-        let cli = connect_server5(&client_id, &addr);
+        let cli = connect_server5(&client_id, &addr, false, false);
         let message_content = format!("mqtt {payload_flag} message");
 
         // publish

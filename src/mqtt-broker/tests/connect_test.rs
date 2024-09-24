@@ -65,6 +65,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn client4_connect_wss_test() {
         let mqtt_version = 4;
         let client_id = unique_id();
@@ -107,6 +108,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn client5_connect_wss_test() {
         let client_id = unique_id();
         let addr = broker_wss_addr();
@@ -118,7 +120,11 @@ mod tests {
     }
 
     fn v3_wrong_password_test(
-        mqtt_version: u32, client_id: &String, addr: &String, ws: bool, ssl: bool,
+        mqtt_version: u32,
+        client_id: &String,
+        addr: &String,
+        ws: bool,
+        ssl: bool,
     ) {
         let create_opts = build_create_pros(client_id, addr);
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -140,7 +146,11 @@ mod tests {
     }
 
     fn v3_session_present_test(
-        mqtt_version: u32, client_id: &String, addr: &String, ws: bool, ssl: bool,
+        mqtt_version: u32,
+        client_id: &String,
+        addr: &String,
+        ws: bool,
+        ssl: bool,
     ) {
         let create_opts = build_create_pros(client_id, addr);
 

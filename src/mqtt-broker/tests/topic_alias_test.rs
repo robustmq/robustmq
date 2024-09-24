@@ -28,23 +28,15 @@ mod tests {
         let topic = format!("/tests/{}", unique_id());
         let sub_topics = &[topic.clone()];
 
-        let cli = connect_server5(&client_id, &addr);
+        let cli = connect_server5(&client_id, &addr, false, false);
         let message_content1 = format!("mqtt message");
 
         // publish to topic
         let mut props = Properties::new();
-        props
-            .push_u32(PropertyCode::MessageExpiryInterval, 50)
-            .unwrap();
-        props
-            .push_string_pair(PropertyCode::UserProperty, "age", "1")
-            .unwrap();
-        props
-            .push_string_pair(PropertyCode::UserProperty, "name", "robustmq")
-            .unwrap();
-        props
-            .push_u16(PropertyCode::TopicAlias, topic_alias)
-            .unwrap();
+        props.push_u32(PropertyCode::MessageExpiryInterval, 50).unwrap();
+        props.push_string_pair(PropertyCode::UserProperty, "age", "1").unwrap();
+        props.push_string_pair(PropertyCode::UserProperty, "name", "robustmq").unwrap();
+        props.push_u16(PropertyCode::TopicAlias, topic_alias).unwrap();
 
         let msg = MessageBuilder::new()
             .properties(props.clone())
@@ -77,7 +69,7 @@ mod tests {
                 assert!(false);
             }
         }
-        
+
         let msg = MessageBuilder::new()
             .properties(props.clone())
             .payload(message_content2.clone())

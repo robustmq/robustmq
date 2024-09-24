@@ -30,7 +30,7 @@ mod tests {
         let topic = format!("/tests/{}", unique_id());
         let sub_topics = &[topic.clone()];
 
-        let cli = connect_server5(&client_id, &addr);
+        let cli = connect_server5(&client_id, &addr, false, false);
         let message_content = format!("mqtt message");
 
         let msg = MessageBuilder::new()
@@ -51,7 +51,7 @@ mod tests {
 
         // subscribe
         let client_id = unique_id();
-        let cli = connect_server5(&client_id, &addr);
+        let cli = connect_server5(&client_id, &addr, false, false);
         let sub_qos = &[1];
         let rx = cli.start_consuming();
         match cli.subscribe_many(sub_topics, sub_qos) {
@@ -66,9 +66,8 @@ mod tests {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                 println!("{}", payload.clone());
                 if payload == message_content {
-                    if let Some(raw) = msg
-                        .properties()
-                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+                    if let Some(raw) =
+                        msg.properties().get_string_pair_at(PropertyCode::UserProperty, 0)
                     {
                         if raw.0 == SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string()
                             && raw.1 == SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string()

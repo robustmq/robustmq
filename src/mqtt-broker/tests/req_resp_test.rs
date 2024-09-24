@@ -55,8 +55,12 @@ mod tests {
     }
 
     async fn simple_test(
-        requset_topic: String, response_topic: String, sub_qos: &[i32], payload_flag: String,
-        correlation_data: Option<String>, connect_response_information: bool,
+        requset_topic: String,
+        response_topic: String,
+        sub_qos: &[i32],
+        payload_flag: String,
+        correlation_data: Option<String>,
+        connect_response_information: bool,
     ) {
         let client_id = unique_id();
         let addr = broker_addr();
@@ -68,7 +72,7 @@ mod tests {
                     connect_server5_response_information(&client_id, &addr);
                 (cli, format!("{response_information}{}", &response_topic[1..]))
             }
-            false => (connect_server5(&client_id, &addr), response_topic),
+            false => (connect_server5(&client_id, &addr, false, false), response_topic),
         };
 
         let message_content = format!("mqtt {payload_flag} message");

@@ -16,32 +16,84 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{broker_addr, connect_server5, distinct_conn};
+    use crate::common::{
+        broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, connect_server5,
+        distinct_conn,
+    };
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
 
     #[tokio::test]
-    async fn client5_sub_identifier_test() {
+    async fn client5_sub_identifier_test_tcp() {
         let sub_qos = &[0, 0];
 
         let topic = unique_id();
 
-        let topic1 = format!("/test/{}/+", topic);
-        let topic2 = format!("/test/{}/test", topic);
-        let topic3 = format!("/test/{}/test_one", topic);
-        simple_test(topic1, topic2, topic3, sub_qos, "2".to_string()).await;
+        let topic1 = format!("/test_tcp/{}/+", topic);
+        let topic2 = format!("/test_tcp/{}/test", topic);
+        let topic3 = format!("/test_tcp/{}/test_one", topic);
+
+        let addr = broker_addr();
+        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, false).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn client5_sub_identifier_test_tcp_ssl() {
+        let sub_qos = &[0, 0];
+
+        let topic = unique_id();
+
+        let topic1 = format!("/test_ssl/{}/+", topic);
+        let topic2 = format!("/test_ssl/{}/test", topic);
+        let topic3 = format!("/test_ssl/{}/test_one", topic);
+
+        let addr = broker_ssl_addr();
+        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, true).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn client5_sub_identifier_test_ws() {
+        let sub_qos = &[0, 0];
+
+        let topic = unique_id();
+
+        let topic1 = format!("/test_ws/{}/+", topic);
+        let topic2 = format!("/test_ws/{}/test", topic);
+        let topic3 = format!("/test_ws/{}/test_one", topic);
+
+        let addr = broker_ws_addr();
+        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), true, false).await;
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn client5_sub_identifier_test_wss() {
+        let sub_qos = &[0, 0];
+
+        let topic = unique_id();
+
+        let topic1 = format!("/test_wss/{}/+", topic);
+        let topic2 = format!("/test_wss/{}/test", topic);
+        let topic3 = format!("/test_wss/{}/test_one", topic);
+
+        let addr = broker_wss_addr();
+        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), true, true).await;
     }
 
     async fn simple_test(
+        addr: String,
         topic1: String,
         topic2: String,
         topic3: String,
         sub_qos: &[i32],
         payload_flag: String,
+        ws: bool,
+        ssl: bool,
     ) {
         let client_id = unique_id();
-        let addr = broker_addr();
-        let cli = connect_server5(&client_id, &addr);
+        let cli = connect_server5(&client_id, &addr, ws, ssl);
 
         let message_content = format!("mqtt {payload_flag} message");
         let msg = MessageBuilder::new()
