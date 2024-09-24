@@ -44,21 +44,6 @@ mod tests {
         let cli = connect_server5(&client_id, &addr);
 
         let message_content = format!("mqtt {payload_flag} message");
-
-        let msg = MessageBuilder::new()
-            .topic(topic2.clone())
-            .payload(message_content.clone())
-            .qos(QOS_1)
-            .finalize();
-
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
-            }
-        }
-
         let msg = MessageBuilder::new()
             .topic(topic2.clone())
             .payload(message_content.clone())
