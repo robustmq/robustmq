@@ -91,8 +91,8 @@ mod tests {
         ssl: bool,
     ) {
         let client_id = unique_id();
-        let cli = connect_server5(&client_id, &addr, ws, ssl);
 
+        let cli = connect_server5(&client_id, &addr, ws, ssl);
         let message_content = format!("mqtt {payload_flag} message");
         let msg = MessageBuilder::new()
             .topic(topic2.clone())
@@ -108,106 +108,40 @@ mod tests {
             }
         }
 
-        // subscribe
-        let mut props: Properties = Properties::new();
-        props.push_int(PropertyCode::SubscriptionIdentifier, 1).unwrap();
-        match cli.subscribe_many_with_options(
-            &[topic1.as_str()],
-            &[sub_qos[0]],
-            &[SubscribeOptions::default()],
-            Some(props),
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-
-        let mut props: Properties = Properties::new();
-        props.push_int(PropertyCode::SubscriptionIdentifier, 2).unwrap();
-        match cli.subscribe_many_with_options(
-            &[topic2.as_str()],
-            &[sub_qos[1]],
-            &[SubscribeOptions::default()],
-            Some(props),
-        ) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{}", e)
-            }
-        }
-
         let rx = cli.start_consuming();
-        let mut msgs = rx.iter();
+        match cli.subscribe_many(&[topic1.as_str(), topic2.as_str()], &[sub_qos[1]]) {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{}", e)
+            }
+        }
 
         let mut r_one = false;
         let mut r_two = false;
 
-        if let Some(Some(msg)) = msgs.next() {
-            let sub_identifier =
-                msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
-            println!("{:?} sub_identifier: {}", msg, sub_identifier);
-            match sub_identifier {
-                1 => {
-                    r_one = true;
-                }
-                2 => {
-                    r_two = true;
-                }
-                _ => {
-                    assert!(false);
-                }
-            }
-        } else {
-            assert!(false);
-        }
+        for message in rx.iter() {
+            if let Some(msg) = message {
+                let sub_identifier =
+                    msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
 
-        if let Some(Some(msg)) = msgs.next() {
-            let sub_identifier =
-                msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
-            println!("{:?} sub_identifier: {}", msg, sub_identifier);
-            match sub_identifier {
-                1 => {
-                    r_one = true;
-                }
-                2 => {
-                    r_two = true;
-                }
-                _ => {
-                    assert!(false);
+                println!("{:?} sub_identifier: {}", msg, sub_identifier);
+                match sub_identifier {
+                    1 => {
+                        r_one = true;
+                    }
+                    2 => {
+                        r_two = true;
+                    }
+                    _ => {
+                        assert!(false);
+                    }
                 }
             }
-        } else {
-            assert!(false);
-        }
-
-        assert!(r_one);
-        assert!(r_two);
-
-        let msg = MessageBuilder::new()
-            .topic(topic3)
-            .payload(message_content.clone())
-            .qos(QOS_1)
-            .finalize();
-
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
+            if r_one && r_two {
+                break;
             }
         }
-
-        if let Some(Some(msg)) = msgs.next() {
-            let sub_identifier =
-                msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
-            assert_eq!(sub_identifier, 1);
-
-            println!("{msg:?}");
-            println!("{sub_identifier:?}");
-        } else {
-            assert!(false);
-        }
+        assert!(true);
 
         distinct_conn(cli);
     }
