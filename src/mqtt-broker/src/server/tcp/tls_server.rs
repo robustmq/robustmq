@@ -188,7 +188,6 @@ pub(crate) fn read_tls_frame_process(
                             }
                         }
                     } else {
-                        debug!("Read the next TLS request packet, which is empty");
                         sleep(Duration::from_millis(10)).await;
                     }
                 }
