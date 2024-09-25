@@ -22,6 +22,7 @@ use std::collections::HashMap;
 pub enum NodeState {
     #[default]
     Running,
+    #[allow(dead_code)]
     Starting,
     #[allow(dead_code)]
     Stoping,
@@ -33,7 +34,6 @@ pub enum NodeState {
 pub struct RaftGroupMetadata {
     pub local: BrokerNode,
     pub leader: Option<BrokerNode>,
-    pub state: NodeState,
     pub raft_role: StateRole,
     pub peers: HashMap<u64, BrokerNode>,
 }
@@ -66,7 +66,6 @@ impl RaftGroupMetadata {
             local,
             leader: None,
             raft_role: StateRole::Follower,
-            state: NodeState::Starting,
             peers: peers,
         }
     }
@@ -108,12 +107,5 @@ impl RaftGroupMetadata {
             return leader.node_inner_addr;
         }
         return "".to_string();
-    }
-
-    pub fn leader_alive(&self) -> bool {
-        if let Some(_) = self.leader.clone() {
-            return true;
-        }
-        return false;
     }
 }

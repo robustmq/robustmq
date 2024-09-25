@@ -84,7 +84,8 @@ start_mqtt_broker_1
 
 sleep 3
 # Run Cargo Test
-cargo nextest run
+#cargo nextest run
+cargo test
 
 if [ $? -ne 0 ]; then
     echo "Test case failed to run"
