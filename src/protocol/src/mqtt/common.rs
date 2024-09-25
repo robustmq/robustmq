@@ -1124,7 +1124,8 @@ pub enum Error {
     PayloadSizeIncorrect,
     #[error("Invalid property type = {0}")]
     InvalidPropertyType(u8),
-    #[error("data store disconnected")]
+    
+    #[error(transparent)]
     IoError(#[from] io::Error),
 }
 
