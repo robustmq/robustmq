@@ -71,8 +71,7 @@ stop_server(){
     stop_placement_center
 }
 
-rm -rf /tmp/robust/tests/mqtt-broker
-rm -rf /tmp/robust/tests/placement-center
+rm -rf /tmp/robust/tests
 
 placement_center_process_name="placement-center"
 mqtt_server_process_name="mqtt-server"

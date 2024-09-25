@@ -27,10 +27,10 @@ use crate::{
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::mqtt::{codec::MqttCodec, common::MQTTPacket};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tokio::{
     io, select,
-    sync::mpsc::{self, Receiver, Sender},
+    sync::mpsc::{self, Receiver, Sender}, time::sleep,
 };
 use tokio::{net::TcpListener, sync::broadcast};
 use tokio_util::codec::{FramedRead, FramedWrite};
@@ -144,7 +144,8 @@ fn read_frame_process(
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
-
+                    }else {
+                        sleep(Duration::from_millis(10)).await;
                     }
                 }
             }

@@ -15,6 +15,7 @@
 use super::{
     cache::{CacheManager, QosAckPacketInfo},
     constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE},
+    message::build_message_expire,
 };
 use crate::{
     observability::metrics::packets::{record_retain_recv_metrics, record_retain_sent_metrics},
@@ -60,8 +61,9 @@ pub async fn save_topic_retain_message(
         }
     } else {
         record_retain_recv_metrics(publish.qos);
-        let retain_message = MQTTMessage::build_message(client_id, publish, publish_properties);
-        let message_expire = message_expiry_interval(cache_manager, publish_properties);
+        let message_expire = build_message_expire(cache_manager, publish_properties);
+        let retain_message =
+            MQTTMessage::build_message(client_id, publish, publish_properties, message_expire);
         match topic_storage.set_retain_message(topic_name, &retain_message, message_expire).await {
             Ok(_) => {
                 cache_manager
@@ -132,7 +134,7 @@ pub async fn try_send_retain_message(
 
                         let properties = PublishProperties {
                             payload_format_indicator: msg.format_indicator,
-                            message_expiry_interval: msg.expiry_interval,
+                            message_expiry_interval: Some(msg.expiry_interval as u32),
                             topic_alias: None,
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,
@@ -230,51 +232,9 @@ pub async fn try_send_retain_message(
                     Ok(None) => {
                         continue;
                     }
-                    Err(e) => error!("send retain message error, error message:{}", e),
+                    Err(e) => error!("get retain message error, error message:{}", e),
                 }
             }
         }
     });
-}
-
-pub fn message_expiry_interval(
-    cache_manager: &Arc<CacheManager>,
-    publish_properties: &Option<PublishProperties>,
-) -> u64 {
-    let cluster = cache_manager.get_cluster_info();
-    if let Some(properties) = publish_properties {
-        if let Some(expire) = properties.message_expiry_interval {
-            return std::cmp::min(cluster.protocol.max_message_expiry_interval, expire as u64);
-        }
-    }
-    return cluster.protocol.max_message_expiry_interval;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::message_expiry_interval;
-    use crate::handler::cache::CacheManager;
-    use clients::poll::ClientPool;
-    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-    use protocol::mqtt::common::PublishProperties;
-    use std::sync::Arc;
-
-    #[test]
-    fn message_expiry_interval_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
-        let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let mut cluster = MQTTClusterDynamicConfig::default();
-        cluster.protocol.max_message_expiry_interval = 10;
-        cache_manager.set_cluster_info(cluster);
-
-        let publish_properties = None;
-        let res = message_expiry_interval(&cache_manager, &publish_properties);
-        assert_eq!(res, 10);
-
-        let mut publish_properties = PublishProperties::default();
-        publish_properties.message_expiry_interval = Some(3);
-        let res = message_expiry_interval(&cache_manager, &Some(publish_properties));
-        assert_eq!(res, 3);
-    }
 }

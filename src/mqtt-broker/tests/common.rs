@@ -85,7 +85,7 @@ pub fn build_v5_conn_pros(props: Properties, err_pwd: bool, ws: bool, ssl: bool)
         conn_opts.ssl_options(ssl_opts);
     }
     conn_opts
-        .keep_alive_interval(Duration::from_secs(20))
+        .keep_alive_interval(Duration::from_secs(600))
         .clean_start(true)
         .connect_timeout(Duration::from_secs(60))
         .properties(props.clone())
@@ -115,7 +115,7 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool, ws: bool, ssl: bool)
         conn_opts.ssl_options(ssl_opts);
     }
     conn_opts
-        .keep_alive_interval(Duration::from_secs(20))
+        .keep_alive_interval(Duration::from_secs(600))
         .clean_session(true)
         .connect_timeout(Duration::from_secs(50))
         .user_name(username())

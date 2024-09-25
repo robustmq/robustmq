@@ -15,6 +15,7 @@
 use crate::{
     handler::{
         cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        message::is_message_expire,
         retain::try_send_retain_message,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
@@ -23,7 +24,7 @@ use crate::{
 use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::{error::common::CommonError, tools::now_second};
-use log::{error, info};
+use log::{debug, error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
@@ -116,11 +117,14 @@ where
 
             tokio::spawn(async move {
                 info!(
-                        "Exclusive push thread for client_id [{}],topic_id [{}] was started successfully",
-                        client_id, subscriber.topic_id
+                        "Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
+                        client_id, subscriber.sub_path, subscriber.topic_id
                     );
                 let message_storage = MessageStorage::new(message_storage);
-                let group_id = format!("system_sub_{}_{}", client_id, subscriber.topic_id);
+                let group_id = format!(
+                    "system_sub_{}_{}_{}",
+                    client_id, subscriber.sub_path, subscriber.topic_id
+                );
                 let record_num = 5;
                 let max_wait_ms = 100;
 
@@ -147,9 +151,10 @@ where
                         Ok(flag) => {
                             if flag {
                                 info!(
-                                        "Exclusive Push thread for client_id [{}],topic_id [{}] was stopped successfully",
-                                        client_id.clone(),
-                                    subscriber.topic_id
+                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
+                                        client_id,
+                                        subscriber.sub_path, 
+                                        subscriber.topic_id
                                     );
                                 break;
                             }
@@ -175,24 +180,37 @@ where
                                     Ok(msg) => msg,
                                     Err(e) => {
                                         error!("Storage layer message Decord failed with error message :{}",e);
-                                        match message_storage
-                                            .commit_group_offset(
-                                                subscriber.topic_id.clone(),
-                                                group_id.clone(),
-                                                record.offset,
-                                            )
-                                            .await
-                                        {
-                                            Ok(_) => {}
-                                            Err(e) => {
-                                                error!("{}", e);
-                                            }
-                                        }
+                                        loop_commit_offset(
+                                            &message_storage,
+                                            &subscriber.topic_id,
+                                            &group_id,
+                                            record.offset,
+                                        )
+                                        .await;
                                         continue;
                                     }
                                 };
 
+                                if is_message_expire(&msg) {
+                                    debug!("message expires, is not pushed to the client, and is discarded");
+                                    loop_commit_offset(
+                                        &message_storage,
+                                        &subscriber.topic_id,
+                                        &group_id,
+                                        record.offset,
+                                    )
+                                    .await;
+                                    continue;
+                                }
+
                                 if subscriber.nolocal && (subscriber.client_id == msg.client_id) {
+                                    loop_commit_offset(
+                                        &message_storage,
+                                        &subscriber.topic_id,
+                                        &group_id,
+                                        record.offset,
+                                    )
+                                    .await;
                                     continue;
                                 }
 
@@ -210,7 +228,7 @@ where
 
                                 let properties = PublishProperties {
                                     payload_format_indicator: msg.format_indicator,
-                                    message_expiry_interval: msg.expiry_interval,
+                                    message_expiry_interval: Some(msg.expiry_interval as u32),
                                     topic_alias: None,
                                     response_topic: msg.response_topic,
                                     correlation_data: msg.correlation_data,

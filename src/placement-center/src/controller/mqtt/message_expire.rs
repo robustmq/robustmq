@@ -183,7 +183,8 @@ mod tests {
         let topic = MQTTTopic::new(unique_id(), "tp1".to_string());
         topic_storage.save(&cluster_name, &topic.topic_name.clone(), topic.clone()).unwrap();
 
-        let retain_msg = MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None);
+        let retain_msg =
+            MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None, 600);
         topic_storage
             .set_topic_retain_message(
                 &cluster_name,
@@ -207,7 +208,7 @@ mod tests {
             }
             sleep(Duration::from_millis(100)).await;
         }
-        
+
         let ms = now_second() - start;
         assert!(ms == 3 || ms == 4);
 

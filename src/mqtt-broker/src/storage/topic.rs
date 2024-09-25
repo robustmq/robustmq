@@ -309,7 +309,7 @@ mod tests {
 
         let publish_properties = PublishProperties::default();
         let retain_message =
-            MQTTMessage::build_message(&client_id, &publish, &Some(publish_properties));
+            MQTTMessage::build_message(&client_id, &publish, &Some(publish_properties),600);
         topic_storage
             .set_retain_message(&topic_name, &retain_message, 3600)
             .await

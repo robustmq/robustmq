@@ -22,6 +22,7 @@ use super::{
 use crate::{
     handler::{
         cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
+        message::is_message_expire,
         retain::try_send_retain_message,
     },
     server::{connection_manager::ConnectionManager, packet::ResponsePackage},
@@ -34,7 +35,7 @@ use common_base::{
     error::{common::CommonError, mqtt_broker::MQTTBrokerError},
     tools::now_second,
 };
-use log::{error, info};
+use log::{debug, error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
@@ -134,9 +135,10 @@ where
         sub_data: ShareLeaderSubscribeData,
         subscribe_manager: Arc<SubscribeManager>,
     ) {
-        let group_name = sub_data.group_name.clone();
-        let topic_id = sub_data.topic_id.clone();
-        let topic_name = sub_data.topic_name.clone();
+        let group_name = sub_data.group_name;
+        let sub_name = sub_data.sub_name;
+        let topic_id = sub_data.topic_id;
+        let topic_name = sub_data.topic_name;
         let (sub_thread_stop_sx, mut sub_thread_stop_rx) = broadcast::channel(1);
 
         for (_, subscriber) in sub_data.sub_list {
@@ -161,16 +163,17 @@ where
 
         tokio::spawn(async move {
             info!(
-                "Share leader push data thread for GroupName {},Topic [{}] was started successfully",
-                group_name, topic_name
+                "Share leader push data thread for GroupName {}/{},Topic [{}] was started successfully",
+                group_name, sub_name, topic_name
             );
 
             let message_storage: MessageStorage<S> = MessageStorage::new(message_storage);
-            let group_id = format!("system_sub_{}_{}", group_name, topic_id);
+            let group_id = format!("system_sub_{}_{}_{}", group_name, sub_name, topic_id);
 
             let mut cursor_point = 0;
             let mut sub_list: Vec<Subscriber> =
-                build_share_leader_sub_list(subscribe_manager.clone(), share_leader_key.clone());
+                build_share_leader_sub_list(&subscribe_manager, &share_leader_key);
+            let mut pre_times = now_second();
 
             loop {
                 select! {
@@ -188,21 +191,24 @@ where
                             Err(_) => {}
                         }
                     }
-                    (cp,sl) = read_message_process(
-                        &share_leader_key,
-                        &subscribe_manager,
+                    cursor = read_message_process(
                         &topic_id,
                         &topic_name,
                         &message_storage,
-                        sub_list.clone(),
+                        &sub_list,
                         &group_id,
                         cursor_point,
                         &connection_manager,
                         &cache_manager,
                         &sub_thread_stop_sx
                     ) =>{
-                        cursor_point = cp;
-                        sub_list = sl;
+                        cursor_point = cursor;
+
+                        // Refresh the subscriber list of shared subscriptions every second to ensure that new subscribers can get messages in time.
+                        if now_second() - pre_times >= 1{
+                            sub_list = build_share_leader_sub_list(&subscribe_manager, &share_leader_key);
+                            pre_times = now_second();
+                        }
                     }
                 }
             }
@@ -213,23 +219,22 @@ where
 }
 
 async fn read_message_process<S>(
-    share_leader_key: &String,
-    subscribe_manager: &Arc<SubscribeManager>,
     topic_id: &String,
     topic_name: &String,
     message_storage: &MessageStorage<S>,
-    mut sub_list: Vec<Subscriber>,
+    sub_list: &Vec<Subscriber>,
     group_id: &String,
     mut cursor_point: usize,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
     stop_sx: &Sender<bool>,
-) -> (usize, Vec<Subscriber>)
+) -> usize
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let max_wait_ms: u64 = 500;
     let record_num = calc_record_num(sub_list.len());
+
     match message_storage
         .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
         .await
@@ -237,8 +242,9 @@ where
         Ok(results) => {
             if results.len() == 0 {
                 sleep(Duration::from_millis(max_wait_ms)).await;
-                return (cursor_point, sub_list.clone());
+                return cursor_point;
             }
+
             for record in results {
                 let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
@@ -246,159 +252,54 @@ where
                         error!("Storage layer message Decord failed with error message :{}", e);
                         loop_commit_offset(message_storage, topic_id, group_id, record.offset)
                             .await;
-                        return (cursor_point, sub_list);
+                        return cursor_point;
                     }
                 };
+
+                if is_message_expire(&msg) {
+                    debug!("message expires, is not pushed to the client, and is discarded");
+                    loop_commit_offset(message_storage, topic_id, group_id, record.offset).await;
+                    continue;
+                }
+
                 let mut loop_times = 0;
                 loop {
-                    let current_point = if cursor_point < sub_list.len() {
-                        cursor_point
-                    } else {
-                        sub_list = build_share_leader_sub_list(
-                            subscribe_manager.clone(),
-                            share_leader_key.clone(),
-                        );
-                        0
-                    };
-                    if sub_list.len() == 0 {
-                        sub_list = build_share_leader_sub_list(
-                            subscribe_manager.clone(),
-                            share_leader_key.clone(),
-                        );
-                        sleep(Duration::from_micros(100)).await;
-                        continue;
-                    }
-
-                    if loop_times > sub_list.len() {
+                    if loop_times > try_loop_times(sub_list.len()) {
+                        error!("Share subscription push message fails, dropping the message, possibly because no subscriber is available");
                         break;
                     }
 
-                    let subscribe = sub_list.get(current_point).unwrap();
+                    cursor_point = choose_available_sub(cursor_point, sub_list);
+                    println!("cursor_point:{}",cursor_point);
+                    let subscribe = sub_list.get(cursor_point).unwrap();
 
-                    cursor_point = current_point + 1;
-                    if let Some((mut publish, properties)) = build_publish(
-                        cache_manager.clone(),
-                        subscribe.clone(),
-                        topic_name.clone(),
-                        msg.clone(),
-                    ) {
-                        match publish.qos {
-                            QoS::AtMostOnce => {
-                                publish_message_qos0(
-                                    cache_manager,
-                                    &subscribe.client_id,
-                                    &publish,
-                                    &Some(properties.clone()),
-                                    connection_manager,
-                                    stop_sx,
-                                )
-                                .await;
-
-                                // commit offset
-                                loop_commit_offset(
-                                    message_storage,
-                                    topic_id,
-                                    group_id,
-                                    record.offset,
-                                )
-                                .await;
-                                break;
-                            }
-
-                            QoS::AtLeastOnce => {
-                                let pkid: u16 = cache_manager.get_pkid(&subscribe.client_id).await;
-                                publish.pkid = pkid;
-
-                                let (wait_puback_sx, _) = broadcast::channel(1);
-                                cache_manager.add_ack_packet(
-                                    &subscribe.client_id,
-                                    pkid,
-                                    QosAckPacketInfo {
-                                        sx: wait_puback_sx.clone(),
-                                        create_time: now_second(),
-                                    },
-                                );
-
-                                match share_leader_publish_message_qos1(
-                                    cache_manager,
-                                    &subscribe.client_id,
-                                    &publish,
-                                    &properties,
-                                    pkid,
-                                    connection_manager,
-                                    &wait_puback_sx,
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        // commit offset
-                                        loop_commit_offset(
-                                            &message_storage,
-                                            &topic_id,
-                                            &group_id,
-                                            record.offset,
-                                        )
-                                        .await;
-
-                                        // remove data
-                                        cache_manager.remove_pkid_info(&subscribe.client_id, pkid);
-                                        cache_manager.remove_ack_packet(&subscribe.client_id, pkid);
-                                        break;
-                                    }
-                                    Err(e) => {
-                                        error!("SharSub Leader failed to send QOS1 message to {}, error message :{},
-                                         trying to deliver the message to another client.",subscribe.client_id.clone(),e.to_string());
-                                        loop_times = loop_times + 1;
-                                    }
-                                }
-                            }
-
-                            QoS::ExactlyOnce => {
-                                let pkid: u16 = cache_manager.get_pkid(&subscribe.client_id).await;
-                                publish.pkid = pkid;
-
-                                let (wait_ack_sx, _) = broadcast::channel(1);
-                                cache_manager.add_ack_packet(
-                                    &subscribe.client_id,
-                                    pkid,
-                                    QosAckPacketInfo {
-                                        sx: wait_ack_sx.clone(),
-                                        create_time: now_second(),
-                                    },
-                                );
-
-                                match share_leader_publish_message_qos2(
-                                    cache_manager,
-                                    &subscribe.client_id,
-                                    &publish,
-                                    &properties,
-                                    pkid,
-                                    connection_manager,
-                                    stop_sx,
-                                    &wait_ack_sx,
-                                    topic_id,
-                                    group_id,
-                                    record.offset,
-                                    message_storage,
-                                )
-                                .await
-                                {
-                                    Ok(()) => {
-                                        break;
-                                    }
-                                    Err(e) => {
-                                        error!("{}", e);
-                                        loop_times = loop_times + 1;
-                                    }
-                                }
-                            }
-                        };
-                    } else {
-                        break;
+                    if let Some((publish, properties)) =
+                        build_publish(&cache_manager, &subscribe, &topic_name, &msg)
+                    {
+                        if qos_publish(
+                            publish,
+                            properties,
+                            &subscribe,
+                            topic_id,
+                            group_id,
+                            connection_manager,
+                            cache_manager,
+                            stop_sx,
+                            record.offset,
+                            message_storage,
+                        )
+                        .await
+                        {
+                            break;
+                        }
                     }
+                    loop_times = loop_times + 1;
                 }
+
+                // commit offset
+                loop_commit_offset(message_storage, topic_id, group_id, record.offset).await;
             }
-            return (cursor_point, sub_list);
+            return cursor_point;
         }
         Err(e) => {
             error!(
@@ -408,16 +309,133 @@ where
                 group_id.clone()
             );
             sleep(Duration::from_millis(max_wait_ms)).await;
-            return (cursor_point, sub_list);
+            return cursor_point;
         }
     }
 }
 
-pub fn build_publish(
-    metadata_cache: Arc<CacheManager>,
-    subscribe: Subscriber,
-    topic_name: String,
-    msg: MQTTMessage,
+fn try_loop_times(sub_len: usize) -> usize {
+    return sub_len * 2;
+}
+
+fn choose_available_sub(cursor_point: usize, sub_list: &Vec<Subscriber>) -> usize {
+    let current_point = cursor_point + 1;
+    return if current_point < sub_list.len() { current_point } else { 0 };
+}
+
+async fn qos_publish<S>(
+    mut publish: Publish,
+    properties: PublishProperties,
+    subscribe: &Subscriber,
+    topic_id: &String,
+    group_id: &String,
+    connection_manager: &Arc<ConnectionManager>,
+    cache_manager: &Arc<CacheManager>,
+    stop_sx: &Sender<bool>,
+    offset: u128,
+    message_storage: &MessageStorage<S>,
+) -> bool
+where
+    S: StorageAdapter + Sync + Send + 'static + Clone,
+{
+    match publish.qos {
+        QoS::AtMostOnce => {
+            publish_message_qos0(
+                cache_manager,
+                &subscribe.client_id,
+                &publish,
+                &Some(properties.clone()),
+                connection_manager,
+                stop_sx,
+            )
+            .await;
+            return true;
+        }
+
+        QoS::AtLeastOnce => {
+            let pkid: u16 = cache_manager.get_pkid(&subscribe.client_id).await;
+            publish.pkid = pkid;
+
+            let (wait_puback_sx, _) = broadcast::channel(1);
+            cache_manager.add_ack_packet(
+                &subscribe.client_id,
+                pkid,
+                QosAckPacketInfo { sx: wait_puback_sx.clone(), create_time: now_second() },
+            );
+
+            match share_leader_publish_message_qos1(
+                cache_manager,
+                &subscribe.client_id,
+                &publish,
+                &properties,
+                pkid,
+                connection_manager,
+                &wait_puback_sx,
+            )
+            .await
+            {
+                Ok(()) => {
+                    // remove data
+                    cache_manager.remove_pkid_info(&subscribe.client_id, pkid);
+                    cache_manager.remove_ack_packet(&subscribe.client_id, pkid);
+                    return true;
+                }
+                Err(e) => {
+                    error!(
+                        "SharSub Leader failed to send QOS1 message to {}, error message :{},
+                     trying to deliver the message to another client.",
+                        subscribe.client_id.clone(),
+                        e.to_string()
+                    );
+                    return false;
+                }
+            }
+        }
+
+        QoS::ExactlyOnce => {
+            let pkid: u16 = cache_manager.get_pkid(&subscribe.client_id).await;
+            publish.pkid = pkid;
+
+            let (wait_ack_sx, _) = broadcast::channel(1);
+            cache_manager.add_ack_packet(
+                &subscribe.client_id,
+                pkid,
+                QosAckPacketInfo { sx: wait_ack_sx.clone(), create_time: now_second() },
+            );
+
+            match share_leader_publish_message_qos2(
+                cache_manager,
+                &subscribe.client_id,
+                &publish,
+                &properties,
+                pkid,
+                connection_manager,
+                stop_sx,
+                &wait_ack_sx,
+                topic_id,
+                group_id,
+                offset,
+                message_storage,
+            )
+            .await
+            {
+                Ok(()) => {
+                    return true;
+                }
+                Err(e) => {
+                    error!("{}", e);
+                    return false;
+                }
+            }
+        }
+    };
+}
+
+fn build_publish(
+    metadata_cache: &Arc<CacheManager>,
+    subscribe: &Subscriber,
+    topic_name: &String,
+    msg: &MQTTMessage,
 ) -> Option<(Publish, PublishProperties)> {
     let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
@@ -434,7 +452,7 @@ pub fn build_publish(
         pkid: 0,
         retain,
         topic: Bytes::from(topic_name.clone()),
-        payload: msg.payload,
+        payload: msg.payload.clone(),
     };
 
     let mut sub_ids = Vec::new();
@@ -444,13 +462,13 @@ pub fn build_publish(
 
     let properties = PublishProperties {
         payload_format_indicator: msg.format_indicator,
-        message_expiry_interval: msg.expiry_interval,
+        message_expiry_interval: Some(msg.expiry_interval as u32),
         topic_alias: None,
-        response_topic: msg.response_topic,
-        correlation_data: msg.correlation_data,
-        user_properties: msg.user_properties,
+        response_topic: msg.response_topic.clone(),
+        correlation_data: msg.correlation_data.clone(),
+        user_properties: msg.user_properties.clone(),
         subscription_identifiers: sub_ids,
-        content_type: msg.content_type,
+        content_type: msg.content_type.clone(),
     };
     return Some((publish, properties));
 }
@@ -604,10 +622,10 @@ where
 }
 
 fn build_share_leader_sub_list(
-    subscribe_manager: Arc<SubscribeManager>,
-    key: String,
+    subscribe_manager: &Arc<SubscribeManager>,
+    key: &String,
 ) -> Vec<Subscriber> {
-    let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(&key) {
+    let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(key) {
         sub.sub_list.clone()
     } else {
         return Vec::new();

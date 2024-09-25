@@ -26,7 +26,6 @@ mod tests {
         common::ClusterType, mqtt::GetShareSubLeaderRequest, placement::RegisterNodeRequest,
     };
     use std::{sync::Arc, thread::sleep, time::Duration};
-    use crate::common::pc_addr;
 
     #[tokio::test]
     async fn test_share_sub() {
