@@ -18,14 +18,10 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
-        CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
-        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-        ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-        ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
+        mqtt_service_client::MqttServiceClient, CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, Empty, GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest
     },
 };
+use tonic::transport::Channel;
 
 use super::MQTTServiceManager;
 
@@ -349,5 +345,36 @@ pub(crate) async fn inner_delete_blacklist(
         Err(e) => {
             return Err(CommonError::CommmonError(e.to_string()));
         }
+    }
+}
+
+pub(crate) async fn inner_is_placement_leader(
+    mut client: MqttServiceClient<Channel>,
+) -> Result<bool, CommonError> {
+    match client.is_placement_center_leader(Empty {}).await {
+        Ok(result) => {
+            Ok(result.into_inner().is_leader)
+        },
+        Err(e) => {
+            Err(CommonError::GrpcServerStatus(e))
+        },
+    }
+}
+
+pub(crate) async fn inner_get_placement_center_leader_address(
+    mut client: MqttServiceClient<Channel>,
+) -> Result<Option<String>, CommonError> {
+    match client.get_placement_center_leader_address(Empty {}).await {
+        Ok(result) => {
+            let address = result.into_inner().address;
+            if address.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(address))
+            }
+        },
+        Err(e) => {
+            Err(CommonError::GrpcServerStatus(e))
+        },
     }
 }

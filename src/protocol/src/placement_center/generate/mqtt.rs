@@ -277,6 +277,21 @@ pub struct DeleteBlacklistRequest {
     #[prost(string, tag = "3")]
     pub resource_name: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Empty {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct IsPlacementCenterLeaderReply {
+    #[prost(bool, tag = "1")]
+    pub is_leader: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetPlacementCenterLeaderAddressReply {
+    #[prost(string, tag = "1")]
+    pub address: ::prost::alloc::string::String,
+}
 /// Generated client implementations.
 pub mod mqtt_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -974,6 +989,61 @@ pub mod mqtt_service_client {
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateBlacklist"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn is_placement_center_leader(
+            &mut self,
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<
+            tonic::Response<super::IsPlacementCenterLeaderReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/IsPlacementCenterLeader",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "IsPlacementCenterLeader"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_placement_center_leader_address(
+            &mut self,
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetPlacementCenterLeaderAddressReply>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/mqtt.MqttService/GetPlacementCenterLeaderAddress",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(
+                    GrpcMethod::new(
+                        "mqtt.MqttService",
+                        "GetPlacementCenterLeaderAddress",
+                    ),
+                );
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -1255,6 +1325,20 @@ pub mod mqtt_service_server {
             request: tonic::Request<super::CreateBlacklistRequest>,
         ) -> std::result::Result<
             tonic::Response<super::super::common::CommonReply>,
+            tonic::Status,
+        >;
+        async fn is_placement_center_leader(
+            &self,
+            request: tonic::Request<super::Empty>,
+        ) -> std::result::Result<
+            tonic::Response<super::IsPlacementCenterLeaderReply>,
+            tonic::Status,
+        >;
+        async fn get_placement_center_leader_address(
+            &self,
+            request: tonic::Request<super::Empty>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetPlacementCenterLeaderAddressReply>,
             tonic::Status,
         >;
     }
@@ -2202,6 +2286,104 @@ pub mod mqtt_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = CreateBlacklistSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/IsPlacementCenterLeader" => {
+                    #[allow(non_camel_case_types)]
+                    struct IsPlacementCenterLeaderSvc<T: MqttService>(pub Arc<T>);
+                    impl<T: MqttService> tonic::server::UnaryService<super::Empty>
+                    for IsPlacementCenterLeaderSvc<T> {
+                        type Response = super::IsPlacementCenterLeaderReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::is_placement_center_leader(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = IsPlacementCenterLeaderSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/mqtt.MqttService/GetPlacementCenterLeaderAddress" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetPlacementCenterLeaderAddressSvc<T: MqttService>(
+                        pub Arc<T>,
+                    );
+                    impl<T: MqttService> tonic::server::UnaryService<super::Empty>
+                    for GetPlacementCenterLeaderAddressSvc<T> {
+                        type Response = super::GetPlacementCenterLeaderAddressReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MqttService>::get_placement_center_leader_address(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetPlacementCenterLeaderAddressSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

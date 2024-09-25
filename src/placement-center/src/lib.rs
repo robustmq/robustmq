@@ -170,6 +170,7 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             placement_center_storage.clone(),
             self.rocksdb_engine_handler.clone(),
+            self.placement_cache.clone(),
         );
 
         self.server_runtime.spawn(async move {

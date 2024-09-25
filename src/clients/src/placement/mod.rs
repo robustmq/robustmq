@@ -19,8 +19,9 @@ use self::{
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
 use common_base::error::common::CommonError;
 use log::error;
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::time::sleep;
+use lazy_static::lazy_static;
 
 #[derive(Clone)]
 pub enum PlacementCenterService {
@@ -30,7 +31,7 @@ pub enum PlacementCenterService {
     Mqtt,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PlacementCenterInterface {
     // kv interface
     Set,
@@ -54,7 +55,7 @@ pub enum PlacementCenterInterface {
     DeleteSegment,
 
     // mqtt service interface
-    GetShareSub,
+    GetShareSubLeader,
     CreateUser,
     DeleteUser,
     ListUser,
@@ -79,6 +80,42 @@ pub enum PlacementCenterInterface {
     CreateBlackList,
     DeleteBlackList,
     ListBlackList,
+}
+
+impl PlacementCenterInterface {
+    pub fn should_forward_to_leader(&self) -> bool {
+        lazy_static! {
+            static ref FORWARD_SET: HashSet<PlacementCenterInterface> = {
+                let mut set = HashSet::new();
+                set.insert(PlacementCenterInterface::CreateUser);
+                set.insert(PlacementCenterInterface::DeleteUser);
+                set.insert(PlacementCenterInterface::CreateTopic);
+                set.insert(PlacementCenterInterface::DeleteTopic);
+                set.insert(PlacementCenterInterface::CreateSession);
+                set.insert(PlacementCenterInterface::DeleteSession);
+                set.insert(PlacementCenterInterface::UpdateSession);
+                set.insert(PlacementCenterInterface::DeleteSession);
+                set.insert(PlacementCenterInterface::CreateAcl);
+                set.insert(PlacementCenterInterface::DeleteAcl);
+                set.insert(PlacementCenterInterface::CreateBlackList);
+                set.insert(PlacementCenterInterface::DeleteBlackList);
+                set
+            };
+        }
+        FORWARD_SET.contains(self)
+    }
+
+    pub fn get_inner_function_name(&self) -> String {
+        let enum_name = format!("{:?}", self); 
+        let mut result = String::from("inner_");
+        for (i, c) in enum_name.chars().enumerate() {
+            if i > 0 && c.is_uppercase() {
+                result.push('_');
+            }
+            result.push(c.to_lowercase().next().unwrap());
+        }
+        result
+    }
 }
 
 pub mod journal;

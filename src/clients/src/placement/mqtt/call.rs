@@ -40,7 +40,7 @@ pub async fn placement_get_share_sub_leader(
     let request_data = GetShareSubLeaderRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Mqtt,
-        PlacementCenterInterface::GetShareSub,
+        PlacementCenterInterface::GetShareSubLeader,
         client_poll,
         addrs,
         request_data,
