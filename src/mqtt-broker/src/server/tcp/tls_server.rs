@@ -29,10 +29,12 @@ use std::fs::File;
 use std::io::{self, BufReader, ErrorKind};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
+use tokio::time::sleep;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
@@ -186,8 +188,8 @@ pub(crate) fn read_tls_frame_process(
                             }
                         }
                     } else {
-                        debug!("TLS TCP connection closed");
-                        break;
+                        debug!("Read the next TLS request packet, which is empty");
+                        sleep(Duration::from_millis(10)).await;
                     }
                 }
             }

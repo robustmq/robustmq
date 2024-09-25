@@ -29,7 +29,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn client5_packet_size_test_tcp_ssl() {
         let topic = unique_id();
         let topic = format!("/packet_tcp_ssl/{}", topic);
