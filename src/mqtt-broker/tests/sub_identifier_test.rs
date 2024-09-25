@@ -24,7 +24,7 @@ mod tests {
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
 
     #[tokio::test]
-    #[ignore]
+
     async fn client5_sub_identifier_test_tcp() {
         let sub_qos = &[0, 0];
 
@@ -54,7 +54,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn client5_sub_identifier_test_ws() {
         let sub_qos = &[0, 0];
 
@@ -69,7 +68,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn client5_sub_identifier_test_wss() {
         let sub_qos = &[0, 0];
 
@@ -184,7 +182,8 @@ mod tests {
             assert!(false);
         }
 
-        assert_eq!(r_one, r_two);
+        assert!(r_one);
+        assert!(r_two);
 
         let msg = MessageBuilder::new()
             .topic(topic3)

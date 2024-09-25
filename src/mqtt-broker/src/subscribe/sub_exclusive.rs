@@ -24,7 +24,7 @@ use crate::{
 use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::{error::common::CommonError, tools::now_second};
-use log::{error, info};
+use log::{debug, error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
@@ -117,11 +117,14 @@ where
 
             tokio::spawn(async move {
                 info!(
-                        "Exclusive push thread for client_id [{}],topic_id [{}] was started successfully",
-                        client_id, subscriber.topic_id
+                        "Exclusive push thread for client_id [{}], sub_path: [{}], topic_id [{}] was started successfully",
+                        client_id, subscriber.sub_path, subscriber.topic_id
                     );
                 let message_storage = MessageStorage::new(message_storage);
-                let group_id = format!("system_sub_{}_{}", client_id, subscriber.topic_id);
+                let group_id = format!(
+                    "system_sub_{}_{}_{}",
+                    client_id, subscriber.sub_path, subscriber.topic_id
+                );
                 let record_num = 5;
                 let max_wait_ms = 100;
 
@@ -148,9 +151,10 @@ where
                         Ok(flag) => {
                             if flag {
                                 info!(
-                                        "Exclusive Push thread for client_id [{}],topic_id [{}] was stopped successfully",
-                                        client_id.clone(),
-                                    subscriber.topic_id
+                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
+                                        client_id,
+                                        subscriber.sub_path, 
+                                        subscriber.topic_id
                                     );
                                 break;
                             }
@@ -188,7 +192,7 @@ where
                                 };
 
                                 if is_message_expire(&msg) {
-                                    println!("{}", "ffff");
+                                    debug!("message expires, is not pushed to the client, and is discarded");
                                     loop_commit_offset(
                                         &message_storage,
                                         &subscriber.topic_id,

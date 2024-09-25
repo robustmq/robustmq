@@ -35,7 +35,7 @@ use common_base::{
     error::{common::CommonError, mqtt_broker::MQTTBrokerError},
     tools::now_second,
 };
-use log::{error, info};
+use log::{debug, error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use std::{sync::Arc, time::Duration};
@@ -257,7 +257,7 @@ where
                 };
 
                 if is_message_expire(&msg) {
-                    println!("{}", "ffff");
+                    debug!("message expires, is not pushed to the client, and is discarded");
                     loop_commit_offset(message_storage, topic_id, group_id, record.offset).await;
                     continue;
                 }

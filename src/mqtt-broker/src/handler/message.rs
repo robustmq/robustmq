@@ -37,3 +37,32 @@ pub fn build_message_expire(
     let cluster = cache_manager.get_cluster_info();
     return now_second() + cluster.protocol.max_message_expiry_interval;
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::handler::{cache::CacheManager, message::build_message_expire};
+    use clients::poll::ClientPool;
+    use common_base::tools::now_second;
+    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+    use protocol::mqtt::common::PublishProperties;
+    use std::sync::Arc;
+
+    #[test]
+    fn build_message_expire_test() {
+        let client_poll = Arc::new(ClientPool::new(1));
+        let cluster_name = "test".to_string();
+        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let mut cluster = MQTTClusterDynamicConfig::default();
+        cluster.protocol.max_message_expiry_interval = 10;
+        cache_manager.set_cluster_info(cluster);
+
+        let publish_properties = None;
+        let res = build_message_expire(&cache_manager, &publish_properties);
+        assert_eq!(res, now_second() + 10);
+
+        let mut publish_properties = PublishProperties::default();
+        publish_properties.message_expiry_interval = Some(3);
+        let res = build_message_expire(&cache_manager, &Some(publish_properties));
+        assert_eq!(res, now_second() + 3);
+    }
+}
