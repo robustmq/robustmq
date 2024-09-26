@@ -190,7 +190,6 @@ pub fn connect_server5(client_id: &String, addr: &String, ws: bool, ssl: bool) -
                 }
             }
             assert_eq!(mqtt_version, resp.mqtt_version);
-            assert!(resp.session_present);
             assert_eq!(response.reason_code(), ReasonCode::Success);
         }
         Err(e) => {

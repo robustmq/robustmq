@@ -276,13 +276,11 @@ async fn handle_socket<S>(
                             break;
                         }
                         Err(e) => {
-                            error!("websocket server parsing request packet error, error message :{e:?}");
-                            break;
+                            debug!("websocket server parsing request packet error, error message :{e:?}");
                         },
                     }
                 } else {
-                    debug!("websocket server close");
-                    break;
+                    debug!("Web socket server receives an empty request packet");
                 }
             }
         }

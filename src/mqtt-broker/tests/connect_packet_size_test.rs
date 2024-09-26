@@ -74,6 +74,7 @@ mod tests {
             }
         }
 
+        
         // subscribe
         let rx = cli.start_consuming();
         match cli.subscribe(topic.as_str(), sub_qos) {

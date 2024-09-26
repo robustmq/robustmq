@@ -26,7 +26,6 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use log::error;
-use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::codec::MQTTPacketWrapper;
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::common::MQTTProtocol;

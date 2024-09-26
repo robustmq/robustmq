@@ -66,6 +66,7 @@ mod tests {
                 panic!("{}", e)
             }
         }
+
         for msg in rx.iter() {
             if let Some(msg) = msg {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
