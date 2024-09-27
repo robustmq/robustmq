@@ -38,7 +38,14 @@ mod tests {
         let topic3 = format!("/test_tcp/{}/test_one", topic);
 
         let addr = broker_addr();
-        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, false).await;
+        match timeout(
+            Duration::from_secs(60), simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, false)).await
+            {
+                Ok(_) => {}
+                Err(_) => {
+                    assert!(false)
+                }
+            }
     }
 
     #[tokio::test]

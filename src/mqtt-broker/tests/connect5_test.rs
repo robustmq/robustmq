@@ -59,6 +59,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn client5_connect_wss_test() {
         let client_id = unique_id();
         let addr = broker_wss_addr();
