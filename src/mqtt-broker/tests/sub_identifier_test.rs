@@ -109,23 +109,49 @@ mod tests {
             }
         }
 
+        let sub_qos = &[0];
 
-        let mut r_one = false;
-        let mut r_two = false;
+        let mut props: Properties = Properties::new();
+        props.push_int(PropertyCode::SubscriptionIdentifier, 1).unwrap();
 
-        let rx = cli.start_consuming();
-        match cli.subscribe_many(&[topic1.clone(), topic2.clone()], &[0]) {
+        match cli.subscribe_many_with_options(
+            &[topic1.clone()],
+            sub_qos,
+            &[SubscribeOptions::default()],
+            Some(props),
+        ) {
             Ok(_) => {}
             Err(e) => {
                 panic!("{}", e)
             }
         }
+
+        let mut props: Properties = Properties::new();
+        props.push_int(PropertyCode::SubscriptionIdentifier, 2).unwrap();
+
+        match cli.subscribe_many_with_options(
+            &[topic2.clone()],
+            sub_qos,
+            &[SubscribeOptions::default()],
+            Some(props),
+        ) {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{}", e)
+            }
+        }
+
+        let mut r_one = false;
+        let mut r_two = false;
+        let rx = cli.start_consuming();
+
         for message in rx.iter() {
             if let Some(msg) = message {
                 let sub_identifier =
                     msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
 
                 println!("{:?} sub_identifier: {}", msg, sub_identifier);
+
                 match sub_identifier {
                     1 => {
                         r_one = true;
@@ -143,6 +169,33 @@ mod tests {
             }
         }
         assert!(true);
+
+        let msg = MessageBuilder::new()
+            .topic(topic3.clone())
+            .payload(message_content.clone())
+            .qos(QOS_1)
+            .finalize();
+
+        match cli.publish(msg) {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e);
+                assert!(false);
+            }
+        }
+
+        for message in rx.iter() {
+            if let Some(msg) = message {
+                let sub_identifier =
+                    msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
+
+                assert_eq!(sub_identifier, 1);
+
+                println!("{msg:?}");
+                println!("{sub_identifier:?}");
+                break;
+            }
+        }
 
         distinct_conn(cli);
     }
