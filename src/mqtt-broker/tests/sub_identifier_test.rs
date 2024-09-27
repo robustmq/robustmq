@@ -16,12 +16,15 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::common::{
         broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, connect_server5,
         distinct_conn,
     };
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
+    use tokio::time::timeout;
 
     #[tokio::test]
 
@@ -49,7 +52,17 @@ mod tests {
         let topic3 = format!("/test_ssl/{}/test_one", topic);
 
         let addr = broker_ssl_addr();
-        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, true).await;
+        match timeout(
+            Duration::from_secs(60),
+            simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, true),
+        )
+        .await
+        {
+            Ok(_) => {}
+            Err(_) => {
+                assert!(false)
+            }
+        }
     }
 
     #[tokio::test]
