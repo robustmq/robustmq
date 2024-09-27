@@ -93,6 +93,7 @@ mod tests {
         let client_id = unique_id();
 
         let cli = connect_server5(&client_id, &addr, ws, ssl);
+
         let message_content = format!("mqtt {payload_flag} message");
         let msg = MessageBuilder::new()
             .topic(topic2.clone())
@@ -108,17 +109,17 @@ mod tests {
             }
         }
 
+
+        let mut r_one = false;
+        let mut r_two = false;
+
         let rx = cli.start_consuming();
-        match cli.subscribe_many(&[topic1.as_str(), topic2.as_str()], &[sub_qos[1]]) {
+        match cli.subscribe_many(&[topic1.clone(), topic2.clone()], &[0]) {
             Ok(_) => {}
             Err(e) => {
                 panic!("{}", e)
             }
         }
-
-        let mut r_one = false;
-        let mut r_two = false;
-
         for message in rx.iter() {
             if let Some(msg) = message {
                 let sub_identifier =

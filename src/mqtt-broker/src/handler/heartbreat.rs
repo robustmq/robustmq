@@ -48,5 +48,5 @@ async fn report(client_poll: Arc<ClientPool>) {
             error!("{}", e.to_string());
         }
     }
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_secs(3)).await;
 }
