@@ -167,7 +167,7 @@ Please refer to [contribution guidelines](http://www.robustmq.com/docs/robustmq-
 
 ### Contact us
 - Slack
-Join [RobustMQ Slack](https://app.slack.com/client/T07MFH344Q7/C07MPETNHAA)
+Join [RobustMQ Slack](https://join.slack.com/t/robustmq/shared_invite/zt-2r7sccx50-DIrAlYOETp3xhsX1Qsr79A)
 
 - Wechat Group
 If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
