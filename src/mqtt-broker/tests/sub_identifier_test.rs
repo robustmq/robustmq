@@ -16,7 +16,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     use crate::common::{
         broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, connect_server5,
@@ -24,13 +24,10 @@ mod tests {
     };
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
-    use tokio::time::timeout;
+    use tokio::time::{sleep, timeout};
 
     #[tokio::test]
-
     async fn client5_sub_identifier_test_tcp() {
-        let sub_qos = &[0, 0];
-
         let topic = unique_id();
 
         let topic1 = format!("/test_tcp/{}/+", topic);
@@ -38,20 +35,24 @@ mod tests {
         let topic3 = format!("/test_tcp/{}/test_one", topic);
 
         let addr = broker_addr();
+        let now = Instant::now();
         match timeout(
-            Duration::from_secs(60), simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, false)).await
-            {
-                Ok(_) => {}
-                Err(_) => {
-                    assert!(false)
-                }
+            Duration::from_secs(3),
+            simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, false),
+        )
+        .await
+        {
+            Ok(_) => {}
+            Err(_) => {
+                println!("{}", now.elapsed().as_secs());
+                assert!(false)
             }
+        }
+        println!("{}", now.elapsed().as_secs());
     }
 
     #[tokio::test]
     async fn client5_sub_identifier_test_tcp_ssl() {
-        let sub_qos = &[0, 0];
-
         let topic = unique_id();
 
         let topic1 = format!("/test_ssl/{}/+", topic);
@@ -61,7 +62,7 @@ mod tests {
         let addr = broker_ssl_addr();
         match timeout(
             Duration::from_secs(60),
-            simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), false, true),
+            simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, true),
         )
         .await
         {
@@ -74,8 +75,6 @@ mod tests {
 
     #[tokio::test]
     async fn client5_sub_identifier_test_ws() {
-        let sub_qos = &[0, 0];
-
         let topic = unique_id();
 
         let topic1 = format!("/test_ws/{}/+", topic);
@@ -83,14 +82,22 @@ mod tests {
         let topic3 = format!("/test_ws/{}/test_one", topic);
 
         let addr = broker_ws_addr();
-        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), true, false).await;
+        match timeout(
+            Duration::from_secs(60),
+            simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, false),
+        )
+        .await
+        {
+            Ok(_) => {}
+            Err(_) => {
+                assert!(false)
+            }
+        }
     }
 
     #[tokio::test]
     #[ignore]
     async fn client5_sub_identifier_test_wss() {
-        let sub_qos = &[0, 0];
-
         let topic = unique_id();
 
         let topic1 = format!("/test_wss/{}/+", topic);
@@ -98,7 +105,32 @@ mod tests {
         let topic3 = format!("/test_wss/{}/test_one", topic);
 
         let addr = broker_wss_addr();
-        simple_test(addr, topic1, topic2, topic3, sub_qos, "2".to_string(), true, true).await;
+
+        match timeout(
+            Duration::from_secs(60),
+            simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, true),
+        )
+        .await
+        {
+            Ok(_) => {}
+            Err(_) => {
+                assert!(false)
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn tokio_timeout_test() {
+        let now = Instant::now();
+        match timeout(Duration::from_secs(3), async {
+            sleep(Duration::from_secs(5)).await;
+        })
+        .await
+        {
+            Ok(_) => {}
+            Err(_) => {}
+        }
+        assert_eq!(now.elapsed().as_secs(), 3);
     }
 
     async fn simple_test(
@@ -106,7 +138,6 @@ mod tests {
         topic1: String,
         topic2: String,
         topic3: String,
-        sub_qos: &[i32],
         payload_flag: String,
         ws: bool,
         ssl: bool,
@@ -133,7 +164,9 @@ mod tests {
         let sub_qos = &[0];
 
         let mut props: Properties = Properties::new();
-        props.push_int(PropertyCode::SubscriptionIdentifier, 1).unwrap();
+        props
+            .push_int(PropertyCode::SubscriptionIdentifier, 1)
+            .unwrap();
 
         match cli.subscribe_many_with_options(
             &[topic1.clone()],
@@ -148,7 +181,9 @@ mod tests {
         }
 
         let mut props: Properties = Properties::new();
-        props.push_int(PropertyCode::SubscriptionIdentifier, 2).unwrap();
+        props
+            .push_int(PropertyCode::SubscriptionIdentifier, 2)
+            .unwrap();
 
         match cli.subscribe_many_with_options(
             &[topic2.clone()],
@@ -168,8 +203,10 @@ mod tests {
 
         for message in rx.iter() {
             if let Some(msg) = message {
-                let sub_identifier =
-                    msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
+                let sub_identifier = msg
+                    .properties()
+                    .get_int(PropertyCode::SubscriptionIdentifier)
+                    .unwrap();
 
                 println!("{:?} sub_identifier: {}", msg, sub_identifier);
 
@@ -207,8 +244,10 @@ mod tests {
 
         for message in rx.iter() {
             if let Some(msg) = message {
-                let sub_identifier =
-                    msg.properties().get_int(PropertyCode::SubscriptionIdentifier).unwrap();
+                let sub_identifier = msg
+                    .properties()
+                    .get_int(PropertyCode::SubscriptionIdentifier)
+                    .unwrap();
 
                 assert_eq!(sub_identifier, 1);
 
