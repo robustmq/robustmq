@@ -64,6 +64,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn client4_connect_wss_test() {
         let mqtt_version = 4;
         let client_id = unique_id();

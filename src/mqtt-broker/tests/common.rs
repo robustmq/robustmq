@@ -30,12 +30,12 @@ pub fn broker_ssl_addr() -> String {
 
 #[allow(dead_code)]
 pub fn broker_ws_addr() -> String {
-    return "ws://127.0.0.1:8083".to_string();
+    return "ws://127.0.0.1:8093".to_string();
 }
 
 #[allow(dead_code)]
 pub fn broker_wss_addr() -> String {
-    return "wss://127.0.0.1:8084".to_string();
+    return "wss://127.0.0.1:8094".to_string();
 }
 
 #[allow(dead_code)]
