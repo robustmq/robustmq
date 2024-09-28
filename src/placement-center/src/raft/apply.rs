@@ -59,7 +59,6 @@ pub enum StorageDataType {
     // Cluster
     ClusterRegisterNode,
     ClusterUngisterNode,
-    ClusterNodeHeartbeat,
     ClusterSetResourceConfig,
     ClusterDeleteResourceConfig,
     ClusterSetIdempotentData,

@@ -18,12 +18,12 @@ use self::{
 };
 use crate::{poll::ClientPool, retry_sleep_time, retry_times};
 use common_base::error::common::CommonError;
+use lazy_static::lazy_static;
 use log::error;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::time::sleep;
-use lazy_static::lazy_static;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum PlacementCenterService {
     Journal,
     Kv,
@@ -106,7 +106,7 @@ impl PlacementCenterInterface {
     }
 
     pub fn get_inner_function_name(&self) -> String {
-        let enum_name = format!("{:?}", self); 
+        let enum_name = format!("{:?}", self);
         let mut result = String::from("inner_");
         for (i, c) in enum_name.chars().enumerate() {
             if i > 0 && c.is_uppercase() {
@@ -139,7 +139,7 @@ async fn retry_call(
                 journal_interface_call(
                     interface.clone(),
                     client_poll.clone(),
-                    addr,
+                    addr.clone(),
                     request.clone(),
                 )
                 .await
@@ -149,7 +149,7 @@ async fn retry_call(
                 kv_interface_call(
                     interface.clone(),
                     client_poll.clone(),
-                    addr,
+                    addr.clone(),
                     request.clone(),
                 )
                 .await
@@ -159,7 +159,7 @@ async fn retry_call(
                 placement_interface_call(
                     interface.clone(),
                     client_poll.clone(),
-                    addr,
+                    addr.clone(),
                     request.clone(),
                 )
                 .await
@@ -169,7 +169,7 @@ async fn retry_call(
                 mqtt_interface_call(
                     interface.clone(),
                     client_poll.clone(),
-                    addr,
+                    addr.clone(),
                     request.clone(),
                 )
                 .await
@@ -181,7 +181,13 @@ async fn retry_call(
                 return Ok(data);
             }
             Err(e) => {
-                error!("{}", e);
+                error!(
+                    "{:?}@{:?}@{},{},",
+                    service.clone(),
+                    interface.clone(),
+                    addr.clone(),
+                    e
+                );
                 if times > retry_times() {
                     return Err(e);
                 }
