@@ -71,9 +71,6 @@ impl DataRoute {
             StorageDataType::ClusterUngisterNode => {
                 return self.route_cluster.unregister_node(storage_data.value);
             }
-            StorageDataType::ClusterNodeHeartbeat => {
-                return self.route_cluster.heartbeat(storage_data.value);
-            }
 
             StorageDataType::ClusterSetResourceConfig => {
                 return self.route_cluster.set_resource_config(storage_data.value);

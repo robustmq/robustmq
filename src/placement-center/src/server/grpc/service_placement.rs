@@ -36,6 +36,7 @@ use crate::storage::rocksdb::RocksDBEngine;
 use clients::placement::placement::call::{heartbeat, register_node, un_register_node};
 use clients::poll::ClientPool;
 use common_base::error::placement_center::PlacementCenterError;
+use common_base::tools::now_second;
 use prost::Message;
 use protocol::placement_center::generate::common::CommonReply;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
@@ -188,29 +189,9 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-
-        if self.rewrite_leader() {
-            let leader_addr = self.raft_metadata.read().unwrap().leader_addr();
-            match heartbeat(self.client_poll.clone(), vec![leader_addr], req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
-        let data = StorageData::new(
-            StorageDataType::ClusterNodeHeartbeat,
-            HeartbeatRequest::encode_to_vec(&req),
-        );
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "node_hearbeat".to_string())
-            .await
-        {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        }
+        self.cluster_cache
+            .heart_time(&req.cluster_name, req.node_id, now_second());
+        return Ok(Response::new(CommonReply::default()));
     }
 
     async fn report_monitor(

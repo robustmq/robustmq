@@ -102,13 +102,6 @@ impl DataRouteCluster {
         return node_storage.delete(&cluster_name, node_id);
     }
 
-    pub fn heartbeat(&self, value: Vec<u8>) -> Result<(), CommonError> {
-        let req = HeartbeatRequest::decode(value.as_ref())?;
-        self.cluster_cache
-            .heart_time(&req.cluster_name, req.node_id, now_second());
-        return Ok(());
-    }
-
     pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
