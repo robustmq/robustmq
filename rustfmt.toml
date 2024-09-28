@@ -14,4 +14,3 @@
 
 group_imports = "StdExternalCrate"
 imports_granularity = "Module"
-use_small_heuristics = "Max"
