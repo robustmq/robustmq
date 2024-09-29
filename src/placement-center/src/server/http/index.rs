@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::raft_node::RaftNode;
+
 /*
  * Copyright (c) 2023 RobustMQ Team
  *
@@ -37,8 +39,9 @@ use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct IndexResponse {
-    pub local: BrokerNode,
-    pub node_lists: HashMap<u64, BrokerNode>,
+    pub local: RaftNode,
+    pub votes: Vec<RaftNode>,
+    pub members: Vec<RaftNode>,
     pub raft: RaftInfo,
 }
 
@@ -60,13 +63,12 @@ pub struct RaftInfo {
 
 pub async fn index(State(state): State<HttpServerState>) -> String {
     let storage = state.raft_storage.read().unwrap();
-    let placement_cache = state.raft_metadata.read().unwrap();
     let hs = storage.hard_state();
     let cs = storage.conf_state();
     let uncommit_index = storage.uncommit_index();
 
     let raft_info = RaftInfo {
-        role: format!("{:?}", placement_cache.raft_role),
+        role: format!("{:?}", state.placement_cache.get_current_raft_role()),
         first_index: storage.first_index(),
         last_index: storage.last_index(),
         term: hs.term,
@@ -81,8 +83,9 @@ pub async fn index(State(state): State<HttpServerState>) -> String {
     };
 
     let resp = IndexResponse {
-        local: placement_cache.local.clone(),
-        node_lists: placement_cache.peers.clone(),
+        local: state.placement_cache.get_raft_local_node().unwrap(),
+        members: state.placement_cache.get_raft_members(),
+        votes: state.placement_cache.get_raft_votes(),
         raft: raft_info,
     };
 

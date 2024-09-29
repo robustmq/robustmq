@@ -29,7 +29,6 @@
  */
 pub mod apply;
 pub mod machine;
-pub mod metadata;
 pub mod peer;
 pub mod route;
 pub mod storage;

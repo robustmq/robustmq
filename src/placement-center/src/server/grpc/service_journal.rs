@@ -27,12 +27,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
-use crate::raft::metadata::RaftGroupMetadata;
-use clients::{
-    placement::journal::call::{create_segment, create_shard, delete_segment, delete_shard},
-    poll::ClientPool,
+use crate::{
+    cache::placement::PlacementCacheManager,
+    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
 };
+use clients::poll::ClientPool;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
@@ -41,19 +40,19 @@ use protocol::placement_center::generate::{
         DeleteSegmentRequest, DeleteShardRequest, GetShardReply, GetShardRequest,
     },
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
     placement_center_storage: Arc<RaftMachineApply>,
-    placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+    placement_cache: Arc<PlacementCacheManager>,
     client_poll: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
     pub fn new(
         placement_center_storage: Arc<RaftMachineApply>,
-        placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+        placement_cache: Arc<PlacementCacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
@@ -61,10 +60,6 @@ impl GrpcEngineService {
             placement_cache,
             client_poll,
         }
-    }
-
-    fn rewrite_leader(&self) -> bool {
-        return !self.placement_cache.read().unwrap().is_leader();
     }
 }
 
@@ -75,16 +70,6 @@ impl EngineService for GrpcEngineService {
         request: Request<CreateShardRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-
-        if self.rewrite_leader() {
-            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match create_shard(self.client_poll.clone(), vec![leader_addr], req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
-        // Params validate
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
@@ -108,15 +93,6 @@ impl EngineService for GrpcEngineService {
         request: Request<DeleteShardRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        if self.rewrite_leader() {
-            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match delete_shard(self.client_poll.clone(), vec![leader_addr], req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
-        // Params validate
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
@@ -149,15 +125,6 @@ impl EngineService for GrpcEngineService {
         request: Request<CreateSegmentRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        if self.rewrite_leader() {
-            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match create_segment(self.client_poll.clone(), vec![leader_addr], req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
-        // Params validate
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(
@@ -181,15 +148,6 @@ impl EngineService for GrpcEngineService {
         request: Request<DeleteSegmentRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        if self.rewrite_leader() {
-            let leader_addr = self.placement_cache.read().unwrap().leader_addr();
-            match delete_segment(self.client_poll.clone(), vec![leader_addr], req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
-        // Params validate
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(

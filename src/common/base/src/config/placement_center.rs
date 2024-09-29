@@ -29,7 +29,7 @@
  */
 
 use super::default_placement_center::{
-    default_addr, default_cluster_name, default_data_path, default_grpc_port, default_heartbeat,
+    default_cluster_name, default_data_path, default_grpc_port, default_heartbeat,
     default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port, default_log,
     default_max_open_files, default_network, default_node, default_node_id, default_nodes,
     default_rocksdb, default_runtime_work_threads, default_system,
@@ -65,8 +65,6 @@ pub struct PlacementCenterConfig {
 pub struct Node {
     #[serde(default = "default_node_id")]
     pub node_id: u64,
-    #[serde(default = "default_addr")]
-    pub addr: String,
     #[serde(default = "default_nodes")]
     pub nodes: Table,
 }
@@ -183,7 +181,6 @@ mod tests {
         println!("{:?}", config);
         assert_eq!(config.cluster_name, "placement-test");
         assert_eq!(config.node.node_id, 1);
-        assert_eq!(config.node.addr, "127.0.0.1");
         assert_eq!(config.network.grpc_port, 1228);
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);

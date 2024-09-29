@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use self::raft::peer::{PeerMessage, PeersManager};
-use crate::raft::metadata::RaftGroupMetadata;
 use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::journal::JournalCacheManager;
 use cache::mqtt::MqttCacheManager;
@@ -61,8 +60,6 @@ pub struct PlacementCenter {
     // Cache metadata information for the Broker Server cluster
     engine_cache: Arc<JournalCacheManager>,
     mqtt_cache: Arc<MqttCacheManager>,
-    // Cache metadata information for the Placement Cluster cluster
-    placement_cache: Arc<RwLock<RaftGroupMetadata>>,
     // Global implementation of Raft state machine data storage
     raft_machine_storage: Arc<RwLock<RaftMachineStorage>>,
     // Raft Global read and write pointer
@@ -91,7 +88,6 @@ impl PlacementCenter {
             rocksdb_engine_handler.clone(),
             cluster_cache.clone(),
         ));
-        let placement_cache = Arc::new(RwLock::new(RaftGroupMetadata::new()));
 
         let raft_machine_storage = Arc::new(RwLock::new(RaftMachineStorage::new(
             rocksdb_engine_handler.clone(),
@@ -103,7 +99,6 @@ impl PlacementCenter {
             cluster_cache,
             engine_cache,
             mqtt_cache,
-            placement_cache,
             raft_machine_storage,
             rocksdb_engine_handler,
             client_poll,
@@ -131,7 +126,7 @@ impl PlacementCenter {
     // Start HTTP Server
     pub fn start_http_server(&self) {
         let state: HttpServerState = HttpServerState::new(
-            self.placement_cache.clone(),
+            self.cluster_cache.clone(),
             self.raft_machine_storage.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
@@ -142,35 +137,33 @@ impl PlacementCenter {
     }
 
     // Start Grpc Server
-    pub fn start_grpc_server(&self, placement_center_storage: Arc<RaftMachineApply>) {
+    pub fn start_grpc_server(&self, raft_machine_apply: Arc<RaftMachineApply>) {
         let config = placement_center_conf();
         let ip = format!("0.0.0.0:{}", config.network.grpc_port)
             .parse()
             .unwrap();
         let placement_handler = GrpcPlacementService::new(
-            placement_center_storage.clone(),
-            self.placement_cache.clone(),
+            raft_machine_apply.clone(),
             self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
             self.client_poll.clone(),
         );
 
         let kv_handler = GrpcKvService::new(
-            placement_center_storage.clone(),
+            raft_machine_apply.clone(),
             self.rocksdb_engine_handler.clone(),
         );
 
         let engine_handler = GrpcEngineService::new(
-            placement_center_storage.clone(),
-            self.placement_cache.clone(),
+            raft_machine_apply.clone(),
+            self.cluster_cache.clone(),
             self.client_poll.clone(),
         );
 
         let mqtt_handler = GrpcMqttService::new(
             self.cluster_cache.clone(),
-            placement_center_storage.clone(),
+            raft_machine_apply.clone(),
             self.rocksdb_engine_handler.clone(),
-            self.placement_cache.clone(),
         );
 
         self.server_runtime.spawn(async move {
@@ -232,7 +225,7 @@ impl PlacementCenter {
         ));
 
         let mut raft: RaftMachine = RaftMachine::new(
-            self.placement_cache.clone(),
+            self.cluster_cache.clone(),
             data_route,
             peer_message_send,
             raft_message_recv,

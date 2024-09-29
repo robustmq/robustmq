@@ -83,12 +83,12 @@ impl DataRouteCluster {
                 cluster_type: cluster_type.as_str_name().to_string(),
                 create_time: now_mills(),
             };
-            self.cluster_cache.add_cluster(&cluster_info);
+            self.cluster_cache.add_broker_cluster(&cluster_info);
             cluster_storage.save(&cluster_info)?;
         }
 
         // update node
-        self.cluster_cache.add_node(node.clone());
+        self.cluster_cache.add_broker_node(node.clone());
         return node_storage.save(&node);
     }
 
@@ -97,7 +97,7 @@ impl DataRouteCluster {
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
 
-        self.cluster_cache.remove_node(&cluster_name, node_id);
+        self.cluster_cache.remove_broker_node(&cluster_name, node_id);
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         return node_storage.delete(&cluster_name, node_id);
     }

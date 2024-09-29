@@ -292,7 +292,7 @@ mod tests {
             column_family_list(),
         ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
-        cluster_cache.add_node(BrokerNode {
+        cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
             cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
             node_id: 1,
@@ -301,7 +301,7 @@ mod tests {
             extend: "".to_string(),
             create_time: now_mills(),
         });
-        cluster_cache.add_node(BrokerNode {
+        cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
             cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
             node_id: 2,
@@ -310,7 +310,7 @@ mod tests {
             extend: "".to_string(),
             create_time: now_mills(),
         });
-        cluster_cache.add_node(BrokerNode {
+        cluster_cache.add_broker_node(BrokerNode {
             cluster_name: cluster_name.clone(),
             cluster_type: ClusterType::MqttBrokerServer.as_str_name().to_string(),
             node_id: 3,

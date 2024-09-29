@@ -59,8 +59,12 @@ impl PlacementCenterCommand {
         match cluster_status(client_poll, grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("Leader Node: {}", data.leader);
-                println!("Node list:");
-                for node in data.nodes {
+                println!("votes:");
+                for node in data.votes {
+                    println!("- {}", node);
+                }
+                println!("members:");
+                for node in data.members {
                     println!("- {}", node);
                 }
                 println!("Placement center cluster up and running")

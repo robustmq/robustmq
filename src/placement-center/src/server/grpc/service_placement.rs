@@ -29,11 +29,9 @@
  */
 use crate::cache::placement::PlacementCacheManager;
 use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
-use crate::raft::metadata::RaftGroupMetadata;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
-use clients::placement::placement::call::{heartbeat, register_node, un_register_node};
 use clients::poll::ClientPool;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
@@ -49,12 +47,11 @@ use protocol::placement_center::generate::placement::{
     SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
     placement_center_storage: Arc<RaftMachineApply>,
-    raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
     cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_poll: Arc<ClientPool>,
@@ -63,22 +60,16 @@ pub struct GrpcPlacementService {
 impl GrpcPlacementService {
     pub fn new(
         raft_machine_apply: Arc<RaftMachineApply>,
-        raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcPlacementService {
             placement_center_storage: raft_machine_apply,
-            raft_metadata,
             cluster_cache,
             rocksdb_engine_handler,
             client_poll,
         }
-    }
-
-    fn rewrite_leader(&self) -> bool {
-        return !self.raft_metadata.read().unwrap().is_leader();
     }
 }
 
@@ -89,24 +80,24 @@ impl PlacementCenterService for GrpcPlacementService {
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
         let mut reply = ClusterStatusReply::default();
-        match self.raft_metadata.read() {
-            Ok(data) => {
-                if let Some(leader) = data.leader.clone() {
-                    reply.leader = format!("{}@{}", leader.node_ip, leader.node_id);
-                }
 
-                let mut nodes = Vec::new();
-                for (_, node) in data.peers.clone() {
-                    nodes.push(format!("{}@{}", node.node_ip, node.node_id));
-                }
-
-                reply.nodes = nodes;
-            }
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
+        if let Some(leader) = self.cluster_cache.get_raft_leader() {
+            reply.leader = format!("{}@{}", leader.node_addr, leader.node_id);
         }
 
+        reply.members = self
+            .cluster_cache
+            .get_raft_members()
+            .iter()
+            .map(|node| format!("{}@{}", node.node_addr, node.node_id))
+            .collect();
+
+        reply.votes = self
+            .cluster_cache
+            .get_raft_votes()
+            .iter()
+            .map(|node| format!("{}@{}", node.node_addr, node.node_id))
+            .collect();
         return Ok(Response::new(reply));
     }
 
@@ -130,14 +121,6 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
 
-        if self.rewrite_leader() {
-            let leader_addr = self.raft_metadata.read().unwrap().leader_addr();
-            match register_node(self.client_poll.clone(), vec![leader_addr], req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
         let data = StorageData::new(
             StorageDataType::ClusterRegisterNode,
             RegisterNodeRequest::encode_to_vec(&req),
@@ -160,14 +143,6 @@ impl PlacementCenterService for GrpcPlacementService {
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
 
-        if self.rewrite_leader() {
-            let leader_addr = self.raft_metadata.read().unwrap().leader_addr();
-            match un_register_node(self.client_poll.clone(), vec![leader_addr], req).await {
-                Ok(resp) => return Ok(Response::new(resp)),
-                Err(e) => return Err(Status::cancelled(e.to_string())),
-            }
-        }
-
         let data = StorageData::new(
             StorageDataType::ClusterUngisterNode,
             UnRegisterNodeRequest::encode_to_vec(&req),
@@ -189,8 +164,11 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<HeartbeatRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-        self.cluster_cache
-            .heart_time(&req.cluster_name, req.node_id, now_second());
+        self.cluster_cache.report_heart_by_broker_node(
+            &req.cluster_name,
+            req.node_id,
+            now_second(),
+        );
         return Ok(Response::new(CommonReply::default()));
     }
 
