@@ -48,7 +48,7 @@ impl ClusterMetadata {
         };
 
         let votes = DashMap::with_capacity(2);
-        for (node_id, addr) in config.nodes.clone() {
+        for (node_id, addr) in config.node.nodes.clone() {
             let id: u64 = match node_id.to_string().trim().parse() {
                 Ok(id) => id,
                 Err(_) => {
@@ -91,10 +91,6 @@ impl ClusterMetadata {
     pub fn update_raft_role(&mut self, local_new_role: StateRole, new_leader: Option<RaftNode>) {
         self.raft_role = format!("{:?}", local_new_role);
         self.leader = new_leader;
-    }
-
-    pub fn set_leader(&mut self, leader: RaftNode) {
-        self.leader = Some(leader);
     }
 
     pub fn get_node_by_id(&self, id: u64) -> Option<RaftNode> {

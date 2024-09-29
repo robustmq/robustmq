@@ -240,7 +240,7 @@ impl RocksDBEngine {
 #[cfg(test)]
 mod tests {
     use super::RocksDBEngine;
-    use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
+    use common_base::{config::placement_center::{placement_center_test_conf, PlacementCenterConfig}, tools::unique_id};
     use serde::{Deserialize, Serialize};
     use std::{sync::Arc, time::Duration};
     use tokio::{
@@ -256,9 +256,7 @@ mod tests {
 
     #[tokio::test]
     async fn multi_rocksdb_instance() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(1000);
+        let config = placement_center_test_conf();
 
         let rs_handler = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path,
@@ -294,9 +292,7 @@ mod tests {
 
     #[tokio::test]
     async fn init_family() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let rs = RocksDBEngine::new(
             &config.rocksdb.data_path,
@@ -332,9 +328,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_all() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/robustmq_{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let rs = RocksDBEngine::new(
             &config.rocksdb.data_path,
@@ -367,9 +361,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_prefix() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let rs = RocksDBEngine::new(
             &config.rocksdb.data_path,

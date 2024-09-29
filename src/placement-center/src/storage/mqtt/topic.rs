@@ -127,16 +127,14 @@ mod tests {
 
     use crate::storage::mqtt::topic::MQTTTopicStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
-    use common_base::config::placement_center::PlacementCenterConfig;
+    use common_base::config::placement_center::{placement_center_test_conf, PlacementCenterConfig};
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use tokio::fs::remove_dir_all;
 
     #[tokio::test]
     async fn topic_storage_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let rs = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path.as_str(),

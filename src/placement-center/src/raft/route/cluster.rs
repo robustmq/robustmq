@@ -97,7 +97,8 @@ impl DataRouteCluster {
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
 
-        self.cluster_cache.remove_broker_node(&cluster_name, node_id);
+        self.cluster_cache
+            .remove_broker_node(&cluster_name, node_id);
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         return node_storage.delete(&cluster_name, node_id);
     }
@@ -171,7 +172,7 @@ mod tests {
             rocksdb::{column_family_list, RocksDBEngine},
         },
     };
-    use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
+    use common_base::config::placement_center::placement_center_test_conf;
     use prost::Message as _;
     use protocol::placement_center::generate::{
         common::ClusterType, placement::RegisterNodeRequest,
@@ -179,9 +180,7 @@ mod tests {
 
     #[test]
     fn register_unregister_node() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = "test-cluster".to_string();
         let node_id = 1;

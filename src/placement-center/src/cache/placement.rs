@@ -41,7 +41,7 @@ pub struct PlacementCacheManager {
 
 impl PlacementCacheManager {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> PlacementCacheManager {
-        let cache = PlacementCacheManager {
+        let mut cache = PlacementCacheManager {
             cluster_list: DashMap::with_capacity(2),
             node_heartbeat: DashMap::with_capacity(2),
             node_list: DashMap::with_capacity(2),
@@ -108,7 +108,7 @@ impl PlacementCacheManager {
         }
     }
 
-    pub fn load_cache(&self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
+    pub fn load_cache(&mut self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
         let cluster = ClusterStorage::new(rocksdb_engine_handler.clone());
         match cluster.list(None) {
             Ok(result) => {
@@ -131,6 +131,7 @@ impl PlacementCacheManager {
 
         let placement_cluster = DashMap::with_capacity(2);
         placement_cluster.insert(self.cluster_key(), ClusterMetadata::new());
+        self.placement_cluster = placement_cluster;
     }
 
     pub fn add_raft_memner(&self, node: RaftNode) {
@@ -162,7 +163,7 @@ impl PlacementCacheManager {
     pub fn get_votes_node_by_id(&self, node_id: u64) -> Option<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             if let Some(node) = cluster.get_node_by_id(node_id) {
-                return Some(node);
+                return Some(node.clone());
             }
         }
         return None;
@@ -205,8 +206,8 @@ impl PlacementCacheManager {
 
     pub fn update_raft_role(&self, local_new_role: StateRole, leader_id: u64) {
         if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
-            if let Some(leader) = self.get_votes_node_by_id(leader_id) {
-                cluster.update_raft_role(local_new_role, Some(leader));
+            if let Some(leader) = cluster.votes.clone().get(&leader_id) {
+                cluster.update_raft_role(local_new_role, Some(leader.clone()));
             } else {
                 error!("Invalid leader id, the node corresponding to the leader id cannot be found in votes.");
             }

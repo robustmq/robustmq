@@ -163,6 +163,8 @@ impl RaftMachine {
                 now = Instant::now();
             }
 
+            self.try_record_role_change(&raft_node);
+
             self.on_ready(&mut raft_node).await;
         }
     }
@@ -413,7 +415,7 @@ impl RaftMachine {
         }
     }
 
-    fn transfer_leader(&self, raft_node: &RawNode<RaftRocksDBStorage>) {
+    fn try_record_role_change(&self, raft_node: &RawNode<RaftRocksDBStorage>) {
         if self
             .cache_placement
             .is_raft_role_change(raft_node.raft.state)

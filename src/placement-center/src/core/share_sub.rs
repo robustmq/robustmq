@@ -125,7 +125,7 @@ impl ShareSubLeader {
         }
         return Ok(());
     }
-    
+
     #[allow(dead_code)]
     pub fn delete_node(&self, cluster_name: &String, broker_id: u64) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
@@ -218,7 +218,7 @@ mod tests {
         storage::rocksdb::{column_family_list, RocksDBEngine},
     };
     use common_base::{
-        config::placement_center::PlacementCenterConfig,
+        config::placement_center::placement_center_test_conf,
         tools::{now_mills, unique_id},
     };
     use metadata_struct::placement::broker_node::BrokerNode;
@@ -227,9 +227,7 @@ mod tests {
 
     #[test]
     fn node_leader_info_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path,
@@ -281,9 +279,7 @@ mod tests {
 
     #[test]
     fn get_leader_node_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(

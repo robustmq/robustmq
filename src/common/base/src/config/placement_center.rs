@@ -34,10 +34,10 @@ use super::default_placement_center::{
     default_max_open_files, default_network, default_node, default_node_id, default_nodes,
     default_rocksdb, default_runtime_work_threads, default_system,
 };
-use crate::tools::{create_fold, read_file};
+use crate::tools::{create_fold, read_file, unique_id};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
-use toml::Table;
+use toml::{map::Map, Table, Value};
 
 use super::common::Log;
 
@@ -49,16 +49,14 @@ pub struct PlacementCenterConfig {
     pub node: Node,
     #[serde(default = "default_network")]
     pub network: Network,
-    #[serde(default = "default_log")]
-    pub log: Log,
-    #[serde(default = "default_nodes")]
-    pub nodes: Table,
     #[serde(default = "default_system")]
     pub system: System,
-    #[serde(default = "default_rocksdb")]
-    pub rocksdb: Rocksdb,
     #[serde(default = "default_heartbeat")]
     pub heartbeat: Heartbeat,
+    #[serde(default = "default_rocksdb")]
+    pub rocksdb: Rocksdb,
+    #[serde(default = "default_log")]
+    pub log: Log,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -164,6 +162,18 @@ pub fn placement_center_conf() -> &'static PlacementCenterConfig {
     }
 }
 
+pub fn placement_center_test_conf() -> PlacementCenterConfig {
+    let mut config = PlacementCenterConfig::default();
+    config.rocksdb.data_path = format!("/tmp/{}", unique_id());
+    config.node.node_id = 1;
+    let mut nodes = Map::new();
+    nodes.insert("1".to_string(), Value::from("127.0.0.1:9982".to_string()));
+    config.rocksdb.max_open_files = Some(10);
+    config.node.nodes = nodes;
+    init_placement_center_conf_by_config(config.clone());
+    return config;
+}
+
 #[cfg(test)]
 mod tests {
     use super::{placement_center_conf, Log, PlacementCenterConfig};
@@ -202,7 +212,6 @@ mod tests {
             "1".to_string(),
             toml::Value::String(format!("{}:{}", "127.0.0.1", "1228")),
         );
-        assert_eq!(config.nodes, nodes);
         assert_eq!(config.rocksdb.max_open_files, Some(10000 as i32));
         assert_eq!(config.heartbeat.heartbeat_timeout_ms, 30000);
         assert_eq!(config.heartbeat.heartbeat_check_time_ms, 1000);
