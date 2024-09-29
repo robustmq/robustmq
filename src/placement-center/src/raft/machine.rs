@@ -303,13 +303,26 @@ impl RaftMachine {
     async fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
             let to = msg.get_to();
-            if msg.get_msg_type() != MessageType::MsgHeartbeat
-                && msg.get_msg_type() != MessageType::MsgHeartbeatResponse
-            {
-                debug!("ready message:{:?}", msg);
-            }
+            debug!("send raft message:{:?}, to:{}", msg, to);
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
-            self.send_peer_message(to, data).await;
+            if let Some(node) = self.cache_placement.get_votes_node_by_id(to) {
+                match self
+                    .peer_message_send
+                    .send(PeerMessage {
+                        to: node.node_addr,
+                        data,
+                    })
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(e) => error!(
+                        "Failed to write Raft Message to send queue with error message: {:?}",
+                        e.to_string()
+                    ),
+                }
+            } else {
+                error!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to);
+            }
         }
     }
 
@@ -367,12 +380,11 @@ impl RaftMachine {
         let file = OpenOptions::new()
             .create(true)
             .write(true)
-            .truncate(false)
+            .truncate(true)
             .open(path)
             .unwrap();
 
         let decorator = slog_term::PlainDecorator::new(file);
-        // let decorator = slog_term::TermDecorator::new().build();
         let drain = slog_term::FullFormat::new(decorator).build().fuse();
         let drain = slog_async::Async::new(drain)
             .chan_size(4096)
@@ -389,29 +401,6 @@ impl RaftMachine {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if num % 1000 == 0 {
             raft_node.mut_store().create_snapshot().unwrap();
-        }
-    }
-
-    async fn send_peer_message(&self, id: u64, msg: Vec<u8>) {
-        if let Some(node) = self.cache_placement.get_votes_node_by_id(id) {
-            let send = self.peer_message_send.clone();
-            tokio::spawn(async move {
-                match send
-                    .send(PeerMessage {
-                        to: node.node_addr,
-                        data: msg,
-                    })
-                    .await
-                {
-                    Ok(_) => {}
-                    Err(e) => error!(
-                        "Failed to write Raft Message to send queue with error message: {:?}",
-                        e.to_string()
-                    ),
-                }
-            });
-        } else {
-            error!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id);
         }
     }
 

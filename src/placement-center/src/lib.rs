@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::raft::peer::{PeerMessage, PeersManager};
+use self::raft::peer::{PeerMessage, RaftPeersManager};
 use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::journal::JournalCacheManager;
 use cache::mqtt::MqttCacheManager;
@@ -112,7 +112,7 @@ impl PlacementCenter {
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
-        self.start_peers_manager(peer_message_recv);
+        self.start_peers_manager(peer_message_recv, stop_send.clone());
 
         self.start_raft_machine(peer_message_send, raft_message_recv, stop_send.subscribe());
 
@@ -238,8 +238,14 @@ impl PlacementCenter {
     }
 
     // Start Raft Node Peer Manager
-    pub fn start_peers_manager(&self, peer_message_recv: Receiver<PeerMessage>) {
-        let mut peers_manager = PeersManager::new(peer_message_recv, self.client_poll.clone());
+    pub fn start_peers_manager(
+        &self,
+        peer_message_recv: Receiver<PeerMessage>,
+        stop_send: broadcast::Sender<bool>,
+    ) {
+        let mut peers_manager =
+            RaftPeersManager::new(peer_message_recv, self.client_poll.clone(), 5, stop_send);
+
         self.daemon_runtime.spawn(async move {
             peers_manager.start().await;
         });
