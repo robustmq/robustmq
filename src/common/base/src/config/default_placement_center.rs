@@ -25,17 +25,12 @@ pub fn default_cluster_name() -> String {
 pub fn default_node() -> Node {
     Node {
         node_id: default_node_id(),
-        addr: default_addr(),
         nodes: default_nodes(),
     }
 }
 
 pub fn default_node_id() -> u64 {
     1
-}
-
-pub fn default_addr() -> String {
-    "127.0.0.1".to_string()
 }
 
 pub fn default_network() -> Network {
@@ -79,8 +74,7 @@ pub fn default_nodes() -> Table {
     nodes.insert(
         default_node_id().to_string(),
         toml::Value::String(format!(
-            "{}:{}",
-            default_addr(),
+            "127.0.0.1:{}",
             default_grpc_port().to_string()
         )),
     );

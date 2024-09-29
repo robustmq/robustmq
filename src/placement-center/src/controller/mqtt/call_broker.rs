@@ -72,7 +72,7 @@ impl MQTTBrokerCall {
 
             for addr in self
                 .placement_cache_manager
-                .get_cluster_node_addr(&self.cluster_name)
+                .get_broker_node_addr_by_cluster(&self.cluster_name)
             {
                 let request = DeleteSessionRequest {
                     client_id: client_ids.clone(),
@@ -125,7 +125,7 @@ impl MQTTBrokerCall {
 
         let node_addr = self
             .placement_cache_manager
-            .get_cluster_node_addr(&self.cluster_name);
+            .get_broker_node_addr_by_cluster(&self.cluster_name);
 
         if node_addr.len() == 0 {
             error!("Get cluster {} Node access address is empty, there is no cluster node address available.",self.cluster_name);

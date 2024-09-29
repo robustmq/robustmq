@@ -33,7 +33,10 @@ pub struct MessageExpire {
 
 impl MessageExpire {
     pub fn new(cluster_name: String, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        return MessageExpire { cluster_name, rocksdb_engine_handler };
+        return MessageExpire {
+            cluster_name,
+            rocksdb_engine_handler,
+        };
     }
 
     pub async fn retain_message_expire(&self) {
@@ -152,7 +155,7 @@ mod tests {
         rocksdb::{column_family_list, RocksDBEngine},
     };
     use common_base::{
-        config::placement_center::PlacementCenterConfig,
+        config::placement_center::placement_center_test_conf,
         tools::{now_second, unique_id},
     };
     use metadata_struct::mqtt::{
@@ -166,9 +169,7 @@ mod tests {
 
     #[tokio::test]
     async fn retain_message_expire_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
@@ -181,7 +182,9 @@ mod tests {
 
         let topic_storage = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
         let topic = MQTTTopic::new(unique_id(), "tp1".to_string());
-        topic_storage.save(&cluster_name, &topic.topic_name.clone(), topic.clone()).unwrap();
+        topic_storage
+            .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
+            .unwrap();
 
         let retain_msg =
             MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None, 600);
@@ -217,9 +220,7 @@ mod tests {
 
     #[tokio::test]
     async fn last_will_message_expire_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
@@ -248,8 +249,12 @@ mod tests {
 
         let mut session = MQTTSession::default();
         session.client_id = client_id.clone();
-        session_storage.save(&cluster_name, &client_id, session).unwrap();
-        lastwill_storage.save(&cluster_name, &client_id, last_will_message).unwrap();
+        session_storage
+            .save(&cluster_name, &client_id, session)
+            .unwrap();
+        lastwill_storage
+            .save(&cluster_name, &client_id, last_will_message)
+            .unwrap();
 
         let start = now_second();
         loop {

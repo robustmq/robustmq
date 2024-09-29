@@ -21,7 +21,9 @@ pub struct ClusterStatusReply {
     #[prost(string, tag = "1")]
     pub leader: ::prost::alloc::string::String,
     #[prost(string, repeated, tag = "2")]
-    pub nodes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub members: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "3")]
+    pub votes: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

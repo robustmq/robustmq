@@ -93,11 +93,11 @@ impl BrokerHeartbeat {
                         }
                     } else {
                         self.cluster_cache
-                            .heart_time(&cluster_name, node_id, now_second());
+                            .report_heart_by_broker_node(&cluster_name, node_id, now_second());
                     }
                 } else {
                     self.cluster_cache
-                        .heart_time(&cluster_name, node_id, now_second());
+                        .report_heart_by_broker_node(&cluster_name, node_id, now_second());
                 }
             }
         }

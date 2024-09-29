@@ -432,13 +432,11 @@ mod tests {
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     use super::RaftMachineStorage;
-    use common_base::{config::placement_center::PlacementCenterConfig, tools::unique_id};
+    use common_base::config::placement_center::placement_center_test_conf;
 
     #[test]
     fn write_read_test() {
-        let mut conf = PlacementCenterConfig::default();
-        conf.rocksdb.data_path = format!("/tmp/robustmq_{}", unique_id());
-        conf.rocksdb.max_open_files = Some(10);
+        let conf = placement_center_test_conf();
 
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
             &conf.rocksdb.data_path,

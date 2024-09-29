@@ -215,7 +215,7 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::{
-        config::placement_center::PlacementCenterConfig,
+        config::placement_center::placement_center_test_conf,
         tools::{now_second, unique_id},
     };
     use metadata_struct::mqtt::session::MQTTSession;
@@ -233,9 +233,7 @@ mod tests {
 
     #[test]
     fn is_session_expire_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
@@ -275,9 +273,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_expire_session_list_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
@@ -338,9 +334,7 @@ mod tests {
 
     #[tokio::test]
     async fn is_send_last_will_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
@@ -383,9 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_expire_lastwill_messsage_test() {
-        let mut config = PlacementCenterConfig::default();
-        config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-        config.rocksdb.max_open_files = Some(10);
+        let config = placement_center_test_conf();
 
         let cluster_name = unique_id();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(

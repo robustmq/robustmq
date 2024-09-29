@@ -15,13 +15,13 @@
 use super::apply::{RaftMessage, RaftResponseMesage};
 use super::route::DataRoute;
 use super::storage::RaftRocksDBStorage;
-use crate::raft::metadata::RaftGroupMetadata;
+use crate::cache::placement::PlacementCacheManager;
+use crate::core::raft_node::RaftNode;
 use crate::raft::peer::PeerMessage;
 use crate::storage::placement::raft::RaftMachineStorage;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
 use log::{debug, error, info};
-use metadata_struct::placement::broker_node::BrokerNode;
 use prost::Message as _;
 use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
@@ -41,7 +41,7 @@ use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
 
 pub struct RaftMachine {
-    placement_cluster: Arc<RwLock<RaftGroupMetadata>>,
+    cache_placement: Arc<PlacementCacheManager>,
     receiver: Receiver<RaftMessage>,
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
@@ -54,7 +54,7 @@ pub struct RaftMachine {
 
 impl RaftMachine {
     pub fn new(
-        placement_cluster: Arc<RwLock<RaftGroupMetadata>>,
+        cache_placement: Arc<PlacementCacheManager>,
         data_route: Arc<DataRoute>,
         peer_message_send: Sender<PeerMessage>,
         receiver: Receiver<RaftMessage>,
@@ -65,7 +65,7 @@ impl RaftMachine {
         let entry_num = AtomicUsize::new(1);
         let resp_channel = HashMap::new();
         return Self {
-            placement_cluster,
+            cache_placement,
             receiver,
             seqnum,
             resp_channel,
@@ -156,30 +156,12 @@ impl RaftMachine {
                 Err(_) => {}
             }
 
-            let elapsed = now.elapsed();
-
-            if elapsed >= heartbeat {
+            if now.elapsed() >= heartbeat {
                 raft_node.tick();
                 now = Instant::now();
             }
 
-            if self.placement_cluster.read().unwrap().raft_role != raft_node.raft.state {
-                info!(
-                    "Node Raft Role changes from  【{:?}】 to 【{:?}】",
-                    self.placement_cluster.read().unwrap().raft_role,
-                    raft_node.raft.state
-                );
-                self.placement_cluster
-                    .write()
-                    .unwrap()
-                    .set_role(raft_node.raft.state);
-
-                let local_node = self.placement_cluster.read().unwrap().local.clone();
-                self.placement_cluster
-                    .write()
-                    .unwrap()
-                    .set_leader(local_node);
-            }
+            self.try_record_role_change(&raft_node);
             self.on_ready(&mut raft_node).await;
         }
     }
@@ -272,10 +254,9 @@ impl RaftMachine {
                         let change_type = change.get_change_type();
                         match change_type {
                             ConfChangeType::AddNode => {
-                                match deserialize::<BrokerNode>(change.get_context()) {
+                                match deserialize::<RaftNode>(change.get_context()) {
                                     Ok(node) => {
-                                        let mut cls = self.placement_cluster.write().unwrap();
-                                        cls.add_peer(id, node);
+                                        self.cache_placement.add_raft_memner(node);
                                     }
                                     Err(e) => {
                                         error!("Failed to parse Node data from context with error message {:?}", e);
@@ -283,8 +264,7 @@ impl RaftMachine {
                                 }
                             }
                             ConfChangeType::RemoveNode => {
-                                let mut cls = self.placement_cluster.write().unwrap();
-                                cls.remove_peer(id);
+                                self.cache_placement.remove_raft_memner(id);
                             }
                             _ => unimplemented!(),
                         }
@@ -320,18 +300,30 @@ impl RaftMachine {
     async fn send_message(&self, messages: Vec<raftPreludeMessage>) {
         for msg in messages {
             let to = msg.get_to();
-            if msg.get_msg_type() != MessageType::MsgHeartbeat
-                && msg.get_msg_type() != MessageType::MsgHeartbeatResponse
-            {
-                info!("ready message:{:?}", msg);
-            }
+            debug!("send raft message:{:?}, to:{}", msg, to);
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
-            self.send_peer_message(to, data).await;
+            if let Some(node) = self.cache_placement.get_votes_node_by_id(to) {
+                match self
+                    .peer_message_send
+                    .send(PeerMessage {
+                        to: node.node_addr,
+                        data,
+                    })
+                    .await
+                {
+                    Ok(_) => {}
+                    Err(e) => error!(
+                        "Failed to write Raft Message to send queue with error message: {:?}",
+                        e.to_string()
+                    ),
+                }
+            } else {
+                error!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to);
+            }
         }
     }
 
-    pub async fn new_node(&self) -> RawNode<RaftRocksDBStorage> {
-        let cluster = self.placement_cluster.read().unwrap();
+    async fn new_node(&self) -> RawNode<RaftRocksDBStorage> {
         let storage = RaftRocksDBStorage::new(self.raft_storage.clone());
 
         // build config
@@ -340,7 +332,13 @@ impl RaftMachine {
 
         // init voters && learns
         let mut cs = storage.read_lock().conf_state();
-        cs.voters = cluster.node_ids();
+        let vote_ids = self
+            .cache_placement
+            .get_raft_votes()
+            .iter()
+            .map(|node| node.node_id)
+            .collect();
+        cs.voters = vote_ids;
         let _ = storage.write_lock().save_conf_state(cs);
 
         let logger = self.build_slog();
@@ -379,12 +377,11 @@ impl RaftMachine {
         let file = OpenOptions::new()
             .create(true)
             .write(true)
-            .truncate(false)
+            .truncate(true)
             .open(path)
             .unwrap();
 
         let decorator = slog_term::PlainDecorator::new(file);
-        // let decorator = slog_term::TermDecorator::new().build();
         let drain = slog_term::FullFormat::new(decorator).build().fuse();
         let drain = slog_async::Async::new(drain)
             .chan_size(4096)
@@ -404,27 +401,19 @@ impl RaftMachine {
         }
     }
 
-    pub async fn send_peer_message(&self, id: u64, msg: Vec<u8>) {
-        if let Some(node) = self.placement_cluster.read().unwrap().get_node_by_id(id) {
-            let send = self.peer_message_send.clone();
-            let node_c = node.clone();
-            tokio::spawn(async move {
-                match send
-                    .send(PeerMessage {
-                        to: node_c.node_inner_addr,
-                        data: msg,
-                    })
-                    .await
-                {
-                    Ok(_) => {}
-                    Err(e) => error!(
-                        "Failed to write Raft Message to send queue with error message: {:?}",
-                        e.to_string()
-                    ),
-                }
-            });
-        } else {
-            error!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",id);
+    fn try_record_role_change(&self, raft_node: &RawNode<RaftRocksDBStorage>) {
+        if self
+            .cache_placement
+            .is_raft_role_change(raft_node.raft.state)
+        {
+            info!(
+                "Node Raft Role changes from  【{:?}】 to 【{:?}】",
+                self.cache_placement.get_current_raft_role(),
+                raft_node.raft.state
+            );
+
+            self.cache_placement
+                .update_raft_role(raft_node.raft.state, raft_node.raft.leader_id);
         }
     }
 }

@@ -15,7 +15,7 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     core::share_sub::ShareSubLeader,
-    raft::{apply::{RaftMachineApply, StorageData, StorageDataType}, metadata::RaftGroupMetadata},
+    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
         mqtt::{
             acl::AclStorage, blacklist::MQTTBlackListStorage, session::MQTTSessionStorage,
@@ -28,44 +28,38 @@ use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
     mqtt::{
-        mqtt_service_server::MqttService, CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, Empty, GetPlacementCenterLeaderAddressReply, GetShareSubLeaderReply, GetShareSubLeaderRequest, IsPlacementCenterLeaderReply, ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest
+        mqtt_service_server::MqttService, CreateAclRequest, CreateBlacklistRequest,
+        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest,
+        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, Empty,
+        GetPlacementCenterLeaderAddressReply, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+        IsPlacementCenterLeaderReply, ListAclReply, ListAclRequest, ListBlacklistReply,
+        ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply,
+        ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest,
+        SetTopicRetainMessageRequest, UpdateSessionRequest,
     },
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcMqttService {
     cluster_cache: Arc<PlacementCacheManager>,
-    placement_center_storage: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
 }
 
 impl GrpcMqttService {
     pub fn new(
         cluster_cache: Arc<PlacementCacheManager>,
-        placement_center_storage: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
     ) -> Self {
         GrpcMqttService {
             cluster_cache,
-            placement_center_storage,
+            raft_machine_apply,
             rocksdb_engine_handler,
-            raft_metadata: raft_metadata,
         }
     }
-
-    fn is_leader(&self) -> bool {
-        self.raft_metadata.read().unwrap().is_leader()
-    }
-
-    fn get_leader_address(&self) -> String {
-        self.raft_metadata.read().unwrap().leader_addr()
-    }
 }
-
-impl GrpcMqttService {}
 
 #[tonic::async_trait]
 impl MqttService for GrpcMqttService {
@@ -91,7 +85,7 @@ impl MqttService for GrpcMqttService {
 
         if let Some(node) = self
             .cluster_cache
-            .get_node_addr(&cluster_name, leader_broker)
+            .get_broker_node(&cluster_name, leader_broker)
         {
             reply.broker_id = leader_broker;
             reply.broker_addr = node.node_inner_addr;
@@ -150,7 +144,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "create_user".to_string())
             .await
         {
@@ -173,7 +167,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "delete_user".to_string())
             .await
         {
@@ -195,7 +189,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "create_topic".to_string())
             .await
         {
@@ -217,7 +211,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "delete_topic".to_string())
             .await
         {
@@ -313,7 +307,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "create_session".to_string())
             .await
         {
@@ -335,7 +329,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "delete_session".to_string())
             .await
         {
@@ -357,7 +351,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "set_topic_retain_message".to_string())
             .await
         {
@@ -379,7 +373,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "update_session".to_string())
             .await
         {
@@ -401,7 +395,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "save_last_will_message".to_string())
             .await
         {
@@ -450,7 +444,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "mqtt_create_acl".to_string())
             .await
         {
@@ -472,7 +466,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "mqtt_delete_acl".to_string())
             .await
         {
@@ -522,7 +516,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "create_blacklist".to_string())
             .await
         {
@@ -544,7 +538,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_propose_message(data, "delete_blacklist".to_string())
             .await
         {
@@ -559,21 +553,22 @@ impl MqttService for GrpcMqttService {
         &self,
         _request: Request<Empty>,
     ) -> Result<Response<IsPlacementCenterLeaderReply>, Status> {
-        Ok(Response::new(
-            IsPlacementCenterLeaderReply {
-                is_leader: self.is_leader() 
-            }
-        ))
+        Ok(Response::new(IsPlacementCenterLeaderReply {
+            is_leader: self.cluster_cache.is_leader(),
+        }))
     }
 
     async fn get_placement_center_leader_address(
         &self,
         _request: Request<Empty>,
     ) -> Result<Response<GetPlacementCenterLeaderAddressReply>, Status> {
-        Ok(Response::new(
-            GetPlacementCenterLeaderAddressReply {
-                address: self.get_leader_address()
-            }
-        ))
+        let address = if let Some(node) = self.cluster_cache.get_raft_leader() {
+            node.node_addr
+        } else {
+            "".to_string()
+        };
+        Ok(Response::new(GetPlacementCenterLeaderAddressReply {
+            address,
+        }))
     }
 }

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::index::{caches, index, metrics, list_cluster, list_node};
+use super::index::{caches, index, list_cluster, list_node, metrics};
+use super::list_path;
 use super::mqtt::mqtt_routes;
-use crate::raft::metadata::RaftGroupMetadata;
 use crate::{
     cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
     storage::placement::raft::RaftMachineStorage,
@@ -27,7 +27,6 @@ use std::{
     net::SocketAddr,
     sync::{Arc, RwLock},
 };
-use super::list_path;
 
 pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_METRICS: &str = "/metrics";
@@ -38,7 +37,7 @@ pub const ROUTE_CLUSTER_NODE: &str = "/cluster/node";
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct HttpServerState {
-    pub raft_metadata: Arc<RwLock<RaftGroupMetadata>>,
+    pub placement_cache: Arc<PlacementCacheManager>,
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
     pub cluster_cache: Arc<PlacementCacheManager>,
     pub engine_cache: Arc<JournalCacheManager>,
@@ -46,13 +45,13 @@ pub struct HttpServerState {
 
 impl HttpServerState {
     pub fn new(
-        placement_cache: Arc<RwLock<RaftGroupMetadata>>,
+        placement_cache: Arc<PlacementCacheManager>,
         raft_storage: Arc<RwLock<RaftMachineStorage>>,
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
     ) -> Self {
         return Self {
-            raft_metadata: placement_cache,
+            placement_cache,
             raft_storage,
             cluster_cache,
             engine_cache,
@@ -62,7 +61,9 @@ impl HttpServerState {
 
 pub async fn start_http_server(state: HttpServerState) {
     let config = placement_center_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.http_port).parse().unwrap();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.http_port)
+        .parse()
+        .unwrap();
     let app = routes(state);
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();
     info!(
