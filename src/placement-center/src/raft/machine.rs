@@ -156,15 +156,12 @@ impl RaftMachine {
                 Err(_) => {}
             }
 
-            let elapsed = now.elapsed();
-
-            if elapsed >= heartbeat {
+            if now.elapsed() >= heartbeat {
                 raft_node.tick();
                 now = Instant::now();
             }
 
             self.try_record_role_change(&raft_node);
-
             self.on_ready(&mut raft_node).await;
         }
     }
