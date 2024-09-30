@@ -33,12 +33,12 @@ pub fn key_name_by_entry(idx: u64) -> String {
     return format!("/raft/entry/{}", idx);
 }
 
-pub fn key_name_uncommit() -> String {
-    return "/raft/uncommit_index".to_string();
+pub fn key_name_uncommit(idx: u64) -> String {
+    return format!("/raft/uncommit_index/{}", idx);
 }
 
-pub fn key_name_snapshot() -> String {
-    return "/raft/snapshot".to_string();
+pub fn key_name_uncommit_prefix() -> String {
+    return format!("/raft/uncommit_index");
 }
 
 /** ===========Cluster========== */

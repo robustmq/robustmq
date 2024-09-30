@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use clients::{placement::placement::call::send_raft_message, poll::ClientPool};
-use log::{debug, error, info};
+use log::{debug, error};
 use protocol::placement_center::generate::placement::SendRaftMessageRequest;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{

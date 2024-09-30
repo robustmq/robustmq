@@ -29,10 +29,8 @@
  */
 
 use std::{io, net::AddrParseError, string::FromUtf8Error};
-
 use thiserror::Error;
 use tonic::Status;
-
 use crate::error::{
     journal_server::JournalServerError, mqtt_broker::MQTTBrokerError,
     placement_center::PlacementCenterError,
@@ -42,6 +40,9 @@ use crate::error::{
 pub enum CommonError {
     #[error("{0}")]
     TonicTransport(#[from] tonic::transport::Error),
+
+    #[error("{0}")]
+    ErrorKind(#[from] Box<bincode::ErrorKind>),
 
     #[error("{0}")]
     DecodeError(#[from] prost::DecodeError),

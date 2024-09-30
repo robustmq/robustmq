@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster;
-pub mod config;
-pub mod idempotent;
-pub mod kv;
-pub mod node;
+use raft::Raft;
+
+pub struct RaftCompact {}
+
+impl RaftCompact {
+    pub fn new() -> Self {
+        return RaftCompact {};
+    }
+}

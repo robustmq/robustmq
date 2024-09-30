@@ -30,6 +30,7 @@ use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttService
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raft::apply::{RaftMachineApply, RaftMessage};
 use raft::machine::RaftMachine;
+use raft::rocksdb::RaftMachineStorage;
 use raft::route::DataRoute;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
@@ -37,7 +38,6 @@ use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use storage::placement::raft::RaftMachineStorage;
 use storage::rocksdb::{column_family_list, RocksDBEngine};
 use tokio::runtime::Runtime;
 use tokio::signal;

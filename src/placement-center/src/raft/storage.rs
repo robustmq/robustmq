@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::placement::raft::RaftMachineStorage;
-use log::info;
+use super::rocksdb::RaftMachineStorage;
+use common_base::error::common::CommonError;
+use log::{debug, error};
 use raft::eraftpb::HardState;
 use raft::prelude::ConfState;
 use raft::prelude::Entry;
@@ -37,78 +38,62 @@ impl RaftRocksDBStorage {
         return RaftRocksDBStorage { core };
     }
 
-    #[allow(dead_code)]
-    pub fn new_with_conf_state<T>(
-        core: Arc<RwLock<RaftMachineStorage>>,
-        conf_state: T,
-    ) -> RaftRocksDBStorage
-    where
-        ConfState: From<T>,
-    {
-        let store = RaftRocksDBStorage::new(core);
-        store.initialize_with_conf_state(conf_state);
-        return store;
+    pub fn read_lock(&self) -> Result<RwLockReadGuard<'_, RaftMachineStorage>, CommonError> {
+        match self.core.read() {
+            Ok(object) => return Ok(object),
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        }
     }
 
-    #[allow(dead_code)]
-    pub fn initialize_with_conf_state<T>(&self, conf_state: T)
-    where
-        ConfState: From<T>,
-    {
-        assert!(!self.initial_state().unwrap().initialized());
-        let _ = self
-            .write_lock()
-            .save_conf_state(ConfState::from(conf_state));
-    }
-
-    pub fn read_lock(&self) -> RwLockReadGuard<'_, RaftMachineStorage> {
-        self.core.read().unwrap()
-    }
-
-    pub fn write_lock(&self) -> RwLockWriteGuard<'_, RaftMachineStorage> {
-        self.core.write().unwrap()
+    pub fn write_lock(&self) -> Result<RwLockWriteGuard<'_, RaftMachineStorage>, CommonError> {
+        match self.core.write() {
+            Ok(object) => return Ok(object),
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        }
     }
 }
 
 impl RaftRocksDBStorage {
-    pub fn apply_snapshot(&mut self, snapshot: Snapshot) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
-        let _ = store.apply_snapshot(snapshot);
-        Ok(())
+    pub fn recovery_snapshot(&self, snapshot: Snapshot) -> Result<(), CommonError> {
+        let mut store = self.write_lock()?;
+        return store.recovery_snapshot(snapshot);
     }
 
-    pub fn append(&mut self, entrys: &Vec<Entry>) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
-        let _ = store.append(entrys);
-        return Ok(());
+    pub fn append_entrys(&self, entrys: &Vec<Entry>) -> Result<(), CommonError> {
+        let mut store = self.write_lock()?;
+        return store.append_entrys(entrys);
     }
 
-    pub fn commmit_index(&mut self, idx: u64) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
+    pub fn commmit_index(&self, idx: u64) -> Result<(), CommonError> {
+        let mut store = self.write_lock()?;
         let _ = store.commmit_index(idx);
         return Ok(());
     }
 
-    pub fn set_hard_state(&mut self, hs: HardState) -> RaftResult<()> {
-        let store = self.core.write().unwrap();
+    pub fn set_hard_state(&self, hs: HardState) -> Result<(), CommonError> {
+        let store = self.write_lock()?;
         let _ = store.save_hard_state(hs.clone());
         return Ok(());
     }
 
-    pub fn set_hard_state_comit(&mut self, hs: u64) -> RaftResult<()> {
-        let store = self.core.write().unwrap();
-        let _ = store.set_hard_state_commit(hs);
+    pub fn set_hard_state_comit(&self, hs: u64) -> Result<(), CommonError> {
+        let store = self.write_lock()?;
+        let _ = store.update_hard_state_commit(hs);
         return Ok(());
     }
 
-    pub fn set_conf_state(&mut self, cs: ConfState) -> RaftResult<()> {
-        let store = self.core.write().unwrap();
+    pub fn set_conf_state(&self, cs: ConfState) -> Result<(), CommonError> {
+        let store = self.write_lock()?;
         let _ = store.save_conf_state(cs);
         return Ok(());
     }
 
-    pub fn create_snapshot(&mut self) -> RaftResult<()> {
-        let mut store = self.core.write().unwrap();
+    pub fn create_snapshot(&self) -> Result<(), CommonError> {
+        let mut store = self.write_lock()?;
         let _ = store.create_snapshot();
         return Ok(());
     }
@@ -121,7 +106,10 @@ impl RaftStorage for RaftRocksDBStorage {
     /// `RaftState` could be initialized or not. If it's initialized it means the `Storage` is
     /// created with a configuration, and its last index and term should be greater than 0.
     fn initial_state(&self) -> RaftResult<RaftState> {
-        let core = self.read_lock();
+        let core = match self.read_lock() {
+            Ok(obj) => obj,
+            Err(e) => return Err(Error::ConfigInvalid(e.to_string())),
+        };
         return Ok(core.raft_state());
     }
 
@@ -146,17 +134,21 @@ impl RaftStorage for RaftRocksDBStorage {
         _: impl Into<Option<u64>>,
         _: raft::GetEntriesContext,
     ) -> RaftResult<Vec<Entry>> {
-        let core = self.read_lock();
+        let core = match self.read_lock() {
+            Ok(obj) => obj,
+            Err(e) => return Err(Error::ConfigInvalid(e.to_string())),
+        };
+
         if low < core.first_index() {
             return Err(Error::Store(StorageError::Compacted));
         }
 
         if high > core.last_index() + 1 {
-            panic!(
+            return Err(Error::ConfigInvalid(format!(
                 "index out of bound (last: {}, high: {})",
                 core.last_index() + 1,
                 high
-            )
+            )));
         }
 
         let mut entry_list: Vec<Entry> = Vec::new();
@@ -168,8 +160,6 @@ impl RaftStorage for RaftRocksDBStorage {
             entry_list.push(sret.unwrap());
         }
 
-        // todo limit size
-
         return Ok(entry_list);
     }
 
@@ -178,11 +168,10 @@ impl RaftStorage for RaftRocksDBStorage {
     /// first_index is retained for matching purpose even though the
     /// rest of that entry may not be available.
     fn term(&self, idx: u64) -> RaftResult<u64> {
-        let core = self.read_lock();
-
-        if idx == core.snapshot_metadata.index {
-            return Ok(core.snapshot_metadata.index);
-        }
+        let core = match self.read_lock() {
+            Ok(obj) => obj,
+            Err(e) => return Err(Error::ConfigInvalid(e.to_string())),
+        };
 
         if idx < core.first_index() {
             return Err(Error::Store(StorageError::Compacted));
@@ -196,7 +185,7 @@ impl RaftStorage for RaftRocksDBStorage {
             return Ok(value.term);
         }
 
-        return Ok(core.snapshot_metadata.term);
+        return Ok(0);
     }
 
     /// Returns the index of the first log entry that is possible available via entries, which will
@@ -205,14 +194,21 @@ impl RaftStorage for RaftRocksDBStorage {
     /// New created (but not initialized) `Storage` can be considered as truncated at 0 so that 1
     /// will be returned in this case.
     fn first_index(&self) -> RaftResult<u64> {
-        let core = self.read_lock();
+        let core = match self.read_lock() {
+            Ok(obj) => obj,
+            Err(e) => return Err(Error::ConfigInvalid(e.to_string())),
+        };
         let fi = core.first_index();
         Ok(fi)
     }
 
     /// The index of the last entry replicated in the `Storage`.
     fn last_index(&self) -> RaftResult<u64> {
-        let core = self.read_lock();
+        let core = match self.read_lock() {
+            Ok(obj) => obj,
+            Err(e) => return Err(Error::ConfigInvalid(e.to_string())),
+        };
+
         let li = core.last_index();
         Ok(li)
     }
@@ -225,12 +221,22 @@ impl RaftStorage for RaftRocksDBStorage {
     /// A snapshot's index must not less than the `request_index`.
     /// `to` indicates which peer is requesting the snapshot.
     fn snapshot(&self, request_index: u64, to: u64) -> RaftResult<Snapshot> {
-        info!("Node {} requests snapshot data", to);
-        let mut core = self.write_lock();
-        if core.trigger_snap_unavailable {
+        debug!("Node {} requests snapshot data", to);
+        let mut core = match self.write_lock() {
+            Ok(obj) => obj,
+            Err(e) => return Err(Error::ConfigInvalid(e.to_string())),
+        };
+
+        if core.raft_snapshot.trigger_snap_unavailable {
             return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable));
         } else {
-            let mut snap = core.snapshot();
+            let mut snap = match core.get_snapshot() {
+                Ok(data) => data,
+                Err(e) => {
+                    error!("{}", e.to_string());
+                    return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable));
+                }
+            };
             if snap.get_metadata().index < request_index {
                 snap.mut_metadata().index = request_index;
             }

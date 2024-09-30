@@ -15,10 +15,8 @@
 use super::index::{caches, index, list_cluster, list_node, metrics};
 use super::list_path;
 use super::mqtt::mqtt_routes;
-use crate::{
-    cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
-    storage::placement::raft::RaftMachineStorage,
-};
+use crate::cache::{journal::JournalCacheManager, placement::PlacementCacheManager};
+use crate::raft::rocksdb::RaftMachineStorage;
 use axum::routing::get;
 use axum::Router;
 use common_base::config::placement_center::placement_center_conf;
