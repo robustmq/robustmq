@@ -409,7 +409,6 @@ impl RaftMachine {
                 self.cache_placement.get_current_raft_role(),
                 raft_node.raft.state
             );
-
             self.cache_placement
                 .update_raft_role(raft_node.raft.state, raft_node.raft.leader_id);
         }

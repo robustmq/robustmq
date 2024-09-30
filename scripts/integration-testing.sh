@@ -82,7 +82,7 @@ start_placement_center
 # Start mqtt-broker
 start_mqtt_broker_1
 
-sleep 3
+sleep 20
 # Run Cargo Test
 cargo nextest run
 
