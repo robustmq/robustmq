@@ -271,16 +271,17 @@ impl RaftMachine {
 
             let idx: u64 = entry.get_index();
             let _ = raft_node.mut_store().commmit_index(idx);
-
-            let seq = deserialize(entry.get_context())?;
-            if let Some(chan) = self.resp_channel.remove(&seq) {
-                match chan.send(RaftResponseMesage::Success) {
-                    Ok(_) => {}
-                    Err(_) => {
-                        return Err(CommonError::CommmonError(
-                            "commit entry Fails to return data to chan. chan may have been closed"
-                                .to_string(),
-                        ));
+            if !entry.get_context().is_empty() {
+                let seq = deserialize(entry.get_context())?;
+                if let Some(chan) = self.resp_channel.remove(&seq) {
+                    match chan.send(RaftResponseMesage::Success) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            return Err(CommonError::CommmonError(
+                                "commit entry Fails to return data to chan. chan may have been closed"
+                                    .to_string(),
+                            ));
+                        }
                     }
                 }
             }
