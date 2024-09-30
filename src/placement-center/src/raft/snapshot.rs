@@ -28,6 +28,7 @@ impl RaftSnapshot {
     }
 
     pub fn recovery_snapshot(&self) -> Result<(), CommonError> {
+        println!("{}","recovery_snapshot");
         // let mut meta = snapshot.take_metadata();
         // let index = meta.index;
 
@@ -52,6 +53,7 @@ impl RaftSnapshot {
     }
 
     pub fn create_snapshot(&self) -> Result<(), CommonError> {
+        println!("{}","create_snapshot");
         // let mut sns = Snapshot::default();
 
         // // create snapshot metadata
@@ -74,6 +76,7 @@ impl RaftSnapshot {
     }
 
     pub fn create_snapshot_metadata(&self) -> Result<SnapshotMetadata, CommonError> {
+        println!("{}","create_snapshot_metadata");
         // let hard_state = self.hard_state();
         // let conf_state = self.conf_state();
 
