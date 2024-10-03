@@ -1,13 +1,19 @@
 syntax = "proto3";
 package common;
 
+// The type of the cluster.
 enum ClusterType{
+    // The type of the PlacementCenter.
     PlacementCenter = 0;
+    // The type of the JournalServer.
     JournalServer = 1;
+    // The type of the MQTTBrokerServer.
     MQTTBrokerServer = 2;
+    // The type of the AMQPBrokerServer.
     AMQPBrokerServer = 3;
 }
 
+// The common reply of all request.
 message CommonReply{
     
 }
