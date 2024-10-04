@@ -48,6 +48,7 @@ use tonic::transport::Server;
 mod cache;
 mod controller;
 mod core;
+mod openraft;
 mod raft;
 mod server;
 mod storage;
