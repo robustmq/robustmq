@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{id_to_bin, StorageResult};
+use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
 use crate::raftv2::{raft_node::NodeId, store::bin_to_id, typeconfig::TypeConfig};
 use openraft::{
     storage::{IOFlushed, RaftLogStorage},
@@ -29,11 +29,11 @@ pub struct LogStore {
 
 impl LogStore {
     fn store(&self) -> &ColumnFamily {
-        self.db.cf_handle("_raft_store").unwrap()
+        self.db.cf_handle(&cf_raft_store()).unwrap()
     }
 
     fn logs(&self) -> &ColumnFamily {
-        self.db.cf_handle("_raft_logs").unwrap()
+        self.db.cf_handle(&cf_raft_logs()).unwrap()
     }
 
     fn flush(

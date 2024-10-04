@@ -13,15 +13,15 @@
 // limitations under the License.
 
 use crate::raftv2::raft_node::Node;
-use crate::raftv2::route::AppRequestData;
 use crate::raftv2::route::AppResponseData;
+use crate::storage::route::data::StorageData;
 use std::io::Cursor;
 
 pub type SnapshotData = Cursor<Vec<u8>>;
 
 openraft::declare_raft_types!(
     pub TypeConfig:
-        D = AppRequestData,
+        D = StorageData,
         R = AppResponseData,
         Node = Node,
 );

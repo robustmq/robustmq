@@ -17,6 +17,8 @@ use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::generate::kv::{DeleteRequest, SetRequest};
 use std::sync::Arc;
+
+#[derive(Debug, Clone)]
 pub struct DataRouteKv {
     kv_storage: KvStorage,
 }

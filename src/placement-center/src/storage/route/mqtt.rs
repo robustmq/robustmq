@@ -29,6 +29,7 @@ use protocol::placement_center::generate::mqtt::{
 };
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct DataRouteMQTT {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }

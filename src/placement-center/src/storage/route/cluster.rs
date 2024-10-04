@@ -42,6 +42,7 @@ use protocol::placement_center::generate::{
 };
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cluster_cache: Arc<PlacementCacheManager>,

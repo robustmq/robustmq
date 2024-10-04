@@ -14,11 +14,11 @@
 
 use super::apply::{RaftMessage, RaftResponseMesage};
 use super::rocksdb::RaftMachineStorage;
-use crate::storage::route::DataRoute;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::raft_node::RaftNode;
 use crate::raftv1::peer::PeerMessage;
+use crate::storage::route::DataRoute;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
 use common_base::error::common::CommonError;
@@ -242,7 +242,7 @@ impl RaftMachine {
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
-                        self.data_route.route(entry.get_data().to_vec())?
+                        self.data_route.route_vec(entry.get_data().to_vec())?
                     }
                     EntryType::EntryConfChange => {
                         let change = ConfChange::decode(entry.get_data())?;

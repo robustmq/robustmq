@@ -22,6 +22,7 @@ use crate::storage::{
 use common_base::error::common::CommonError;
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct KvStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }

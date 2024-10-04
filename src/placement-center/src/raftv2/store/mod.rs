@@ -15,6 +15,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::storage::route::DataRoute;
+
 use super::typeconfig::TypeConfig;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
@@ -51,19 +53,30 @@ fn bin_to_id(buf: &[u8]) -> u64 {
     (&buf[0..8]).read_u64::<BigEndian>().unwrap()
 }
 
-pub(crate) async fn new_storage<P: AsRef<Path>>(db_path: P) -> (LogStore, StateMachineStore) {
+pub(crate) async fn new_storage<P: AsRef<Path>>(
+    db_path: P,
+    route: Arc<DataRoute>,
+) -> (LogStore, StateMachineStore) {
     let mut db_opts = Options::default();
     db_opts.create_missing_column_families(true);
     db_opts.create_if_missing(true);
 
-    let store = ColumnFamilyDescriptor::new("_raft_store", Options::default());
-    let logs = ColumnFamilyDescriptor::new("_raft_logs", Options::default());
+    let store = ColumnFamilyDescriptor::new(cf_raft_logs(), Options::default());
+    let logs = ColumnFamilyDescriptor::new(cf_raft_logs(), Options::default());
 
     let db = DB::open_cf_descriptors(&db_opts, db_path, vec![store, logs]).unwrap();
     let db = Arc::new(db);
 
     let log_store = LogStore { db: db.clone() };
-    let sm_store = StateMachineStore::new(db).await.unwrap();
+    let sm_store = StateMachineStore::new(db, route).await.unwrap();
 
     (log_store, sm_store)
+}
+
+fn cf_raft_store() -> String {
+    return "store".to_string();
+}
+
+fn cf_raft_logs() -> String {
+    return "logs".to_string();
 }

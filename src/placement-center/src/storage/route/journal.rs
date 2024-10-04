@@ -30,6 +30,7 @@ use protocol::placement_center::generate::journal::{
 };
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct DataRouteJournal {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     engine_cache: Arc<JournalCacheManager>,

@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::storage::route::DataRoute;
+
 use super::network::network::Network;
 use super::store::new_storage;
 use super::typeconfig::TypeConfig;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
-use log::{error, info};
+use log::info;
 use openraft::{Config, Raft};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::RwLock;
-use tokio::time::sleep;
 pub type NodeId = u64;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
@@ -110,7 +110,8 @@ pub fn calc_init_node(nodes: &BTreeMap<u64, Node>) -> u64 {
 
 pub async fn create_raft_node(
     client_poll: Arc<ClientPool>,
-) -> (Raft<TypeConfig>, Arc<RwLock<BTreeMap<String, String>>>) {
+    route: Arc<DataRoute>,
+) -> Raft<TypeConfig> {
     let config = Config {
         heartbeat_interval: 250,
         election_timeout_min: 299,
@@ -121,8 +122,7 @@ pub async fn create_raft_node(
     let conf = placement_center_conf();
     let path = format!("{}/_engine_storage", conf.rocksdb.data_path.clone());
     let dir = Path::new(&path);
-    let (log_store, state_machine_store) = new_storage(&dir).await;
-    let kvs = state_machine_store.data.kvs.clone();
+    let (log_store, state_machine_store) = new_storage(&dir, route).await;
 
     let network = Network::new(client_poll);
     let raft = openraft::Raft::new(
@@ -135,5 +135,5 @@ pub async fn create_raft_node(
     .await
     .unwrap();
 
-    return (raft, kvs);
+    return raft;
 }

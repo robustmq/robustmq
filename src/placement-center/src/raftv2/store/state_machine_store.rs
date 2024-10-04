@@ -18,15 +18,17 @@ use openraft::{
 };
 use rocksdb::{ColumnFamily, DB};
 use std::{collections::BTreeMap, io::Cursor, sync::Arc};
-use tokio::sync::RwLock;
 
-use crate::raftv2::{
-    raft_node::{typ, NodeId},
-    route::{AppRequestData, AppResponseData},
-    typeconfig::{SnapshotData, TypeConfig},
+use crate::{
+    raftv2::{
+        raft_node::{typ, NodeId},
+        route::AppResponseData,
+        typeconfig::{SnapshotData, TypeConfig},
+    },
+    storage::route::DataRoute,
 };
 
-use super::{StorageResult, StoredSnapshot};
+use super::{cf_raft_store, StorageResult, StoredSnapshot};
 
 #[derive(Debug, Clone)]
 pub struct StateMachineStore {
@@ -49,7 +51,7 @@ pub struct StateMachineData {
     pub last_membership: StoredMembership<TypeConfig>,
 
     /// State built from applying the raft logs
-    pub kvs: Arc<RwLock<BTreeMap<String, String>>>,
+    pub route: Arc<DataRoute>,
 }
 
 impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
@@ -57,10 +59,8 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
         let last_applied_log = self.data.last_applied_log_id;
         let last_membership = self.data.last_membership.clone();
 
-        let kv_json = {
-            let kvs = self.data.kvs.read().await;
-            serde_json::to_vec(&*kvs).map_err(|e| StorageError::read_state_machine(&e))?
-        };
+        // todo
+        let kv_json = self.data.route.build_snapshot();
 
         let snapshot_id = if let Some(last) = last_applied_log {
             format!("{}-{}-{}", last.leader_id, last.index, self.snapshot_idx)
@@ -89,12 +89,15 @@ impl RaftSnapshotBuilder<TypeConfig> for StateMachineStore {
 }
 
 impl StateMachineStore {
-    pub async fn new(db: Arc<DB>) -> Result<StateMachineStore, StorageError<TypeConfig>> {
+    pub async fn new(
+        db: Arc<DB>,
+        route: Arc<DataRoute>,
+    ) -> Result<StateMachineStore, StorageError<TypeConfig>> {
         let mut sm = Self {
             data: StateMachineData {
                 last_applied_log_id: None,
                 last_membership: Default::default(),
-                kvs: Arc::new(Default::default()),
+                route,
             },
             snapshot_idx: 0,
             db,
@@ -112,15 +115,21 @@ impl StateMachineStore {
         &mut self,
         snapshot: StoredSnapshot,
     ) -> Result<(), StorageError<TypeConfig>> {
-        let kvs: BTreeMap<String, String> = serde_json::from_slice(&snapshot.data)
+        let snapshot_data: BTreeMap<String, String> = serde_json::from_slice(&snapshot.data)
             .map_err(|e| StorageError::read_snapshot(Some(snapshot.meta.signature()), &e))?;
 
         self.data.last_applied_log_id = snapshot.meta.last_log_id;
         self.data.last_membership = snapshot.meta.last_membership.clone();
-        let mut x = self.data.kvs.write().await;
-        *x = kvs;
 
-        Ok(())
+        //todo
+        match self.data.route.recover_snapshot(snapshot_data) {
+            Ok(_) => {
+                return Ok(());
+            }
+            Err(e) => {
+                return Err(StorageError::read(&e));
+            }
+        }
     }
 
     fn get_current_snapshot_(&self) -> StorageResult<Option<StoredSnapshot>> {
@@ -158,7 +167,7 @@ impl StateMachineStore {
     }
 
     fn store(&self) -> &ColumnFamily {
-        self.db.cf_handle("_raft_store").unwrap()
+        self.db.cf_handle(&cf_raft_store()).unwrap()
     }
 }
 
@@ -193,16 +202,13 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
             match ent.payload {
                 EntryPayload::Blank => {}
-                EntryPayload::Normal(req) => match req {
-                    AppRequestData::Set { key, value } => {
-                        resp_value = Some(value.clone());
-
-                        let mut st = self.data.kvs.write().await;
-                        st.insert(key, value);
+                EntryPayload::Normal(req) => match self.data.route.route(req) {
+                    Ok(val) => {
+                        //todo
+                        resp_value = Some("".to_string());
                     }
-                    AppRequestData::Delete { key } => {
-                        let mut st = self.data.kvs.write().await;
-                        st.remove(&key);
+                    Err(e) => {
+                        return Err(StorageError::read(&e));
                     }
                 },
                 EntryPayload::Membership(mem) => {

@@ -28,8 +28,10 @@ use crate::{
 use bincode::deserialize;
 use common_base::error::common::CommonError;
 use data::{StorageData, StorageDataType};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct DataRoute {
     route_kv: DataRouteKv,
     route_mqtt: DataRouteMQTT,
@@ -60,9 +62,13 @@ impl DataRoute {
         };
     }
 
-    //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
-    pub fn route(&self, data: Vec<u8>) -> Result<(), CommonError> {
+    pub fn route_vec(&self, data: Vec<u8>) -> Result<(), CommonError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
+        return self.route(storage_data);
+    }
+
+    //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
+    pub fn route(&self, storage_data: StorageData) -> Result<(), CommonError> {
         match storage_data.data_type {
             StorageDataType::ClusterRegisterNode => {
                 return self.route_cluster.register_node(storage_data.value);
@@ -146,5 +152,13 @@ impl DataRoute {
                 return self.route_mqtt.save_last_will_message(storage_data.value);
             }
         }
+    }
+
+    pub fn build_snapshot(&self) -> Vec<u8> {
+        return Vec::new();
+    }
+
+    pub fn recover_snapshot(&self, data: BTreeMap<String, String>) -> Result<(), CommonError> {
+        return Ok(());
     }
 }

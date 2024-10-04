@@ -21,6 +21,7 @@ use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 
+#[derive(Debug)]
 pub struct RocksDBEngine {
     pub db: DB,
     cf_list: Vec<String>,
@@ -240,7 +241,10 @@ impl RocksDBEngine {
 #[cfg(test)]
 mod tests {
     use super::RocksDBEngine;
-    use common_base::{config::placement_center::{placement_center_test_conf, PlacementCenterConfig}, tools::unique_id};
+    use common_base::{
+        config::placement_center::{placement_center_test_conf, PlacementCenterConfig},
+        tools::unique_id,
+    };
     use serde::{Deserialize, Serialize};
     use std::{sync::Arc, time::Duration};
     use tokio::{
