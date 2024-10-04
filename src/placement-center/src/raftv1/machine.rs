@@ -14,7 +14,7 @@
 
 use super::apply::{RaftMessage, RaftResponseMesage};
 use super::rocksdb::RaftMachineStorage;
-use super::route::DataRoute;
+use crate::storage::route::DataRoute;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::raft_node::RaftNode;

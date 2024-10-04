@@ -15,13 +15,14 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     core::share_sub::ShareSubLeader,
-    raftv1::apply::{RaftMachineApply, StorageData, StorageDataType},
+    raftv1::apply::RaftMachineApply,
     storage::{
         mqtt::{
             acl::AclStorage, blacklist::MQTTBlackListStorage, session::MQTTSessionStorage,
             topic::MQTTTopicStorage, user::MQTTUserStorage,
         },
         rocksdb::RocksDBEngine,
+        route::data::{StorageData, StorageDataType},
     },
 };
 use prost::Message;

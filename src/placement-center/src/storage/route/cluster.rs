@@ -165,7 +165,7 @@ mod tests {
 
     use crate::{
         cache::placement::PlacementCacheManager,
-        raftv1::route::cluster::DataRouteCluster,
+        storage::route::cluster::DataRouteCluster,
         storage::{
             placement::cluster::ClusterStorage,
             placement::node::NodeStorage,

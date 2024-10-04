@@ -28,8 +28,8 @@
  * limitations under the License.
  */
 use crate::{
-    raftv1::apply::{RaftMachineApply, StorageData, StorageDataType},
-    storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine},
+    raftv1::apply::RaftMachineApply,
+    storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine, route::data::{StorageData, StorageDataType}},
 };
 use common_base::error::common::CommonError;
 use prost::Message;
@@ -58,7 +58,6 @@ impl GrpcKvService {
             rocksdb_engine_handler,
         }
     }
-    
 }
 
 #[tonic::async_trait]

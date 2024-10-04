@@ -31,7 +31,6 @@ use protocol::placement_center::generate::placement::placement_center_service_se
 use raftv1::apply::{RaftMachineApply, RaftMessage};
 use raftv1::machine::RaftMachine;
 use raftv1::rocksdb::RaftMachineStorage;
-use raftv1::route::DataRoute;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
@@ -39,6 +38,7 @@ use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use storage::rocksdb::{column_family_list, RocksDBEngine};
+use storage::route::DataRoute;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -48,8 +48,8 @@ use tonic::transport::Server;
 mod cache;
 mod controller;
 mod core;
-mod raftv2;
 mod raftv1;
+mod raftv2;
 mod server;
 mod storage;
 

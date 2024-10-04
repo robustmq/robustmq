@@ -14,7 +14,8 @@
 
 use crate::{
     cache::placement::PlacementCacheManager,
-    raftv1::apply::{RaftMachineApply, StorageData, StorageDataType},
+    raftv1::apply::RaftMachineApply,
+    storage::route::data::{StorageData, StorageDataType},
 };
 use common_base::tools::now_second;
 use log::{error, info};
@@ -92,12 +93,18 @@ impl BrokerHeartbeat {
                             }
                         }
                     } else {
-                        self.cluster_cache
-                            .report_heart_by_broker_node(&cluster_name, node_id, now_second());
+                        self.cluster_cache.report_heart_by_broker_node(
+                            &cluster_name,
+                            node_id,
+                            now_second(),
+                        );
                     }
                 } else {
-                    self.cluster_cache
-                        .report_heart_by_broker_node(&cluster_name, node_id, now_second());
+                    self.cluster_cache.report_heart_by_broker_node(
+                        &cluster_name,
+                        node_id,
+                        now_second(),
+                    );
                 }
             }
         }

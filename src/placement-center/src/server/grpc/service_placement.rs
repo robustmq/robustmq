@@ -28,10 +28,11 @@
  * limitations under the License.
  */
 use crate::cache::placement::PlacementCacheManager;
-use crate::raftv1::apply::{RaftMachineApply, StorageData, StorageDataType};
+use crate::raftv1::apply::RaftMachineApply;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
+use crate::storage::route::data::{StorageData, StorageDataType};
 use clients::poll::ClientPool;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;

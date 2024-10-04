@@ -37,6 +37,7 @@ pub mod mqtt;
 pub mod placement;
 pub mod rocksdb;
 mod engine;
+pub mod route;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StorageDataWrap {

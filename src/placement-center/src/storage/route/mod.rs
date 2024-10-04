@@ -13,15 +13,13 @@
 // limitations under the License.
 
 pub mod cluster;
+pub mod data;
 pub mod journal;
 pub mod kv;
 pub mod mqtt;
 
-use super::{
-    apply::{StorageData, StorageDataType},
-    route::{
-        cluster::DataRouteCluster, journal::DataRouteJournal, kv::DataRouteKv, mqtt::DataRouteMQTT,
-    },
+use crate::storage::route::{
+    cluster::DataRouteCluster, journal::DataRouteJournal, kv::DataRouteKv, mqtt::DataRouteMQTT,
 };
 use crate::{
     cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
@@ -29,6 +27,7 @@ use crate::{
 };
 use bincode::deserialize;
 use common_base::error::common::CommonError;
+use data::{StorageData, StorageDataType};
 use std::sync::Arc;
 
 pub struct DataRoute {

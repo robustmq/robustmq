@@ -30,8 +30,6 @@
 pub mod apply;
 pub mod machine;
 pub mod peer;
-pub mod route;
 pub mod storage;
 pub mod rocksdb;
 pub mod snapshot;
-pub mod compact;

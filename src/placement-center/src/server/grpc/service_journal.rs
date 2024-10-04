@@ -29,7 +29,8 @@
  */
 use crate::{
     cache::placement::PlacementCacheManager,
-    raftv1::apply::{RaftMachineApply, StorageData, StorageDataType},
+    raftv1::apply::RaftMachineApply,
+    storage::route::data::{StorageData, StorageDataType},
 };
 use clients::poll::ClientPool;
 use prost::Message;

@@ -13,18 +13,17 @@
 // limitations under the License.
 
 use bincode::serialize;
-use common_base::error::placement_center::PlacementCenterError;
 use common_base::error::common::CommonError;
+use common_base::error::placement_center::PlacementCenterError;
 use raft::eraftpb::ConfChange;
 use raft::eraftpb::Message as raftPreludeMessage;
-use serde::Deserialize;
-use serde::Serialize;
-use std::fmt;
 use std::time::Duration;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::time::timeout;
+
+use crate::storage::route::data::StorageData;
 
 pub enum RaftResponseMesage {
     Success,
@@ -54,62 +53,6 @@ pub enum RaftMessage {
     },
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub enum StorageDataType {
-    // Cluster
-    ClusterRegisterNode,
-    ClusterUngisterNode,
-    ClusterSetResourceConfig,
-    ClusterDeleteResourceConfig,
-    ClusterSetIdempotentData,
-    ClusterDeleteIdempotentData,
-
-    // Journal
-    JournalCreateShard,
-    JournalDeleteShard,
-    JournalCreateSegment,
-    JournalDeleteSegment,
-
-    // kv
-    KvSet,
-    KvDelete,
-
-    // mqtt
-    MQTTCreateUser,
-    MQTTDeleteUser,
-    MQTTCreateTopic,
-    MQTTDeleteTopic,
-    MQTTSetTopicRetainMessage,
-    MQTTCreateSession,
-    MQTTDeleteSession,
-    MQTTUpdateSession,
-    MQTTSaveLastWillMessage,
-    MQTTCreateAcl,
-    MQTTDeleteAcl,
-    MQTTCreateBlacklist,
-    MQTTDeleteBlacklist,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct StorageData {
-    pub data_type: StorageDataType,
-    pub value: Vec<u8>,
-}
-
-impl StorageData {
-    pub fn new(data_type: StorageDataType, value: Vec<u8>) -> StorageData {
-        return StorageData {
-            data_type,
-            value: value,
-        };
-    }
-}
-
-impl fmt::Display for StorageData {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({:?}, {:?})", self.data_type, self.value)
-    }
-}
 pub struct RaftMachineApply {
     raft_status_machine_sender: tokio::sync::mpsc::Sender<RaftMessage>,
 }
