@@ -18,7 +18,7 @@ use super::route::DataRoute;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::raft_node::RaftNode;
-use crate::raft::peer::PeerMessage;
+use crate::raftv1::peer::PeerMessage;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
 use common_base::error::common::CommonError;

@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 use crate::{
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+    raftv1::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine},
 };
 use common_base::error::common::CommonError;

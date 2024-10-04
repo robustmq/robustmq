@@ -12,9 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod common;
-pub mod journal;
-pub mod kv;
-pub mod placement;
-pub mod mqtt;
-pub mod openraft;
+pub mod connection;
+pub mod network;

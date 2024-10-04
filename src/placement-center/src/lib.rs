@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::raft::peer::{PeerMessage, RaftPeersManager};
+use self::raftv1::peer::{PeerMessage, RaftPeersManager};
 use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::journal::JournalCacheManager;
 use cache::mqtt::MqttCacheManager;
@@ -28,10 +28,10 @@ use protocol::placement_center::generate::journal::engine_service_server::Engine
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raft::apply::{RaftMachineApply, RaftMessage};
-use raft::machine::RaftMachine;
-use raft::rocksdb::RaftMachineStorage;
-use raft::route::DataRoute;
+use raftv1::apply::{RaftMachineApply, RaftMessage};
+use raftv1::machine::RaftMachine;
+use raftv1::rocksdb::RaftMachineStorage;
+use raftv1::route::DataRoute;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
@@ -48,8 +48,8 @@ use tonic::transport::Server;
 mod cache;
 mod controller;
 mod core;
-mod openraft;
-mod raft;
+mod raftv2;
+mod raftv1;
 mod server;
 mod storage;
 

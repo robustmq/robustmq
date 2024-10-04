@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 use crate::cache::placement::PlacementCacheManager;
-use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
+use crate::raftv1::apply::{RaftMachineApply, StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;

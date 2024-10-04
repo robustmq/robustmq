@@ -20,6 +20,7 @@ use crate::{poll::ClientPool, retry_sleep_time, retry_times};
 use common_base::error::common::CommonError;
 use lazy_static::lazy_static;
 use log::error;
+use openraft::openraft_interface_call;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -29,6 +30,7 @@ pub enum PlacementCenterService {
     Kv,
     Placement,
     Mqtt,
+    OpenRaft,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -80,6 +82,11 @@ pub enum PlacementCenterInterface {
     CreateBlackList,
     DeleteBlackList,
     ListBlackList,
+
+    // Open Raft
+    Vote,
+    Append,
+    Snapshot,
 }
 
 impl PlacementCenterInterface {
@@ -121,6 +128,7 @@ impl PlacementCenterInterface {
 pub mod journal;
 pub mod kv;
 pub mod mqtt;
+pub mod openraft;
 pub mod placement;
 
 async fn retry_call(
@@ -167,6 +175,15 @@ async fn retry_call(
 
             PlacementCenterService::Mqtt => {
                 mqtt_interface_call(
+                    interface.clone(),
+                    client_poll.clone(),
+                    addr.clone(),
+                    request.clone(),
+                )
+                .await
+            }
+            PlacementCenterService::OpenRaft => {
+                openraft_interface_call(
                     interface.clone(),
                     client_poll.clone(),
                     addr.clone(),

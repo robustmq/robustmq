@@ -14,7 +14,7 @@
 
 use crate::{
     cache::placement::PlacementCacheManager,
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+    raftv1::apply::{RaftMachineApply, StorageData, StorageDataType},
 };
 use common_base::tools::now_second;
 use log::{error, info};

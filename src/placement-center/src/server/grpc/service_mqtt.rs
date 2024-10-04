@@ -15,7 +15,7 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     core::share_sub::ShareSubLeader,
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+    raftv1::apply::{RaftMachineApply, StorageData, StorageDataType},
     storage::{
         mqtt::{
             acl::AclStorage, blacklist::MQTTBlackListStorage, session::MQTTSessionStorage,
