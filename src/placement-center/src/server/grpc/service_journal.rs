@@ -29,7 +29,8 @@
  */
 use crate::{
     cache::placement::PlacementCacheManager,
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+    storage::route::apply::RaftMachineApply,
+    storage::route::data::{StorageData, StorageDataType},
 };
 use clients::poll::ClientPool;
 use prost::Message;
@@ -44,19 +45,19 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
-    placement_center_storage: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<RaftMachineApply>,
     placement_cache: Arc<PlacementCacheManager>,
     client_poll: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
     pub fn new(
-        placement_center_storage: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<RaftMachineApply>,
         placement_cache: Arc<PlacementCacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
-            placement_center_storage,
+            raft_machine_apply,
             placement_cache,
             client_poll,
         }
@@ -76,11 +77,7 @@ impl EngineService for GrpcEngineService {
             StorageDataType::JournalCreateShard,
             CreateShardRequest::encode_to_vec(&req),
         );
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "create_shard".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -99,11 +96,7 @@ impl EngineService for GrpcEngineService {
             StorageDataType::JournalDeleteShard,
             DeleteShardRequest::encode_to_vec(&req),
         );
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "delete_shard".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -131,11 +124,7 @@ impl EngineService for GrpcEngineService {
             StorageDataType::JournalCreateSegment,
             CreateSegmentRequest::encode_to_vec(&req),
         );
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "create_segment".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -155,11 +144,7 @@ impl EngineService for GrpcEngineService {
             DeleteSegmentRequest::encode_to_vec(&req),
         );
 
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "delete_segment".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

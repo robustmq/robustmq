@@ -206,10 +206,14 @@ impl PlacementCacheManager {
 
     pub fn update_raft_role(&self, local_new_role: StateRole, leader_id: u64) {
         if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
-            if let Some(leader) = cluster.votes.clone().get(&leader_id) {
-                cluster.update_raft_role(local_new_role, Some(leader.clone()));
-            } else {
-                error!("Invalid leader id, the node corresponding to the leader id cannot be found in votes.");
+            cluster.update_node_raft_role(local_new_role);
+            
+            if leader_id > 0 {
+                if let Some(leader) = cluster.votes.clone().get(&leader_id) {
+                    cluster.set_leader(Some(leader.clone()));
+                } else {
+                    error!("Invalid leader id, the node corresponding to the leader id cannot be found in votes.");
+                }
             }
         }
     }

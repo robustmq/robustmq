@@ -14,7 +14,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use common_base::tools::now_second;
+use common_base::{error::common::CommonError, tools::now_second};
 use log::error;
 use metadata_struct::mqtt::{lastwill::LastWillData, topic::MQTTTopic};
 use tokio::time::sleep;
@@ -22,7 +22,7 @@ use tokio::time::sleep;
 use crate::storage::{
     keys::{storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix},
     mqtt::{lastwill::MQTTLastWillStorage, topic::MQTTTopicStorage},
-    rocksdb::RocksDBEngine,
+    rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER},
     StorageDataWrap,
 };
 
@@ -43,7 +43,19 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
         let topic_storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = self.rocksdb_engine_handler.cf_cluster();
+        let cf = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
+        {
+            cf
+        } else {
+            error!(
+                "{}",
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string())
+            );
+            return;
+        };
+
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         while iter.valid() {
@@ -96,7 +108,18 @@ impl MessageExpire {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
         let lastwill_storage = MQTTLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
-        let cf = self.rocksdb_engine_handler.cf_cluster();
+        let cf = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
+        {
+            cf
+        } else {
+            error!(
+                "{}",
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string())
+            );
+            return;
+        };
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         while iter.valid() {

@@ -38,7 +38,7 @@ use crate::error::common::CommonError;
 ///
 /// # Possible errors
 /// If the directory creation fails, a 'CommonError' containing the reason for the error will be returned.
-pub fn create_fold(fold: &String) -> Result<(), CommonError> {
+pub fn try_create_fold(fold: &String) -> Result<(), CommonError> {
     if !Path::new(fold).exists() {
         fs::create_dir_all(fold)?
     }

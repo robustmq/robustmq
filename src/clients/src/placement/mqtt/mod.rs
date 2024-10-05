@@ -17,7 +17,12 @@ use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use inner::{
-    inner_create_acl, inner_create_blacklist, inner_create_session, inner_create_topic, inner_create_user, inner_delete_acl, inner_delete_blacklist, inner_delete_session, inner_delete_topic, inner_delete_user, inner_get_placement_center_leader_address, inner_is_placement_leader, inner_list_acl, inner_list_blacklist, inner_list_session, inner_list_topic, inner_list_user, inner_save_last_will_message, inner_set_topic_retain_message, inner_update_session
+    inner_create_acl, inner_create_blacklist, inner_create_session, inner_create_topic,
+    inner_create_user, inner_delete_acl, inner_delete_blacklist, inner_delete_session,
+    inner_delete_topic, inner_delete_user, inner_get_placement_center_leader_address,
+    inner_is_placement_leader, inner_list_acl, inner_list_blacklist, inner_list_session,
+    inner_list_topic, inner_list_user, inner_save_last_will_message,
+    inner_set_topic_retain_message, inner_update_session,
 };
 use mobc::{Connection, Manager};
 use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
@@ -31,7 +36,10 @@ async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<MQTTServiceManager>, CommonError> {
-    match client_poll.placement_center_mqtt_services_client(addr).await {
+    match client_poll
+        .placement_center_mqtt_services_client(addr)
+        .await
+    {
         Ok(client) => {
             return Ok(client);
         }
@@ -44,29 +52,29 @@ async fn mqtt_client(
 pub(crate) async fn mqtt_interface_call(
     interface: PlacementCenterInterface,
     client_poll: Arc<ClientPool>,
-    mut addr: String,
+    addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     loop {
         match mqtt_client(client_poll.clone(), addr.clone()).await {
             Ok(client) => {
-                let forward_info = match should_forward_to_leader_with_address(
-                    client.clone(),
-                    interface.clone(),
-                ).await {
-                    Ok(result) => {
-                        result
-                    }
-                    Err(e) => {
-                        return Err(e);
-                    },
-                };
+                // let forward_info = match should_forward_to_leader_with_address(
+                //     client.clone(),
+                //     interface.clone(),
+                // ).await {
+                //     Ok(result) => {
+                //         result
+                //     }
+                //     Err(e) => {
+                //         return Err(e);
+                //     },
+                // };
 
-                let (should_forward, forward_address) = forward_info;
-                if should_forward {
-                    addr = forward_address.unwrap();
-                    continue;
-                }
+                // let (should_forward, forward_address) = forward_info;
+                // if should_forward {
+                //     addr = forward_address.unwrap();
+                //     continue;
+                // }
                 let result = match interface {
                     PlacementCenterInterface::GetShareSubLeader => {
                         inner_get_share_sub_leader(client, request.clone()).await
@@ -155,33 +163,29 @@ pub(crate) async fn should_forward_to_leader_with_address(
         return Ok((false, None));
     }
 
-    let is_leader: Result<bool, CommonError> = match inner_is_placement_leader(client.clone()).await {
-        Ok(result) => {
-            Ok(result)
-        },
-        Err(e) => {
-            Err(e)
-        }
+    let is_leader: Result<bool, CommonError> = match inner_is_placement_leader(client.clone()).await
+    {
+        Ok(result) => Ok(result),
+        Err(e) => Err(e),
     };
     if is_leader.is_err() {
         return Err(is_leader.err().unwrap());
     }
 
     if !is_leader.ok().unwrap() {
-        let get_leader_address: Result<Option<String>, CommonError> = match inner_get_placement_center_leader_address(client.clone()).await {
-            Ok(result) => {
-                Ok(result)
-            },
-            Err(e) => {
-                Err(e)
-            }
-        };
+        let get_leader_address: Result<Option<String>, CommonError> =
+            match inner_get_placement_center_leader_address(client.clone()).await {
+                Ok(result) => Ok(result),
+                Err(e) => Err(e),
+            };
         if get_leader_address.is_err() {
             return Err(get_leader_address.err().unwrap());
         }
         let address = get_leader_address.ok();
         if address.is_none() || address.clone().unwrap().is_none() {
-            return Err(CommonError::CommmonError("Get leader address fail".to_string()));
+            return Err(CommonError::CommmonError(
+                "Get leader address fail".to_string(),
+            ));
         }
         return Ok((true, address.unwrap()));
     }

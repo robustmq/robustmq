@@ -1,0 +1,60 @@
+# Copyright 2023 RobustMQ Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
+      - "!v*-alpha*"
+      - "!v*-beta*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup | Rust
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: nightly
+          profile: minimal
+          override: true
+
+      - name: Publish openraft
+        run: cd openraft && cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+
+  # release:
+  #   needs: publish
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Setup | Checkout
+  #       uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0
+
+  #     # save tag name in var "tag"
+  #     - name: Extract tag
+  #       id: vars
+  #       run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+
+  #     - name: Build | Publish
+  #       uses: softprops/action-gh-release@v1
+  #       with:
+  #         body_path: change-log/${{ steps.vars.outputs.tag }}.md
+  #         draft: true
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -47,7 +47,7 @@ mod tests {
         let exist_req = ExistsRequest { key: key.clone() };
         match placement_exists(client_poll.clone(), addrs.clone(), exist_req).await {
             Ok(da) => {
-                assert!(da.flag)
+               assert!(da.flag)
             }
             Err(e) => {
                 println!("{}", e.to_string());

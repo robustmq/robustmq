@@ -74,7 +74,7 @@ impl ClusterMetadata {
         ClusterMetadata {
             local,
             leader: None,
-            raft_role: format!("{:?}", StateRole::Follower),
+            raft_role: role_to_string(StateRole::Candidate),
             votes,
             members: DashMap::with_capacity(2),
         }
@@ -88,8 +88,11 @@ impl ClusterMetadata {
         self.members.remove(&id);
     }
 
-    pub fn update_raft_role(&mut self, local_new_role: StateRole, new_leader: Option<RaftNode>) {
-        self.raft_role = format!("{:?}", local_new_role);
+    pub fn update_node_raft_role(&mut self, local_new_role: StateRole) {
+        self.raft_role = role_to_string(local_new_role);
+    }
+
+    pub fn set_leader(&mut self, new_leader: Option<RaftNode>) {
         self.leader = new_leader;
     }
 
@@ -101,11 +104,21 @@ impl ClusterMetadata {
     }
 
     pub fn is_raft_role_change(&self, new_role: StateRole) -> bool {
-        let n_role = format!("{:?}", new_role);
+        let n_role = role_to_string(new_role);
         return !(n_role == self.raft_role);
     }
 
     pub fn is_leader(&self) -> bool {
-        self.raft_role == format!("{:?}", StateRole::Leader)
+        self.raft_role == role_to_string(StateRole::Leader)
     }
+}
+
+fn role_to_string(role: StateRole) -> String {
+    let str = match role {
+        StateRole::Leader => "Leader".to_string(),
+        StateRole::Follower => "Follower".to_string(),
+        StateRole::Candidate => "Candidate".to_string(),
+        StateRole::PreCandidate => "PreCandidate".to_string(),
+    };
+    return str;
 }

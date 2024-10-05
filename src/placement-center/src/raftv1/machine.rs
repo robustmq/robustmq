@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::apply::{RaftMessage, RaftResponseMesage};
-use super::route::DataRoute;
+use super::rocksdb::RaftMachineStorage;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::raft_node::RaftNode;
-use crate::raft::peer::PeerMessage;
-use crate::storage::placement::raft::RaftMachineStorage;
+use crate::raftv1::peer::PeerMessage;
+use crate::storage::route::apply::{RaftMessage, RaftResponseMesage};
+use crate::storage::route::DataRoute;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
+use common_base::error::common::CommonError;
 use log::{debug, error, info};
 use prost::Message as _;
 use raft::eraftpb::{
-    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, MessageType,
-    Snapshot,
+    ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
 };
 use raft::{Config, RawNode};
 use slog::o;
@@ -46,10 +46,10 @@ pub struct RaftMachine {
     seqnum: AtomicUsize,
     resp_channel: HashMap<usize, oneshot::Sender<RaftResponseMesage>>,
     data_route: Arc<DataRoute>,
-    entry_num: AtomicUsize,
     peer_message_send: Sender<PeerMessage>,
     stop_recv: broadcast::Receiver<bool>,
     raft_storage: Arc<RwLock<RaftMachineStorage>>,
+    local_node_id: u64,
 }
 
 impl RaftMachine {
@@ -62,23 +62,28 @@ impl RaftMachine {
         raft_storage: Arc<RwLock<RaftMachineStorage>>,
     ) -> Self {
         let seqnum = AtomicUsize::new(1);
-        let entry_num = AtomicUsize::new(1);
         let resp_channel = HashMap::new();
+        let conf = placement_center_conf();
         return Self {
             cache_placement,
             receiver,
             seqnum,
             resp_channel,
             data_route,
-            entry_num,
             peer_message_send,
             stop_recv,
             raft_storage,
+            local_node_id: conf.node.node_id,
         };
     }
 
-    pub async fn run(&mut self) {
-        let mut raft_node: RawNode<RaftRocksDBStorage> = self.new_node().await;
+    pub async fn run(&mut self) -> Result<(), CommonError> {
+        let mut raft_node = match self.new_node() {
+            Ok(data) => data,
+            Err(e) => {
+                panic!("{}", e.to_string());
+            }
+        };
 
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
@@ -104,31 +109,24 @@ impl RaftMachine {
                             self.resp_channel.insert(seq, chan);
                         }
                         Err(e) => {
-                            error!("{}", e,);
+                            error!("raft node propose conf change fail, {}", e,);
                         }
                     }
                 }
 
-                Ok(Some(RaftMessage::Raft { message, chan })) => {
-                    // Step advances the state machine using the given message.
-
-                    match raft_node.step(message) {
-                        // After the step message succeeds, you can return success directly
-                        Ok(_) => match chan.send(RaftResponseMesage::Success) {
-                            Ok(_) => {}
-                            Err(_) => {
-                                error!("{}","commit entry Fails to return data to chan. chan may have been closed");
-                            }
-                        },
-                        Err(e) => {
-                            error!("{}", e);
+                Ok(Some(RaftMessage::Raft { message, chan })) => match raft_node.step(message) {
+                    Ok(_) => match chan.send(RaftResponseMesage::Success) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            error!("{}","commit entry Fails to return data to chan. chan may have been closed");
                         }
+                    },
+                    Err(e) => {
+                        error!("raft node step fail,{}", e);
                     }
-                }
+                },
 
                 Ok(Some(RaftMessage::TransferLeader { node_id, chan })) => {
-                    // Step advances the state machine using the given message.
-                    info!("transfer_leader {}", node_id);
                     raft_node.transfer_leader(node_id);
                     match chan.send(RaftResponseMesage::Success) {
                         Ok(_) => {}
@@ -139,7 +137,6 @@ impl RaftMachine {
                 }
 
                 Ok(Some(RaftMessage::Propose { data, chan })) => {
-                    // Propose proposes data be appended to the raft log.
                     let seq = self
                         .seqnum
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -162,20 +159,30 @@ impl RaftMachine {
             }
 
             self.try_record_role_change(&raft_node);
-            self.on_ready(&mut raft_node).await;
+
+            match self.on_ready(&mut raft_node).await {
+                Ok(()) => {}
+                Err(e) => {
+                    error!("on ready error: {}", e.to_string())
+                }
+            }
         }
+        return Ok(());
     }
 
-    async fn on_ready(&mut self, raft_node: &mut RawNode<RaftRocksDBStorage>) {
+    async fn on_ready(
+        &mut self,
+        raft_node: &mut RawNode<RaftRocksDBStorage>,
+    ) -> Result<(), CommonError> {
         if !raft_node.has_ready() {
-            return;
+            return Ok(());
         }
 
         let mut ready = raft_node.ready();
         // After receiving the data sent by the client,
         // the data needs to be sent to other Raft nodes for persistent storage.
         if !ready.messages().is_empty() {
-            self.send_message(ready.take_messages()).await;
+            self.send_message(ready.take_messages()).await?;
         }
 
         // If the snapshot is not empty, save the snapshot to Storage, and apply
@@ -184,89 +191,74 @@ impl RaftMachine {
         // but the snapshot is usually large. Synchronization blocks threads).
         if *ready.snapshot() != Snapshot::default() {
             let s = ready.snapshot().clone();
-            info!(
-                "save snapshot,term:{},index:{}",
-                s.get_metadata().get_term(),
-                s.get_metadata().get_index()
-            );
-            raft_node.mut_store().apply_snapshot(s).unwrap();
+            raft_node.mut_store().recovery_snapshot(s)?;
         }
 
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
             let entries = ready.entries();
-            raft_node.mut_store().append(entries).unwrap();
+            raft_node.mut_store().append_entrys(entries)?;
         }
 
         // The committed raft log can be applied to the State Machine.
-        self.handle_committed_entries(raft_node, ready.take_committed_entries());
+        self.handle_committed_entries(raft_node, ready.take_committed_entries())?;
 
         // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
         if let Some(hs) = ready.hs() {
             debug!("save hardState!!!,len:{:?}", hs);
-            raft_node.mut_store().set_hard_state(hs.clone()).unwrap();
+            raft_node.mut_store().set_hard_state(hs.clone())?;
         }
 
         // Persisted Messages specifies outbound messages to be sent AFTER the HardState,
         // Entries and Snapshot are persisted to stable storage.
         if !ready.persisted_messages().is_empty() {
-            self.send_message(ready.take_persisted_messages()).await;
+            self.send_message(ready.take_persisted_messages()).await?;
         }
 
         // A call to advance tells Raft that it is ready for processing.
         let mut light_rd = raft_node.advance(ready);
         if let Some(commit) = light_rd.commit_index() {
             debug!("save light rd!!!,commit:{:?}", commit);
-            raft_node.mut_store().set_hard_state_comit(commit).unwrap();
+            raft_node.mut_store().set_hard_state_comit(commit)?;
         }
 
-        self.send_message(light_rd.take_messages()).await;
+        self.send_message(light_rd.take_messages()).await?;
 
-        self.handle_committed_entries(raft_node, light_rd.take_committed_entries());
+        self.handle_committed_entries(raft_node, light_rd.take_committed_entries())?;
 
         raft_node.advance_apply();
+        return Ok(());
     }
 
     fn handle_committed_entries(
         &mut self,
         raft_node: &mut RawNode<RaftRocksDBStorage>,
         entrys: Vec<Entry>,
-    ) {
+    ) -> Result<(), CommonError> {
         for entry in entrys {
             if !entry.data.is_empty() {
                 debug!("ready entrys entry type:{:?}", entry.get_entry_type());
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
-                        match self.data_route.route(entry.get_data().to_vec()) {
-                            Ok(_) => {}
-                            Err(err) => {
-                                error!("{}", err);
-                            }
-                        }
+                        self.data_route.route_vec(entry.get_data().to_vec())?
                     }
                     EntryType::EntryConfChange => {
-                        let change = ConfChange::decode(entry.get_data())
-                            .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
-                            .unwrap();
+                        let change = ConfChange::decode(entry.get_data())?;
                         let id = change.get_node_id();
                         let change_type = change.get_change_type();
                         match change_type {
                             ConfChangeType::AddNode => {
-                                match deserialize::<RaftNode>(change.get_context()) {
-                                    Ok(node) => {
-                                        self.cache_placement.add_raft_memner(node);
-                                    }
-                                    Err(e) => {
-                                        error!("Failed to parse Node data from context with error message {:?}", e);
-                                    }
-                                }
+                                let node = deserialize::<RaftNode>(change.get_context())?;
+                                self.cache_placement.add_raft_memner(node);
                             }
                             ConfChangeType::RemoveNode => {
                                 self.cache_placement.remove_raft_memner(id);
                             }
-                            _ => unimplemented!(),
+                            ConfChangeType::AddLearnerNode => {
+                                //todo
+                            }
                         }
 
                         if let Ok(cs) = raft_node.apply_conf_change(&change) {
@@ -279,27 +271,30 @@ impl RaftMachine {
 
             let idx: u64 = entry.get_index();
             let _ = raft_node.mut_store().commmit_index(idx);
-
-            match deserialize(entry.get_context()) {
-                Ok(seq) => match self.resp_channel.remove(&seq) {
-                    Some(chan) => match chan.send(RaftResponseMesage::Success) {
+            if !entry.get_context().is_empty() {
+                let seq = deserialize(entry.get_context())?;
+                if let Some(chan) = self.resp_channel.remove(&seq) {
+                    match chan.send(RaftResponseMesage::Success) {
                         Ok(_) => {}
                         Err(_) => {
-                            error!("commit entry Fails to return data to chan. chan may have been closed");
+                            return Err(CommonError::CommmonError(
+                                "commit entry Fails to return data to chan. chan may have been closed"
+                                    .to_string(),
+                            ));
                         }
-                    },
-                    None => {}
-                },
-                Err(_) => {}
+                    }
+                }
             }
-
-            self.create_snapshot(raft_node);
         }
+        return Ok(());
     }
 
-    async fn send_message(&self, messages: Vec<raftPreludeMessage>) {
+    async fn send_message(&self, messages: Vec<raftPreludeMessage>) -> Result<(), CommonError> {
         for msg in messages {
             let to = msg.get_to();
+            if to == self.local_node_id {
+                continue;
+            }
             debug!("send raft message:{:?}, to:{}", msg, to);
             let data: Vec<u8> = raftPreludeMessage::encode_to_vec(&msg);
             if let Some(node) = self.cache_placement.get_votes_node_by_id(to) {
@@ -312,26 +307,30 @@ impl RaftMachine {
                     .await
                 {
                     Ok(_) => {}
-                    Err(e) => error!(
-                        "Failed to write Raft Message to send queue with error message: {:?}",
-                        e.to_string()
-                    ),
+                    Err(e) => {
+                        return Err(CommonError::CommmonError(format!(
+                            "Failed to write Raft Message to send queue with error message: {:?}",
+                            e.to_string()
+                        )))
+                    }
                 }
             } else {
-                error!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to);
+                return Err(CommonError::CommmonError(format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to)));
             }
         }
+        return Ok(());
     }
 
-    async fn new_node(&self) -> RawNode<RaftRocksDBStorage> {
+    fn new_node(&self) -> Result<RawNode<RaftRocksDBStorage>, CommonError> {
         let storage = RaftRocksDBStorage::new(self.raft_storage.clone());
+        let core = storage.read_lock()?;
 
-        // build config
-        let hs = storage.read_lock().hard_state();
+        // recover hard commit
+        let hs = core.hard_state();
         let conf = self.build_config(hs.commit);
 
-        // init voters && learns
-        let mut cs = storage.read_lock().conf_state();
+        // update cs voetes
+        let mut cs = core.conf_state();
         let vote_ids = self
             .cache_placement
             .get_raft_votes()
@@ -339,11 +338,19 @@ impl RaftMachine {
             .map(|node| node.node_id)
             .collect();
         cs.voters = vote_ids;
-        let _ = storage.write_lock().save_conf_state(cs);
+        let _ = core.save_conf_state(cs);
 
+        // init config
         let logger = self.build_slog();
-        let node = RawNode::new(&conf, storage, &logger).unwrap();
-        return node;
+        let storage = RaftRocksDBStorage::new(self.raft_storage.clone());
+
+        let node = match RawNode::new(&conf, storage, &logger) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        };
+        return Ok(node);
     }
 
     fn build_config(&self, apply: u64) -> Config {
@@ -392,15 +399,6 @@ impl RaftMachine {
         return logger;
     }
 
-    fn create_snapshot(&self, raft_node: &mut RawNode<RaftRocksDBStorage>) {
-        let num = self
-            .entry_num
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if num % 1000 == 0 {
-            raft_node.mut_store().create_snapshot().unwrap();
-        }
-    }
-
     fn try_record_role_change(&self, raft_node: &RawNode<RaftRocksDBStorage>) {
         if self
             .cache_placement
@@ -411,7 +409,6 @@ impl RaftMachine {
                 self.cache_placement.get_current_raft_role(),
                 raft_node.raft.state
             );
-
             self.cache_placement
                 .update_raft_role(raft_node.raft.state, raft_node.raft.leader_id);
         }

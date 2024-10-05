@@ -14,7 +14,8 @@
 
 use crate::{
     cache::placement::PlacementCacheManager,
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+    storage::route::apply::RaftMachineApply,
+    storage::route::data::{StorageData, StorageDataType},
 };
 use common_base::tools::now_second;
 use log::{error, info};
@@ -71,13 +72,7 @@ impl BrokerHeartbeat {
                                     UnRegisterNodeRequest::encode_to_vec(&req),
                                 );
                                 tokio::spawn(async move {
-                                    match pcs
-                                        .apply_propose_message(
-                                            data,
-                                            "heartbeat_remove_node".to_string(),
-                                        )
-                                        .await
-                                    {
+                                    match pcs.client_write(data).await {
                                         Ok(_) => {
                                             info!(
                                                    "The heartbeat of the Storage Engine node times out and is deleted from the cluster. Node ID: {}, node IP: {}.",
@@ -92,12 +87,18 @@ impl BrokerHeartbeat {
                             }
                         }
                     } else {
-                        self.cluster_cache
-                            .report_heart_by_broker_node(&cluster_name, node_id, now_second());
+                        self.cluster_cache.report_heart_by_broker_node(
+                            &cluster_name,
+                            node_id,
+                            now_second(),
+                        );
                     }
                 } else {
-                    self.cluster_cache
-                        .report_heart_by_broker_node(&cluster_name, node_id, now_second());
+                    self.cluster_cache.report_heart_by_broker_node(
+                        &cluster_name,
+                        node_id,
+                        now_second(),
+                    );
                 }
             }
         }

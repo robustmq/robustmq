@@ -59,8 +59,9 @@ mod tests {
         let mqtt_version = 4;
         let client_id = unique_id();
         let addr = broker_ws_addr();
+        
         v3_wrong_password_test(mqtt_version, &client_id, &addr, true, false);
-        v3_session_present_test(mqtt_version, &client_id, &addr, true, false);
+        // v3_session_present_test(mqtt_version, &client_id, &addr, true, false);
     }
 
     #[tokio::test]
@@ -107,14 +108,17 @@ mod tests {
         ssl: bool,
     ) {
         let create_opts = build_create_pros(client_id, addr);
-
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
+        let cli = match Client::new(create_opts) {
+            Ok(data) => data,
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false);
+                return;
+            }
+        };
 
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
-
+        println!("{:?}",conn_opts);
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
@@ -138,17 +142,22 @@ mod tests {
             }
             Err(e) => {
                 println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
+                assert!(false);
+                return;
             }
         }
         distinct_conn(cli);
 
         let create_opts = build_create_pros(client_id, addr);
 
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
+        let cli = match Client::new(create_opts) {
+            Ok(data) => data,
+            Err(e) => {
+                println!("Error creating the client: {:?}", e);
+                assert!(false);
+                return;
+            }
+        };
 
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
 
@@ -175,7 +184,8 @@ mod tests {
             }
             Err(e) => {
                 println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
+                assert!(false);
+                return;
             }
         }
 

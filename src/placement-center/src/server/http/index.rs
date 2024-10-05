@@ -35,7 +35,6 @@ use common_base::{http_response::success_response, metrics::dump_metrics};
 use dashmap::DashMap;
 use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct IndexResponse {
@@ -58,14 +57,12 @@ pub struct RaftInfo {
     pub voters_outgoing: Vec<u64>,
     pub learners_next: Vec<u64>,
     pub auto_leave: bool,
-    pub uncommit_index: HashMap<u64, i8>,
 }
 
 pub async fn index(State(state): State<HttpServerState>) -> String {
     let storage = state.raft_storage.read().unwrap();
     let hs = storage.hard_state();
     let cs = storage.conf_state();
-    let uncommit_index = storage.uncommit_index();
 
     let raft_info = RaftInfo {
         role: format!("{:?}", state.placement_cache.get_current_raft_role()),
@@ -79,7 +76,6 @@ pub async fn index(State(state): State<HttpServerState>) -> String {
         voters_outgoing: cs.voters_outgoing.to_vec(),
         learners_next: cs.learners_next.to_vec(),
         auto_leave: cs.auto_leave,
-        uncommit_index: uncommit_index,
     };
 
     let resp = IndexResponse {

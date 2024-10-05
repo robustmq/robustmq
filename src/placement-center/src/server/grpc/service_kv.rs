@@ -28,8 +28,12 @@
  * limitations under the License.
  */
 use crate::{
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
-    storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine},
+    storage::route::apply::RaftMachineApply,
+    storage::{
+        placement::kv::KvStorage,
+        rocksdb::RocksDBEngine,
+        route::data::{StorageData, StorageDataType},
+    },
 };
 use common_base::error::common::CommonError;
 use prost::Message;
@@ -44,17 +48,17 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcKvService {
-    placement_center_storage: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<RaftMachineApply>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcKvService {
     pub fn new(
-        placement_center_storage: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<RaftMachineApply>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcKvService {
-            placement_center_storage,
+            raft_machine_apply,
             rocksdb_engine_handler,
         }
     }
@@ -73,11 +77,7 @@ impl KvService for GrpcKvService {
 
         // Raft state machine is used to store Node data
         let data = StorageData::new(StorageDataType::KvSet, SetRequest::encode_to_vec(&req));
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "set".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -125,11 +125,7 @@ impl KvService for GrpcKvService {
             StorageDataType::KvDelete,
             DeleteRequest::encode_to_vec(&req),
         );
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "delete".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

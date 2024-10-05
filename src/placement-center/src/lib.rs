@@ -12,34 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::raft::peer::{PeerMessage, RaftPeersManager};
+use self::raftv1::peer::PeerMessage;
 use crate::server::http::server::{start_http_server, HttpServerState};
 use cache::journal::JournalCacheManager;
 use cache::mqtt::MqttCacheManager;
 use cache::placement::PlacementCacheManager;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
-use common_base::runtime::create_runtime;
 use controller::journal::controller::StorageEngineController;
 use controller::mqtt::MQTTController;
 use controller::placement::controller::ClusterController;
 use log::info;
+use openraft::Raft;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raft::apply::{RaftMachineApply, RaftMessage};
-use raft::machine::RaftMachine;
-use raft::route::DataRoute;
+use raftv1::rocksdb::RaftMachineStorage;
+use raftv2::raft_node::{create_raft_node, start_openraft_node};
+use raftv2::typeconfig::TypeConfig;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use storage::placement::raft::RaftMachineStorage;
-use storage::rocksdb::{column_family_list, RocksDBEngine};
-use tokio::runtime::Runtime;
+use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
+use storage::route::apply::{RaftMachineApply, RaftMessage};
+use storage::route::DataRoute;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
@@ -48,13 +48,12 @@ use tonic::transport::Server;
 mod cache;
 mod controller;
 mod core;
-mod raft;
+mod raftv1;
+mod raftv2;
 mod server;
 mod storage;
 
 pub struct PlacementCenter {
-    server_runtime: Runtime,
-    daemon_runtime: Runtime,
     // Cache metadata information for the Storage Engine cluster
     cluster_cache: Arc<PlacementCacheManager>,
     // Cache metadata information for the Broker Server cluster
@@ -71,12 +70,9 @@ pub struct PlacementCenter {
 impl PlacementCenter {
     pub fn new() -> PlacementCenter {
         let config = placement_center_conf();
-        let server_runtime = create_runtime("server-runtime", config.system.runtime_work_threads);
-        let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
-
         let client_poll = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -94,8 +90,6 @@ impl PlacementCenter {
         )));
 
         return PlacementCenter {
-            server_runtime,
-            daemon_runtime,
             cluster_cache,
             engine_cache,
             mqtt_cache,
@@ -105,33 +99,52 @@ impl PlacementCenter {
         };
     }
 
-    pub fn start(&mut self, stop_send: broadcast::Sender<bool>) {
+    pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
-        let placement_center_storage = Arc::new(RaftMachineApply::new(raft_message_send));
+
+        let data_route = Arc::new(DataRoute::new(
+            self.rocksdb_engine_handler.clone(),
+            self.cluster_cache.clone(),
+            self.engine_cache.clone(),
+        ));
+
+        let openraft_node = create_raft_node(self.client_poll.clone(), data_route).await;
+
+        let placement_center_storage = Arc::new(RaftMachineApply::new(
+            raft_message_send,
+            openraft_node.clone(),
+            storage::route::apply::ClusterRaftModel::V2,
+        ));
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
-        self.start_peers_manager(peer_message_recv, stop_send.clone());
+        self.start_raftv1_machine(
+            peer_message_send,
+            peer_message_recv,
+            raft_message_recv,
+            stop_send.clone(),
+        );
 
-        self.start_raft_machine(peer_message_send, raft_message_recv, stop_send.subscribe());
+        self.start_raftv2_machine(openraft_node.clone());
 
-        self.start_http_server();
+        self.start_http_server(placement_center_storage.clone());
 
         self.start_grpc_server(placement_center_storage.clone());
 
-        self.awaiting_stop(stop_send);
+        self.awaiting_stop(stop_send).await;
     }
 
     // Start HTTP Server
-    pub fn start_http_server(&self) {
+    pub fn start_http_server(&self, raft_machine_apply: Arc<RaftMachineApply>) {
         let state: HttpServerState = HttpServerState::new(
             self.cluster_cache.clone(),
             self.raft_machine_storage.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
+            raft_machine_apply.clone(),
         );
-        self.server_runtime.spawn(async move {
+        tokio::spawn(async move {
             start_http_server(state).await;
         });
     }
@@ -166,7 +179,7 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
         );
 
-        self.server_runtime.spawn(async move {
+        tokio::spawn(async move {
             info!("RobustMQ Meta Grpc Server start success. bind addr:{}", ip);
             Server::builder()
                 .add_service(PlacementCenterServiceServer::new(placement_handler))
@@ -190,7 +203,7 @@ impl PlacementCenter {
             placement_center_storage.clone(),
             stop_send.clone(),
         );
-        self.daemon_runtime.spawn(async move {
+        tokio::spawn(async move {
             ctrl.start_node_heartbeat_check().await;
         });
 
@@ -201,79 +214,73 @@ impl PlacementCenter {
             self.client_poll.clone(),
             stop_send.clone(),
         );
-        self.daemon_runtime.spawn(async move {
+        tokio::spawn(async move {
             mqtt_controller.start().await;
         });
 
         let journal_controller = StorageEngineController::new();
-        self.daemon_runtime.spawn(async move {
+        tokio::spawn(async move {
             journal_controller.start().await;
         });
     }
 
     // Start Raft Status Machine
-    pub fn start_raft_machine(
+    pub fn start_raftv1_machine(
         &self,
-        peer_message_send: Sender<PeerMessage>,
-        raft_message_recv: Receiver<RaftMessage>,
-        stop_recv: broadcast::Receiver<bool>,
+        _: Sender<PeerMessage>,
+        _: Receiver<PeerMessage>,
+        _: Receiver<RaftMessage>,
+        _: broadcast::Sender<bool>,
     ) {
-        let data_route = Arc::new(DataRoute::new(
-            self.rocksdb_engine_handler.clone(),
-            self.cluster_cache.clone(),
-            self.engine_cache.clone(),
-        ));
+        // let data_route = Arc::new(DataRoute::new(
+        //     self.rocksdb_engine_handler.clone(),
+        //     self.cluster_cache.clone(),
+        //     self.engine_cache.clone(),
+        // ));
 
-        let mut raft: RaftMachine = RaftMachine::new(
-            self.cluster_cache.clone(),
-            data_route,
-            peer_message_send,
-            raft_message_recv,
-            stop_recv,
-            self.raft_machine_storage.clone(),
-        );
-        self.daemon_runtime.spawn(async move {
-            raft.run().await;
-        });
+        // let stop_recv = stop_send.subscribe();
+        // let mut raft: RaftMachine = RaftMachine::new(
+        //     self.cluster_cache.clone(),
+        //     data_route,
+        //     peer_message_send,
+        //     raft_message_recv,
+        //     stop_recv,
+        //     self.raft_machine_storage.clone(),
+        // );
+        // tokio::spawn(async move {
+        //     raft.run().await;
+        // });
+
+        // let mut peers_manager =
+        //     RaftPeersManager::new(peer_message_recv, self.client_poll.clone(), 5, stop_send);
+
+        // tokio::spawn(async move {
+        //     peers_manager.start().await;
+        // });
+
+        // info!("Raft Node inter-node communication management thread started successfully");
     }
 
-    // Start Raft Node Peer Manager
-    pub fn start_peers_manager(
-        &self,
-        peer_message_recv: Receiver<PeerMessage>,
-        stop_send: broadcast::Sender<bool>,
-    ) {
-        let mut peers_manager =
-            RaftPeersManager::new(peer_message_recv, self.client_poll.clone(), 5, stop_send);
-
-        self.daemon_runtime.spawn(async move {
-            peers_manager.start().await;
+    // Start Raft Status Machine
+    pub fn start_raftv2_machine(&self, openraft_node: Raft<TypeConfig>) {
+        tokio::spawn(async move {
+            start_openraft_node(openraft_node).await;
         });
-
-        info!("Raft Node inter-node communication management thread started successfully");
     }
 
     // Wait Stop Signal
-    pub fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
-        self.server_runtime.spawn(async move {
+    pub async fn awaiting_stop(&self, stop_send: broadcast::Sender<bool>) {
+        tokio::spawn(async move {
             sleep(Duration::from_millis(5)).await;
             info!("Placement Center service started successfully...");
         });
 
-        // Wait for the stop signal
-        self.server_runtime.block_on(async move {
-            loop {
-                signal::ctrl_c().await.expect("failed to listen for event");
-                match stop_send.send(true) {
-                    Ok(_) => {
-                        info!("When ctrl + c is received, the service starts to stop");
-                        break;
-                    }
-                    Err(_) => {}
-                }
+        signal::ctrl_c().await.expect("failed to listen for event");
+        match stop_send.send(true) {
+            Ok(_) => {
+                info!("When ctrl + c is received, the service starts to stop");
             }
-        });
-
-        // todo tokio runtime shutdown
+            Err(_) => {}
+        }
     }
 }

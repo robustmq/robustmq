@@ -38,10 +38,13 @@ axum.workspace = true
 toml.workspace = true
 clients.workspace = true
 metadata-struct.workspace = true
+openraft.workspace = true
 # raft = { version = "0.7", features = ["prost-codec"], default-features = false }
 #prost = "0.11"
 
-raft = { git = "https://github.com/robustmq/raft-rs",  features = ["prost-codec"], default-features = false }
+raft = { git = "https://github.com/robustmq/raft-rs", features = [
+    "prost-codec",
+], default-features = false }
 prost = "0.12.3"
 
 slog = "2"
@@ -49,3 +52,7 @@ slog-term = "2.9.0"
 slog-async = "2.8.0"
 time = "0.3.36"
 log.workspace = true
+mobc.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rocksdb.workspace = true

@@ -1,0 +1,34 @@
+syntax = "proto3";
+package openraft;
+
+service OpenRaftService {
+  rpc vote(VoteRequest) returns(VoteReply){}
+
+  rpc append(AppendRequest) returns(AppendReply){}
+
+  rpc snapshot(SnapshotRequest) returns(SnapshotReply){} 
+}
+
+message VoteRequest{
+    bytes value = 1;
+}
+
+message VoteReply{
+    bytes value = 1;
+}
+
+message AppendRequest{
+    bytes value = 1;
+}
+
+message AppendReply{
+    bytes value = 1;
+}
+
+message SnapshotRequest{
+    bytes value = 1;
+}
+
+message SnapshotReply{
+    bytes value = 1;
+}

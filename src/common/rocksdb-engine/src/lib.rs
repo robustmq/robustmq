@@ -14,48 +14,34 @@
 
 use common_base::error::common::CommonError;
 use log::error;
-use rocksdb::SliceTransform;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
+use rocksdb::{ColumnFamilyDescriptor, SliceTransform};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
 use std::collections::HashMap;
-use std::path::Path;
 
+#[derive(Debug)]
 pub struct RocksDBEngine {
     pub db: DB,
-    cf_list: Vec<String>,
 }
 
 impl RocksDBEngine {
     /// Create a rocksdb instance
     pub fn new(data_path: &str, max_open_files: i32, cf_list: Vec<String>) -> Self {
         let opts: Options = Self::open_db_opts(max_open_files);
-        let db_path = format!("{}/{}", data_path, "_storage_rocksdb");
-
-        // init RocksDB
-        if !Path::new(&db_path).exists() {
-            DB::open(&opts, db_path.clone()).unwrap();
+        let path = data_path.to_string();
+        let mut cf_column_family = Vec::new();
+        for cf in cf_list {
+            cf_column_family.push(ColumnFamilyDescriptor::new(cf, Options::default()));
         }
-
-        // init column family
-        let cf_list_existing = rocksdb::DB::list_cf(&opts, &db_path).unwrap();
-        let mut instance = DB::open_cf(&opts, db_path.clone(), &cf_list_existing).unwrap();
-
-        for family in cf_list.iter() {
-            if cf_list_existing.iter().find(|cf| cf == &family).is_none() {
-                match instance.create_cf(&family, &opts) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        panic!("{}", e);
-                    }
-                }
+        let instance = match DB::open_cf_descriptors(&opts, path, cf_column_family) {
+            Ok(instance) => instance,
+            Err(e) => {
+                panic!("{}", e.to_string());
             }
-        }
-
-        return RocksDBEngine {
-            db: instance,
-            cf_list,
         };
+
+        return RocksDBEngine { db: instance };
     }
 
     /// Write the data serialization to RocksDB
@@ -137,16 +123,6 @@ impl RocksDBEngine {
         return result;
     }
 
-    // Read data from all Columnfamiliy
-    pub fn read_all(&self) -> HashMap<String, Vec<HashMap<String, String>>> {
-        let mut result: HashMap<String, Vec<HashMap<String, String>>> = HashMap::new();
-        for family in self.cf_list.iter() {
-            let cf = self.get_column_family();
-            result.insert(family.to_string(), self.read_all_by_cf(cf));
-        }
-        return result;
-    }
-
     // Read all data in a ColumnFamily
     pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Vec<HashMap<String, String>> {
         let mut iter = self.db.raw_iterator_cf(cf);
@@ -199,12 +175,11 @@ impl RocksDBEngine {
         self.db.key_may_exist_cf(cf, key)
     }
 
-    pub fn cf_cluster(&self) -> &ColumnFamily {
-        return self.db.cf_handle(&self.cf_list[0]).unwrap();
-    }
-
     pub fn cf_handle(&self, name: &str) -> Option<&ColumnFamily> {
-        return self.db.cf_handle(&name);
+        if let Some(cf) = self.db.cf_handle(name) {
+            return Some(cf);
+        }
+        return None;
     }
 
     fn open_db_opts(max_open_files: i32) -> Options {
@@ -231,16 +206,12 @@ impl RocksDBEngine {
 
         return opts;
     }
-
-    pub fn get_column_family(&self) -> &ColumnFamily {
-        return self.cf_cluster();
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::RocksDBEngine;
-    use common_base::{config::placement_center::{placement_center_test_conf, PlacementCenterConfig}, tools::unique_id};
+    use common_base::config::placement_center::placement_center_test_conf;
     use serde::{Deserialize, Serialize};
     use std::{sync::Arc, time::Duration};
     use tokio::{
@@ -254,6 +225,10 @@ mod tests {
         pub age: u32,
     }
 
+    fn cf_name() -> String {
+        return "cluster".to_string();
+    }
+
     #[tokio::test]
     async fn multi_rocksdb_instance() {
         let config = placement_center_test_conf();
@@ -261,8 +236,9 @@ mod tests {
         let rs_handler = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path,
             config.rocksdb.max_open_files.unwrap(),
-            vec!["cluster".to_string()],
+            vec![cf_name()],
         ));
+
         for i in 1..100 {
             let rs = rs_handler.clone();
             tokio::spawn(async move {
@@ -273,10 +249,11 @@ mod tests {
                     name: name.clone(),
                     age: 18,
                 };
-                let res4 = rs.write(rs.cf_cluster(), &key, &user);
+                let cf = rs.cf_handle(&cf_name()).unwrap();
+                let res4 = rs.write(cf, &key, &user);
                 assert!(res4.is_ok());
 
-                let res1 = rs.read::<User>(rs.cf_cluster(), &key);
+                let res1 = rs.read::<User>(cf, &key);
                 let r = res1.unwrap();
                 assert!(!r.is_none());
                 assert_eq!(r.unwrap().name, name);
@@ -299,23 +276,25 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             vec!["cluster".to_string()],
         );
+        let cf = rs.cf_handle(&cf_name()).unwrap();
+
         let key = "name2";
-        let res1 = rs.read::<User>(rs.cf_cluster(), key);
+        let res1 = rs.read::<User>(cf, key);
         assert!(res1.unwrap().is_none());
 
         let user = User {
             name: "lobo".to_string(),
             age: 18,
         };
-        let res4 = rs.write(rs.cf_cluster(), key, &user);
+        let res4 = rs.write(cf, key, &user);
         assert!(res4.is_ok());
 
-        let res5 = rs.read::<User>(rs.cf_cluster(), key);
+        let res5 = rs.read::<User>(cf, key);
         let res5_rs = res5.unwrap().unwrap();
         assert!(res5_rs.name == user.name);
         assert!(res5_rs.age == user.age);
 
-        let res6 = rs.delete(rs.cf_cluster(), key);
+        let res6 = rs.delete(cf, key);
         assert!(res6.is_ok());
 
         match remove_dir(config.rocksdb.data_path).await {
@@ -337,14 +316,14 @@ mod tests {
         );
 
         let index = 66u64;
-        let cf = rs.cf_cluster();
+        let cf = rs.cf_handle(&cf_name()).unwrap();
 
         let key = "/raft/last_index".to_string();
         let _ = rs.write(cf, &key, &index);
         let res1 = rs.read::<u64>(cf, &key).unwrap().unwrap();
         assert_eq!(index, res1);
 
-        let result = rs.read_all_by_cf(rs.cf_cluster());
+        let result = rs.read_all_by_cf(cf);
         assert!(result.len() > 0);
         for raw in result.clone() {
             assert!(raw.contains_key(&key));
@@ -368,35 +347,35 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             vec!["cluster".to_string()],
         );
-        rs.write_str(rs.cf_cluster(), "/v1/v1", "v11".to_string())
+
+        let cf = rs.cf_handle(&cf_name()).unwrap();
+
+        rs.write_str(cf, "/v1/v1", "v11".to_string()).unwrap();
+        rs.write_str(cf, "/v1/v2", "v12".to_string()).unwrap();
+        rs.write_str(cf, "/v1/v3", "v13".to_string()).unwrap();
+        rs.write_str(cf, "/v2/tmp_test/s1", "1".to_string())
             .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v1/v2", "v12".to_string())
+        rs.write_str(cf, "/v2/tmp_test/s3", "2".to_string())
             .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v1/v3", "v13".to_string())
+        rs.write_str(cf, "/v2/tmp_test/s2", "3".to_string())
             .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v2/tmp_test/s1", "1".to_string())
+        rs.write_str(cf, "/v3/tmp_test/s1", "1".to_string())
             .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v2/tmp_test/s3", "2".to_string())
+        rs.write_str(cf, "/v3/tmp_test/s3", "2".to_string())
             .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v2/tmp_test/s2", "3".to_string())
-            .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v3/tmp_test/s1", "1".to_string())
-            .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v3/tmp_test/s3", "2".to_string())
-            .unwrap();
-        rs.write_str(rs.cf_cluster(), "/v4/tmp_test/s2", "3".to_string())
+        rs.write_str(cf, "/v4/tmp_test/s2", "3".to_string())
             .unwrap();
 
-        let result = rs.read_prefix(rs.cf_cluster(), "/v1");
+        let result = rs.read_prefix(cf, "/v1");
         assert_eq!(result.len(), 3);
 
-        let result = rs.read_prefix(rs.cf_cluster(), "/v2");
+        let result = rs.read_prefix(cf, "/v2");
         assert_eq!(result.len(), 3);
 
-        let result = rs.read_prefix(rs.cf_cluster(), "/v3");
+        let result = rs.read_prefix(cf, "/v3");
         assert_eq!(result.len(), 2);
 
-        let result = rs.read_prefix(rs.cf_cluster(), "/v4");
+        let result = rs.read_prefix(cf, "/v4");
         assert_eq!(result.len(), 1);
 
         remove_dir_all(config.rocksdb.data_path).await.unwrap();

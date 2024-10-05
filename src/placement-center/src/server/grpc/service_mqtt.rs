@@ -15,13 +15,14 @@
 use crate::{
     cache::placement::PlacementCacheManager,
     core::share_sub::ShareSubLeader,
-    raft::apply::{RaftMachineApply, StorageData, StorageDataType},
+    storage::route::apply::RaftMachineApply,
     storage::{
         mqtt::{
             acl::AclStorage, blacklist::MQTTBlackListStorage, session::MQTTSessionStorage,
             topic::MQTTTopicStorage, user::MQTTUserStorage,
         },
         rocksdb::RocksDBEngine,
+        route::data::{StorageData, StorageDataType},
     },
 };
 use prost::Message;
@@ -143,11 +144,7 @@ impl MqttService for GrpcMqttService {
             CreateUserRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "create_user".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -166,11 +163,7 @@ impl MqttService for GrpcMqttService {
             DeleteUserRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "delete_user".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -188,11 +181,7 @@ impl MqttService for GrpcMqttService {
             CreateTopicRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "create_topic".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -210,11 +199,7 @@ impl MqttService for GrpcMqttService {
             DeleteTopicRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "delete_topic".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -306,11 +291,7 @@ impl MqttService for GrpcMqttService {
             CreateSessionRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "create_session".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -328,11 +309,7 @@ impl MqttService for GrpcMqttService {
             DeleteSessionRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "delete_session".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -350,11 +327,7 @@ impl MqttService for GrpcMqttService {
             SetTopicRetainMessageRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "set_topic_retain_message".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -372,11 +345,7 @@ impl MqttService for GrpcMqttService {
             UpdateSessionRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "update_session".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -394,11 +363,7 @@ impl MqttService for GrpcMqttService {
             SaveLastWillMessageRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "save_last_will_message".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -443,11 +408,7 @@ impl MqttService for GrpcMqttService {
             CreateAclRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "mqtt_create_acl".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -465,11 +426,7 @@ impl MqttService for GrpcMqttService {
             DeleteAclRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "mqtt_delete_acl".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -515,11 +472,7 @@ impl MqttService for GrpcMqttService {
             CreateBlacklistRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "create_blacklist".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -537,11 +490,7 @@ impl MqttService for GrpcMqttService {
             DeleteBlacklistRequest::encode_to_vec(&req),
         );
 
-        match self
-            .raft_machine_apply
-            .apply_propose_message(data, "delete_blacklist".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

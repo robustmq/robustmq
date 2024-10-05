@@ -82,6 +82,14 @@ log4rs = "1.2.0"
 log = "0.4.0"
 ipnet = "2.3.0"
 os_info = "3.8.2"
+openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
+    "serde",
+    "type-alias",
+    "loosen-follower-log-revert",
+] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
+
 
 ## workspaces members
 mqtt-bridge-kafka = { path = "src/mqtt-bridge/kafka" }

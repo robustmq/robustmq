@@ -42,6 +42,7 @@ use protocol::placement_center::generate::{
 };
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cluster_cache: Arc<PlacementCacheManager>,
@@ -165,7 +166,7 @@ mod tests {
 
     use crate::{
         cache::placement::PlacementCacheManager,
-        raft::route::cluster::DataRouteCluster,
+        storage::route::cluster::DataRouteCluster,
         storage::{
             placement::cluster::ClusterStorage,
             placement::node::NodeStorage,

@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 
-use crate::tools::{create_fold, read_file};
+use crate::tools::{try_create_fold, read_file};
 use serde::Deserialize;
 use std::sync::OnceLock;
 use toml::Table;
@@ -79,14 +79,14 @@ pub fn init_journal_server_conf_by_path(config_path: &String) -> &'static Journa
         };
         let pc_config: JournalServerConfig = toml::from_str(&content).unwrap();
         for fold in pc_config.data_path.clone() {
-            match create_fold(&fold) {
+            match try_create_fold(&fold) {
                 Ok(()) => {}
                 Err(e) => {
                     panic!("{}", e);
                 }
             }
         }
-        match create_fold(&pc_config.log.log_path) {
+        match try_create_fold(&pc_config.log.log_path) {
             Ok(()) => {}
             Err(e) => {
                 panic!("{}", e);

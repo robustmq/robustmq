@@ -28,6 +28,10 @@ pub fn success_response<T: Serialize>(data: T) -> String {
     return serde_json::to_string(&resp).unwrap();
 }
 
-pub fn error_response() -> String {
-    return "".to_string();
+pub fn error_response(err: String) -> String {
+    let resp = Response {
+        code: 100,
+        data: err,
+    };
+    return serde_json::to_string(&resp).unwrap();
 }

@@ -28,10 +28,11 @@
  * limitations under the License.
  */
 use crate::cache::placement::PlacementCacheManager;
-use crate::raft::apply::{RaftMachineApply, StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
+use crate::storage::route::apply::RaftMachineApply;
+use crate::storage::route::data::{StorageData, StorageDataType};
 use clients::poll::ClientPool;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
@@ -51,7 +52,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
 pub struct GrpcPlacementService {
-    placement_center_storage: Arc<RaftMachineApply>,
+    raft_machine_apply: Arc<RaftMachineApply>,
     cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     client_poll: Arc<ClientPool>,
@@ -65,7 +66,7 @@ impl GrpcPlacementService {
         client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcPlacementService {
-            placement_center_storage: raft_machine_apply,
+            raft_machine_apply,
             cluster_cache,
             rocksdb_engine_handler,
             client_poll,
@@ -125,11 +126,7 @@ impl PlacementCenterService for GrpcPlacementService {
             StorageDataType::ClusterRegisterNode,
             RegisterNodeRequest::encode_to_vec(&req),
         );
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "register_node".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::internal(e.to_string()));
@@ -147,11 +144,7 @@ impl PlacementCenterService for GrpcPlacementService {
             StorageDataType::ClusterUngisterNode,
             UnRegisterNodeRequest::encode_to_vec(&req),
         );
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "un_register_node".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -187,7 +180,7 @@ impl PlacementCenterService for GrpcPlacementService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_raft_message(message, "send_raft_message".to_string())
             .await
         {
@@ -208,7 +201,7 @@ impl PlacementCenterService for GrpcPlacementService {
             .map_err(|e| Status::invalid_argument(e.to_string()))?;
 
         match self
-            .placement_center_storage
+            .raft_machine_apply
             .apply_conf_raft_message(change, "send_conf_raft_message".to_string())
             .await
         {
@@ -231,11 +224,7 @@ impl PlacementCenterService for GrpcPlacementService {
             SetResourceConfigRequest::encode_to_vec(&req),
         );
 
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "set_resource_config".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -273,11 +262,7 @@ impl PlacementCenterService for GrpcPlacementService {
             DeleteResourceConfigRequest::encode_to_vec(&req),
         );
 
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "delete_resource_config".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -295,11 +280,7 @@ impl PlacementCenterService for GrpcPlacementService {
             SetIdempotentDataRequest::encode_to_vec(&req),
         );
 
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "set_idempotent_data".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -333,11 +314,7 @@ impl PlacementCenterService for GrpcPlacementService {
             DeleteIdempotentDataRequest::encode_to_vec(&req),
         );
 
-        match self
-            .placement_center_storage
-            .apply_propose_message(data, "delete_idempotent_data".to_string())
-            .await
-        {
+        match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(CommonReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

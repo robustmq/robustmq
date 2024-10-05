@@ -21,3 +21,11 @@ pub fn column_family_list() -> Vec<String> {
     list.push(DB_COLUMN_FAMILY_CLUSTER.to_string());
     return list;
 }
+
+pub fn storage_data_fold(path: &String) -> String {
+    format!("{}/_data", path)
+}
+
+pub fn storage_raft_fold(path: &String) -> String {
+    format!("{}/_raft", path)
+}

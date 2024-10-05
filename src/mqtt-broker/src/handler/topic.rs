@@ -94,6 +94,7 @@ pub fn get_topic_name(
     return Ok(topic_name);
 }
 
+
 pub async fn try_init_topic<S>(
     topic_name: &String, metadata_cache: &Arc<CacheManager>, message_storage_adapter: &Arc<S>,
     client_poll: &Arc<ClientPool>,

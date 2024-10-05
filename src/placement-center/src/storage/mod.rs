@@ -31,12 +31,13 @@
 use common_base::tools::now_second;
 use serde::{Deserialize, Serialize};
 
+pub mod engine;
 pub mod journal;
 pub mod keys;
 pub mod mqtt;
 pub mod placement;
 pub mod rocksdb;
-mod engine;
+pub mod route;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StorageDataWrap {

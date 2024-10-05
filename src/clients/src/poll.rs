@@ -16,7 +16,7 @@ use crate::{
     mqtt::{admin::MqttBrokerAdminServiceManager, placement::MqttBrokerPlacementServiceManager},
     placement::{
         journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager,
-        placement::PlacementServiceManager,
+        openraft::OpenRaftServiceManager, placement::PlacementServiceManager,
     },
 };
 use common_base::error::common::CommonError;
@@ -31,6 +31,7 @@ pub struct ClientPool {
     placement_center_journal_service_pools: DashMap<String, Pool<JournalServiceManager>>,
     placement_center_kv_service_pools: DashMap<String, Pool<KvServiceManager>>,
     placement_center_mqtt_service_pools: DashMap<String, Pool<MQTTServiceManager>>,
+    placement_center_openraft_service_pools: DashMap<String, Pool<OpenRaftServiceManager>>,
 
     // mqtt broker
     mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
@@ -47,6 +48,7 @@ impl ClientPool {
             placement_center_mqtt_service_pools: DashMap::with_capacity(2),
             mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
             mqtt_broker_admin_service_pools: DashMap::with_capacity(2),
+            placement_center_openraft_service_pools: DashMap::with_capacity(2),
         }
     }
 
@@ -58,14 +60,19 @@ impl ClientPool {
         let key = format!("{}_{}_{}", "PlacementServer", module, addr);
         if !self.placement_center_inner_pools.contains_key(&key) {
             let manager = PlacementServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
             self.placement_center_inner_pools.insert(key.clone(), pool);
         }
         if let Some(poll) = self.placement_center_inner_pools.get(&key) {
             match poll.get().await {
                 Ok(conn) => return Ok(conn),
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -81,10 +88,16 @@ impl ClientPool {
     ) -> Result<Connection<JournalServiceManager>, CommonError> {
         let module = "JournalService".to_string();
         let key = format!("{}_{}_{}", "JournalServer", module, addr);
-        if !self.placement_center_journal_service_pools.contains_key(&key) {
+        if !self
+            .placement_center_journal_service_pools
+            .contains_key(&key)
+        {
             let manager = JournalServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
-            self.placement_center_journal_service_pools.insert(key.clone(), pool);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
+            self.placement_center_journal_service_pools
+                .insert(key.clone(), pool);
         }
         if let Some(poll) = self.placement_center_journal_service_pools.get(&key) {
             match poll.get().await {
@@ -92,7 +105,10 @@ impl ClientPool {
                     return Ok(conn);
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -111,8 +127,11 @@ impl ClientPool {
 
         if !self.placement_center_kv_service_pools.contains_key(&key) {
             let manager = KvServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
-            self.placement_center_kv_service_pools.insert(key.clone(), pool);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
+            self.placement_center_kv_service_pools
+                .insert(key.clone(), pool);
         }
 
         if let Some(poll) = self.placement_center_kv_service_pools.get(&key) {
@@ -121,7 +140,10 @@ impl ClientPool {
                     return Ok(conn);
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -141,8 +163,11 @@ impl ClientPool {
 
         if !self.placement_center_mqtt_service_pools.contains_key(&key) {
             let manager = MQTTServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
-            self.placement_center_mqtt_service_pools.insert(key.clone(), pool);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
+            self.placement_center_mqtt_service_pools
+                .insert(key.clone(), pool);
         }
         if let Some(poll) = self.placement_center_mqtt_service_pools.get(&key) {
             match poll.get().await {
@@ -150,7 +175,10 @@ impl ClientPool {
                     return Ok(conn);
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -169,8 +197,11 @@ impl ClientPool {
 
         if !self.mqtt_broker_placement_service_pools.contains_key(&key) {
             let manager = MqttBrokerPlacementServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
-            self.mqtt_broker_placement_service_pools.insert(key.clone(), pool);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
+            self.mqtt_broker_placement_service_pools
+                .insert(key.clone(), pool);
         }
 
         if let Some(poll) = self.mqtt_broker_placement_service_pools.get(&key) {
@@ -179,7 +210,10 @@ impl ClientPool {
                     return Ok(conn);
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
@@ -198,8 +232,11 @@ impl ClientPool {
 
         if !self.mqtt_broker_admin_service_pools.contains_key(&key) {
             let manager = MqttBrokerAdminServiceManager::new(addr.clone());
-            let pool = Pool::builder().max_open(self.max_open_connection).build(manager);
-            self.mqtt_broker_admin_service_pools.insert(key.clone(), pool);
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
+            self.mqtt_broker_admin_service_pools
+                .insert(key.clone(), pool);
         }
 
         if let Some(poll) = self.mqtt_broker_admin_service_pools.get(&key) {
@@ -208,10 +245,51 @@ impl ClientPool {
                     return Ok(conn);
                 }
                 Err(e) => {
-                    return Err(CommonError::NoAvailableGrpcConnection(module, e.to_string()));
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
                 }
             };
         }
+        return Err(CommonError::NoAvailableGrpcConnection(
+            module,
+            "connection pool is not initialized".to_string(),
+        ));
+    }
+
+    pub async fn placement_center_openraft_services_client(
+        &self,
+        addr: String,
+    ) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
+        let module = "OpenRaftServices".to_string();
+        let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
+        if !self
+            .placement_center_openraft_service_pools
+            .contains_key(&key)
+        {
+            let manager = OpenRaftServiceManager::new(addr.clone());
+            let pool = Pool::builder()
+                .max_open(self.max_open_connection)
+                .build(manager);
+            self.placement_center_openraft_service_pools
+                .insert(key.clone(), pool);
+        }
+
+        if let Some(poll) = self.placement_center_openraft_service_pools.get(&key) {
+            match poll.get().await {
+                Ok(conn) => {
+                    return Ok(conn);
+                }
+                Err(e) => {
+                    return Err(CommonError::NoAvailableGrpcConnection(
+                        module,
+                        e.to_string(),
+                    ));
+                }
+            };
+        }
+
         return Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),

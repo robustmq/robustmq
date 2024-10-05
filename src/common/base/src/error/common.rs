@@ -28,20 +28,21 @@
  * limitations under the License.
  */
 
-use std::{io, net::AddrParseError, string::FromUtf8Error};
-
-use thiserror::Error;
-use tonic::Status;
-
 use crate::error::{
     journal_server::JournalServerError, mqtt_broker::MQTTBrokerError,
     placement_center::PlacementCenterError,
 };
+use std::{io, net::AddrParseError, string::FromUtf8Error};
+use thiserror::Error;
+use tonic::Status;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
     #[error("{0}")]
     TonicTransport(#[from] tonic::transport::Error),
+
+    #[error("{0}")]
+    ErrorKind(#[from] Box<bincode::ErrorKind>),
 
     #[error("{0}")]
     DecodeError(#[from] prost::DecodeError),
@@ -90,4 +91,7 @@ pub enum CommonError {
 
     #[error("No available nodes in the cluster")]
     ClusterNoAvailableNode,
+
+    #[error("RocksDB Family {0} not available")]
+    RocksDBFamilyNotAvailable(String),
 }
