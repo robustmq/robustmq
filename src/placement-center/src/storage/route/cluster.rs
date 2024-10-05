@@ -25,7 +25,7 @@ use crate::{
 };
 use common_base::{
     error::common::CommonError,
-    tools::{now_mills, now_second, unique_id},
+    tools::{now_mills, unique_id},
 };
 use metadata_struct::{
     acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
@@ -35,9 +35,8 @@ use prost::Message as _;
 use protocol::placement_center::generate::{
     mqtt::{CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest},
     placement::{
-        DeleteIdempotentDataRequest, DeleteResourceConfigRequest, HeartbeatRequest,
-        RegisterNodeRequest, SetIdempotentDataRequest, SetResourceConfigRequest,
-        UnRegisterNodeRequest,
+        DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
+        SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
     },
 };
 use std::sync::Arc;

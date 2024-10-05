@@ -34,7 +34,7 @@ appenders:
             count: 50
 
 root:
-  level: debug
+  level: info
   appenders:
     - stdout
     - server

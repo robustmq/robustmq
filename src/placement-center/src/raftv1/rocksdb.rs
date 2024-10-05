@@ -20,7 +20,7 @@ use crate::storage::keys::key_name_by_last_index;
 use crate::storage::keys::key_name_uncommit;
 use crate::storage::keys::key_name_uncommit_prefix;
 use crate::storage::rocksdb::RocksDBEngine;
-use bincode::{deserialize, serialize};
+use bincode::serialize;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use log::debug;
