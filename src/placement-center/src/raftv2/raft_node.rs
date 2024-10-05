@@ -125,7 +125,7 @@ pub async fn create_raft_node(
     let (log_store, state_machine_store) = new_storage(&dir, route).await;
 
     let network = Network::new(client_poll);
-    let raft = openraft::Raft::new(
+    let raft = match openraft::Raft::new(
         conf.node.node_id,
         config.clone(),
         network,
@@ -133,7 +133,15 @@ pub async fn create_raft_node(
         state_machine_store,
     )
     .await
-    .unwrap();
+    {
+        Ok(data) => data,
+        Err(e) => {
+            panic!(
+                "Failed to initialize openraft node with error message :{}",
+                e.to_string()
+            );
+        }
+    };
 
     return raft;
 }

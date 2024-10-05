@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use log::error;
 use openraft::{
     storage::RaftStateMachine, AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId,
     OptionalSend, RaftSnapshotBuilder, Snapshot, SnapshotMeta, StorageError, StoredMembership,
@@ -203,12 +204,15 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             match ent.payload {
                 EntryPayload::Blank => {}
                 EntryPayload::Normal(req) => match self.data.route.route(req) {
-                    Ok(val) => {
+                    Ok(_) => {
                         //todo
                         resp_value = Some("".to_string());
                     }
                     Err(e) => {
-                        return Err(StorageError::read(&e));
+                        error!(
+                            "Raft route failed to process message with error message: {}",
+                            e
+                        );
                     }
                 },
                 EntryPayload::Membership(mem) => {
