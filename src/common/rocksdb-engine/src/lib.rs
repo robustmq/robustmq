@@ -31,16 +31,15 @@ impl RocksDBEngine {
     /// Create a rocksdb instance
     pub fn new(data_path: &str, max_open_files: i32, cf_list: Vec<String>) -> Self {
         let opts: Options = Self::open_db_opts(max_open_files);
-        let db_path = format!("{}/{}", data_path, "_storage_rocksdb");
 
         // init RocksDB
-        if !Path::new(&db_path).exists() {
-            DB::open(&opts, db_path.clone()).unwrap();
+        if !Path::new(&data_path).exists() {
+            DB::open(&opts, data_path.clone()).unwrap();
         }
 
         // init column family
-        let cf_list_existing = rocksdb::DB::list_cf(&opts, &db_path).unwrap();
-        let mut instance = DB::open_cf(&opts, db_path.clone(), &cf_list_existing).unwrap();
+        let cf_list_existing = rocksdb::DB::list_cf(&opts, &data_path).unwrap();
+        let mut instance = DB::open_cf(&opts, data_path.clone(), &cf_list_existing).unwrap();
 
         for family in cf_list.iter() {
             if cf_list_existing.iter().find(|cf| cf == &family).is_none() {

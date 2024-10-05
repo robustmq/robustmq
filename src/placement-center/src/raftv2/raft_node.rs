@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::storage::rocksdb::storage_raft_fold;
 use crate::storage::route::DataRoute;
 
 use super::network::network::Network;
@@ -119,7 +120,7 @@ pub async fn create_raft_node(
 
     let config = Arc::new(config.validate().unwrap());
     let conf = placement_center_conf();
-    let path = format!("{}/_engine_storage", conf.rocksdb.data_path.clone());
+    let path = storage_raft_fold(&conf.rocksdb.data_path);
     let dir = Path::new(&path);
     let (log_store, state_machine_store) = new_storage(&dir, route).await;
 

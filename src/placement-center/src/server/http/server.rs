@@ -17,8 +17,8 @@ use super::mqtt::mqtt_routes;
 use super::raft::{add_leadrner, change_membership, init, raft_status};
 use super::{list_path, v1_path};
 use crate::cache::{journal::JournalCacheManager, placement::PlacementCacheManager};
-use crate::raftv1::apply::RaftMachineApply;
 use crate::raftv1::rocksdb::RaftMachineStorage;
+use crate::storage::route::apply::RaftMachineApply;
 use axum::routing::{get, post};
 use axum::Router;
 use common_base::config::placement_center::placement_center_conf;
@@ -34,10 +34,10 @@ pub const ROUTE_CACHES: &str = "/caches";
 pub const ROUTE_CLUSTER: &str = "/cluster";
 pub const ROUTE_CLUSTER_NODE: &str = "/cluster/node";
 
-pub const ROUTE_ADD_LEARNER: &str = "/cluster/add-learner";
-pub const ROUTE_CHANGE_MEMBERSHIP: &str = "/cluster/change-membership";
-pub const ROUTE_INIT: &str = "/cluster/init";
-pub const ROUTE_STATUS: &str = "/cluster/status";
+pub const ROUTE_CLUSTER_ADD_LEARNER: &str = "/cluster/add-learner";
+pub const ROUTE_CLUSTER_CHANGE_MEMBERSHIP: &str = "/cluster/change-membership";
+pub const ROUTE_CLUSTER_INIT: &str = "/cluster/init";
+pub const ROUTE_CLUSTER_STATUS: &str = "/cluster/status";
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -88,10 +88,13 @@ fn routes(state: HttpServerState) -> Router {
         .route(ROUTE_METRICS, get(metrics))
         .route(&list_path(ROUTE_CLUSTER), get(list_cluster))
         .route(&list_path(ROUTE_CLUSTER_NODE), get(list_node))
-        .route(&&v1_path(ROUTE_ADD_LEARNER), post(add_leadrner))
-        .route(&v1_path(ROUTE_CHANGE_MEMBERSHIP), post(change_membership))
-        .route(&v1_path(ROUTE_INIT), post(init))
-        .route(&v1_path(ROUTE_STATUS), get(raft_status));
+        .route(&&v1_path(ROUTE_CLUSTER_ADD_LEARNER), post(add_leadrner))
+        .route(
+            &v1_path(ROUTE_CLUSTER_CHANGE_MEMBERSHIP),
+            post(change_membership),
+        )
+        .route(&v1_path(ROUTE_CLUSTER_INIT), post(init))
+        .route(&v1_path(ROUTE_CLUSTER_STATUS), get(raft_status));
 
     let mqtt = mqtt_routes();
 

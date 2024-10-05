@@ -17,6 +17,7 @@ pub mod data;
 pub mod journal;
 pub mod kv;
 pub mod mqtt;
+pub mod apply;
 
 use crate::storage::route::{
     cluster::DataRouteCluster, journal::DataRouteJournal, kv::DataRouteKv, mqtt::DataRouteMQTT,

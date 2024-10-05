@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::apply::{RaftMessage, RaftResponseMesage};
 use super::rocksdb::RaftMachineStorage;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::raft_node::RaftNode;
 use crate::raftv1::peer::PeerMessage;
+use crate::storage::route::apply::{RaftMessage, RaftResponseMesage};
 use crate::storage::route::DataRoute;
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;

@@ -28,7 +28,6 @@ use protocol::placement_center::generate::journal::engine_service_server::Engine
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
-use raftv1::apply::{RaftMachineApply, RaftMessage};
 use raftv1::rocksdb::RaftMachineStorage;
 use raftv2::raft_node::{create_raft_node, start_openraft_node};
 use raftv2::typeconfig::TypeConfig;
@@ -38,7 +37,8 @@ use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
-use storage::rocksdb::{column_family_list, RocksDBEngine};
+use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
+use storage::route::apply::{RaftMachineApply, RaftMessage};
 use storage::route::DataRoute;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -72,7 +72,7 @@ impl PlacementCenter {
         let config = placement_center_conf();
         let client_poll = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path,
+            &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -114,6 +114,7 @@ impl PlacementCenter {
         let placement_center_storage = Arc::new(RaftMachineApply::new(
             raft_message_send,
             openraft_node.clone(),
+            storage::route::apply::ClusterRaftModel::V2,
         ));
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());

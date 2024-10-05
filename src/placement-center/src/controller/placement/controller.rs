@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::heartbeat::BrokerHeartbeat;
-use crate::{cache::placement::PlacementCacheManager, raftv1::apply::RaftMachineApply};
+use crate::{cache::placement::PlacementCacheManager, storage::route::apply::RaftMachineApply};
 use common_base::config::placement_center::placement_center_conf;
 use std::sync::Arc;
 use tokio::{select, sync::broadcast};
