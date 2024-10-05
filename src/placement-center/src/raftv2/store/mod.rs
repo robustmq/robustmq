@@ -61,7 +61,7 @@ pub(crate) async fn new_storage<P: AsRef<Path>>(
     db_opts.create_missing_column_families(true);
     db_opts.create_if_missing(true);
 
-    let store = ColumnFamilyDescriptor::new(cf_raft_logs(), Options::default());
+    let store = ColumnFamilyDescriptor::new(cf_raft_store(), Options::default());
     let logs = ColumnFamilyDescriptor::new(cf_raft_logs(), Options::default());
 
     let db = DB::open_cf_descriptors(&db_opts, db_path, vec![store, logs]).unwrap();

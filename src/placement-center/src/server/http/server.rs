@@ -13,11 +13,13 @@
 // limitations under the License.
 
 use super::index::{caches, index, list_cluster, list_node, metrics};
-use super::list_path;
 use super::mqtt::mqtt_routes;
+use super::raft::{add_leadrner, change_membership, init, raft_status};
+use super::{list_path, v1_path};
 use crate::cache::{journal::JournalCacheManager, placement::PlacementCacheManager};
+use crate::raftv1::apply::RaftMachineApply;
 use crate::raftv1::rocksdb::RaftMachineStorage;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 use common_base::config::placement_center::placement_center_conf;
 use log::info;
@@ -32,6 +34,11 @@ pub const ROUTE_CACHES: &str = "/caches";
 pub const ROUTE_CLUSTER: &str = "/cluster";
 pub const ROUTE_CLUSTER_NODE: &str = "/cluster/node";
 
+pub const ROUTE_ADD_LEARNER: &str = "/cluster/add-learner";
+pub const ROUTE_CHANGE_MEMBERSHIP: &str = "/cluster/change-membership";
+pub const ROUTE_INIT: &str = "/cluster/init";
+pub const ROUTE_STATUS: &str = "/cluster/status";
+
 #[derive(Clone)]
 #[allow(dead_code)]
 pub struct HttpServerState {
@@ -39,6 +46,7 @@ pub struct HttpServerState {
     pub raft_storage: Arc<RwLock<RaftMachineStorage>>,
     pub cluster_cache: Arc<PlacementCacheManager>,
     pub engine_cache: Arc<JournalCacheManager>,
+    pub placement_center_storage: Arc<RaftMachineApply>,
 }
 
 impl HttpServerState {
@@ -47,12 +55,14 @@ impl HttpServerState {
         raft_storage: Arc<RwLock<RaftMachineStorage>>,
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
+        placement_center_storage: Arc<RaftMachineApply>,
     ) -> Self {
         return Self {
             placement_cache,
             raft_storage,
             cluster_cache,
             engine_cache,
+            placement_center_storage,
         };
     }
 }
@@ -77,7 +87,11 @@ fn routes(state: HttpServerState) -> Router {
         .route(ROUTE_CACHES, get(caches))
         .route(ROUTE_METRICS, get(metrics))
         .route(&list_path(ROUTE_CLUSTER), get(list_cluster))
-        .route(&list_path(ROUTE_CLUSTER_NODE), get(list_node));
+        .route(&list_path(ROUTE_CLUSTER_NODE), get(list_node))
+        .route(&&v1_path(ROUTE_ADD_LEARNER), post(add_leadrner))
+        .route(&v1_path(ROUTE_CHANGE_MEMBERSHIP), post(change_membership))
+        .route(&v1_path(ROUTE_INIT), post(init))
+        .route(&v1_path(ROUTE_STATUS), get(raft_status));
 
     let mqtt = mqtt_routes();
 

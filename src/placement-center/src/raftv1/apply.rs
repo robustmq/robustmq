@@ -15,6 +15,7 @@
 use bincode::serialize;
 use common_base::error::common::CommonError;
 use common_base::error::placement_center::PlacementCenterError;
+use openraft::Raft;
 use raft::eraftpb::ConfChange;
 use raft::eraftpb::Message as raftPreludeMessage;
 use std::time::Duration;
@@ -23,6 +24,7 @@ use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::time::timeout;
 
+use crate::raftv2::typeconfig::TypeConfig;
 use crate::storage::route::data::StorageData;
 
 pub enum RaftResponseMesage {
@@ -55,14 +57,21 @@ pub enum RaftMessage {
 
 pub struct RaftMachineApply {
     raft_status_machine_sender: tokio::sync::mpsc::Sender<RaftMessage>,
+    pub openraft_node: Raft<TypeConfig>,
 }
 
 impl RaftMachineApply {
-    pub fn new(raft_sender: tokio::sync::mpsc::Sender<RaftMessage>) -> Self {
+    pub fn new(
+        raft_sender: tokio::sync::mpsc::Sender<RaftMessage>,
+        openraft_node: Raft<TypeConfig>,
+    ) -> Self {
         return RaftMachineApply {
             raft_status_machine_sender: raft_sender,
+            openraft_node,
         };
     }
+
+    pub async fn raftv2_write() {}
 
     pub async fn transfer_leader(&self, node_id: u64) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();

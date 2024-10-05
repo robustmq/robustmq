@@ -13,9 +13,10 @@
 // limitations under the License.
 
 pub mod index;
-pub mod mqtt;
-pub mod server;
 pub mod journal;
+pub mod mqtt;
+pub mod raft;
+pub mod server;
 
 pub(crate) fn v1_path(path: &str) -> String {
     return format!("/v1{}", path);

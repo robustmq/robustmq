@@ -29,12 +29,12 @@ struct ArgsParams {
     #[arg(short, long, default_value_t=String::from(DEFAULT_PLACEMENT_CENTER_CONFIG))]
     conf: String,
 }
-
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = ArgsParams::parse();
     init_placement_center_conf_by_path(&args.conf);
     init_placement_center_log();
     let (stop_send, _) = broadcast::channel(2);
     let mut pc = PlacementCenter::new();
-    pc.start(stop_send);
+    pc.start(stop_send).await;
 }

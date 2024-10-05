@@ -35,7 +35,6 @@ use common_base::{http_response::success_response, metrics::dump_metrics};
 use dashmap::DashMap;
 use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct IndexResponse {
