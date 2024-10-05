@@ -17,7 +17,7 @@ use crate::{
         broker_mqtt::broker_mqtt_conf, journal_server::journal_server_conf,
         placement_center::placement_center_conf,
     },
-    tools::{create_fold, file_exists, read_file},
+    tools::{try_create_fold, file_exists, read_file},
 };
 
 pub fn init_placement_center_log() {
@@ -50,7 +50,7 @@ pub fn init_log(log_config_file: &String, log_path: &String) {
         }
     };
 
-    match create_fold(&log_path) {
+    match try_create_fold(&log_path) {
         Ok(()) => {}
         Err(_) => {
             panic!("Failed to initialize log directory {}", log_path);

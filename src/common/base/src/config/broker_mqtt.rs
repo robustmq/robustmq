@@ -37,7 +37,7 @@ use super::default_mqtt::{
     default_network_websocket_port, default_network_websockets_port, default_storage,
     default_system, default_tcp_thread,
 };
-use crate::tools::create_fold;
+use crate::tools::try_create_fold;
 use crate::tools::read_file;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -132,7 +132,7 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &String) -> &'static BrokerMQT
                 panic!("{}", e)
             }
         };
-        match create_fold(&config.log.log_path) {
+        match try_create_fold(&config.log.log_path) {
             Ok(()) => {}
             Err(e) => {
                 panic!("{}", e);

@@ -33,6 +33,7 @@ use raft::prelude::Entry;
 use raft::prelude::Snapshot;
 use raft::RaftState;
 use raft::Result as RaftResult;
+use rocksdb::DEFAULT_COLUMN_FAMILY_NAME;
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
@@ -90,7 +91,13 @@ impl RaftMachineStorage {
             let data: Vec<u8> = Entry::encode_to_vec(&entry);
             let key = key_name_by_entry(entry.index);
             self.rocksdb_engine_handler
-                .write(self.rocksdb_engine_handler.cf_cluster(), &key, &data)
+                .write(
+                    self.rocksdb_engine_handler
+                        .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                        .unwrap(),
+                    &key,
+                    &data,
+                )
                 .unwrap();
             self.save_uncommit_index(entry.index)?;
             self.save_last_index(entry.index)?;
@@ -114,7 +121,12 @@ impl RaftMachineStorage {
         let key = key_name_by_hard_state();
         let value = self
             .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
+            .read::<Vec<u8>>(
+                self.rocksdb_engine_handler
+                    .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                    .unwrap(),
+                &key,
+            )
             .unwrap();
         if value == None {
             HardState::default()
@@ -127,7 +139,12 @@ impl RaftMachineStorage {
         let key = key_name_by_conf_state();
         let value = self
             .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
+            .read::<Vec<u8>>(
+                self.rocksdb_engine_handler
+                    .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                    .unwrap(),
+                &key,
+            )
             .unwrap();
         if value.is_none() {
             ConfState::default()
@@ -140,10 +157,12 @@ impl RaftMachineStorage {
 
     pub fn first_index(&self) -> u64 {
         let key = key_name_by_first_index();
-        match self
-            .rocksdb_engine_handler
-            .read::<u64>(self.rocksdb_engine_handler.cf_cluster(), &key)
-        {
+        match self.rocksdb_engine_handler.read::<u64>(
+            self.rocksdb_engine_handler
+                .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                .unwrap(),
+            &key,
+        ) {
             Ok(value) => {
                 if let Some(fi) = value {
                     fi
@@ -160,10 +179,12 @@ impl RaftMachineStorage {
 
     pub fn last_index(&self) -> u64 {
         let key = key_name_by_last_index();
-        match self
-            .rocksdb_engine_handler
-            .read::<u64>(self.rocksdb_engine_handler.cf_cluster(), &key)
-        {
+        match self.rocksdb_engine_handler.read::<u64>(
+            self.rocksdb_engine_handler
+                .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                .unwrap(),
+            &key,
+        ) {
             Ok(value) => {
                 if let Some(li) = value {
                     li
@@ -180,10 +201,12 @@ impl RaftMachineStorage {
 
     pub fn entry_by_idx(&self, idx: u64) -> Option<Entry> {
         let key = key_name_by_entry(idx);
-        match self
-            .rocksdb_engine_handler
-            .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
-        {
+        match self.rocksdb_engine_handler.read::<Vec<u8>>(
+            self.rocksdb_engine_handler
+                .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                .unwrap(),
+            &key,
+        ) {
             Ok(value) => {
                 if let Some(vl) = value {
                     let et = Entry::decode(vl.as_ref())
@@ -203,29 +226,50 @@ impl RaftMachineStorage {
     pub fn save_last_index(&self, index: u64) -> Result<(), CommonError> {
         let key = key_name_by_last_index();
         self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &index)
+            .write(
+                self.rocksdb_engine_handler
+                    .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                    .unwrap(),
+                &key,
+                &index,
+            )
             .unwrap();
         return Ok(());
     }
 
     pub fn save_first_index(&self, index: u64) -> Result<(), String> {
         let key = key_name_by_first_index();
-        self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &index)
+        self.rocksdb_engine_handler.write(
+            self.rocksdb_engine_handler
+                .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                .unwrap(),
+            &key,
+            &index,
+        )
     }
 
     pub fn save_conf_state(&self, cs: ConfState) -> Result<(), String> {
         let key = key_name_by_conf_state();
         let value = ConfState::encode_to_vec(&cs);
-        self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &value)
+        self.rocksdb_engine_handler.write(
+            self.rocksdb_engine_handler
+                .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                .unwrap(),
+            &key,
+            &value,
+        )
     }
 
     pub fn save_hard_state(&self, hs: HardState) -> Result<(), String> {
         let key = key_name_by_hard_state();
         let val = HardState::encode_to_vec(&hs);
-        self.rocksdb_engine_handler
-            .write(self.rocksdb_engine_handler.cf_cluster(), &key, &val)
+        self.rocksdb_engine_handler.write(
+            self.rocksdb_engine_handler
+                .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                .unwrap(),
+            &key,
+            &val,
+        )
     }
 
     pub fn update_hard_state_commit(&self, commit: u64) -> Result<(), String> {
@@ -250,7 +294,9 @@ impl RaftMachineStorage {
         // let key = key_name_snapshot();
         // let value = self
         //     .rocksdb_engine_handler
-        //     .read::<Vec<u8>>(self.rocksdb_engine_handler.cf_cluster(), &key)
+        //     .read::<Vec<u8>>(self.rocksdb_engine_handler
+        // .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+        // .unwrap(), &key)
         //     .unwrap();
         // if value.is_none() {
         //     Snapshot::default()
@@ -288,9 +334,12 @@ impl RaftMachineStorage {
 
     pub fn remove_uncommit_index(&self, idx: u64) -> Result<(), CommonError> {
         let key = key_name_uncommit(idx);
-        let _ = self
-            .rocksdb_engine_handler
-            .delete(self.rocksdb_engine_handler.cf_cluster(), &key);
+        let _ = self.rocksdb_engine_handler.delete(
+            self.rocksdb_engine_handler
+                .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                .unwrap(),
+            &key,
+        );
         return Ok(());
     }
 
@@ -303,7 +352,9 @@ impl RaftMachineStorage {
             Ok(da) => {
                 let key = key_name_uncommit(idx);
                 let _ = self.rocksdb_engine_handler.write(
-                    self.rocksdb_engine_handler.cf_cluster(),
+                    self.rocksdb_engine_handler
+                        .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+                        .unwrap(),
                     &key,
                     &da,
                 );
@@ -317,7 +368,10 @@ impl RaftMachineStorage {
 
     pub fn all_uncommit_index(&self) -> Vec<RaftUncommitData> {
         let key = key_name_uncommit_prefix();
-        let cf = self.rocksdb_engine_handler.cf_cluster();
+        let cf = self
+            .rocksdb_engine_handler
+            .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
+            .unwrap();
         let results = self.rocksdb_engine_handler.read_prefix(&cf, &key);
         let mut data_list = Vec::new();
         for raw in results {

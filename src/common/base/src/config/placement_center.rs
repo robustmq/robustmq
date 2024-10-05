@@ -34,7 +34,7 @@ use super::default_placement_center::{
     default_max_open_files, default_network, default_node, default_node_id, default_nodes,
     default_rocksdb, default_runtime_work_threads, default_system,
 };
-use crate::tools::{create_fold, read_file, unique_id};
+use crate::tools::{try_create_fold, read_file, unique_id};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use toml::{map::Map, Table, Value};
@@ -111,13 +111,13 @@ pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static Plac
         };
 
         let pc_config: PlacementCenterConfig = toml::from_str(&content).unwrap();
-        match create_fold(&pc_config.rocksdb.data_path) {
+        match try_create_fold(&pc_config.rocksdb.data_path) {
             Ok(()) => {}
             Err(e) => {
                 panic!("{}", e);
             }
         }
-        match create_fold(&pc_config.log.log_path) {
+        match try_create_fold(&pc_config.log.log_path) {
             Ok(()) => {}
             Err(e) => {
                 panic!("{}", e);
@@ -132,13 +132,13 @@ pub fn init_placement_center_conf_by_config(
 ) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
-    match create_fold(&config.rocksdb.data_path) {
+    match try_create_fold(&config.rocksdb.data_path) {
         Ok(()) => {}
         Err(e) => {
             panic!("{}", e);
         }
     }
-    match create_fold(&config.log.log_path) {
+    match try_create_fold(&config.log.log_path) {
         Ok(()) => {}
         Err(e) => {
             panic!("{}", e);

@@ -16,12 +16,14 @@ use super::call_broker::MQTTBrokerCall;
 use crate::{
     cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
     storage::{
-        keys::storage_key_mqtt_session_cluster_prefix, mqtt::lastwill::MQTTLastWillStorage,
-        rocksdb::RocksDBEngine, StorageDataWrap,
+        keys::storage_key_mqtt_session_cluster_prefix,
+        mqtt::lastwill::MQTTLastWillStorage,
+        rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER},
+        StorageDataWrap,
     },
 };
 use clients::poll::ClientPool;
-use common_base::tools::now_second;
+use common_base::{error::common::CommonError, tools::now_second};
 use log::{debug, error};
 use metadata_struct::mqtt::session::MQTTSession;
 use std::{sync::Arc, time::Duration};
@@ -78,7 +80,19 @@ impl SessionExpire {
 
     async fn get_expire_session_list(&self) -> Vec<MQTTSession> {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
-        let cf = self.rocksdb_engine_handler.cf_cluster();
+        let cf = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
+        {
+            cf
+        } else {
+            error!(
+                "{}",
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string())
+            );
+            return Vec::new();
+        };
+        
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         let mut sessions = Vec::new();
