@@ -25,16 +25,31 @@ use metadata_struct::placement::cluster::ClusterInfo;
 use std::sync::Arc;
 
 pub struct ClusterStorage {
+    /// The RocksDB engine handler 
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl ClusterStorage {
+
+    /// Create a new ClusterStorge instance.
+    ///
+    /// Parameters:
+    /// - `rocksdb_engine_handler: Arc<RocksDBEngine>`: The RocksDB engine handler.
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
         ClusterStorage {
             rocksdb_engine_handler,
         }
     }
 
+    /// Save cluster information to RocksDB.
+    ///
+    /// Parameters:
+    /// - `cluster_name: String`: The name of the cluster.
+    /// - `cluster_type: String`: The type of the cluster.
+    ///
+    /// Returns:
+    /// - `OK()`: Indicates that the cluster information has been successfully saved.
+    /// - `Err (CommonError)`: Indicates that the operation failed, and CommonError is the error type that includes the reason for the failure.
     pub fn save(&self, cluster_info: &ClusterInfo) -> Result<(), CommonError> {
         let key = key_cluster(&cluster_info.cluster_type, &cluster_info.cluster_name);
         return engine_save_by_cluster(
@@ -44,6 +59,16 @@ impl ClusterStorage {
         );
     }
 
+    ///Retrieve cluster information from RocksDB.
+    ///
+    /// Parameters:
+    /// - `cluster_name: String`: The name of the cluster.
+    /// - `cluster_type: String`: The type of the cluster.
+    ///
+    ///Returns:
+    /// - `OK(Some(ClusterInfo))`: If the cluster exists.
+    /// - `OK(None)`: If the cluster does not exist.
+    /// - `Err (CommonError)`: Indicates that the operation failed, and CommonError is the error type that includes the reason for the failure.
     #[allow(dead_code)]
     pub fn get(
         &self,
@@ -65,12 +90,29 @@ impl ClusterStorage {
         }
     }
 
+    /// Delete cluster information from RocksDB.
+    ///
+    /// Parameters:
+    /// - `cluster_name: String`: The name of the cluster.
+    /// - `cluster_type: String`: The type of the cluster.
+    ///
+    /// Returns:
+    /// - `OK()`: Indicates that the cluster has been successfully deleted.
+    /// - `Err (CommonError)`: Indicates that the operation failed, and CommonError is the error type that includes the reason for the failure.
     #[allow(dead_code)]
     pub fn delete(&self, cluster_type: &String, cluster_name: &String) -> Result<(), CommonError> {
         let key: String = key_cluster(cluster_type, cluster_name);
         return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
     }
 
+    ///List cluster information from RocksDB.
+    ///
+    /// Parameters:
+    /// - `cluster_type: String`(Option): The type of the cluster.
+    ///
+    ///Returns:
+    /// - `OK(Vec<ClusterInfo>)`: Containing the list of cluster information.
+    /// - `Err (CommonError)`: Indicates that the operation failed, and CommonError is the error type that includes the reason for the failure.
     pub fn list(&self, cluster_type: Option<String>) -> Result<Vec<ClusterInfo>, CommonError> {
         let prefix_key = if let Some(ct) = cluster_type {
             key_cluster_prefix_by_type(&ct)
