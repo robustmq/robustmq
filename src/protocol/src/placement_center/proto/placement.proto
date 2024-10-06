@@ -54,9 +54,7 @@ message ClusterStatusRequest{
 }
 
 message ClusterStatusReply{
-    string leader = 1;
-    repeated string members = 2;
-    repeated string votes = 3;
+    string content = 1;
 }
 
 message HeartbeatRequest{

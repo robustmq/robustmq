@@ -33,6 +33,8 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::route::apply::RaftMachineApply;
 use crate::storage::route::data::{StorageData, StorageDataType};
+use bincode::serialize;
+use common_base::error::common::CommonError;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
 use prost::Message;
@@ -77,24 +79,21 @@ impl PlacementCenterService for GrpcPlacementService {
         _: Request<ClusterStatusRequest>,
     ) -> Result<Response<ClusterStatusReply>, Status> {
         let mut reply = ClusterStatusReply::default();
+        let status = self
+            .raft_machine_apply
+            .openraft_node
+            .metrics()
+            .borrow()
+            .clone();
 
-        if let Some(leader) = self.cluster_cache.get_raft_leader() {
-            reply.leader = format!("{}@{}", leader.node_addr, leader.node_id);
-        }
-
-        reply.members = self
-            .cluster_cache
-            .get_raft_members()
-            .iter()
-            .map(|node| format!("{}@{}", node.node_addr, node.node_id))
-            .collect();
-
-        reply.votes = self
-            .cluster_cache
-            .get_raft_votes()
-            .iter()
-            .map(|node| format!("{}@{}", node.node_addr, node.node_id))
-            .collect();
+        reply.content = match serde_json::to_string(&status) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(
+                    CommonError::CommmonError(e.to_string()).to_string(),
+                ));
+            }
+        };
         return Ok(Response::new(reply));
     }
 
