@@ -28,11 +28,9 @@
  * limitations under the License.
  */
 use crate::{
-    cache::placement::PlacementCacheManager,
     storage::route::apply::RaftMachineApply,
     storage::route::data::{StorageData, StorageDataType},
 };
-use clients::poll::ClientPool;
 use prost::Message;
 use protocol::placement_center::generate::{
     common::CommonReply,
@@ -46,21 +44,11 @@ use tonic::{Request, Response, Status};
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,
-    placement_cache: Arc<PlacementCacheManager>,
-    client_poll: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
-    pub fn new(
-        raft_machine_apply: Arc<RaftMachineApply>,
-        placement_cache: Arc<PlacementCacheManager>,
-        client_poll: Arc<ClientPool>,
-    ) -> Self {
-        GrpcEngineService {
-            raft_machine_apply,
-            placement_cache,
-            client_poll,
-        }
+    pub fn new(raft_machine_apply: Arc<RaftMachineApply>) -> Self {
+        GrpcEngineService { raft_machine_apply }
     }
 }
 

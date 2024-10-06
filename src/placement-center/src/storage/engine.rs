@@ -95,7 +95,7 @@ where
             return Ok(());
         }
         Err(e) => {
-            return Err(CommonError::CommmonError(e));
+            return Err(e);
         }
     }
 }
@@ -121,7 +121,7 @@ fn engine_get(
             return Ok(None);
         }
         Err(e) => {
-            return Err(CommonError::CommmonError(e));
+            return Err(e);
         }
     }
 }

@@ -28,20 +28,15 @@ use openraft::{
 use protocol::placement_center::generate::openraft::{AppendRequest, SnapshotRequest};
 use std::sync::Arc;
 
-use crate::raftv2::{error::to_error, raft_node::NodeId, typeconfig::TypeConfig};
+use crate::raftv2::{error::to_error, typeconfig::TypeConfig};
 
 pub struct NetworkConnection {
     addr: String,
     client_poll: Arc<ClientPool>,
-    target: NodeId,
 }
 impl NetworkConnection {
-    pub fn new(addr: String, client_poll: Arc<ClientPool>, target: NodeId) -> Self {
-        return NetworkConnection {
-            addr,
-            client_poll,
-            target,
-        };
+    pub fn new(addr: String, client_poll: Arc<ClientPool>) -> Self {
+        return NetworkConnection { addr, client_poll };
     }
 
     async fn c(&mut self) -> Result<Connection<OpenRaftServiceManager>, CommonError> {

@@ -45,24 +45,24 @@ impl Display for Node {
 }
 
 pub mod typ {
-    use openraft::error::Infallible;
+    // use openraft::error::Infallible;
 
     use crate::raftv2::typeconfig::TypeConfig;
 
     pub type Entry = openraft::Entry<TypeConfig>;
 
-    pub type RaftError<E = Infallible> = openraft::error::RaftError<TypeConfig, E>;
-    pub type RPCError<E = Infallible> = openraft::error::RPCError<TypeConfig, RaftError<E>>;
+    // pub type RaftError<E = Infallible> = openraft::error::RaftError<TypeConfig, E>;
+    // pub type RPCError<E = Infallible> = openraft::error::RPCError<TypeConfig, RaftError<E>>;
 
-    pub type ClientWriteError = openraft::error::ClientWriteError<TypeConfig>;
-    pub type CheckIsLeaderError = openraft::error::CheckIsLeaderError<TypeConfig>;
-    pub type ForwardToLeader = openraft::error::ForwardToLeader<TypeConfig>;
-    pub type InitializeError = openraft::error::InitializeError<TypeConfig>;
+    // pub type ClientWriteError = openraft::error::ClientWriteError<TypeConfig>;
+    // pub type CheckIsLeaderError = openraft::error::CheckIsLeaderError<TypeConfig>;
+    // pub type ForwardToLeader = openraft::error::ForwardToLeader<TypeConfig>;
+    // pub type InitializeError = openraft::error::InitializeError<TypeConfig>;
 
-    pub type ClientWriteResponse = openraft::raft::ClientWriteResponse<TypeConfig>;
+    // pub type ClientWriteResponse = openraft::raft::ClientWriteResponse<TypeConfig>;
 }
 
-pub type ExampleRaft = openraft::Raft<TypeConfig>;
+// pub type ExampleRaft = openraft::Raft<TypeConfig>;
 
 pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
     let conf = placement_center_conf();

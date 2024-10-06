@@ -28,6 +28,8 @@ use protocol::placement_center::generate::journal::engine_service_server::Engine
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
+use raftv1::machine::RaftMachine;
+use raftv1::peer::RaftPeersManager;
 use raftv1::rocksdb::RaftMachineStorage;
 use raftv2::raft_node::{create_raft_node, start_openraft_node};
 use raftv2::typeconfig::TypeConfig;
@@ -38,7 +40,7 @@ use server::grpc::service_placement::GrpcPlacementService;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
-use storage::route::apply::{RaftMachineApply, RaftMessage};
+use storage::route::apply::{ClusterRaftModel, RaftMachineApply, RaftMessage};
 use storage::route::DataRoute;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -119,14 +121,14 @@ impl PlacementCenter {
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());
 
-        self.start_raftv1_machine(
+        self.start_raft_machine(
+            ClusterRaftModel::V2,
             peer_message_send,
             peer_message_recv,
             raft_message_recv,
             stop_send.clone(),
+            openraft_node.clone(),
         );
-
-        self.start_raftv2_machine(openraft_node.clone());
 
         self.start_http_server(placement_center_storage.clone());
 
@@ -159,7 +161,6 @@ impl PlacementCenter {
             raft_machine_apply.clone(),
             self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
-            self.client_poll.clone(),
         );
 
         let kv_handler = GrpcKvService::new(
@@ -167,11 +168,7 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
         );
 
-        let engine_handler = GrpcEngineService::new(
-            raft_machine_apply.clone(),
-            self.cluster_cache.clone(),
-            self.client_poll.clone(),
-        );
+        let engine_handler = GrpcEngineService::new(raft_machine_apply.clone());
 
         let mqtt_handler = GrpcMqttService::new(
             self.cluster_cache.clone(),
@@ -224,45 +221,73 @@ impl PlacementCenter {
         });
     }
 
-    // Start Raft Status Machine
-    pub fn start_raftv1_machine(
+    pub fn start_raft_machine(
         &self,
-        _: Sender<PeerMessage>,
-        _: Receiver<PeerMessage>,
-        _: Receiver<RaftMessage>,
-        _: broadcast::Sender<bool>,
+        mode: ClusterRaftModel,
+        peer_message_send: Sender<PeerMessage>,
+        peer_message_recv: Receiver<PeerMessage>,
+        raft_message_recv: Receiver<RaftMessage>,
+        stop_send: broadcast::Sender<bool>,
+        openraft_node: Raft<TypeConfig>,
     ) {
-        // let data_route = Arc::new(DataRoute::new(
-        //     self.rocksdb_engine_handler.clone(),
-        //     self.cluster_cache.clone(),
-        //     self.engine_cache.clone(),
-        // ));
+        if mode == ClusterRaftModel::V1 {
+            self.start_raftv1_machine(
+                peer_message_send,
+                peer_message_recv,
+                raft_message_recv,
+                stop_send,
+            );
+        }
 
-        // let stop_recv = stop_send.subscribe();
-        // let mut raft: RaftMachine = RaftMachine::new(
-        //     self.cluster_cache.clone(),
-        //     data_route,
-        //     peer_message_send,
-        //     raft_message_recv,
-        //     stop_recv,
-        //     self.raft_machine_storage.clone(),
-        // );
-        // tokio::spawn(async move {
-        //     raft.run().await;
-        // });
-
-        // let mut peers_manager =
-        //     RaftPeersManager::new(peer_message_recv, self.client_poll.clone(), 5, stop_send);
-
-        // tokio::spawn(async move {
-        //     peers_manager.start().await;
-        // });
-
-        // info!("Raft Node inter-node communication management thread started successfully");
+        if mode == ClusterRaftModel::V2 {
+            self.start_raftv2_machine(openraft_node);
+        }
     }
 
     // Start Raft Status Machine
-    pub fn start_raftv2_machine(&self, openraft_node: Raft<TypeConfig>) {
+    fn start_raftv1_machine(
+        &self,
+        peer_message_send: Sender<PeerMessage>,
+        peer_message_recv: Receiver<PeerMessage>,
+        raft_message_recv: Receiver<RaftMessage>,
+        stop_send: broadcast::Sender<bool>,
+    ) {
+        let data_route = Arc::new(DataRoute::new(
+            self.rocksdb_engine_handler.clone(),
+            self.cluster_cache.clone(),
+            self.engine_cache.clone(),
+        ));
+
+        let stop_recv = stop_send.subscribe();
+        let mut raft: RaftMachine = RaftMachine::new(
+            self.cluster_cache.clone(),
+            data_route,
+            peer_message_send,
+            raft_message_recv,
+            stop_recv,
+            self.raft_machine_storage.clone(),
+        );
+        tokio::spawn(async move {
+            match raft.run().await {
+                Ok(()) => {}
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            }
+        });
+
+        let mut peers_manager =
+            RaftPeersManager::new(peer_message_recv, self.client_poll.clone(), 5, stop_send);
+
+        tokio::spawn(async move {
+            peers_manager.start().await;
+        });
+
+        info!("Raft Node inter-node communication management thread started successfully");
+    }
+
+    // Start Raft Status Machine
+    fn start_raftv2_machine(&self, openraft_node: Raft<TypeConfig>) {
         tokio::spawn(async move {
             start_openraft_node(openraft_node).await;
         });

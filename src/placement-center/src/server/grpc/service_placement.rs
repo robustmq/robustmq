@@ -33,7 +33,6 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::route::apply::RaftMachineApply;
 use crate::storage::route::data::{StorageData, StorageDataType};
-use clients::poll::ClientPool;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
 use prost::Message;
@@ -55,7 +54,6 @@ pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
     cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    client_poll: Arc<ClientPool>,
 }
 
 impl GrpcPlacementService {
@@ -63,13 +61,11 @@ impl GrpcPlacementService {
         raft_machine_apply: Arc<RaftMachineApply>,
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        client_poll: Arc<ClientPool>,
     ) -> Self {
         GrpcPlacementService {
             raft_machine_apply,
             cluster_cache,
             rocksdb_engine_handler,
-            client_poll,
         }
     }
 }
