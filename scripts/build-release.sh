@@ -77,9 +77,9 @@ build_linux_x86_release(){
     package_name="linux-gnu-intel64"
     cross_build $platform_name $package_name $version
 
-    platform_name="x86_64-unknown-linux-musl"
-    package_name="linux-musl-intel64"
-    cross_build $platform_name $package_name $version
+    # platform_name="x86_64-unknown-linux-musl"
+    # package_name="linux-musl-intel64"
+    # cross_build $platform_name $package_name $version
 }
 
 build_linux_arm_release(){
@@ -129,6 +129,20 @@ build_win_arm_release(){
     package_name="windows-gnu-arm32"
     cross_build $platform_name $package_name $version
 }
+
+rustup target add x86_64-unknown-linux-gnu
+rustup target add x86_64-unknown-linux-musl
+
+rustup target add aarch64-unknown-linux-gnu
+rustup target add aarch64-unknown-linux-musl
+
+rustup target add x86_64-apple-darwin
+rustup target add aarch64-apple-darwin
+
+rustup target add x86_64-pc-windows-gnu
+rustup target add i686-pc-windows-gnu
+
+rustup target add aarch64-pc-windows-gnullvm
 
 if [ "$platform" = "linux-x86" ]; then
    build_linux_x86_release $version

@@ -75,4 +75,4 @@ echo "Placement Center cluster Members: "${membership}
 echo "Placement Center cluster Nodes: "${nodes}
 
 
-
+sleep 10
