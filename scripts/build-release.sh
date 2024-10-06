@@ -41,7 +41,7 @@ cross_build(){
     mkdir -p ${build}
 
     # build
-	cross build --release --target ${arc}
+	cargo build --release --target ${arc}
 
     # makdir fold
 	mkdir -p ${build}/${package_name}
