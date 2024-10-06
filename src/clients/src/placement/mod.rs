@@ -202,7 +202,7 @@ async fn retry_call(
             Err(e) => {
                 if is_has_to_forward(&e) {
                     if let Some(leader_addr) = get_forward_addr(&e) {
-                        client_poll.set_leader_addr(&service, &interface, &addr, &leader_addr);
+                        client_poll.set_leader_addr(&addr, &leader_addr);
                     }
                 } else {
                     error!(
@@ -232,7 +232,7 @@ fn calc_addr(
     let index = times % addrs.len();
     let addr = addrs.get(index).unwrap().clone();
     if is_write_request(service, interface) {
-        if let Some(leader_addr) = client_poll.get_leader_addr(service, interface, &addr) {
+        if let Some(leader_addr) = client_poll.get_leader_addr(&addr) {
             return (leader_addr, times + 1);
         }
     }

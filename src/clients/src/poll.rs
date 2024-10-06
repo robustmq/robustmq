@@ -22,6 +22,7 @@ use crate::{
 };
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
+use log::info;
 use mobc::{Connection, Pool};
 
 #[derive(Clone)]
@@ -301,28 +302,19 @@ impl ClientPool {
         ));
     }
 
-    pub fn get_leader_addr(
-        &self,
-        service: &PlacementCenterService,
-        interface: &PlacementCenterInterface,
-        addr: &String,
-    ) -> Option<String> {
-        let key = format!("{:?}_{:?}_{}", service, interface, addr);
-        if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(&key) {
+    pub fn get_leader_addr(&self, addr: &String) -> Option<String> {
+        if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(addr) {
             return Some(leader_addr.clone());
         }
         return None;
     }
 
-    pub fn set_leader_addr(
-        &self,
-        service: &PlacementCenterService,
-        interface: &PlacementCenterInterface,
-        addr: &String,
-        leader_addr: &String,
-    ) {
-        let key = format!("{:?}_{:?}_{}", service, interface, addr);
+    pub fn set_leader_addr(&self, addr: &String, leader_addr: &String) {
+        info!(
+            "Update the Leader information in the client cache with the new Leader address :{}",
+            leader_addr
+        );
         self.placement_center_leader_addr_caches
-            .insert(key, leader_addr.clone());
+            .insert(addr.to_string(), leader_addr.clone());
     }
 }
