@@ -17,6 +17,7 @@ use crate::{
     placement::{
         journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager,
         openraft::OpenRaftServiceManager, placement::PlacementServiceManager,
+        PlacementCenterInterface, PlacementCenterService,
     },
 };
 use common_base::error::common::CommonError;
@@ -36,6 +37,9 @@ pub struct ClientPool {
     // mqtt broker
     mqtt_broker_placement_service_pools: DashMap<String, Pool<MqttBrokerPlacementServiceManager>>,
     mqtt_broker_admin_service_pools: DashMap<String, Pool<MqttBrokerAdminServiceManager>>,
+
+    // leader cache
+    placement_center_leader_addr_caches: DashMap<String, String>,
 }
 
 impl ClientPool {
@@ -49,6 +53,7 @@ impl ClientPool {
             mqtt_broker_placement_service_pools: DashMap::with_capacity(2),
             mqtt_broker_admin_service_pools: DashMap::with_capacity(2),
             placement_center_openraft_service_pools: DashMap::with_capacity(2),
+            placement_center_leader_addr_caches: DashMap::with_capacity(2),
         }
     }
 
@@ -294,5 +299,30 @@ impl ClientPool {
             module,
             "connection pool is not initialized".to_string(),
         ));
+    }
+
+    pub fn get_leader_addr(
+        &self,
+        service: &PlacementCenterService,
+        interface: &PlacementCenterInterface,
+        addr: &String,
+    ) -> Option<String> {
+        let key = format!("{:?}_{:?}_{}", service, interface, addr);
+        if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(&key) {
+            return Some(leader_addr.clone());
+        }
+        return None;
+    }
+
+    pub fn set_leader_addr(
+        &self,
+        service: &PlacementCenterService,
+        interface: &PlacementCenterInterface,
+        addr: &String,
+        leader_addr: &String,
+    ) {
+        let key = format!("{:?}_{:?}_{}", service, interface, addr);
+        self.placement_center_leader_addr_caches
+            .insert(key, leader_addr.clone());
     }
 }
