@@ -52,6 +52,7 @@ impl RaftSnapshot {
         return Ok(());
     }
 
+    #[warn(dead_code)]
     pub fn create_snapshot(&self) -> Result<(), CommonError> {
         println!("{}","create_snapshot");
         // let mut sns = Snapshot::default();
@@ -75,6 +76,7 @@ impl RaftSnapshot {
         return Ok(());
     }
 
+    #[warn(dead_code)]
     pub fn create_snapshot_metadata(&self) -> Result<SnapshotMetadata, CommonError> {
         println!("{}","create_snapshot_metadata");
         // let hard_state = self.hard_state();

@@ -237,7 +237,7 @@ impl RaftMachineStorage {
         return Ok(());
     }
 
-    pub fn save_first_index(&self, index: u64) -> Result<(), String> {
+    pub fn save_first_index(&self, index: u64) -> Result<(), CommonError> {
         let key = key_name_by_first_index();
         self.rocksdb_engine_handler.write(
             self.rocksdb_engine_handler
@@ -248,7 +248,7 @@ impl RaftMachineStorage {
         )
     }
 
-    pub fn save_conf_state(&self, cs: ConfState) -> Result<(), String> {
+    pub fn save_conf_state(&self, cs: ConfState) -> Result<(), CommonError> {
         let key = key_name_by_conf_state();
         let value = ConfState::encode_to_vec(&cs);
         self.rocksdb_engine_handler.write(
@@ -260,7 +260,7 @@ impl RaftMachineStorage {
         )
     }
 
-    pub fn save_hard_state(&self, hs: HardState) -> Result<(), String> {
+    pub fn save_hard_state(&self, hs: HardState) -> Result<(), CommonError> {
         let key = key_name_by_hard_state();
         let val = HardState::encode_to_vec(&hs);
         self.rocksdb_engine_handler.write(
@@ -272,7 +272,7 @@ impl RaftMachineStorage {
         )
     }
 
-    pub fn update_hard_state_commit(&self, commit: u64) -> Result<(), String> {
+    pub fn update_hard_state_commit(&self, commit: u64) -> Result<(), CommonError> {
         let mut hs = self.hard_state();
         hs.commit = commit;
         self.save_hard_state(hs)
@@ -366,6 +366,7 @@ impl RaftMachineStorage {
         };
     }
 
+    #[warn(dead_code)]
     pub fn all_uncommit_index(&self) -> Vec<RaftUncommitData> {
         let key = key_name_uncommit_prefix();
         let cf = self

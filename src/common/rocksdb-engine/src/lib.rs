@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use log::error;
 use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
 use rocksdb::{ColumnFamilyDescriptor, SliceTransform};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct RocksDBEngine {
@@ -50,23 +48,34 @@ impl RocksDBEngine {
         cf: &ColumnFamily,
         key: &str,
         value: &T,
-    ) -> Result<(), String> {
-        match serde_json::to_string(&value) {
-            Ok(serialized) => self
-                .db
-                .put_cf(cf, key, serialized.into_bytes())
-                .map_err(|err| format!("Failed to put to ColumnFamily:{:?}", err)),
-            Err(err) => Err(format!(
-                "Failed to serialize to String. T: {:?}, err: {:?}",
-                value, err
-            )),
+    ) -> Result<(), CommonError> {
+        match serde_json::to_vec(&value) {
+            Ok(serialized) => match self.db.put_cf(cf, key, serialized) {
+                Ok(()) => {}
+                Err(e) => {
+                    return Err(CommonError::CommmonError(format!(
+                        "Failed to put to ColumnFamily:{:?}",
+                        e
+                    )));
+                }
+            },
+            Err(err) => {
+                return Err(CommonError::CommmonError(format!(
+                    "Failed to serialize to String. T: {:?}, err: {:?}",
+                    value, err
+                )))
+            }
         }
+        return Ok(());
     }
 
-    pub fn write_str(&self, cf: &ColumnFamily, key: &str, value: String) -> Result<(), String> {
-        self.db
-            .put_cf(cf, key, value.into_bytes())
-            .map_err(|err| format!("Failed to put to ColumnFamily:{:?}", err))
+    pub fn write_str(
+        &self,
+        cf: &ColumnFamily,
+        key: &str,
+        value: String,
+    ) -> Result<(), CommonError> {
+        return self.write(cf, key, &value);
     }
 
     // Read data from the RocksDB
@@ -74,19 +83,26 @@ impl RocksDBEngine {
         &self,
         cf: &ColumnFamily,
         key: &str,
-    ) -> Result<Option<T>, String> {
+    ) -> Result<Option<T>, CommonError> {
         match self.db.get_cf(cf, key) {
             Ok(opt) => match opt {
-                Some(found) => match String::from_utf8(found) {
-                    Ok(s) => match serde_json::from_str::<T>(&s) {
-                        Ok(t) => Ok(Some(t)),
-                        Err(err) => Err(format!("Failed to deserialize: {:?}", err)),
-                    },
-                    Err(err) => Err(format!("Failed to deserialize: {:?}", err)),
+                Some(found) => match serde_json::from_slice::<T>(&found) {
+                    Ok(t) => Ok(Some(t)),
+                    Err(err) => {
+                        return Err(CommonError::CommmonError(format!(
+                            "Failed to deserialize: {:?}",
+                            err
+                        )))
+                    }
                 },
                 None => Ok(None),
             },
-            Err(err) => Err(format!("Failed to get from ColumnFamily: {:?}", err)),
+            Err(err) => {
+                return Err(CommonError::CommmonError(format!(
+                    "Failed to get from ColumnFamily: {:?}",
+                    err
+                )));
+            }
         }
     }
 
@@ -95,63 +111,43 @@ impl RocksDBEngine {
         &self,
         cf: &ColumnFamily,
         search_key: &str,
-    ) -> Vec<HashMap<String, Vec<u8>>> {
+    ) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
         let mut iter = self.db.raw_iterator_cf(cf);
         iter.seek(search_key);
 
         let mut result = Vec::new();
         while iter.valid() {
-            let key = iter.key();
-            let value = iter.value();
-
-            let mut raw = HashMap::new();
-            if key == None || value == None {
-                continue;
+            if let Some(key) = iter.key() {
+                if let Some(val) = iter.value() {
+                    let key = String::from_utf8(key.to_vec())?;
+                    if !key.starts_with(search_key) {
+                        break;
+                    }
+                    result.push((key, val.to_vec()));
+                }
             }
-            let result_key = match String::from_utf8(key.unwrap().to_vec()) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
 
-            if !result_key.starts_with(search_key) {
-                break;
-            }
-            raw.insert(result_key, value.unwrap().to_vec());
-            result.push(raw);
             iter.next();
         }
-        return result;
+        return Ok(result);
     }
 
     // Read all data in a ColumnFamily
-    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Vec<HashMap<String, String>> {
+    pub fn read_all_by_cf(&self, cf: &ColumnFamily) -> Result<Vec<(String, Vec<u8>)>, CommonError> {
         let mut iter = self.db.raw_iterator_cf(cf);
         iter.seek_to_first();
 
-        let mut result: Vec<HashMap<String, String>> = Vec::new();
+        let mut result: Vec<(String, Vec<u8>)> = Vec::new();
         while iter.valid() {
             if let Some(key) = iter.key() {
                 if let Some(val) = iter.value() {
-                    match String::from_utf8(key.to_vec()) {
-                        Ok(key) => match String::from_utf8(val.to_vec()) {
-                            Ok(da) => {
-                                let mut raw: HashMap<String, String> = HashMap::new();
-                                raw.insert(key, da);
-                                result.push(raw);
-                            }
-                            Err(e) => {
-                                error!("{}", e);
-                            }
-                        },
-                        Err(e) => {
-                            error!("{}", e);
-                        }
-                    }
+                    let key = String::from_utf8(key.to_vec())?;
+                    result.push((key, val.to_vec()));
                 }
             }
             iter.next();
         }
-        return result;
+        return Ok(result);
     }
 
     pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), CommonError> {
@@ -316,23 +312,26 @@ mod tests {
         );
 
         let index = 66u64;
-        let cf = rs.cf_handle(&cf_name()).unwrap();
+        let cf: &rocksdb::ColumnFamily = rs.cf_handle(&cf_name()).unwrap();
 
         let key = "/raft/last_index".to_string();
         let _ = rs.write(cf, &key, &index);
         let res1 = rs.read::<u64>(cf, &key).unwrap().unwrap();
         assert_eq!(index, res1);
 
-        let result = rs.read_all_by_cf(cf);
+        let result = rs.read_all_by_cf(cf).unwrap();
         assert!(result.len() > 0);
         for raw in result.clone() {
-            assert!(raw.contains_key(&key));
-            let v = raw.get(&key);
-            assert_eq!(index.to_string(), v.unwrap().to_string());
+            let raw_key = raw.0;
+            let raw_val = raw.1;
+            assert_eq!(raw_key, key);
 
-            let _ = rs.write_str(cf, &key, v.unwrap().to_string());
-            let res1 = rs.read::<u64>(cf, &key).unwrap().unwrap();
-            assert_eq!(index, res1);
+            let val = String::from_utf8(raw_val).unwrap();
+            assert_eq!(index.to_string(), val);
+
+            let _ = rs.write_str(cf, &key, val);
+            let res1 = rs.read::<String>(cf, &key).unwrap().unwrap();
+            assert_eq!(index.to_string(), res1);
         }
 
         remove_dir_all(config.rocksdb.data_path).await.unwrap();
@@ -366,16 +365,16 @@ mod tests {
         rs.write_str(cf, "/v4/tmp_test/s2", "3".to_string())
             .unwrap();
 
-        let result = rs.read_prefix(cf, "/v1");
+        let result = rs.read_prefix(cf, "/v1").unwrap();
         assert_eq!(result.len(), 3);
 
-        let result = rs.read_prefix(cf, "/v2");
+        let result = rs.read_prefix(cf, "/v2").unwrap();
         assert_eq!(result.len(), 3);
 
-        let result = rs.read_prefix(cf, "/v3");
+        let result = rs.read_prefix(cf, "/v3").unwrap();
         assert_eq!(result.len(), 2);
 
-        let result = rs.read_prefix(cf, "/v4");
+        let result = rs.read_prefix(cf, "/v4").unwrap();
         assert_eq!(result.len(), 1);
 
         remove_dir_all(config.rocksdb.data_path).await.unwrap();

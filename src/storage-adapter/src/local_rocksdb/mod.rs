@@ -80,9 +80,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
     async fn create_shard(&self, shard_name: String, _: ShardConfig) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
         let key = self.offset_shard_key(shard_name);
-        self.db
-            .write(cf, key.as_str(), &0_u128)
-            .map_err(CommonError::CommmonError)
+        self.db.write(cf, key.as_str(), &0_u128)
     }
 
     async fn delete_shard(&self, shard_name: String) -> Result<(), CommonError> {
@@ -92,13 +90,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
     async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db
-            .write(cf, key.as_str(), &value)
-            .map_err(CommonError::CommmonError)
+        self.db.write(cf, key.as_str(), &value)
     }
     async fn get(&self, key: String) -> Result<Option<Record>, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
-        self.db.read(cf, &key).map_err(CommonError::CommmonError)
+        self.db.read(cf, &key)
     }
     async fn delete(&self, key: String) -> Result<(), CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_KV).unwrap();
@@ -118,8 +114,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let key_shard_offset = self.offset_shard_key(&shard_name);
         let offset = self
             .db
-            .read::<u128>(cf, key_shard_offset.as_str())
-            .map_err(CommonError::CommmonError)?
+            .read::<u128>(cf, key_shard_offset.as_str())?
             .unwrap_or(0);
 
         let mut start_offset = offset;
@@ -129,19 +124,16 @@ impl StorageAdapter for RocksDBStorageAdapter {
             offset_res.push(start_offset as usize);
             msg.offset = start_offset;
 
-            self.db
-                .write(
-                    cf,
-                    format!("{}_record_{}", shard_name, start_offset).as_str(),
-                    &msg,
-                )
-                .map_err(CommonError::CommmonError)?;
+            self.db.write(
+                cf,
+                format!("{}_record_{}", shard_name, start_offset).as_str(),
+                &msg,
+            )?;
             start_offset += 1;
         }
 
         self.db
-            .write(cf, key_shard_offset.as_str(), &start_offset)
-            .map_err(CommonError::CommmonError)?;
+            .write(cf, key_shard_offset.as_str(), &start_offset)?;
 
         return Ok(offset_res);
     }
@@ -157,8 +149,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let group_offset_key = self.offset_key(shard_name.clone(), group_id);
         let offset = self
             .db
-            .read::<u128>(cf, group_offset_key.as_str())
-            .map_err(CommonError::CommmonError)?
+            .read::<u128>(cf, group_offset_key.as_str())?
             .unwrap_or(0);
 
         let num = if let Some(num) = record_num { num } else { 10 };
@@ -168,8 +159,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
         for i in offset..(offset + num) {
             let value = self
                 .db
-                .read::<Record>(cf, self.record_key(&shard_name, i).as_str())
-                .map_err(CommonError::CommmonError)?;
+                .read::<Record>(cf, self.record_key(&shard_name, i).as_str())?;
 
             if let Some(value) = value {
                 result.push(value.clone());
@@ -181,8 +171,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
         if cur_offset > 0 {
             self.db
-                .write(cf, group_offset_key.as_str(), &(offset + cur_offset))
-                .map_err(CommonError::CommmonError)?;
+                .write(cf, group_offset_key.as_str(), &(offset + cur_offset))?;
         }
         return Ok(Some(result));
     }
@@ -195,9 +184,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
     ) -> Result<bool, CommonError> {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
         let key = self.offset_key(group_id, shard_name);
-        self.db
-            .write(cf, key.as_str(), &offset)
-            .map_err(CommonError::CommmonError)?;
+        self.db.write(cf, key.as_str(), &offset)?;
         return Ok(true);
     }
 
@@ -209,7 +196,6 @@ impl StorageAdapter for RocksDBStorageAdapter {
         let cf = self.db.cf_handle(DB_COLUMN_FAMILY_RECORD).unwrap();
         self.db
             .read::<Record>(cf, self.record_key(shard_name, offset as u128).as_str())
-            .map_err(CommonError::CommmonError)
     }
 
     async fn stream_read_by_timestamp(
