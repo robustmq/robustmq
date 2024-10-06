@@ -25,7 +25,6 @@ members = [
     "src/clients",
     "src/cmd",
     "src/common/base",
-    "src/common/raft-rocksdb",
     "src/common/rocksdb-engine",
     "src/common/metadata-struct",
     "src/common/third-driver",
@@ -106,7 +105,6 @@ journal-remote = { path = "src/journal-remote" }
 storage-adapter = { path = "src/storage-adapter" }
 cmd = { path = "src/cmd" }
 common-base = { path = "src/common/base" }
-raft-rocksdb = { path = "src/common/raft-rocksdb" }
 rocksdb-engine = { path = "src/common/rocksdb-engine" }
 metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
