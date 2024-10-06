@@ -16,13 +16,13 @@
 platform=$1
 version=$2
 
-if [ "$platform" != "mac" -a "$platform" != "linux" -a "$platform" != "win" ]; then
-    echo "platform Error, optional: win,linux, mac"
+if [ "$platform" != "linux-x86" -a "$platform" != "linux-arm" -a "$platform" != "mac" -a "$platform" != "win-x86" -a "$platform" != "win-arm" ]; then
+    echo "platform Error, optional: linux-x86,linux-arm, mac, win-x86, win-arm"
     exit
 fi
 
 if [ -z "$version" ]; then
-    echo "package version cannot be null, eg: sh scripts/build-release.sh mac 0.1.0"
+    echo "package version cannot be null, eg: sh scripts/build-release.sh win-arm 0.1.0"
     exit
 fi
 
