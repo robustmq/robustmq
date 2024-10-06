@@ -69,7 +69,7 @@ cross_build(){
 	echo "build release package success. ${package_name}.tar.gz "
 }
 
-build_linux_release(){
+build_linux_x86_release(){
     version=$1
 
     # Intel 64
@@ -80,8 +80,11 @@ build_linux_release(){
     platform_name="x86_64-unknown-linux-musl"
     package_name="linux-musl-intel64"
     cross_build $platform_name $package_name $version
+}
 
-    # Arm 64
+build_linux_arm_release(){
+    version=$1
+
     platform_name="aarch64-unknown-linux-gnu"
     package_name="linux-gnu-arm64"
     cross_build $platform_name $package_name $version
@@ -105,7 +108,7 @@ build_mac_release(){
     cross_build $platform_name $package_name $version
 }
 
-build_win_release(){
+build_win_x86_release(){
     version=$1
 
     # Intel 64
@@ -117,26 +120,33 @@ build_win_release(){
     platform_name="i686-pc-windows-gnu"
     package_name="windows-gnu-intel32"
     cross_build $platform_name $package_name $version
+}
 
+build_win_arm_release(){
+    version=$1
     # Arm 64
     platform_name="aarch64-pc-windows-gnullvm"
     package_name="windows-gnu-arm32"
     cross_build $platform_name $package_name $version
 }
 
-if [ "$platform" = "linux" ]; then
-   build_linux_release $version
+if [ "$platform" = "linux-x86" ]; then
+   build_linux_x86_release $version
+fi
+
+if [ "$platform" = "linux-arm" ]; then
+   build_linux_arm_release $version
 fi
 
 if [ "$platform" = "mac" ]; then
    build_mac_release $version
 fi
 
-if [ "$platform" = "win" ]; then
-    build_win_release $version
+if [ "$platform" = "win-x86" ]; then
+    build_win_x86_release $version
 fi
 
-if [ "$platform" = "arm" ]; then
-    build_arm_release $version
+if [ "$platform" = "win-arm" ]; then
+    build_win_arm_release $version
 fi
 
