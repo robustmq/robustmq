@@ -53,7 +53,7 @@ prometheus = "0.13.3"
 prometheus_exporter = "0.8"
 lazy_static = "^1.4"
 futures = "0.3"
-thiserror = "1"                                                 
+thiserror = "1"
 bytes = { version = "1", features = ["serde"] }
 futures-util = "0.3.30"
 rocksdb = "0.22.0"
@@ -75,7 +75,10 @@ rustls-pemfile = "2"
 tokio-rustls = "0.26"
 humantime-serde = "1.1.1"
 mysql = "*"
-paho-mqtt = { version = "0.12.5", default-features = false, features = ["bundled", "vendored-ssl"] }
+paho-mqtt = { version = "0.12.5", default-features = false, features = [
+    "bundled",
+    "vendored-ssl",
+] }
 serde_yaml = "0.9"
 log4rs = "1.2.0"
 log = "0.4.0"
@@ -110,3 +113,9 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
+
+[workspace.metadata.cross.target.x86_64-unknown-linux-gnu]
+pre-build = ["yum install clang", "yum install llvm", "yum install rocksdb"]
+
+[workspace.metadata.cross.target.x86_64-unknown-linux-musl]
+pre-build = ["yum install clang", "yum install llvm", "yum install rocksdb"]

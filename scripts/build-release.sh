@@ -16,13 +16,13 @@
 platform=$1
 version=$2
 
-if [ "$platform" != "mac" -a "$platform" != "linux" -a "$platform" != "win" ]; then
-    echo "platform Error, optional: win,linux, mac"
+if [ "$platform" != "linux-x86" -a "$platform" != "linux-arm" -a "$platform" != "mac" -a "$platform" != "win-x86" -a "$platform" != "win-arm" ]; then
+    echo "platform Error, optional: linux-x86,linux-arm, mac, win-x86, win-arm"
     exit
 fi
 
 if [ -z "$version" ]; then
-    echo "package version cannot be null, eg: sh scripts/build-release.sh mac 0.1.0"
+    echo "package version cannot be null, eg: sh scripts/build-release.sh win-arm 0.1.0"
     exit
 fi
 
@@ -41,7 +41,7 @@ cross_build(){
     mkdir -p ${build}
 
     # build
-	cross build --release --target ${arc}
+	cargo build --release --target ${arc}
 
     # makdir fold
 	mkdir -p ${build}/${package_name}
@@ -77,9 +77,9 @@ build_linux_x86_release(){
     package_name="linux-gnu-intel64"
     cross_build $platform_name $package_name $version
 
-    platform_name="x86_64-unknown-linux-musl"
-    package_name="linux-musl-intel64"
-    cross_build $platform_name $package_name $version
+    # platform_name="x86_64-unknown-linux-musl"
+    # package_name="linux-musl-intel64"
+    # cross_build $platform_name $package_name $version
 }
 
 build_linux_arm_release(){
@@ -129,6 +129,20 @@ build_win_arm_release(){
     package_name="windows-gnu-arm32"
     cross_build $platform_name $package_name $version
 }
+
+rustup target add x86_64-unknown-linux-gnu
+rustup target add x86_64-unknown-linux-musl
+
+rustup target add aarch64-unknown-linux-gnu
+rustup target add aarch64-unknown-linux-musl
+
+rustup target add x86_64-apple-darwin
+rustup target add aarch64-apple-darwin
+
+rustup target add x86_64-pc-windows-gnu
+rustup target add i686-pc-windows-gnu
+
+rustup target add aarch64-pc-windows-gnullvm
 
 if [ "$platform" = "linux-x86" ]; then
    build_linux_x86_release $version

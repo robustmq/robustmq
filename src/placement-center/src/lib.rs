@@ -27,6 +27,7 @@ use openraft::Raft;
 use protocol::placement_center::generate::journal::engine_service_server::EngineServiceServer;
 use protocol::placement_center::generate::kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttServiceServer;
+use protocol::placement_center::generate::openraft::open_raft_service_server::OpenRaftServiceServer;
 use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterServiceServer;
 use raftv1::machine::RaftMachine;
 use raftv1::peer::RaftPeersManager;
@@ -37,6 +38,7 @@ use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
+use server::grpc::services_raftv2::GrpcOpenRaftServices;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
@@ -170,6 +172,8 @@ impl PlacementCenter {
 
         let engine_handler = GrpcEngineService::new(raft_machine_apply.clone());
 
+        let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.openraft_node.clone());
+
         let mqtt_handler = GrpcMqttService::new(
             self.cluster_cache.clone(),
             raft_machine_apply.clone(),
@@ -183,6 +187,7 @@ impl PlacementCenter {
                 .add_service(KvServiceServer::new(kv_handler))
                 .add_service(MqttServiceServer::new(mqtt_handler))
                 .add_service(EngineServiceServer::new(engine_handler))
+                .add_service(OpenRaftServiceServer::new(openraft_handler))
                 .serve(ip)
                 .await
                 .unwrap();

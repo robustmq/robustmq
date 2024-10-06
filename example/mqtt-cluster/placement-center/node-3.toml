@@ -12,16 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+cluster_name = "placement-test"
+
+[node]
 node_id = 3
-addr = "127.0.0.1"
-port = 3228
-admin_port = 3227
-nodes = { 1 = "127.0.0.1:1228", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:3228" }
+nodes = { 1 = "127.0.0.1:2218", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:2238" }
+
+[network]
+grpc_port = 2238
+http_port = 2237
+
+[system]
 runtime_work_threads = 100
-data_path = "/tmp/robust3/data"
-log_path = "/tmp/robust3/logs"
-log_segment_size = 1099511627776
-log_file_num=50
+
+[heartbeat]
+heartbeat_timeout_ms = 5000
+heartbeat_check_time_ms = 1000
 
 [rocksdb]
+data_path = "/tmp/robust/placement-center-3/data"
 max_open_files = 10000
+
+[log]
+log_config = "./config/log4rs.yaml"
+log_path = "/tmp/robust/placement-center-3/logs"

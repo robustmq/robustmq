@@ -33,7 +33,6 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::route::apply::RaftMachineApply;
 use crate::storage::route::data::{StorageData, StorageDataType};
-use bincode::serialize;
 use common_base::error::common::CommonError;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
