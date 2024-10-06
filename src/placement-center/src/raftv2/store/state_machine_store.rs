@@ -116,14 +116,11 @@ impl StateMachineStore {
         &mut self,
         snapshot: StoredSnapshot,
     ) -> Result<(), StorageError<TypeConfig>> {
-        let snapshot_data: BTreeMap<String, String> = serde_json::from_slice(&snapshot.data)
-            .map_err(|e| StorageError::read_snapshot(Some(snapshot.meta.signature()), &e))?;
-
+        
         self.data.last_applied_log_id = snapshot.meta.last_log_id;
         self.data.last_membership = snapshot.meta.last_membership.clone();
 
-        //todo
-        match self.data.route.recover_snapshot(snapshot_data) {
+        match self.data.route.recover_snapshot(snapshot.data) {
             Ok(_) => {
                 return Ok(());
             }

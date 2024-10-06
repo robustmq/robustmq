@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod apply;
 pub mod cluster;
 pub mod data;
 pub mod journal;
 pub mod kv;
 pub mod mqtt;
-pub mod apply;
 
 use crate::storage::route::{
     cluster::DataRouteCluster, journal::DataRouteJournal, kv::DataRouteKv, mqtt::DataRouteMQTT,
@@ -26,11 +26,14 @@ use crate::{
     cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
     storage::rocksdb::RocksDBEngine,
 };
-use bincode::deserialize;
+use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
 use data::{StorageData, StorageDataType};
-use std::collections::BTreeMap;
+use log::{error, info};
 use std::sync::Arc;
+use std::time::Instant;
+
+use super::rocksdb::DB_COLUMN_FAMILY_CLUSTER;
 
 #[derive(Debug, Clone)]
 pub struct DataRoute {
@@ -38,6 +41,7 @@ pub struct DataRoute {
     route_mqtt: DataRouteMQTT,
     route_journal: DataRouteJournal,
     route_cluster: DataRouteCluster,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl DataRoute {
@@ -60,6 +64,7 @@ impl DataRoute {
             route_mqtt,
             route_journal,
             route_cluster,
+            rocksdb_engine_handler,
         };
     }
 
@@ -156,10 +161,69 @@ impl DataRoute {
     }
 
     pub fn build_snapshot(&self) -> Vec<u8> {
-        return Vec::new();
+        info!("Start building snapshots");
+        let cf = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
+        {
+            cf
+        } else {
+            error!(
+                "{}",
+                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string(),)
+            );
+            return Vec::new();
+        };
+
+        let res = match self.rocksdb_engine_handler.read_all_by_cf(cf) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e.to_string());
+                return Vec::new();
+            }
+        };
+
+        let res = match serialize(&res) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e.to_string());
+                return Vec::new();
+            }
+        };
+        info!("Snapshot built successfully, snapshot size :{}", res.len());
+        return res;
     }
 
-    pub fn recover_snapshot(&self, data: BTreeMap<String, String>) -> Result<(), CommonError> {
+    pub fn recover_snapshot(&self, data: Vec<u8>) -> Result<(), CommonError> {
+        info!("Start restoring snapshot, snapshot length :{}", data.len());
+        let now = Instant::now();
+        let records = match deserialize::<Vec<(String, Vec<u8>)>>(&data) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(CommonError::CommmonError(e.to_string()));
+            }
+        };
+
+        let cf = if let Some(cf) = self
+            .rocksdb_engine_handler
+            .cf_handle(DB_COLUMN_FAMILY_CLUSTER)
+        {
+            cf
+        } else {
+            return Err(CommonError::RocksDBFamilyNotAvailable(
+                DB_COLUMN_FAMILY_CLUSTER.to_string(),
+            ));
+        };
+
+        for raw in records {
+            self.rocksdb_engine_handler.write(cf, &raw.0, &raw.1)?;
+        }
+
+        info!(
+            "Snapshot recovery was successful, snapshot size {}, time: {}",
+            data.len(),
+            now.elapsed().as_millis()
+        );
         return Ok(());
     }
 }
