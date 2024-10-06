@@ -1,0 +1,233 @@
+2024-10-07 07:03:57 INFO get_initial_state vote=<T1-N1:Q> last_purged_log_id=None last_applied=None committed=T1-N1.346 last_log_id=T1-N1.346
+2024-10-07 07:03:57 INFO re-apply log [64..0) in 347 item chunks to state machine
+2024-10-07 07:03:57 INFO re-apply 64 log entries: [0, 64),
+2024-10-07 07:03:57 ERROR Raft route failed to process message with error message: Session does not exist
+2024-10-07 07:03:57 INFO re-apply 64 log entries: [64, 128),
+2024-10-07 07:03:57 INFO re-apply 64 log entries: [128, 192),
+2024-10-07 07:03:57 INFO re-apply 64 log entries: [192, 256),
+2024-10-07 07:03:57 INFO re-apply 64 log entries: [256, 320),
+2024-10-07 07:03:57 INFO re-apply 27 log entries: [320, 347),
+2024-10-07 07:03:57 INFO load membership from log: [347..347)
+2024-10-07 07:03:57 INFO load key log ids from (None,T1-N1.346]
+2024-10-07 07:03:57 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true }, last_update: Some(Instant { tv_sec: 330511, tv_nsec: 810855500 }), lease: 0ns, lease_enabled: true }, committed: Some(LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }), purged_next: 0, log_ids: LogIdList { key_log_ids: [LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }, LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 1 }, LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: Some(LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }), membership: Membership { configs: [{1, 2, 3}], nodes: {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} }, voter_ids: {1, 2, 3} }, effective: EffectiveMembership { log_id: Some(LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }), membership: Membership { configs: [{1, 2, 3}], nodes: {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} }, voter_ids: {1, 2, 3} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })), submitted: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })), flushed: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })) }, applied: Some(LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }), snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: true
+2024-10-07 07:03:57 INFO startup done: id=3 target_state: Follower
+2024-10-07 07:03:57 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:3228
+2024-10-07 07:03:57 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:03:57 INFO Storage Engine Controller started successfully
+2024-10-07 07:03:57 INFO Placement Center service started successfully...
+2024-10-07 07:03:57 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:3227
+2024-10-07 07:03:57 INFO election timeout passed, about to elect
+2024-10-07 07:03:57 INFO do trigger election
+2024-10-07 07:03:57 INFO openraft::engine::engine_impl::Engine<_>::elect, new candidate: {<T2-N3:->@07:03:57.872625, last_log_id:T1-N1.346 progress:{1: false, 2: false, 3: false}}
+2024-10-07 07:03:57 INFO vote is changing from <T1-N1:Q> to <T2-N3:->
+2024-10-07 07:03:57 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:03:57.874575 resp={<T2-N3:->, last_log:None}
+2024-10-07 07:03:57 INFO openraft::engine::engine_impl::Engine<_>::handle_vote_resp resp={<T2-N3:->, last_log:None} target=3 my_vote=<T2-N3:-> my_last_log_id=T1-N1.346
+2024-10-07 07:03:57 INFO openraft::proposer::candidate::Candidate<_, _>::grant_by voting={<T2-N3:->@07:03:57.872625, last_log_id:T1-N1.346 progress:{3: true, 1: false, 2: false}}
+2024-10-07 07:03:57 ERROR while requesting vote error=Unreachable node: common_base::error::common::CommonError: OpenRaftServices connection pool has no connection information available. transport error,http://127.0.0.1:2228 target=2
+2024-10-07 07:03:57 ERROR while requesting vote error=Unreachable node: common_base::error::common::CommonError: OpenRaftServices connection pool has no connection information available. transport error,http://127.0.0.1:1228 target=1
+2024-10-07 07:03:58 INFO election timeout passed, about to elect
+2024-10-07 07:03:58 INFO do trigger election
+2024-10-07 07:03:58 INFO openraft::engine::engine_impl::Engine<_>::elect, new candidate: {<T3-N3:->@07:03:58.247366, last_log_id:T1-N1.346 progress:{1: false, 2: false, 3: false}}
+2024-10-07 07:03:58 INFO vote is changing from <T2-N3:-> to <T3-N3:->
+2024-10-07 07:03:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:03:58.247762 resp={<T3-N3:->, last_log:None}
+2024-10-07 07:03:58 INFO openraft::engine::engine_impl::Engine<_>::handle_vote_resp resp={<T3-N3:->, last_log:None} target=3 my_vote=<T3-N3:-> my_last_log_id=T1-N1.346
+2024-10-07 07:03:58 INFO openraft::proposer::candidate::Candidate<_, _>::grant_by voting={<T3-N3:->@07:03:58.247366, last_log_id:T1-N1.346 progress:{3: true, 1: false, 2: false}}
+2024-10-07 07:03:58 ERROR while requesting vote error=Unreachable node: common_base::error::common::CommonError: OpenRaftServices connection pool has no connection information available. transport error,http://127.0.0.1:1228 target=1
+2024-10-07 07:03:58 ERROR while requesting vote error=Unreachable node: common_base::error::common::CommonError: OpenRaftServices connection pool has no connection information available. transport error,http://127.0.0.1:2228 target=2
+2024-10-07 07:03:58 INFO get_initial_state vote=<T1-N1:Q> last_purged_log_id=None last_applied=None committed=T1-N1.346 last_log_id=T1-N1.346
+2024-10-07 07:03:58 INFO re-apply log [64..0) in 347 item chunks to state machine
+2024-10-07 07:03:58 INFO get_initial_state vote=<T1-N1:Q> last_purged_log_id=None last_applied=None committed=T1-N1.346 last_log_id=T1-N1.346
+2024-10-07 07:03:58 INFO re-apply log [64..0) in 347 item chunks to state machine
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [0, 64),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [0, 64),
+2024-10-07 07:03:58 ERROR Raft route failed to process message with error message: Session does not exist
+2024-10-07 07:03:58 ERROR Raft route failed to process message with error message: Session does not exist
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [64, 128),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [64, 128),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [128, 192),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [128, 192),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [192, 256),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [192, 256),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [256, 320),
+2024-10-07 07:03:58 INFO re-apply 64 log entries: [256, 320),
+2024-10-07 07:03:58 INFO re-apply 27 log entries: [320, 347),
+2024-10-07 07:03:58 INFO re-apply 27 log entries: [320, 347),
+2024-10-07 07:03:58 INFO load membership from log: [347..347)
+2024-10-07 07:03:58 INFO load key log ids from (None,T1-N1.346]
+2024-10-07 07:03:58 INFO load membership from log: [347..347)
+2024-10-07 07:03:58 INFO load key log ids from (None,T1-N1.346]
+2024-10-07 07:03:58 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true }, last_update: Some(Instant { tv_sec: 330512, tv_nsec: 658097208 }), lease: 0ns, lease_enabled: true }, committed: Some(LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }), purged_next: 0, log_ids: LogIdList { key_log_ids: [LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }, LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 1 }, LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: Some(LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }), membership: Membership { configs: [{1, 2, 3}], nodes: {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} }, voter_ids: {1, 2, 3} }, effective: EffectiveMembership { log_id: Some(LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }), membership: Membership { configs: [{1, 2, 3}], nodes: {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} }, voter_ids: {1, 2, 3} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })), submitted: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })), flushed: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })) }, applied: Some(LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }), snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: true
+2024-10-07 07:03:58 INFO startup done: id=2 target_state: Follower
+2024-10-07 07:03:58 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true }, last_update: Some(Instant { tv_sec: 330512, tv_nsec: 658512833 }), lease: 0ns, lease_enabled: true }, committed: Some(LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }), purged_next: 0, log_ids: LogIdList { key_log_ids: [LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }, LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 1 }, LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: Some(LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }), membership: Membership { configs: [{1, 2, 3}], nodes: {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} }, voter_ids: {1, 2, 3} }, effective: EffectiveMembership { log_id: Some(2024-10-07 07:03:58 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+LogId { leader_id: LeaderId { term: 0, node_id: 0 }, index: 0 }), membership: Membership { configs: [{1, 2, 3}], nodes: {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} }, voter_ids: {1, 2, 3} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })), submitted: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })), flushed: Some(Log(LogIOId { committed_vote: CommittedVote { vote: Vote { leader_id: LeaderId { term: 1, node_id: 1 }, committed: true } }, log_id: None })) }, applied: Some(LogId { leader_id: LeaderId { term: 1, node_id: 1 }, index: 346 }), snapshot: None, purged: None }, purge_upto: None }, is_leader: true, is_voter: true
+2024-10-07 07:03:58 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:2228
+2024-10-07 07:03:58 INFO Storage Engine Controller started successfully
+2024-10-07 07:03:58 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:1228
+2024-10-07 07:03:58 INFO Storage Engine Controller started successfully
+2024-10-07 07:03:58 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:03:58 INFO become leader id=1
+2024-10-07 07:03:58 INFO remove all replication
+2024-10-07 07:03:58 INFO id=1 HeartbeatWorker are shutdown
+2024-10-07 07:03:58 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:2227
+2024-10-07 07:03:58 INFO Whether nodes should be initialized, flag=true
+2024-10-07 07:03:58 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:1227
+2024-10-07 07:03:58 INFO Placement Center service started successfully...
+2024-10-07 07:03:58 INFO Placement Center service started successfully...
+2024-10-07 07:03:58 INFO vote <T1-N1:Q> is rejected by local vote: <T3-N3:->
+2024-10-07 07:03:58 INFO election timeout passed, about to elect
+2024-10-07 07:03:58 INFO do trigger election
+2024-10-07 07:03:58 INFO openraft::engine::engine_impl::Engine<_>::elect, new candidate: {<T4-N3:->@07:03:58.624551, last_log_id:T1-N1.346 progress:{1: false, 2: false, 3: false}}
+2024-10-07 07:03:58 INFO vote is changing from <T3-N3:-> to <T4-N3:->
+2024-10-07 07:03:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:03:58.625208 resp={<T4-N3:->, last_log:None}
+2024-10-07 07:03:58 INFO openraft::engine::engine_impl::Engine<_>::handle_vote_resp resp={<T4-N3:->, last_log:None} target=3 my_vote=<T4-N3:-> my_last_log_id=T1-N1.346
+2024-10-07 07:03:58 INFO openraft::proposer::candidate::Candidate<_, _>::grant_by voting={<T4-N3:->@07:03:58.624551, last_log_id:T1-N1.346 progress:{3: true, 1: false, 2: false}}
+2024-10-07 07:03:58 INFO Raft::vote() rpc={vote:<T4-N3:->, last_log:T1-N1.346}
+2024-10-07 07:03:58 INFO received RaftMsg::RequestVote: openraft::core::raft_core::RaftCore<_, _, _>::handle_api_msg now=07:03:58.628747 vote_request={vote:<T4-N3:->, last_log:T1-N1.346}
+2024-10-07 07:03:58 INFO req={vote:<T4-N3:->, last_log:T1-N1.346} func="openraft::core::raft_core::RaftCore<_, _, _>::handle_vote_request"
+2024-10-07 07:03:58 INFO Engine::handle_vote_req req={vote:<T4-N3:->, last_log:T1-N1.346}
+2024-10-07 07:03:58 INFO Engine::handle_vote_req my_vote=<T1-N1:Q> my_last_log_id=T1-N1.346 lease=now: 07:03:58.628835, last_update: 07:03:58.401372(227.462291ms ago), lease: 300ms, expire at: 07:03:58.701372(72.537709ms since now)
+2024-10-07 07:03:58 INFO reject vote-request: leader lease has not yet expire: now: 07:03:58.628834, last_update: 07:03:58.401372(227.462291ms ago), lease: 300ms, expire at: 07:03:58.701372(72.537709ms since now)
+2024-10-07 07:03:58 INFO vote is changing from <T1-N1:Q> to <T4-N3:Q>
+2024-10-07 07:03:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:03:58.642747 resp={<T4-N3:Q>, last_log:None}
+2024-10-07 07:04:07 ERROR Get cluster mqtt-broker Node access address is empty, there is no cluster node address available.
+2024-10-07 07:04:08 ERROR Get cluster mqtt-broker Node access address is empty, there is no cluster node address available.
+2024-10-07 07:04:08 ERROR Get cluster mqtt-broker Node access address is empty, there is no cluster node address available.
+2024-10-07 07:04:17 ERROR Get cluster mqtt-broker Node access address is empty, there is no cluster node address available.
+2024-10-07 07:04:18 ERROR Get cluster mqtt-broker Node access address is empty, there is no cluster node address available.
+2024-10-07 07:04:18 ERROR Get cluster mqtt-broker Node access address is empty, there is no cluster node address available.
+2024-10-07 07:04:26 INFO get_initial_state vote=<T0-N0:-> last_purged_log_id=None last_applied=None committed=None last_log_id=None
+2024-10-07 07:04:26 INFO get_initial_state vote=<T0-N0:-> last_purged_log_id=None last_applied=None committed=None last_log_id=None
+2024-10-07 07:04:26 INFO load membership from log: [0..0)
+2024-10-07 07:04:26 INFO load membership from log: [0..0)
+2024-10-07 07:04:26 INFO load key log ids from (None,None]
+2024-10-07 07:04:26 INFO load key log ids from (None,None]
+2024-10-07 07:04:26 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false }, last_update: Some(Instant { tv_sec: 330540, tv_nsec: 961877250 }), lease: 0ns, lease_enabled: true }, committed: None, purged_next: 0, log_ids: LogIdList { key_log_ids: [] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} }, effective: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), submitted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), flushed: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })) }, applied: None, snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: false
+2024-10-07 07:04:26 INFO startup done: id=2 target_state: Learner
+2024-10-07 07:04:26 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false }, last_update: Some(Instant { tv_sec: 330540, tv_nsec: 961897500 }), lease: 0ns, lease_enabled: true }, committed: None, purged_next: 0, log_ids: LogIdList { key_log_ids: [] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} }, effective: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), submitted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), flushed: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })) }, applied: None, snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: false
+2024-10-07 07:04:26 INFO Storage Engine Controller started successfully
+2024-10-07 07:04:26 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:04:26 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:2228
+2024-10-07 07:04:26 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:3228
+2024-10-07 07:04:26 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:04:26 INFO Storage Engine Controller started successfully
+2024-10-07 07:04:26 INFO startup done: id=3 target_state: Learner
+2024-10-07 07:04:26 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:2227
+2024-10-07 07:04:26 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:3227
+2024-10-07 07:04:26 INFO Placement Center service started successfully...
+2024-10-07 07:04:26 INFO Placement Center service started successfully...
+2024-10-07 07:04:26 INFO get_initial_state vote=<T0-N0:-> last_purged_log_id=None last_applied=None committed=None last_log_id=None
+2024-10-07 07:04:26 INFO load membership from log: [0..0)
+2024-10-07 07:04:26 INFO load key log ids from (None,None]
+2024-10-07 07:04:26 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false }, last_update: Some(Instant { tv_sec: 330541, tv_nsec: 78916916 }), lease: 0ns, lease_enabled: true }, committed: None, purged_next: 0, log_ids: LogIdList { key_log_ids: [] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} }, effective: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), submitted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), flushed: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })) }, applied: None, snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: false
+2024-10-07 07:04:26 INFO startup done: id=1 target_state: Learner
+2024-10-07 07:04:26 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:1228
+2024-10-07 07:04:26 INFO Storage Engine Controller started successfully
+2024-10-07 07:04:26 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:04:26 INFO Whether nodes should be initialized, flag=false
+2024-10-07 07:04:26 INFO received RaftMsg::Initialize: openraft::core::raft_core::RaftCore<_, _, _>::handle_api_msg members={1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:04:26 INFO openraft::engine::engine_impl::Engine<_>::elect, new candidate: {<T1-N1:->@07:04:26.816864, last_log_id:T0-N0.0 progress:{1: false, 2: false, 3: false}}
+2024-10-07 07:04:26 INFO vote is changing from <T0-N0:Q> to <T1-N1:->
+2024-10-07 07:04:26 INFO Placement Center service started successfully...
+2024-10-07 07:04:26 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:1227
+2024-10-07 07:04:26 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:04:26.820175 resp={<T1-N1:->, last_log:None}
+2024-10-07 07:04:26 INFO openraft::engine::engine_impl::Engine<_>::handle_vote_resp resp={<T1-N1:->, last_log:None} target=1 my_vote=<T1-N1:-> my_last_log_id=T0-N0.0
+2024-10-07 07:04:26 INFO openraft::proposer::candidate::Candidate<_, _>::grant_by voting={<T1-N1:->@07:04:26.816864, last_log_id:T0-N0.0 progress:{1: true, 2: false, 3: false}}
+2024-10-07 07:04:26 INFO Node {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} was initialized successfully
+2024-10-07 07:04:26 INFO Raft::vote() rpc={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:04:26 INFO Raft::vote() rpc={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:04:26 INFO received RaftMsg::RequestVote: openraft::core::raft_core::RaftCore<_, _, _>::handle_api_msg now=07:04:26.836231 vote_request={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:04:26 INFO req={vote:<T1-N1:->, last_log:T0-N0.0} func="openraft::core::raft_core::RaftCore<_, _, _>::handle_vote_request"
+2024-10-07 07:04:26 INFO received RaftMsg::RequestVote: openraft::core::raft_core::RaftCore<_, _, _>::handle_api_msg now=07:04:26.836270 vote_request={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:04:26 INFO Engine::handle_vote_req req={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:04:26 INFO req={vote:<T1-N1:->, last_log:T0-N0.0} func="openraft::core::raft_core::RaftCore<_, _, _>::handle_vote_request"
+2024-10-07 07:04:26 INFO Engine::handle_vote_req my_vote=<T0-N0:-> my_last_log_id=None lease=now: 07:04:26.836342, last_update: 07:04:26.687857(148.484583ms ago), lease: 0ns, expire at: 07:04:26.687857(0ns since now)
+2024-10-07 07:04:26 INFO Engine::handle_vote_req req={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:04:26 INFO Engine::handle_vote_req my_vote=<T0-N0:-> my_last_log_id=None lease=now: 07:04:26.836409, last_update: 07:04:26.687837(148.572375ms ago), lease: 0ns, expire at: 07:04:26.687837(0ns since now)
+2024-10-07 07:04:26 INFO vote is changing from <T0-N0:-> to <T1-N1:->
+2024-10-07 07:04:26 INFO vote is changing from <T0-N0:-> to <T1-N1:->
+2024-10-07 07:04:26 INFO handle vote request result req={vote:<T1-N1:->, last_log:T0-N0.0} result=Ok(())
+2024-10-07 07:04:26 INFO handle vote request result req={vote:<T1-N1:->, last_log:T0-N0.0} result=Ok(())
+2024-10-07 07:04:26 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:04:26.837102 resp={<T1-N1:->, last_log:None}
+2024-10-07 07:04:26 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:04:26.837126 resp={<T1-N1:->, last_log:None}
+2024-10-07 07:04:26 INFO vote is changing from <T1-N1:-> to <T1-N1:Q>
+2024-10-07 07:04:26 INFO vote is changing from <T1-N1:-> to <T1-N1:Q>
+2024-10-07 07:04:26 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:04:26.846182 resp={<T1-N1:Q>, last_log:None}
+2024-10-07 07:04:26 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:04:26.846332 resp={<T1-N1:Q>, last_log:None}
+2024-10-07 07:05:58 INFO get_initial_state vote=<T0-N0:-> last_purged_log_id=None last_applied=None committed=None last_log_id=None
+2024-10-07 07:05:58 INFO load membership from log: [0..0)
+2024-10-07 07:05:58 INFO get_initial_state vote=<T0-N0:-> last_purged_log_id=None last_applied=None committed=None last_log_id=None
+2024-10-07 07:05:58 INFO load key log ids from (None,None]
+2024-10-07 07:05:58 INFO load membership from log: [0..0)
+2024-10-07 07:05:58 INFO load key log ids from (None,None]
+2024-10-07 07:05:58 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false }, last_update: Some(Instant { tv_sec: 330632, tv_nsec: 381192250 }), lease: 0ns, lease_enabled: true }, committed: None, purged_next: 0, log_ids: LogIdList { key_log_ids: [] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} }, effective: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), submitted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), flushed: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })) }, applied: None, snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: false
+2024-10-07 07:05:58 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false }, last_update: Some(Instant { tv_sec: 330632, tv_nsec: 381013041 }), lease: 0ns, lease_enabled: true }, committed: None, purged_next: 0, log_ids: LogIdList { key_log_ids: [] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} }, effective: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), submitted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), flushed: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })) }, applied: None, snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: false
+2024-10-07 07:05:58 INFO startup done: id=2 target_state: Learner
+2024-10-07 07:05:58 INFO startup done: id=1 target_state: Learner
+2024-10-07 07:05:58 INFO Storage Engine Controller started successfully
+2024-10-07 07:05:58 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:1228
+2024-10-07 07:05:58 INFO Storage Engine Controller started successfully
+2024-10-07 07:05:58 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:2228
+2024-10-07 07:05:58 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:05:58 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:05:58 INFO Whether nodes should be initialized, flag=false
+2024-10-07 07:05:58 INFO received RaftMsg::Initialize: openraft::core::raft_core::RaftCore<_, _, _>::handle_api_msg members={1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:05:58 INFO openraft::engine::engine_impl::Engine<_>::elect, new candidate: {<T1-N1:->@07:05:58.108196, last_log_id:T0-N0.0 progress:{1: false, 2: false, 3: false}}
+2024-10-07 07:05:58 INFO vote is changing from <T0-N0:Q> to <T1-N1:->
+2024-10-07 07:05:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:05:58.109006 resp={<T1-N1:->, last_log:None}
+2024-10-07 07:05:58 INFO Node {1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }} was initialized successfully
+2024-10-07 07:05:58 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:2227
+2024-10-07 07:05:58 INFO openraft::engine::engine_impl::Engine<_>::handle_vote_resp resp={<T1-N1:->, last_log:None} target=1 my_vote=<T1-N1:-> my_last_log_id=T0-N0.0
+2024-10-07 07:05:58 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:1227
+2024-10-07 07:05:58 INFO openraft::proposer::candidate::Candidate<_, _>::grant_by voting={<T1-N1:->@07:05:58.108196, last_log_id:T0-N0.0 progress:{1: true, 2: false, 3: false}}
+2024-10-07 07:05:58 ERROR while requesting vote error=Unreachable node: common_base::error::common::CommonError: OpenRaftServices connection pool has no connection information available. transport error,http://127.0.0.1:3228 target=3
+2024-10-07 07:05:58 INFO Placement Center service started successfully...
+2024-10-07 07:05:58 INFO Placement Center service started successfully...
+2024-10-07 07:05:58 INFO Raft::vote() rpc={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:05:58 INFO received RaftMsg::RequestVote: openraft::core::raft_core::RaftCore<_, _, _>::handle_api_msg now=07:05:58.112466 vote_request={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:05:58 INFO req={vote:<T1-N1:->, last_log:T0-N0.0} func="openraft::core::raft_core::RaftCore<_, _, _>::handle_vote_request"
+2024-10-07 07:05:58 INFO Engine::handle_vote_req req={vote:<T1-N1:->, last_log:T0-N0.0}
+2024-10-07 07:05:58 INFO Engine::handle_vote_req my_vote=<T0-N0:-> my_last_log_id=None lease=now: 07:05:58.112562, last_update: 07:05:58.104930(7.632333ms ago), lease: 0ns, expire at: 07:05:58.104930(0ns since now)
+2024-10-07 07:05:58 INFO vote is changing from <T0-N0:-> to <T1-N1:->
+2024-10-07 07:05:58 INFO handle vote request result req={vote:<T1-N1:->, last_log:T0-N0.0} result=Ok(())
+2024-10-07 07:05:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:05:58.113081 resp={<T1-N1:->, last_log:None}
+2024-10-07 07:05:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:05:58.114182 resp={<T1-N1:->, last_log:None}
+2024-10-07 07:05:58 INFO vote is changing from <T1-N1:-> to <T1-N1:Q>
+2024-10-07 07:05:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:05:58.115899 resp={<T1-N1:Q>, last_log:None}
+2024-10-07 07:05:58 INFO get_initial_state vote=<T0-N0:-> last_purged_log_id=None last_applied=None committed=None last_log_id=None
+2024-10-07 07:05:58 INFO load membership from log: [0..0)
+2024-10-07 07:05:58 INFO load key log ids from (None,None]
+2024-10-07 07:05:58 INFO startup begin: state: RaftState { vote: Leased { data: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false }, last_update: Some(Instant { tv_sec: 330632, tv_nsec: 456935416 }), lease: 0ns, lease_enabled: true }, committed: None, purged_next: 0, log_ids: LogIdList { key_log_ids: [] }, membership_state: MembershipState { committed: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} }, effective: EffectiveMembership { log_id: None, membership: Membership { configs: [], nodes: {} }, voter_ids: {} } }, snapshot_meta: SnapshotMeta { last_log_id: None, last_membership: StoredMembership { log_id: None, membership: Membership { configs: [], nodes: {} } }, snapshot_id: "" }, server_state: Learner, io_state: IOState { building_snapshot: false, io_progress: IOProgress { accepted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), submitted: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })), flushed: Some(Vote(NonCommittedVote { vote: Vote { leader_id: LeaderId { term: 0, node_id: 0 }, committed: false } })) }, applied: None, snapshot: None, purged: None }, purge_upto: None }, is_leader: false, is_voter: false
+2024-10-07 07:05:58 INFO startup done: id=3 target_state: Learner
+2024-10-07 07:05:58 INFO Storage Engine Controller started successfully
+2024-10-07 07:05:58 INFO RobustMQ Meta Grpc Server start success. bind addr:0.0.0.0:3228
+2024-10-07 07:05:58 INFO Raft Nodes:{1: Node { node_id: 1, rpc_addr: "127.0.0.1:1228" }, 2: Node { node_id: 2, rpc_addr: "127.0.0.1:2228" }, 3: Node { node_id: 3, rpc_addr: "127.0.0.1:3228" }}
+2024-10-07 07:05:58 INFO Placement Center HTTP Server start success. bind addr:0.0.0.0:3227
+2024-10-07 07:05:58 INFO Placement Center service started successfully...
+2024-10-07 07:05:58 INFO vote is changing from <T0-N0:-> to <T1-N1:Q>
+2024-10-07 07:05:58 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:05:58.502151 resp={<T1-N1:Q>, last_log:None}
+2024-10-07 07:07:39 INFO election timeout passed, about to elect
+2024-10-07 07:07:39 INFO election timeout passed, about to elect
+2024-10-07 07:07:39 INFO do trigger election
+2024-10-07 07:07:39 INFO do trigger election
+2024-10-07 07:07:39 INFO openraft::engine::engine_impl::Engine<_>::elect, new candidate: {<T2-N2:->@07:07:39.242221, last_log_id:T1-N1.1 progress:{1: false, 2: false, 3: false}}
+2024-10-07 07:07:39 INFO vote is changing from <T1-N1:Q> to <T2-N2:->
+2024-10-07 07:07:39 INFO openraft::engine::engine_impl::Engine<_>::elect, new candidate: {<T2-N3:->@07:07:39.242316, last_log_id:T1-N1.1 progress:{1: false, 2: false, 3: false}}
+2024-10-07 07:07:39 INFO vote is changing from <T1-N1:Q> to <T2-N3:->
+2024-10-07 07:07:39 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:07:39.242976 resp={<T2-N2:->, last_log:None}
+2024-10-07 07:07:39 INFO openraft::engine::engine_impl::Engine<_>::handle_vote_resp resp={<T2-N2:->, last_log:None} target=2 my_vote=<T2-N2:-> my_last_log_id=T1-N1.1
+2024-10-07 07:07:39 INFO openraft::proposer::candidate::Candidate<_, _>::grant_by voting={<T2-N2:->@07:07:39.242221, last_log_id:T1-N1.1 progress:{2: true, 1: false, 3: false}}
+2024-10-07 07:07:39 INFO vote <T1-N1:Q> is rejected by local vote: <T2-N2:->
+2024-10-07 07:07:39 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:07:39.243585 resp={<T2-N3:->, last_log:None}
+2024-10-07 07:07:39 INFO openraft::engine::engine_impl::Engine<_>::handle_vote_resp resp={<T2-N3:->, last_log:None} target=3 my_vote=<T2-N3:-> my_last_log_id=T1-N1.1
+2024-10-07 07:07:39 INFO openraft::proposer::candidate::Candidate<_, _>::grant_by voting={<T2-N3:->@07:07:39.242316, last_log_id:T1-N1.1 progress:{3: true, 1: false, 2: false}}
+2024-10-07 07:07:39 INFO vote <T1-N1:Q> is rejected by local vote: <T2-N3:->
+2024-10-07 07:07:39 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:07:39.247517 resp={<T2-N2:->, last_log:Some("T1-N1.1")}
+2024-10-07 07:07:39 INFO Raft::vote() rpc={vote:<T2-N2:->, last_log:T1-N1.1}
+2024-10-07 07:07:39 INFO received RaftMsg::RequestVote: openraft::core::raft_core::RaftCore<_, _, _>::handle_api_msg now=07:07:39.248175 vote_request={vote:<T2-N2:->, last_log:T1-N1.1}
+2024-10-07 07:07:39 INFO req={vote:<T2-N2:->, last_log:T1-N1.1} func="openraft::core::raft_core::RaftCore<_, _, _>::handle_vote_request"
+2024-10-07 07:07:39 INFO Engine::handle_vote_req req={vote:<T2-N2:->, last_log:T1-N1.1}
+2024-10-07 07:07:39 INFO Engine::handle_vote_req my_vote=<T2-N3:-> my_last_log_id=T1-N1.1 lease=now: 07:07:39.248276, last_update: 07:07:39.242961(5.31475ms ago), lease: 0ns, expire at: 07:07:39.242962(0ns since now)
+2024-10-07 07:07:39 INFO vote <T2-N2:-> is rejected by local vote: <T2-N3:->
+2024-10-07 07:07:39 INFO handle vote request result req={vote:<T2-N2:->, last_log:T1-N1.1} result=Err(ByVote(Vote { leader_id: LeaderId { term: 2, node_id: 3 }, committed: false }))
+2024-10-07 07:07:39 INFO vote <T2-N2:Q> is rejected by local vote: <T2-N3:->
+2024-10-07 07:07:39 INFO received Notification::VoteResponse: openraft::core::raft_core::RaftCore<_, _, _>::handle_notification now=07:07:39.250863 resp={<T2-N2:Q>, last_log:Some("T2-N2.2")}
