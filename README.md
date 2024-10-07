@@ -56,108 +56,121 @@ Welcome to our development plan.
 > We are still young and development plans can change quickly.
 
 ## RobustMQ MQTT
-1. Cluster deployment, horizontal unaware expansion.
-2. A single machine can carry millions of connections.
-3. Support MQTT3.1/3.1.1/5.0 protocol.
-4. Supports TCP, SSL, WebSocket, WebSockets protocols.
-5. Supports persistent Session storage.
-6. Support reserved messages, testament messages, shared subscriptions, etc
-7. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
+RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The goal is to build a high-performance, full-featured message queuing MQTT product in Rust that can be deployed in clusters. The final target for the feature is EMQX Enterprise Edition.
 
-## Get Started
+### Features
+1. **Cluster deployment**: A single cluster supports thousands of Broker nodes, supporting unaware smooth horizontal scaling capabilities.
+2. **Full protocol support**: All features of MQTT3.1, 3.1.1, 5.0 protocols are supported
+3. **High performance**: A single machine supports millions of connections and high concurrent message throughput.
+4. **Multiple communication protocols**: Support TCP, TCP SSL, WebSocket, WebSocket SSL, QUIC, HTTP and other access methods.
+5. **Plug-in storage**: Support offline messages, support a variety of message persistence storage engines.
+6. **Fully functional**: It supports basic functions such as testamential messages and reserved messages, as well as all features of EMQX Broker Enterprise Edition. For the full features, see the [RobustMQ MQTT documentation](docs/en/mqtt-feature.md)
+
+### Get Started
 To start the order, you need to start the Placement Center first, and then start the MQTT Broker.
-### Binary packages run
-#### Stand-alone mode
-1. Download .tar.gz
+#### Binary packages run
+##### Download .tar.gz
 ```
-$ tar -xzvf robustmq-v0.0.1-release.tar.gz
-$ cd robustmq-v0.0.1-release
-```
-
-2. Start Placement Center
-```
-$ bin/robust-server placement-center start
+$ wget https://github.com/robustmq/robustmq/releases/download/v0.1.0-beta/robustmq-apple-mac-arm64-0.1.0-beta.tar.gz
+$ tar -xzvf robustmq-apple-mac-arm64-0.1.0-beta.tar.gz
+$ cd robustmq-apple-mac-arm64-0.1.0-beta
 ```
 
-3. Start MQTT Broker
+##### Start the Placement Center and MQTT Server for a node
 ```
-$ bin/robust-server broker-mqtt start
-```
-
-#### Cluster mode
-1. Download .tar.gz
-```
-$ tar -xzvf robustmq-v0.0.1-release.tar.gz
-$ cd robustmq-v0.0.1-release
-```
-2. Start Placement Center
-```
-$ bin/robust-server placement-center start config/cluster/placement-center/node-1.toml
-$ bin/robust-server placement-center start config/cluster/placement-center/node-2.toml
-$ bin/robust-server placement-center start config/cluster/placement-center/node-3.toml
+$ bin/robust-server placement-center start config/placement-center.toml
+$ bin/robust-server mqtt-server start config/mqtt-server.toml
 ```
 
-3. Start MQTT Broker
+##### Start the Placement Center and MQTT Server for 3 nodes
 ```
-$ bin/robust-server mqtt-server start config/cluster/mqtt-server/node-1.toml
-$ bin/robust-server mqtt-server start config/cluster/mqtt-server/node-2.toml
-$ bin/robust-server mqtt-server start config/cluster/mqtt-server/node-3.toml
+# Start Placement Center
+$ bin/robust-server placement-center start example/mqtt-cluster/placement-center/node-1.toml
+$ bin/robust-server placement-center start example/mqtt-cluster/placement-center/node-2.toml
+$ bin/robust-server placement-center start cexample/mqtt-cluster/placement-center/node-3.toml
+
+# Start MQTT Broker
+$ bin/robust-server mqtt-server start example/mqtt-cluster/mqtt-server/node-1.toml
+$ bin/robust-server mqtt-server start example/mqtt-cluster/mqtt-server/node-2.toml
+$ bin/robust-server mqtt-server start example/mqtt-cluster/mqtt-server/node-3.toml
 ```
 
-### Cargo runs
-#### Standalone mode
-1. Run standalone by placement-center
+#### Cargo runs
+##### Quickly launch the sample cluster
 ```
-cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
+$ git clone https://github.com/robustmq/robustmq.git
+$ cd roubustmq
+
+# start cluster
+$ sh example/mqtt-cluster/start.sh
+
+# stop cluster
 ```
 
-2. Run standalone by mqtt-server
+##### Start the Placement Center and MQTT Server for a node
 ```
-cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
-```
-
-#### Cluster mode
-1. Run cluster by placement-center
-```
-cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-1.toml
-cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-2.toml
-cargo run --package cmd --bin placement-center -- --conf=config/cluster/placement-center/node-3.toml
+$ cargo run --package cmd --bin placement-center -- --conf=config/placement-center.toml
+$ cargo run --package cmd --bin mqtt-server -- --conf=config/mqtt-server.toml
 ```
 
-2. Run cluster by mqtt-server
+##### Start the Placement Center and MQTT Server for 3 node
 ```
-cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-1.toml
-cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-2.toml
-cargo run --package cmd --bin mqtt-server -- --conf=config/cluster/mqtt-server/node-3.toml
+# Start Placement Center
+$cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml
+$cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-2.toml
+$cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml
+
+# Start MQTT Broker
+cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml
+cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-2.toml
+cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-3.toml
 ```
 
-## Development
-### Run all test cases
+
+#### Run all test cases
 You need to install the cargo-nextes command first. Please refer to documentation[《Integration testing》](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e7%b3%bb%e7%bb%9f%e6%9e%b6%e6%9e%84/%e6%b5%8b%e8%af%95%e7%94%a8%e4%be%8b/)
 ```
 make test
 ```
 
-### Packaging
+#### Packaging
+Follow the "make help" prompts to build packages for different platforms
+
 ```
-make release
+FWR3KG21WF:robustmq bytedance$ make help
+
+Usage:
+  make <target>
+
+Build Mac Release
+  build-mac-release               Build mac version robustmq.
+
+Build Linux Release
+  build-linux-release             Build linux version robustmq.
+
+Build Win Release
+  build-win-release               Build win version robustmq.
+
+Build Arm Release
+  build-arm-release               Build arm version robustmq.
+  test                            Integration testing for Robustmq
+  clean                           Clean the project.
+  help                            Display help messages.
 ```
 
-## Tests
-### MQTT functional tests 
+####  MQTT functional tests 
 MQTT functionality was tested through the MQTTX tool. MQTTX quick start: https://mqttx.app/zh/docs/get-started.
 
-## Multiple protocols
-### RobustMQ AMQP
+## RobustMQ AMQP
 In the planning
 
-### RobustMQ Kafka
+## RobustMQ Kafka
 In the planning
 
-### RobustMQ RocketMQ
+## RobustMQ RocketMQ
 In the planning
 
-### RobustMQ ...
+## RobustMQ ...
 In the planning
 
 ## Contributing
