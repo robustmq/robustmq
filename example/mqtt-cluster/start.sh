@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 sh example/mqtt-cluster/stop.sh
 
 start_pc_cluster(){
+
     nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/1.log &
     nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-2.toml 2>/tmp/2.log &
     nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml 2>/tmp/3.log &
@@ -37,6 +39,8 @@ start_pc_cluster(){
     then
         echo "placement-center node 3 started successfully. process no: $no3"
     fi
+
+    sleep 5
 
     echo "\nNode 1:"
     resp1=$(curl -s http://127.0.0.1:1227/v1/cluster/status)
@@ -70,17 +74,21 @@ start_pc_cluster(){
 }
 
 start_mqtt_cluster(){
-    nohup cargo run --package cmd --bin broker-mqtt -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/1.log &
+    nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/4.log &
     
-    no1=`ps -ef | grep broker-mqtt  | grep node-1 | grep -v grep | awk '{print $2}'`
+    no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [[ -n $no1 ]]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
     fi
 
     echo "\n-------------------------------------\n"
+    
+    cargo run --package cmd --bin cli-command-mqtt
 }
 
 start_pc_cluster
+
+sleep 3
 
 start_mqtt_cluster
