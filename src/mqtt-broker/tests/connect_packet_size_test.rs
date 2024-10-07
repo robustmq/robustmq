@@ -40,7 +40,9 @@ mod tests {
         let client_id = unique_id();
         let cli = connect_server5_packet_size(&client_id, &addr, packet_size, false, ssl);
 
-        let message_content = vec!['a'; (packet_size + 1) as usize].iter().collect::<String>();
+        let message_content = vec!['a'; (packet_size + 1) as usize]
+            .iter()
+            .collect::<String>();
         // publish
         let msg = MessageBuilder::new()
             .topic(topic.clone())
@@ -53,7 +55,7 @@ mod tests {
                 assert!(false);
             }
             Err(e) => {
-                println!("{}",e.to_string());
+                println!("{}", e.to_string());
                 assert!(true);
             }
         }
@@ -74,7 +76,6 @@ mod tests {
             }
         }
 
-        
         // subscribe
         let rx = cli.start_consuming();
         match cli.subscribe(topic.as_str(), sub_qos) {
