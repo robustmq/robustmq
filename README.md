@@ -105,6 +105,7 @@ $ cd roubustmq
 $ sh example/mqtt-cluster/start.sh
 
 # stop cluster
+$ sh example/mqtt-cluster/stop.sh
 ```
 
 ##### Start the Placement Center and MQTT Server for a node
