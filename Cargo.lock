@@ -740,6 +740,7 @@ dependencies = [
  "mobc",
  "prost 0.12.3",
  "protocol",
+ "regex",
  "serde_json",
  "thiserror",
  "tokio",

@@ -16,11 +16,11 @@ cluster_name = "placement-test"
 
 [node]
 node_id = 1
-nodes = { 1 = "127.0.0.1:2218", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:2238" }
+nodes = { 1 = "127.0.0.1:1228", 2 = "127.0.0.1:2228", 3 = "127.0.0.1:3228" }
 
 [network]
-grpc_port = 2218
-http_port = 2217
+grpc_port = 1228
+http_port = 1227
 
 [system]
 runtime_work_threads = 100

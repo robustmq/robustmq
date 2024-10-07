@@ -21,6 +21,7 @@ use common_base::error::common::CommonError;
 use lazy_static::lazy_static;
 use log::error;
 use openraft::openraft_interface_call;
+use regex::Regex;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::time::sleep;
 
@@ -140,8 +141,9 @@ async fn retry_call(
 ) -> Result<Vec<u8>, CommonError> {
     let mut times = 1;
     loop {
-        let index = times % addrs.len();
-        let addr = addrs.get(index).unwrap().clone();
+        let (addr, new_times) = calc_addr(&client_poll, &addrs, times, &service, &interface);
+        times = new_times;
+
         let result = match service {
             PlacementCenterService::Journal => {
                 journal_interface_call(
@@ -198,19 +200,86 @@ async fn retry_call(
                 return Ok(data);
             }
             Err(e) => {
-                error!(
-                    "{:?}@{:?}@{},{},",
-                    service.clone(),
-                    interface.clone(),
-                    addr.clone(),
-                    e
-                );
+                if is_has_to_forward(&e) {
+                    if let Some(leader_addr) = get_forward_addr(&e) {
+                        client_poll.set_leader_addr(&addr, &leader_addr);
+                    }
+                } else {
+                    error!(
+                        "{:?}@{:?}@{},{},",
+                        service.clone(),
+                        interface.clone(),
+                        addr.clone(),
+                        e
+                    );
+                    sleep(Duration::from_secs(retry_sleep_time(times) as u64)).await;
+                }
                 if times > retry_times() {
                     return Err(e);
                 }
-                times = times + 1;
             }
         }
-        sleep(Duration::from_secs(retry_sleep_time(times) as u64)).await;
+    }
+}
+
+fn calc_addr(
+    client_poll: &Arc<ClientPool>,
+    addrs: &Vec<String>,
+    times: usize,
+    service: &PlacementCenterService,
+    interface: &PlacementCenterInterface,
+) -> (String, usize) {
+    let index = times % addrs.len();
+    let addr = addrs.get(index).unwrap().clone();
+    if is_write_request(service, interface) {
+        if let Some(leader_addr) = client_poll.get_leader_addr(&addr) {
+            return (leader_addr, times + 1);
+        }
+    }
+    return (addr, times + 1);
+}
+
+fn is_write_request(
+    service: &PlacementCenterService,
+    interface: &PlacementCenterInterface,
+) -> bool {
+    return true;
+}
+
+fn is_has_to_forward(err: &CommonError) -> bool {
+    let error_info = err.to_string();
+    let res = error_info.contains("has to forward request to");
+    return res;
+}
+
+pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
+    let error_info = err.to_string();
+    let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
+    if let Some(caps) = re.captures(&error_info) {
+        if let Some(rpc_addr) = caps.get(1) {
+            let mut leader_addr = rpc_addr.as_str().to_string();
+            leader_addr = leader_addr.replace("\\", "");
+            leader_addr = leader_addr.replace("\"", "");
+            leader_addr = leader_addr.replace(" ", "");
+            return Some(leader_addr);
+        }
+    }
+
+    return None;
+}
+
+#[cfg(test)]
+mod test {
+    use crate::placement::get_forward_addr;
+    use common_base::error::common::CommonError;
+
+    #[tokio::test]
+    pub async fn get_forward_addr_test() {
+        let err = r#"
+        Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
+        "#;
+        let err = CommonError::CommmonError(err.to_string());
+        let res = get_forward_addr(&err);
+        assert_eq!("127.0.0.1:2228".to_string(), res.unwrap());
     }
 }
