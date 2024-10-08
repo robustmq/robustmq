@@ -31,9 +31,8 @@ use protocol::placement_center::generate::{
     mqtt::{
         mqtt_service_server::MqttService, CreateAclRequest, CreateBlacklistRequest,
         CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest,
-        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest, Empty,
-        GetPlacementCenterLeaderAddressReply, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-        IsPlacementCenterLeaderReply, ListAclReply, ListAclRequest, ListBlacklistReply,
+        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
+        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest, ListBlacklistReply,
         ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply,
         ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageRequest,
         SetTopicRetainMessageRequest, UpdateSessionRequest,
@@ -496,28 +495,5 @@ impl MqttService for GrpcMqttService {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
-    }
-
-    async fn is_placement_center_leader(
-        &self,
-        _request: Request<Empty>,
-    ) -> Result<Response<IsPlacementCenterLeaderReply>, Status> {
-        Ok(Response::new(IsPlacementCenterLeaderReply {
-            is_leader: self.cluster_cache.is_leader(),
-        }))
-    }
-
-    async fn get_placement_center_leader_address(
-        &self,
-        _request: Request<Empty>,
-    ) -> Result<Response<GetPlacementCenterLeaderAddressReply>, Status> {
-        let address = if let Some(node) = self.cluster_cache.get_raft_leader() {
-            node.node_addr
-        } else {
-            "".to_string()
-        };
-        Ok(Response::new(GetPlacementCenterLeaderAddressReply {
-            address,
-        }))
     }
 }

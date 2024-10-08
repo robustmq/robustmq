@@ -95,6 +95,7 @@ impl PlacementCenterInterface {
         lazy_static! {
             static ref FORWARD_SET: HashSet<PlacementCenterInterface> = {
                 let mut set = HashSet::new();
+                // mqtt service interface
                 set.insert(PlacementCenterInterface::CreateUser);
                 set.insert(PlacementCenterInterface::DeleteUser);
                 set.insert(PlacementCenterInterface::CreateTopic);
@@ -107,23 +108,24 @@ impl PlacementCenterInterface {
                 set.insert(PlacementCenterInterface::DeleteAcl);
                 set.insert(PlacementCenterInterface::CreateBlackList);
                 set.insert(PlacementCenterInterface::DeleteBlackList);
+
+                // placement inner interface
+                set.insert(PlacementCenterInterface::RegisterNode);
+                set.insert(PlacementCenterInterface::UnRegisterNode);
+                set.insert(PlacementCenterInterface::Heartbeat);
+                set.insert(PlacementCenterInterface::SendRaftMessage);
+                set.insert(PlacementCenterInterface::SendRaftConfChange);
+                set.insert(PlacementCenterInterface::SetReourceConfig);
+                set.insert(PlacementCenterInterface::DeleteReourceConfig);
+                set.insert(PlacementCenterInterface::SetIdempotentData);
+                set.insert(PlacementCenterInterface::DeleteIdempotentData);
                 set
             };
         }
         FORWARD_SET.contains(self)
     }
 
-    pub fn get_inner_function_name(&self) -> String {
-        let enum_name = format!("{:?}", self);
-        let mut result = String::from("inner_");
-        for (i, c) in enum_name.chars().enumerate() {
-            if i > 0 && c.is_uppercase() {
-                result.push('_');
-            }
-            result.push(c.to_lowercase().next().unwrap());
-        }
-        result
-    }
+
 }
 
 pub mod journal;
@@ -131,6 +133,7 @@ pub mod kv;
 pub mod mqtt;
 pub mod openraft;
 pub mod placement;
+
 
 async fn retry_call(
     service: PlacementCenterService,
