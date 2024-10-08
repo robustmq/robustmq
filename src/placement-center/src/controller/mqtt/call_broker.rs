@@ -128,7 +128,9 @@ impl MQTTBrokerCall {
             .get_broker_node_addr_by_cluster(&self.cluster_name);
 
         if node_addr.len() == 0 {
-            error!("Get cluster {} Node access address is empty, there is no cluster node address available.",self.cluster_name);
+            warn!("Get cluster {} Node access address is empty, there is no cluster node address available.",self.cluster_name);
+            self.mqtt_cache_manager
+                .remove_expire_last_will(&self.cluster_name, &client_id);
             return;
         }
 
