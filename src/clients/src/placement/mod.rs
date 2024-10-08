@@ -228,7 +228,7 @@ fn calc_addr(
     times: usize,
     service: &PlacementCenterService,
     interface: &PlacementCenterInterface,
-) -> (String, usize) {
+) -> (String, usize) { 
     let index = times % addrs.len();
     let addr = addrs.get(index).unwrap().clone();
     if is_write_request(service, interface) {
@@ -246,12 +246,26 @@ fn is_write_request(
     return true;
 }
 
+///Determines if the given error indicates that a request needs to be forwarded.
+/// 
+/// Parameters:
+/// - `err: &CommonError`: error information
+/// 
+/// Returns:
+/// - `Bool`: Returns 'true' if the error information indicates the request needs to be forwarded, 'false' otherwise.
 fn is_has_to_forward(err: &CommonError) -> bool {
     let error_info = err.to_string();
     let res = error_info.contains("has to forward request to");
     return res;
 }
 
+/// Extracts the forward address from given error information.
+/// 
+/// Parameters:
+/// - `err: &CommonError`: error information
+/// 
+/// Returns:
+/// - `String`: Returns the forward address if found,'None' if no address is found
 pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
     let error_info = err.to_string();
     let re = Regex::new(r"rpc_addr: ([^}]+)").unwrap();
@@ -270,8 +284,21 @@ pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
 
 #[cfg(test)]
 mod test {
-    use crate::placement::get_forward_addr;
+    use crate::placement::{is_has_to_forward,get_forward_addr};
     use common_base::error::common::CommonError;
+
+    #[tokio::test]
+    pub async fn is_has_to_forward_test(){
+        let err_info = r#"
+        Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
+        "#;
+        let err = CommonError::CommmonError(err_info.to_string());
+        assert!(is_has_to_forward(&err)); 
+
+        let other_err_info="Other error";
+        let other_err=CommonError::CommmonError(other_err_info.to_string());
+        assert!(!is_has_to_forward(&other_err));
+    }
 
     #[tokio::test]
     pub async fn get_forward_addr_test() {
