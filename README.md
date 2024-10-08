@@ -189,6 +189,12 @@ If you're interested in contributing to this project or discussing development t
   <img src="docs/images/WechatGroup.png" alt="WeChat QR Code" width=200 />
 </div>
 
+- Personal wechat
+Wechat group QR code will be updated regularly. If the QR code expires, the developer's personal wechat can be added.
+<div align="center"> 
+  <img src="docs/images/wechat.jpg" alt="WeChat QR Code" width=200 />
+</div>
+
 ## License
 RobustMQ uses the Apache 2.0 license to strike a balance between open contributions and allowing you to use the software however you want
 
