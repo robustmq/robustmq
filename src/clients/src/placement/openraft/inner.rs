@@ -12,61 +12,61 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::OpenRaftServiceManager;
-use common_base::error::common::CommonError;
-use mobc::Connection;
-use prost::Message;
-use protocol::placement_center::generate::openraft::{
-    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
-};
+// use super::OpenRaftServiceManager;
+// use common_base::error::common::CommonError;
+// use mobc::Connection;
+// use prost::Message;
+// use protocol::placement_center::generate::openraft::{
+//     AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
+// };
 
-pub(crate) async fn inner_vote(
-    mut client: Connection<OpenRaftServiceManager>,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match VoteRequest::decode(request.as_ref()) {
-        Ok(request) => match client.vote(request).await {
-            Ok(result) => {
-                return Ok(VoteReply::encode_to_vec(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
-        },
-        Err(e) => {
-            return Err(CommonError::CommmonError(e.to_string()));
-        }
-    }
-}
+// pub(crate) async fn inner_vote(
+//     mut client: Connection<OpenRaftServiceManager>,
+//     request: Vec<u8>,
+// ) -> Result<Vec<u8>, CommonError> {
+//     match VoteRequest::decode(request.as_ref()) {
+//         Ok(request) => match client.vote(request).await {
+//             Ok(result) => {
+//                 return Ok(VoteReply::encode_to_vec(&result.into_inner()));
+//             }
+//             Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+//         },
+//         Err(e) => {
+//             return Err(CommonError::CommmonError(e.to_string()));
+//         }
+//     }
+// }
 
-pub(crate) async fn inner_append(
-    mut client: Connection<OpenRaftServiceManager>,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match AppendRequest::decode(request.as_ref()) {
-        Ok(request) => match client.append(request).await {
-            Ok(result) => {
-                return Ok(AppendReply::encode_to_vec(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
-        },
-        Err(e) => {
-            return Err(CommonError::CommmonError(e.to_string()));
-        }
-    }
-}
+// pub(crate) async fn inner_append(
+//     mut client: Connection<OpenRaftServiceManager>,
+//     request: Vec<u8>,
+// ) -> Result<Vec<u8>, CommonError> {
+//     match AppendRequest::decode(request.as_ref()) {
+//         Ok(request) => match client.append(request).await {
+//             Ok(result) => {
+//                 return Ok(AppendReply::encode_to_vec(&result.into_inner()));
+//             }
+//             Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+//         },
+//         Err(e) => {
+//             return Err(CommonError::CommmonError(e.to_string()));
+//         }
+//     }
+// }
 
-pub(crate) async fn inner_snapshot(
-    mut client: Connection<OpenRaftServiceManager>,
-    request: Vec<u8>,
-) -> Result<Vec<u8>, CommonError> {
-    match SnapshotRequest::decode(request.as_ref()) {
-        Ok(request) => match client.snapshot(request).await {
-            Ok(result) => {
-                return Ok(SnapshotReply::encode_to_vec(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
-        },
-        Err(e) => {
-            return Err(CommonError::CommmonError(e.to_string()));
-        }
-    }
-}
+// pub(crate) async fn inner_snapshot(
+//     mut client: Connection<OpenRaftServiceManager>,
+//     request: Vec<u8>,
+// ) -> Result<Vec<u8>, CommonError> {
+//     match SnapshotRequest::decode(request.as_ref()) {
+//         Ok(request) => match client.snapshot(request).await {
+//             Ok(result) => {
+//                 return Ok(SnapshotReply::encode_to_vec(&result.into_inner()));
+//             }
+//             Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+//         },
+//         Err(e) => {
+//             return Err(CommonError::CommmonError(e.to_string()));
+//         }
+//     }
+// }

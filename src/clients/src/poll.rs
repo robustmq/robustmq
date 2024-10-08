@@ -13,12 +13,7 @@
 // limitations under the License.
 
 use crate::{
-    mqtt::{admin::MqttBrokerAdminServiceManager, placement::MqttBrokerPlacementServiceManager},
-    placement::{
-        journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager,
-        openraft::OpenRaftServiceManager, placement::PlacementServiceManager,
-        PlacementCenterInterface, PlacementCenterService,
-    },
+    mqtt::{admin::MqttBrokerAdminServiceManager, placement::MqttBrokerPlacementServiceManager}, placement::{journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager, openraft::OpenRaftServiceManager, placement::PlacementServiceManager},
 };
 use common_base::error::common::CommonError;
 use dashmap::DashMap;

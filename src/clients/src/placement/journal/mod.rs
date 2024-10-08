@@ -17,12 +17,10 @@ use std::sync::Arc;
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
-use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
+use prost::Message;
+use protocol::placement_center::generate::{common::CommonReply, journal::{engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest}};
 use tonic::transport::Channel;
 
-use self::inner::{
-    inner_create_segment, inner_create_shard, inner_delete_segment, inner_delete_shard,
-};
 use super::PlacementCenterInterface;
 
 pub mod call;
@@ -38,16 +36,44 @@ pub async fn journal_interface_call(
         Ok(client) => {
             let result = match interface {
                 PlacementCenterInterface::CreateShard => {
-                    inner_create_shard(client, request.clone()).await
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| CreateShardRequest::decode(data),
+                        |mut client, request| async move { client.create_shard(request).await },
+                        |reply| CommonReply::encode_to_vec(reply),
+                    )
+                    .await
                 }
                 PlacementCenterInterface::DeleteShard => {
-                    inner_delete_shard(client, request.clone()).await
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| DeleteShardRequest::decode(data),
+                        |mut client, request| async move { client.delete_shard(request).await },
+                        |reply| CommonReply::encode_to_vec(reply),
+                    )
+                    .await
                 }
                 PlacementCenterInterface::CreateSegment => {
-                    inner_create_segment(client, request.clone()).await
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| CreateSegmentRequest::decode(data),
+                        |mut client, request| async move { client.create_segment(request).await },
+                        |reply| CommonReply::encode_to_vec(reply),
+                    )
+                    .await
                 }
                 PlacementCenterInterface::DeleteSegment => {
-                    inner_delete_segment(client, request.clone()).await
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| DeleteSegmentRequest::decode(data),
+                        |mut client, request| async move { client.delete_segment(request).await },
+                        |reply| CommonReply::encode_to_vec(reply),
+                    )
+                    .await
                 }
                 _ => {
                     return Err(CommonError::CommmonError(format!(
@@ -116,5 +142,31 @@ impl Manager for JournalServiceManager {
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
+    }
+}
+
+pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
+    client: Connection<JournalServiceManager>,
+    request: Vec<u8>,
+    decode_fn: DecodeFunction,
+    client_fn: ClientFunction,
+    encode_fn: EncodeFunction,
+) -> Result<Vec<u8>, CommonError>
+where
+    R: prost::Message + Default,
+    Resp: prost::Message,
+    DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
+    ClientFunction: FnOnce(Connection<JournalServiceManager>, R) -> Fut,
+    Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
+    EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
+{
+    match decode_fn(request.as_ref()) {
+        Ok(decoded_request) => match client_fn(client, decoded_request).await {
+            Ok(result) => {
+                return Ok(encode_fn(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
     }
 }
