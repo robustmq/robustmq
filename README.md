@@ -16,6 +16,19 @@ Official documentation:
 
 > Tips: We are still young, please give us some time to grow up. We expect RobustMQ to become the next Apache top-level project in the message queue space.
 
+## Planning
+
+In the first phase, the basic framework of the cluster (such as metadata storage service, storage adaptation layer, bring your own storage layer, etc.) and the functions related to MQTT protocol will be developed. The goal is to complete the RobustMQ architecture and adapt it to the MQTT protocol, and achieve production availability on the MQTT protocol.
+
+Welcome to our development plan.
+- [《RobustMQ 2024 Development Plan》](https://github.com/robustmq/robustmq/wiki/RobustMQ-2024-Development-Plan)
+- [《RobustMQ Long‐Term Evolution Initiative》](https://github.com/robustmq/robustmq/wiki/RobustMQ-Long%E2%80%90Term-Evolution-Initiative)
+
+> We are still young and development plans can change quickly.
+
+Release planing：
+- [《Release Planing》(中文版)](https://shimo.im/docs/473QMlB9dQcRZm3w)
+
 ## 💡 Features
 - 100% Rust: A message queuing kernel implemented entirely in Rust.
 - Multi-protocol: Support MQTT 3.1/3.1.1/5.0, AMQP, RocketMQ Remoting/GRPC, Kafka Protocol, OpenMessing, JNS, SQS and other mainstream message protocols.
@@ -43,17 +56,6 @@ RobustMQ is a typical distributed layered architecture with separate computing l
 
 - Standalone storage engine
   refers to a standalone storage engine, such as cloud object storage (e.g. AWS S3), HDFS Cluster, Data Lake Cluster (iceberg, hudi, etc.). The RobustMQ is similar to the RobustMQ Journal Server, Apache Bookeeper's distributed, segmented storage service. It is responsible for reliable storage of high-performance message data, and has the ability of rapid horizontal and horizontal expansion without perception.
-
-## Planning
-RobustMQ has long wanted to support multi-protocol and have a full Serverless architecture. At the same time, we hope to keep the architecture simple while adapting to different deployment scenarios and deployment requirements. To achieve lower deployment, operation and maintenance, and use costs. So there are several stages in the development perspective:
-
-In the first phase, the basic framework of the cluster (such as metadata storage service, storage adaptation layer, bring your own storage layer, etc.) and the functions related to MQTT protocol will be developed. The goal is to complete the RobustMQ architecture and adapt it to the MQTT protocol, and achieve production availability on the MQTT protocol.
-
-Welcome to our development plan.
-- [《RobustMQ 2024 Development Plan》](https://github.com/robustmq/robustmq/wiki/RobustMQ-2024-Development-Plan)
-- [《RobustMQ Long‐Term Evolution Initiative》](https://github.com/robustmq/robustmq/wiki/RobustMQ-Long%E2%80%90Term-Evolution-Initiative)
-
-> We are still young and development plans can change quickly.
 
 ## RobustMQ MQTT
 RobustMQ MQTT is RobustMQ's complete implementation of the MQTT protocol. The goal is to build a high-performance, full-featured message queuing MQTT product in Rust that can be deployed in clusters. The final target for the feature is EMQX Enterprise Edition.
@@ -180,17 +182,16 @@ In the planning
 Please refer to [contribution guidelines](http://www.robustmq.com/docs/robustmq-tutorial-cn/%e8%b4%a1%e7%8c%ae%e6%8c%87%e5%8d%97/) for more information.
 
 ### Contact us
-- Slack
-Join [RobustMQ Slack](https://join.slack.com/t/robustmq/shared_invite/zt-2r7sccx50-DIrAlYOETp3xhsX1Qsr79A)
+- **Slack**: Join [RobustMQ Slack](https://join.slack.com/t/robustmq/shared_invite/zt-2r7sccx50-DIrAlYOETp3xhsX1Qsr79A)
 
-- Wechat Group
-If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
+- **Google Group**: Join [RobustMQ Google Group](https://groups.google.com/g/robustmq)
+
+- **Wechat Group**: If you're interested in contributing to this project or discussing development topics, scan the QR Code to join our WeChat group for real-time discussions and collaboration.
 <div align="center"> 
   <img src="docs/images/WechatGroup.png" alt="WeChat QR Code" width=200 />
 </div>
 
-- Personal wechat
-Wechat group QR code will be updated regularly. If the QR code expires, the developer's personal wechat can be added.
+- **Personal wechat**: Wechat group QR code will be updated regularly. If the QR code expires, the developer's personal wechat can be added.
 <div align="center"> 
   <img src="docs/images/wechat.jpg" alt="WeChat QR Code" width=200 />
 </div>
