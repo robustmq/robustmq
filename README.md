@@ -29,7 +29,7 @@ Welcome to our development plan.
 > We are still young and development plans can change quickly.
 
 Release planing：
-- [《Release Planing》(中文版)](https://shimo.im/docs/473QMlB9dQcRZm3w)
+- [《RobustMQ Release Planing》(中文版)](https://shimo.im/docs/473QMlB9dQcRZm3w)
 
 ## 💡 Features
 - 100% Rust: A message queuing kernel implemented entirely in Rust.
