@@ -19,12 +19,12 @@ use crate::handler::lastwill::save_last_will_message;
 use crate::handler::pkid::{pkid_delete, pkid_exists, pkid_save};
 use crate::handler::response::{
     response_packet_mqtt_connect_fail, response_packet_mqtt_connect_success,
-    response_packet_mqtt_distinct, response_packet_mqtt_distinct_by_reason,
-    response_packet_mqtt_ping_resp, response_packet_mqtt_puback_fail,
-    response_packet_mqtt_puback_success, response_packet_mqtt_pubcomp_fail,
-    response_packet_mqtt_pubcomp_success, response_packet_mqtt_pubrec_fail,
-    response_packet_mqtt_pubrec_success, response_packet_mqtt_pubrel_success,
-    response_packet_mqtt_suback, response_packet_mqtt_unsuback,
+    response_packet_mqtt_distinct_by_reason, response_packet_mqtt_ping_resp,
+    response_packet_mqtt_puback_fail, response_packet_mqtt_puback_success,
+    response_packet_mqtt_pubcomp_fail, response_packet_mqtt_pubcomp_success,
+    response_packet_mqtt_pubrec_fail, response_packet_mqtt_pubrec_success,
+    response_packet_mqtt_pubrel_success, response_packet_mqtt_suback,
+    response_packet_mqtt_unsuback,
 };
 use crate::handler::retain::save_topic_retain_message;
 use crate::handler::session::{build_session, save_session};
@@ -43,7 +43,7 @@ use crate::subscribe::sub_common::{min_qos, path_contain_sub};
 use crate::subscribe::subscribe_manager::SubscribeManager;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
-use log::error;
+use log::{error, warn};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
@@ -122,7 +122,11 @@ where
             return res;
         }
 
-        match self.auth_driver.check_login_auth(&login, &connect_properties, &addr).await {
+        match self
+            .auth_driver
+            .check_login_auth(&login, &connect_properties, &addr)
+            .await
+        {
             Ok(flag) => {
                 if !flag {
                     return response_packet_mqtt_connect_fail(
@@ -177,8 +181,14 @@ where
             }
         };
 
-        match save_session(connect_id, session.clone(), new_session, &client_id, &self.client_poll)
-            .await
+        match save_session(
+            connect_id,
+            session.clone(),
+            new_session,
+            &client_id,
+            &self.client_poll,
+        )
+        .await
         {
             Ok(()) => {}
             Err(e) => {
@@ -217,8 +227,10 @@ where
         };
         self.cache_manager.report_heartbeat(&client_id, live_time);
 
-        self.cache_manager.add_session(client_id.clone(), session.clone());
-        self.cache_manager.add_connection(connect_id, connection.clone());
+        self.cache_manager
+            .add_session(client_id.clone(), session.clone());
+        self.cache_manager
+            .add_connection(connect_id, connection.clone());
 
         st_report_connected_event(
             &self.message_storage_adapter,
@@ -284,33 +296,37 @@ where
 
         let is_puback = publish.qos != QoS::ExactlyOnce;
 
-        let topic_name =
-            match get_topic_name(connect_id, &self.cache_manager, &publish, &publish_properties) {
-                Ok(da) => da,
-                Err(e) => {
-                    if is_flow_control(&self.protocol, publish.qos) {
-                        connection.recv_qos_message_decr();
-                    }
-
-                    if is_puback {
-                        return Some(response_packet_mqtt_puback_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubAckReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    } else {
-                        return Some(response_packet_mqtt_pubrec_fail(
-                            &self.protocol,
-                            &connection,
-                            publish.pkid,
-                            PubRecReason::UnspecifiedError,
-                            Some(e.to_string()),
-                        ));
-                    }
+        let topic_name = match get_topic_name(
+            connect_id,
+            &self.cache_manager,
+            &publish,
+            &publish_properties,
+        ) {
+            Ok(da) => da,
+            Err(e) => {
+                if is_flow_control(&self.protocol, publish.qos) {
+                    connection.recv_qos_message_decr();
                 }
-            };
+
+                if is_puback {
+                    return Some(response_packet_mqtt_puback_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubAckReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        &self.protocol,
+                        &connection,
+                        publish.pkid,
+                        PubRecReason::UnspecifiedError,
+                        Some(e.to_string()),
+                    ));
+                }
+            }
+        };
 
         if !self
             .auth_driver
@@ -403,7 +419,10 @@ where
         let offset = if let Some(record) =
             MQTTMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
         {
-            match message_storage.append_topic_message(topic.topic_id.clone(), vec![record]).await {
+            match message_storage
+                .append_topic_message(topic.topic_id.clone(), vec![record])
+                .await
+            {
                 Ok(da) => {
                     format!("{:?}", da)
                 }
@@ -436,7 +455,8 @@ where
         };
         let user_properties: Vec<(String, String)> = vec![("offset".to_string(), offset)];
 
-        self.cache_manager.add_topic_alias(connect_id, &topic_name, &publish_properties);
+        self.cache_manager
+            .add_topic_alias(connect_id, &topic_name, &publish_properties);
 
         match publish.qos {
             QoS::AtMostOnce => {
@@ -460,8 +480,13 @@ where
                 ));
             }
             QoS::ExactlyOnce => {
-                match pkid_save(&self.cache_manager, &self.client_poll, &client_id, publish.pkid)
-                    .await
+                match pkid_save(
+                    &self.cache_manager,
+                    &self.client_poll,
+                    &client_id,
+                    publish.pkid,
+                )
+                .await
                 {
                     Ok(()) => {}
                     Err(e) => {
@@ -520,7 +545,10 @@ where
                 }) {
                     Ok(_) => {}
                     Err(e) => {
-                        error!("publish ack send ack manager message error, error message:{}", e);
+                        error!(
+                            "publish ack send ack manager message error, error message:{}",
+                            e
+                        );
                     }
                 }
             }
@@ -545,7 +573,10 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error!("publish rec send ack manager message error, error message:{}", e);
+                        error!(
+                            "publish rec send ack manager message error, error message:{}",
+                            e
+                        );
                     }
                 }
             }
@@ -574,7 +605,10 @@ where
                 }) {
                     Ok(_) => return None,
                     Err(e) => {
-                        error!("publish comp send ack manager message error, error message:{}", e);
+                        error!(
+                            "publish comp send ack manager message error, error message:{}",
+                            e
+                        );
                     }
                 }
             }
@@ -599,7 +633,14 @@ where
 
         let client_id = connection.client_id.clone();
 
-        match pkid_exists(&self.cache_manager, &self.client_poll, &client_id, pub_rel.pkid).await {
+        match pkid_exists(
+            &self.cache_manager,
+            &self.client_poll,
+            &client_id,
+            pub_rel.pkid,
+        )
+        .await
+        {
             Ok(res) => {
                 if !res {
                     return response_packet_mqtt_pubcomp_fail(
@@ -622,7 +663,14 @@ where
             }
         };
 
-        match pkid_delete(&self.cache_manager, &self.client_poll, &client_id, pub_rel.pkid).await {
+        match pkid_delete(
+            &self.cache_manager,
+            &self.client_poll,
+            &client_id,
+            pub_rel.pkid,
+        )
+        .await
+        {
             Ok(()) => {
                 connection.recv_qos_message_decr();
             }
@@ -668,7 +716,11 @@ where
             return packet;
         }
 
-        if !self.auth_driver.allow_subscribe(&connection, &subscribe).await {
+        if !self
+            .auth_driver
+            .allow_subscribe(&connection, &subscribe)
+            .await
+        {
             return response_packet_mqtt_suback(
                 &self.protocol,
                 &connection,
@@ -759,7 +811,8 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager.report_heartbeat(&connection.client_id, live_time);
+        self.cache_manager
+            .report_heartbeat(&connection.client_id, live_time);
         return response_packet_mqtt_ping_resp();
     }
 
@@ -809,9 +862,11 @@ where
             }
         }
 
-        self.sucscribe_manager.remove_subscribe(&connection.client_id, &un_subscribe.filters);
+        self.sucscribe_manager
+            .remove_subscribe(&connection.client_id, &un_subscribe.filters);
 
-        self.cache_manager.remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
+        self.cache_manager
+            .remove_filter_by_pkid(&connection.client_id, &un_subscribe.filters);
 
         st_report_unsubscribed_event(
             &self.message_storage_adapter,
@@ -870,12 +925,7 @@ where
         {
             Ok(()) => {}
             Err(e) => {
-                return Some(response_packet_mqtt_distinct(
-                    &self.protocol,
-                    Some(DisconnectReasonCode::UnspecifiedError),
-                    &connection,
-                    Some(e.to_string()),
-                ));
+                warn!("disconnect connection failed, {}", e.to_string());
             }
         }
 

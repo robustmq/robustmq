@@ -224,7 +224,6 @@ async fn handle_socket<S>(
                                             packet: resp_pkg,
                                         };
 
-                                        info!("{packet_wrapper:?}");
                                         match codec.encode_data(packet_wrapper, &mut response_buff){
                                             Ok(()) => {},
                                             Err(e) => {
