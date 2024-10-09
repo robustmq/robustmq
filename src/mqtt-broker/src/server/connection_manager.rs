@@ -248,7 +248,7 @@ impl ConnectionManager {
         return Ok(());
     }
 
-    pub async fn write_tcp_tls_frame(
+    async fn write_tcp_tls_frame(
         &self,
         connection_id: u64,
         resp: MQTTPacketWrapper,
