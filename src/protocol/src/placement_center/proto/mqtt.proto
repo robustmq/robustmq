@@ -207,10 +207,6 @@ service MqttService {
   //
   //Returns: An empty struct.
   rpc CreateBlacklist(CreateBlacklistRequest) returns(common.CommonReply) {}
-
-  rpc IsPlacementCenterLeader(Empty) returns(IsPlacementCenterLeaderReply) {}
-
-  rpc GetPlacementCenterLeaderAddress(Empty) returns(GetPlacementCenterLeaderAddressReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -425,14 +421,4 @@ message DeleteBlacklistRequest{
 
     //The name of the resource.
     string resource_name = 3;
-}
-
-message Empty{}
-
-message IsPlacementCenterLeaderReply{
-    bool is_leader = 1;
-}
-
-message GetPlacementCenterLeaderAddressReply{
-    string address = 1;
 }

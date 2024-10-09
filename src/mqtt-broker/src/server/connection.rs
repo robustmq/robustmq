@@ -95,6 +95,11 @@ impl NetworkConnection {
         return false;
     }
 
+    pub fn is_tcp(&self) -> bool {
+        return self.connection_type == NetworkConnectionType::TCP
+            || self.connection_type == NetworkConnectionType::TCPS;
+    }
+
     pub async fn stop_connection(&self) {
         if let Some(sx) = self.connection_stop_sx.clone() {
             match sx.send(true).await {

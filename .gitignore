@@ -11,3 +11,4 @@ src/rlog/log/server.log
 .idea/robustmq.iml
 .idea/vcs.xml
 logs
+nohup.out

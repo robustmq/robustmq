@@ -15,9 +15,9 @@
 use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
-use inner::{inner_append, inner_snapshot, inner_vote};
 use mobc::{Connection, Manager};
-use protocol::placement_center::generate::openraft::open_raft_service_client::OpenRaftServiceClient;
+use prost::Message;
+use protocol::placement_center::generate::openraft::{open_raft_service_client::OpenRaftServiceClient, AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest};
 use std::sync::Arc;
 use tonic::transport::Channel;
 
@@ -33,9 +33,33 @@ pub(crate) async fn openraft_interface_call(
     match openraft_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
-                PlacementCenterInterface::Vote => inner_vote(client, request.clone()).await,
-                PlacementCenterInterface::Append => inner_append(client, request.clone()).await,
-                PlacementCenterInterface::Snapshot => inner_snapshot(client, request.clone()).await,
+                PlacementCenterInterface::Vote => {
+                    client_call(
+                        client, 
+                        request.clone(), 
+                        |data| VoteRequest::decode(data),
+                        |mut client, request| async move { client.vote(request).await },
+                        |reply| VoteReply::encode_to_vec(reply),
+                    ).await
+                }
+                PlacementCenterInterface::Append => {
+                    client_call(
+                        client, 
+                        request.clone(), 
+                        |data| AppendRequest::decode(data),
+                        |mut client, request| async move { client.append(request).await },
+                        |reply| AppendReply::encode_to_vec(reply),
+                    ).await
+                }
+                PlacementCenterInterface::Snapshot => {
+                    client_call(
+                        client, 
+                        request.clone(), 
+                        |data| SnapshotRequest::decode(data),
+                        |mut client, request| async move { client.snapshot(request).await },
+                        |reply| SnapshotReply::encode_to_vec(reply),
+                    ).await
+                }
                 _ => {
                     return Err(CommonError::CommmonError(format!(
                         "openraft service does not support service interfaces [{:?}]",
@@ -90,7 +114,7 @@ impl Manager for OpenRaftServiceManager {
     type Error = CommonError;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
-        let mut addr = format!("http://{}", self.addr.clone());
+        let addr = format!("http://{}", self.addr.clone());
 
         match OpenRaftServiceClient::connect(addr.clone()).await {
             Ok(client) => {
@@ -108,5 +132,31 @@ impl Manager for OpenRaftServiceManager {
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
+    }
+}
+
+pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
+    client: Connection<OpenRaftServiceManager>,
+    request: Vec<u8>,
+    decode_fn: DecodeFunction,
+    client_fn: ClientFunction,
+    encode_fn: EncodeFunction,
+) -> Result<Vec<u8>, CommonError>
+where
+    R: prost::Message + Default,
+    Resp: prost::Message,
+    DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
+    ClientFunction: FnOnce(Connection<OpenRaftServiceManager>, R) -> Fut,
+    Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
+    EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
+{
+    match decode_fn(request.as_ref()) {
+        Ok(decoded_request) => match client_fn(client, decoded_request).await {
+            Ok(result) => {
+                return Ok(encode_fn(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
     }
 }

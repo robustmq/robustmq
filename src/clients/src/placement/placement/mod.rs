@@ -13,22 +13,14 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use inner::{
-    inner_cluster_status, inner_delete_idempotent, inner_delete_resource_config,
-    inner_exist_idempotent, inner_get_resource_config, inner_node_list, inner_set_idempotent,
-    inner_set_resource_config,
-};
 use mobc::{Connection, Manager};
-use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
+use prost::Message;
+use protocol::placement_center::generate::{common::CommonReply, placement::{placement_center_service_client::PlacementCenterServiceClient, ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest}};
 use std::sync::Arc;
 use tonic::transport::Channel;
 
 use crate::poll::ClientPool;
 
-use self::inner::{
-    inner_heartbeat, inner_register_node, inner_send_raft_conf_change, inner_send_raft_message,
-    inner_unregister_node,
-};
 
 use super::PlacementCenterInterface;
 
@@ -41,67 +33,144 @@ pub(crate) async fn placement_interface_call(
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match placement_client(client_poll.clone(), addr.clone()).await {
-        Ok(client) => {
-            let result: Result<Vec<u8>, CommonError> = match interface {
-                PlacementCenterInterface::ClusterStatus => {
-                    inner_cluster_status(client, request.clone()).await
-                }
-
-                PlacementCenterInterface::ListNode => {
-                    inner_node_list(client, request.clone()).await
-                }
-                PlacementCenterInterface::RegisterNode => {
-                    inner_register_node(client, request.clone()).await
-                }
-                PlacementCenterInterface::UnRegisterNode => {
-                    inner_unregister_node(client, request.clone()).await
-                }
-                PlacementCenterInterface::Heartbeat => {
-                    inner_heartbeat(client, request.clone()).await
-                }
-                PlacementCenterInterface::SendRaftMessage => {
-                    inner_send_raft_message(client, request.clone()).await
-                }
-                PlacementCenterInterface::SendRaftConfChange => {
-                    inner_send_raft_conf_change(client, request.clone()).await
-                }
-                PlacementCenterInterface::SetReourceConfig => {
-                    inner_set_resource_config(client, request.clone()).await
-                }
-                PlacementCenterInterface::GetReourceConfig => {
-                    inner_get_resource_config(client, request.clone()).await
-                }
-                PlacementCenterInterface::DeleteReourceConfig => {
-                    inner_delete_resource_config(client, request.clone()).await
-                }
-                PlacementCenterInterface::SetIdempotentData => {
-                    inner_set_idempotent(client, request.clone()).await
-                }
-                PlacementCenterInterface::ExistsIdempotentData => {
-                    inner_exist_idempotent(client, request.clone()).await
-                }
-                PlacementCenterInterface::DeleteIdempotentData => {
-                    inner_delete_idempotent(client, request.clone()).await
-                }
-                _ => {
-                    return Err(CommonError::CommmonError(format!(
-                        "placement service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
-            };
-            match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
+        match placement_client(client_poll.clone(), addr.clone()).await {
+            Ok(client) => {
+                let result: Result<Vec<u8>, CommonError> = match interface {
+                    PlacementCenterInterface::ClusterStatus => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| ClusterStatusRequest::decode(data),
+                            |mut client, request| async move { client.cluster_status(request).await },
+                            |reply| ClusterStatusReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::ListNode => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| NodeListRequest::decode(data),
+                            |mut client, request| async move { client.node_list(request).await },
+                            |reply| NodeListReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::RegisterNode => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| RegisterNodeRequest::decode(data),
+                            |mut client: Connection<PlacementServiceManager>, request| async move { client.register_node(request).await },
+                            |reply| CommonReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::UnRegisterNode => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| UnRegisterNodeRequest::decode(data),
+                            |mut client, request| async move { client.un_register_node(request).await },
+                            |reply| CommonReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::Heartbeat => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| HeartbeatRequest::decode(data),
+                            |mut client, request| async move { client.heartbeat(request).await },
+                            |reply| CommonReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::SendRaftMessage => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| SendRaftMessageRequest::decode(data),
+                            |mut client, request| async move { client.send_raft_message(request).await },
+                            |reply| SendRaftMessageReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::SendRaftConfChange => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| SendRaftConfChangeRequest::decode(data),
+                            |mut client, request| async move { client.send_raft_conf_change(request).await },
+                            |reply| SendRaftConfChangeReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::SetReourceConfig => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| SetResourceConfigRequest::decode(data),
+                            |mut client, request| async move { client.set_resource_config(request).await },
+                            |reply| CommonReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::GetReourceConfig => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| GetResourceConfigRequest::decode(data),
+                            |mut client, request| async move { client.get_resource_config(request).await },
+                            |reply| GetResourceConfigReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::DeleteReourceConfig => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| DeleteResourceConfigRequest::decode(data),
+                            |mut client, request| async move { client.delete_resource_config(request).await },
+                            |reply| CommonReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::SetIdempotentData => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| SetIdempotentDataRequest::decode(data),
+                            |mut client, request| async move { client.set_idempotent_data(request).await },
+                            |reply| CommonReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::ExistsIdempotentData => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| ExistsIdempotentDataRequest::decode(data),
+                            |mut client, request| async move { client.exists_idempotent_data(request).await },
+                            |reply| ExistsIdempotentDataReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    PlacementCenterInterface::DeleteIdempotentData => {
+                        client_call(
+                            client, 
+                            request.clone(), 
+                            |data| DeleteIdempotentDataRequest::decode(data),
+                            |mut client, request| async move { client.delete_idempotent_data(request).await },
+                            |reply| CommonReply::encode_to_vec(reply),
+                        ).await
+                    }
+                    _ => {
+                        return Err(CommonError::CommmonError(format!(
+                            "placement service does not support service interfaces [{:?}]",
+                            interface
+                        )))
+                    }
+                };
+                match result {
+                    Ok(data) => return Ok(data),
+                    Err(e) => {
+                        return Err(e);
+                    }
                 }
             }
+            Err(e) => {
+                return Err(e);
+            }
         }
-        Err(e) => {
-            return Err(e);
-        }
-    }
 }
 
 async fn placement_client(
@@ -150,5 +219,31 @@ impl Manager for PlacementServiceManager {
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
+    }
+}
+
+pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
+    client: Connection<PlacementServiceManager>,
+    request: Vec<u8>,
+    decode_fn: DecodeFunction,
+    client_fn: ClientFunction,
+    encode_fn: EncodeFunction,
+) -> Result<Vec<u8>, CommonError>
+where
+    R: prost::Message + Default,
+    Resp: prost::Message,
+    DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
+    ClientFunction: FnOnce(Connection<PlacementServiceManager>, R) -> Fut,
+    Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
+    EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
+{
+    match decode_fn(request.as_ref()) {
+        Ok(decoded_request) => match client_fn(client, decoded_request).await {
+            Ok(result) => {
+                return Ok(encode_fn(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
     }
 }

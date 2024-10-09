@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use crate::poll::ClientPool;
-use self::inner::{inner_delete, inner_exists, inner_get, inner_set};
 use super::PlacementCenterInterface;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
-use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
+use prost::Message;
+use protocol::placement_center::generate::{common::CommonReply, kv::{kv_service_client::KvServiceClient, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest}};
 use std::sync::Arc;
 use tonic::transport::Channel;
 
@@ -47,10 +47,46 @@ pub(crate) async fn kv_interface_call(
     match kv_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
-                PlacementCenterInterface::Set => inner_set(client, request.clone()).await,
-                PlacementCenterInterface::Delete => inner_delete(client, request.clone()).await,
-                PlacementCenterInterface::Get => inner_get(client, request.clone()).await,
-                PlacementCenterInterface::Exists => inner_exists(client, request.clone()).await,
+                PlacementCenterInterface::Set => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| SetRequest::decode(data),
+                        |mut client, request| async move { client.set(request).await },
+                        |reply| CommonReply::encode_to_vec(reply),
+                    )
+                    .await
+                }
+                PlacementCenterInterface::Delete => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| DeleteRequest::decode(data),
+                        |mut client, request| async move { client.delete(request).await },
+                        |reply| CommonReply::encode_to_vec(reply),
+                    )
+                    .await
+                }
+                PlacementCenterInterface::Get => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| GetRequest::decode(data),
+                        |mut client, request| async move { client.get(request).await },
+                        |reply| GetReply::encode_to_vec(reply),
+                    )
+                    .await
+                }
+                PlacementCenterInterface::Exists => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| ExistsRequest::decode(data),
+                        |mut client, request| async move { client.exists(request).await },
+                        |reply| ExistsReply::encode_to_vec(reply),
+                    )
+                    .await
+                }
                 _ => return Err(CommonError::CommmonError(format!(
                     "kv service does not support service interfaces [{:?}]",
                     interface
@@ -100,6 +136,32 @@ impl Manager for KvServiceManager {
 
     async fn check(&self, conn: Self::Connection) -> Result<Self::Connection, Self::Error> {
         Ok(conn)
+    }
+}
+
+pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
+    client: Connection<KvServiceManager>,
+    request: Vec<u8>,
+    decode_fn: DecodeFunction,
+    client_fn: ClientFunction,
+    encode_fn: EncodeFunction,
+) -> Result<Vec<u8>, CommonError>
+where
+    R: prost::Message + Default,
+    Resp: prost::Message,
+    DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
+    ClientFunction: FnOnce(Connection<KvServiceManager>, R) -> Fut,
+    Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
+    EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
+{
+    match decode_fn(request.as_ref()) {
+        Ok(decoded_request) => match client_fn(client, decoded_request).await {
+            Ok(result) => {
+                return Ok(encode_fn(&result.into_inner()));
+            }
+            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
     }
 }
 

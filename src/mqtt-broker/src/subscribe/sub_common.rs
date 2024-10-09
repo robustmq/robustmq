@@ -174,6 +174,7 @@ pub async fn publish_message_to_client(
 
         let response: MQTTPacketWrapper =
             MQTTPacketWrapper { protocol_version: protocol.clone().into(), packet: resp.packet };
+            
         if connection_manager.is_websocket(resp.connection_id) {
             let mut codec = MqttCodec::new(Some(protocol.into()));
             let mut buff = BytesMut::new();
