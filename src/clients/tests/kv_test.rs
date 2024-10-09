@@ -44,6 +44,31 @@ mod tests {
             }
         }
 
+        let request_key_empty = SetRequest {
+            key: "".to_string(),
+            value: value.clone(),
+        };
+        match placement_set(client_poll.clone(), addrs.clone(), request_key_empty).await{
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
+        }
+
+        let request_value_empty = SetRequest{
+            key: "test-sub-name".to_string(),
+            value: "".to_string(),
+        };
+        match placement_set(client_poll.clone(), addrs.clone(), request_value_empty).await{
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e.to_string());
+                assert!(false)
+            }
+        }
+
+
         let exist_req = ExistsRequest { key: key.clone() };
         match placement_exists(client_poll.clone(), addrs.clone(), exist_req).await {
             Ok(da) => {
