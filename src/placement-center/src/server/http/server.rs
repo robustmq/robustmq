@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::index::{caches, index, list_cluster, list_node, metrics};
-use super::mqtt::mqtt_routes;
+use super::index::metrics;
 use super::raft::{add_leadrner, change_membership, init, raft_status};
-use super::{list_path, v1_path};
+use super::v1_path;
 use crate::cache::{journal::JournalCacheManager, placement::PlacementCacheManager};
 use crate::raftv1::rocksdb::RaftMachineStorage;
 use crate::storage::route::apply::RaftMachineApply;
@@ -28,12 +27,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-pub const ROUTE_ROOT: &str = "/";
 pub const ROUTE_METRICS: &str = "/metrics";
-pub const ROUTE_CACHES: &str = "/caches";
-pub const ROUTE_CLUSTER: &str = "/cluster";
-pub const ROUTE_CLUSTER_NODE: &str = "/cluster/node";
-
 pub const ROUTE_CLUSTER_ADD_LEARNER: &str = "/cluster/add-learner";
 pub const ROUTE_CLUSTER_CHANGE_MEMBERSHIP: &str = "/cluster/change-membership";
 pub const ROUTE_CLUSTER_INIT: &str = "/cluster/init";
@@ -83,11 +77,7 @@ pub async fn start_http_server(state: HttpServerState) {
 
 fn routes(state: HttpServerState) -> Router {
     let common = Router::new()
-        .route(ROUTE_ROOT, get(index))
-        .route(ROUTE_CACHES, get(caches))
         .route(ROUTE_METRICS, get(metrics))
-        .route(&list_path(ROUTE_CLUSTER), get(list_cluster))
-        .route(&list_path(ROUTE_CLUSTER_NODE), get(list_node))
         .route(&&v1_path(ROUTE_CLUSTER_ADD_LEARNER), post(add_leadrner))
         .route(
             &v1_path(ROUTE_CLUSTER_CHANGE_MEMBERSHIP),
@@ -96,8 +86,6 @@ fn routes(state: HttpServerState) -> Router {
         .route(&v1_path(ROUTE_CLUSTER_INIT), post(init))
         .route(&v1_path(ROUTE_CLUSTER_STATUS), get(raft_status));
 
-    let mqtt = mqtt_routes();
-
-    let app = Router::new().merge(common).merge(mqtt);
+    let app = Router::new().merge(common);
     return app.with_state(state);
 }

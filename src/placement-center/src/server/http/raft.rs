@@ -25,6 +25,7 @@ pub async fn add_leadrner(State(state): State<HttpServerState>) -> String {
         rpc_addr: "127.0.0.0:7654".to_string(),
         node_id: 2,
     };
+
     match state
         .placement_center_storage
         .openraft_node
