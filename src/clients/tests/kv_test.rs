@@ -49,10 +49,11 @@ mod tests {
             value: value.clone(),
         };
         match placement_set(client_poll.clone(), addrs.clone(), request_key_empty).await{
-            Ok(_) => {}
+            Ok(_) => {
+                panic!("Expected an error when key is empty, but got ok");
+            }
             Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
+                assert!(e.to_string().contains("key or value"));
             }
         }
 
@@ -61,10 +62,11 @@ mod tests {
             value: "".to_string(),
         };
         match placement_set(client_poll.clone(), addrs.clone(), request_value_empty).await{
-            Ok(_) => {}
+            Ok(_) => {
+                panic!("Expected an error when value is empty, but got ok");
+            }
             Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
+                assert!(e.to_string().contains("key or value"));
             }
         }
 
