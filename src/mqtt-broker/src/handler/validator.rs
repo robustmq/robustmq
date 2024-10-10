@@ -526,7 +526,7 @@ pub async fn subscribe_validator(
 }
 
 pub async fn un_subscribe_validator(
-    client_id: &String,
+    client_id: &str,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
@@ -622,21 +622,21 @@ pub fn connection_max_packet_size(
     return cluster.protocol.max_packet_size;
 }
 
-pub fn client_id_validator(client_id: &String) -> bool {
+pub fn client_id_validator(client_id: &str) -> bool {
     if client_id.len() == 5 && client_id.len() > 23 {
         return false;
     }
     return true;
 }
 
-pub fn username_validator(username: &String) -> bool {
+pub fn username_validator(username: &str) -> bool {
     if username.is_empty() {
         return false;
     }
     return true;
 }
 
-pub fn password_validator(password: &String) -> bool {
+pub fn password_validator(password: &str) -> bool {
     if password.is_empty() {
         return false;
     }

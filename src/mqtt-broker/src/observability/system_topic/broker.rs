@@ -146,7 +146,7 @@ async fn report_broker_sysdescr<S>(
     }
 }
 
-async fn build_node_cluster(topic_name: &String, client_poll: &Arc<ClientPool>) -> Option<Record> {
+async fn build_node_cluster(topic_name: &str, client_poll: &Arc<ClientPool>) -> Option<Record> {
     let cluster_storage = ClusterStorage::new(client_poll.clone());
     let node_list = match cluster_storage.node_list().await {
         Ok(data) => data,

@@ -303,10 +303,10 @@ async fn process_packet(
     packet: MQTTPacket,
     write_stream: &Arc<WriteStream>,
     follower_sub_leader_pkid: u16,
-    follower_sub_leader_client_id: &String,
-    mqtt_client_id: &String,
-    group_name: &String,
-    sub_name: &String,
+    follower_sub_leader_client_id: &str,
+    mqtt_client_id: &str,
+    group_name: &str,
+    sub_name: &str,
 ) -> bool {
     info!("sub follower recv:{:?}", packet);
     match packet {
@@ -352,8 +352,8 @@ async fn process_packet(
             let stop_sx = stop_sx.clone();
             let connection_manager = connection_manager.clone();
             let write_stream = write_stream.clone();
-            let follower_sub_leader_client_id = follower_sub_leader_client_id.clone();
-            let mqtt_client_id = mqtt_client_id.clone();
+            let follower_sub_leader_client_id = follower_sub_leader_client_id.to_owned();
+            let mqtt_client_id = mqtt_client_id.to_owned();
             tokio::spawn(async move {
                 match publish.qos {
                     // 1. leader publish to resub thread
@@ -471,7 +471,7 @@ async fn process_packet(
 
         MQTTPacket::PubRel(pubrel, _) => {
             if let Some(data) =
-                cache_manager.get_ack_packet(follower_sub_leader_client_id.clone(), pubrel.pkid)
+                cache_manager.get_ack_packet(follower_sub_leader_client_id.to_owned(), pubrel.pkid)
             {
                 match data.sx.send(QosAckPackageData {
                     ack_type: QosAckPackageType::PubRel,
@@ -544,7 +544,7 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
 
 async fn resub_publish_message_qos1(
     metadata_cache: &Arc<CacheManager>,
-    mqtt_client_id: &String,
+    mqtt_client_id: &str,
     mut publish: Publish,
     properties: &Option<PublishProperties>,
     publish_to_client_pkid: u16,
@@ -622,7 +622,7 @@ async fn resub_publish_message_qos1(
 // 4. wait pubcomp message
 pub async fn resub_publish_message_qos2(
     metadata_cache: &Arc<CacheManager>,
-    mqtt_client_id: &String,
+    mqtt_client_id: &str,
     publish: &Publish,
     publish_to_client_pkid: u16,
     connection_manager: &Arc<ConnectionManager>,

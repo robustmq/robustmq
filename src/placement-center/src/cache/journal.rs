@@ -44,8 +44,8 @@ impl JournalCacheManager {
             .remove(&self.shard_key(cluster_name, shard_name));
     }
 
-    pub fn next_segment_seq(&self, cluster_name: &String, shard_name: &String) -> u64 {
-        let key = self.shard_key(cluster_name.clone(), shard_name.clone());
+    pub fn next_segment_seq(&self, cluster_name: &str, shard_name: &str) -> u64 {
+        let key = self.shard_key(cluster_name.to_owned(), shard_name.to_owned());
         if let Some(shard) = self.shard_list.get(&key) {
             return shard.last_segment_seq + 1;
         }

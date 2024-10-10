@@ -115,7 +115,7 @@ pub struct System {
 
 static BROKER_MQTT_CONF: OnceLock<BrokerMQTTConfig> = OnceLock::new();
 
-pub fn init_broker_mqtt_conf_by_path(config_path: &String) -> &'static BrokerMQTTConfig {
+pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMQTTConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     BROKER_MQTT_CONF.get_or_init(|| {

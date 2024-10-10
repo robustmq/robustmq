@@ -72,7 +72,7 @@ mod tests {
         v5_request_response_test(&client_id, &addr, true, true);
     }
 
-    fn v5_wrong_password_test(client_id: &String, addr: &String, ws: bool, ssl: bool) {
+    fn v5_wrong_password_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
         let create_opts = build_create_pros(client_id, addr);
 
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -93,7 +93,7 @@ mod tests {
         }
     }
 
-    fn v5_session_present_test(client_id: &String, addr: &String, ws: bool, ssl: bool) {
+    fn v5_session_present_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
         let mqtt_version = 5;
         let props = build_v5_pros();
 
@@ -163,7 +163,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_assigned_client_id_test(addr: &String, ws: bool, ssl: bool) {
+    fn v5_assigned_client_id_test(addr: &str, ws: bool, ssl: bool) {
         let mqtt_version = 5;
         let client_id = "".to_string();
         let props = build_v5_pros();
@@ -210,7 +210,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_request_response_test(client_id: &String, addr: &String, ws: bool, ssl: bool) {
+    fn v5_request_response_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
         let mqtt_version = 5;
 
         let pros = build_v5_pros();
@@ -256,7 +256,7 @@ mod tests {
         distinct_conn(cli);
     }
 
-    fn v5_response_test(client_id: &String, addr: &String, ws: bool, ssl: bool) {
+    fn v5_response_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {
         let mqtt_version = 5;
 
         let mut pros = build_v5_pros();

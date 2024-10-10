@@ -101,7 +101,7 @@ pub struct Rocksdb {
 
 static PLACEMENT_CENTER_CONF: OnceLock<PlacementCenterConfig> = OnceLock::new();
 
-pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static PlacementCenterConfig {
+pub fn init_placement_center_conf_by_path(config_path: &str) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     PLACEMENT_CENTER_CONF.get_or_init(|| {

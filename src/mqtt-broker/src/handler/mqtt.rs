@@ -153,7 +153,7 @@ where
 
         let connection = build_connection(
             connect_id,
-            &client_id,
+            client_id.clone(),
             &cluster,
             &connnect,
             &connect_properties,
@@ -162,7 +162,7 @@ where
 
         let (session, new_session) = match build_session(
             connect_id,
-            &client_id,
+            client_id.clone(),
             &connnect,
             &connect_properties,
             &last_will,
@@ -187,7 +187,7 @@ where
             connect_id,
             session.clone(),
             new_session,
-            &client_id,
+            client_id.clone(),
             &self.client_poll,
         )
         .await
@@ -204,7 +204,7 @@ where
         }
 
         match save_last_will_message(
-            &client_id,
+            client_id.clone(),
             &last_will,
             &last_will_properties,
             &self.client_poll,
@@ -227,7 +227,7 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager.report_heartbeat(&client_id, live_time);
+        self.cache_manager.report_heartbeat(client_id.clone(), live_time);
 
         self.cache_manager
             .add_session(client_id.clone(), session.clone());
@@ -248,7 +248,7 @@ where
         return response_packet_mqtt_connect_success(
             &self.protocol,
             &cluster,
-            client_id.clone(),
+            client_id,
             new_client_id,
             session.session_expiry as u32,
             new_session,
@@ -381,7 +381,7 @@ where
         match save_topic_retain_message(
             &self.cache_manager,
             &self.client_poll,
-            &topic_name,
+            topic_name.clone(),
             &client_id,
             &publish,
             &publish_properties,
@@ -814,7 +814,7 @@ where
             heartbeat: now_second(),
         };
         self.cache_manager
-            .report_heartbeat(&connection.client_id, live_time);
+            .report_heartbeat(connection.client_id, live_time);
         return response_packet_mqtt_ping_resp();
     }
 

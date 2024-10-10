@@ -208,7 +208,7 @@ async fn retry_call(
             Err(e) => {
                 if is_has_to_forward(&e) {
                     if let Some(leader_addr) = get_forward_addr(&e) {
-                        client_poll.set_leader_addr(&addr, &leader_addr);
+                        client_poll.set_leader_addr(addr, leader_addr);
                     }
                 } else {
                     error!(

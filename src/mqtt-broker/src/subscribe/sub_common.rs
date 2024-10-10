@@ -42,7 +42,7 @@ use crate::storage::message::MessageStorage;
 
 const SHARE_SUB_PREFIX: &str = "$share";
 
-pub fn path_contain_sub(_: &String) -> bool {
+pub fn path_contain_sub(_: &str) -> bool {
     return true;
 }
 
@@ -202,7 +202,7 @@ pub async fn publish_message_to_client(
 pub async fn qos2_send_publish(
     connection_manager: &Arc<ConnectionManager>,
     metadata_cache: &Arc<CacheManager>,
-    client_id: &String,
+    client_id: &str,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     stop_sx: &broadcast::Sender<bool>,
@@ -281,7 +281,7 @@ pub async fn qos2_send_publish(
 
 pub async fn qos2_send_pubrel(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &String,
+    client_id: &str,
     pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
@@ -341,15 +341,15 @@ pub async fn qos2_send_pubrel(
 
 pub async fn loop_commit_offset<S>(
     message_storage: &MessageStorage<S>,
-    topic_id: &String,
-    group_id: &String,
+    topic_id: &str,
+    group_id: &str,
     offset: u128,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     loop {
         match message_storage
-            .commit_group_offset(topic_id.clone(), group_id.clone(), offset)
+            .commit_group_offset(topic_id.to_owned(), group_id.to_owned(), offset)
             .await
         {
             Ok(_) => {
@@ -366,7 +366,7 @@ pub async fn loop_commit_offset<S>(
 // the message can be pushed directly to the request return queue without the need for a retry mechanism.
 pub async fn publish_message_qos0(
     metadata_cache: &Arc<CacheManager>,
-    mqtt_client_id: &String,
+    mqtt_client_id: &str,
     publish: &Publish,
     properties: &Option<PublishProperties>,
     connection_manager: &Arc<ConnectionManager>,

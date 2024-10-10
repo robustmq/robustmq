@@ -36,7 +36,7 @@ use crate::error::common::CommonError;
 ///
 /// # Possible errors
 /// If the directory creation fails, a 'CommonError' containing the reason for the error will be returned.
-pub fn try_create_fold(fold: &String) -> Result<(), CommonError> {
+pub fn try_create_fold(fold: &str) -> Result<(), CommonError> {
     if !Path::new(fold).exists() {
         fs::create_dir_all(fold)?
     }
@@ -108,7 +108,7 @@ pub fn get_local_ip() -> String {
 ///
 /// # Return value
 /// Return a Boolean value indicating whether the file exists
-pub fn file_exists(path: &String) -> bool {
+pub fn file_exists(path: &str) -> bool {
     Path::new(path).exists()
 }
 
@@ -122,7 +122,7 @@ pub fn file_exists(path: &String) -> bool {
 ///
 /// # Error
 /// If the file does not exist, return a generic error indicating that the file does not exist
-pub fn read_file(path: &String) -> Result<String, CommonError> {
+pub fn read_file(path: &str) -> Result<String, CommonError> {
     if !path::Path::new(path).exists() {
         return Err(CommonError::CommmonError(format!(
             "File {} does not exist",

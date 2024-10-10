@@ -367,7 +367,7 @@ where
 // the push thread will exit automatically and will not attempt to push again.
 pub async fn exclusive_publish_message_qos1(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &String,
+    client_id: &str,
     mut publish: Publish,
     publish_properties: &PublishProperties,
     pkid: u16,
@@ -446,7 +446,7 @@ pub async fn exclusive_publish_message_qos1(
 // wait pubcomp message
 pub async fn exclusive_publish_message_qos2(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &String,
+    client_id: &str,
     publish: &Publish,
     publish_properties: &PublishProperties,
     pkid: u16,

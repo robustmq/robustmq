@@ -71,8 +71,8 @@ impl ClusterStorage {
     #[allow(dead_code)]
     pub fn get(
         &self,
-        cluster_type: &String,
-        cluster_name: &String,
+        cluster_type: &str,
+        cluster_name: &str,
     ) -> Result<Option<ClusterInfo>, CommonError> {
         let key = key_cluster(cluster_type, cluster_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
@@ -95,7 +95,7 @@ impl ClusterStorage {
     /// - `OK()`: Indicates that the cluster has been successfully deleted.
     /// - `Err (CommonError)`: Indicates that the operation failed, and CommonError is the error type that includes the reason for the failure.
     #[allow(dead_code)]
-    pub fn delete(&self, cluster_type: &String, cluster_name: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_type: &str, cluster_name: &str) -> Result<(), CommonError> {
         let key: String = key_cluster(cluster_type, cluster_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }

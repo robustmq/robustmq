@@ -30,7 +30,7 @@ use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
 
 pub async fn send_last_will_message<S>(
-    client_id: &String,
+    client_id: &str,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     last_will: &Option<LastWill>,
@@ -60,7 +60,7 @@ where
             match save_topic_retain_message(
                 cache_manager,
                 client_poll,
-                &topic_name,
+                topic_name,
                 client_id,
                 &publish,
                 &publish_properties,
@@ -145,7 +145,7 @@ fn build_publish_message_by_lastwill(
 }
 
 pub async fn save_last_will_message(
-    client_id: &String,
+    client_id: String,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     client_poll: &Arc<ClientPool>,
@@ -161,7 +161,7 @@ pub async fn save_last_will_message(
         last_will_properties: last_will_properties.clone(),
     };
     return session_storage
-        .save_last_will_messae(&client_id, lastwill.encode())
+        .save_last_will_messae(client_id, lastwill.encode())
         .await;
 }
 
