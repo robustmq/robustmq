@@ -1138,20 +1138,20 @@ pub trait Protocol {
     fn write(&self, packet: MQTTPacket, write: &mut BytesMut) -> Result<usize, Error>;
 }
 
+// This type is used to avoid #[warn(clippy::type_complexity)]
+pub struct ConnectReadOutcome {
+    pub protocol_version: u8,
+    pub connect: Connect,
+    pub properties: Option<ConnectProperties>,
+    pub last_will: Option<LastWill>,
+    pub last_will_properties: Option<LastWillProperties>,
+    pub login: Option<Login>,
+}
+
 pub fn connect_read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<
-    (
-        u8,
-        Connect,
-        Option<ConnectProperties>,
-        Option<LastWill>,
-        Option<LastWillProperties>,
-        Option<Login>,
-    ),
-    Error,
-> {
+) -> Result<ConnectReadOutcome, Error> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -1179,14 +1179,14 @@ pub fn connect_read(
             clean_session,
         };
 
-        return Ok((
-            protocol_level,
+        return Ok(ConnectReadOutcome {
+            protocol_version: protocol_level,
             connect,
             properties,
-            will,
-            willproperties,
+            last_will: will,
+            last_will_properties: willproperties,
             login,
-        ));
+        });
     }
 
     if protocol_level == 4 || protocol_level == 3 {
@@ -1204,7 +1204,14 @@ pub fn connect_read(
             clean_session,
         };
 
-        return Ok((protocol_level, connect, None, last_will, None, login));
+        return Ok(ConnectReadOutcome {
+            protocol_version: protocol_level,
+            connect,
+            properties: None,
+            last_will,
+            last_will_properties: None,
+            login,
+        });
     }
 
     Err(Error::InvalidProtocol)
