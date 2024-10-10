@@ -41,7 +41,10 @@ mod tests {
             extend_info: extend_info(),
             ..Default::default()
         };
-        client.register_node(tonic::Request::new(request)).await.unwrap();
+        client
+            .register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
         let start_time = now_second();
         loop {
             let request = NodeListRequest {

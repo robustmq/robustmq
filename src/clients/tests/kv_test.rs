@@ -49,14 +49,18 @@ mod tests {
             key: "".to_string(),
             value: value.clone(),
         };
-        let err = placement_set(client_poll.clone(), addrs.clone(), request_key_empty).await.unwrap_err();
+        let err = placement_set(client_poll.clone(), addrs.clone(), request_key_empty)
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains("key or value"));
 
         let request_value_empty = SetRequest {
             key: key.clone(),
             value: "".to_string(),
         };
-        let err = placement_set(client_poll.clone(), addrs.clone(), request_value_empty).await.unwrap_err();
+        let err = placement_set(client_poll.clone(), addrs.clone(), request_value_empty)
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains("key or value"));
 
         let exist_req = ExistsRequest { key: key.clone() };

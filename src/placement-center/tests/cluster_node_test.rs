@@ -39,7 +39,10 @@ mod tests {
             extend_info: extend_info(),
             ..Default::default()
         };
-        client.register_node(tonic::Request::new(request)).await.unwrap();
+        client
+            .register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
 
         let request = NodeListRequest {
             cluster_name: cluster_name.clone(),
@@ -65,7 +68,10 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
         };
-        client.un_register_node(tonic::Request::new(request)).await.unwrap();
+        client
+            .un_register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
 
         let request = NodeListRequest {
             cluster_name: cluster_name.clone(),

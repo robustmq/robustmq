@@ -41,8 +41,9 @@ mod tests {
             Duration::from_secs(3),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, false),
         )
-        .await.unwrap();
-        
+        .await
+        .unwrap();
+
         println!("{}", now.elapsed().as_secs());
     }
 
@@ -59,7 +60,8 @@ mod tests {
             Duration::from_secs(60),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, true),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -75,7 +77,8 @@ mod tests {
             Duration::from_secs(60),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, false),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -93,7 +96,8 @@ mod tests {
             Duration::from_secs(60),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, true),
         )
-        .await.unwrap();
+        .await
+        .unwrap();
     }
 
     #[tokio::test]
@@ -102,7 +106,8 @@ mod tests {
         timeout(Duration::from_secs(3), async {
             sleep(Duration::from_secs(5)).await;
         })
-        .await.unwrap();
+        .await
+        .unwrap();
         assert_eq!(now.elapsed().as_secs(), 3);
     }
 

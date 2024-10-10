@@ -191,7 +191,7 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_filter_by_pkid(&self, client_id: &str, filters: &Vec<String>) {
+    pub fn remove_filter_by_pkid(&self, client_id: &str, filters: &[String]) {
         for path in filters {
             if let Some(sub_list) = self.subscribe_filter.get_mut(client_id) {
                 if sub_list.contains_key(path) {

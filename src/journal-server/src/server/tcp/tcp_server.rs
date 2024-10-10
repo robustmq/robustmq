@@ -39,7 +39,8 @@ pub struct TcpServer {
     codec: StorageEngineCodec,
 }
 
-// This is to avoid #[warn(clippy::too_many_arguments)]
+// This is to avoid #[warn(clippy::too_many_arguments)] and for better readability given that
+// most of the fields have the same type.
 pub struct TcpServerConfig {
     pub accept_thread_num: usize,
     pub max_connection_num: usize,

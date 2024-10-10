@@ -98,6 +98,7 @@ where
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn connect(
         &mut self,
         connect_id: u64,

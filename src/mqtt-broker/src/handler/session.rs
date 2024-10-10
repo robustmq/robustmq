@@ -25,6 +25,7 @@ use super::cache::CacheManager;
 use super::lastwill::last_will_delay_interval;
 use crate::storage::session::SessionStorage;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn build_session(
     connect_id: u64,
     client_id: String,
