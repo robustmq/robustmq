@@ -23,7 +23,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use log::error;
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS};
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
@@ -174,7 +174,7 @@ pub async fn publish_message_to_client(
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
         record_sent_metrics(&resp, connection_manager);
 
-        let response: MQTTPacketWrapper = MQTTPacketWrapper {
+        let response: MqttPacketWrapper = MqttPacketWrapper {
             protocol_version: protocol.clone().into(),
             packet: resp.packet,
         };
@@ -435,7 +435,7 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::tools::unique_id;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::QoS;
 
     use crate::handler::cache::CacheManager;
@@ -557,7 +557,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
-        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
+        let topic = MqttTopic::new(unique_id(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);
 
         let sub_path = "/test/topic".to_string();

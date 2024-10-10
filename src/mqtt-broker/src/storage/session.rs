@@ -22,7 +22,7 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::mqtt::session::MQTTSession;
+use metadata_struct::mqtt::session::MqttSession;
 use protocol::placement_center::generate::mqtt::{
     CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, SaveLastWillMessageRequest,
     UpdateSessionRequest,
@@ -40,7 +40,7 @@ impl SessionStorage {
     pub async fn set_session(
         &self,
         client_id: &String,
-        session: &MQTTSession,
+        session: &MqttSession,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateSessionRequest {
@@ -113,7 +113,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn get_session(&self, client_id: String) -> Result<Option<MQTTSession>, CommonError> {
+    pub async fn get_session(&self, client_id: String) -> Result<Option<MqttSession>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -131,7 +131,7 @@ impl SessionStorage {
                     return Ok(None);
                 }
                 let raw = reply.sessions.get(0).unwrap();
-                match serde_json::from_slice::<MQTTSession>(&raw) {
+                match serde_json::from_slice::<MqttSession>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
                         return Err(CommonError::CommmonError(e.to_string()));
@@ -144,7 +144,7 @@ impl SessionStorage {
         }
     }
 
-    pub async fn list_session(&self) -> Result<DashMap<String, MQTTSession>, CommonError> {
+    pub async fn list_session(&self) -> Result<DashMap<String, MqttSession>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListSessionRequest {
             cluster_name: config.cluster_name.clone(),
@@ -160,7 +160,7 @@ impl SessionStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.sessions {
-                    match serde_json::from_slice::<MQTTSession>(&raw) {
+                    match serde_json::from_slice::<MqttSession>(&raw) {
                         Ok(data) => {
                             results.insert(data.client_id.clone(), data);
                         }
@@ -210,7 +210,7 @@ mod tests {
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::tools::now_second;
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::session::MqttSession;
 
     use crate::storage::session::SessionStorage;
 
@@ -225,7 +225,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let session_storage = SessionStorage::new(client_poll);
         let client_id: String = "client_id_11111".to_string();
-        let mut session = MQTTSession::default();
+        let mut session = MqttSession::default();
         session.client_id = client_id.clone();
         session.session_expiry = 1000;
         session.broker_id = Some(1);

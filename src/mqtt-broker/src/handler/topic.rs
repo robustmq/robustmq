@@ -19,7 +19,7 @@ use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::tools::unique_id;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;
 use storage_adapter::storage::{ShardConfig, StorageAdapter};
@@ -111,7 +111,7 @@ pub async fn try_init_topic<S>(
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
     client_poll: &Arc<ClientPool>,
-) -> Result<MQTTTopic, CommonError>
+) -> Result<MqttTopic, CommonError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
@@ -120,7 +120,7 @@ where
     } else {
         let topic_storage = TopicStorage::new(client_poll.clone());
         let topic_id = unique_id();
-        let topic = MQTTTopic::new(topic_id, topic_name.clone());
+        let topic = MqttTopic::new(topic_id, topic_name.clone());
         topic_storage.save_topic(topic.clone()).await?;
         metadata_cache.add_topic(&topic_name, &topic);
 

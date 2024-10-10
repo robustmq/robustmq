@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
-use protocol::mqtt::codec::{calc_mqtt_packet_size, MQTTPacketWrapper};
+use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
 use protocol::mqtt::common::{MQTTPacket, QoS};
 
 use crate::handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS};
@@ -95,7 +95,7 @@ pub fn record_received_metrics(
     network_type: &NetworkConnectionType,
 ) {
     let payload_size = if let Some(protocol) = connection.protocol.clone() {
-        let wrapper = MQTTPacketWrapper {
+        let wrapper = MqttPacketWrapper {
             protocol_version: protocol.into(),
             packet: pkg.clone(),
         };
@@ -124,7 +124,7 @@ pub fn record_sent_metrics(resp: &ResponsePackage, connection_manager: &Arc<Conn
     let (payload_size, network_type) =
         if let Some(connection) = connection_manager.get_connect(resp.connection_id) {
             if let Some(protocol) = connection.protocol.clone() {
-                let wrapper = MQTTPacketWrapper {
+                let wrapper = MqttPacketWrapper {
                     protocol_version: protocol.into(),
                     packet: resp.packet.clone(),
                 };
@@ -160,7 +160,7 @@ pub fn record_retain_sent_metrics(qos: QoS) {
 
 #[cfg(test)]
 mod tests {
-    use protocol::mqtt::codec::{calc_mqtt_packet_size, MQTTPacketWrapper};
+    use protocol::mqtt::codec::{calc_mqtt_packet_size, MqttPacketWrapper};
     use protocol::mqtt::common::{MQTTPacket, UnsubAck};
 
     #[test]
@@ -171,7 +171,7 @@ mod tests {
         };
 
         let packet = MQTTPacket::UnsubAck(unsub_ack, None);
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: 4,
             packet,
         };

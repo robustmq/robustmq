@@ -19,7 +19,7 @@ use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{debug, error, warn};
 use metadata_struct::mqtt::lastwill::LastWillData;
-use metadata_struct::mqtt::session::MQTTSession;
+use metadata_struct::mqtt::session::MqttSession;
 use protocol::broker_server::generate::placement::{
     DeleteSessionRequest, SendLastWillMessageRequest,
 };
@@ -27,10 +27,10 @@ use protocol::broker_server::generate::placement::{
 use super::session_expire::ExpireLastWill;
 use crate::cache::mqtt::MqttCacheManager;
 use crate::cache::placement::PlacementCacheManager;
-use crate::storage::mqtt::session::MQTTSessionStorage;
+use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
-pub struct MQTTBrokerCall {
+pub struct MqttBrokerCall {
     cluster_name: String,
     placement_cache_manager: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -38,7 +38,7 @@ pub struct MQTTBrokerCall {
     mqtt_cache_manager: Arc<MqttCacheManager>,
 }
 
-impl MQTTBrokerCall {
+impl MqttBrokerCall {
     pub fn new(
         cluster_name: String,
         placement_cache_manager: Arc<PlacementCacheManager>,
@@ -46,7 +46,7 @@ impl MQTTBrokerCall {
         client_poll: Arc<ClientPool>,
         mqtt_cache_manager: Arc<MqttCacheManager>,
     ) -> Self {
-        MQTTBrokerCall {
+        MqttBrokerCall {
             cluster_name,
             placement_cache_manager,
             rocksdb_engine_handler,
@@ -55,8 +55,8 @@ impl MQTTBrokerCall {
         }
     }
 
-    pub async fn delete_sessions(&self, sessions: Vec<MQTTSession>) {
-        let chunks: Vec<Vec<MQTTSession>> = sessions
+    pub async fn delete_sessions(&self, sessions: Vec<MqttSession>) {
+        let chunks: Vec<Vec<MqttSession>> = sessions
             .chunks(100)
             .map(|chunk| chunk.to_vec()) // 将切片转换为Vec
             .collect();
@@ -89,7 +89,7 @@ impl MQTTBrokerCall {
             }
             debug!("Session expired call Broker status: {}", success);
             if success {
-                let session_storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+                let session_storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
                 for ms in raw {
                     match session_storage.delete(&self.cluster_name, &ms.client_id) {
                         Ok(()) => {

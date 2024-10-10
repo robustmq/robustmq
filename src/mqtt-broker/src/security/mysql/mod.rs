@@ -15,9 +15,9 @@
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MQTTAcl;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::user::MqttUser;
 use mysql::prelude::Queryable;
 use mysql::Pool;
 use third_driver::mysql::build_mysql_conn_pool;
@@ -47,7 +47,7 @@ impl MySQLAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for MySQLAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
+    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = format!(
@@ -58,7 +58,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                     conn.query(sql).unwrap();
                 let results = DashMap::with_capacity(2);
                 for raw in data {
-                    let user = MQTTUser {
+                    let user = MqttUser {
                         username: raw.0.clone(),
                         password: raw.1.clone(),
                         is_superuser: raw.3 == 1,
@@ -73,7 +73,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         }
     }
 
-    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError> {
+    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = format!(
@@ -84,7 +84,7 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
                 let data: Vec<(String, String, Option<String>, u8, Option<String>)> =
                     conn.query(sql).unwrap();
                 if let Some(value) = data.first() {
-                    return Ok(Some(MQTTUser {
+                    return Ok(Some(MqttUser {
                         username: value.0.clone(),
                         password: value.1.clone(),
                         is_superuser: value.3 == 1,
@@ -98,11 +98,11 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
         }
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
         return Ok(Vec::new());
     }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
         return Ok(Vec::new());
     }
 }

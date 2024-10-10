@@ -25,9 +25,9 @@ use common_base::error::mqtt_broker::MQTTBrokerError;
 use dashmap::DashMap;
 use login::plaintext::Plaintext;
 use login::Authentication;
-use metadata_struct::acl::mqtt_acl::{MQTTAcl, MQTTAclAction};
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction};
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::user::MqttUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
@@ -45,13 +45,13 @@ pub mod redis;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError>;
+    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError>;
 
-    async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError>;
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError>;
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError>;
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError>;
 
-    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError>;
+    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError>;
 }
 
 pub struct AuthDriver {
@@ -87,15 +87,15 @@ impl AuthDriver {
         return Ok(());
     }
 
-    pub async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
+    pub async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
         return self.driver.read_all_user().await;
     }
 
-    pub async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
+    pub async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
         return self.driver.read_all_acl().await;
     }
 
-    pub async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+    pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
         return self.driver.read_all_blacklist().await;
     }
 
@@ -131,7 +131,7 @@ impl AuthDriver {
             &self.cache_manager,
             connection,
             topic_name,
-            MQTTAclAction::Publish,
+            MqttAclAction::Publish,
             retain,
             qos,
         );
@@ -145,7 +145,7 @@ impl AuthDriver {
                     &self.cache_manager,
                     connection,
                     &topic,
-                    MQTTAclAction::Publish,
+                    MqttAclAction::Publish,
                     false,
                     filter.qos,
                 ) {

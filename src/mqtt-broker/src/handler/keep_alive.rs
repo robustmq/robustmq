@@ -20,8 +20,8 @@ use bytes::BytesMut;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, info, warn};
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
 use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol};
 use serde::{Deserialize, Serialize};
 use tokio::select;
@@ -92,7 +92,7 @@ impl ClientKeepAlive {
                         Some(DisconnectReasonCode::KeepAliveTimeout),
                     );
 
-                    let wrap = MQTTPacketWrapper {
+                    let wrap = MqttPacketWrapper {
                         protocol_version: protocol.clone().into(),
                         packet: resp,
                     };
@@ -219,7 +219,7 @@ pub fn keep_live_time(keep_alive: u16) -> u16 {
     return new_keep_alive as u16;
 }
 
-pub fn client_keep_live_time(cluster: &MQTTClusterDynamicConfig, mut keep_alive: u16) -> u16 {
+pub fn client_keep_live_time(cluster: &MqttClusterDynamicConfig, mut keep_alive: u16) -> u16 {
     if keep_alive <= 0 {
         keep_alive = cluster.protocol.default_server_keep_alive;
     }
@@ -244,7 +244,7 @@ mod test {
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use common_base::tools::{now_second, unique_id};
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::session::MqttSession;
     use tokio::sync::broadcast;
     use tokio::time::sleep;
 
@@ -294,7 +294,7 @@ mod test {
         let client_id = unique_id();
         let connect_id = 1;
 
-        let session = MQTTSession::new(&client_id, 60, false, None);
+        let session = MqttSession::new(&client_id, 60, false, None);
         cache_manager.add_session(client_id.clone(), session);
 
         let keep_alive = 2;

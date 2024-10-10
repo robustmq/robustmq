@@ -18,9 +18,9 @@ use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::acl::mqtt_acl::MQTTAcl;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::user::MqttUser;
 
 use super::AuthStorageAdapter;
 use crate::storage::acl::AclStorage;
@@ -39,22 +39,22 @@ impl PlacementAuthStorageAdapter {
 
 #[async_trait]
 impl AuthStorageAdapter for PlacementAuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
+    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
         let user_storage = UserStorage::new(self.client_poll.clone());
         return user_storage.user_list().await;
     }
 
-    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError> {
+    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError> {
         let user_storage = UserStorage::new(self.client_poll.clone());
         return user_storage.get_user(username).await;
     }
 
-    async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
         let acl_storage = AclStorage::new(self.client_poll.clone());
         return acl_storage.list_acl().await;
     }
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
         let blacklist_storage = BlackListStorage::new(self.client_poll.clone());
         return blacklist_storage.list_blacklist().await;
     }

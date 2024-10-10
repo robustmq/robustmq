@@ -19,7 +19,7 @@ use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::error;
 use metadata_struct::adapter::record::Record;
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use storage_adapter::storage::StorageAdapter;
 
 use super::{
@@ -76,7 +76,7 @@ async fn report_broker_version<S>(
         Err(_) => "-".to_string(),
     };
 
-    if let Some(record) = MQTTMessage::build_system_topic_message(topic_name.clone(), version) {
+    if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), version) {
         write_topic_data(
             message_storage_adapter,
             metadata_cache,
@@ -98,7 +98,7 @@ async fn report_broker_time<S>(
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_UPTIME.to_string());
     let start_long_time: u64 = now_second() - BROKER_START_TIME.clone();
     if let Some(record) =
-        MQTTMessage::build_system_topic_message(topic_name.clone(), start_long_time.to_string())
+        MqttMessage::build_system_topic_message(topic_name.clone(), start_long_time.to_string())
     {
         write_topic_data(
             message_storage_adapter,
@@ -112,7 +112,7 @@ async fn report_broker_time<S>(
 
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_DATETIME.to_string());
     if let Some(record) =
-        MQTTMessage::build_system_topic_message(topic_name.clone(), now_second().to_string())
+        MqttMessage::build_system_topic_message(topic_name.clone(), now_second().to_string())
     {
         write_topic_data(
             message_storage_adapter,
@@ -134,7 +134,7 @@ async fn report_broker_sysdescr<S>(
 {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string());
     let info = format!("{}", os_info::get());
-    if let Some(record) = MQTTMessage::build_system_topic_message(topic_name.clone(), info) {
+    if let Some(record) = MqttMessage::build_system_topic_message(topic_name.clone(), info) {
         write_topic_data(
             &message_storage_adapter,
             &metadata_cache,
@@ -167,7 +167,7 @@ async fn build_node_cluster(topic_name: &String, client_poll: &Arc<ClientPool>) 
         }
     };
 
-    return MQTTMessage::build_system_topic_message(topic_name.to_string(), content);
+    return MqttMessage::build_system_topic_message(topic_name.to_string(), content);
 }
 
 #[cfg(test)]

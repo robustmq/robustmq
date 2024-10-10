@@ -20,7 +20,7 @@ mod tests {
     use clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use metadata_struct::acl::mqtt_acl::{
-        MQTTAcl, MQTTAclAction, MQTTAclPermission, MQTTAclResourceType,
+        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
     use protocol::placement_center::generate::mqtt::{
         CreateAclRequest, DeleteAclRequest, ListAclRequest, ListBlacklistRequest,
@@ -34,13 +34,13 @@ mod tests {
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = format!("test_cluster_{}", unique_id());
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::User,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
             resource_name: "loboxu".to_string(),
             topic: "tp-1".to_string(),
             ip: "*".to_string(),
-            action: MQTTAclAction::All,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::All,
+            permission: MqttAclPermission::Deny,
         };
 
         let request = CreateAclRequest {
@@ -63,7 +63,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
-                    let tmp = serde_json::from_slice::<MQTTAcl>(raw.as_slice()).unwrap();
+                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice()).unwrap();
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name
                         && tmp.topic == acl.topic
@@ -102,7 +102,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MQTTAcl>(raw.as_slice())
+                    let tmp = serde_json::from_slice::<MqttAcl>(raw.as_slice())
                         .unwrap_or_else(|e| panic!("{e} {:02x?}", raw.as_slice()));
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name

@@ -15,12 +15,12 @@
 use std::sync::Arc;
 
 use common_base::tools::now_second;
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::PublishProperties;
 
 use super::cache::CacheManager;
 
-pub fn is_message_expire(message: &MQTTMessage) -> bool {
+pub fn is_message_expire(message: &MqttMessage) -> bool {
     return message.expiry_interval < now_second();
 }
 
@@ -46,7 +46,7 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::tools::now_second;
-    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use protocol::mqtt::common::PublishProperties;
 
     use crate::handler::cache::CacheManager;
@@ -57,7 +57,7 @@ mod tests {
         let client_poll = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let mut cluster = MQTTClusterDynamicConfig::default();
+        let mut cluster = MqttClusterDynamicConfig::default();
         cluster.protocol.max_message_expiry_interval = 10;
         cache_manager.set_cluster_info(cluster);
 

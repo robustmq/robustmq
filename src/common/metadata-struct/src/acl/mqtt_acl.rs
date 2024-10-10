@@ -18,42 +18,42 @@ use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub struct MQTTAcl {
-    pub resource_type: MQTTAclResourceType,
+pub struct MqttAcl {
+    pub resource_type: MqttAclResourceType,
     pub resource_name: String,
     pub topic: String,
     pub ip: String,
-    pub action: MQTTAclAction,
-    pub permission: MQTTAclPermission,
+    pub action: MqttAclAction,
+    pub permission: MqttAclPermission,
 }
 
-impl MQTTAcl {
+impl MqttAcl {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclResourceType {
+pub enum MqttAclResourceType {
     ClientId,
     User,
 }
 
-impl fmt::Display for MQTTAclResourceType {
+impl fmt::Display for MqttAclResourceType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                MQTTAclResourceType::ClientId => "ClientId",
-                MQTTAclResourceType::User => "User",
+                MqttAclResourceType::ClientId => "ClientId",
+                MqttAclResourceType::User => "User",
             }
         )
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclAction {
+pub enum MqttAclAction {
     All,
     Subscribe,
     Publish,
@@ -63,7 +63,7 @@ pub enum MQTTAclAction {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclPermission {
+pub enum MqttAclPermission {
     Allow,
     Deny,
 }

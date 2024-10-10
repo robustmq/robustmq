@@ -48,7 +48,7 @@ pub struct ListUserRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListUserReply {
-    /// The parameter contains a list of users, encoded from a `Vec<MQTTTopic>` into a binary format.
+    /// The parameter contains a list of users, encoded from a `Vec<MqttTopic>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub users: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
@@ -61,7 +61,7 @@ pub struct CreateUserRequest {
     /// The name of the user.
     #[prost(string, tag = "2")]
     pub user_name: ::prost::alloc::string::String,
-    /// The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
+    /// The parameter contains user information, encoded from a `MqttUser` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub content: ::prost::alloc::vec::Vec<u8>,
 }
@@ -88,7 +88,7 @@ pub struct ListTopicRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListTopicReply {
-    /// The parameter contains a list of topics, encoded from a `Vec<MQTTTopic>` into a binary format.
+    /// The parameter contains a list of topics, encoded from a `Vec<MqttTopic>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub topics: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
@@ -101,7 +101,7 @@ pub struct CreateTopicRequest {
     /// The name of the topic.
     #[prost(string, tag = "2")]
     pub topic_name: ::prost::alloc::string::String,
-    /// The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
+    /// The parameter contains topic information, encoded from a `MqttTopic` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub content: ::prost::alloc::vec::Vec<u8>,
 }
@@ -124,7 +124,7 @@ pub struct SetTopicRetainMessageRequest {
     /// The name of the topic.
     #[prost(string, tag = "2")]
     pub topic_name: ::prost::alloc::string::String,
-    /// The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
+    /// The parameter contains retain message, encoded from a `MqttMessage` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub retain_message: ::prost::alloc::vec::Vec<u8>,
     /// The parameter is the expiration time of the retain message. The unit is seconds.
@@ -144,7 +144,7 @@ pub struct ListSessionRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListSessionReply {
-    /// The parameter contains a list of sessions, encoded from a `Vec<MQTTSession>` into a binary format.
+    /// The parameter contains a list of sessions, encoded from a `Vec<MqttSession>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub sessions: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
@@ -157,7 +157,7 @@ pub struct CreateSessionRequest {
     /// The id of the client.
     #[prost(string, tag = "2")]
     pub client_id: ::prost::alloc::string::String,
-    /// The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
+    /// The parameter contains session information, encoded from a `MqttSession` object into a binary format.
     #[prost(bytes = "vec", tag = "3")]
     pub session: ::prost::alloc::vec::Vec<u8>,
 }
@@ -216,7 +216,7 @@ pub struct ListAclRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListAclReply {
-    /// The parameter contains a list of acls, encoded from a `Vec<MQTTAcl>` into a binary format.
+    /// The parameter contains a list of acls, encoded from a `Vec<MqttAcl>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub acls: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
@@ -226,7 +226,7 @@ pub struct DeleteAclRequest {
     /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
-    /// The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+    /// The parameter contains acl information, encoded from a `MqttAcl` object into a binary format.
     #[prost(bytes = "vec", tag = "2")]
     pub acl: ::prost::alloc::vec::Vec<u8>,
 }
@@ -236,7 +236,7 @@ pub struct CreateAclRequest {
     /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
-    /// The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+    /// The parameter contains acl information, encoded from a `MqttAcl` object into a binary format.
     #[prost(bytes = "vec", tag = "2")]
     pub acl: ::prost::alloc::vec::Vec<u8>,
 }
@@ -250,7 +250,7 @@ pub struct ListBlacklistRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListBlacklistReply {
-    /// The parameter contains a list of blacklist, encoded from a `Vec<MQTTAclBlackList>` into a binary format.
+    /// The parameter contains a list of blacklist, encoded from a `Vec<MqttAclBlackList>` into a binary format.
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub blacklists: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
@@ -260,7 +260,7 @@ pub struct CreateBlacklistRequest {
     /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
-    /// The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
+    /// The parameter contains blacklist information, encoded from a `MqttAclBlackList` object into a binary format.
     #[prost(bytes = "vec", tag = "2")]
     pub blacklist: ::prost::alloc::vec::Vec<u8>,
 }
@@ -270,7 +270,7 @@ pub struct DeleteBlacklistRequest {
     /// The name of the cluster.
     #[prost(string, tag = "1")]
     pub cluster_name: ::prost::alloc::string::String,
-    /// The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
+    /// The type of blacklist. Refer to the `MqttAclBlackListType` enum for specific values.
     #[prost(string, tag = "2")]
     pub blacklist_type: ::prost::alloc::string::String,
     /// The name of the resource.
@@ -368,7 +368,7 @@ pub mod mqtt_service_client {
         /// - `user_name: String` (Option): The name of the user.
         ///
         /// Returns:
-        /// - `users: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTUser>` into a binary format.
+        /// - `users: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttUser>` into a binary format.
         pub async fn list_user(
             &mut self,
             request: impl tonic::IntoRequest<super::ListUserRequest>,
@@ -391,7 +391,7 @@ pub mod mqtt_service_client {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `user_name: String`: The name of the user.
-        /// - `content: Vec<u8>`: The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
+        /// - `content: Vec<u8>`: The parameter contains user information, encoded from a `MqttUser` object into a binary format.
         ///
         /// Returns: An empty struct.
         pub async fn create_user(
@@ -444,7 +444,7 @@ pub mod mqtt_service_client {
         /// - `client_id: String` (Option): The id of the client.
         ///
         /// Returns:
-        /// - `sessions: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTSession>` into a binary format.
+        /// - `sessions: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttSession>` into a binary format.
         pub async fn list_session(
             &mut self,
             request: impl tonic::IntoRequest<super::ListSessionRequest>,
@@ -467,7 +467,7 @@ pub mod mqtt_service_client {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `client_id: String`: The id of the client.
-        /// - `session: Vec<u8>`: The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
+        /// - `session: Vec<u8>`: The parameter contains session information, encoded from a `MqttSession` object into a binary format.
         ///
         /// Returns: An empty struct.
         pub async fn create_session(
@@ -549,7 +549,7 @@ pub mod mqtt_service_client {
         /// - `topic_name: String`: The name of the topic.
         ///
         /// Returns:
-        /// - `topics: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTTopic>` into a binary format.
+        /// - `topics: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttTopic>` into a binary format.
         pub async fn list_topic(
             &mut self,
             request: impl tonic::IntoRequest<super::ListTopicRequest>,
@@ -572,7 +572,7 @@ pub mod mqtt_service_client {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `topic_name: String`: The name of the topic.
-        /// - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
+        /// - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MqttTopic` object into a binary format.
         ///
         /// Returns: An empty struct.
         pub async fn create_topic(
@@ -623,7 +623,7 @@ pub mod mqtt_service_client {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `topic_name: String`: The name of the topic.
-        /// - `retain_message: Vec<u8>`: The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
+        /// - `retain_message: Vec<u8>`: The parameter contains retain message, encoded from a `MqttMessage` object into a binary format.
         /// - `retain_message_expired_at: u64`: The parameter is the expiration time of the retain message. The unit is seconds.
         ///
         /// Returns: An empty struct.
@@ -707,7 +707,7 @@ pub mod mqtt_service_client {
         /// - `cluster_name: String`: The name of the cluster.
         ///
         /// Returns:
-        /// - `acls: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAcl>` into a binary format.
+        /// - `acls: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttAcl>` into a binary format.
         pub async fn list_acl(
             &mut self,
             request: impl tonic::IntoRequest<super::ListAclRequest>,
@@ -729,7 +729,7 @@ pub mod mqtt_service_client {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MqttAcl` object into a binary format.
         ///
         /// Returns: An empty struct.
         pub async fn delete_acl(
@@ -754,7 +754,7 @@ pub mod mqtt_service_client {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MqttAcl` object into a binary format.
         ///
         /// Returns: An empty struct.
         pub async fn create_acl(
@@ -781,7 +781,7 @@ pub mod mqtt_service_client {
         /// - `cluster_name: String`: The name of the cluster.
         ///
         /// Returns:
-        /// - `blacklists: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAclBlackList>` into a binary format.
+        /// - `blacklists: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttAclBlackList>` into a binary format.
         pub async fn list_blacklist(
             &mut self,
             request: impl tonic::IntoRequest<super::ListBlacklistRequest>,
@@ -804,7 +804,7 @@ pub mod mqtt_service_client {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `blacklist_type: String`: The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
+        /// - `blacklist_type: String`: The type of blacklist. Refer to the `MqttAclBlackListType` enum for specific values.
         /// - `resource_name: String`: The name of the resource.
         ///
         /// Returns: An empty struct.
@@ -830,7 +830,7 @@ pub mod mqtt_service_client {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
+        /// - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MqttAclBlackList` object into a binary format.
         ///
         /// Returns: An empty struct.
         pub async fn create_blacklist(
@@ -867,7 +867,7 @@ pub mod mqtt_service_server {
         /// - `user_name: String` (Option): The name of the user.
         ///
         /// Returns:
-        /// - `users: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTUser>` into a binary format.
+        /// - `users: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttUser>` into a binary format.
         async fn list_user(
             &self,
             request: tonic::Request<super::ListUserRequest>,
@@ -877,7 +877,7 @@ pub mod mqtt_service_server {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `user_name: String`: The name of the user.
-        /// - `content: Vec<u8>`: The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
+        /// - `content: Vec<u8>`: The parameter contains user information, encoded from a `MqttUser` object into a binary format.
         ///
         /// Returns: An empty struct.
         async fn create_user(
@@ -902,7 +902,7 @@ pub mod mqtt_service_server {
         /// - `client_id: String` (Option): The id of the client.
         ///
         /// Returns:
-        /// - `sessions: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTSession>` into a binary format.
+        /// - `sessions: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttSession>` into a binary format.
         async fn list_session(
             &self,
             request: tonic::Request<super::ListSessionRequest>,
@@ -912,7 +912,7 @@ pub mod mqtt_service_server {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `client_id: String`: The id of the client.
-        /// - `session: Vec<u8>`: The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
+        /// - `session: Vec<u8>`: The parameter contains session information, encoded from a `MqttSession` object into a binary format.
         ///
         /// Returns: An empty struct.
         async fn create_session(
@@ -952,7 +952,7 @@ pub mod mqtt_service_server {
         /// - `topic_name: String`: The name of the topic.
         ///
         /// Returns:
-        /// - `topics: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTTopic>` into a binary format.
+        /// - `topics: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttTopic>` into a binary format.
         async fn list_topic(
             &self,
             request: tonic::Request<super::ListTopicRequest>,
@@ -962,7 +962,7 @@ pub mod mqtt_service_server {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `topic_name: String`: The name of the topic.
-        /// - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
+        /// - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MqttTopic` object into a binary format.
         ///
         /// Returns: An empty struct.
         async fn create_topic(
@@ -985,7 +985,7 @@ pub mod mqtt_service_server {
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
         /// - `topic_name: String`: The name of the topic.
-        /// - `retain_message: Vec<u8>`: The parameter contains retain message, encoded from a `MQTTMessage` object into a binary format.
+        /// - `retain_message: Vec<u8>`: The parameter contains retain message, encoded from a `MqttMessage` object into a binary format.
         /// - `retain_message_expired_at: u64`: The parameter is the expiration time of the retain message. The unit is seconds.
         ///
         /// Returns: An empty struct.
@@ -1025,7 +1025,7 @@ pub mod mqtt_service_server {
         /// - `cluster_name: String`: The name of the cluster.
         ///
         /// Returns:
-        /// - `acls: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAcl>` into a binary format.
+        /// - `acls: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttAcl>` into a binary format.
         async fn list_acl(
             &self,
             request: tonic::Request<super::ListAclRequest>,
@@ -1034,7 +1034,7 @@ pub mod mqtt_service_server {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MqttAcl` object into a binary format.
         ///
         /// Returns: An empty struct.
         async fn delete_acl(
@@ -1045,7 +1045,7 @@ pub mod mqtt_service_server {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
+        /// - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MqttAcl` object into a binary format.
         ///
         /// Returns: An empty struct.
         async fn create_acl(
@@ -1058,7 +1058,7 @@ pub mod mqtt_service_server {
         /// - `cluster_name: String`: The name of the cluster.
         ///
         /// Returns:
-        /// - `blacklists: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MQTTAclBlackList>` into a binary format.
+        /// - `blacklists: Vec<Vec<u8>>`: It's the result of encoding a `Vec<MqttAclBlackList>` into a binary format.
         async fn list_blacklist(
             &self,
             request: tonic::Request<super::ListBlacklistRequest>,
@@ -1067,7 +1067,7 @@ pub mod mqtt_service_server {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `blacklist_type: String`: The type of blacklist. Refer to the `MQTTAclBlackListType` enum for specific values.
+        /// - `blacklist_type: String`: The type of blacklist. Refer to the `MqttAclBlackListType` enum for specific values.
         /// - `resource_name: String`: The name of the resource.
         ///
         /// Returns: An empty struct.
@@ -1079,7 +1079,7 @@ pub mod mqtt_service_server {
         ///
         /// Parameters:
         /// - `cluster_name: String`: The name of the cluster.
-        /// - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
+        /// - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MqttAclBlackList` object into a binary format.
         ///
         /// Returns: An empty struct.
         async fn create_blacklist(

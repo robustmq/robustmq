@@ -20,12 +20,12 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use log::warn;
-use metadata_struct::acl::mqtt_acl::MQTTAcl;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use metadata_struct::mqtt::session::MQTTSession;
-use metadata_struct::mqtt::topic::MQTTTopic;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_server::generate::placement::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
@@ -103,13 +103,13 @@ pub struct CacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, MQTTClusterDynamicConfig>,
+    pub cluster_info: DashMap<String, MqttClusterDynamicConfig>,
 
     // (username, User)
-    pub user_info: DashMap<String, MQTTUser>,
+    pub user_info: DashMap<String, MqttUser>,
 
     // (client_id, Session)
-    pub session_info: DashMap<String, MQTTSession>,
+    pub session_info: DashMap<String, MqttSession>,
 
     // (client_id, <path,SubscribeData>)
     pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
@@ -121,7 +121,7 @@ pub struct CacheManager {
     pub connection_info: DashMap<u64, Connection>,
 
     // (topic_name, Topic)
-    pub topic_info: DashMap<String, MQTTTopic>,
+    pub topic_info: DashMap<String, MqttTopic>,
 
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
@@ -206,7 +206,7 @@ impl CacheManager {
         self.subscribe_filter.remove(&client_id);
     }
 
-    pub fn get_session_info(&self, client_id: &String) -> Option<MQTTSession> {
+    pub fn get_session_info(&self, client_id: &String) -> Option<MqttSession> {
         if let Some(session) = self.session_info.get(client_id) {
             return Some(session.clone());
         }
@@ -227,7 +227,7 @@ impl CacheManager {
         match data.data_type {
             MetadataCacheType::User => match data.action {
                 MetadataCacheAction::Set => {
-                    let user: MQTTUser = serde_json::from_str(&data.value).unwrap();
+                    let user: MqttUser = serde_json::from_str(&data.value).unwrap();
                     self.add_user(user);
                 }
                 MetadataCacheAction::Del => self.del_user(data.value),
@@ -243,27 +243,27 @@ impl CacheManager {
         }
     }
 
-    pub fn set_cluster_info(&self, cluster: MQTTClusterDynamicConfig) {
+    pub fn set_cluster_info(&self, cluster: MqttClusterDynamicConfig) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);
     }
 
-    pub fn get_cluster_info(&self) -> MQTTClusterDynamicConfig {
+    pub fn get_cluster_info(&self) -> MqttClusterDynamicConfig {
         if let Some(cluster) = self.cluster_info.get(&self.cluster_name) {
             return cluster.clone();
         }
-        return MQTTClusterDynamicConfig::new();
+        return MqttClusterDynamicConfig::new();
     }
 
-    pub fn add_user(&self, user: MQTTUser) {
+    pub fn add_user(&self, user: MqttUser) {
         self.user_info.insert(user.username.clone(), user);
     }
 
     pub fn del_user(&self, value: String) {
-        let data: MQTTUser = serde_json::from_str(&value).unwrap();
+        let data: MqttUser = serde_json::from_str(&value).unwrap();
         self.user_info.remove(&data.username);
     }
 
-    pub fn add_session(&self, client_id: String, session: MQTTSession) {
+    pub fn add_session(&self, client_id: String, session: MqttSession) {
         self.session_info.insert(client_id, session);
     }
 
@@ -274,7 +274,7 @@ impl CacheManager {
         }
     }
 
-    pub fn add_topic(&self, topic_name: &String, topic: &MQTTTopic) {
+    pub fn add_topic(&self, topic_name: &String, topic: &MqttTopic) {
         let t = topic.clone();
         self.topic_info.insert(topic_name.clone(), t.clone());
         self.topic_id_name.insert(t.topic_id, topic_name.clone());
@@ -314,7 +314,7 @@ impl CacheManager {
         return None;
     }
 
-    pub fn get_topic_by_name(&self, topic_name: &String) -> Option<MQTTTopic> {
+    pub fn get_topic_by_name(&self, topic_name: &String) -> Option<MqttTopic> {
         if let Some(topic) = self.topic_info.get(topic_name) {
             return Some(topic.clone());
         }
@@ -443,7 +443,7 @@ impl CacheManager {
             .await
         {
             Ok(Some(cluster)) => cluster,
-            Ok(None) => MQTTClusterDynamicConfig::new(),
+            Ok(None) => MqttClusterDynamicConfig::new(),
             Err(e) => {
                 panic!(
                     "Failed to load the cluster configuration with error message:{}",
@@ -516,7 +516,7 @@ impl CacheManager {
     pub async fn init_system_user(&self) {
         // init system user
         let conf = broker_mqtt_conf();
-        let system_user_info = MQTTUser {
+        let system_user_info = MqttUser {
             username: conf.system.default_user.clone(),
             password: conf.system.default_password.clone(),
             is_superuser: true,
@@ -545,11 +545,11 @@ impl CacheManager {
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn add_acl(&self, acl: MQTTAcl) {
+    pub fn add_acl(&self, acl: MqttAcl) {
         self.acl_metadata.parse_mqtt_acl(acl);
     }
 
-    pub fn add_blacklist(&self, blacklist: MQTTAclBlackList) {
+    pub fn add_blacklist(&self, blacklist: MqttAclBlackList) {
         self.acl_metadata.parse_mqtt_blacklist(blacklist);
     }
 

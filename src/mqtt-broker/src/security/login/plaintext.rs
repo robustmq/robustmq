@@ -52,7 +52,7 @@ mod test {
 
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
-    use metadata_struct::mqtt::user::MQTTUser;
+    use metadata_struct::mqtt::user::MqttUser;
     use protocol::mqtt::common::Login;
 
     use super::Plaintext;
@@ -70,7 +70,7 @@ mod test {
         ));
         let username = "lobo".to_string();
         let password = "pwd123".to_string();
-        let user = MQTTUser {
+        let user = MqttUser {
             username: username.clone(),
             password: password.clone(),
             is_superuser: true,

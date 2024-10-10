@@ -15,13 +15,13 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
-pub struct MQTTUser {
+pub struct MqttUser {
     pub username: String,
     pub password: String,
     pub is_superuser: bool,
 }
 
-impl MQTTUser {
+impl MqttUser {
     pub fn encode(&self) -> Vec<u8> {
         serde_json::to_vec(&self).unwrap()
     }

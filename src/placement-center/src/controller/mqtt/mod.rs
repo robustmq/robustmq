@@ -31,7 +31,7 @@ pub mod call_broker;
 pub mod message_expire;
 pub mod session_expire;
 
-pub struct MQTTController {
+pub struct MqttController {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     placement_center_cache: Arc<PlacementCacheManager>,
     mqtt_cache_manager: Arc<MqttCacheManager>,
@@ -40,15 +40,15 @@ pub struct MQTTController {
     stop_send: broadcast::Sender<bool>,
 }
 
-impl MQTTController {
+impl MqttController {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         placement_center_cache: Arc<PlacementCacheManager>,
         mqtt_cache_manager: Arc<MqttCacheManager>,
         client_poll: Arc<ClientPool>,
         stop_send: broadcast::Sender<bool>,
-    ) -> MQTTController {
-        MQTTController {
+    ) -> MqttController {
+        MqttController {
             rocksdb_engine_handler,
             placement_center_cache,
             mqtt_cache_manager,

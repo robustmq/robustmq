@@ -18,21 +18,21 @@ use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub struct MQTTAclBlackList {
-    pub blacklist_type: MQTTAclBlackListType,
+pub struct MqttAclBlackList {
+    pub blacklist_type: MqttAclBlackListType,
     pub resource_name: String,
     pub end_time: u64,
     pub desc: String,
 }
 
-impl MQTTAclBlackList {
+impl MqttAclBlackList {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
         Ok(serde_json::to_vec(&self)?)
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, PartialOrd, Clone)]
-pub enum MQTTAclBlackListType {
+pub enum MqttAclBlackListType {
     ClientId,
     User,
     Ip,
@@ -41,18 +41,18 @@ pub enum MQTTAclBlackListType {
     IPCIDR,
 }
 
-impl fmt::Display for MQTTAclBlackListType {
+impl fmt::Display for MqttAclBlackListType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                MQTTAclBlackListType::ClientId => "ClientId",
-                MQTTAclBlackListType::User => "User",
-                MQTTAclBlackListType::Ip => "Ip",
-                MQTTAclBlackListType::ClientIdMatch => "ClientIdMatch",
-                MQTTAclBlackListType::UserMatch => "UserMatch",
-                MQTTAclBlackListType::IPCIDR => "IPCIDR",
+                MqttAclBlackListType::ClientId => "ClientId",
+                MqttAclBlackListType::User => "User",
+                MqttAclBlackListType::Ip => "Ip",
+                MqttAclBlackListType::ClientIdMatch => "ClientIdMatch",
+                MqttAclBlackListType::UserMatch => "UserMatch",
+                MqttAclBlackListType::IPCIDR => "IPCIDR",
             }
         )
     }

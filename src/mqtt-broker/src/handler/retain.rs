@@ -19,7 +19,7 @@ use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use log::error;
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};
 use tokio::sync::broadcast::{self};
 
@@ -64,7 +64,7 @@ pub async fn save_topic_retain_message(
         record_retain_recv_metrics(publish.qos);
         let message_expire = build_message_expire(cache_manager, publish_properties);
         let retain_message =
-            MQTTMessage::build_message(client_id, publish, publish_properties, message_expire);
+            MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
         match topic_storage
             .set_retain_message(topic_name, &retain_message, message_expire)
             .await
