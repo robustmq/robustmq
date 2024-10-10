@@ -43,6 +43,4 @@ pub async fn start_opservability<S>(
     tokio::spawn(async move {
         system_topic.start_thread(stop_send).await;
     });
-
-    
 }

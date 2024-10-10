@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::MQTTBrokerPlacementInterface;
-use crate::poll::ClientPool;
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use inner::inner_cluster_status;
 use mobc::{Connection, Manager};
 use protocol::broker_server::generate::admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
-use std::sync::Arc;
 use tonic::transport::Channel;
+
+use super::MQTTBrokerPlacementInterface;
+use crate::poll::ClientPool;
 
 pub mod call;
 pub mod inner;
@@ -29,12 +31,8 @@ async fn admin_client(
     addr: String,
 ) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
     match client_poll.mqtt_broker_admin_services_client(addr).await {
-        Ok(client) => {
-            return Ok(client);
-        }
-        Err(e) => {
-            return Err(e);
-        }
+        Ok(client) => Ok(client),
+        Err(e) => Err(e),
     }
 }
 
@@ -58,15 +56,11 @@ pub(crate) async fn admin_interface_call(
                 }
             };
             match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
-                }
+                Ok(data) => Ok(data),
+                Err(e) => Err(e),
             }
         }
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -93,7 +87,7 @@ impl Manager for MqttBrokerAdminServiceManager {
             Err(err) => {
                 return Err(CommonError::CommmonError(format!(
                     "{},{}",
-                    err.to_string(),
+                    err,
                     self.addr.clone()
                 )))
             }

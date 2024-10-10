@@ -16,7 +16,7 @@ pub struct PreferredElection {}
 
 impl PreferredElection {
     pub fn new() -> Self {
-        return PreferredElection {};
+        PreferredElection {}
     }
 
     pub async fn start(&self) {}

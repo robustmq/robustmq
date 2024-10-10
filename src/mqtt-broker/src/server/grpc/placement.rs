@@ -12,19 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::{update_cache_metadata, CacheManager};
-use crate::handler::lastwill::send_last_will_message;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
 use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
+use protocol::broker_server::generate::placement::mqtt_broker_placement_service_server::MqttBrokerPlacementService;
 use protocol::broker_server::generate::placement::{
-    mqtt_broker_placement_service_server::MqttBrokerPlacementService, CommonReply, UpdateCacheRequest,
+    CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
 };
-use protocol::broker_server::generate::placement::{DeleteSessionRequest, SendLastWillMessageRequest};
-use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
+
+use crate::handler::cache::{update_cache_metadata, CacheManager};
+use crate::handler::lastwill::send_last_will_message;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcPlacementServices<S> {
     cache_manager: Arc<CacheManager>,

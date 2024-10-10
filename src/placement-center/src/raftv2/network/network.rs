@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::connection::NetworkConnection;
-use crate::raftv2::{
-    raft_node::{Node, NodeId},
-    typeconfig::TypeConfig,
-};
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
 use openraft::RaftNetworkFactory;
-use std::sync::Arc;
+
+use super::connection::NetworkConnection;
+use crate::raftv2::raft_node::{Node, NodeId};
+use crate::raftv2::typeconfig::TypeConfig;
 
 pub struct Network {
     client_poll: Arc<ClientPool>,
@@ -27,7 +27,7 @@ pub struct Network {
 
 impl Network {
     pub fn new(client_poll: Arc<ClientPool>) -> Network {
-        return Network { client_poll };
+        Network { client_poll }
     }
 }
 
@@ -38,7 +38,7 @@ impl RaftNetworkFactory<TypeConfig> for Network {
 
     #[tracing::instrument(level = "debug", skip_all)]
     async fn new_client(&mut self, _: NodeId, node: &Node) -> Self::Network {
-        let addr = format!("{}", node.rpc_addr);
+        let addr = node.rpc_addr.to_string();
         return NetworkConnection::new(addr, self.client_poll.clone());
     }
 }

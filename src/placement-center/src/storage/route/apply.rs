@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::raftv2::typeconfig::TypeConfig;
-use crate::storage::route::data::StorageData;
+use std::time::Duration;
+
 use bincode::serialize;
 use common_base::error::common::CommonError;
 use common_base::error::placement_center::PlacementCenterError;
 use openraft::raft::ClientWriteResponse;
 use openraft::Raft;
-use raft::eraftpb::ConfChange;
-use raft::eraftpb::Message as raftPreludeMessage;
-use std::time::Duration;
+use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tokio::sync::oneshot;
-use tokio::sync::oneshot::Receiver;
-use tokio::sync::oneshot::Sender;
+use tokio::sync::oneshot::{Receiver, Sender};
 use tokio::time::timeout;
+
+use crate::raftv2::typeconfig::TypeConfig;
+use crate::storage::route::data::StorageData;
 
 pub enum RaftResponseMesage {
     Success,
@@ -73,11 +73,11 @@ impl RaftMachineApply {
         openraft_node: Raft<TypeConfig>,
         model: ClusterRaftModel,
     ) -> Self {
-        return RaftMachineApply {
+        RaftMachineApply {
             raft_status_machine_sender: raft_sender,
             openraft_node,
             model,
-        };
+        }
     }
 
     pub async fn client_write(
@@ -104,7 +104,7 @@ impl RaftMachineApply {
 
     async fn raftv1_write(&self, data: StorageData, action: String) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return Ok(self
+        Ok(self
             .apply_raft_status_machine_message(
                 RaftMessage::Propose {
                     data: serialize(&data).unwrap(),
@@ -113,7 +113,7 @@ impl RaftMachineApply {
                 action,
                 rx,
             )
-            .await?);
+            .await?)
     }
 
     async fn raftv2_write(
@@ -121,27 +121,20 @@ impl RaftMachineApply {
         data: StorageData,
     ) -> Result<ClientWriteResponse<TypeConfig>, CommonError> {
         match self.openraft_node.client_write(data).await {
-            Ok(data) => {
-                return Ok(data);
-            }
-            Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
-            }
-        };
+            Ok(data) => Ok(data),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        }
     }
 
     pub async fn transfer_leader(&self, node_id: u64) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return Ok(self
+        Ok(self
             .apply_raft_status_machine_message(
-                RaftMessage::TransferLeader {
-                    node_id: node_id,
-                    chan: sx,
-                },
+                RaftMessage::TransferLeader { node_id, chan: sx },
                 "transfer_leader".to_string(),
                 rx,
             )
-            .await?);
+            .await?)
     }
 
     pub async fn apply_raft_message(
@@ -150,16 +143,9 @@ impl RaftMachineApply {
         action: String,
     ) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return Ok(self
-            .apply_raft_status_machine_message(
-                RaftMessage::Raft {
-                    message: message,
-                    chan: sx,
-                },
-                action,
-                rx,
-            )
-            .await?);
+        Ok(self
+            .apply_raft_status_machine_message(RaftMessage::Raft { message, chan: sx }, action, rx)
+            .await?)
     }
 
     pub async fn apply_conf_raft_message(
@@ -168,13 +154,13 @@ impl RaftMachineApply {
         action: String,
     ) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
-        return Ok(self
+        Ok(self
             .apply_raft_status_machine_message(
                 RaftMessage::ConfChange { change, chan: sx },
                 action,
                 rx,
             )
-            .await?);
+            .await?)
     }
 
     async fn apply_raft_status_machine_message(
@@ -187,25 +173,19 @@ impl RaftMachineApply {
         if !self.wait_recv_chan_resp(rx).await {
             return Err(PlacementCenterError::RaftLogCommitTimeout(action));
         }
-        return Ok(());
+        Ok(())
     }
 
     async fn wait_recv_chan_resp(&self, rx: Receiver<RaftResponseMesage>) -> bool {
         let res = timeout(Duration::from_secs(30), async {
             match rx.await {
-                Ok(val) => {
-                    return val;
-                }
-                Err(_) => {
-                    return RaftResponseMesage::Fail;
-                }
+                Ok(val) => val,
+                Err(_) => RaftResponseMesage::Fail,
             }
         });
         match res.await {
-            Ok(_) => return true,
-            Err(_) => {
-                return false;
-            }
+            Ok(_) => true,
+            Err(_) => false,
         }
     }
 }

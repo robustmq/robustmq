@@ -262,7 +262,7 @@ mod tests {
 
         let connect: Connect = Connect {
             keep_alive: 30u16, // 30 seconds
-            client_id: client_id,
+            client_id,
             clean_session: true,
         };
         // test function write
@@ -318,7 +318,7 @@ mod tests {
         // only check connect value in this case as login and will being none
         assert_eq!(x.client_id, "test_client_id");
         assert_eq!(x.keep_alive, 30);
-        assert_eq!(x.clean_session, true);
+        assert!(x.clean_session);
     }
 
     #[test]
@@ -345,7 +345,7 @@ mod tests {
 
         let connect: Connect = Connect {
             keep_alive: 30u16, // 30 seconds
-            client_id: client_id,
+            client_id,
             clean_session: true,
         };
         println!("connect display starts...........................");

@@ -14,14 +14,18 @@
 
 use std::sync::Arc;
 
-use crate::poll::ClientPool;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::{common::CommonReply, journal::{engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest}};
+use protocol::placement_center::generate::common::CommonReply;
+use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
+use protocol::placement_center::generate::journal::{
+    CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
+};
 use tonic::transport::Channel;
 
 use super::PlacementCenterInterface;
+use crate::poll::ClientPool;
 
 pub mod call;
 pub mod inner;
@@ -34,64 +38,57 @@ pub async fn journal_interface_call(
 ) -> Result<Vec<u8>, CommonError> {
     match journal_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
-            let result = match interface {
-                PlacementCenterInterface::CreateShard => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| CreateShardRequest::decode(data),
-                        |mut client, request| async move { client.create_shard(request).await },
-                        |reply| CommonReply::encode_to_vec(reply),
-                    )
-                    .await
-                }
-                PlacementCenterInterface::DeleteShard => {
-                    client_call(
-                        client,
-                        request.clone(),
-                        |data| DeleteShardRequest::decode(data),
-                        |mut client, request| async move { client.delete_shard(request).await },
-                        |reply| CommonReply::encode_to_vec(reply),
-                    )
-                    .await
-                }
-                PlacementCenterInterface::CreateSegment => {
-                    client_call(
+            let result =
+                match interface {
+                    PlacementCenterInterface::CreateShard => {
+                        client_call(
+                            client,
+                            request.clone(),
+                            |data| CreateShardRequest::decode(data),
+                            |mut client, request| async move { client.create_shard(request).await },
+                            CommonReply::encode_to_vec,
+                        )
+                        .await
+                    }
+                    PlacementCenterInterface::DeleteShard => {
+                        client_call(
+                            client,
+                            request.clone(),
+                            |data| DeleteShardRequest::decode(data),
+                            |mut client, request| async move { client.delete_shard(request).await },
+                            CommonReply::encode_to_vec,
+                        )
+                        .await
+                    }
+                    PlacementCenterInterface::CreateSegment => client_call(
                         client,
                         request.clone(),
                         |data| CreateSegmentRequest::decode(data),
                         |mut client, request| async move { client.create_segment(request).await },
-                        |reply| CommonReply::encode_to_vec(reply),
+                        CommonReply::encode_to_vec,
                     )
-                    .await
-                }
-                PlacementCenterInterface::DeleteSegment => {
-                    client_call(
+                    .await,
+                    PlacementCenterInterface::DeleteSegment => client_call(
                         client,
                         request.clone(),
                         |data| DeleteSegmentRequest::decode(data),
                         |mut client, request| async move { client.delete_segment(request).await },
-                        |reply| CommonReply::encode_to_vec(reply),
+                        CommonReply::encode_to_vec,
                     )
-                    .await
-                }
-                _ => {
-                    return Err(CommonError::CommmonError(format!(
-                        "journal service does not support service interfaces [{:?}]",
-                        interface
-                    )))
-                }
-            };
+                    .await,
+                    _ => {
+                        return Err(CommonError::CommmonError(format!(
+                            "journal service does not support service interfaces [{:?}]",
+                            interface
+                        )))
+                    }
+                };
             match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
-                }
+                Ok(data) => Ok(data),
+                Err(e) => Err(e),
             }
         }
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -99,13 +96,12 @@ pub async fn journal_client(
     client_poll: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<JournalServiceManager>, CommonError> {
-    match client_poll.placement_center_journal_services_client(addr).await {
-        Ok(client) => {
-            return Ok(client);
-        }
-        Err(e) => {
-            return Err(e);
-        }
+    match client_poll
+        .placement_center_journal_services_client(addr)
+        .await
+    {
+        Ok(client) => Ok(client),
+        Err(e) => Err(e),
     }
 }
 
@@ -133,7 +129,7 @@ impl Manager for JournalServiceManager {
             Err(err) => {
                 return Err(CommonError::CommmonError(format!(
                     "{},{}",
-                    err.to_string(),
+                    err,
                     self.addr.clone()
                 )))
             }
@@ -162,11 +158,9 @@ where
 {
     match decode_fn(request.as_ref()) {
         Ok(decoded_request) => match client_fn(client, decoded_request).await {
-            Ok(result) => {
-                return Ok(encode_fn(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+            Ok(result) => Ok(encode_fn(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }

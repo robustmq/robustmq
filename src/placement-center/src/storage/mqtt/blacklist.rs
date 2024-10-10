@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::error::common::CommonError;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
 use std::sync::Arc;
 
-use crate::storage::{
-    engine::{engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster},
-    keys::{storage_key_mqtt_blacklist, storage_key_mqtt_blacklist_prefix},
-    rocksdb::RocksDBEngine,
+use common_base::error::common::CommonError;
+use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
 };
+use crate::storage::keys::{storage_key_mqtt_blacklist, storage_key_mqtt_blacklist_prefix};
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MQTTBlackListStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -43,7 +44,7 @@ impl MQTTBlackListStorage {
             &blacklist.blacklist_type.to_string(),
             &blacklist.resource_name,
         );
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, blacklist);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, blacklist)
     }
 
     pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTAclBlackList>, CommonError> {
@@ -61,11 +62,9 @@ impl MQTTBlackListStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -76,6 +75,6 @@ impl MQTTBlackListStorage {
         resource_name: &String,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(cluster_name, blacklist_type, resource_name);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 }

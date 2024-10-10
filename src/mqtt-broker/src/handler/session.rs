@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cache::CacheManager, lastwill::last_will_delay_interval};
-use crate::storage::session::SessionStorage;
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf, error::common::CommonError, tools::now_second,
-};
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use metadata_struct::mqtt::session::MQTTSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
-use std::sync::Arc;
+
+use super::cache::CacheManager;
+use super::lastwill::last_will_delay_interval;
+use crate::storage::session::SessionStorage;
 
 pub async fn build_session(
     connect_id: u64,
@@ -107,7 +110,10 @@ fn session_expiry_interval(
     cache_manager: &Arc<CacheManager>,
     connect_properties: &Option<ConnectProperties>,
 ) -> u64 {
-    let cluster_session_expiry_interval = cache_manager.get_cluster_info().protocol.session_expiry_interval;
+    let cluster_session_expiry_interval = cache_manager
+        .get_cluster_info()
+        .protocol
+        .session_expiry_interval;
     let connection_session_expiry_interval = if let Some(properties) = connect_properties {
         if let Some(ck) = properties.session_expiry_interval {
             ck
@@ -126,13 +132,15 @@ fn session_expiry_interval(
 
 #[cfg(test)]
 mod test {
-    use super::session_expiry_interval;
-    use crate::handler::cache::CacheManager;
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use metadata_struct::mqtt::session::MQTTSession;
     use protocol::mqtt::common::ConnectProperties;
-    use std::sync::Arc;
+
+    use super::session_expiry_interval;
+    use crate::handler::cache::CacheManager;
 
     #[tokio::test]
     pub async fn build_session_test() {
@@ -142,7 +150,7 @@ mod test {
         assert_eq!(10, session.session_expiry);
         assert!(!session.is_contain_last_will);
         assert!(session.last_will_delay_interval.is_none());
-        
+
         assert!(session.connection_id.is_none());
         assert!(session.broker_id.is_none());
         assert!(session.reconnect_time.is_none());
@@ -161,7 +169,10 @@ mod test {
         let res = session_expiry_interval(&cache_manager, &None);
         assert_eq!(
             res,
-            cache_manager.get_cluster_info().protocol.session_expiry_interval as u64
+            cache_manager
+                .get_cluster_info()
+                .protocol
+                .session_expiry_interval as u64
         );
 
         let mut properteis = ConnectProperties::default();

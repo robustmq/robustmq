@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::PlacementCenterInterface;
-use crate::{
-    placement::{retry_call, PlacementCenterService},
-    poll::ClientPool,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::generate::openraft::{
     AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
-use std::sync::Arc;
+
+use super::PlacementCenterInterface;
+use crate::placement::{retry_call, PlacementCenterService};
+use crate::poll::ClientPool;
 
 pub async fn placement_openraft_vote(
     client_poll: Arc<ClientPool>,
@@ -40,12 +40,10 @@ pub async fn placement_openraft_vote(
     .await
     {
         Ok(data) => match VoteReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -65,12 +63,10 @@ pub async fn placement_openraft_append(
     .await
     {
         Ok(data) => match AppendReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -90,11 +86,9 @@ pub async fn placement_openraft_snapshot(
     .await
     {
         Ok(data) => match SnapshotReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }

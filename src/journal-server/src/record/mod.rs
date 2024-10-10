@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod header;
 pub mod record;
 pub mod record_batch;
-pub mod header;

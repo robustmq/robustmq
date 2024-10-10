@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod acl;
+pub mod blacklist;
 pub mod cluster;
 pub mod message;
 pub mod session;
 pub mod topic;
 pub mod user;
-pub mod acl;
-pub mod blacklist;

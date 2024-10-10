@@ -47,9 +47,9 @@ pub struct StorageDataWrap {
 
 impl StorageDataWrap {
     pub fn new(data: Vec<u8>) -> Self {
-        return StorageDataWrap {
+        StorageDataWrap {
             data,
             create_time: now_second(),
-        };
+        }
     }
 }

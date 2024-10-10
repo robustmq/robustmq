@@ -75,8 +75,8 @@ pub struct DeleteSegmentRequest {
 /// Generated client implementations.
 pub mod engine_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct EngineServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -120,9 +120,8 @@ pub mod engine_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             EngineServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -161,23 +160,16 @@ pub mod engine_service_client {
         pub async fn create_shard(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateShardRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/journal.EngineService/CreateShard",
-            );
+            let path = http::uri::PathAndQuery::from_static("/journal.EngineService/CreateShard");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("journal.EngineService", "CreateShard"));
@@ -188,19 +180,14 @@ pub mod engine_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetShardRequest>,
         ) -> std::result::Result<tonic::Response<super::GetShardReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/journal.EngineService/GetShard",
-            );
+            let path = http::uri::PathAndQuery::from_static("/journal.EngineService/GetShard");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("journal.EngineService", "GetShard"));
@@ -210,23 +197,16 @@ pub mod engine_service_client {
         pub async fn delete_shard(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteShardRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/journal.EngineService/DeleteShard",
-            );
+            let path = http::uri::PathAndQuery::from_static("/journal.EngineService/DeleteShard");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("journal.EngineService", "DeleteShard"));
@@ -236,23 +216,16 @@ pub mod engine_service_client {
         pub async fn create_segment(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateSegmentRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/journal.EngineService/CreateSegment",
-            );
+            let path = http::uri::PathAndQuery::from_static("/journal.EngineService/CreateSegment");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("journal.EngineService", "CreateSegment"));
@@ -262,23 +235,16 @@ pub mod engine_service_client {
         pub async fn delete_segment(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteSegmentRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/journal.EngineService/DeleteSegment",
-            );
+            let path = http::uri::PathAndQuery::from_static("/journal.EngineService/DeleteSegment");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("journal.EngineService", "DeleteSegment"));
@@ -297,10 +263,7 @@ pub mod engine_service_server {
         async fn create_shard(
             &self,
             request: tonic::Request<super::CreateShardRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         ///
         async fn get_shard(
             &self,
@@ -310,26 +273,17 @@ pub mod engine_service_server {
         async fn delete_shard(
             &self,
             request: tonic::Request<super::DeleteShardRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         ///
         async fn create_segment(
             &self,
             request: tonic::Request<super::CreateSegmentRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         ///
         async fn delete_segment(
             &self,
             request: tonic::Request<super::DeleteSegmentRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct EngineServiceServer<T: EngineService> {
@@ -354,10 +308,7 @@ pub mod engine_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -413,15 +364,11 @@ pub mod engine_service_server {
                 "/journal.EngineService/CreateShard" => {
                     #[allow(non_camel_case_types)]
                     struct CreateShardSvc<T: EngineService>(pub Arc<T>);
-                    impl<
-                        T: EngineService,
-                    > tonic::server::UnaryService<super::CreateShardRequest>
-                    for CreateShardSvc<T> {
+                    impl<T: EngineService> tonic::server::UnaryService<super::CreateShardRequest>
+                        for CreateShardSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateShardRequest>,
@@ -459,15 +406,9 @@ pub mod engine_service_server {
                 "/journal.EngineService/GetShard" => {
                     #[allow(non_camel_case_types)]
                     struct GetShardSvc<T: EngineService>(pub Arc<T>);
-                    impl<
-                        T: EngineService,
-                    > tonic::server::UnaryService<super::GetShardRequest>
-                    for GetShardSvc<T> {
+                    impl<T: EngineService> tonic::server::UnaryService<super::GetShardRequest> for GetShardSvc<T> {
                         type Response = super::GetShardReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetShardRequest>,
@@ -505,15 +446,11 @@ pub mod engine_service_server {
                 "/journal.EngineService/DeleteShard" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteShardSvc<T: EngineService>(pub Arc<T>);
-                    impl<
-                        T: EngineService,
-                    > tonic::server::UnaryService<super::DeleteShardRequest>
-                    for DeleteShardSvc<T> {
+                    impl<T: EngineService> tonic::server::UnaryService<super::DeleteShardRequest>
+                        for DeleteShardSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteShardRequest>,
@@ -551,15 +488,11 @@ pub mod engine_service_server {
                 "/journal.EngineService/CreateSegment" => {
                     #[allow(non_camel_case_types)]
                     struct CreateSegmentSvc<T: EngineService>(pub Arc<T>);
-                    impl<
-                        T: EngineService,
-                    > tonic::server::UnaryService<super::CreateSegmentRequest>
-                    for CreateSegmentSvc<T> {
+                    impl<T: EngineService> tonic::server::UnaryService<super::CreateSegmentRequest>
+                        for CreateSegmentSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateSegmentRequest>,
@@ -597,15 +530,11 @@ pub mod engine_service_server {
                 "/journal.EngineService/DeleteSegment" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteSegmentSvc<T: EngineService>(pub Arc<T>);
-                    impl<
-                        T: EngineService,
-                    > tonic::server::UnaryService<super::DeleteSegmentRequest>
-                    for DeleteSegmentSvc<T> {
+                    impl<T: EngineService> tonic::server::UnaryService<super::DeleteSegmentRequest>
+                        for DeleteSegmentSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteSegmentRequest>,
@@ -640,18 +569,14 @@ pub mod engine_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

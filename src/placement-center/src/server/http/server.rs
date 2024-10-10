@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::index::metrics;
-use super::raft::{add_leadrner, change_membership, init, raft_status};
-use super::v1_path;
-use crate::cache::{journal::JournalCacheManager, placement::PlacementCacheManager};
-use crate::raftv1::rocksdb::RaftMachineStorage;
-use crate::storage::route::apply::RaftMachineApply;
+use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
+
 use axum::routing::{get, post};
 use axum::Router;
 use common_base::config::placement_center::placement_center_conf;
 use log::info;
-use std::{
-    net::SocketAddr,
-    sync::{Arc, RwLock},
-};
+
+use super::index::metrics;
+use super::raft::{add_leadrner, change_membership, init, raft_status};
+use super::v1_path;
+use crate::cache::journal::JournalCacheManager;
+use crate::cache::placement::PlacementCacheManager;
+use crate::raftv1::rocksdb::RaftMachineStorage;
+use crate::storage::route::apply::RaftMachineApply;
 
 pub const ROUTE_METRICS: &str = "/metrics";
 pub const ROUTE_CLUSTER_ADD_LEARNER: &str = "/cluster/add-learner";
@@ -51,13 +52,13 @@ impl HttpServerState {
         engine_cache: Arc<JournalCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
     ) -> Self {
-        return Self {
+        Self {
             placement_cache,
             raft_storage,
             cluster_cache,
             engine_cache,
             placement_center_storage,
-        };
+        }
     }
 }
 
@@ -78,7 +79,7 @@ pub async fn start_http_server(state: HttpServerState) {
 fn routes(state: HttpServerState) -> Router {
     let common = Router::new()
         .route(ROUTE_METRICS, get(metrics))
-        .route(&&v1_path(ROUTE_CLUSTER_ADD_LEARNER), post(add_leadrner))
+        .route(&v1_path(ROUTE_CLUSTER_ADD_LEARNER), post(add_leadrner))
         .route(
             &v1_path(ROUTE_CLUSTER_CHANGE_MEMBERSHIP),
             post(change_membership),
@@ -87,5 +88,5 @@ fn routes(state: HttpServerState) -> Router {
         .route(&v1_path(ROUTE_CLUSTER_STATUS), get(raft_status));
 
     let app = Router::new().merge(common);
-    return app.with_state(state);
+    app.with_state(state)
 }

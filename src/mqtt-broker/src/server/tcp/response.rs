@@ -12,21 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    handler::{cache::CacheManager, connection::disconnect_connection},
-    observability::metrics::server::{metrics_request_queue, metrics_response_queue},
-    server::{connection_manager::ConnectionManager, packet::ResponsePackage},
-    subscribe::subscribe_manager::SubscribeManager,
-};
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
 use log::{debug, error};
-use protocol::mqtt::{codec::MQTTPacketWrapper, common::MQTTPacket};
-use std::{collections::HashMap, sync::Arc};
+use protocol::mqtt::codec::MQTTPacketWrapper;
+use protocol::mqtt::common::MQTTPacket;
+use tokio::select;
 use tokio::sync::broadcast;
-use tokio::{
-    select,
-    sync::mpsc::{self, Receiver, Sender},
-};
+use tokio::sync::mpsc::{self, Receiver, Sender};
+
+use crate::handler::cache::CacheManager;
+use crate::handler::connection::disconnect_connection;
+use crate::observability::metrics::server::{metrics_request_queue, metrics_response_queue};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::ResponsePackage;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub(crate) async fn response_process(
     response_process_num: usize,

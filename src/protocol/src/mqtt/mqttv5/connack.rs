@@ -497,8 +497,9 @@ mod tests {
         assert!(fixedheader.remaining_len == 15);
         // test read and verify the result of write function
 
-        let (connack_read, connack_properties_read) = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(connack_read.session_present, false);
+        let (connack_read, connack_properties_read) =
+            read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert!(!connack_read.session_present);
         assert_eq!(connack_read.code, ConnectReturnCode::Success);
 
         let connack_properties = connack_properties_read.unwrap();
@@ -509,6 +510,5 @@ mod tests {
 
         println!("connack in v5 {}", connack_read);
         println!("connack_properties in v5 {}", connack_properties);
-
     }
 }

@@ -12,23 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
-    controller::journal::segment_replica::SegmentReplicaAlgorithm,
-    storage::{
-        journal::{
-            segment::{SegmentInfo, SegmentStatus, SegmentStorage},
-            shard::{ShardInfo, ShardStorage},
-        },
-        rocksdb::RocksDBEngine,
-    },
-};
-use common_base::{error::common::CommonError, tools::{now_mills, unique_id}};
+use std::sync::Arc;
+
+use common_base::error::common::CommonError;
+use common_base::tools::{now_mills, unique_id};
 use prost::Message as _;
 use protocol::placement_center::generate::journal::{
     CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
 };
-use std::sync::Arc;
+
+use crate::cache::journal::JournalCacheManager;
+use crate::cache::placement::PlacementCacheManager;
+use crate::controller::journal::segment_replica::SegmentReplicaAlgorithm;
+use crate::storage::journal::segment::{SegmentInfo, SegmentStatus, SegmentStorage};
+use crate::storage::journal::shard::{ShardInfo, ShardStorage};
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteJournal {
@@ -43,11 +41,11 @@ impl DataRouteJournal {
         engine_cache: Arc<JournalCacheManager>,
         cluster_cache: Arc<PlacementCacheManager>,
     ) -> Self {
-        return DataRouteJournal {
+        DataRouteJournal {
             rocksdb_engine_handler,
             engine_cache,
             cluster_cache,
-        };
+        }
     }
     pub fn create_shard(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
@@ -72,7 +70,7 @@ impl DataRouteJournal {
         self.pre_create_segment()?;
 
         // todo maybe update storage engine node cache
-        return Ok(());
+        Ok(())
     }
 
     pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -88,7 +86,7 @@ impl DataRouteJournal {
         self.engine_cache
             .remove_shard(cluster_name.clone(), shard_name.clone());
 
-        return Ok(());
+        Ok(())
     }
 
     pub fn create_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -108,13 +106,13 @@ impl DataRouteJournal {
             shard_name: shard_name.clone(),
             replicas: repcli_algo.calc_replica_distribution(segment_seq),
             replica_leader: 0,
-            segment_seq: segment_seq,
+            segment_seq,
             status: SegmentStatus::Idle,
         };
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
         segment_storage.save(segment_info.clone())?;
         self.engine_cache.add_segment(segment_info);
-        return Ok(());
+        Ok(())
     }
 
     pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -127,10 +125,10 @@ impl DataRouteJournal {
         segment_storage.delete(&cluster_name, &shard_name, segment_seq)?;
         self.engine_cache
             .remove_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
-        return Ok(());
+        Ok(())
     }
 
     pub fn pre_create_segment(&self) -> Result<(), CommonError> {
-        return Ok(());
+        Ok(())
     }
 }

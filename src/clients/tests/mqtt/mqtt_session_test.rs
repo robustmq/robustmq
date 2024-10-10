@@ -14,18 +14,19 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use clients::{
-        placement::mqtt::call::{placement_list_session, placement_create_session,
-            placement_update_session, placement_delete_session},
-        poll::ClientPool,
+    use std::sync::Arc;
+
+    use clients::placement::mqtt::call::{
+        placement_create_session, placement_delete_session, placement_list_session,
+        placement_update_session,
     };
+    use clients::poll::ClientPool;
     use metadata_struct::mqtt::session::MQTTSession;
     use protocol::placement_center::generate::mqtt::{
-        ListSessionRequest, CreateSessionRequest,
-        UpdateSessionRequest, DeleteSessionRequest,
+        CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, UpdateSessionRequest,
     };
-    use std::sync::Arc;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_session_test() {
@@ -41,14 +42,13 @@ mod tests {
 
         let mut mqtt_session: MQTTSession = MQTTSession::new(
             &client_id,
-            session_expiry.clone(),
+            session_expiry,
             true,
-            Some(last_will_delay_interval.clone())
+            Some(last_will_delay_interval),
         );
-        mqtt_session.update_broker_id(Some(broker_id.clone()));
-        mqtt_session.update_connnction_id(Some(connection_id.clone()));
+        mqtt_session.update_broker_id(Some(broker_id));
+        mqtt_session.update_connnction_id(Some(connection_id));
 
-        
         let request = CreateSessionRequest {
             cluster_name: cluster_name.clone(),
             client_id: client_id.clone(),
@@ -85,7 +85,7 @@ mod tests {
             }
         }
 
-        mqtt_session.update_broker_id(Some(update_broker_id.clone()));
+        mqtt_session.update_broker_id(Some(update_broker_id));
         mqtt_session.update_reconnect_time();
         mqtt_session.update_distinct_time();
 

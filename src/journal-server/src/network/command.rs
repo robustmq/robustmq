@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{response::build_produce_resp, services::Services};
-
 use log::error;
 use protocol::journal_server::codec::StorageEnginePacket;
+
+use super::response::build_produce_resp;
+use super::services::Services;
 
 pub struct Command {
     packet: StorageEnginePacket,
@@ -25,7 +26,7 @@ pub struct Command {
 impl Command {
     pub fn new(packet: StorageEnginePacket) -> Self {
         let services = Services::new();
-        return Command { packet, services };
+        Command { packet, services }
     }
 
     pub fn apply(&self) -> StorageEnginePacket {
@@ -43,6 +44,6 @@ impl Command {
                 );
             }
         }
-        return build_produce_resp();
+        build_produce_resp()
     }
 }

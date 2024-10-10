@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
+use std::time::Duration;
 
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use log::error;
-use metadata_struct::mqtt::{lastwill::LastWillData, topic::MQTTTopic};
+use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use tokio::time::sleep;
 
-use crate::storage::{
-    keys::{storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix},
-    mqtt::{lastwill::MQTTLastWillStorage, topic::MQTTTopicStorage},
-    rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER},
-    StorageDataWrap,
+use crate::storage::keys::{
+    storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix,
 };
+use crate::storage::mqtt::lastwill::MQTTLastWillStorage;
+use crate::storage::mqtt::topic::MQTTTopicStorage;
+use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
+use crate::storage::StorageDataWrap;
 
 pub struct MessageExpire {
     cluster_name: String,
@@ -33,10 +37,10 @@ pub struct MessageExpire {
 
 impl MessageExpire {
     pub fn new(cluster_name: String, rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        return MessageExpire {
+        MessageExpire {
             cluster_name,
             rocksdb_engine_handler,
-        };
+        }
     }
 
     pub async fn retain_message_expire(&self) {
@@ -62,7 +66,7 @@ impl MessageExpire {
             let key = iter.key();
             let value = iter.value();
 
-            if key == None || value == None {
+            if key.is_none() || value.is_none() {
                 iter.next();
                 continue;
             }
@@ -82,7 +86,7 @@ impl MessageExpire {
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
             let mut value = serde_json::from_slice::<MQTTTopic>(data.data.as_slice()).unwrap();
 
-            if !value.retain_message.is_none() {
+            if value.retain_message.is_some() {
                 let delete = if let Some(expired_at) = value.retain_message_expired_at {
                     now_second() >= (data.create_time + expired_at)
                 } else {
@@ -126,7 +130,7 @@ impl MessageExpire {
             let key = iter.key();
             let value = iter.value();
 
-            if key == None || value == None {
+            if key.is_none() || value.is_none() {
                 iter.next();
                 continue;
             }
@@ -171,24 +175,24 @@ impl MessageExpire {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::{
-        mqtt::{
-            lastwill::MQTTLastWillStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
-        },
-        rocksdb::{column_family_list, RocksDBEngine},
-    };
-    use common_base::{
-        config::placement_center::placement_center_test_conf,
-        tools::{now_second, unique_id},
-    };
-    use metadata_struct::mqtt::{
-        lastwill::LastWillData, message::MQTTMessage, session::MQTTSession, topic::MQTTTopic,
-    };
+    use std::fs::remove_dir_all;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::tools::{now_second, unique_id};
+    use metadata_struct::mqtt::lastwill::LastWillData;
+    use metadata_struct::mqtt::message::MQTTMessage;
+    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{LastWillProperties, Publish};
-    use std::{fs::remove_dir_all, sync::Arc, time::Duration};
     use tokio::time::sleep;
 
     use super::MessageExpire;
+    use crate::storage::mqtt::lastwill::MQTTLastWillStorage;
+    use crate::storage::mqtt::session::MQTTSessionStorage;
+    use crate::storage::mqtt::topic::MQTTTopicStorage;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
     async fn retain_message_expire_test() {

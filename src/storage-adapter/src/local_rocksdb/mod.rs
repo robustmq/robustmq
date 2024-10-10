@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Display;
+use std::sync::Arc;
+
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::record::Record;
 use rocksdb_engine::RocksDBEngine;
-use std::{fmt::Display, sync::Arc};
 
 use crate::storage::{ShardConfig, StorageAdapter};
 
@@ -24,10 +26,10 @@ const DB_COLUMN_FAMILY_KV: &str = "kv";
 const DB_COLUMN_FAMILY_RECORD: &str = "record";
 
 fn column_family_list() -> Vec<String> {
-    return vec![
+    vec![
         DB_COLUMN_FAMILY_KV.to_string(),
         DB_COLUMN_FAMILY_RECORD.to_string(),
-    ];
+    ]
 }
 
 #[derive(Clone)]
@@ -53,12 +55,12 @@ impl RocksDBStorageAdapter {
 
     #[inline(always)]
     pub fn offset_shard_key<S1: Display>(&self, shard_name: S1) -> String {
-        return format!("{}_{}", shard_name, "shard_offset");
+        format!("{}_{}", shard_name, "shard_offset")
     }
 
     #[inline(always)]
     pub fn offset_key<S1: Display, S2: Display>(&self, shard_name: S1, group_id: S2) -> String {
-        return format!("{}_{}", shard_name, group_id);
+        format!("{}_{}", shard_name, group_id)
     }
 
     pub fn get_offset<S1: Display, S2: Display>(
@@ -152,7 +154,7 @@ impl StorageAdapter for RocksDBStorageAdapter {
             .read::<u128>(cf, group_offset_key.as_str())?
             .unwrap_or(0);
 
-        let num = if let Some(num) = record_num { num } else { 10 };
+        let num = record_num.unwrap_or(10);
 
         let mut cur_offset = 0;
         let mut result = Vec::new();
@@ -220,10 +222,11 @@ impl StorageAdapter for RocksDBStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use super::RocksDBStorageAdapter;
-    use crate::storage::StorageAdapter;
     use common_base::tools::unique_id;
     use metadata_struct::adapter::record::Record;
+
+    use super::RocksDBStorageAdapter;
+    use crate::storage::StorageAdapter;
     #[tokio::test]
     async fn stream_read_write() {
         let db_path = format!("/tmp/robustmq_{}", unique_id());
@@ -242,7 +245,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.get(0).unwrap().clone(), 0);
+        assert_eq!(result.first().unwrap().clone(), 0);
         assert_eq!(result.get(1).unwrap().clone(), 1);
         assert_eq!(
             storage_adapter
@@ -271,7 +274,7 @@ mod tests {
             .unwrap();
         println!("{:?}", result_read);
 
-        assert_eq!(result.get(0).unwrap().clone(), 2);
+        assert_eq!(result.first().unwrap().clone(), 2);
         assert_eq!(result.get(1).unwrap().clone(), 3);
         assert_eq!(result_read.unwrap().len(), 2);
 
@@ -289,14 +292,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms1
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();
@@ -312,14 +315,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms2
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();
@@ -335,14 +338,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms3
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();
@@ -358,14 +361,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms4
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();

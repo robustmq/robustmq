@@ -15,7 +15,7 @@
 use protocol::mqtt::common::{Filter, MQTTProtocol, QoS, RetainForwardRule, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 
-#[derive(Default,Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Subscriber {
     pub protocol: MQTTProtocol,
     pub client_id: String,

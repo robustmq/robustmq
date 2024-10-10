@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    mqtt::{
-        lastwill::MQTTLastWillStorage, session::MQTTSessionStorage, topic::MQTTTopicStorage,
-        user::MQTTUserStorage,
-    },
-    rocksdb::RocksDBEngine,
-};
-use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
+use std::sync::Arc;
+
+use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use metadata_struct::mqtt::session::MQTTSession;
 use prost::Message as _;
 use protocol::placement_center::generate::mqtt::{
@@ -27,7 +23,12 @@ use protocol::placement_center::generate::mqtt::{
     DeleteTopicRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetTopicRetainMessageRequest, UpdateSessionRequest,
 };
-use std::sync::Arc;
+
+use crate::storage::mqtt::lastwill::MQTTLastWillStorage;
+use crate::storage::mqtt::session::MQTTSessionStorage;
+use crate::storage::mqtt::topic::MQTTTopicStorage;
+use crate::storage::mqtt::user::MQTTUserStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteMQTT {
@@ -35,61 +36,61 @@ pub struct DataRouteMQTT {
 }
 impl DataRouteMQTT {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        return DataRouteMQTT {
+        DataRouteMQTT {
             rocksdb_engine_handler,
-        };
+        }
     }
 
     pub fn create_user(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateUserRequest::decode(value.as_ref())?;
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
         let user = serde_json::from_slice(&req.content)?;
-        return storage.save(&req.cluster_name, &req.user_name, user);
+        storage.save(&req.cluster_name, &req.user_name, user)
     }
 
     pub fn delete_user(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteUserRequest::decode(value.as_ref())?;
         let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
-        return storage.delete(&req.cluster_name, &req.user_name);
+        storage.delete(&req.cluster_name, &req.user_name)
     }
 
     pub fn create_topic(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateTopicRequest::decode(value.as_ref())?;
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
         let topic = serde_json::from_slice(&req.content)?;
-        return storage.save(&req.cluster_name, &req.topic_name, topic);
+        storage.save(&req.cluster_name, &req.topic_name, topic)
     }
 
     pub fn delete_topic(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteTopicRequest::decode(value.as_ref())?;
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
-        return storage.delete(&req.cluster_name, &req.topic_name);
+        storage.delete(&req.cluster_name, &req.topic_name)
     }
 
     pub fn set_topic_retain_message(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: SetTopicRetainMessageRequest =
             SetTopicRetainMessageRequest::decode(value.as_ref())?;
         let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
-        return storage.set_topic_retain_message(
+        storage.set_topic_retain_message(
             &req.cluster_name,
             &req.topic_name,
             req.retain_message,
             req.retain_message_expired_at,
-        );
+        )
     }
 
     pub fn save_last_will_message(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = SaveLastWillMessageRequest::decode(value.as_ref())?;
         let storage = MQTTLastWillStorage::new(self.rocksdb_engine_handler.clone());
         let last_will_message = serde_json::from_slice(&req.last_will_message)?;
-        return storage.save(&req.cluster_name, &req.client_id, last_will_message);
+        storage.save(&req.cluster_name, &req.client_id, last_will_message)
     }
 
     pub fn create_session(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateSessionRequest::decode(value.as_ref())?;
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
         let session = serde_json::from_slice::<MQTTSession>(&req.session)?;
-        return storage.save(&req.cluster_name, &req.client_id, session);
+        storage.save(&req.cluster_name, &req.client_id, session)
     }
 
     pub fn update_session(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -124,12 +125,12 @@ impl DataRouteMQTT {
             session.distinct_time = None;
         }
 
-        return storage.save(&req.cluster_name, &req.client_id, session);
+        storage.save(&req.cluster_name, &req.client_id, session)
     }
 
     pub fn delete_session(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteSessionRequest::decode(value.as_ref())?;
         let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
-        return storage.delete(&req.cluster_name, &req.client_id);
+        storage.delete(&req.cluster_name, &req.client_id)
     }
 }

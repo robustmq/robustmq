@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::rocksdb::storage_raft_fold;
-use crate::storage::route::DataRoute;
-
-use super::network::network::Network;
-use super::store::new_storage;
-use super::typeconfig::TypeConfig;
-use clients::poll::ClientPool;
-use common_base::config::placement_center::placement_center_conf;
-use log::info;
-use openraft::{Config, Raft};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
+
+use clients::poll::ClientPool;
+use common_base::config::placement_center::placement_center_conf;
+use log::info;
+use openraft::{Config, Raft};
+
+use super::network::network::Network;
+use super::store::new_storage;
+use super::typeconfig::TypeConfig;
+use crate::storage::rocksdb::storage_raft_fold;
+use crate::storage::route::DataRoute;
 pub type NodeId = u64;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
@@ -90,22 +91,22 @@ pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
                             info!("Node {:?} was initialized successfully", nodes);
                         }
                         Err(e) => {
-                            panic!("openraft init fail,{}", e.to_string());
+                            panic!("openraft init fail,{}", e);
                         }
                     }
                 }
             }
             Err(e) => {
-                panic!("openraft initialized fail,{}", e.to_string());
+                panic!("openraft initialized fail,{}", e);
             }
         }
     }
 }
 
 pub fn calc_init_node(nodes: &BTreeMap<u64, Node>) -> u64 {
-    let mut node_ids: Vec<u64> = nodes.keys().map(|x| x.clone()).collect();
+    let mut node_ids: Vec<u64> = nodes.keys().copied().collect();
     node_ids.sort();
-    return node_ids.first().unwrap().clone();
+    return *node_ids.first().unwrap();
 }
 
 pub async fn create_raft_node(
@@ -125,7 +126,8 @@ pub async fn create_raft_node(
     let (log_store, state_machine_store) = new_storage(&dir, route).await;
 
     let network = Network::new(client_poll);
-    let raft = match openraft::Raft::new(
+
+    match openraft::Raft::new(
         conf.node.node_id,
         config.clone(),
         network,
@@ -138,10 +140,8 @@ pub async fn create_raft_node(
         Err(e) => {
             panic!(
                 "Failed to initialize openraft node with error message :{}",
-                e.to_string()
+                e
             );
         }
-    };
-
-    return raft;
+    }
 }

@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -30,16 +30,14 @@
 use super::*;
 
 fn len(publish: &Publish) -> usize {
-
     let len = 2 + publish.topic.len() + publish.payload.len();
-    match publish.qos != QoS::AtMostOnce && publish.pkid !=0 {
-        true => len + 2,  // Add 2 more bytes if packet identifier not null
+    match publish.qos != QoS::AtMostOnce && publish.pkid != 0 {
+        true => len + 2, // Add 2 more bytes if packet identifier not null
         _ => len,
     }
 }
 
 pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Error> {
-
     let qos_num = (fixed_header.byte1 & 0b0110) >> 1;
     let qos = qos(qos_num).ok_or(Error::InvalidQoS(qos_num))?;
     let dup = (fixed_header.byte1 & 0b1000) != 0;
@@ -60,8 +58,8 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Erro
     }
 
     let publish = Publish {
-        dup, 
-        retain, 
+        dup,
+        retain,
         qos,
         pkid,
         topic,
@@ -71,9 +69,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Erro
     Ok(publish)
 }
 
-
 pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
-
     let len = publish.len();
     let dup = publish.dup as u8;
     let qos = publish.qos as u8;
@@ -92,13 +88,10 @@ pub fn write(publish: &Publish, buffer: &mut BytesMut) -> Result<usize, Error> {
     }
     buffer.extend_from_slice(&publish.payload);
 
-    Ok(1 + count + len) // 1st byte for packet type and connect flag, 
+    Ok(1 + count + len) // 1st byte for packet type and connect flag,
                         // count means how many bytes (1~4) to express the length of remaining length,
                         // len menas the value/number of the remaining length.
-
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -110,7 +103,7 @@ mod tests {
         let topic_name: Bytes = Bytes::from("test_topic");
         let payload_value: Bytes = Bytes::from("test_payload");
         let retain_flag: bool = false;
-        let publish: Publish = Publish::new(topic_name, payload_value, retain_flag) ;
+        let publish: Publish = Publish::new(topic_name, payload_value, retain_flag);
         // test the write function of publish packet
         write(&publish, &mut buffer);
 

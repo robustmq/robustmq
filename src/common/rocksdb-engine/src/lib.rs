@@ -13,10 +13,11 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use rocksdb::{ColumnFamily, DBCompactionStyle, Options, DB};
-use rocksdb::{ColumnFamilyDescriptor, SliceTransform};
-use serde::{de::DeserializeOwned, Serialize};
-use serde_json;
+use rocksdb::{
+    ColumnFamily, ColumnFamilyDescriptor, DBCompactionStyle, Options, SliceTransform, DB,
+};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 
 #[derive(Debug)]
 pub struct RocksDBEngine {
@@ -39,7 +40,7 @@ impl RocksDBEngine {
             }
         };
 
-        return RocksDBEngine { db: instance };
+        RocksDBEngine { db: instance }
     }
 
     /// Write the data serialization to RocksDB
@@ -66,7 +67,7 @@ impl RocksDBEngine {
                 )))
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     pub fn write_str(
@@ -75,7 +76,7 @@ impl RocksDBEngine {
         key: &str,
         value: String,
     ) -> Result<(), CommonError> {
-        return self.write(cf, key, &value);
+        self.write(cf, key, &value)
     }
 
     // Read data from the RocksDB
@@ -88,21 +89,17 @@ impl RocksDBEngine {
             Ok(opt) => match opt {
                 Some(found) => match serde_json::from_slice::<T>(&found) {
                     Ok(t) => Ok(Some(t)),
-                    Err(err) => {
-                        return Err(CommonError::CommmonError(format!(
-                            "Failed to deserialize: {:?}",
-                            err
-                        )))
-                    }
+                    Err(err) => Err(CommonError::CommmonError(format!(
+                        "Failed to deserialize: {:?}",
+                        err
+                    ))),
                 },
                 None => Ok(None),
             },
-            Err(err) => {
-                return Err(CommonError::CommmonError(format!(
-                    "Failed to get from ColumnFamily: {:?}",
-                    err
-                )));
-            }
+            Err(err) => Err(CommonError::CommmonError(format!(
+                "Failed to get from ColumnFamily: {:?}",
+                err
+            ))),
         }
     }
 
@@ -129,7 +126,7 @@ impl RocksDBEngine {
 
             iter.next();
         }
-        return Ok(result);
+        Ok(result)
     }
 
     // Read all data in a ColumnFamily
@@ -147,11 +144,11 @@ impl RocksDBEngine {
             }
             iter.next();
         }
-        return Ok(result);
+        Ok(result)
     }
 
     pub fn delete(&self, cf: &ColumnFamily, key: &str) -> Result<(), CommonError> {
-        return Ok(self.db.delete_cf(cf, key)?);
+        Ok(self.db.delete_cf(cf, key)?)
     }
 
     pub fn delete_prefix(&self, cf: &ColumnFamily, search_key: &str) -> Result<(), CommonError> {
@@ -175,7 +172,7 @@ impl RocksDBEngine {
         if let Some(cf) = self.db.cf_handle(name) {
             return Some(cf);
         }
-        return None;
+        None
     }
 
     fn open_db_opts(max_open_files: i32) -> Options {
@@ -200,20 +197,21 @@ impl RocksDBEngine {
         opts.set_prefix_extractor(transform);
         opts.set_memtable_prefix_bloom_ratio(0.2);
 
-        return opts;
+        opts
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::RocksDBEngine;
+    use std::sync::Arc;
+    use std::time::Duration;
+
     use common_base::config::placement_center::placement_center_test_conf;
     use serde::{Deserialize, Serialize};
-    use std::{sync::Arc, time::Duration};
-    use tokio::{
-        fs::{remove_dir, remove_dir_all},
-        time::sleep,
-    };
+    use tokio::fs::{remove_dir, remove_dir_all};
+    use tokio::time::sleep;
+
+    use super::RocksDBEngine;
 
     #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
     struct User {
@@ -222,7 +220,7 @@ mod tests {
     }
 
     fn cf_name() -> String {
-        return "cluster".to_string();
+        "cluster".to_string()
     }
 
     #[tokio::test]
@@ -251,7 +249,7 @@ mod tests {
 
                 let res1 = rs.read::<User>(cf, &key);
                 let r = res1.unwrap();
-                assert!(!r.is_none());
+                assert!(r.is_some());
                 assert_eq!(r.unwrap().name, name);
                 println!("spawn {}, key:{}", i, key);
                 sleep(Duration::from_secs(5)).await;
@@ -320,7 +318,7 @@ mod tests {
         assert_eq!(index, res1);
 
         let result = rs.read_all_by_cf(cf).unwrap();
-        assert!(result.len() > 0);
+        assert!(!result.is_empty());
         for raw in result.clone() {
             let raw_key = raw.0;
             let raw_val = raw.1;

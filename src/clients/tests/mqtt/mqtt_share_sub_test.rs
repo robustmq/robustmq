@@ -14,13 +14,16 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use clients::{
-        placement::{mqtt::call::placement_get_share_sub_leader, placement::call::register_node},
-        poll::ClientPool,
-    };
-    use protocol::placement_center::generate::{common::ClusterType, mqtt::GetShareSubLeaderRequest, placement::RegisterNodeRequest};
     use std::sync::Arc;
+
+    use clients::placement::mqtt::call::placement_get_share_sub_leader;
+    use clients::placement::placement::call::register_node;
+    use clients::poll::ClientPool;
+    use protocol::placement_center::generate::common::ClusterType;
+    use protocol::placement_center::generate::mqtt::GetShareSubLeaderRequest;
+    use protocol::placement_center::generate::placement::RegisterNodeRequest;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_share_sub_test() {
@@ -31,12 +34,11 @@ mod tests {
         let node_ip: String = "127.0.0.1".to_string();
         let node_id: u64 = 1;
 
-        
         let request = RegisterNodeRequest {
             cluster_type: ClusterType::MqttBrokerServer as i32,
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
-            node_id: node_id.clone(),
+            node_id: node_id,
             node_inner_addr: node_ip.clone(),
             extend_info: "".to_string(),
         };
@@ -56,8 +58,9 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 if data.broker_id == node_id
-                && data.broker_addr == node_ip
-                && data.extend_info == "" {
+                    && data.broker_addr == node_ip
+                    && data.extend_info.is_empty()
+                {
                     flag = true;
                 }
                 assert!(flag);

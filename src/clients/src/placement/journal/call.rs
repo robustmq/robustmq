@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::placement::PlacementCenterService;
-use crate::placement::{retry_call, PlacementCenterInterface};
-use crate::poll::ClientPool;
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use prost::Message;
+use protocol::placement_center::generate::common::CommonReply;
 use protocol::placement_center::generate::journal::{
-    CreateSegmentRequest, DeleteSegmentRequest, DeleteShardRequest,
+    CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
 };
-use protocol::placement_center::generate::{common::CommonReply, journal::CreateShardRequest};
-use std::sync::Arc;
+
+use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
+use crate::poll::ClientPool;
 
 pub async fn create_shard(
     client_poll: Arc<ClientPool>,
@@ -39,12 +40,10 @@ pub async fn create_shard(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -64,12 +63,10 @@ pub async fn delete_shard(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -89,12 +86,10 @@ pub async fn create_segment(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -114,11 +109,9 @@ pub async fn delete_segment(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }

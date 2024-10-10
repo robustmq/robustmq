@@ -16,19 +16,15 @@
 mod tests {
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::{
-        codec::{MQTTPacketWrapper, MqttCodec},
-        common::{
-            ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill,
-            Login, MQTTPacket,
-        },
-        mqttv4::codec::Mqtt4Codec,
-        mqttv5::codec::Mqtt5Codec,
+    use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+    use protocol::mqtt::common::{
+        ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
+        MQTTPacket,
     };
-    use tokio::{
-        io,
-        net::{TcpListener, TcpStream},
-    };
+    use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
+    use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+    use tokio::io;
+    use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::{Framed, FramedRead, FramedWrite};
 
     #[tokio::test]
@@ -94,7 +90,7 @@ mod tests {
                     println!("success:{:?}", da);
                 }
                 Err(e) => {
-                    println!("error:{}", e.to_string());
+                    println!("error:{}", e);
                 }
             }
         }
@@ -116,10 +112,10 @@ mod tests {
 
         let connect: Connect = Connect {
             keep_alive: 30u16, // 30 seconds
-            client_id: client_id,
+            client_id,
             clean_session: true,
         };
-        return MQTTPacket::Connect(4, connect, None, lastwill, None, login);
+        MQTTPacket::Connect(4, connect, None, lastwill, None, login)
     }
 
     /// Build the connect content package for the mqtt4 protocol
@@ -129,10 +125,10 @@ mod tests {
             session_present: false,
             code: ConnectReturnCode::Success,
         };
-        return MQTTPacketWrapper {
+        MQTTPacketWrapper {
             protocol_version: 4,
             packet: MQTTPacket::ConnAck(ack, None),
-        };
+        }
     }
 
     #[tokio::test]
@@ -186,13 +182,13 @@ mod tests {
 
         let connect: Connect = Connect {
             keep_alive: 30u16, // 30 seconds
-            client_id: client_id,
+            client_id,
             clean_session: true,
         };
 
         let mut properties = ConnectProperties::default();
         properties.session_expiry_interval = Some(30);
-        return MQTTPacket::Connect(5, connect, Some(properties), lastwill, None, login);
+        MQTTPacket::Connect(5, connect, Some(properties), lastwill, None, login)
     }
 
     /// Build the connect content package for the mqtt5 protocol
@@ -203,9 +199,9 @@ mod tests {
         };
         let mut properties = ConnAckProperties::default();
         properties.max_qos = Some(10u8);
-        return MQTTPacketWrapper {
+        MQTTPacketWrapper {
             protocol_version: 5,
             packet: MQTTPacket::ConnAck(ack, Some(properties)),
-        };
+        }
     }
 }

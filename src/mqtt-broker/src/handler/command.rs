@@ -12,21 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::mqtt::MqttService;
-use crate::handler::response::response_packet_mqtt_distinct_by_reason;
-use crate::handler::{cache::CacheManager, response::response_packet_mqtt_connect_fail};
-use crate::security::AuthDriver;
-use crate::server::connection::NetworkConnection;
-use crate::server::connection_manager::ConnectionManager;
-use crate::subscribe::subscribe_manager::SubscribeManager;
+use std::net::SocketAddr;
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
 use log::info;
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MQTTPacket, MQTTProtocol,
 };
-use std::net::SocketAddr;
-use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
+
+use super::mqtt::MqttService;
+use crate::handler::cache::CacheManager;
+use crate::handler::response::{
+    response_packet_mqtt_connect_fail, response_packet_mqtt_distinct_by_reason,
+};
+use crate::security::AuthDriver;
+use crate::server::connection::NetworkConnection;
+use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 // S: message storage adapter
 #[derive(Clone)]

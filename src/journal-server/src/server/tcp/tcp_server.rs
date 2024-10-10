@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    connection::{Connection, ConnectionManager},
-    packet::ResponsePackage,
-};
-use crate::{network::command::Command, server::tcp::packet::RequestPackage};
+use std::fmt::Error;
+use std::sync::Arc;
 
 use futures::StreamExt;
 use log::error;
 use protocol::journal_server::codec::StorageEngineCodec;
-use std::{fmt::Error, sync::Arc};
-use tokio::{io, sync::broadcast};
-use tokio::{net::TcpListener, sync::broadcast::Sender};
+use tokio::io;
+use tokio::net::TcpListener;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::Sender;
 use tokio_util::codec::{FramedRead, FramedWrite};
+
+use super::connection::{Connection, ConnectionManager};
+use super::packet::ResponsePackage;
+use crate::network::command::Command;
+use crate::server::tcp::packet::RequestPackage;
 
 pub struct TcpServer {
     connection_manager: Arc<ConnectionManager>,
@@ -140,7 +143,7 @@ impl TcpServer {
             }
         });
 
-        return Ok(());
+        Ok(())
     }
 
     async fn handler_process(&self) -> Result<(), Error> {
@@ -163,7 +166,7 @@ impl TcpServer {
                 }
             }
         });
-        return Ok(());
+        Ok(())
     }
 
     async fn response_process(&self) -> Result<(), Error> {
@@ -176,6 +179,6 @@ impl TcpServer {
                     .await;
             }
         });
-        return Ok(());
+        Ok(())
     }
 }

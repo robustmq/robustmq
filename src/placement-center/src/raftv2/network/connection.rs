@@ -12,23 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bincode::{deserialize, serialize};
-use clients::{placement::openraft::OpenRaftServiceManager, poll::ClientPool};
-use common_base::error::common::CommonError;
-use mobc::Connection;
-use openraft::{
-    error::{InstallSnapshotError, RPCError, RaftError},
-    network::RPCOption,
-    raft::{
-        AppendEntriesRequest, AppendEntriesResponse, InstallSnapshotRequest,
-        InstallSnapshotResponse, VoteRequest, VoteResponse,
-    },
-    RaftNetwork,
-};
-use protocol::placement_center::generate::openraft::{AppendRequest, SnapshotRequest};
 use std::sync::Arc;
 
-use crate::raftv2::{error::to_error, typeconfig::TypeConfig};
+use bincode::{deserialize, serialize};
+use clients::placement::openraft::OpenRaftServiceManager;
+use clients::poll::ClientPool;
+use common_base::error::common::CommonError;
+use mobc::Connection;
+use openraft::error::{InstallSnapshotError, RPCError, RaftError};
+use openraft::network::RPCOption;
+use openraft::raft::{
+    AppendEntriesRequest, AppendEntriesResponse, InstallSnapshotRequest, InstallSnapshotResponse,
+    VoteRequest, VoteResponse,
+};
+use openraft::RaftNetwork;
+use protocol::placement_center::generate::openraft::{AppendRequest, SnapshotRequest};
+
+use crate::raftv2::error::to_error;
+use crate::raftv2::typeconfig::TypeConfig;
 
 pub struct NetworkConnection {
     addr: String,
@@ -36,14 +37,13 @@ pub struct NetworkConnection {
 }
 impl NetworkConnection {
     pub fn new(addr: String, client_poll: Arc<ClientPool>) -> Self {
-        return NetworkConnection { addr, client_poll };
+        NetworkConnection { addr, client_poll }
     }
 
     async fn c(&mut self) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
-        return Ok(self
-            .client_poll
+        self.client_poll
             .placement_center_openraft_services_client(self.addr.clone())
-            .await?);
+            .await
     }
 }
 
@@ -77,7 +77,7 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
         };
 
-        return Ok(result);
+        Ok(result)
     }
 
     async fn install_snapshot(
@@ -109,7 +109,7 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
         };
 
-        return Ok(result);
+        Ok(result)
     }
 
     async fn vote(
@@ -138,6 +138,6 @@ impl RaftNetwork<TypeConfig> for NetworkConnection {
             Err(e) => return Err(to_error(CommonError::CommmonError(e.to_string()))),
         };
 
-        return Ok(result);
+        Ok(result)
     }
 }

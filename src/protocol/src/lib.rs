@@ -30,6 +30,6 @@
 #![allow(dead_code, unused)]
 pub mod amqp;
 pub mod broker_server;
+pub mod journal_server;
 pub mod mqtt;
 pub mod placement_center;
-pub mod journal_server;

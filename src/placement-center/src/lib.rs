@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::raftv1::peer::PeerMessage;
-use crate::server::http::server::{start_http_server, HttpServerState};
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
+
 use cache::journal::JournalCacheManager;
 use cache::mqtt::MqttCacheManager;
 use cache::placement::PlacementCacheManager;
@@ -39,8 +40,6 @@ use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use server::grpc::services_openraft::GrpcOpenRaftServices;
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
 use storage::route::apply::{ClusterRaftModel, RaftMachineApply, RaftMessage};
 use storage::route::DataRoute;
@@ -49,6 +48,9 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::sleep;
 use tonic::transport::Server;
+
+use self::raftv1::peer::PeerMessage;
+use crate::server::http::server::{start_http_server, HttpServerState};
 mod cache;
 mod controller;
 mod core;
@@ -69,6 +71,12 @@ pub struct PlacementCenter {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
     client_poll: Arc<ClientPool>,
+}
+
+impl Default for PlacementCenter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PlacementCenter {
@@ -93,14 +101,14 @@ impl PlacementCenter {
             rocksdb_engine_handler.clone(),
         )));
 
-        return PlacementCenter {
+        PlacementCenter {
             cluster_cache,
             engine_cache,
             mqtt_cache,
             raft_machine_storage,
             rocksdb_engine_handler,
             client_poll,
-        };
+        }
     }
 
     pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
@@ -306,11 +314,8 @@ impl PlacementCenter {
         });
 
         signal::ctrl_c().await.expect("failed to listen for event");
-        match stop_send.send(true) {
-            Ok(_) => {
-                info!("When ctrl + c is received, the service starts to stop");
-            }
-            Err(_) => {}
+        if stop_send.send(true).is_ok() {
+            info!("When ctrl + c is received, the service starts to stop");
         }
     }
 }

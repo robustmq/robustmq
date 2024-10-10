@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+
 use axum::async_trait;
 use common_base::error::mqtt_broker::MQTTBrokerError;
-use std::net::SocketAddr;
 
 pub mod http;
 pub mod jwt;

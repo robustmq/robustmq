@@ -629,7 +629,7 @@ mod tests {
         let mut buffer = BytesMut::new();
         let connect: Connect = Connect {
             keep_alive: 30u16, // 30 seconds
-            client_id: client_id,
+            client_id,
             clean_session: true,
         };
 
@@ -703,7 +703,7 @@ mod tests {
 
         assert_eq!(connect.client_id, "test_client_id");
         assert_eq!(connect.keep_alive, 30u16);
-        assert_eq!(connect.clean_session, true);
+        assert!(connect.clean_session);
 
         let connect_properties = connectproperties.unwrap();
         assert_eq!(connect_properties.session_expiry_interval, Some(30u32));
@@ -713,7 +713,7 @@ mod tests {
         assert_eq!(connect_properties.request_response_info, Some(1u8));
         assert_eq!(connect_properties.request_problem_info, Some(1u8));
         assert_eq!(
-            connect_properties.user_properties.get(0).unwrap(),
+            connect_properties.user_properties.first().unwrap(),
             &("username".to_string(), "justin".to_string())
         );
         assert_eq!(
@@ -733,7 +733,7 @@ mod tests {
         assert_eq!(lastwill_read.topic, "will_topic");
         assert_eq!(lastwill_read.message, "will_message");
         assert_eq!(lastwill_read.qos, QoS::AtLeastOnce);
-        assert_eq!(lastwill_read.retain, true);
+        assert!(lastwill_read.retain);
 
         let lastwillproperties_read = lastwillproperties.unwrap();
         assert_eq!(lastwillproperties_read.delay_interval, Some(60u32));
@@ -752,7 +752,7 @@ mod tests {
             Some(Bytes::from("correlation-data"))
         );
         assert_eq!(
-            lastwillproperties_read.user_properties.get(0).unwrap(),
+            lastwillproperties_read.user_properties.first().unwrap(),
             &("will_user".to_string(), "peter".to_string())
         );
 

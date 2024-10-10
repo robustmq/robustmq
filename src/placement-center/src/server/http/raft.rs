@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::server::HttpServerState;
-use crate::raftv2::{raft_node::Node, typeconfig::TypeConfig};
+use std::collections::{BTreeMap, BTreeSet};
+
 use axum::extract::State;
 use common_base::http_response::{error_response, success_response};
-use openraft::{error::Infallible, RaftMetrics};
-use std::collections::{BTreeMap, BTreeSet};
+use openraft::error::Infallible;
+use openraft::RaftMetrics;
+
+use super::server::HttpServerState;
+use crate::raftv2::raft_node::Node;
+use crate::raftv2::typeconfig::TypeConfig;
 
 pub async fn add_leadrner(State(state): State<HttpServerState>) -> String {
     let node_id = 3;
@@ -32,12 +36,8 @@ pub async fn add_leadrner(State(state): State<HttpServerState>) -> String {
         .add_learner(node_id, node, true)
         .await
     {
-        Ok(data) => {
-            return success_response(data);
-        }
-        Err(e) => {
-            return error_response(e.to_string());
-        }
+        Ok(data) => success_response(data),
+        Err(e) => error_response(e.to_string()),
     }
 }
 
@@ -50,12 +50,8 @@ pub async fn change_membership(State(state): State<HttpServerState>) -> String {
         .change_membership(body, true)
         .await
     {
-        Ok(data) => {
-            return success_response(data);
-        }
-        Err(e) => {
-            return error_response(e.to_string());
-        }
+        Ok(data) => success_response(data),
+        Err(e) => error_response(e.to_string()),
     }
 }
 
@@ -75,12 +71,8 @@ pub async fn init(State(state): State<HttpServerState>) -> String {
         .initialize(nodes)
         .await
     {
-        Ok(data) => {
-            return success_response(data);
-        }
-        Err(e) => {
-            return error_response(e.to_string());
-        }
+        Ok(data) => success_response(data),
+        Err(e) => error_response(e.to_string()),
     }
 }
 
@@ -92,5 +84,5 @@ pub async fn raft_status(State(state): State<HttpServerState>) -> String {
         .borrow()
         .clone();
     let res: Result<RaftMetrics<TypeConfig>, Infallible> = Ok(metrics);
-    return success_response(res);
+    success_response(res)
 }

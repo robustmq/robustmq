@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use log::error;
-use metadata_struct::placement::{broker_node::BrokerNode, cluster::ClusterInfo};
+use metadata_struct::placement::broker_node::BrokerNode;
+use metadata_struct::placement::cluster::ClusterInfo;
 use raft::StateRole;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
-use crate::{
-    core::{cluster::ClusterMetadata, raft_node::RaftNode},
-    storage::{
-        placement::{cluster::ClusterStorage, node::NodeStorage},
-        rocksdb::RocksDBEngine,
-    },
-};
+use crate::core::cluster::ClusterMetadata;
+use crate::core::raft_node::RaftNode;
+use crate::storage::placement::cluster::ClusterStorage;
+use crate::storage::placement::node::NodeStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct PlacementCacheManager {
@@ -48,7 +48,7 @@ impl PlacementCacheManager {
             placement_cluster: DashMap::with_capacity(2),
         };
         cache.load_cache(rocksdb_engine_handler);
-        return cache;
+        cache
     }
 
     pub fn add_broker_cluster(&self, cluster: &ClusterInfo) {
@@ -83,7 +83,7 @@ impl PlacementCacheManager {
                 return Some(value.clone());
             }
         }
-        return None;
+        None
     }
 
     pub fn get_broker_node_addr_by_cluster(&self, cluster_name: &String) -> Vec<String> {
@@ -95,7 +95,7 @@ impl PlacementCacheManager {
                 }
             }
         }
-        return results;
+        results
     }
 
     pub fn report_heart_by_broker_node(&self, cluster_name: &String, node_id: u64, time: u64) {
@@ -110,23 +110,17 @@ impl PlacementCacheManager {
 
     pub fn load_cache(&mut self, rocksdb_engine_handler: Arc<RocksDBEngine>) {
         let cluster = ClusterStorage::new(rocksdb_engine_handler.clone());
-        match cluster.list(None) {
-            Ok(result) => {
-                for cluster in result {
-                    self.add_broker_cluster(&cluster);
-                }
+        if let Ok(result) = cluster.list(None) {
+            for cluster in result {
+                self.add_broker_cluster(&cluster);
             }
-            Err(_) => {}
         }
 
         let node = NodeStorage::new(rocksdb_engine_handler.clone());
-        match node.list(None) {
-            Ok(result) => {
-                for bn in result {
-                    self.add_broker_node(bn);
-                }
+        if let Ok(result) = node.list(None) {
+            for bn in result {
+                self.add_broker_node(bn);
             }
-            Err(_) => {}
         }
 
         let placement_cluster = DashMap::with_capacity(2);
@@ -150,14 +144,14 @@ impl PlacementCacheManager {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.votes.iter().map(|v| v.clone()).collect();
         }
-        return Vec::new();
+        Vec::new()
     }
 
     pub fn get_raft_members(&self) -> Vec<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.members.iter().map(|v| v.clone()).collect();
         }
-        return Vec::new();
+        Vec::new()
     }
 
     pub fn get_votes_node_by_id(&self, node_id: u64) -> Option<RaftNode> {
@@ -166,48 +160,48 @@ impl PlacementCacheManager {
                 return Some(node.clone());
             }
         }
-        return None;
+        None
     }
 
     pub fn is_raft_role_change(&self, new_role: StateRole) -> bool {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.is_raft_role_change(new_role);
         }
-        return false;
+        false
     }
 
     pub fn is_leader(&self) -> bool {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.is_leader();
         }
-        return false;
+        false
     }
 
     pub fn get_raft_leader(&self) -> Option<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.leader.clone();
         }
-        return None;
+        None
     }
 
     pub fn get_raft_local_node(&self) -> Option<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return Some(cluster.local.clone());
         }
-        return None;
+        None
     }
 
     pub fn get_current_raft_role(&self) -> String {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.raft_role.clone();
         }
-        return "".to_string();
+        "".to_string()
     }
 
     pub fn update_raft_role(&self, local_new_role: StateRole, leader_id: u64) {
         if let Some(mut cluster) = self.placement_cluster.get_mut(&self.cluster_key()) {
             cluster.update_node_raft_role(local_new_role);
-            
+
             if leader_id > 0 {
                 if let Some(leader) = cluster.votes.clone().get(&leader_id) {
                     cluster.set_leader(Some(leader.clone()));
@@ -219,6 +213,6 @@ impl PlacementCacheManager {
     }
 
     fn cluster_key(&self) -> String {
-        return "cluster".to_string();
+        "cluster".to_string()
     }
 }

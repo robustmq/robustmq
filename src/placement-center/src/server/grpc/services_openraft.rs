@@ -14,9 +14,9 @@
 
 use bincode::{deserialize, serialize};
 use openraft::Raft;
+use protocol::placement_center::generate::openraft::open_raft_service_server::OpenRaftService;
 use protocol::placement_center::generate::openraft::{
-    open_raft_service_server::OpenRaftService, AppendReply, AppendRequest, SnapshotReply,
-    SnapshotRequest, VoteReply, VoteRequest,
+    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -28,7 +28,7 @@ pub struct GrpcOpenRaftServices {
 
 impl GrpcOpenRaftServices {
     pub fn new(raft_node: Raft<TypeConfig>) -> Self {
-        return GrpcOpenRaftServices { raft_node };
+        GrpcOpenRaftServices { raft_node }
     }
 }
 

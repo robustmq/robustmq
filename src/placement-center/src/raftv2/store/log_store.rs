@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
-use crate::raftv2::{raft_node::NodeId, store::bin_to_id, typeconfig::TypeConfig};
+use std::fmt::Debug;
+use std::ops::RangeBounds;
+use std::sync::Arc;
+
+use openraft::storage::{IOFlushed, RaftLogStorage};
 use openraft::{
-    storage::{IOFlushed, RaftLogStorage},
     AnyError, Entry, ErrorSubject, ErrorVerb, LogId, LogState, OptionalSend, RaftLogReader,
     StorageError, Vote,
 };
 use rocksdb::{ColumnFamily, Direction, DB};
-use std::{fmt::Debug, ops::RangeBounds, sync::Arc};
+
+use super::{cf_raft_logs, cf_raft_store, id_to_bin, StorageResult};
+use crate::raftv2::raft_node::NodeId;
+use crate::raftv2::store::bin_to_id;
+use crate::raftv2::typeconfig::TypeConfig;
 
 #[derive(Debug, Clone)]
 pub struct LogStore {

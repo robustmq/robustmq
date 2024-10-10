@@ -28,9 +28,13 @@
  * limitations under the License.
  */
 
+use std::slice::Iter;
+use std::str::Utf8Error;
+use std::string::FromUtf8Error;
+use std::{default, fmt, io};
+
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
-use std::{default, fmt, io, slice::Iter, str::Utf8Error, string::FromUtf8Error};
 
 /// This module is the place where all the protocal specifics gets abstracted
 /// out and creates structures which are common across protocols. Since, MQTT
@@ -49,26 +53,26 @@ pub enum MQTTProtocol {
 }
 
 pub fn is_mqtt3(protocol: u8) -> bool {
-    return protocol == 3;
+    protocol == 3
 }
 
 pub fn is_mqtt4(protocol: u8) -> bool {
-    return protocol == 4;
+    protocol == 4
 }
 
 pub fn is_mqtt5(protocol: u8) -> bool {
-    return protocol == 5;
+    protocol == 5
 }
 
 impl MQTTProtocol {
     pub fn is_mqtt3(&self) -> bool {
-        MQTTProtocol::MQTT3.eq(&self)
+        MQTTProtocol::MQTT3.eq(self)
     }
     pub fn is_mqtt4(&self) -> bool {
-        MQTTProtocol::MQTT4.eq(&self)
+        MQTTProtocol::MQTT4.eq(self)
     }
     pub fn is_mqtt5(&self) -> bool {
-        MQTTProtocol::MQTT5.eq(&self)
+        MQTTProtocol::MQTT5.eq(self)
     }
 }
 
@@ -1124,7 +1128,7 @@ pub enum Error {
     PayloadSizeIncorrect,
     #[error("Invalid property type = {0}")]
     InvalidPropertyType(u8),
-    
+
     #[error(transparent)]
     IoError(#[from] io::Error),
 }
@@ -1203,5 +1207,5 @@ pub fn connect_read(
         return Ok((protocol_level, connect, None, last_will, None, login));
     }
 
-    return Err(Error::InvalidProtocol);
+    Err(Error::InvalidProtocol)
 }

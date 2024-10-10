@@ -24,7 +24,7 @@ mod tests {
                 &[
                     "src/broker_server/proto/admin.proto",
                     "src/broker_server/proto/placement.proto",
-                    ],
+                ],
                 &["src/broker_server/proto"], // specify the root location to search proto dependencies
             )
             .unwrap();
@@ -40,7 +40,7 @@ mod tests {
                     "src/placement_center/proto/mqtt.proto",
                     "src/placement_center/proto/placement.proto",
                     "src/placement_center/proto/openraft.proto",
-                    ],
+                ],
                 &["src/placement_center/proto"], // specify the root location to search proto dependencies
             )
             .unwrap();
@@ -62,9 +62,7 @@ mod tests {
             .build_server(false)
             .out_dir("src/journal_server/generate/record") // you can change the generated code's location
             .compile(
-                &[
-                    "src/journal_server/proto/record/record.proto",
-                ],
+                &["src/journal_server/proto/record/record.proto"],
                 &["src/journal_server/proto/record"], // specify the root location to search proto dependencies
             )
             .unwrap();

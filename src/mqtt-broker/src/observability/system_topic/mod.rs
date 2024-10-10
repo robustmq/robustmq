@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    handler::{cache::CacheManager, topic::try_init_topic},
-    storage::message::MessageStorage,
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use broker::report_broker_info;
 use clients::poll::ClientPool;
 use common_base::tools::get_local_ip;
 use log::{debug, error};
 use metadata_struct::adapter::record::Record;
-use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::select;
+use tokio::sync::broadcast;
+use tokio::time::sleep;
+
+use crate::handler::cache::CacheManager;
+use crate::handler::topic::try_init_topic;
+use crate::storage::message::MessageStorage;
 
 // Cluster status information
 pub const SYSTEM_TOPIC_BROKERS: &str = "$SYS/brokers";

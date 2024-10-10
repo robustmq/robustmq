@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod share_sub;
-pub mod raft_node;
 pub mod cluster;
+pub mod raft_node;
+pub mod share_sub;

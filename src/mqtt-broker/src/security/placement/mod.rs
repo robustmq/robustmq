@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::AuthStorageAdapter;
-use crate::storage::{acl::AclStorage, blacklist::BlackListStorage, user::UserStorage};
+use std::sync::Arc;
+
 use axum::async_trait;
 use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::{
-    acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
-    mqtt::user::MQTTUser,
-};
-use std::sync::Arc;
+use metadata_struct::acl::mqtt_acl::MQTTAcl;
+use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::mqtt::user::MQTTUser;
+
+use super::AuthStorageAdapter;
+use crate::storage::acl::AclStorage;
+use crate::storage::blacklist::BlackListStorage;
+use crate::storage::user::UserStorage;
 
 pub struct PlacementAuthStorageAdapter {
     client_poll: Arc<ClientPool>,

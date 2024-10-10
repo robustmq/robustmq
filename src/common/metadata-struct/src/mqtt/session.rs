@@ -42,7 +42,7 @@ impl MQTTSession {
         session.is_contain_last_will = is_contain_last_will;
         session.last_will_delay_interval = last_will_delay_interval;
         session.create_time = now_second();
-        return session;
+        session
     }
 
     pub fn update_connnction_id(&mut self, connection_id: Option<u64>) {
@@ -66,6 +66,6 @@ impl MQTTSession {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        return serde_json::to_vec(&self).unwrap();
+        serde_json::to_vec(&self).unwrap()
     }
 }

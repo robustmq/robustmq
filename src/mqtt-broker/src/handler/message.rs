@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
+use std::sync::Arc;
+
 use common_base::tools::now_second;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::PublishProperties;
-use std::sync::Arc;
+
+use super::cache::CacheManager;
 
 pub fn is_message_expire(message: &MQTTMessage) -> bool {
     return message.expiry_interval < now_second();
@@ -40,12 +42,15 @@ pub fn build_message_expire(
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::{cache::CacheManager, message::build_message_expire};
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::tools::now_second;
     use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
     use protocol::mqtt::common::PublishProperties;
-    use std::sync::Arc;
+
+    use crate::handler::cache::CacheManager;
+    use crate::handler::message::build_message_expire;
 
     #[test]
     fn build_message_expire_test() {

@@ -28,12 +28,13 @@
  * limitations under the License.
  */
 
-use crate::tools::{try_create_fold, read_file};
-use serde::Deserialize;
 use std::sync::OnceLock;
+
+use serde::Deserialize;
 use toml::Table;
 
 use super::common::Log;
+use crate::tools::{read_file, try_create_fold};
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct JournalServerConfig {
@@ -92,7 +93,7 @@ pub fn init_journal_server_conf_by_path(config_path: &String) -> &'static Journa
                 panic!("{}", e);
             }
         }
-        return pc_config;
+        pc_config
     })
 }
 
@@ -101,16 +102,12 @@ pub fn init_journal_server_conf_by_config(
 ) -> &'static JournalServerConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
-    STORAGE_ENGINE_CONFIG.get_or_init(|| {
-        return config;
-    })
+    STORAGE_ENGINE_CONFIG.get_or_init(|| config)
 }
 
 pub fn journal_server_conf() -> &'static JournalServerConfig {
     match STORAGE_ENGINE_CONFIG.get() {
-        Some(config) => {
-            return config;
-        }
+        Some(config) => config,
         None => {
             panic!(
                 "Placement center configuration is not initialized, check the configuration file."
@@ -121,9 +118,8 @@ pub fn journal_server_conf() -> &'static JournalServerConfig {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::journal_server::journal_server_conf;
-
     use super::init_journal_server_conf_by_path;
+    use crate::config::journal_server::journal_server_conf;
     #[test]
     #[ignore]
     fn meta_default() {

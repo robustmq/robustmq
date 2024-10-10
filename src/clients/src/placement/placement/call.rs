@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    placement::{retry_call, PlacementCenterInterface, PlacementCenterService},
-    poll::ClientPool,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use prost::Message;
-use protocol::placement_center::generate::{
-    common::CommonReply,
-    placement::{
-        ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest, DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply, NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest
-    },
+use protocol::placement_center::generate::common::CommonReply;
+use protocol::placement_center::generate::placement::{
+    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest,
+    DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
+    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
+    NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+    SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
+    SetResourceConfigRequest, UnRegisterNodeRequest,
 };
-use std::sync::Arc;
+
+use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
+use crate::poll::ClientPool;
 
 pub async fn cluster_status(
     client_poll: Arc<ClientPool>,
@@ -42,15 +45,12 @@ pub async fn cluster_status(
     .await
     {
         Ok(data) => match ClusterStatusReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
-
 
 pub async fn node_list(
     client_poll: Arc<ClientPool>,
@@ -68,12 +68,10 @@ pub async fn node_list(
     .await
     {
         Ok(data) => match NodeListReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -93,12 +91,10 @@ pub async fn register_node(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -118,12 +114,10 @@ pub async fn un_register_node(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -143,12 +137,10 @@ pub async fn heartbeat(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -168,12 +160,10 @@ pub async fn send_raft_message(
     .await
     {
         Ok(data) => match SendRaftMessageReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -193,12 +183,10 @@ pub async fn send_raft_conf_change(
     .await
     {
         Ok(data) => match SendRaftConfChangeReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -218,12 +206,10 @@ pub async fn set_resource_config(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -243,12 +229,10 @@ pub async fn delete_resource_config(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -268,12 +252,10 @@ pub async fn get_resource_config(
     .await
     {
         Ok(data) => match GetResourceConfigReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -293,12 +275,10 @@ pub async fn set_idempotent_data(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -318,12 +298,10 @@ pub async fn delete_idempotent_data(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -343,11 +321,9 @@ pub async fn exists_idempotent_data(
     .await
     {
         Ok(data) => match ExistsIdempotentDataReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }

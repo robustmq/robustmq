@@ -17,9 +17,9 @@ mod common;
 #[cfg(test)]
 mod tests {
     use metadata_struct::placement::broker_node::BrokerNode;
+    use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::generate::placement::{
-        placement_center_service_client::PlacementCenterServiceClient, NodeListRequest,
-        RegisterNodeRequest, UnRegisterNodeRequest,
+        NodeListRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 
     use crate::common::{cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr};
@@ -40,7 +40,7 @@ mod tests {
         match client.register_node(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -61,7 +61,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -72,7 +72,7 @@ mod tests {
         match client.un_register_node(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -93,7 +93,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }

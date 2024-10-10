@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService},
-    poll::ClientPool,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::broker_server::generate::placement::{
     CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
 };
-use std::sync::Arc;
+
+use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
+use crate::poll::ClientPool;
 
 pub async fn broker_mqtt_delete_session(
     client_poll: Arc<ClientPool>,
@@ -39,12 +39,10 @@ pub async fn broker_mqtt_delete_session(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -64,12 +62,10 @@ pub async fn broker_mqtt_update_cache(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -89,11 +85,9 @@ pub async fn send_last_will_message(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }

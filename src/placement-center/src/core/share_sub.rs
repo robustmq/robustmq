@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    cache::placement::PlacementCacheManager,
-    storage::{
-        keys::storage_key_mqtt_node_sub_group_leader, placement::kv::KvStorage,
-        rocksdb::RocksDBEngine,
-    },
-};
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
-use std::{collections::HashMap, sync::Arc};
+
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
+use crate::storage::placement::kv::KvStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct ShareSubLeader {
     cluster_cache: Arc<PlacementCacheManager>,
@@ -32,10 +32,10 @@ impl ShareSubLeader {
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
-        return ShareSubLeader {
+        ShareSubLeader {
             cluster_cache,
             rocksdb_engine_handler,
-        };
+        }
     }
 
     pub fn get_leader_node(
@@ -89,7 +89,7 @@ impl ShareSubLeader {
         }
 
         self.save_node_sub_info(cluster_name, target_broker_id, group_name)?;
-        return Ok(target_broker_id);
+        Ok(target_broker_id)
     }
 
     #[allow(dead_code)]
@@ -123,7 +123,7 @@ impl ShareSubLeader {
                 break;
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     #[allow(dead_code)]
@@ -149,7 +149,7 @@ impl ShareSubLeader {
                 }
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     fn save_node_sub_info(
@@ -184,7 +184,7 @@ impl ShareSubLeader {
                 return Err(CommonError::CommmonError(e.to_string()));
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     fn read_node_sub_info(
@@ -206,24 +206,23 @@ impl ShareSubLeader {
             }
         }
 
-        return Ok(HashMap::new());
+        Ok(HashMap::new())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ShareSubLeader;
-    use crate::{
-        cache::placement::PlacementCacheManager,
-        storage::rocksdb::{column_family_list, RocksDBEngine},
-    };
-    use common_base::{
-        config::placement_center::placement_center_test_conf,
-        tools::{now_mills, unique_id},
-    };
+    use std::fs::remove_dir_all;
+    use std::sync::Arc;
+
+    use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::tools::{now_mills, unique_id};
     use metadata_struct::placement::broker_node::BrokerNode;
     use protocol::placement_center::generate::common::ClusterType;
-    use std::{fs::remove_dir_all, sync::Arc};
+
+    use super::ShareSubLeader;
+    use crate::cache::placement::PlacementCacheManager;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[test]
     fn node_leader_info_test() {

@@ -17,6 +17,6 @@ pub struct SegmentStorage {}
 impl SegmentStorage {
     #[allow(dead_code)]
     pub fn new() -> Self {
-        return SegmentStorage {};
+        SegmentStorage {}
     }
 }

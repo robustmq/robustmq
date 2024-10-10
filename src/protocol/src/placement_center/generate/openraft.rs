@@ -51,8 +51,8 @@ pub struct SnapshotReply {
 /// Generated client implementations.
 pub mod open_raft_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct OpenRaftServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -96,9 +96,8 @@ pub mod open_raft_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             OpenRaftServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -137,19 +136,14 @@ pub mod open_raft_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::VoteRequest>,
         ) -> std::result::Result<tonic::Response<super::VoteReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openraft.OpenRaftService/vote",
-            );
+            let path = http::uri::PathAndQuery::from_static("/openraft.OpenRaftService/vote");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("openraft.OpenRaftService", "vote"));
@@ -159,19 +153,14 @@ pub mod open_raft_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::AppendRequest>,
         ) -> std::result::Result<tonic::Response<super::AppendReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openraft.OpenRaftService/append",
-            );
+            let path = http::uri::PathAndQuery::from_static("/openraft.OpenRaftService/append");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("openraft.OpenRaftService", "append"));
@@ -181,19 +170,14 @@ pub mod open_raft_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::SnapshotRequest>,
         ) -> std::result::Result<tonic::Response<super::SnapshotReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/openraft.OpenRaftService/snapshot",
-            );
+            let path = http::uri::PathAndQuery::from_static("/openraft.OpenRaftService/snapshot");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("openraft.OpenRaftService", "snapshot"));
@@ -244,10 +228,7 @@ pub mod open_raft_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -303,22 +284,16 @@ pub mod open_raft_service_server {
                 "/openraft.OpenRaftService/vote" => {
                     #[allow(non_camel_case_types)]
                     struct voteSvc<T: OpenRaftService>(pub Arc<T>);
-                    impl<
-                        T: OpenRaftService,
-                    > tonic::server::UnaryService<super::VoteRequest> for voteSvc<T> {
+                    impl<T: OpenRaftService> tonic::server::UnaryService<super::VoteRequest> for voteSvc<T> {
                         type Response = super::VoteReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::VoteRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as OpenRaftService>::vote(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as OpenRaftService>::vote(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -348,15 +323,9 @@ pub mod open_raft_service_server {
                 "/openraft.OpenRaftService/append" => {
                     #[allow(non_camel_case_types)]
                     struct appendSvc<T: OpenRaftService>(pub Arc<T>);
-                    impl<
-                        T: OpenRaftService,
-                    > tonic::server::UnaryService<super::AppendRequest>
-                    for appendSvc<T> {
+                    impl<T: OpenRaftService> tonic::server::UnaryService<super::AppendRequest> for appendSvc<T> {
                         type Response = super::AppendReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AppendRequest>,
@@ -394,15 +363,9 @@ pub mod open_raft_service_server {
                 "/openraft.OpenRaftService/snapshot" => {
                     #[allow(non_camel_case_types)]
                     struct snapshotSvc<T: OpenRaftService>(pub Arc<T>);
-                    impl<
-                        T: OpenRaftService,
-                    > tonic::server::UnaryService<super::SnapshotRequest>
-                    for snapshotSvc<T> {
+                    impl<T: OpenRaftService> tonic::server::UnaryService<super::SnapshotRequest> for snapshotSvc<T> {
                         type Response = super::SnapshotReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SnapshotRequest>,
@@ -437,18 +400,14 @@ pub mod open_raft_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

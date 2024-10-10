@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clients::{
-    placement::mqtt::call::{
-        placement_create_session, placement_delete_session, placement_list_session,
-        placement_save_last_will_message, placement_update_session,
-    },
-    poll::ClientPool,
+use std::sync::Arc;
+
+use clients::placement::mqtt::call::{
+    placement_create_session, placement_delete_session, placement_list_session,
+    placement_save_last_will_message, placement_update_session,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
+use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::mqtt::session::MQTTSession;
 use protocol::placement_center::generate::mqtt::{
     CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, SaveLastWillMessageRequest,
     UpdateSessionRequest,
 };
-use std::sync::Arc;
 
 pub struct SessionStorage {
     client_poll: Arc<ClientPool>,
@@ -205,11 +205,14 @@ impl SessionStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::session::SessionStorage;
-    use clients::poll::ClientPool;
-    use common_base::{config::broker_mqtt::init_broker_mqtt_conf_by_path, tools::now_second};
-    use metadata_struct::mqtt::session::MQTTSession;
     use std::sync::Arc;
+
+    use clients::poll::ClientPool;
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+    use common_base::tools::now_second;
+    use metadata_struct::mqtt::session::MQTTSession;
+
+    use crate::storage::session::SessionStorage;
 
     #[tokio::test]
     async fn session_test() {

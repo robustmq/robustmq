@@ -16,8 +16,9 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
     use protocol::placement_center::generate::kv::{
-        kv_service_client::KvServiceClient, DeleteRequest, ExistsRequest, GetRequest, SetRequest,
+        DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
 
     use crate::common::pc_addr;

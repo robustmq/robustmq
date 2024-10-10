@@ -162,7 +162,7 @@ mod properties {
 
         if let Some(reference) = &properties.server_reference {
             buffer.put_u8(PropertyType::ServerReference as u8);
-            write_mqtt_string(buffer, &reference);
+            write_mqtt_string(buffer, reference);
         }
 
         Ok(())
@@ -296,8 +296,9 @@ fn reason(code: u8) -> Result<DisconnectReasonCode, Error> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use bytes::BytesMut;
+
+    use super::*;
 
     #[test]
     fn disconnect1_parsing_works() {

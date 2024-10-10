@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    cache::{placement::PlacementCacheManager, journal::JournalCacheManager}, storage::journal::segment::Replica,
-};
 use std::sync::Arc;
+
+use crate::cache::journal::JournalCacheManager;
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::journal::segment::Replica;
 
 pub struct SegmentReplicaAlgorithm {
     #[allow(dead_code)]
@@ -29,10 +30,10 @@ impl SegmentReplicaAlgorithm {
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
     ) -> SegmentReplicaAlgorithm {
-        return SegmentReplicaAlgorithm {
+        SegmentReplicaAlgorithm {
             cluster_cache,
             engine_cache,
-        };
+        }
     }
 
     pub fn calc_replica_distribution(&self, replica_seq: u64) -> Vec<Replica> {
@@ -43,6 +44,6 @@ impl SegmentReplicaAlgorithm {
             node_id,
             fold,
         };
-        return vec![rep];
+        vec![rep]
     }
 }

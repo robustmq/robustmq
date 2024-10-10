@@ -16,15 +16,17 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use clients::{
-        placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
-        poll::ClientPool,
+    use std::sync::Arc;
+
+    use clients::placement::kv::call::{
+        placement_delete, placement_exists, placement_get, placement_set,
     };
+    use clients::poll::ClientPool;
     use protocol::placement_center::generate::kv::{
         DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
-    use std::sync::Arc;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn kv_test() {
@@ -39,7 +41,7 @@ mod tests {
         match placement_set(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -47,10 +49,10 @@ mod tests {
         let exist_req = ExistsRequest { key: key.clone() };
         match placement_exists(client_poll.clone(), addrs.clone(), exist_req).await {
             Ok(da) => {
-               assert!(da.flag)
+                assert!(da.flag)
             }
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -61,7 +63,7 @@ mod tests {
                 assert_eq!(da.value, value);
             }
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -70,7 +72,7 @@ mod tests {
         match placement_delete(client_poll.clone(), addrs.clone(), exist_req).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -81,7 +83,7 @@ mod tests {
                 assert!(!da.flag)
             }
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }

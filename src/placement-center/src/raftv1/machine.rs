@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::rocksdb::RaftMachineStorage;
-use super::storage::RaftRocksDBStorage;
-use crate::cache::placement::PlacementCacheManager;
-use crate::core::raft_node::RaftNode;
-use crate::raftv1::peer::PeerMessage;
-use crate::storage::route::apply::{RaftMessage, RaftResponseMesage};
-use crate::storage::route::DataRoute;
+use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
+
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
 use common_base::error::common::CommonError;
@@ -28,17 +27,18 @@ use raft::eraftpb::{
     ConfChange, ConfChangeType, Entry, EntryType, Message as raftPreludeMessage, Snapshot,
 };
 use raft::{Config, RawNode};
-use slog::o;
-use slog::Drain;
-use std::collections::HashMap;
-use std::fs::OpenOptions;
-use std::sync::atomic::AtomicUsize;
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
-use std::time::Instant;
+use slog::{o, Drain};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, oneshot};
 use tokio::time::timeout;
+
+use super::rocksdb::RaftMachineStorage;
+use super::storage::RaftRocksDBStorage;
+use crate::cache::placement::PlacementCacheManager;
+use crate::core::raft_node::RaftNode;
+use crate::raftv1::peer::PeerMessage;
+use crate::storage::route::apply::{RaftMessage, RaftResponseMesage};
+use crate::storage::route::DataRoute;
 
 pub struct RaftMachine {
     cache_placement: Arc<PlacementCacheManager>,
@@ -64,7 +64,7 @@ impl RaftMachine {
         let seqnum = AtomicUsize::new(1);
         let resp_channel = HashMap::new();
         let conf = placement_center_conf();
-        return Self {
+        Self {
             cache_placement,
             receiver,
             seqnum,
@@ -74,7 +74,7 @@ impl RaftMachine {
             stop_recv,
             raft_storage,
             local_node_id: conf.node.node_id,
-        };
+        }
     }
 
     pub async fn run(&mut self) -> Result<(), CommonError> {
@@ -88,14 +88,11 @@ impl RaftMachine {
         let heartbeat = Duration::from_millis(100);
         let mut now = Instant::now();
         loop {
-            match self.stop_recv.try_recv() {
-                Ok(val) => {
-                    if val {
-                        info!("{}", "Raft Node Process services stop.");
-                        break;
-                    }
+            if let Ok(val) = self.stop_recv.try_recv() {
+                if val {
+                    info!("{}", "Raft Node Process services stop.");
+                    break;
                 }
-                Err(_) => {}
             }
 
             match timeout(heartbeat, self.receiver.recv()).await {
@@ -167,7 +164,7 @@ impl RaftMachine {
                 }
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     async fn on_ready(
@@ -228,7 +225,7 @@ impl RaftMachine {
         self.handle_committed_entries(raft_node, light_rd.take_committed_entries())?;
 
         raft_node.advance_apply();
-        return Ok(());
+        Ok(())
     }
 
     fn handle_committed_entries(
@@ -286,7 +283,7 @@ impl RaftMachine {
                 }
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     async fn send_message(&self, messages: Vec<raftPreludeMessage>) -> Result<(), CommonError> {
@@ -318,7 +315,7 @@ impl RaftMachine {
                 return Err(CommonError::CommmonError(format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to)));
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     fn new_node(&self) -> Result<RawNode<RaftRocksDBStorage>, CommonError> {
@@ -350,7 +347,7 @@ impl RaftMachine {
                 return Err(CommonError::CommmonError(e.to_string()));
             }
         };
-        return Ok(node);
+        Ok(node)
     }
 
     fn build_config(&self, apply: u64) -> Config {
@@ -395,8 +392,8 @@ impl RaftMachine {
             .overflow_strategy(slog_async::OverflowStrategy::Block)
             .build()
             .fuse();
-        let logger = slog::Logger::root(drain, o!("tag" => format!("meta-node-id={}", 1)));
-        return logger;
+
+        slog::Logger::root(drain, o!("tag" => format!("meta-node-id={}", 1)))
     }
 
     fn try_record_role_change(&self, raft_node: &RawNode<RaftRocksDBStorage>) {

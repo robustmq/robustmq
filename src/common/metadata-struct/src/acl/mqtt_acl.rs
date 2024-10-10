@@ -29,7 +29,7 @@ pub struct MQTTAcl {
 
 impl MQTTAcl {
     pub fn encode(&self) -> Result<Vec<u8>, CommonError> {
-        return Ok(serde_json::to_vec(&self)?);
+        Ok(serde_json::to_vec(&self)?)
     }
 }
 

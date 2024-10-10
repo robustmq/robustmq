@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::PlacementCenterInterface;
-use crate::{
-    placement::{retry_call, PlacementCenterService},
-    poll::ClientPool,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::placement_center::generate::{
-    common::CommonReply,
-    kv::{DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest},
+use protocol::placement_center::generate::common::CommonReply;
+use protocol::placement_center::generate::kv::{
+    DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest,
 };
-use std::sync::Arc;
+
+use super::PlacementCenterInterface;
+use crate::placement::{retry_call, PlacementCenterService};
+use crate::poll::ClientPool;
 
 pub async fn placement_set(
     client_poll: Arc<ClientPool>,
@@ -41,12 +41,10 @@ pub async fn placement_set(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -66,12 +64,10 @@ pub async fn placement_get(
     .await
     {
         Ok(data) => match GetReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -91,12 +87,10 @@ pub async fn placement_delete(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -116,11 +110,9 @@ pub async fn placement_exists(
     .await
     {
         Ok(data) => match ExistsReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }

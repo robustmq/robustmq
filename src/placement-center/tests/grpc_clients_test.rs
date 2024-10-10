@@ -15,15 +15,13 @@
 mod common;
 #[cfg(test)]
 mod tests {
-    use protocol::placement_center::generate::{
-        journal::{
-            engine_service_client::EngineServiceClient, CreateSegmentRequest, CreateShardRequest,
-            DeleteSegmentRequest, DeleteShardRequest,
-        },
-        placement::{
-            placement_center_service_client::PlacementCenterServiceClient, HeartbeatRequest,
-            RegisterNodeRequest, UnRegisterNodeRequest,
-        },
+    use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
+    use protocol::placement_center::generate::journal::{
+        CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
+    };
+    use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
+    use protocol::placement_center::generate::placement::{
+        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
     };
 
     use crate::common::{
@@ -46,7 +44,7 @@ mod tests {
         match client.register_node(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -65,7 +63,7 @@ mod tests {
         match client.heartbeat(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -84,7 +82,7 @@ mod tests {
         match client.un_register_node(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -101,7 +99,7 @@ mod tests {
         match client.create_shard(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -117,7 +115,7 @@ mod tests {
         match client.delete_shard(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -133,7 +131,7 @@ mod tests {
         match client.create_segment(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
@@ -150,7 +148,7 @@ mod tests {
         match client.delete_segment(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }

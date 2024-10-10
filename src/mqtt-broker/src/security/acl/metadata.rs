@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use dashmap::DashMap;
-use metadata_struct::acl::{
-    mqtt_acl::{MQTTAcl, MQTTAclResourceType},
-    mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType},
-};
+use metadata_struct::acl::mqtt_acl::{MQTTAcl, MQTTAclResourceType};
+use metadata_struct::acl::mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType};
 
 #[derive(Clone)]
 pub struct AclMetadata {
@@ -149,8 +147,11 @@ impl AclMetadata {
 #[cfg(test)]
 mod test {
     use common_base::tools::now_second;
-    use metadata_struct::acl::mqtt_acl::{MQTTAcl, MQTTAclAction, MQTTAclPermission, MQTTAclResourceType};
+    use metadata_struct::acl::mqtt_acl::{
+        MQTTAcl, MQTTAclAction, MQTTAclPermission, MQTTAclResourceType,
+    };
     use metadata_struct::acl::mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType};
+
     use crate::security::acl::metadata::AclMetadata;
 
     #[tokio::test]
@@ -168,8 +169,14 @@ mod test {
         acl_metadata.parse_mqtt_acl(client_id_acl.clone());
 
         assert!(acl_metadata.acl_client_id.contains_key("test_client"));
-        assert_eq!(acl_metadata.acl_client_id.get("test_client").unwrap().len(), 1);
-        assert_eq!(acl_metadata.acl_client_id.get("test_client").unwrap()[0].resource_name, "test_client");
+        assert_eq!(
+            acl_metadata.acl_client_id.get("test_client").unwrap().len(),
+            1
+        );
+        assert_eq!(
+            acl_metadata.acl_client_id.get("test_client").unwrap()[0].resource_name,
+            "test_client"
+        );
 
         // Test User ACL
         let user_acl = MQTTAcl {
@@ -184,11 +191,17 @@ mod test {
 
         assert!(acl_metadata.acl_user.contains_key("test_user"));
         assert_eq!(acl_metadata.acl_user.get("test_user").unwrap().len(), 1);
-        assert_eq!(acl_metadata.acl_user.get("test_user").unwrap()[0].resource_name, "test_user");
+        assert_eq!(
+            acl_metadata.acl_user.get("test_user").unwrap()[0].resource_name,
+            "test_user"
+        );
 
         // Test multiple ACLs for the same ClientId
         acl_metadata.parse_mqtt_acl(client_id_acl);
-        assert_eq!(acl_metadata.acl_client_id.get("test_client").unwrap().len(), 2);
+        assert_eq!(
+            acl_metadata.acl_client_id.get("test_client").unwrap().len(),
+            2
+        );
 
         // Test multiple ACLs for the same User
         acl_metadata.parse_mqtt_acl(user_acl);
@@ -237,8 +250,17 @@ mod test {
         };
         acl_metadata.parse_mqtt_blacklist(client_id_match_blacklist);
         let client_id_match_key = acl_metadata.get_client_id_match_key();
-        assert!(acl_metadata.blacklist_client_id_match.contains_key(&client_id_match_key));
-        assert_eq!(acl_metadata.blacklist_client_id_match.get(&client_id_match_key).unwrap().len(), 1);
+        assert!(acl_metadata
+            .blacklist_client_id_match
+            .contains_key(&client_id_match_key));
+        assert_eq!(
+            acl_metadata
+                .blacklist_client_id_match
+                .get(&client_id_match_key)
+                .unwrap()
+                .len(),
+            1
+        );
 
         // Test UserMatch blacklist
         let user_match_blacklist = MQTTAclBlackList {
@@ -249,8 +271,17 @@ mod test {
         };
         acl_metadata.parse_mqtt_blacklist(user_match_blacklist);
         let user_match_key = acl_metadata.get_user_match_key();
-        assert!(acl_metadata.blacklist_user_match.contains_key(&user_match_key));
-        assert_eq!(acl_metadata.blacklist_user_match.get(&user_match_key).unwrap().len(), 1);
+        assert!(acl_metadata
+            .blacklist_user_match
+            .contains_key(&user_match_key));
+        assert_eq!(
+            acl_metadata
+                .blacklist_user_match
+                .get(&user_match_key)
+                .unwrap()
+                .len(),
+            1
+        );
 
         // Test IPCIDR blacklist
         let ip_cidr_blacklist = MQTTAclBlackList {
@@ -262,7 +293,14 @@ mod test {
         acl_metadata.parse_mqtt_blacklist(ip_cidr_blacklist);
         let ip_cidr_key = acl_metadata.get_ip_cidr_key();
         assert!(acl_metadata.blacklist_ip_match.contains_key(&ip_cidr_key));
-        assert_eq!(acl_metadata.blacklist_ip_match.get(&ip_cidr_key).unwrap().len(), 1);
+        assert_eq!(
+            acl_metadata
+                .blacklist_ip_match
+                .get(&ip_cidr_key)
+                .unwrap()
+                .len(),
+            1
+        );
 
         // Test adding multiple entries for match types
         let another_client_id_match_blacklist = MQTTAclBlackList {
@@ -272,6 +310,13 @@ mod test {
             desc: "".to_string(),
         };
         acl_metadata.parse_mqtt_blacklist(another_client_id_match_blacklist);
-        assert_eq!(acl_metadata.blacklist_client_id_match.get(&client_id_match_key).unwrap().len(), 2);
+        assert_eq!(
+            acl_metadata
+                .blacklist_client_id_match
+                .get(&client_id_match_key)
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }

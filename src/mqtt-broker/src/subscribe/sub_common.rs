@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
-use crate::handler::cache::QosAckPackageData;
-use crate::observability::metrics::packets::record_sent_metrics;
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::ResponsePackage;
-use crate::storage::message::MessageStorage;
+use std::sync::Arc;
+use std::time::Duration;
+
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use clients::placement::mqtt::call::placement_get_share_sub_leader;
@@ -26,20 +23,22 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use log::error;
-use protocol::mqtt::codec::MQTTPacketWrapper;
-use protocol::mqtt::codec::MqttCodec;
-use protocol::mqtt::common::MQTTProtocol;
-use protocol::mqtt::common::{MQTTPacket, PubRel, Publish, PublishProperties, QoS};
+use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS};
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
 use regex::Regex;
-use std::sync::Arc;
-use std::time::Duration;
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::{sleep, timeout};
+
+use crate::handler::cache::{CacheManager, QosAckPackageData};
+use crate::observability::metrics::packets::record_sent_metrics;
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::ResponsePackage;
+use crate::storage::message::MessageStorage;
 
 const SHARE_SUB_PREFIX: &str = "$share";
 
@@ -134,7 +133,10 @@ pub async fn get_share_sub_leader(
     group_name: String,
 ) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_mqtt_conf();
-    let req = GetShareSubLeaderRequest { cluster_name: conf.cluster_name.clone(), group_name };
+    let req = GetShareSubLeaderRequest {
+        cluster_name: conf.cluster_name.clone(),
+        group_name,
+    };
     match placement_get_share_sub_leader(client_poll, conf.placement_center.clone(), req).await {
         Ok(reply) => {
             return Ok(reply);
@@ -172,9 +174,11 @@ pub async fn publish_message_to_client(
     if let Some(protocol) = connection_manager.get_connect_protocol(resp.connection_id) {
         record_sent_metrics(&resp, connection_manager);
 
-        let response: MQTTPacketWrapper =
-            MQTTPacketWrapper { protocol_version: protocol.clone().into(), packet: resp.packet };
-            
+        let response: MQTTPacketWrapper = MQTTPacketWrapper {
+            protocol_version: protocol.clone().into(),
+            packet: resp.packet,
+        };
+
         if connection_manager.is_websocket(resp.connection_id) {
             let mut codec = MqttCodec::new(Some(protocol.into()));
             let mut buff = BytesMut::new();
@@ -188,7 +192,9 @@ pub async fn publish_message_to_client(
                 .write_websocket_frame(resp.connection_id, Message::Binary(buff.to_vec()))
                 .await;
         }
-        return connection_manager.write_tcp_frame(resp.connection_id, response).await;
+        return connection_manager
+            .write_tcp_frame(resp.connection_id, response)
+            .await;
     }
     return Ok(());
 }
@@ -290,10 +296,15 @@ pub async fn qos2_send_pubrel(
             continue;
         };
 
-        let pubrel = PubRel { pkid, reason: Some(protocol::mqtt::common::PubRelReason::Success) };
+        let pubrel = PubRel {
+            pkid,
+            reason: Some(protocol::mqtt::common::PubRelReason::Success),
+        };
 
-        let pubrel_resp =
-            ResponsePackage { connection_id: connect_id, packet: MQTTPacket::PubRel(pubrel, None) };
+        let pubrel_resp = ResponsePackage {
+            connection_id: connect_id,
+            packet: MQTTPacket::PubRel(pubrel, None),
+        };
 
         select! {
             val = stop_rx.recv() => {
@@ -337,7 +348,9 @@ pub async fn loop_commit_offset<S>(
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     loop {
-        match message_storage.commit_group_offset(topic_id.clone(), group_id.clone(), offset).await
+        match message_storage
+            .commit_group_offset(topic_id.clone(), group_id.clone(), offset)
+            .await
         {
             Ok(_) => {
                 break;
@@ -408,21 +421,28 @@ pub async fn publish_message_qos0(
     match publish_message_to_client(resp.clone(), connection_manager).await {
         Ok(_) => {}
         Err(e) => {
-            error!("Failed Publish message to response queue, failure message: {}", e.to_string());
+            error!(
+                "Failed Publish message to response queue, failure message: {}",
+                e.to_string()
+            );
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::cache::CacheManager;
-    use crate::subscribe::sub_common::{decode_share_info, is_share_sub, sub_path_validator};
-    use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, path_regex_match};
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::QoS;
-    use std::sync::Arc;
+
+    use crate::handler::cache::CacheManager;
+    use crate::subscribe::sub_common::{
+        decode_share_info, get_sub_topic_id_list, is_share_sub, min_qos, path_regex_match,
+        sub_path_validator,
+    };
 
     #[tokio::test]
     async fn is_share_sub_test() {

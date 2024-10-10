@@ -12,32 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use axum::extract::ws::{Message, WebSocket};
+use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
+use axum::response::Response;
+use axum::routing::get;
+use axum::Router;
+use axum_extra::headers::UserAgent;
+use axum_extra::TypedHeader;
+use axum_server::tls_rustls::RustlsConfig;
+use bytes::{BufMut, BytesMut};
+use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use futures_util::stream::StreamExt;
+use log::{debug, error, info};
+use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
+use storage_adapter::storage::StorageAdapter;
+use tokio::select;
+use tokio::sync::broadcast::{self};
+
 use crate::handler::cache::CacheManager;
 use crate::handler::command::Command;
 use crate::security::AuthDriver;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 use crate::subscribe::subscribe_manager::SubscribeManager;
-use axum::extract::ws::{Message, WebSocket};
-use axum::extract::{ConnectInfo, State, WebSocketUpgrade};
-use axum::Router;
-use axum::{response::Response, routing::get};
-use axum_extra::headers::UserAgent;
-use axum_extra::TypedHeader;
-use axum_server::tls_rustls::RustlsConfig;
-use bytes::{BufMut, BytesMut};
-use clients::poll::ClientPool;
-
-use common_base::config::broker_mqtt::broker_mqtt_conf;
-use futures_util::stream::StreamExt;
-use log::{debug, error, info};
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
-use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
-use std::path::PathBuf;
-use std::{net::SocketAddr, sync::Arc};
-use storage_adapter::storage::StorageAdapter;
-use tokio::select;
-use tokio::sync::broadcast::{self};
 
 pub const ROUTE_ROOT: &str = "/mqtt";
 
@@ -57,9 +60,12 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        sucscribe_manager: Arc<SubscribeManager>, cache_manager: Arc<CacheManager>,
-        connection_manager: Arc<ConnectionManager>, message_storage_adapter: Arc<S>,
-        client_poll: Arc<ClientPool>, auth_driver: Arc<AuthDriver>,
+        sucscribe_manager: Arc<SubscribeManager>,
+        cache_manager: Arc<CacheManager>,
+        connection_manager: Arc<ConnectionManager>,
+        message_storage_adapter: Arc<S>,
+        client_poll: Arc<ClientPool>,
+        auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
         return Self {
@@ -79,10 +85,17 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websocket_port).parse().unwrap();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websocket_port)
+        .parse()
+        .unwrap();
     let app = routes_v1(state);
-    info!("Broker WebSocket Server start success. port:{}", config.network.websocket_port);
-    match axum_server::bind(ip).serve(app.into_make_service_with_connect_info::<SocketAddr>()).await
+    info!(
+        "Broker WebSocket Server start success. port:{}",
+        config.network.websocket_port
+    );
+    match axum_server::bind(ip)
+        .serve(app.into_make_service_with_connect_info::<SocketAddr>())
+        .await
     {
         Ok(()) => {}
         Err(e) => panic!("{}", e.to_string()),
@@ -94,7 +107,9 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     let config = broker_mqtt_conf();
-    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websockets_port).parse().unwrap();
+    let ip: SocketAddr = format!("0.0.0.0:{}", config.network.websockets_port)
+        .parse()
+        .unwrap();
     let app = routes_v1(state);
 
     let tls_config = match RustlsConfig::from_pem_file(
@@ -109,7 +124,10 @@ where
         }
     };
 
-    info!("Broker WebSocket TLS Server start success. port:{}", config.network.websockets_port);
+    info!(
+        "Broker WebSocket TLS Server start success. port:{}",
+        config.network.websockets_port
+    );
     match axum_server::bind_rustls(ip, tls_config)
         .serve(app.into_make_service_with_connect_info::<SocketAddr>())
         .await
@@ -130,8 +148,10 @@ where
 }
 
 async fn ws_handler<S>(
-    ws: WebSocketUpgrade, State(state): State<WebSocketServerState<S>>,
-    user_agent: Option<TypedHeader<UserAgent>>, ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    ws: WebSocketUpgrade,
+    State(state): State<WebSocketServerState<S>>,
+    user_agent: Option<TypedHeader<UserAgent>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
 ) -> Response
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
@@ -151,21 +171,26 @@ where
         state.auth_driver.clone(),
     );
     let codec = MqttCodec::new(None);
-    ws.protocols(["mqtt", "mqttv3.1"]).on_upgrade(move |socket| {
-        handle_socket(
-            socket,
-            addr,
-            command,
-            codec,
-            state.connection_manager.clone(),
-            state.stop_sx.clone(),
-        )
-    })
+    ws.protocols(["mqtt", "mqttv3.1"])
+        .on_upgrade(move |socket| {
+            handle_socket(
+                socket,
+                addr,
+                command,
+                codec,
+                state.connection_manager.clone(),
+                state.stop_sx.clone(),
+            )
+        })
 }
 
 async fn handle_socket<S>(
-    socket: WebSocket, addr: SocketAddr, mut command: Command<S>, mut codec: MqttCodec,
-    connection_manager: Arc<ConnectionManager>, stop_sx: broadcast::Sender<bool>,
+    socket: WebSocket,
+    addr: SocketAddr,
+    mut command: Command<S>,
+    mut codec: MqttCodec,
+    connection_manager: Arc<ConnectionManager>,
+    stop_sx: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {

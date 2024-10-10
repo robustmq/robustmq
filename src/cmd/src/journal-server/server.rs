@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::command;
-use clap::Parser;
+use clap::{command, Parser};
 use common_base::config::journal_server::init_journal_server_conf_by_path;
 use common_base::config::DEFAULT_JOURNAL_SERVER_CONFIG;
 use common_base::logs::init_journal_server_log;

@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    handler::command::Command,
-    server::{
-        connection_manager::ConnectionManager,
-        packet::{RequestPackage, ResponsePackage},
-    },
-};
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use log::{debug, error, info};
-use std::{collections::HashMap, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
+use tokio::select;
 use tokio::sync::broadcast;
-use tokio::{
-    select,
-    sync::mpsc::{self, Receiver, Sender},
-};
+use tokio::sync::mpsc::{self, Receiver, Sender};
+
+use crate::handler::command::Command;
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::{RequestPackage, ResponsePackage};
 
 pub(crate) async fn handler_process<S>(
     handler_process_num: usize,
@@ -123,7 +120,10 @@ fn handler_child_process<S>(
         let mut raw_command = command.clone();
 
         tokio::spawn(async move {
-            debug!("TCP Server handler process thread {} start successfully.", index);
+            debug!(
+                "TCP Server handler process thread {} start successfully.",
+                index
+            );
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{

@@ -14,18 +14,18 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use clients::{
-        placement::mqtt::call::{placement_list_user, placement_create_user,
-            placement_delete_user},
-        poll::ClientPool,
+    use std::sync::Arc;
+
+    use clients::placement::mqtt::call::{
+        placement_create_user, placement_delete_user, placement_list_user,
     };
+    use clients::poll::ClientPool;
     use metadata_struct::mqtt::user::MQTTUser;
     use protocol::placement_center::generate::mqtt::{
-        ListUserRequest, CreateUserRequest,
-        DeleteUserRequest,
+        CreateUserRequest, DeleteUserRequest, ListUserRequest,
     };
-    use std::sync::Arc;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_user_test() {
@@ -34,13 +34,13 @@ mod tests {
         let user_name: String = "chungka".to_string();
         let password: String = "123456".to_string();
         let cluster_name: String = "test_cluster".to_string();
-        
-        let mqtt_user: MQTTUser = MQTTUser{
+
+        let mqtt_user: MQTTUser = MQTTUser {
             username: user_name.clone(),
             password: password.clone(),
             is_superuser: false,
         };
-        
+
         let request: CreateUserRequest = CreateUserRequest {
             cluster_name: cluster_name.clone(),
             user_name: mqtt_user.username.clone(),

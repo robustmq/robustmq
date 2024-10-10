@@ -16,14 +16,16 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use std::process;
+
+    use common_base::tools::unique_id;
+    use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
+    use paho_mqtt::{Client, PropertyCode, ReasonCode};
+
     use crate::common::{
         broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_create_pros,
         build_v5_conn_pros, build_v5_pros, distinct_conn,
     };
-    use common_base::tools::unique_id;
-    use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
-    use paho_mqtt::{Client, PropertyCode, ReasonCode};
-    use std::process;
 
     #[tokio::test]
     async fn client5_connect_test() {
@@ -61,7 +63,6 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn client5_connect_wss_test() {
-        
         let client_id = unique_id();
         let addr = broker_wss_addr();
         v5_wrong_password_test(&client_id, &addr, true, true);
@@ -112,12 +113,10 @@ mod tests {
                     } else {
                         assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
                     }
+                } else if ssl {
+                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
                 } else {
-                    if ssl {
-                        assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                    } else {
-                        assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                    }
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
                 }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 // assert!(!resp.session_present);
@@ -147,12 +146,10 @@ mod tests {
                     } else {
                         assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
                     }
+                } else if ssl {
+                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
                 } else {
-                    if ssl {
-                        assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                    } else {
-                        assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                    }
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
                 }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 // assert!(!resp.session_present);
@@ -187,12 +184,10 @@ mod tests {
                     } else {
                         assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
                     }
+                } else if ssl {
+                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
                 } else {
-                    if ssl {
-                        assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                    } else {
-                        assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                    }
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
                 }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 // assert!(resp.session_present);
@@ -239,19 +234,19 @@ mod tests {
                     } else {
                         assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
                     }
+                } else if ssl {
+                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
                 } else {
-                    if ssl {
-                        assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                    } else {
-                        assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                    }
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
                 }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
 
                 // properties
                 let resp_pros = response.properties();
-                assert!(resp_pros.get_string(PropertyCode::ResponseInformation).is_none());
+                assert!(resp_pros
+                    .get_string(PropertyCode::ResponseInformation)
+                    .is_none());
             }
             Err(e) => {
                 println!("Unable to connect:\n\t{:?}", e);
@@ -265,7 +260,8 @@ mod tests {
         let mqtt_version = 5;
 
         let mut pros = build_v5_pros();
-        pros.push_val(PropertyCode::RequestResponseInformation, 1).unwrap();
+        pros.push_val(PropertyCode::RequestResponseInformation, 1)
+            .unwrap();
 
         let create_opts = build_create_pros(client_id, addr);
 
@@ -286,12 +282,10 @@ mod tests {
                     } else {
                         assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
                     }
+                } else if ssl {
+                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
                 } else {
-                    if ssl {
-                        assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                    } else {
-                        assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                    }
+                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
                 }
                 assert_eq!(mqtt_version, resp.mqtt_version);
                 assert_eq!(response.reason_code(), ReasonCode::Success);
@@ -299,31 +293,60 @@ mod tests {
                 // properties
                 let resp_pros = response.properties();
                 assert_eq!(
-                    resp_pros.get(PropertyCode::SessionExpiryInterval).unwrap().get_int().unwrap(),
+                    resp_pros
+                        .get(PropertyCode::SessionExpiryInterval)
+                        .unwrap()
+                        .get_int()
+                        .unwrap(),
                     3
                 );
 
                 assert_eq!(
-                    resp_pros.get(PropertyCode::ReceiveMaximum).unwrap().get_int().unwrap(),
+                    resp_pros
+                        .get(PropertyCode::ReceiveMaximum)
+                        .unwrap()
+                        .get_int()
+                        .unwrap(),
                     65535
                 );
 
-                assert_eq!(resp_pros.get(PropertyCode::MaximumQos).unwrap().get_int().unwrap(), 2);
+                assert_eq!(
+                    resp_pros
+                        .get(PropertyCode::MaximumQos)
+                        .unwrap()
+                        .get_int()
+                        .unwrap(),
+                    2
+                );
 
                 assert_eq!(
-                    resp_pros.get(PropertyCode::RetainAvailable).unwrap().get_int().unwrap(),
+                    resp_pros
+                        .get(PropertyCode::RetainAvailable)
+                        .unwrap()
+                        .get_int()
+                        .unwrap(),
                     1
                 );
 
                 assert_eq!(
-                    resp_pros.get(PropertyCode::MaximumPacketSize).unwrap().get_int().unwrap(),
+                    resp_pros
+                        .get(PropertyCode::MaximumPacketSize)
+                        .unwrap()
+                        .get_int()
+                        .unwrap(),
                     10485760
                 );
 
-                assert!(resp_pros.get(PropertyCode::AssignedClientIdentifer).is_none());
+                assert!(resp_pros
+                    .get(PropertyCode::AssignedClientIdentifer)
+                    .is_none());
 
                 assert_eq!(
-                    resp_pros.get(PropertyCode::TopicAliasMaximum).unwrap().get_int().unwrap(),
+                    resp_pros
+                        .get(PropertyCode::TopicAliasMaximum)
+                        .unwrap()
+                        .get_int()
+                        .unwrap(),
                     65535
                 );
 
@@ -359,12 +382,20 @@ mod tests {
                 );
 
                 assert_eq!(
-                    resp_pros.get(PropertyCode::ServerKeepAlive).unwrap().get_int().unwrap(),
+                    resp_pros
+                        .get(PropertyCode::ServerKeepAlive)
+                        .unwrap()
+                        .get_int()
+                        .unwrap(),
                     1200
                 );
 
                 assert_eq!(
-                    resp_pros.get(PropertyCode::ResponseInformation).unwrap().get_string().unwrap(),
+                    resp_pros
+                        .get(PropertyCode::ResponseInformation)
+                        .unwrap()
+                        .get_string()
+                        .unwrap(),
                     REQUEST_RESPONSE_PREFIX_NAME.to_string()
                 );
 
