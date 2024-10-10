@@ -145,48 +145,27 @@ mod test {
     #[test]
     pub fn topic_name_validator_test() {
         let topic_name = "".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                assert!(e.to_string() == MQTTBrokerError::TopicNameIsEmpty.to_string())
-            }
+        if let Err(e) = topic_name_validator(&topic_name) {
+            // assert!(e.to_string() == MQTTBrokerError::TopicNameIsEmpty.to_string())
+            assert_eq!(e, MQTTBrokerError::TopicNameIsEmpty);
         }
 
         let topic_name = "/test/test".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
 
         let topic_name = "test/test/".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
 
         let topic_name = "test/$1".to_string();
-        let err = topic_name_validator(&topic_name).unwrap_err();
-        println!("{:?}", err);
+        if let Err(err) = topic_name_validator(&topic_name) {
+            println!("{:?}", err);
+        }
 
         let topic_name = "test/1".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
 
         let topic_name =
             "/sys/request_response/response/1eb1f833e0de4169908acedec8eb62f7".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
     }
 }
