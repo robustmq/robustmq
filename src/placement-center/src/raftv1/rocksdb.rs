@@ -364,7 +364,7 @@ impl RaftMachineStorage {
             .unwrap();
         let results = self.rocksdb_engine_handler.read_prefix(cf, &key);
         let mut data_list = Vec::new();
-        for raw in results {
+        if let Ok(raw) = results {
             for (_, v) in raw {
                 match serde_json::from_slice::<RaftUncommitData>(v.as_ref()) {
                     Ok(v) => data_list.push(v),
