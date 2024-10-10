@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::preferred_election::PreferredElection;
 use log::info;
+
+use super::preferred_election::PreferredElection;
 
 pub struct StorageEngineController {}
 
@@ -21,7 +22,7 @@ impl StorageEngineController {
     pub fn new() -> StorageEngineController {
         let controller = StorageEngineController {};
         controller.load_cache();
-        return controller;
+        controller
     }
 
     pub async fn start(&self) {

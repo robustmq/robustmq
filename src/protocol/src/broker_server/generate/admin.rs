@@ -26,8 +26,8 @@ pub struct ClusterStatusReply {
 /// Generated client implementations.
 pub mod mqtt_broker_admin_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct MqttBrokerAdminServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -71,13 +71,10 @@ pub mod mqtt_broker_admin_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
-            MqttBrokerAdminServiceClient::new(
-                InterceptedService::new(inner, interceptor),
-            )
+            MqttBrokerAdminServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -113,28 +110,23 @@ pub mod mqtt_broker_admin_service_client {
         pub async fn cluster_status(
             &mut self,
             request: impl tonic::IntoRequest<super::ClusterStatusRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ClusterStatusReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ClusterStatusReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/admin.MQTTBrokerAdminService/cluster_status",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("admin.MQTTBrokerAdminService", "cluster_status"),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "admin.MQTTBrokerAdminService",
+                "cluster_status",
+            ));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -149,10 +141,7 @@ pub mod mqtt_broker_admin_service_server {
         async fn cluster_status(
             &self,
             request: tonic::Request<super::ClusterStatusRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ClusterStatusReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ClusterStatusReply>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct MqttBrokerAdminServiceServer<T: MqttBrokerAdminService> {
@@ -177,10 +166,7 @@ pub mod mqtt_broker_admin_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -215,8 +201,7 @@ pub mod mqtt_broker_admin_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>>
-    for MqttBrokerAdminServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for MqttBrokerAdminServiceServer<T>
     where
         T: MqttBrokerAdminService,
         B: Body + Send + 'static,
@@ -237,26 +222,19 @@ pub mod mqtt_broker_admin_service_server {
                 "/admin.MQTTBrokerAdminService/cluster_status" => {
                     #[allow(non_camel_case_types)]
                     struct cluster_statusSvc<T: MqttBrokerAdminService>(pub Arc<T>);
-                    impl<
-                        T: MqttBrokerAdminService,
-                    > tonic::server::UnaryService<super::ClusterStatusRequest>
-                    for cluster_statusSvc<T> {
+                    impl<T: MqttBrokerAdminService>
+                        tonic::server::UnaryService<super::ClusterStatusRequest>
+                        for cluster_statusSvc<T>
+                    {
                         type Response = super::ClusterStatusReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ClusterStatusRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttBrokerAdminService>::cluster_status(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as MqttBrokerAdminService>::cluster_status(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -284,18 +262,14 @@ pub mod mqtt_broker_admin_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }
@@ -321,8 +295,7 @@ pub mod mqtt_broker_admin_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: MqttBrokerAdminService> tonic::server::NamedService
-    for MqttBrokerAdminServiceServer<T> {
+    impl<T: MqttBrokerAdminService> tonic::server::NamedService for MqttBrokerAdminServiceServer<T> {
         const NAME: &'static str = "admin.MQTTBrokerAdminService";
     }
 }

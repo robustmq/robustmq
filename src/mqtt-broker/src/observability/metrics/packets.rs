@@ -12,22 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use lazy_static::lazy_static;
-use prometheus::{register_int_gauge_vec, IntGaugeVec};
-use protocol::mqtt::{
-    codec::{calc_mqtt_packet_size, MQTTPacketWrapper},
-    common::{MQTTPacket, QoS},
-};
 use std::sync::Arc;
 
-use crate::{
-    handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS},
-    server::{
-        connection::{NetworkConnection, NetworkConnectionType},
-        connection_manager::ConnectionManager,
-        packet::ResponsePackage,
-    },
-};
+use lazy_static::lazy_static;
+use prometheus::{register_int_gauge_vec, IntGaugeVec};
+use protocol::mqtt::codec::{calc_mqtt_packet_size, MQTTPacketWrapper};
+use protocol::mqtt::common::{MQTTPacket, QoS};
+
+use crate::handler::constant::{METRICS_KEY_NETWORK_TYPE, METRICS_KEY_QOS};
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::ResponsePackage;
 
 lazy_static! {
     // Number of packets received
@@ -165,10 +160,8 @@ pub fn record_retain_sent_metrics(qos: QoS) {
 
 #[cfg(test)]
 mod tests {
-    use protocol::mqtt::{
-        codec::{calc_mqtt_packet_size, MQTTPacketWrapper},
-        common::{MQTTPacket, UnsubAck},
-    };
+    use protocol::mqtt::codec::{calc_mqtt_packet_size, MQTTPacketWrapper};
+    use protocol::mqtt::common::{MQTTPacket, UnsubAck};
 
     #[test]
     fn calc_mqtt_packet_size_test() {

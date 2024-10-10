@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{placement::kv::KvStorage, rocksdb::RocksDBEngine};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::generate::kv::{DeleteRequest, SetRequest};
-use std::sync::Arc;
+
+use crate::storage::placement::kv::KvStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteKv {
@@ -26,17 +29,15 @@ pub struct DataRouteKv {
 impl DataRouteKv {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
         let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
-        return DataRouteKv {
-            kv_storage,
-        };
+        DataRouteKv { kv_storage }
     }
     pub fn set(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: SetRequest = SetRequest::decode(value.as_ref())?;
-        return self.kv_storage.set(req.key, req.value);
+        self.kv_storage.set(req.key, req.value)
     }
 
     pub fn delete(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: DeleteRequest = DeleteRequest::decode(value.as_ref())?;
-        return self.kv_storage.delete(req.key);
+        self.kv_storage.delete(req.key)
     }
 }

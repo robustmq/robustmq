@@ -12,25 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::PlacementCenterInterface;
-use crate::{
-    placement::{retry_call, PlacementCenterService},
-    poll::ClientPool,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::placement_center::generate::{
-    common::CommonReply,
-    mqtt::{
-        CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
-        CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
-        DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-        ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-        ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
-    },
+use protocol::placement_center::generate::common::CommonReply;
+use protocol::placement_center::generate::mqtt::{
+    CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
+    CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
+    DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
 };
-use std::sync::Arc;
+
+use super::PlacementCenterInterface;
+use crate::placement::{retry_call, PlacementCenterService};
+use crate::poll::ClientPool;
 
 pub async fn placement_get_share_sub_leader(
     client_poll: Arc<ClientPool>,
@@ -48,12 +46,10 @@ pub async fn placement_get_share_sub_leader(
     .await
     {
         Ok(data) => match GetShareSubLeaderReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -73,12 +69,10 @@ pub async fn placement_create_user(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -98,12 +92,10 @@ pub async fn placement_delete_user(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -123,12 +115,10 @@ pub async fn placement_list_user(
     .await
     {
         Ok(data) => match ListUserReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 pub async fn placement_create_topic(
@@ -147,12 +137,10 @@ pub async fn placement_create_topic(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -172,12 +160,10 @@ pub async fn placement_delete_topic(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -197,12 +183,10 @@ pub async fn placement_list_topic(
     .await
     {
         Ok(data) => match ListTopicReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -222,12 +206,10 @@ pub async fn placement_set_topic_retain_message(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -247,12 +229,10 @@ pub async fn placement_create_session(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -272,12 +252,10 @@ pub async fn placement_delete_session(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -297,12 +275,10 @@ pub async fn placement_list_session(
     .await
     {
         Ok(data) => match ListSessionReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -322,12 +298,10 @@ pub async fn placement_update_session(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -347,12 +321,10 @@ pub async fn placement_save_last_will_message(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -372,12 +344,10 @@ pub async fn list_acl(
     .await
     {
         Ok(data) => match ListAclReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -397,12 +367,10 @@ pub async fn create_acl(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -422,12 +390,10 @@ pub async fn delete_acl(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -447,12 +413,10 @@ pub async fn list_blacklist(
     .await
     {
         Ok(data) => match ListBlacklistReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -472,12 +436,10 @@ pub async fn create_blacklist(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -497,11 +459,9 @@ pub async fn delete_blacklist(
     .await
     {
         Ok(data) => match CommonReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }

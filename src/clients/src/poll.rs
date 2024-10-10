@@ -12,13 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    mqtt::{admin::MqttBrokerAdminServiceManager, placement::MqttBrokerPlacementServiceManager}, placement::{journal::JournalServiceManager, kv::KvServiceManager, mqtt::MQTTServiceManager, openraft::OpenRaftServiceManager, placement::PlacementServiceManager},
-};
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use log::info;
 use mobc::{Connection, Pool};
+
+use crate::mqtt::admin::MqttBrokerAdminServiceManager;
+use crate::mqtt::placement::MqttBrokerPlacementServiceManager;
+use crate::placement::journal::JournalServiceManager;
+use crate::placement::kv::KvServiceManager;
+use crate::placement::mqtt::MQTTServiceManager;
+use crate::placement::openraft::OpenRaftServiceManager;
+use crate::placement::placement::PlacementServiceManager;
 
 #[derive(Clone)]
 pub struct ClientPool {
@@ -77,10 +82,10 @@ impl ClientPool {
                 }
             };
         }
-        return Err(CommonError::NoAvailableGrpcConnection(
+        Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
-        ));
+        ))
     }
 
     pub async fn placement_center_journal_services_client(
@@ -113,10 +118,10 @@ impl ClientPool {
                 }
             };
         }
-        return Err(CommonError::NoAvailableGrpcConnection(
+        Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
-        ));
+        ))
     }
 
     pub async fn placement_center_kv_services_client(
@@ -149,10 +154,10 @@ impl ClientPool {
             };
         }
 
-        return Err(CommonError::NoAvailableGrpcConnection(
+        Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
-        ));
+        ))
     }
 
     pub async fn placement_center_mqtt_services_client(
@@ -183,10 +188,10 @@ impl ClientPool {
                 }
             };
         }
-        return Err(CommonError::NoAvailableGrpcConnection(
+        Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
-        ));
+        ))
     }
 
     pub async fn mqtt_broker_mqtt_services_client(
@@ -218,10 +223,10 @@ impl ClientPool {
                 }
             };
         }
-        return Err(CommonError::NoAvailableGrpcConnection(
+        Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
-        ));
+        ))
     }
 
     pub async fn mqtt_broker_admin_services_client(
@@ -253,10 +258,10 @@ impl ClientPool {
                 }
             };
         }
-        return Err(CommonError::NoAvailableGrpcConnection(
+        Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
-        ));
+        ))
     }
 
     pub async fn placement_center_openraft_services_client(
@@ -291,17 +296,17 @@ impl ClientPool {
             };
         }
 
-        return Err(CommonError::NoAvailableGrpcConnection(
+        Err(CommonError::NoAvailableGrpcConnection(
             module,
             "connection pool is not initialized".to_string(),
-        ));
+        ))
     }
 
     pub fn get_leader_addr(&self, addr: &String) -> Option<String> {
         if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(addr) {
             return Some(leader_addr.clone());
         }
-        return None;
+        None
     }
 
     pub fn set_leader_addr(&self, addr: &String, leader_addr: &String) {

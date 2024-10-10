@@ -53,8 +53,8 @@ pub struct ExistsReply {
 /// Generated client implementations.
 pub mod kv_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct KvServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -98,9 +98,8 @@ pub mod kv_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             KvServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -139,46 +138,38 @@ pub mod kv_service_client {
         pub async fn set(
             &mut self,
             request: impl tonic::IntoRequest<super::SetRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/kv.KvService/set");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("kv.KvService", "set"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("kv.KvService", "set"));
             self.inner.unary(req, path, codec).await
         }
         ///
         pub async fn delete(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/kv.KvService/delete");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("kv.KvService", "delete"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("kv.KvService", "delete"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -186,19 +177,17 @@ pub mod kv_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetRequest>,
         ) -> std::result::Result<tonic::Response<super::GetReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/kv.KvService/get");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("kv.KvService", "get"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("kv.KvService", "get"));
             self.inner.unary(req, path, codec).await
         }
         ///
@@ -206,19 +195,17 @@ pub mod kv_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ExistsRequest>,
         ) -> std::result::Result<tonic::Response<super::ExistsReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/kv.KvService/exists");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("kv.KvService", "exists"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("kv.KvService", "exists"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -234,18 +221,12 @@ pub mod kv_service_server {
         async fn set(
             &self,
             request: tonic::Request<super::SetRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         ///
         async fn delete(
             &self,
             request: tonic::Request<super::DeleteRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         ///
         async fn get(
             &self,
@@ -280,10 +261,7 @@ pub mod kv_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -339,21 +317,15 @@ pub mod kv_service_server {
                 "/kv.KvService/set" => {
                     #[allow(non_camel_case_types)]
                     struct setSvc<T: KvService>(pub Arc<T>);
-                    impl<T: KvService> tonic::server::UnaryService<super::SetRequest>
-                    for setSvc<T> {
+                    impl<T: KvService> tonic::server::UnaryService<super::SetRequest> for setSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SetRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as KvService>::set(&inner, request).await
-                            };
+                            let fut = async move { <T as KvService>::set(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -383,21 +355,16 @@ pub mod kv_service_server {
                 "/kv.KvService/delete" => {
                     #[allow(non_camel_case_types)]
                     struct deleteSvc<T: KvService>(pub Arc<T>);
-                    impl<T: KvService> tonic::server::UnaryService<super::DeleteRequest>
-                    for deleteSvc<T> {
+                    impl<T: KvService> tonic::server::UnaryService<super::DeleteRequest> for deleteSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as KvService>::delete(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as KvService>::delete(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -427,21 +394,15 @@ pub mod kv_service_server {
                 "/kv.KvService/get" => {
                     #[allow(non_camel_case_types)]
                     struct getSvc<T: KvService>(pub Arc<T>);
-                    impl<T: KvService> tonic::server::UnaryService<super::GetRequest>
-                    for getSvc<T> {
+                    impl<T: KvService> tonic::server::UnaryService<super::GetRequest> for getSvc<T> {
                         type Response = super::GetReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as KvService>::get(&inner, request).await
-                            };
+                            let fut = async move { <T as KvService>::get(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -471,21 +432,16 @@ pub mod kv_service_server {
                 "/kv.KvService/exists" => {
                     #[allow(non_camel_case_types)]
                     struct existsSvc<T: KvService>(pub Arc<T>);
-                    impl<T: KvService> tonic::server::UnaryService<super::ExistsRequest>
-                    for existsSvc<T> {
+                    impl<T: KvService> tonic::server::UnaryService<super::ExistsRequest> for existsSvc<T> {
                         type Response = super::ExistsReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ExistsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as KvService>::exists(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as KvService>::exists(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -512,18 +468,14 @@ pub mod kv_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Cursor;
+use std::sync::Arc;
+
 use log::error;
+use openraft::storage::RaftStateMachine;
 use openraft::{
-    storage::RaftStateMachine, AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId,
-    OptionalSend, RaftSnapshotBuilder, Snapshot, SnapshotMeta, StorageError, StoredMembership,
+    AnyError, EntryPayload, ErrorSubject, ErrorVerb, LogId, OptionalSend, RaftSnapshotBuilder,
+    Snapshot, SnapshotMeta, StorageError, StoredMembership,
 };
 use rocksdb::{ColumnFamily, DB};
-use std::{collections::BTreeMap, io::Cursor, sync::Arc};
-
-use crate::{
-    raftv2::{
-        raft_node::{typ, NodeId},
-        route::AppResponseData,
-        typeconfig::{SnapshotData, TypeConfig},
-    },
-    storage::route::DataRoute,
-};
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
+use crate::raftv2::raft_node::{typ, NodeId};
+use crate::raftv2::route::AppResponseData;
+use crate::raftv2::typeconfig::{SnapshotData, TypeConfig};
+use crate::storage::route::DataRoute;
 
 #[derive(Debug, Clone)]
 pub struct StateMachineStore {
@@ -116,17 +114,12 @@ impl StateMachineStore {
         &mut self,
         snapshot: StoredSnapshot,
     ) -> Result<(), StorageError<TypeConfig>> {
-        
         self.data.last_applied_log_id = snapshot.meta.last_log_id;
         self.data.last_membership = snapshot.meta.last_membership.clone();
 
         match self.data.route.recover_snapshot(snapshot.data) {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => {
-                return Err(StorageError::read(&e));
-            }
+            Ok(_) => Ok(()),
+            Err(e) => Err(StorageError::read(&e)),
         }
     }
 

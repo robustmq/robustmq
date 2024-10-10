@@ -15,19 +15,15 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::storage::route::DataRoute;
-
-use super::typeconfig::TypeConfig;
-use byteorder::BigEndian;
-use byteorder::ReadBytesExt;
-use byteorder::WriteBytesExt;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use log_store::LogStore;
 use openraft::{SnapshotMeta, StorageError};
-use rocksdb::ColumnFamilyDescriptor;
-use rocksdb::Options;
-use rocksdb::DB;
+use rocksdb::{ColumnFamilyDescriptor, Options, DB};
 use serde::{Deserialize, Serialize};
 use state_machine_store::StateMachineStore;
+
+use super::typeconfig::TypeConfig;
+use crate::storage::route::DataRoute;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StoredSnapshot {
     pub meta: SnapshotMeta<TypeConfig>,
@@ -74,9 +70,9 @@ pub(crate) async fn new_storage<P: AsRef<Path>>(
 }
 
 fn cf_raft_store() -> String {
-    return "store".to_string();
+    "store".to_string()
 }
 
 fn cf_raft_logs() -> String {
-    return "logs".to_string();
+    "logs".to_string()
 }

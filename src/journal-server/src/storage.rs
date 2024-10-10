@@ -18,4 +18,3 @@ pub trait StorageFormat {
     fn append(&self);
     fn read(&self);
 }
-

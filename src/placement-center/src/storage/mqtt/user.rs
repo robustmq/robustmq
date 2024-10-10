@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-        engine_save_by_cluster,
-    },
-    keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix},
-    rocksdb::RocksDBEngine,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::user::MQTTUser;
-use std::sync::Arc;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_cluster,
+};
+use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix};
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MQTTUserStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -42,7 +42,7 @@ impl MQTTUserStorage {
         user: MQTTUser,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(cluster_name, user_name);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user)
     }
 
     pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTUser>, CommonError> {
@@ -60,11 +60,9 @@ impl MQTTUserStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -76,39 +74,37 @@ impl MQTTUserStorage {
         let key: String = storage_key_mqtt_user(cluster_name, username);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<MQTTUser>(&data.data) {
-                Ok(user) => {
-                    return Ok(Some(user));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(user) => Ok(Some(user)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => return Ok(None),
-            Err(e) => return Err(e),
+            Ok(None) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
     pub fn delete(&self, cluster_name: &String, user_name: &String) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, user_name);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::mqtt::user::MQTTUserStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
-    use common_base::config::placement_center::placement_center_test_conf;
-    use metadata_struct::mqtt::user::MQTTUser;
     use std::fs::remove_dir_all;
     use std::sync::Arc;
+
+    use common_base::config::placement_center::placement_center_test_conf;
+    use metadata_struct::mqtt::user::MQTTUser;
+
+    use crate::storage::mqtt::user::MQTTUserStorage;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
     async fn user_storage_test() {
         let config = placement_center_test_conf();
 
         let rs = Arc::new(RocksDBEngine::new(
-            &config.rocksdb.data_path.as_str(),
+            config.rocksdb.data_path.as_str(),
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
@@ -136,7 +132,7 @@ mod tests {
         let res = user_storage
             .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
-        assert!(!res.is_none());
+        assert!(res.is_some());
 
         let name = "lobo1".to_string();
         user_storage.delete(&cluster_name, &name).unwrap();

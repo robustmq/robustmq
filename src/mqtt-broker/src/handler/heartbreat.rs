@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::cluster::ClusterStorage;
+use std::sync::Arc;
+use std::time::Duration;
+
 use clients::poll::ClientPool;
 use log::{debug, error};
-use std::{sync::Arc, time::Duration};
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::select;
+use tokio::sync::broadcast;
+use tokio::time::sleep;
+
+use crate::storage::cluster::ClusterStorage;
 
 pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
     loop {

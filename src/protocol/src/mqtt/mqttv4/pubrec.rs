@@ -31,10 +31,10 @@ use super::*;
 
 impl PubRec {
     fn mqttv4(pkid: u16) -> PubRec {
-        return PubRec {
-            pkid: pkid,
+        PubRec {
+            pkid,
             reason: Some(PubRecReason::Success),
-        };
+        }
     }
 }
 
@@ -48,12 +48,12 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRec, Error
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
     if fixed_header.remaining_len == 2 {
-        return Ok(PubRec {
+        Ok(PubRec {
             pkid,
             reason: Some(PubRecReason::Success),
-        });
+        })
     } else {
-        return Err(Error::InvalidRemainingLength(fixed_header.remaining_len));
+        Err(Error::InvalidRemainingLength(fixed_header.remaining_len))
     }
 }
 

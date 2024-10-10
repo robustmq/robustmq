@@ -16,13 +16,15 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use std::process;
+
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Client, ReasonCode};
+
     use crate::common::{
         broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, build_create_pros,
         build_v3_conn_pros, distinct_conn,
     };
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Client, ReasonCode};
-    use std::process;
 
     #[tokio::test]
     async fn client34_connect_test() {
@@ -59,7 +61,7 @@ mod tests {
         let mqtt_version = 4;
         let client_id = unique_id();
         let addr = broker_ws_addr();
-        
+
         v3_wrong_password_test(mqtt_version, &client_id, &addr, true, false);
         // v3_session_present_test(mqtt_version, &client_id, &addr, true, false);
     }
@@ -111,14 +113,14 @@ mod tests {
         let cli = match Client::new(create_opts) {
             Ok(data) => data,
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false);
                 return;
             }
         };
 
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
-        println!("{:?}",conn_opts);
+        println!("{:?}", conn_opts);
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();

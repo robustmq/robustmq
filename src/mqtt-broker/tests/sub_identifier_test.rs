@@ -18,13 +18,14 @@ mod common;
 mod tests {
     use std::time::{Duration, Instant};
 
+    use common_base::tools::unique_id;
+    use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
+    use tokio::time::{sleep, timeout};
+
     use crate::common::{
         broker_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr, connect_server5,
         distinct_conn,
     };
-    use common_base::tools::unique_id;
-    use paho_mqtt::{MessageBuilder, Properties, PropertyCode, SubscribeOptions, QOS_1};
-    use tokio::time::{sleep, timeout};
 
     #[tokio::test]
     async fn client5_sub_identifier_test_tcp() {
@@ -122,14 +123,11 @@ mod tests {
     #[tokio::test]
     async fn tokio_timeout_test() {
         let now = Instant::now();
-        match timeout(Duration::from_secs(3), async {
+        if let Ok(_) = timeout(Duration::from_secs(3), async {
             sleep(Duration::from_secs(5)).await;
         })
         .await
-        {
-            Ok(_) => {}
-            Err(_) => {}
-        }
+        {}
         assert_eq!(now.elapsed().as_secs(), 3);
     }
 

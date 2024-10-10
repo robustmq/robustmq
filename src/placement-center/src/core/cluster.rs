@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::raft_node::RaftNode;
 use common_base::config::placement_center::placement_center_conf;
 use dashmap::DashMap;
 use raft::StateRole;
 use serde::{Deserialize, Serialize};
+
+use super::raft_node::RaftNode;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct ClusterMetadata {
@@ -100,12 +101,12 @@ impl ClusterMetadata {
         if let Some(node) = self.votes.get(&id) {
             return Some(node.clone());
         }
-        return None;
+        None
     }
 
     pub fn is_raft_role_change(&self, new_role: StateRole) -> bool {
         let n_role = role_to_string(new_role);
-        return !(n_role == self.raft_role);
+        n_role != self.raft_role
     }
 
     pub fn is_leader(&self) -> bool {
@@ -114,11 +115,10 @@ impl ClusterMetadata {
 }
 
 fn role_to_string(role: StateRole) -> String {
-    let str = match role {
+    match role {
         StateRole::Leader => "Leader".to_string(),
         StateRole::Follower => "Follower".to_string(),
         StateRole::Candidate => "Candidate".to_string(),
         StateRole::PreCandidate => "PreCandidate".to_string(),
-    };
-    return str;
+    }
 }

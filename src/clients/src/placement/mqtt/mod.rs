@@ -12,25 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::PlacementCenterInterface;
-use crate::poll::ClientPool;
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::{
-    common::CommonReply,
-    mqtt::{
-        mqtt_service_client::MqttServiceClient, CreateAclRequest, CreateBlacklistRequest,
-        CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteAclRequest,
-        DeleteBlacklistRequest, DeleteSessionRequest, DeleteTopicRequest, DeleteUserRequest,
-        GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
-        ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest,
-        ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-        SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
-    },
+use protocol::placement_center::generate::common::CommonReply;
+use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
+use protocol::placement_center::generate::mqtt::{
+    CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
+    CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
+    DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
+    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
+    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
+    SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
 };
-use std::sync::Arc;
 use tonic::transport::Channel;
+
+use super::PlacementCenterInterface;
+use crate::poll::ClientPool;
 
 pub mod call;
 mod inner;
@@ -43,12 +43,8 @@ async fn mqtt_client(
         .placement_center_mqtt_services_client(addr)
         .await
     {
-        Ok(client) => {
-            return Ok(client);
-        }
-        Err(e) => {
-            return Err(e);
-        }
+        Ok(client) => Ok(client),
+        Err(e) => Err(e),
     }
 }
 
@@ -70,7 +66,7 @@ pub(crate) async fn mqtt_interface_call(
                             |mut client, request| async move {
                                 client.get_share_sub_leader(request).await
                             },
-                            |reply| GetShareSubLeaderReply::encode_to_vec(reply),
+                            GetShareSubLeaderReply::encode_to_vec,
                         )
                         .await
                     }
@@ -80,7 +76,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| ListUserRequest::decode(data),
                             |mut client, request| async move { client.list_user(request).await },
-                            |reply| ListUserReply::encode_to_vec(reply),
+                            ListUserReply::encode_to_vec,
                         )
                         .await
                     }
@@ -90,7 +86,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| CreateUserRequest::decode(data),
                             |mut client, request| async move { client.create_user(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
@@ -100,7 +96,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| DeleteUserRequest::decode(data),
                             |mut client, request| async move { client.delete_user(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
@@ -110,7 +106,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| ListTopicRequest::decode(data),
                             |mut client, request| async move { client.list_topic(request).await },
-                            |reply| ListTopicReply::encode_to_vec(reply),
+                            ListTopicReply::encode_to_vec,
                         )
                         .await
                     }
@@ -120,7 +116,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| CreateTopicRequest::decode(data),
                             |mut client, request| async move { client.create_topic(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
@@ -132,7 +128,7 @@ pub(crate) async fn mqtt_interface_call(
                             |mut client: Connection<MQTTServiceManager>, request| async move {
                                 client.delete_topic(request).await
                             },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
@@ -144,7 +140,7 @@ pub(crate) async fn mqtt_interface_call(
                             |mut client, request| async move {
                                 client.set_topic_retain_message(request).await
                             },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
@@ -154,40 +150,34 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| ListSessionRequest::decode(data),
                             |mut client, request| async move { client.list_session(request).await },
-                            |reply| ListSessionReply::encode_to_vec(reply),
+                            ListSessionReply::encode_to_vec,
                         )
                         .await
                     }
-                    PlacementCenterInterface::CreateSession => {
-                            client_call(
-                            client,
-                            request.clone(),
-                            |data| CreateSessionRequest::decode(data),
-                            |mut client, request| async move { client.create_session(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::DeleteSession => {
-                            client_call(
-                            client,
-                            request.clone(),
-                            |data| DeleteSessionRequest::decode(data),
-                            |mut client, request| async move { client.delete_session(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::UpdateSession => {
-                            client_call(
-                            client,
-                            request.clone(),
-                            |data| UpdateSessionRequest::decode(data),
-                            |mut client, request| async move { client.update_session(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
-                        )
-                        .await
-                    }
+                    PlacementCenterInterface::CreateSession => client_call(
+                        client,
+                        request.clone(),
+                        |data| CreateSessionRequest::decode(data),
+                        |mut client, request| async move { client.create_session(request).await },
+                        CommonReply::encode_to_vec,
+                    )
+                    .await,
+                    PlacementCenterInterface::DeleteSession => client_call(
+                        client,
+                        request.clone(),
+                        |data| DeleteSessionRequest::decode(data),
+                        |mut client, request| async move { client.delete_session(request).await },
+                        CommonReply::encode_to_vec,
+                    )
+                    .await,
+                    PlacementCenterInterface::UpdateSession => client_call(
+                        client,
+                        request.clone(),
+                        |data| UpdateSessionRequest::decode(data),
+                        |mut client, request| async move { client.update_session(request).await },
+                        CommonReply::encode_to_vec,
+                    )
+                    .await,
                     PlacementCenterInterface::SaveLastWillMessage => {
                         client_call(
                             client,
@@ -196,7 +186,7 @@ pub(crate) async fn mqtt_interface_call(
                             |mut client, request| async move {
                                 client.save_last_will_message(request).await
                             },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
@@ -206,7 +196,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| ListAclRequest::decode(data),
                             |mut client, request| async move { client.list_acl(request).await },
-                            |reply| ListAclReply::encode_to_vec(reply),
+                            ListAclReply::encode_to_vec,
                         )
                         .await
                     }
@@ -216,7 +206,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| CreateAclRequest::decode(data),
                             |mut client, request| async move { client.create_acl(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
@@ -226,40 +216,34 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| DeleteAclRequest::decode(data),
                             |mut client, request| async move { client.delete_acl(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
+                            CommonReply::encode_to_vec,
                         )
                         .await
                     }
-                    PlacementCenterInterface::ListBlackList => {
-                            client_call(
-                            client,
-                            request.clone(),
-                            |data| ListBlacklistRequest::decode(data),
-                            |mut client, request| async move { client.list_blacklist(request).await },
-                            |reply| ListBlacklistReply::encode_to_vec(reply),
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::CreateBlackList => {
-                            client_call(
-                            client,
-                            request.clone(),
-                            |data| CreateBlacklistRequest::decode(data),
-                            |mut client, request| async move { client.create_blacklist(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::DeleteBlackList => {
-                            client_call(
-                            client,
-                            request.clone(),
-                            |data| DeleteBlacklistRequest::decode(data),
-                            |mut client, request| async move { client.delete_blacklist(request).await },
-                            |reply| CommonReply::encode_to_vec(reply),
-                        )
-                        .await
-                    }
+                    PlacementCenterInterface::ListBlackList => client_call(
+                        client,
+                        request.clone(),
+                        |data| ListBlacklistRequest::decode(data),
+                        |mut client, request| async move { client.list_blacklist(request).await },
+                        ListBlacklistReply::encode_to_vec,
+                    )
+                    .await,
+                    PlacementCenterInterface::CreateBlackList => client_call(
+                        client,
+                        request.clone(),
+                        |data| CreateBlacklistRequest::decode(data),
+                        |mut client, request| async move { client.create_blacklist(request).await },
+                        CommonReply::encode_to_vec,
+                    )
+                    .await,
+                    PlacementCenterInterface::DeleteBlackList => client_call(
+                        client,
+                        request.clone(),
+                        |data| DeleteBlacklistRequest::decode(data),
+                        |mut client, request| async move { client.delete_blacklist(request).await },
+                        CommonReply::encode_to_vec,
+                    )
+                    .await,
                     _ => {
                         return Err(CommonError::CommmonError(format!(
                             "mqtt service does not support service interfaces [{:?}]",
@@ -268,15 +252,11 @@ pub(crate) async fn mqtt_interface_call(
                     }
                 };
             match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
-                }
+                Ok(data) => Ok(data),
+                Err(e) => Err(e),
             }
         }
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -304,7 +284,7 @@ impl Manager for MQTTServiceManager {
             Err(err) => {
                 return Err(CommonError::CommmonError(format!(
                     "{},{}",
-                    err.to_string(),
+                    err,
                     self.addr.clone()
                 )))
             }
@@ -333,11 +313,9 @@ where
 {
     match decode_fn(request.as_ref()) {
         Ok(decoded_request) => match client_fn(client, decoded_request).await {
-            Ok(result) => {
-                return Ok(encode_fn(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+            Ok(result) => Ok(encode_fn(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }

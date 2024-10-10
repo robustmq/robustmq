@@ -252,7 +252,7 @@ mod tests {
             Some("user authorization failed".to_string())
         );
         assert_eq!(
-            puback_properties.user_properties.get(0),
+            puback_properties.user_properties.first(),
             Some(&("username".to_string(), "Justin".to_string()))
         );
 

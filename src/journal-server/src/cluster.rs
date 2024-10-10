@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clients::{
-    placement::placement::call::{heartbeat, register_node, un_register_node},
-    poll::ClientPool,
-};
-use common_base::{config::journal_server::JournalServerConfig, tools::get_local_ip};
+use std::sync::Arc;
+use std::time::Duration;
+
+use clients::placement::placement::call::{heartbeat, register_node, un_register_node};
+use clients::poll::ClientPool;
+use common_base::config::journal_server::JournalServerConfig;
+use common_base::tools::get_local_ip;
 use log::{debug, error, info};
-use protocol::placement_center::generate::{
-    common::ClusterType,
-    placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},
+use protocol::placement_center::generate::common::ClusterType;
+use protocol::placement_center::generate::placement::{
+    HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
-use std::{sync::Arc, time::Duration};
 use tokio::time;
 
 pub async fn register_storage_engine_node(

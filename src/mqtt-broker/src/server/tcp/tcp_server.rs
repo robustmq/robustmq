@@ -12,28 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    handler::{cache::CacheManager, validator::tcp_establish_connection_check},
-    observability::{
-        metrics::packets::{record_received_error_metrics, record_received_metrics},
-        slow::request::try_record_total_request_ms,
-    },
-    server::{
-        connection::{NetworkConnection, NetworkConnectionType},
-        connection_manager::ConnectionManager,
-        packet::RequestPackage,
-    },
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use futures_util::StreamExt;
 use log::{debug, error, info};
-use protocol::mqtt::{codec::MqttCodec, common::MQTTPacket};
-use std::{sync::Arc, time::Duration};
-use tokio::{
-    io, select,
-    sync::mpsc::{self, Receiver, Sender}, time::sleep,
-};
-use tokio::{net::TcpListener, sync::broadcast};
+use protocol::mqtt::codec::MqttCodec;
+use protocol::mqtt::common::MQTTPacket;
+use tokio::net::TcpListener;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::time::sleep;
+use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
+
+use crate::handler::cache::CacheManager;
+use crate::handler::validator::tcp_establish_connection_check;
+use crate::observability::metrics::packets::{
+    record_received_error_metrics, record_received_metrics,
+};
+use crate::observability::slow::request::try_record_total_request_ms;
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::RequestPackage;
 
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,

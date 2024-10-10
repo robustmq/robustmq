@@ -14,15 +14,15 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use clients::{
-        placement::mqtt::call::placement_save_last_will_message,
-        poll::ClientPool,
-    };
+    use std::sync::Arc;
+
+    use clients::placement::mqtt::call::placement_save_last_will_message;
+    use clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::lastwill::LastWillData;
     use protocol::placement_center::generate::mqtt::SaveLastWillMessageRequest;
-    use std::sync::Arc;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_last_will_test() {

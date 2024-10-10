@@ -19,21 +19,22 @@ pub mod journal;
 pub mod kv;
 pub mod mqtt;
 
-use crate::storage::route::{
-    cluster::DataRouteCluster, journal::DataRouteJournal, kv::DataRouteKv, mqtt::DataRouteMQTT,
-};
-use crate::{
-    cache::{journal::JournalCacheManager, placement::PlacementCacheManager},
-    storage::rocksdb::RocksDBEngine,
-};
+use std::sync::Arc;
+use std::time::Instant;
+
 use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
 use data::{StorageData, StorageDataType};
 use log::{error, info};
-use std::sync::Arc;
-use std::time::Instant;
 
 use super::rocksdb::DB_COLUMN_FAMILY_CLUSTER;
+use crate::cache::journal::JournalCacheManager;
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::rocksdb::RocksDBEngine;
+use crate::storage::route::cluster::DataRouteCluster;
+use crate::storage::route::journal::DataRouteJournal;
+use crate::storage::route::kv::DataRouteKv;
+use crate::storage::route::mqtt::DataRouteMQTT;
 
 #[derive(Debug, Clone)]
 pub struct DataRoute {
@@ -59,103 +60,83 @@ impl DataRoute {
             engine_cache.clone(),
             cluster_cache.clone(),
         );
-        return DataRoute {
+        DataRoute {
             route_kv,
             route_mqtt,
             route_journal,
             route_cluster,
             rocksdb_engine_handler,
-        };
+        }
     }
 
     pub fn route_vec(&self, data: Vec<u8>) -> Result<(), CommonError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
-        return self.route(storage_data);
+        self.route(storage_data)
     }
 
     //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
     pub fn route(&self, storage_data: StorageData) -> Result<(), CommonError> {
         match storage_data.data_type {
             StorageDataType::ClusterRegisterNode => {
-                return self.route_cluster.register_node(storage_data.value);
+                self.route_cluster.register_node(storage_data.value)
             }
             StorageDataType::ClusterUngisterNode => {
-                return self.route_cluster.unregister_node(storage_data.value);
+                self.route_cluster.unregister_node(storage_data.value)
             }
 
             StorageDataType::ClusterSetResourceConfig => {
-                return self.route_cluster.set_resource_config(storage_data.value);
+                self.route_cluster.set_resource_config(storage_data.value)
             }
-            StorageDataType::ClusterDeleteResourceConfig => {
-                return self
-                    .route_cluster
-                    .delete_resource_config(storage_data.value);
-            }
+            StorageDataType::ClusterDeleteResourceConfig => self
+                .route_cluster
+                .delete_resource_config(storage_data.value),
             StorageDataType::ClusterSetIdempotentData => {
-                return self.route_cluster.set_idempotent_data(storage_data.value);
+                self.route_cluster.set_idempotent_data(storage_data.value)
             }
-            StorageDataType::ClusterDeleteIdempotentData => {
-                return self
-                    .route_cluster
-                    .delete_idempotent_data(storage_data.value);
-            }
-            StorageDataType::MQTTCreateAcl => {
-                return self.route_cluster.create_acl(storage_data.value);
-            }
-            StorageDataType::MQTTDeleteAcl => {
-                return self.route_cluster.delete_acl(storage_data.value);
-            }
+            StorageDataType::ClusterDeleteIdempotentData => self
+                .route_cluster
+                .delete_idempotent_data(storage_data.value),
+            StorageDataType::MQTTCreateAcl => self.route_cluster.create_acl(storage_data.value),
+            StorageDataType::MQTTDeleteAcl => self.route_cluster.delete_acl(storage_data.value),
             StorageDataType::MQTTCreateBlacklist => {
-                return self.route_cluster.create_blacklist(storage_data.value);
+                self.route_cluster.create_blacklist(storage_data.value)
             }
             StorageDataType::MQTTDeleteBlacklist => {
-                return self.route_cluster.delete_blacklist(storage_data.value);
+                self.route_cluster.delete_blacklist(storage_data.value)
             }
 
             StorageDataType::JournalCreateShard => {
-                return self.route_journal.create_shard(storage_data.value);
+                self.route_journal.create_shard(storage_data.value)
             }
             StorageDataType::JournalDeleteShard => {
-                return self.route_journal.delete_shard(storage_data.value);
+                self.route_journal.delete_shard(storage_data.value)
             }
             StorageDataType::JournalCreateSegment => {
-                return self.route_journal.create_segment(storage_data.value);
+                self.route_journal.create_segment(storage_data.value)
             }
             StorageDataType::JournalDeleteSegment => {
-                return self.route_journal.delete_segment(storage_data.value);
+                self.route_journal.delete_segment(storage_data.value)
             }
-            StorageDataType::KvSet => {
-                return self.route_kv.set(storage_data.value);
-            }
-            StorageDataType::KvDelete => {
-                return self.route_kv.delete(storage_data.value);
-            }
-            StorageDataType::MQTTCreateUser => {
-                return self.route_mqtt.create_user(storage_data.value);
-            }
-            StorageDataType::MQTTDeleteUser => {
-                return self.route_mqtt.delete_user(storage_data.value);
-            }
-            StorageDataType::MQTTCreateTopic => {
-                return self.route_mqtt.create_topic(storage_data.value);
-            }
-            StorageDataType::MQTTDeleteTopic => {
-                return self.route_mqtt.delete_topic(storage_data.value);
-            }
+            StorageDataType::KvSet => self.route_kv.set(storage_data.value),
+            StorageDataType::KvDelete => self.route_kv.delete(storage_data.value),
+            StorageDataType::MQTTCreateUser => self.route_mqtt.create_user(storage_data.value),
+            StorageDataType::MQTTDeleteUser => self.route_mqtt.delete_user(storage_data.value),
+            StorageDataType::MQTTCreateTopic => self.route_mqtt.create_topic(storage_data.value),
+            StorageDataType::MQTTDeleteTopic => self.route_mqtt.delete_topic(storage_data.value),
             StorageDataType::MQTTCreateSession => {
-                return self.route_mqtt.create_session(storage_data.value);
+                self.route_mqtt.create_session(storage_data.value)
             }
             StorageDataType::MQTTDeleteSession => {
-                return self.route_mqtt.delete_session(storage_data.value);
+                self.route_mqtt.delete_session(storage_data.value)
             }
             StorageDataType::MQTTUpdateSession => {
-                return self.route_mqtt.update_session(storage_data.value);
+                self.route_mqtt.update_session(storage_data.value)
             }
             StorageDataType::MQTTSetTopicRetainMessage => {
-                return self.route_mqtt.set_topic_retain_message(storage_data.value);
+                self.route_mqtt.set_topic_retain_message(storage_data.value)
             }
             StorageDataType::MQTTSaveLastWillMessage => {
-                return self.route_mqtt.save_last_will_message(storage_data.value);
+                self.route_mqtt.save_last_will_message(storage_data.value)
             }
         }
     }
@@ -191,7 +172,7 @@ impl DataRoute {
             }
         };
         info!("Snapshot built successfully, snapshot size :{}", res.len());
-        return res;
+        res
     }
 
     pub fn recover_snapshot(&self, data: Vec<u8>) -> Result<(), CommonError> {
@@ -224,6 +205,6 @@ impl DataRoute {
             data.len(),
             now.elapsed().as_millis()
         );
-        return Ok(());
+        Ok(())
     }
 }

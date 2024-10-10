@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-        engine_save_by_cluster,
-    },
-    keys::{key_segment, key_segment_cluster_prefix, key_segment_shard_prefix},
-    rocksdb::RocksDBEngine,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_cluster,
+};
+use crate::storage::keys::{key_segment, key_segment_cluster_prefix, key_segment_shard_prefix};
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct SegmentInfo {
@@ -67,7 +67,7 @@ impl SegmentStorage {
             &segment.shard_name.clone(),
             segment.segment_seq,
         );
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, segment);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, segment)
     }
 
     #[allow(dead_code)]
@@ -81,25 +81,16 @@ impl SegmentStorage {
 
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
             Ok(Some(data)) => match serde_json::from_slice::<SegmentInfo>(&data.data) {
-                Ok(segment) => {
-                    return Ok(Some(segment));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(segment) => Ok(Some(segment)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => {
-                return Ok(None);
-            }
+            Ok(None) => Ok(None),
             Err(e) => Err(e),
         }
     }
 
     #[allow(dead_code)]
-    pub fn list_by_cluster(
-        &self,
-        cluster_name: &String,
-    ) -> Result<Vec<SegmentInfo>, CommonError> {
+    pub fn list_by_cluster(&self, cluster_name: &String) -> Result<Vec<SegmentInfo>, CommonError> {
         let prefix_key = key_segment_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -114,11 +105,9 @@ impl SegmentStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -142,11 +131,9 @@ impl SegmentStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -157,6 +144,6 @@ impl SegmentStorage {
         segment_seq: u64,
     ) -> Result<(), CommonError> {
         let shard_key = key_segment(cluster_name, shard_name, segment_seq);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)
     }
 }

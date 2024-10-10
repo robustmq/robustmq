@@ -25,6 +25,6 @@ impl RaftGroupManager {
     #[allow(dead_code)]
     pub fn new() -> Self {
         let segment_groups = DashMap::new();
-        return RaftGroupManager { segment_groups };
+        RaftGroupManager { segment_groups }
     }
 }

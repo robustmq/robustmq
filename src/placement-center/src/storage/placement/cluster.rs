@@ -12,25 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-        engine_save_by_cluster,
-    },
-    keys::{key_cluster, key_cluster_prefix, key_cluster_prefix_by_type},
-    rocksdb::RocksDBEngine,
-};
-use common_base::error::common::CommonError;
-use metadata_struct::placement::cluster::ClusterInfo;
 use std::sync::Arc;
 
+use common_base::error::common::CommonError;
+use metadata_struct::placement::cluster::ClusterInfo;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_cluster,
+};
+use crate::storage::keys::{key_cluster, key_cluster_prefix, key_cluster_prefix_by_type};
+use crate::storage::rocksdb::RocksDBEngine;
+
 pub struct ClusterStorage {
-    /// The RocksDB engine handler 
+    /// The RocksDB engine handler
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl ClusterStorage {
-
     /// Create a new ClusterStorge instance.
     ///
     /// Parameters:
@@ -52,11 +51,11 @@ impl ClusterStorage {
     /// - `Err (CommonError)`: Indicates that the operation failed, and CommonError is the error type that includes the reason for the failure.
     pub fn save(&self, cluster_info: &ClusterInfo) -> Result<(), CommonError> {
         let key = key_cluster(&cluster_info.cluster_type, &cluster_info.cluster_name);
-        return engine_save_by_cluster(
+        engine_save_by_cluster(
             self.rocksdb_engine_handler.clone(),
             key,
             cluster_info.clone(),
-        );
+        )
     }
 
     ///Retrieve cluster information from RocksDB.
@@ -78,15 +77,11 @@ impl ClusterStorage {
         let key = key_cluster(cluster_type, cluster_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<ClusterInfo>(&data.data) {
-                Ok(info) => {
-                    return Ok(Some(info));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(info) => Ok(Some(info)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => return Ok(None),
-            Err(e) => return Err(e),
+            Ok(None) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
@@ -102,7 +97,7 @@ impl ClusterStorage {
     #[allow(dead_code)]
     pub fn delete(&self, cluster_type: &String, cluster_name: &String) -> Result<(), CommonError> {
         let key: String = key_cluster(cluster_type, cluster_name);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 
     ///List cluster information from RocksDB.
@@ -132,11 +127,9 @@ impl ClusterStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 }

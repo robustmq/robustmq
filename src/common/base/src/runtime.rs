@@ -28,9 +28,10 @@
  * limitations under the License.
  */
 
+use std::sync::atomic::AtomicU32;
+
 use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
-use std::sync::atomic::AtomicU32;
 use tokio::runtime::{Builder, Runtime};
 
 static GLOBAL_RUNTIME_ID: AtomicU32 = AtomicU32::new(0);
@@ -104,7 +105,7 @@ impl RuntimeBuilder {
             .build()
             .unwrap();
         let _ = rt.enter();
-        return rt;
+        rt
     }
 }
 
@@ -150,9 +151,10 @@ pub fn create_runtime(runtime_name: &str, worker_threads: usize) -> Runtime {
 
 #[cfg(test)]
 mod tests {
-    use super::create_runtime;
+    use std::thread::sleep;
+    use std::time::Duration;
 
-    use std::{thread::sleep, time::Duration};
+    use super::create_runtime;
 
     #[test]
     fn test_metric() {

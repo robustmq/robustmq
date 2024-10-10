@@ -97,8 +97,9 @@ mod tests {
         assert_eq!(fixed_header.byte1, 0b1010_0010);
         assert_eq!(fixed_header.fixed_header_len, 2);
         assert_eq!(fixed_header.remaining_len, 28);
-        let unsubscribe_read:Unsubscribe = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        let unsubscribe_read: Unsubscribe =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert_eq!(unsubscribe_read.pkid, 5u16);
-        assert_eq!(unsubscribe_read.filters.len(),2); // 2 topic filters pushed in the vector
+        assert_eq!(unsubscribe_read.filters.len(), 2); // 2 topic filters pushed in the vector
     }
 }

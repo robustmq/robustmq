@@ -12,14 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::poll::ClientPool;
-use super::PlacementCenterInterface;
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::{common::CommonReply, kv::{kv_service_client::KvServiceClient, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest}};
-use std::sync::Arc;
+use protocol::placement_center::generate::common::CommonReply;
+use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
+use protocol::placement_center::generate::kv::{
+    DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest,
+};
 use tonic::transport::Channel;
+
+use super::PlacementCenterInterface;
+use crate::poll::ClientPool;
 
 pub mod call;
 mod inner;
@@ -29,12 +35,8 @@ async fn kv_client(
     addr: String,
 ) -> Result<Connection<KvServiceManager>, CommonError> {
     match client_poll.placement_center_kv_services_client(addr).await {
-        Ok(client) => {
-            return Ok(client);
-        }
-        Err(e) => {
-            return Err(e);
-        }
+        Ok(client) => Ok(client),
+        Err(e) => Err(e),
     }
 }
 
@@ -53,7 +55,7 @@ pub(crate) async fn kv_interface_call(
                         request.clone(),
                         |data| SetRequest::decode(data),
                         |mut client, request| async move { client.set(request).await },
-                        |reply| CommonReply::encode_to_vec(reply),
+                        CommonReply::encode_to_vec,
                     )
                     .await
                 }
@@ -63,7 +65,7 @@ pub(crate) async fn kv_interface_call(
                         request.clone(),
                         |data| DeleteRequest::decode(data),
                         |mut client, request| async move { client.delete(request).await },
-                        |reply| CommonReply::encode_to_vec(reply),
+                        CommonReply::encode_to_vec,
                     )
                     .await
                 }
@@ -73,7 +75,7 @@ pub(crate) async fn kv_interface_call(
                         request.clone(),
                         |data| GetRequest::decode(data),
                         |mut client, request| async move { client.get(request).await },
-                        |reply| GetReply::encode_to_vec(reply),
+                        GetReply::encode_to_vec,
                     )
                     .await
                 }
@@ -83,25 +85,23 @@ pub(crate) async fn kv_interface_call(
                         request.clone(),
                         |data| ExistsRequest::decode(data),
                         |mut client, request| async move { client.exists(request).await },
-                        |reply| ExistsReply::encode_to_vec(reply),
+                        ExistsReply::encode_to_vec,
                     )
                     .await
                 }
-                _ => return Err(CommonError::CommmonError(format!(
-                    "kv service does not support service interfaces [{:?}]",
-                    interface
-                ))),
+                _ => {
+                    return Err(CommonError::CommmonError(format!(
+                        "kv service does not support service interfaces [{:?}]",
+                        interface
+                    )))
+                }
             };
             match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
-                }
+                Ok(data) => Ok(data),
+                Err(e) => Err(e),
             }
         }
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -126,11 +126,13 @@ impl Manager for KvServiceManager {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => return Err(CommonError::CommmonError(format!(
-                "{},{}",
-                err.to_string(),
-                self.addr.clone()
-            ))),
+            Err(err) => {
+                return Err(CommonError::CommmonError(format!(
+                    "{},{}",
+                    err,
+                    self.addr.clone()
+                )))
+            }
         };
     }
 
@@ -156,12 +158,10 @@ where
 {
     match decode_fn(request.as_ref()) {
         Ok(decoded_request) => match client_fn(client, decoded_request).await {
-            Ok(result) => {
-                return Ok(encode_fn(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+            Ok(result) => Ok(encode_fn(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }
 

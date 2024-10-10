@@ -239,7 +239,7 @@ mod tests {
         let pubrel_properties = y.unwrap();
         assert_eq!(pubrel_properties.reason_string, Some("Success".to_string()));
         assert_eq!(
-            pubrel_properties.user_properties.get(0),
+            pubrel_properties.user_properties.first(),
             Some(&("username".to_string(), "Justin".to_string()))
         );
 

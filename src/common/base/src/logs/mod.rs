@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    config::{
-        broker_mqtt::broker_mqtt_conf, journal_server::journal_server_conf,
-        placement_center::placement_center_conf,
-    },
-    tools::{try_create_fold, file_exists, read_file},
-};
+use crate::config::broker_mqtt::broker_mqtt_conf;
+use crate::config::journal_server::journal_server_conf;
+use crate::config::placement_center::placement_center_conf;
+use crate::tools::{file_exists, read_file, try_create_fold};
 
 pub fn init_placement_center_log() {
     let conf = placement_center_conf();
@@ -43,28 +40,27 @@ pub fn init_log(log_config_file: &String, log_path: &String) {
         );
     }
 
-    let content = match read_file(&log_config_file) {
+    let content = match read_file(log_config_file) {
         Ok(data) => data,
         Err(e) => {
             panic!("{}", e.to_string());
         }
     };
 
-    match try_create_fold(&log_path) {
+    match try_create_fold(log_path) {
         Ok(()) => {}
         Err(_) => {
             panic!("Failed to initialize log directory {}", log_path);
         }
     }
 
-    let config_content = content.replace("{$path}", &log_path);
+    let config_content = content.replace("{$path}", log_path);
     let config = match serde_yaml::from_str(&config_content) {
         Ok(data) => data,
         Err(e) => {
             panic!(
                 "Failed to parse the contents of the config file {} with error message :{}",
-                log_config_file,
-                e.to_string()
+                log_config_file, e
             );
         }
     };

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod node_extend;
-pub mod user;
-pub mod topic;
-pub mod session;
-pub mod message;
 pub mod cluster;
 pub mod lastwill;
+pub mod message;
+pub mod node_extend;
+pub mod session;
+pub mod topic;
+pub mod user;

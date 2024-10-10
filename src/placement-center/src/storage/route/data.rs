@@ -24,10 +24,7 @@ pub struct StorageData {
 
 impl StorageData {
     pub fn new(data_type: StorageDataType, value: Vec<u8>) -> StorageData {
-        return StorageData {
-            data_type,
-            value: value,
-        };
+        StorageData { data_type, value }
     }
 }
 

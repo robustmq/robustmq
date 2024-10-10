@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::mqtt::common::LastWillProperties;
 use bytes::BytesMut;
 use tokio_util::codec;
 
@@ -20,13 +19,20 @@ use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
     subscribe, unsuback, unsubscribe, Error, MQTTPacket, PacketType,
 };
+use crate::mqtt::common::LastWillProperties;
 
 #[derive(Clone, Debug)]
 pub struct Mqtt5Codec {}
 
+impl Default for Mqtt5Codec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mqtt5Codec {
     pub fn new() -> Mqtt5Codec {
-        return Mqtt5Codec {};
+        Mqtt5Codec {}
     }
 }
 
@@ -133,6 +139,6 @@ impl codec::Decoder for Mqtt5Codec {
             }
             _ => unreachable!(),
         };
-        return Ok(Some(packet));
+        Ok(Some(packet))
     }
 }

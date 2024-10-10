@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,7 +32,7 @@ use super::*;
 
 // fn len(suback: &SubAck) -> usize {
 
-//     // 2 bytes for packet identifier 
+//     // 2 bytes for packet identifier
 //     2 + suback.return_codes.len()
 // }
 
@@ -84,20 +84,17 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<SubAck, Error
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
 
-    if !bytes.has_remaining(){
+    if !bytes.has_remaining() {
         return Err(Error::MalformedPacket);
     }
 
     let mut return_codes = Vec::new();
-    while bytes.has_remaining(){
+    while bytes.has_remaining() {
         let return_code = read_u8(&mut bytes)?;
         return_codes.push(reason(return_code)?);
     }
 
-    let suback = SubAck {
-        pkid, 
-        return_codes,
-    };
+    let suback = SubAck { pkid, return_codes };
     Ok(suback)
 }
 
@@ -127,6 +124,6 @@ mod tests {
         assert_eq!(suback_read.pkid, 5u16);
         // verify suback return code
         let return_code_read: Vec<u8> = suback.return_codes.iter().map(|&c| code(c)).collect();
-        assert_eq!(return_code_read.get(0).unwrap(), &0x01);
+        assert_eq!(return_code_read.first().unwrap(), &0x01);
     }
 }

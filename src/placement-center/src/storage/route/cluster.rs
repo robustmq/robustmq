@@ -12,34 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    cache::placement::PlacementCacheManager,
-    storage::{
-        mqtt::{acl::AclStorage, blacklist::MQTTBlackListStorage},
-        placement::{
-            cluster::ClusterStorage, config::ResourceConfigStorage, idempotent::IdempotentStorage,
-            node::NodeStorage,
-        },
-        rocksdb::RocksDBEngine,
-    },
-};
-use common_base::{
-    error::common::CommonError,
-    tools::{now_mills, unique_id},
-};
-use metadata_struct::{
-    acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
-    placement::{broker_node::BrokerNode, cluster::ClusterInfo},
-};
-use prost::Message as _;
-use protocol::placement_center::generate::{
-    mqtt::{CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest},
-    placement::{
-        DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
-        SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
-    },
-};
 use std::sync::Arc;
+
+use common_base::error::common::CommonError;
+use common_base::tools::{now_mills, unique_id};
+use metadata_struct::acl::mqtt_acl::MQTTAcl;
+use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::placement::broker_node::BrokerNode;
+use metadata_struct::placement::cluster::ClusterInfo;
+use prost::Message as _;
+use protocol::placement_center::generate::mqtt::{
+    CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest,
+};
+use protocol::placement_center::generate::placement::{
+    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
+    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+};
+
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::mqtt::acl::AclStorage;
+use crate::storage::mqtt::blacklist::MQTTBlackListStorage;
+use crate::storage::placement::cluster::ClusterStorage;
+use crate::storage::placement::config::ResourceConfigStorage;
+use crate::storage::placement::idempotent::IdempotentStorage;
+use crate::storage::placement::node::NodeStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Debug, Clone)]
 pub struct DataRouteCluster {
@@ -52,10 +49,10 @@ impl DataRouteCluster {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
     ) -> Self {
-        return DataRouteCluster {
+        DataRouteCluster {
             rocksdb_engine_handler,
             cluster_cache,
-        };
+        }
     }
 
     pub fn register_node(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -89,7 +86,7 @@ impl DataRouteCluster {
 
         // update node
         self.cluster_cache.add_broker_node(node.clone());
-        return node_storage.save(&node);
+        node_storage.save(&node)
     }
 
     pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -100,83 +97,76 @@ impl DataRouteCluster {
         self.cluster_cache
             .remove_broker_node(&cluster_name, node_id);
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
-        return node_storage.delete(&cluster_name, node_id);
+        node_storage.delete(&cluster_name, node_id)
     }
 
     pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = SetResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
-        return config_storage.save(req.cluster_name, req.resources, req.config);
+        config_storage.save(req.cluster_name, req.resources, req.config)
     }
 
     pub fn delete_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteResourceConfigRequest::decode(value.as_ref())?;
         let config_storage = ResourceConfigStorage::new(self.rocksdb_engine_handler.clone());
-        return config_storage.delete(req.cluster_name, req.resources);
+        config_storage.delete(req.cluster_name, req.resources)
     }
 
     pub fn set_idempotent_data(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = SetIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
-        return idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num);
+        idempotent_storage.save(&req.cluster_name, &req.producer_id, req.seq_num)
     }
 
     pub fn delete_idempotent_data(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteIdempotentDataRequest::decode(value.as_ref())?;
         let idempotent_storage = IdempotentStorage::new(self.rocksdb_engine_handler.clone());
-        return idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num);
+        idempotent_storage.delete(&req.cluster_name, &req.producer_id, req.seq_num)
     }
 
     pub fn create_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
         let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
-        return acl_storage.save(&req.cluster_name, acl);
+        acl_storage.save(&req.cluster_name, acl)
     }
 
     pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
         let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
-        return acl_storage.delete(&req.cluster_name, &acl);
+        acl_storage.delete(&req.cluster_name, &acl)
     }
 
     pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
         let blacklist = serde_json::from_slice::<MQTTAclBlackList>(&req.blacklist)?;
-        return blacklist_storage.save(&req.cluster_name, blacklist);
+        blacklist_storage.save(&req.cluster_name, blacklist)
     }
 
     pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
         let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        return blacklist_storage.delete(
-            &req.cluster_name,
-            &req.blacklist_type,
-            &req.resource_name,
-        );
+        blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::remove_dir_all, sync::Arc};
+    use std::fs::remove_dir_all;
+    use std::sync::Arc;
 
-    use crate::{
-        cache::placement::PlacementCacheManager,
-        storage::route::cluster::DataRouteCluster,
-        storage::{
-            placement::cluster::ClusterStorage,
-            placement::node::NodeStorage,
-            rocksdb::{column_family_list, RocksDBEngine},
-        },
-    };
     use common_base::config::placement_center::placement_center_test_conf;
     use prost::Message as _;
-    use protocol::placement_center::generate::{
-        common::ClusterType, placement::RegisterNodeRequest,
-    };
+    use protocol::placement_center::generate::common::ClusterType;
+    use protocol::placement_center::generate::placement::RegisterNodeRequest;
+
+    use crate::cache::placement::PlacementCacheManager;
+    use crate::storage::placement::cluster::ClusterStorage;
+    use crate::storage::placement::node::NodeStorage;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
+    use crate::storage::route::cluster::DataRouteCluster;
 
     #[test]
     fn register_unregister_node() {

@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-        engine_save_by_cluster,
-    },
-    keys::{key_node, key_node_prefix, key_node_prefix_all},
-    rocksdb::RocksDBEngine,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use metadata_struct::placement::broker_node::BrokerNode;
-use std::sync::Arc;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_cluster,
+};
+use crate::storage::keys::{key_node, key_node_prefix, key_node_prefix_all};
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct NodeStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -37,12 +37,12 @@ impl NodeStorage {
 
     pub fn save(&self, node: &BrokerNode) -> Result<(), CommonError> {
         let node_key = key_node(&node.cluster_name, node.node_id);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node.clone());
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node.clone())
     }
 
     pub fn delete(&self, cluster_name: &String, node_id: u64) -> Result<(), CommonError> {
         let node_key = key_node(cluster_name, node_id);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), node_key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), node_key)
     }
 
     #[allow(dead_code)]
@@ -54,16 +54,10 @@ impl NodeStorage {
         let node_key = key_node(cluster_name, node_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), node_key) {
             Ok(Some(data)) => match serde_json::from_slice::<BrokerNode>(&data.data) {
-                Ok(node) => {
-                    return Ok(Some(node));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(node) => Ok(Some(node)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => {
-                return Ok(None);
-            }
+            Ok(None) => Ok(None),
             Err(e) => Err(e),
         }
     }
@@ -88,11 +82,9 @@ impl NodeStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 }

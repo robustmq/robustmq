@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::sub_common::{decode_share_info, get_share_sub_leader, is_share_sub, path_regex_match};
-use crate::handler::cache::CacheManager;
-use crate::subscribe::subscriber::Subscriber;
+use std::sync::Arc;
+use std::time::Duration;
+
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use log::{error, info};
 use protocol::mqtt::common::{Filter, MQTTProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::Duration};
-use tokio::{sync::broadcast::Sender, time::sleep};
+use tokio::sync::broadcast::Sender;
+use tokio::time::sleep;
+
+use super::sub_common::{decode_share_info, get_share_sub_leader, is_share_sub, path_regex_match};
+use crate::handler::cache::CacheManager;
+use crate::subscribe::subscriber::Subscriber;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ShareSubShareSub {
@@ -99,7 +103,10 @@ impl SubscribeManager {
         for (topic_name, topic) in self.metadata_cache.topic_info.clone() {
             for (client_id, sub_list) in self.metadata_cache.subscribe_filter.clone() {
                 for (_, data) in sub_list {
-                    let subscribe = Subscribe { packet_identifier: 0, filters: vec![data.filter] };
+                    let subscribe = Subscribe {
+                        packet_identifier: 0,
+                        filters: vec![data.filter],
+                    };
                     let subscribe_properties = data.subscribe_properties;
                     self.parse_subscribe(
                         topic_name.clone(),
@@ -346,7 +353,8 @@ impl SubscribeManager {
                 sub_list,
             };
 
-            self.share_leader_subscribe.insert(share_leader_key.clone(), data);
+            self.share_leader_subscribe
+                .insert(share_leader_key.clone(), data);
         }
     }
 

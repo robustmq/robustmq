@@ -12,18 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{ShardConfig, StorageAdapter};
+use std::sync::Arc;
+
 use axum::async_trait;
-use clients::{
-    placement::kv::call::{placement_delete, placement_exists, placement_get, placement_set},
-    poll::ClientPool,
+use clients::placement::kv::call::{
+    placement_delete, placement_exists, placement_get, placement_set,
 };
+use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use metadata_struct::adapter::record::Record;
 use protocol::placement_center::generate::kv::{
     DeleteRequest, ExistsRequest, GetRequest, SetRequest,
 };
-use std::sync::Arc;
+
+use crate::storage::{ShardConfig, StorageAdapter};
 
 #[derive(Clone)]
 pub struct PlacementStorageAdapter {
@@ -33,7 +35,7 @@ pub struct PlacementStorageAdapter {
 
 impl PlacementStorageAdapter {
     pub fn new(client_poll: Arc<ClientPool>, addrs: Vec<String>) -> Self {
-        return PlacementStorageAdapter { client_poll, addrs };
+        PlacementStorageAdapter { client_poll, addrs }
     }
 }
 

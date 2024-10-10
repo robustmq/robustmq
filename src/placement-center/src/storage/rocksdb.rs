@@ -19,7 +19,7 @@ pub const DB_COLUMN_FAMILY_CLUSTER: &str = "cluster";
 pub fn column_family_list() -> Vec<String> {
     let mut list = Vec::new();
     list.push(DB_COLUMN_FAMILY_CLUSTER.to_string());
-    return list;
+    list
 }
 
 pub fn storage_data_fold(path: &String) -> String {

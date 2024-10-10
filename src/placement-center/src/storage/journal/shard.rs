@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-        engine_save_by_cluster,
-    },
-    keys::{key_shard, key_shard_prefix},
-    rocksdb::RocksDBEngine,
-};
+use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_cluster,
+};
+use crate::storage::keys::{key_shard, key_shard_prefix};
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct ShardInfo {
@@ -48,7 +47,7 @@ impl ShardStorage {
 
     pub fn save(&self, shard_info: ShardInfo) -> Result<(), CommonError> {
         let shard_key = key_shard(&shard_info.cluster_name, &shard_info.shard_name);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, shard_info);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, shard_info)
     }
     #[allow(dead_code)]
     pub fn get(
@@ -56,26 +55,20 @@ impl ShardStorage {
         cluster_name: &String,
         shard_name: &String,
     ) -> Result<Option<ShardInfo>, CommonError> {
-        let shard_key: String = key_shard(&cluster_name, shard_name);
+        let shard_key: String = key_shard(cluster_name, shard_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
             Ok(Some(data)) => match serde_json::from_slice::<ShardInfo>(&data.data) {
-                Ok(shard) => {
-                    return Ok(Some(shard));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(shard) => Ok(Some(shard)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => {
-                return Ok(None);
-            }
+            Ok(None) => Ok(None),
             Err(e) => Err(e),
         }
     }
 
     pub fn delete(&self, cluster_name: &String, shard_name: &String) -> Result<(), CommonError> {
-        let shard_key = key_shard(&cluster_name, shard_name);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key);
+        let shard_key = key_shard(cluster_name, shard_name);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)
     }
     #[allow(dead_code)]
     pub fn list_by_shard(&self, cluster_name: &String) -> Result<Vec<ShardInfo>, CommonError> {
@@ -93,11 +86,9 @@ impl ShardStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 }

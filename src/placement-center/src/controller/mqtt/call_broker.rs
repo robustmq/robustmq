@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clients::{
-    mqtt::placement::call::{broker_mqtt_delete_session, send_last_will_message},
-    poll::ClientPool,
-};
+use std::sync::Arc;
+
+use clients::mqtt::placement::call::{broker_mqtt_delete_session, send_last_will_message};
+use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{debug, error, warn};
-use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
+use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::session::MQTTSession;
 use protocol::broker_server::generate::placement::{
     DeleteSessionRequest, SendLastWillMessageRequest,
 };
 
-use crate::{
-    cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-    storage::{mqtt::session::MQTTSessionStorage, rocksdb::RocksDBEngine},
-};
-use std::sync::Arc;
-
 use super::session_expire::ExpireLastWill;
+use crate::cache::mqtt::MqttCacheManager;
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::mqtt::session::MQTTSessionStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MQTTBrokerCall {
     cluster_name: String,
@@ -47,13 +46,13 @@ impl MQTTBrokerCall {
         client_poll: Arc<ClientPool>,
         mqtt_cache_manager: Arc<MqttCacheManager>,
     ) -> Self {
-        return MQTTBrokerCall {
+        MQTTBrokerCall {
             cluster_name,
             placement_cache_manager,
             rocksdb_engine_handler,
             client_poll,
             mqtt_cache_manager,
-        };
+        }
     }
 
     pub async fn delete_sessions(&self, sessions: Vec<MQTTSession>) {
@@ -94,11 +93,7 @@ impl MQTTBrokerCall {
                 for ms in raw {
                     match session_storage.delete(&self.cluster_name, &ms.client_id) {
                         Ok(()) => {
-                            let delay = if let Some(delay) = ms.last_will_delay_interval {
-                                delay
-                            } else {
-                                0
-                            };
+                            let delay = ms.last_will_delay_interval.unwrap_or_default();
                             debug!(
                                 "Save the upcoming will message to the cache with client ID:{}",
                                 ms.client_id
@@ -127,7 +122,7 @@ impl MQTTBrokerCall {
             .placement_cache_manager
             .get_broker_node_addr_by_cluster(&self.cluster_name);
 
-        if node_addr.len() == 0 {
+        if node_addr.is_empty() {
             warn!("Get cluster {} Node access address is empty, there is no cluster node address available.",self.cluster_name);
             self.mqtt_cache_manager
                 .remove_expire_last_will(&self.cluster_name, &client_id);

@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,25 +28,25 @@
  * limitations under the License.
  */
 
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use super::*;
 use crate::mqtt::common::*;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-pub mod connect;
+pub mod codec;
 pub mod connack;
-pub mod publish;
+pub mod connect;
+pub mod disconnect;
+pub mod ping;
 pub mod puback;
+pub mod pubcomp;
+pub mod publish;
 pub mod pubrec;
 pub mod pubrel;
-pub mod pubcomp;
-pub mod subscribe;
 pub mod suback;
-pub mod unsubscribe;
+pub mod subscribe;
 pub mod unsuback;
-pub mod ping;
-pub mod disconnect;
-pub mod codec;
+pub mod unsubscribe;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,7 +54,7 @@ enum PropertyType {
     PayloadFormatIndicator = 1,
     MessageExpiryInterval = 2,
     ContentType = 3,
-    ResponseTopic = 8, 
+    ResponseTopic = 8,
     CorrelationData = 9,
     SubscriptionIdentifier = 11,
     SessionExpiryInterval = 17,

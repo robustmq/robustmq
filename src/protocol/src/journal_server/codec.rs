@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    generate::protocol::{
-        fetch::{FetchReq, FetchReqBody, FetchResp, FetchRespBody},
-        header::{ApiKey, ApiType, Header},
-        produce::{ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody},
-    },
-    Error,
-};
 use axum::error_handling;
 use bytes::{buf, Buf, BufMut, BytesMut};
 use prost::Message as _;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec;
+
+use super::generate::protocol::fetch::{FetchReq, FetchReqBody, FetchResp, FetchRespBody};
+use super::generate::protocol::header::{ApiKey, ApiType, Header};
+use super::generate::protocol::produce::{
+    ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody,
+};
+use super::Error;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StorageEngineCodec {}
@@ -37,12 +36,18 @@ pub enum StorageEnginePacket {
     FetchResp(FetchResp),
 }
 
+impl Default for StorageEngineCodec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StorageEngineCodec {
     // A maximum of 1G data is transferred per request
     const MAX_SIZE: usize = 1024 * 1024 * 1024 * 8;
 
     pub fn new() -> StorageEngineCodec {
-        return StorageEngineCodec {};
+        StorageEngineCodec {}
     }
 }
 
@@ -92,7 +97,7 @@ impl codec::Encoder<StorageEnginePacket> for StorageEngineCodec {
         // body len + body
         dst.put_u32(body_len as u32);
         dst.extend_from_slice(&body_byte);
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -133,7 +138,7 @@ impl codec::Decoder for StorageEngineCodec {
         let frame_bytes = src.split_to(frame_len);
 
         // length of the header is parsed
-        position = position + 4;
+        position += 4;
         let mut header_len_bytes = BytesMut::with_capacity(4);
         header_len_bytes.extend_from_slice(&frame_bytes[position..(position + 4)]);
         let header_len = u32::from_be_bytes([
@@ -147,12 +152,12 @@ impl codec::Decoder for StorageEngineCodec {
         }
 
         // Parse the contents of the header
-        position = position + 4;
+        position += 4;
         let mut header_body_bytes = BytesMut::with_capacity(header_len);
         header_body_bytes.extend_from_slice(&frame_bytes[position..(position + header_len)]);
 
         // Parse to get the length of the body
-        position = position + header_len;
+        position += header_len;
         let mut body_len_bytes = BytesMut::with_capacity(4);
         body_len_bytes.extend_from_slice(&frame_bytes[position..(position + 4)]);
         let body_len = u32::from_be_bytes([
@@ -163,7 +168,7 @@ impl codec::Decoder for StorageEngineCodec {
         ]) as usize;
 
         // Parse the contents of the body
-        position = position + 4;
+        position += 4;
         let mut body_bytes = BytesMut::with_capacity(body_len);
         body_bytes.extend_from_slice(&frame_bytes[position..(position + body_len)]);
 
@@ -194,14 +199,12 @@ fn produce_req(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEng
                 header: Some(header),
                 body: Some(body),
             });
-            return Ok(Some(item));
+            Ok(Some(item))
         }
-        Err(e) => {
-            return Err(Error::DecodeBodyError(
-                "produce_req".to_string(),
-                e.to_string(),
-            ));
-        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "produce_req".to_string(),
+            e.to_string(),
+        )),
     }
 }
 
@@ -215,14 +218,12 @@ fn produce_resp(
                 header: Some(header),
                 body: Some(body),
             });
-            return Ok(Some(item));
+            Ok(Some(item))
         }
-        Err(e) => {
-            return Err(Error::DecodeBodyError(
-                "produce_resp".to_string(),
-                e.to_string(),
-            ));
-        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "produce_resp".to_string(),
+            e.to_string(),
+        )),
     }
 }
 
@@ -233,14 +234,12 @@ fn fetch_req(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEngin
                 header: Some(header),
                 body: Some(body),
             });
-            return Ok(Some(item));
+            Ok(Some(item))
         }
-        Err(e) => {
-            return Err(Error::DecodeBodyError(
-                "fetch_req".to_string(),
-                e.to_string(),
-            ));
-        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "fetch_req".to_string(),
+            e.to_string(),
+        )),
     }
 }
 
@@ -251,29 +250,29 @@ fn fetch_resp(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEngi
                 header: Some(header),
                 body: Some(body),
             });
-            return Ok(Some(item));
+            Ok(Some(item))
         }
-        Err(e) => {
-            return Err(Error::DecodeBodyError(
-                "fetch_resp".to_string(),
-                e.to_string(),
-            ));
-        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "fetch_resp".to_string(),
+            e.to_string(),
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::journal_server::generate::protocol::{
-        header::{ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon},
-        produce::{ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody},
-    };
     use futures::{SinkExt, StreamExt};
     use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
 
     use super::{StorageEngineCodec, StorageEnginePacket};
+    use crate::journal_server::generate::protocol::header::{
+        ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon,
+    };
+    use crate::journal_server::generate::protocol::produce::{
+        ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody,
+    };
 
     #[test]
     fn codec_test() {
@@ -327,7 +326,7 @@ mod tests {
                     println!("{:?}", da);
                 }
                 Err(e) => {
-                    println!("{}", e.to_string());
+                    println!("{}", e);
                 }
             }
         }
@@ -347,7 +346,7 @@ mod tests {
             header: Some(header),
             body: Some(body),
         };
-        return StorageEnginePacket::ProduceResp(req);
+        StorageEnginePacket::ProduceResp(req)
     }
 
     fn build_produce_req() -> StorageEnginePacket {
@@ -372,6 +371,6 @@ mod tests {
             header: Some(header),
             body: Some(body),
         };
-        return StorageEnginePacket::ProduceReq(req);
+        StorageEnginePacket::ProduceReq(req)
     }
 }

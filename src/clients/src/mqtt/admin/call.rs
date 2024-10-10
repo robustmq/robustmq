@@ -13,10 +13,13 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use prost::Message as _;
+
 use common_base::error::common::CommonError;
+use prost::Message as _;
 use protocol::broker_server::generate::admin::{ClusterStatusReply, ClusterStatusRequest};
-use crate::{mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService}, poll::ClientPool};
+
+use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
+use crate::poll::ClientPool;
 
 pub async fn cluster_status(
     client_poll: Arc<ClientPool>,
@@ -34,11 +37,9 @@ pub async fn cluster_status(
     .await
     {
         Ok(data) => match ClusterStatusReply::decode(data.as_ref()) {
-            Ok(da) => return Ok(da),
-            Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }

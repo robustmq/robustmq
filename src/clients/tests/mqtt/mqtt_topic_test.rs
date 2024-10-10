@@ -14,23 +14,22 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use bytes::Bytes;
-    use clients::{
-        placement::mqtt::call::{
-            placement_create_topic, placement_delete_topic, placement_list_topic,
-            placement_set_topic_retain_message,
-        },
-        poll::ClientPool,
-    };
-    use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
-    use protocol::{
-        mqtt::common::{qos, Publish},
-        placement_center::generate::mqtt::{
-            CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
-        },
-    };
     use std::sync::Arc;
+
+    use bytes::Bytes;
+    use clients::placement::mqtt::call::{
+        placement_create_topic, placement_delete_topic, placement_list_topic,
+        placement_set_topic_retain_message,
+    };
+    use clients::poll::ClientPool;
+    use metadata_struct::mqtt::message::MQTTMessage;
+    use metadata_struct::mqtt::topic::MQTTTopic;
+    use protocol::mqtt::common::{qos, Publish};
+    use protocol::placement_center::generate::mqtt::{
+        CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
+    };
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_topic_test() {
@@ -98,14 +97,14 @@ mod tests {
             topic_id: topic_id.clone(),
             topic_name: topic_name.clone(),
             retain_message: Some(retain_message.encode()),
-            retain_message_expired_at: Some(retain_message_expired_at.clone()),
+            retain_message_expired_at: Some(retain_message_expired_at),
         };
 
         let request = SetTopicRetainMessageRequest {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
             retain_message: mqtt_topic.retain_message.clone().unwrap(),
-            retain_message_expired_at: mqtt_topic.retain_message_expired_at.clone().unwrap(),
+            retain_message_expired_at: mqtt_topic.retain_message_expired_at.unwrap(),
         };
         match placement_set_topic_retain_message(client_poll.clone(), addrs.clone(), request).await
         {

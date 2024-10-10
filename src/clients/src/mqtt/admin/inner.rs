@@ -25,13 +25,9 @@ pub(crate) async fn inner_cluster_status(
 ) -> Result<Vec<u8>, CommonError> {
     match ClusterStatusRequest::decode(request.as_ref()) {
         Ok(request) => match client.cluster_status(request).await {
-            Ok(result) => {
-                return Ok(ClusterStatusReply::encode_to_vec(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+            Ok(result) => Ok(ClusterStatusReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => {
-            return Err(CommonError::CommmonError(e.to_string()));
-        }
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }

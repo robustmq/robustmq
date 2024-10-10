@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::call_broker::MQTTBrokerCall;
-use crate::{
-    cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-    storage::{
-        keys::storage_key_mqtt_session_cluster_prefix,
-        mqtt::lastwill::MQTTLastWillStorage,
-        rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER},
-        StorageDataWrap,
-    },
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use clients::poll::ClientPool;
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use log::{debug, error};
 use metadata_struct::mqtt::session::MQTTSession;
-use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
+
+use super::call_broker::MQTTBrokerCall;
+use crate::cache::mqtt::MqttCacheManager;
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
+use crate::storage::mqtt::lastwill::MQTTLastWillStorage;
+use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
+use crate::storage::StorageDataWrap;
 
 #[derive(Clone, Debug)]
 pub struct ExpireLastWill {
@@ -52,18 +53,18 @@ impl SessionExpire {
         client_poll: Arc<ClientPool>,
         cluster_name: String,
     ) -> Self {
-        return SessionExpire {
+        SessionExpire {
             rocksdb_engine_handler,
             mqtt_cache_manager,
             placement_cache_manager,
             client_poll,
             cluster_name,
-        };
+        }
     }
 
     pub async fn session_expire(&self) {
         let sessions = self.get_expire_session_list().await;
-        if sessions.len() > 0 {
+        if !sessions.is_empty() {
             self.delete_session(sessions);
         }
         sleep(Duration::from_secs(1)).await;
@@ -71,7 +72,7 @@ impl SessionExpire {
 
     pub async fn lastwill_expire_send(&self) {
         let lastwill_list = self.get_expire_lastwill_messsage();
-        if lastwill_list.len() > 0 {
+        if !lastwill_list.is_empty() {
             debug!("Will message due, list:{:?}", lastwill_list);
             self.send_expire_lastwill_messsage(lastwill_list).await;
         }
@@ -92,7 +93,7 @@ impl SessionExpire {
             );
             return Vec::new();
         };
-        
+
         let mut iter = self.rocksdb_engine_handler.db.raw_iterator_cf(cf);
         iter.seek(search_key.clone());
         let mut sessions = Vec::new();
@@ -100,7 +101,7 @@ impl SessionExpire {
             let key = iter.key();
             let value = iter.value();
 
-            if key == None || value == None {
+            if key.is_none() || value.is_none() {
                 iter.next();
                 continue;
             }
@@ -117,7 +118,7 @@ impl SessionExpire {
                 break;
             }
             let result_value = value.unwrap();
-            let session = match serde_json::from_slice::<StorageDataWrap>(&result_value) {
+            let session = match serde_json::from_slice::<StorageDataWrap>(result_value) {
                 Ok(data) => match serde_json::from_slice::<MQTTSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {
@@ -143,7 +144,7 @@ impl SessionExpire {
             }
             iter.next();
         }
-        return sessions;
+        sessions
     }
 
     fn delete_session(&self, sessions: Vec<MQTTSession>) {
@@ -172,7 +173,7 @@ impl SessionExpire {
                 }
             }
         }
-        return results;
+        results
     }
 
     async fn send_expire_lastwill_messsage(&self, last_will_list: Vec<ExpireLastWill>) {
@@ -212,38 +213,35 @@ impl SessionExpire {
             }
         }
 
-        return false;
+        false
     }
 
     fn is_send_last_will(&self, lastwill: &ExpireLastWill) -> bool {
         if now_second() >= lastwill.delay_sec {
             return true;
         }
-        return false;
+        false
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::remove_dir_all, sync::Arc, time::Duration};
+    use std::fs::remove_dir_all;
+    use std::sync::Arc;
+    use std::time::Duration;
 
     use clients::poll::ClientPool;
-    use common_base::{
-        config::placement_center::placement_center_test_conf,
-        tools::{now_second, unique_id},
-    };
+    use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::tools::{now_second, unique_id};
     use metadata_struct::mqtt::session::MQTTSession;
     use tokio::time::sleep;
 
     use super::SessionExpire;
+    use crate::cache::mqtt::MqttCacheManager;
+    use crate::cache::placement::PlacementCacheManager;
     use crate::controller::mqtt::session_expire::ExpireLastWill;
-    use crate::{
-        cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-        storage::{
-            mqtt::session::MQTTSessionStorage,
-            rocksdb::{column_family_list, RocksDBEngine},
-        },
-    };
+    use crate::storage::mqtt::session::MQTTSessionStorage;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[test]
     fn is_session_expire_test() {
@@ -326,7 +324,7 @@ mod tests {
         loop {
             let expire_list = session_expire.get_expire_session_list().await;
 
-            if expire_list.len() > 0 {
+            if !expire_list.is_empty() {
                 let mut flag = false;
                 for st in expire_list {
                     if st.client_id == client_id {
@@ -426,7 +424,7 @@ mod tests {
         let start = now_second();
         loop {
             let lastwill_list = session_expire.get_expire_lastwill_messsage();
-            if lastwill_list.len() > 0 {
+            if !lastwill_list.is_empty() {
                 let mut flag = false;
                 for st in lastwill_list {
                     if st.client_id == client_id {

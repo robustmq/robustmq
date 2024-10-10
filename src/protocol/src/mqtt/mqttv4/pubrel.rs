@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,10 +32,10 @@ use super::*;
 
 impl PubRel {
     fn mqttv4(pkid: u16) -> PubRel {
-        return PubRel {
-            pkid: pkid,
+        PubRel {
+            pkid,
             reason: Some(PubRelReason::Success),
-        };
+        }
     }
 }
 
@@ -48,12 +48,11 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<PubRel, Error
     bytes.advance(variable_header_index);
     let pkid = read_u16(&mut bytes)?;
     if fixed_header.remaining_len == 2 {
-        return Ok(PubRel {
+        Ok(PubRel {
             pkid,
             reason: Some(PubRelReason::Success),
         })
-    }
-    else {
+    } else {
         Err(Error::InvalidRemainingLength(fixed_header.remaining_len))
     }
 }
@@ -66,14 +65,11 @@ pub fn write(pubrel: &PubRel, buffer: &mut BytesMut) -> Result<usize, Error> {
     Ok(1 + count + len)
 }
 
-
-
 #[cfg(test)]
 mod tests {
 
     #[test]
     fn test_pubrel() {
-
         use super::*;
         let mut buffer = BytesMut::new();
         let pubrel = PubRel::mqttv4(5u16);
@@ -81,15 +77,13 @@ mod tests {
         write(&pubrel, &mut buffer);
 
         // test the read function and verify the result of write function
-        let fixed_header:FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
+        let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         let pubrel_read = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert_eq!(fixed_header.byte1, 0b01100010);
         assert_eq!(fixed_header.remaining_len, 2);
         assert_eq!(pubrel_read.pkid, 5u16);
 
-         // test the display function of puback
-         println!("pubrel display: {}", pubrel_read);
-       
-
+        // test the display function of puback
+        println!("pubrel display: {}", pubrel_read);
     }
 }

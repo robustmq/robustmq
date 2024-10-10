@@ -12,22 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::rocksdb::RaftMachineStorage;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
 use common_base::error::common::CommonError;
 use log::{debug, error};
 use raft::eraftpb::HardState;
-use raft::prelude::ConfState;
-use raft::prelude::Entry;
-use raft::prelude::Snapshot;
-use raft::Error;
-use raft::RaftState;
-use raft::Result as RaftResult;
-use raft::Storage as RaftStorage;
-use raft::StorageError;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::sync::RwLockReadGuard;
-use std::sync::RwLockWriteGuard;
+use raft::prelude::{ConfState, Entry, Snapshot};
+use raft::{Error, RaftState, Result as RaftResult, Storage as RaftStorage, StorageError};
+
+use super::rocksdb::RaftMachineStorage;
 
 pub struct RaftRocksDBStorage {
     core: Arc<RwLock<RaftMachineStorage>>,
@@ -35,24 +28,20 @@ pub struct RaftRocksDBStorage {
 
 impl RaftRocksDBStorage {
     pub fn new(core: Arc<RwLock<RaftMachineStorage>>) -> Self {
-        return RaftRocksDBStorage { core };
+        RaftRocksDBStorage { core }
     }
 
     pub fn read_lock(&self) -> Result<RwLockReadGuard<'_, RaftMachineStorage>, CommonError> {
         match self.core.read() {
-            Ok(object) => return Ok(object),
-            Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
-            }
+            Ok(object) => Ok(object),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         }
     }
 
     pub fn write_lock(&self) -> Result<RwLockWriteGuard<'_, RaftMachineStorage>, CommonError> {
         match self.core.write() {
-            Ok(object) => return Ok(object),
-            Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
-            }
+            Ok(object) => Ok(object),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         }
     }
 }
@@ -60,42 +49,42 @@ impl RaftRocksDBStorage {
 impl RaftRocksDBStorage {
     pub fn recovery_snapshot(&self, snapshot: Snapshot) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
-        return store.recovery_snapshot(snapshot);
+        store.recovery_snapshot(snapshot)
     }
 
     pub fn append_entrys(&self, entrys: &Vec<Entry>) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
-        return store.append_entrys(entrys);
+        store.append_entrys(entrys)
     }
 
     pub fn commmit_index(&self, idx: u64) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
         let _ = store.commmit_index(idx);
-        return Ok(());
+        Ok(())
     }
 
     pub fn set_hard_state(&self, hs: HardState) -> Result<(), CommonError> {
         let store = self.write_lock()?;
         let _ = store.save_hard_state(hs.clone());
-        return Ok(());
+        Ok(())
     }
 
     pub fn set_hard_state_comit(&self, hs: u64) -> Result<(), CommonError> {
         let store = self.write_lock()?;
         let _ = store.update_hard_state_commit(hs);
-        return Ok(());
+        Ok(())
     }
 
     pub fn set_conf_state(&self, cs: ConfState) -> Result<(), CommonError> {
         let store = self.write_lock()?;
         let _ = store.save_conf_state(cs);
-        return Ok(());
+        Ok(())
     }
 
     pub fn create_snapshot(&self) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
         let _ = store.create_snapshot();
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -110,7 +99,7 @@ impl RaftStorage for RaftRocksDBStorage {
             Ok(obj) => obj,
             Err(e) => return Err(Error::ConfigInvalid(e.to_string())),
         };
-        return Ok(core.raft_state());
+        Ok(core.raft_state())
     }
 
     /// Returns a slice of log entries in the range `[low, high)`.
@@ -154,13 +143,13 @@ impl RaftStorage for RaftRocksDBStorage {
         let mut entry_list: Vec<Entry> = Vec::new();
         for idx in low..=high {
             let sret = core.entry_by_idx(idx);
-            if sret == None {
+            if sret.is_none() {
                 continue;
             }
             entry_list.push(sret.unwrap());
         }
 
-        return Ok(entry_list);
+        Ok(entry_list)
     }
 
     /// Returns the term of entry idx, which must be in the range
@@ -185,7 +174,7 @@ impl RaftStorage for RaftRocksDBStorage {
             return Ok(value.term);
         }
 
-        return Ok(0);
+        Ok(0)
     }
 
     /// Returns the index of the first log entry that is possible available via entries, which will
@@ -228,7 +217,7 @@ impl RaftStorage for RaftRocksDBStorage {
         };
 
         if core.raft_snapshot.trigger_snap_unavailable {
-            return Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable));
+            Err(Error::Store(StorageError::SnapshotTemporarilyUnavailable))
         } else {
             let mut snap = match core.get_snapshot() {
                 Ok(data) => data,

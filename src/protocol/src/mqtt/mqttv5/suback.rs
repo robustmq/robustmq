@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,7 +29,6 @@
  */
 
 use super::*;
-
 use crate::mqtt::common::SubAckProperties;
 
 pub fn len(suback: &SubAck, properties: &Option<SubAckProperties>) -> usize {
@@ -39,8 +38,7 @@ pub fn len(suback: &SubAck, properties: &Option<SubAckProperties>) -> usize {
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    }
-    else {
+    } else {
         // just 1 byte representing 0 length
         len += 1;
     }
@@ -61,8 +59,7 @@ pub fn write(
 
     if let Some(p) = properties {
         properties::write(p, buffer)?;
-    }
-    else {
+    } else {
         write_remaining_length(buffer, 0)?;
     }
     let p: Vec<u8> = suback.return_codes.iter().map(|&c| code(c)).collect();
@@ -77,11 +74,11 @@ pub fn read(
 ) -> Result<(SubAck, Option<SubAckProperties>), Error> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
-    
+
     let pkid = read_u16(&mut bytes)?;
     let properties = properties::read(&mut bytes)?;
 
-    if !bytes.has_remaining(){
+    if !bytes.has_remaining() {
         return Err(Error::MalformedPacket);
     }
 
@@ -91,28 +88,26 @@ pub fn read(
         return_codes.push(reason(return_code)?);
     }
 
-    let suback = SubAck {pkid, return_codes};
+    let suback = SubAck { pkid, return_codes };
 
     Ok((suback, properties))
 }
 
-
 mod properties {
     use bytes::Buf;
 
-    use crate::mqtt::{mqttv5::PropertyType, common::read_mqtt_string};
-
     use super::*;
+    use crate::mqtt::common::read_mqtt_string;
+    use crate::mqtt::mqttv5::PropertyType;
 
-    pub fn len(properties: &SubAckProperties) -> usize { 
-
+    pub fn len(properties: &SubAckProperties) -> usize {
         let mut len = 0;
 
         if let Some(reason) = &properties.reason_string {
             len += 1 + 2 + reason.len();
         }
 
-        for (key, value) in properties.user_properties.iter(){
+        for (key, value) in properties.user_properties.iter() {
             len += 1 + 2 + key.len() + 2 + value.len();
         }
 
@@ -134,7 +129,7 @@ mod properties {
         while cursor < properties_len {
             let prop = read_u8(bytes)?;
             cursor += 1;
-            
+
             match property(prop)? {
                 PropertyType::ReasonString => {
                     let reason = read_mqtt_string(bytes)?;
@@ -158,7 +153,7 @@ mod properties {
     }
 
     pub fn write(properties: &SubAckProperties, buffer: &mut BytesMut) -> Result<(), Error> {
-        let len = len (properties);
+        let len = len(properties);
         write_remaining_length(buffer, len)?;
 
         if let Some(reason) = &properties.reason_string {
@@ -169,7 +164,7 @@ mod properties {
         for (key, value) in properties.user_properties.iter() {
             buffer.put_u8(PropertyType::UserProperty as u8);
             write_mqtt_string(buffer, key);
-            write_mqtt_string(buffer,value);
+            write_mqtt_string(buffer, value);
         }
 
         Ok(())

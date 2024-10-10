@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER},
-    StorageDataWrap,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use serde::Serialize;
-use std::sync::Arc;
+
+use super::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
+use super::StorageDataWrap;
 
 pub fn engine_save_by_cluster<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -28,43 +28,43 @@ pub fn engine_save_by_cluster<T>(
 where
     T: Serialize,
 {
-    return engine_save(
+    engine_save(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_CLUSTER,
         key_name,
         value,
-    );
+    )
 }
 
 pub fn engine_get_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<Option<StorageDataWrap>, CommonError> {
-    return engine_get(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name);
+    engine_get(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
 }
 
 pub fn engine_exists_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<bool, CommonError> {
-    return engine_exists(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name);
+    engine_exists(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
 }
 
 pub fn engine_delete_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<(), CommonError> {
-    return engine_delete(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name);
+    engine_delete(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
 }
 pub fn engine_prefix_list_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     prefix_key_name: String,
 ) -> Result<Vec<StorageDataWrap>, CommonError> {
-    return engine_prefix_list(
+    engine_prefix_list(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_CLUSTER,
         prefix_key_name,
-    );
+    )
 }
 
 fn engine_save<T>(
@@ -91,12 +91,8 @@ where
 
     let data = StorageDataWrap::new(content);
     match rocksdb_engine_handler.write(cf, &key_name, &data) {
-        Ok(_) => {
-            return Ok(());
-        }
-        Err(e) => {
-            return Err(e);
-        }
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
     }
 }
 
@@ -113,17 +109,7 @@ fn engine_get(
         ));
     };
 
-    match rocksdb_engine_handler.read::<StorageDataWrap>(cf, &key_name) {
-        Ok(Some(data)) => {
-            return Ok(Some(data));
-        }
-        Ok(None) => {
-            return Ok(None);
-        }
-        Err(e) => {
-            return Err(e);
-        }
-    }
+    rocksdb_engine_handler.read::<StorageDataWrap>(cf, &key_name)
 }
 
 fn engine_delete(
@@ -155,7 +141,7 @@ fn engine_exists(
         ));
     };
 
-    return Ok(rocksdb_engine_handler.exist(cf, &key_name));
+    Ok(rocksdb_engine_handler.exist(cf, &key_name))
 }
 
 fn engine_prefix_list(
@@ -183,5 +169,5 @@ fn engine_prefix_list(
             }
         }
     }
-    return Ok(results);
+    Ok(results)
 }

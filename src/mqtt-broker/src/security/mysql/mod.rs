@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::AuthStorageAdapter;
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::{
-    acl::{mqtt_acl::MQTTAcl, mqtt_blacklist::MQTTAclBlackList},
-    mqtt::user::MQTTUser,
-};
-use mysql::{prelude::Queryable, Pool};
+use metadata_struct::acl::mqtt_acl::MQTTAcl;
+use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::mqtt::user::MQTTUser;
+use mysql::prelude::Queryable;
+use mysql::Pool;
 use third_driver::mysql::build_mysql_conn_pool;
+
+use super::AuthStorageAdapter;
 
 mod schema;
 pub struct MySQLAuthStorageAdapter {
@@ -109,12 +110,13 @@ impl AuthStorageAdapter for MySQLAuthStorageAdapter {
 #[cfg(test)]
 mod tests {
 
-    use mysql::{params, prelude::Queryable};
+    use mysql::params;
+    use mysql::prelude::Queryable;
     use third_driver::mysql::build_mysql_conn_pool;
 
+    use super::schema::TAuthUser;
+    use super::MySQLAuthStorageAdapter;
     use crate::security::AuthStorageAdapter;
-
-    use super::{schema::TAuthUser, MySQLAuthStorageAdapter};
 
     #[tokio::test]
     #[ignore]

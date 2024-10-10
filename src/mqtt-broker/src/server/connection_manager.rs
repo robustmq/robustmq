@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::cache::CacheManager;
+use std::sync::Arc;
+use std::time::Duration;
+
 use axum::extract::ws::{Message, WebSocket};
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use futures::{stream::SplitSink, SinkExt};
+use futures::stream::SplitSink;
+use futures::SinkExt;
 use log::{debug, error, info};
-use protocol::mqtt::{
-    codec::{MQTTPacketWrapper, MqttCodec},
-    common::MQTTProtocol,
-};
-use std::{sync::Arc, time::Duration};
+use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use protocol::mqtt::common::MQTTProtocol;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 
 use super::connection::{NetworkConnection, NetworkConnectionType};
+use crate::handler::cache::CacheManager;
 
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,

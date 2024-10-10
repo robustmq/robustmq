@@ -16,12 +16,13 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{broker_addr, connect_server5, distinct_conn};
     use common_base::tools::unique_id;
     use mqtt_broker::handler::constant::{
         SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE,
     };
     use paho_mqtt::{MessageBuilder, PropertyCode, QOS_1};
+
+    use crate::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
     async fn retain_message_test() {
@@ -31,7 +32,7 @@ mod tests {
         let sub_topics = &[topic.clone()];
 
         let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content = format!("mqtt message");
+        let message_content = "mqtt message".to_string();
 
         let msg = MessageBuilder::new()
             .payload(message_content.clone())
@@ -66,11 +67,12 @@ mod tests {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                 println!("{}", payload.clone());
                 if payload == message_content {
-                    if let Some(raw) =
-                        msg.properties().get_string_pair_at(PropertyCode::UserProperty, 0)
+                    if let Some(raw) = msg
+                        .properties()
+                        .get_string_pair_at(PropertyCode::UserProperty, 0)
                     {
-                        if raw.0 == SUB_RETAIN_MESSAGE_PUSH_FLAG.to_string()
-                            && raw.1 == SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE.to_string()
+                        if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
+                            && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
                         {
                             assert!(true);
                             break;

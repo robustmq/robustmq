@@ -12,31 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    handler::{cache::CacheManager, connection::Connection},
-    subscribe::sub_common::get_sub_topic_id_list,
-};
+use std::net::SocketAddr;
+use std::sync::Arc;
+
 use acl::is_allow_acl;
 use axum::async_trait;
 use clients::poll::ClientPool;
-use common_base::{
-    config::{broker_mqtt::broker_mqtt_conf, common::Auth},
-    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
-};
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::config::common::Auth;
+use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use dashmap::DashMap;
-use login::{plaintext::Plaintext, Authentication};
-use metadata_struct::{
-    acl::{
-        mqtt_acl::{MQTTAcl, MQTTAclAction},
-        mqtt_blacklist::MQTTAclBlackList,
-    },
-    mqtt::user::MQTTUser,
-};
+use login::plaintext::Plaintext;
+use login::Authentication;
+use metadata_struct::acl::mqtt_acl::{MQTTAcl, MQTTAclAction};
+use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::mqtt::user::MQTTUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
-use std::{net::SocketAddr, sync::Arc};
 use storage_adapter::{storage_is_mysql, storage_is_placement};
+
+use crate::handler::cache::CacheManager;
+use crate::handler::connection::Connection;
+use crate::subscribe::sub_common::get_sub_topic_id_list;
 
 pub mod acl;
 pub mod login;

@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clients::{
-    placement::mqtt::call::{placement_create_user, placement_delete_user, placement_list_user},
-    poll::ClientPool,
+use std::sync::Arc;
+
+use clients::placement::mqtt::call::{
+    placement_create_user, placement_delete_user, placement_list_user,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
+use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::mqtt::user::MQTTUser;
 use protocol::placement_center::generate::mqtt::{
     CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
-use std::sync::Arc;
 
 pub struct UserStorage {
     client_poll: Arc<ClientPool>,
@@ -142,10 +144,12 @@ impl UserStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::user::UserStorage;
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use std::sync::Arc;
+
+    use crate::storage::user::UserStorage;
 
     #[tokio::test]
     async fn user_test() {

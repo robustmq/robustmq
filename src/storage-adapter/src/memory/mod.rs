@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{ShardConfig, StorageAdapter};
 use axum::async_trait;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use metadata_struct::adapter::record::Record;
+
+use crate::storage::{ShardConfig, StorageAdapter};
 
 #[derive(Clone)]
 pub struct MemoryStorageAdapter {
@@ -26,18 +27,24 @@ pub struct MemoryStorageAdapter {
     pub key_index: DashMap<String, DashMap<String, u128>>,
 }
 
+impl Default for MemoryStorageAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryStorageAdapter {
     pub fn new() -> Self {
-        return MemoryStorageAdapter {
+        MemoryStorageAdapter {
             memory_data: DashMap::with_capacity(256),
             shard_data: DashMap::with_capacity(256),
             group_data: DashMap::with_capacity(256),
             key_index: DashMap::with_capacity(256),
-        };
+        }
     }
 
     pub fn offset_key(&self, group_id: String, shard_name: String) -> String {
-        return format!("{}_{}", group_id, shard_name);
+        format!("{}_{}", group_id, shard_name)
     }
 
     pub fn get_offset(&self, group_id: String, shard_name: String) -> Option<u128> {
@@ -45,7 +52,7 @@ impl MemoryStorageAdapter {
         if let Some(offset) = self.group_data.get(&key) {
             return Some(*offset);
         }
-        return None;
+        None
     }
 }
 
@@ -121,7 +128,7 @@ impl StorageAdapter for MemoryStorageAdapter {
             0
         };
 
-        let num = if let Some(num) = record_num { num } else { 10 };
+        let num = record_num.unwrap_or(10);
         if let Some(da) = self.shard_data.get(&shard_name) {
             let mut cur_offset = 0;
             let mut result = Vec::new();
@@ -187,9 +194,10 @@ impl StorageAdapter for MemoryStorageAdapter {
 
 #[cfg(test)]
 mod tests {
+    use metadata_struct::adapter::record::Record;
+
     use super::MemoryStorageAdapter;
     use crate::storage::StorageAdapter;
-    use metadata_struct::adapter::record::Record;
     #[tokio::test]
     async fn stream_read_write() {
         let storage_adapter = MemoryStorageAdapter::new();
@@ -205,7 +213,7 @@ mod tests {
             .stream_write(shard_name.clone(), data)
             .await
             .unwrap();
-        assert_eq!(result.get(0).unwrap().clone(), 0);
+        assert_eq!(result.first().unwrap().clone(), 0);
         assert_eq!(result.get(1).unwrap().clone(), 1);
         assert!(storage_adapter.shard_data.contains_key(&shard_name));
         assert_eq!(
@@ -224,7 +232,7 @@ mod tests {
             .stream_write(shard_name.clone(), data)
             .await
             .unwrap();
-        assert_eq!(result.get(0).unwrap().clone(), 2);
+        assert_eq!(result.first().unwrap().clone(), 2);
         assert_eq!(result.get(1).unwrap().clone(), 3);
         assert!(storage_adapter.shard_data.contains_key(&shard_name));
         assert_eq!(
@@ -246,14 +254,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms1
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();
@@ -269,14 +277,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms2
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();
@@ -292,14 +300,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms3
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();
@@ -315,14 +323,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(
-            String::from_utf8(res.get(0).unwrap().clone().data).unwrap(),
+            String::from_utf8(res.first().unwrap().clone().data).unwrap(),
             ms4
         );
         storage_adapter
             .stream_commit_offset(
                 shard_name.clone(),
                 group_id.clone(),
-                res.get(0).unwrap().clone().offset,
+                res.first().unwrap().clone().offset,
             )
             .await
             .unwrap();

@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    common::Log,
-    placement_center::{Heartbeat, Network, Node, Rocksdb, System},
-};
 use toml::Table;
+
+use super::common::Log;
+use super::placement_center::{Heartbeat, Network, Node, Rocksdb, System};
 
 pub fn default_cluster_name() -> String {
     "placement-center".to_string()
@@ -64,8 +63,8 @@ pub fn default_data_path() -> String {
 
 pub fn default_log() -> Log {
     Log {
-        log_path: format!("./logs/placement-center"),
-        log_config: format!("./config/log4rs.yaml"),
+        log_path: "./logs/placement-center".to_string(),
+        log_config: "./config/log4rs.yaml".to_string(),
     }
 }
 
@@ -73,16 +72,13 @@ pub fn default_nodes() -> Table {
     let mut nodes = Table::new();
     nodes.insert(
         default_node_id().to_string(),
-        toml::Value::String(format!(
-            "127.0.0.1:{}",
-            default_grpc_port().to_string()
-        )),
+        toml::Value::String(format!("127.0.0.1:{}", default_grpc_port())),
     );
     nodes
 }
 
 pub fn default_max_open_files() -> Option<i32> {
-    Some(10000 as i32)
+    Some(10000_i32)
 }
 
 pub fn default_rocksdb() -> Rocksdb {

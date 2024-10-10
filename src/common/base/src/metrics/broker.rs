@@ -15,7 +15,7 @@
 use lazy_static::lazy_static;
 use prometheus::{register_int_gauge_vec, IntGaugeVec};
 
-use super::{SERVER_LABLE_MQTT, SERVER_LABLE_GRPC, SERVER_LABLE_HTTP};
+use super::{SERVER_LABLE_GRPC, SERVER_LABLE_HTTP, SERVER_LABLE_MQTT};
 
 const SERVER_MODULE: &str = "server_module";
 

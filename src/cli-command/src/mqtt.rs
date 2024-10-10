@@ -13,8 +13,11 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use clients::{mqtt::admin::call::cluster_status, poll::ClientPool};
+
+use clients::mqtt::admin::call::cluster_status;
+use clients::poll::ClientPool;
 use protocol::broker_server::generate::admin::ClusterStatusRequest;
+
 use crate::{error_info, grpc_addr};
 
 #[derive(Clone)]
@@ -38,9 +41,15 @@ impl From<String> for MqttActionType {
 
 pub struct MqttBrokerCommand {}
 
+impl Default for MqttBrokerCommand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MqttBrokerCommand {
     pub fn new() -> Self {
-        return MqttBrokerCommand {};
+        MqttBrokerCommand {}
     }
 
     pub async fn start(&self, params: MqttCliCommandParam) {

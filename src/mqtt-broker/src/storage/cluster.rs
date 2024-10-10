@@ -12,25 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use clients::placement::placement::call::{
     delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
     set_resource_config, un_register_node,
 };
 use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::get_local_ip};
+use common_base::tools::get_local_ip;
 use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
 use metadata_struct::placement::broker_node::BrokerNode;
+use protocol::placement_center::generate::common::ClusterType;
 use protocol::placement_center::generate::placement::{
-    DeleteResourceConfigRequest, GetResourceConfigRequest, NodeListRequest,
-    SetResourceConfigRequest,
+    DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest, NodeListRequest,
+    RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
-use protocol::placement_center::generate::{
-    common::ClusterType,
-    placement::{HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest},
-};
-use std::sync::Arc;
 
 pub struct ClusterStorage {
     client_poll: Arc<ClientPool>,
@@ -213,11 +212,13 @@ impl ClusterStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::cluster::ClusterStorage;
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-    use std::sync::Arc;
+
+    use crate::storage::cluster::ClusterStorage;
 
     #[tokio::test]
     async fn cluster_node_test() {}

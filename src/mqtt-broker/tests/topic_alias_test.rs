@@ -16,9 +16,10 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{broker_addr, connect_server5, distinct_conn};
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, Properties, PropertyCode, QOS_1};
+
+    use crate::common::{broker_addr, connect_server5, distinct_conn};
 
     #[tokio::test]
     async fn topic_alias_test() {
@@ -29,14 +30,22 @@ mod tests {
         let sub_topics = &[topic.clone()];
 
         let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content1 = format!("mqtt message");
+        let message_content1 = "mqtt message".to_string();
 
         // publish to topic
         let mut props = Properties::new();
-        props.push_u32(PropertyCode::MessageExpiryInterval, 50).unwrap();
-        props.push_string_pair(PropertyCode::UserProperty, "age", "1").unwrap();
-        props.push_string_pair(PropertyCode::UserProperty, "name", "robustmq").unwrap();
-        props.push_u16(PropertyCode::TopicAlias, topic_alias).unwrap();
+        props
+            .push_u32(PropertyCode::MessageExpiryInterval, 50)
+            .unwrap();
+        props
+            .push_string_pair(PropertyCode::UserProperty, "age", "1")
+            .unwrap();
+        props
+            .push_string_pair(PropertyCode::UserProperty, "name", "robustmq")
+            .unwrap();
+        props
+            .push_u16(PropertyCode::TopicAlias, topic_alias)
+            .unwrap();
 
         let msg = MessageBuilder::new()
             .properties(props.clone())
@@ -53,7 +62,7 @@ mod tests {
             }
         }
 
-        let message_content2 = format!("mqtt message alias");
+        let message_content2 = "mqtt message alias".to_string();
 
         // publish to topic alias
         let msg = MessageBuilder::new()

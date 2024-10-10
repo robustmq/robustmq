@@ -17,9 +17,7 @@ use mysql::Pool;
 
 pub fn build_mysql_conn_pool(addr: &str) -> Result<Pool, CommonError> {
     match Pool::new(addr) {
-        Ok(pool) => return Ok(pool),
-        Err(e) => {
-            return Err(CommonError::CommmonError(e.to_string()));
-        }
+        Ok(pool) => Ok(pool),
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }

@@ -12,66 +12,85 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::process;
+use std::time::Duration;
+
 use paho_mqtt::{
     Client, ConnectOptions, ConnectOptionsBuilder, CreateOptions, CreateOptionsBuilder,
     DisconnectOptionsBuilder, Properties, PropertyCode, ReasonCode, SslOptionsBuilder,
 };
-use std::{process, time::Duration};
 
 #[allow(dead_code)]
 pub fn broker_addr() -> String {
-    return "tcp://127.0.0.1:1883".to_string();
+    "tcp://127.0.0.1:1883".to_string()
 }
 
 #[allow(dead_code)]
 pub fn broker_ssl_addr() -> String {
-    return "mqtts://127.0.0.1:8883".to_string();
+    "mqtts://127.0.0.1:8883".to_string()
 }
 
 #[allow(dead_code)]
 pub fn broker_ws_addr() -> String {
-    return "ws://127.0.0.1:8093".to_string();
+    "ws://127.0.0.1:8093".to_string()
 }
 
 #[allow(dead_code)]
 pub fn broker_wss_addr() -> String {
-    return "wss://127.0.0.1:8094".to_string();
+    "wss://127.0.0.1:8094".to_string()
 }
 
 #[allow(dead_code)]
 pub fn username() -> String {
-    return "admin".to_string();
+    "admin".to_string()
 }
 
 #[allow(dead_code)]
 pub fn password() -> String {
-    return "pwd123".to_string();
+    "pwd123".to_string()
 }
 
 #[allow(dead_code)]
 pub fn err_password() -> String {
-    return "pwd1235".to_string();
+    "pwd1235".to_string()
 }
 
 #[allow(dead_code)]
 pub fn build_v5_pros() -> Properties {
     let mut props = Properties::new();
-    props.push_u32(PropertyCode::SessionExpiryInterval, 3).unwrap();
+    props
+        .push_u32(PropertyCode::SessionExpiryInterval, 3)
+        .unwrap();
     props.push_u16(PropertyCode::ReceiveMaximum, 128).unwrap();
-    props.push_u32(PropertyCode::MaximumPacketSize, 2048).unwrap();
-    props.push_u16(PropertyCode::TopicAliasMaximum, 128).unwrap();
-    props.push_val(PropertyCode::RequestResponseInformation, 0).unwrap();
-    props.push_val(PropertyCode::RequestProblemInformation, 1).unwrap();
-    props.push_string_pair(PropertyCode::UserProperty, "lobo1", "1").unwrap();
-    props.push_string_pair(PropertyCode::UserProperty, "lobo2", "2").unwrap();
-    return props;
+    props
+        .push_u32(PropertyCode::MaximumPacketSize, 2048)
+        .unwrap();
+    props
+        .push_u16(PropertyCode::TopicAliasMaximum, 128)
+        .unwrap();
+    props
+        .push_val(PropertyCode::RequestResponseInformation, 0)
+        .unwrap();
+    props
+        .push_val(PropertyCode::RequestProblemInformation, 1)
+        .unwrap();
+    props
+        .push_string_pair(PropertyCode::UserProperty, "lobo1", "1")
+        .unwrap();
+    props
+        .push_string_pair(PropertyCode::UserProperty, "lobo2", "2")
+        .unwrap();
+    props
 }
 
 #[allow(dead_code)]
 pub fn build_v5_conn_pros(props: Properties, err_pwd: bool, ws: bool, ssl: bool) -> ConnectOptions {
     let pwd = if err_pwd { err_password() } else { password() };
-    let mut conn_opts =
-        if ws { ConnectOptionsBuilder::new_ws_v5() } else { ConnectOptionsBuilder::new_v5() };
+    let mut conn_opts = if ws {
+        ConnectOptionsBuilder::new_ws_v5()
+    } else {
+        ConnectOptionsBuilder::new_v5()
+    };
     if ssl {
         let ssl_opts = SslOptionsBuilder::new()
             .trust_store(format!(
@@ -125,12 +144,16 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool, ws: bool, ssl: bool)
 
 #[allow(dead_code)]
 pub fn build_create_pros(client_id: &String, addr: &String) -> CreateOptions {
-    let create_opts = if client_id.is_empty() {
-        CreateOptionsBuilder::new().server_uri(addr.clone()).finalize()
+    if client_id.is_empty() {
+        CreateOptionsBuilder::new()
+            .server_uri(addr.clone())
+            .finalize()
     } else {
-        CreateOptionsBuilder::new().server_uri(addr.clone()).client_id(client_id.clone()).finalize()
-    };
-    return create_opts;
+        CreateOptionsBuilder::new()
+            .server_uri(addr.clone())
+            .client_id(client_id.clone())
+            .finalize()
+    }
 }
 
 #[allow(dead_code)]
@@ -158,7 +181,7 @@ pub fn connect_server34(mqtt_version: u32, client_id: &String, addr: &String) ->
             assert!(false)
         }
     }
-    return cli;
+    cli
 }
 
 #[allow(dead_code)]
@@ -182,12 +205,10 @@ pub fn connect_server5(client_id: &String, addr: &String, ws: bool, ssl: bool) -
                 } else {
                     assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
                 }
+            } else if ssl {
+                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
             } else {
-                if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
+                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
             }
             assert_eq!(mqtt_version, resp.mqtt_version);
             assert_eq!(response.reason_code(), ReasonCode::Success);
@@ -197,7 +218,7 @@ pub fn connect_server5(client_id: &String, addr: &String, ws: bool, ssl: bool) -
             process::exit(1);
         }
     }
-    return cli;
+    cli
 }
 
 #[allow(dead_code)]
@@ -210,7 +231,9 @@ pub fn connect_server5_packet_size(
 ) -> Client {
     let mqtt_version = 5;
     let mut props = build_v5_pros();
-    props.push_int(PropertyCode::MaximumPacketSize, packet_size).unwrap();
+    props
+        .push_int(PropertyCode::MaximumPacketSize, packet_size)
+        .unwrap();
 
     let create_opts = build_create_pros(client_id, addr);
     let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -228,12 +251,10 @@ pub fn connect_server5_packet_size(
                 } else {
                     assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
                 }
+            } else if ssl {
+                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
             } else {
-                if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
+                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
             }
             assert_eq!(mqtt_version, resp.mqtt_version);
             assert!(resp.session_present);
@@ -244,14 +265,16 @@ pub fn connect_server5_packet_size(
             process::exit(1);
         }
     }
-    return cli;
+    cli
 }
 
 #[allow(dead_code)]
 pub fn connect_server5_response_information(client_id: &String, addr: &String) -> (Client, String) {
     let mqtt_version = 5;
     let mut props = build_v5_pros();
-    props.push_val(PropertyCode::RequestResponseInformation, 1).unwrap();
+    props
+        .push_val(PropertyCode::RequestResponseInformation, 1)
+        .unwrap();
 
     let create_opts = build_create_pros(client_id, addr);
     let cli = Client::new(create_opts).unwrap_or_else(|err| {
@@ -270,12 +293,14 @@ pub fn connect_server5_response_information(client_id: &String, addr: &String) -
             assert_eq!(response.reason_code(), ReasonCode::Success);
 
             let resp_pros = response.properties();
-            resp_pros.get_string(PropertyCode::ResponseInformation).unwrap()
+            resp_pros
+                .get_string(PropertyCode::ResponseInformation)
+                .unwrap()
         }
         Err(e) => {
             println!("Unable to connect:\n\t{:?}", e);
             process::exit(1);
         }
     };
-    return (cli, response_information);
+    (cli, response_information)
 }

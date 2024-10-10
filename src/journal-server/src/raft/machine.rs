@@ -17,6 +17,6 @@ pub struct SegmentStatusMachine {}
 impl SegmentStatusMachine {
     #[allow(dead_code)]
     pub fn new() -> Self {
-        return SegmentStatusMachine {};
+        SegmentStatusMachine {}
     }
 }

@@ -12,39 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    sub_common::{
-        loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
-        qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
-    },
-    subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager},
-};
-use crate::{
-    handler::{
-        cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
-        message::is_message_expire,
-        retain::try_send_retain_message,
-    },
-    server::{connection_manager::ConnectionManager, packet::ResponsePackage},
-    storage::message::MessageStorage,
-    subscribe::subscriber::Subscriber,
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{
-    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
-    tools::now_second,
-};
+use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::tools::now_second;
 use log::{debug, error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
-use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
-use tokio::{
-    select,
-    sync::broadcast::{self, Sender},
-    time::sleep,
+use tokio::select;
+use tokio::sync::broadcast::{self, Sender};
+use tokio::time::sleep;
+
+use super::sub_common::{
+    loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
+    qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
 };
+use super::subscribe_manager::{ShareLeaderSubscribeData, SubscribeManager};
+use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::message::is_message_expire;
+use crate::handler::retain::try_send_retain_message;
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::ResponsePackage;
+use crate::storage::message::MessageStorage;
+use crate::subscribe::subscriber::Subscriber;
 
 #[derive(Clone)]
 pub struct SubscribeShareLeader<S> {
@@ -87,10 +82,16 @@ where
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
         for (share_leader_key, sx) in self.subscribe_manager.share_leader_push_thread.clone() {
-            if !self.subscribe_manager.share_leader_subscribe.contains_key(&share_leader_key) {
+            if !self
+                .subscribe_manager
+                .share_leader_subscribe
+                .contains_key(&share_leader_key)
+            {
                 match sx.send(true) {
                     Ok(_) => {
-                        self.subscribe_manager.share_leader_push_thread.remove(&share_leader_key);
+                        self.subscribe_manager
+                            .share_leader_push_thread
+                            .remove(&share_leader_key);
                     }
                     Err(err) => {
                         error!("stop sub share thread error, error message:{}", err);
@@ -104,12 +105,16 @@ where
         // Periodically verify if any push tasks are not started. If so, the thread is started
         for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
             if sub_data.sub_list.len() == 0 {
-                if let Some(sx) =
-                    self.subscribe_manager.share_leader_push_thread.get(&share_leader_key)
+                if let Some(sx) = self
+                    .subscribe_manager
+                    .share_leader_push_thread
+                    .get(&share_leader_key)
                 {
                     match sx.send(true) {
                         Ok(_) => {
-                            self.subscribe_manager.share_leader_subscribe.remove(&share_leader_key);
+                            self.subscribe_manager
+                                .share_leader_subscribe
+                                .remove(&share_leader_key);
                         }
                         Err(_) => {}
                     }
@@ -118,7 +123,11 @@ where
 
             // start push data thread
             let subscribe_manager = self.subscribe_manager.clone();
-            if !self.subscribe_manager.share_leader_push_thread.contains_key(&share_leader_key) {
+            if !self
+                .subscribe_manager
+                .share_leader_push_thread
+                .contains_key(&share_leader_key)
+            {
                 self.push_by_round_robin(
                     share_leader_key.clone(),
                     sub_data.clone(),
@@ -213,7 +222,9 @@ where
                 }
             }
 
-            subscribe_manager.share_leader_push_thread.remove(&share_leader_key);
+            subscribe_manager
+                .share_leader_push_thread
+                .remove(&share_leader_key);
         });
     }
 }
@@ -249,7 +260,10 @@ where
                 let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
                     Err(e) => {
-                        error!("Storage layer message Decord failed with error message :{}", e);
+                        error!(
+                            "Storage layer message Decord failed with error message :{}",
+                            e
+                        );
                         loop_commit_offset(message_storage, topic_id, group_id, record.offset)
                             .await;
                         return cursor_point;
@@ -270,7 +284,7 @@ where
                     }
 
                     cursor_point = choose_available_sub(cursor_point, sub_list);
-                    println!("cursor_point:{}",cursor_point);
+                    println!("cursor_point:{}", cursor_point);
                     let subscribe = sub_list.get(cursor_point).unwrap();
 
                     if let Some((publish, properties)) =
@@ -320,7 +334,11 @@ fn try_loop_times(sub_len: usize) -> usize {
 
 fn choose_available_sub(cursor_point: usize, sub_list: &Vec<Subscriber>) -> usize {
     let current_point = cursor_point + 1;
-    return if current_point < sub_list.len() { current_point } else { 0 };
+    return if current_point < sub_list.len() {
+        current_point
+    } else {
+        0
+    };
 }
 
 async fn qos_publish<S>(
@@ -360,7 +378,10 @@ where
             cache_manager.add_ack_packet(
                 &subscribe.client_id,
                 pkid,
-                QosAckPacketInfo { sx: wait_puback_sx.clone(), create_time: now_second() },
+                QosAckPacketInfo {
+                    sx: wait_puback_sx.clone(),
+                    create_time: now_second(),
+                },
             );
 
             match share_leader_publish_message_qos1(
@@ -400,7 +421,10 @@ where
             cache_manager.add_ack_packet(
                 &subscribe.client_id,
                 pkid,
-                QosAckPacketInfo { sx: wait_ack_sx.clone(), create_time: now_second() },
+                QosAckPacketInfo {
+                    sx: wait_ack_sx.clone(),
+                    create_time: now_second(),
+                },
             );
 
             match share_leader_publish_message_qos2(
@@ -440,7 +464,11 @@ fn build_publish(
     let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
 
-    let retain = if subscribe.preserve_retain { msg.retain } else { false };
+    let retain = if subscribe.preserve_retain {
+        msg.retain
+    } else {
+        false
+    };
 
     if subscribe.nolocal && (subscribe.client_id == msg.client_id) {
         return None;

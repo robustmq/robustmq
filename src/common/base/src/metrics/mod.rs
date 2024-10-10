@@ -16,8 +16,7 @@ pub mod broker;
 use axum::routing::get;
 use axum::Router;
 use log::info;
-use prometheus::IntGaugeVec;
-use prometheus::{Encoder, TextEncoder};
+use prometheus::{Encoder, IntGaugeVec, TextEncoder};
 
 lazy_static::lazy_static! {
     static ref APP_VERSION: IntGaugeVec =
@@ -33,8 +32,8 @@ pub fn dump_metrics() -> String {
     let encoder = TextEncoder::new();
     let mf = prometheus::gather();
     encoder.encode(&mf, &mut buffer).unwrap();
-    let res = String::from_utf8(buffer).unwrap();
-    return res;
+
+    String::from_utf8(buffer).unwrap()
 }
 
 pub async fn register_prometheus_export(port: u16) {
@@ -49,5 +48,5 @@ pub async fn register_prometheus_export(port: u16) {
 }
 
 pub async fn route_metrics() -> String {
-    return dump_metrics();
+    dump_metrics()
 }

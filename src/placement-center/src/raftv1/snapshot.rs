@@ -21,14 +21,14 @@ pub struct RaftSnapshot {
 
 impl RaftSnapshot {
     pub fn new() -> Self {
-        return RaftSnapshot {
+        RaftSnapshot {
             snapshot_metadata: SnapshotMetadata::default(),
             trigger_snap_unavailable: false,
-        };
+        }
     }
 
     pub fn recovery_snapshot(&self) -> Result<(), CommonError> {
-        println!("{}","recovery_snapshot");
+        println!("recovery_snapshot");
         // let mut meta = snapshot.take_metadata();
         // let index = meta.index;
 
@@ -49,12 +49,12 @@ impl RaftSnapshot {
 
         // // update ConfState
         // let _ = self.save_conf_state(meta.take_conf_state());
-        return Ok(());
+        Ok(())
     }
 
     #[warn(dead_code)]
     pub fn create_snapshot(&self) -> Result<(), CommonError> {
-        println!("{}","create_snapshot");
+        println!("create_snapshot");
         // let mut sns = Snapshot::default();
 
         // // create snapshot metadata
@@ -73,12 +73,12 @@ impl RaftSnapshot {
 
         // self.save_snapshot_data(sns);
         // self.snapshot_metadata = meta.clone();
-        return Ok(());
+        Ok(())
     }
 
     #[warn(dead_code)]
     pub fn create_snapshot_metadata(&self) -> Result<SnapshotMetadata, CommonError> {
-        println!("{}","create_snapshot_metadata");
+        println!("create_snapshot_metadata");
         // let hard_state = self.hard_state();
         // let conf_state = self.conf_state();
 
@@ -86,6 +86,6 @@ impl RaftSnapshot {
         // meta.set_conf_state(conf_state);
         // meta.set_index(hard_state.commit);
         // meta.set_term(hard_state.term);
-        return Ok(meta);
+        Ok(meta)
     }
 }

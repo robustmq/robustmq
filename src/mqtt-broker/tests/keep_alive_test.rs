@@ -20,14 +20,10 @@ mod tests {
 
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::{
-        common::{Connect, LastWill, Login, MQTTPacket},
-        mqttv4::codec::Mqtt4Codec,
-    };
-    use tokio::{
-        net::TcpStream,
-        time::{sleep, Instant},
-    };
+    use protocol::mqtt::common::{Connect, LastWill, Login, MQTTPacket};
+    use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
+    use tokio::net::TcpStream;
+    use tokio::time::{sleep, Instant};
     use tokio_util::codec::Framed;
 
     #[tokio::test]
@@ -49,15 +45,15 @@ mod tests {
                         if !e.to_string().contains("Insufficient number") {
                             break;
                         }
-                        println!("error:{}", e.to_string());
+                        println!("error:{}", e);
                     }
                 }
             }
             sleep(Duration::from_secs(1)).await;
         }
         let ts = now.elapsed().as_secs();
-        println!("{}",ts);
-        assert!(ts >= 9 && ts <= 12);
+        println!("{}", ts);
+        assert!((9..=12).contains(&ts));
     }
 
     /// Build the connect content package for the mqtt4 protocol
@@ -76,9 +72,9 @@ mod tests {
 
         let connect: Connect = Connect {
             keep_alive: 5, // 30 seconds
-            client_id: client_id,
+            client_id,
             clean_session: true,
         };
-        return MQTTPacket::Connect(4, connect, None, lastwill, None, login);
+        MQTTPacket::Connect(4, connect, None, lastwill, None, login)
     }
 }

@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster},
-    keys::key_resource_config,
-    rocksdb::RocksDBEngine,
-};
-use common_base::error::common::CommonError;
 use std::sync::Arc;
+
+use common_base::error::common::CommonError;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
+};
+use crate::storage::keys::key_resource_config;
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct ResourceConfigStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -37,7 +39,7 @@ impl ResourceConfigStorage {
         config: Vec<u8>,
     ) -> Result<(), CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, config);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, config)
     }
 
     pub fn delete(
@@ -46,7 +48,7 @@ impl ResourceConfigStorage {
         resource_key: Vec<String>,
     ) -> Result<(), CommonError> {
         let key = key_resource_config(cluster_name, resource_key.join("/"));
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 
     pub fn get(
@@ -58,16 +60,10 @@ impl ResourceConfigStorage {
 
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<Vec<u8>>(&data.data) {
-                Ok(config) => {
-                    return Ok(Some(config));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(config) => Ok(Some(config)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => {
-                return Ok(None);
-            }
+            Ok(None) => Ok(None),
             Err(e) => Err(e),
         }
     }

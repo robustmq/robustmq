@@ -17,10 +17,11 @@ mod common;
 #[cfg(test)]
 mod tests {
 
-    use crate::common::{broker_addr, connect_server5, distinct_conn};
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
-    
+
+    use crate::common::{broker_addr, connect_server5, distinct_conn};
+
     #[tokio::test]
     async fn sub_options_test() {
         let sub_qos = &[0];
@@ -83,5 +84,4 @@ mod tests {
         }
         distinct_conn(cli);
     }
-
 }
