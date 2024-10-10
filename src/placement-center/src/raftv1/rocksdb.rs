@@ -228,6 +228,7 @@ impl RaftMachineStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn save_first_index(&self, index: u64) -> Result<(), CommonError> {
         let key = key_name_by_first_index();
         self.rocksdb_engine_handler.write(
@@ -300,6 +301,7 @@ impl RaftMachineStorage {
     }
 
     // Example Create a data snapshot for the current system
+    #[allow(dead_code)]
     pub fn create_snapshot(&mut self) -> Result<(), CommonError> {
         self.raft_snapshot.create_snapshot()
     }

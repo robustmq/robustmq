@@ -81,6 +81,7 @@ impl RaftRocksDBStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn create_snapshot(&self) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
         let _ = store.create_snapshot();
