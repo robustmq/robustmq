@@ -282,6 +282,7 @@ async fn resub_sub_mqtt5(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn process_packet(
     cache_manager: &Arc<CacheManager>,
     share_sub: &ShareSubShareSub,
@@ -524,6 +525,7 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn resub_publish_message_qos1(
     metadata_cache: &Arc<CacheManager>,
     mqtt_client_id: &str,
@@ -599,6 +601,7 @@ async fn resub_publish_message_qos1(
 // 2. wait pubrec message
 // 3. send pubrel message
 // 4. wait pubcomp message
+#[allow(clippy::too_many_arguments)]
 pub async fn resub_publish_message_qos2(
     metadata_cache: &Arc<CacheManager>,
     mqtt_client_id: &str,

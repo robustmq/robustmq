@@ -43,7 +43,10 @@ mod tests {
             extend_info: extend_info(),
             ..Default::default()
         };
-        client.register_node(tonic::Request::new(request)).await.unwrap();
+        client
+            .register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -57,7 +60,10 @@ mod tests {
             cluster_name: cluster_name(),
             node_id: node_id(),
         };
-        client.heartbeat(tonic::Request::new(request)).await.unwrap();
+        client
+            .heartbeat(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -71,7 +77,10 @@ mod tests {
             cluster_name: cluster_name(),
             node_id: node_id(),
         };
-        client.un_register_node(tonic::Request::new(request)).await.unwrap();
+        client
+            .un_register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -83,7 +92,10 @@ mod tests {
             shard_name: shard_name(),
             replica: shard_replica(),
         };
-        client.create_shard(tonic::Request::new(request)).await.unwrap();
+        client
+            .create_shard(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -94,7 +106,10 @@ mod tests {
             cluster_name: cluster_name(),
             shard_name: shard_name(),
         };
-        client.delete_shard(tonic::Request::new(request)).await.unwrap();
+        client
+            .delete_shard(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -105,7 +120,10 @@ mod tests {
             cluster_name: cluster_name(),
             shard_name: shard_name(),
         };
-        client.create_segment(tonic::Request::new(request)).await.unwrap();
+        client
+            .create_segment(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -117,6 +135,9 @@ mod tests {
             shard_name: shard_name(),
             segment_seq: 1,
         };
-        client.delete_segment(tonic::Request::new(request)).await.unwrap();
+        client
+            .delete_segment(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 }

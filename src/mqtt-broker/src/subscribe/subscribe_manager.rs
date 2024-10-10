@@ -298,6 +298,7 @@ impl SubscribeManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn parse_share_subscribe_leader(
         &self,
         topic_name: String,
@@ -358,6 +359,7 @@ impl SubscribeManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn parse_share_subscribe_follower(
         &self,
         topic_id: String,

@@ -142,33 +142,53 @@ mod test {
         let cache_manager = Arc::new(CacheManager::new(client_poll.clone(), cluster_name));
         let client_id = "test".to_string();
         let pkid = 15;
-        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
         assert!(!flag);
 
-        pkid_save(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        pkid_save(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
         assert!(flag);
 
-        pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        pkid_delete(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
         assert!(!flag);
         let mut cluset_info = cache_manager.get_cluster_info();
         cluset_info.protocol.client_pkid_persistent = true;
         cache_manager.set_cluster_info(cluset_info);
 
-        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
         assert!(!flag);
 
-        pkid_save(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        pkid_save(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
         assert!(flag);
 
-        pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        pkid_delete(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await.unwrap();
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
         assert!(!flag);
     }
 }

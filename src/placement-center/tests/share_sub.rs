@@ -51,7 +51,9 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let res = register_node(client_poll.clone(), addrs.clone(), request).await.unwrap();
+        let res = register_node(client_poll.clone(), addrs.clone(), request)
+            .await
+            .unwrap();
         info!("{:?}", res);
 
         let group_name = "test".to_string();
@@ -60,7 +62,9 @@ mod tests {
             group_name,
         };
 
-        let resp = placement_get_share_sub_leader(client_poll.clone(), addrs.clone(), req).await.unwrap();
+        let resp = placement_get_share_sub_leader(client_poll.clone(), addrs.clone(), req)
+            .await
+            .unwrap();
         println!("resp broker_id:{}", resp.broker_id);
         println!("node_id:{}", node_id);
         assert_eq!(resp.broker_id, node_id);

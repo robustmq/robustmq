@@ -194,7 +194,7 @@ impl RaftMachine {
         // messages need to be stored to Storage before they can be sent.Save entries to Storage.
         if !ready.entries().is_empty() {
             let entries = ready.entries();
-            raft_node.mut_store().append_entrys(entries)?;
+            raft_node.mut_store().append_entries(entries.as_slice())?;
         }
 
         // The committed raft log can be applied to the State Machine.

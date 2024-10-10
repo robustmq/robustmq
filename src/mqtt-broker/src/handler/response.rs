@@ -26,6 +26,7 @@ use super::connection::{response_information, Connection};
 use super::keep_alive::keep_live_time;
 use super::validator::is_request_problem_info;
 
+#[allow(clippy::too_many_arguments)]
 pub fn response_packet_mqtt_connect_success(
     protocol: &MQTTProtocol,
     cluster: &MqttClusterDynamicConfig,

@@ -165,18 +165,15 @@ pub fn placement_center_test_conf() -> PlacementCenterConfig {
         data_path: format!("/tmp/{}", unique_id()),
         max_open_files: Some(10),
     };
-    
+
     let mut nodes = Map::new();
     nodes.insert("1".to_string(), Value::from("127.0.0.1:9982".to_string()));
-    let node = Node {
-        node_id: 1,
-        nodes,
-    };
+    let node = Node { node_id: 1, nodes };
 
     let config = PlacementCenterConfig {
         rocksdb,
         node,
-        ..Default::default()    
+        ..Default::default()
     };
     init_placement_center_conf_by_config(config.clone());
     config

@@ -223,11 +223,12 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn read_message_process<S>(
     topic_id: &str,
     topic_name: &str,
     message_storage: &MessageStorage<S>,
-    sub_list: &Vec<Subscriber>,
+    sub_list: &[Subscriber],
     group_id: &str,
     mut cursor_point: usize,
     connection_manager: &Arc<ConnectionManager>,
@@ -326,7 +327,7 @@ fn try_loop_times(sub_len: usize) -> usize {
     sub_len * 2
 }
 
-fn choose_available_sub(cursor_point: usize, sub_list: &Vec<Subscriber>) -> usize {
+fn choose_available_sub(cursor_point: usize, sub_list: &[Subscriber]) -> usize {
     let current_point = cursor_point + 1;
     if current_point < sub_list.len() {
         current_point
@@ -335,6 +336,7 @@ fn choose_available_sub(cursor_point: usize, sub_list: &Vec<Subscriber>) -> usiz
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn qos_publish<S>(
     mut publish: Publish,
     properties: PublishProperties,
@@ -561,6 +563,7 @@ async fn share_leader_publish_message_qos1(
 // wait pubrec message
 // send pubrel message
 // wait pubcomp message
+#[allow(clippy::too_many_arguments)]
 async fn share_leader_publish_message_qos2<S>(
     cache_manager: &Arc<CacheManager>,
     client_id: &str,

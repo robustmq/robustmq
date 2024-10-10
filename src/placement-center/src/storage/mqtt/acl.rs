@@ -122,7 +122,7 @@ impl AclStorage {
         }
     }
 
-    fn acl_exists(&self, acl_list: &Vec<MqttAcl>, acl: &MqttAcl) -> bool {
+    fn acl_exists(&self, acl_list: &[MqttAcl], acl: &MqttAcl) -> bool {
         for raw in acl_list {
             if !(raw.permission == acl.permission
                 && raw.action == acl.action

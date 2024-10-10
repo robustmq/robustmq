@@ -46,7 +46,9 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::tools::now_second;
-    use metadata_struct::mqtt::cluster::{MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol};
+    use metadata_struct::mqtt::cluster::{
+        MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
+    };
     use protocol::mqtt::common::PublishProperties;
 
     use crate::handler::cache::CacheManager;

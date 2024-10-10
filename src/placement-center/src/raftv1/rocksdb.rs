@@ -53,12 +53,12 @@ impl RaftMachineStorage {
 }
 
 impl RaftMachineStorage {
-    pub fn append_entrys(&mut self, entrys: &Vec<Entry>) -> Result<(), CommonError> {
-        if entrys.is_empty() {
+    pub fn append_entrys(&mut self, entries: &[Entry]) -> Result<(), CommonError> {
+        if entries.is_empty() {
             return Ok(());
         }
 
-        let entry_first_index = entrys[0].index;
+        let entry_first_index = entries[0].index;
 
         let first_index = self.first_index();
         if first_index > entry_first_index {
@@ -77,7 +77,7 @@ impl RaftMachineStorage {
             )));
         }
 
-        for entry in entrys {
+        for entry in entries {
             debug!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(entry);
             let key = key_name_by_entry(entry.index);

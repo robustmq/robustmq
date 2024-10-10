@@ -163,6 +163,7 @@ pub async fn tcp_tls_establish_connection_check(
     true
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn connect_validator(
     protocol: &MQTTProtocol,
     cluster: &MqttClusterDynamicConfig,

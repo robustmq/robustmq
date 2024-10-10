@@ -144,6 +144,7 @@ pub async fn st_report_connected_event<S>(
 }
 
 // Offline events. When any client goes offline, a message for that topic is published
+#[allow(clippy::too_many_arguments)]
 pub async fn st_report_disconnected_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
