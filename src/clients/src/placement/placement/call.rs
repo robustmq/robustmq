@@ -98,7 +98,7 @@ pub async fn register_node(
     }
 }
 
-pub async fn un_register_node(
+pub async fn unregister_node(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UnRegisterNodeRequest,

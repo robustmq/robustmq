@@ -145,9 +145,7 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool, ws: bool, ssl: bool)
 #[allow(dead_code)]
 pub fn build_create_pros(client_id: &str, addr: &str) -> CreateOptions {
     if client_id.is_empty() {
-        CreateOptionsBuilder::new()
-            .server_uri(addr)
-            .finalize()
+        CreateOptionsBuilder::new().server_uri(addr).finalize()
     } else {
         CreateOptionsBuilder::new()
             .server_uri(addr)
@@ -174,13 +172,7 @@ pub fn connect_server34(mqtt_version: u32, client_id: &str, addr: &str) -> Clien
 
     let conn_opts = build_v3_conn_pros(mqtt_version, false, false, false);
 
-    match cli.connect(conn_opts) {
-        Ok(_) => {}
-        Err(e) => {
-            println!("Unable to connect:\n\t{:?},{}", e, addr);
-            assert!(false)
-        }
-    }
+    cli.connect(conn_opts).unwrap();
     cli
 }
 

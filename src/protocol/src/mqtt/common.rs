@@ -618,7 +618,7 @@ impl fmt::Display for ConnAckProperties {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "session_expiry_interval:{:?}, receive_max:{:?}, max_qos:{:?}, retain_available:{:?}, max_packet_size:{:?}
         assigned_client_identifier:{:?}, topic_alias_max:{:?}, reason_string:{:?}, user_properties:{:?},
-        wildcard_subscription_available:{:?}, subscription_identifiers_available:{:?}, 
+        wildcard_subscription_available:{:?}, subscription_identifiers_available:{:?},
         shared_subscription_available:{:?}, server_keep_alive:{:?}, response_information:{:?}
         server_reference:{:?}, authentication_method:{:?}, authentication_data:{:?}",
 
@@ -710,7 +710,7 @@ impl fmt::Display for Publish {
 
 impl fmt::Display for PublishProperties {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "payload_format_indicator:{:?}, message_expiry_interval:{:?}, topic_alias:{:?}, 
+        write!(f, "payload_format_indicator:{:?}, message_expiry_interval:{:?}, topic_alias:{:?},
         response_topic:{:?}, correlation_data:{:?}, user_properties:{:?}, subscription_identifiers:{:?},
         content_type:{:?},",
         self.payload_format_indicator,

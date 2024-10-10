@@ -57,8 +57,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -74,8 +73,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -88,8 +86,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -100,14 +97,8 @@ mod tests {
             .qos(QOS_1)
             .retained(false)
             .finalize();
-        match cli.publish(msg) {
-            Ok(_) => {
-                assert!(false);
-            }
-            Err(_) => {
-                assert!(true);
-            }
-        }
+        let result = cli.publish(msg);
+        assert!(result.is_err());
 
         // subscribe
         let sub_qos = &[1];
@@ -119,15 +110,11 @@ mod tests {
             }
         }
         for msg in rx.iter() {
-            if let Some(msg) = msg {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                println!("recv message: {}", payload);
-                if payload == message_content2 {
-                    assert!(true);
-                    break;
-                }
-            } else {
-                assert!(false);
+            let msg = msg.unwrap();
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            println!("recv message: {}", payload);
+            if payload == message_content2 {
+                break;
             }
         }
         distinct_conn(cli);

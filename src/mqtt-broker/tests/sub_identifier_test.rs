@@ -37,18 +37,12 @@ mod tests {
 
         let addr = broker_addr();
         let now = Instant::now();
-        match timeout(
+        timeout(
             Duration::from_secs(3),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, false),
         )
-        .await
-        {
-            Ok(_) => {}
-            Err(_) => {
-                println!("{}", now.elapsed().as_secs());
-                assert!(false)
-            }
-        }
+        .await.unwrap();
+        
         println!("{}", now.elapsed().as_secs());
     }
 
@@ -61,17 +55,11 @@ mod tests {
         let topic3 = format!("/test_ssl/{}/test_one", topic);
 
         let addr = broker_ssl_addr();
-        match timeout(
+        timeout(
             Duration::from_secs(60),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), false, true),
         )
-        .await
-        {
-            Ok(_) => {}
-            Err(_) => {
-                assert!(false)
-            }
-        }
+        .await.unwrap();
     }
 
     #[tokio::test]
@@ -83,17 +71,11 @@ mod tests {
         let topic3 = format!("/test_ws/{}/test_one", topic);
 
         let addr = broker_ws_addr();
-        match timeout(
+        timeout(
             Duration::from_secs(60),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, false),
         )
-        .await
-        {
-            Ok(_) => {}
-            Err(_) => {
-                assert!(false)
-            }
-        }
+        .await.unwrap();
     }
 
     #[tokio::test]
@@ -107,27 +89,20 @@ mod tests {
 
         let addr = broker_wss_addr();
 
-        match timeout(
+        timeout(
             Duration::from_secs(60),
             simple_test(addr, topic1, topic2, topic3, "2".to_string(), true, true),
         )
-        .await
-        {
-            Ok(_) => {}
-            Err(_) => {
-                assert!(false)
-            }
-        }
+        .await.unwrap();
     }
 
     #[tokio::test]
     async fn tokio_timeout_test() {
         let now = Instant::now();
-        if let Ok(_) = timeout(Duration::from_secs(3), async {
+        timeout(Duration::from_secs(3), async {
             sleep(Duration::from_secs(5)).await;
         })
-        .await
-        {}
+        .await.unwrap();
         assert_eq!(now.elapsed().as_secs(), 3);
     }
 
@@ -154,8 +129,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -216,7 +190,7 @@ mod tests {
                         r_two = true;
                     }
                     _ => {
-                        assert!(false);
+                        panic!("sub_identifier error");
                     }
                 }
             }
@@ -224,7 +198,6 @@ mod tests {
                 break;
             }
         }
-        assert!(true);
 
         let msg = MessageBuilder::new()
             .topic(topic3.clone())
@@ -235,24 +208,20 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
-        for message in rx.iter() {
-            if let Some(msg) = message {
-                let sub_identifier = msg
-                    .properties()
-                    .get_int(PropertyCode::SubscriptionIdentifier)
-                    .unwrap();
+        if let Some(msg) = rx.iter().flatten().next() {
+            let sub_identifier = msg
+                .properties()
+                .get_int(PropertyCode::SubscriptionIdentifier)
+                .unwrap();
 
-                assert_eq!(sub_identifier, 1);
+            assert_eq!(sub_identifier, 1);
 
-                println!("{msg:?}");
-                println!("{sub_identifier:?}");
-                break;
-            }
+            println!("{msg:?}");
+            println!("{sub_identifier:?}");
         }
 
         distinct_conn(cli);

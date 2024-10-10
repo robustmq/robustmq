@@ -134,8 +134,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -148,44 +147,34 @@ mod tests {
             }
         }
 
-        for msg in rx.iter() {
-            if let Some(msg) = msg {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                assert_eq!(payload, message_content);
+        if let Some(msg) = rx.iter().next() {
+            let msg = msg.unwrap();
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            assert_eq!(payload, message_content);
 
-                let topic = msg
-                    .properties()
-                    .get_string(PropertyCode::ResponseTopic)
-                    .unwrap();
-                assert_eq!(topic, response_topic);
+            let topic = msg
+                .properties()
+                .get_string(PropertyCode::ResponseTopic)
+                .unwrap();
+            assert_eq!(topic, response_topic);
 
-                println!("{msg:?}");
-                println!("{topic:?}");
+            println!("{msg:?}");
+            println!("{topic:?}");
 
-                let msg = match msg.properties().get_binary(PropertyCode::CorrelationData) {
-                    Some(data) => {
-                        let mut props: Properties = Properties::new();
-                        props.push_val(PropertyCode::CorrelationData, data).unwrap();
-                        MessageBuilder::new()
-                            .topic(topic)
-                            .payload(payload.clone())
-                            .qos(QOS_1)
-                            .properties(props)
-                            .finalize()
-                    }
-                    _ => Message::new(topic, payload.clone(), QOS_1),
-                };
-                match cli.publish(msg) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        println!("{}", e);
-                        assert!(false);
-                    }
+            let msg = match msg.properties().get_binary(PropertyCode::CorrelationData) {
+                Some(data) => {
+                    let mut props: Properties = Properties::new();
+                    props.push_val(PropertyCode::CorrelationData, data).unwrap();
+                    MessageBuilder::new()
+                        .topic(topic)
+                        .payload(payload.clone())
+                        .qos(QOS_1)
+                        .properties(props)
+                        .finalize()
                 }
-                break;
-            } else {
-                assert!(false);
-            }
+                _ => Message::new(topic, payload.clone(), QOS_1),
+            };
+            cli.publish(msg).unwrap();
         }
 
         // subscribe
@@ -197,24 +186,20 @@ mod tests {
             }
         }
 
-        for msg in rx.iter() {
-            if let Some(msg) = msg {
-                println!("{msg:?}");
+        if let Some(msg) = rx.iter().next() {
+            let msg = msg.unwrap();
+            println!("{msg:?}");
 
-                if connect_response_information {
-                    assert!(!msg.topic().starts_with(&sub_topics[1]))
-                }
-
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                assert_eq!(payload, message_content);
-                assert_eq!(
-                    correlation_data.map(|v| v.as_bytes().to_vec()),
-                    msg.properties().get_binary(PropertyCode::CorrelationData)
-                );
-                break;
-            } else {
-                assert!(false);
+            if connect_response_information {
+                assert!(!msg.topic().starts_with(&sub_topics[1]))
             }
+
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            assert_eq!(payload, message_content);
+            assert_eq!(
+                correlation_data.map(|v| v.as_bytes().to_vec()),
+                msg.properties().get_binary(PropertyCode::CorrelationData)
+            );
         }
         distinct_conn(cli);
     }

@@ -57,13 +57,13 @@ where
         connection_manager: Arc<ConnectionManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
-        return SubscribeExclusive {
+        SubscribeExclusive {
             message_storage,
             cache_manager,
             subscribe_manager,
             connection_manager,
             client_poll,
-        };
+        }
     }
 
     pub async fn start(&self) {
@@ -82,15 +82,11 @@ where
                 .subscribe_manager
                 .exclusive_subscribe
                 .contains_key(&exclusive_key)
+                && sx.send(true).is_ok()
             {
-                match sx.send(true) {
-                    Ok(_) => {
-                        self.subscribe_manager
-                            .exclusive_push_thread
-                            .remove(&exclusive_key);
-                    }
-                    Err(_) => {}
-                }
+                self.subscribe_manager
+                    .exclusive_push_thread
+                    .remove(&exclusive_key);
             }
         }
     }
@@ -153,19 +149,16 @@ where
                 }
 
                 loop {
-                    match sub_thread_stop_rx.try_recv() {
-                        Ok(flag) => {
-                            if flag {
-                                info!(
-                                        "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
-                                        client_id,
-                                        subscriber.sub_path, 
-                                        subscriber.topic_id
-                                    );
-                                break;
-                            }
+                    if let Ok(flag) = sub_thread_stop_rx.try_recv() {
+                        if flag {
+                            info!(
+                                    "Exclusive Push thread for client_id [{}], sub_path: [{}], topic_id [{}] was stopped successfully",
+                                    client_id,
+                                    subscriber.sub_path,
+                                    subscriber.topic_id
+                                );
+                            break;
                         }
-                        Err(_) => {}
                     }
                     match message_storage
                         .read_topic_message(
@@ -176,7 +169,7 @@ where
                         .await
                     {
                         Ok(result) => {
-                            if result.len() == 0 {
+                            if result.is_empty() {
                                 sleep(Duration::from_millis(max_wait_ms)).await;
                                 continue;
                             }
@@ -232,7 +225,7 @@ where
                                     pkid: 0,
                                     retain,
                                     topic: Bytes::from(subscriber.topic_name.clone()),
-                                    payload: Bytes::from(msg.payload),
+                                    payload: msg.payload,
                                 };
 
                                 let properties = PublishProperties {
@@ -377,16 +370,13 @@ pub async fn exclusive_publish_message_qos1(
 ) -> Result<(), CommonError> {
     let mut retry_times = 0;
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    return Ok(());
-                }
+        if let Ok(flag) = stop_sx.subscribe().try_recv() {
+            if flag {
+                return Ok(());
             }
-            Err(_) => {}
         }
 
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;
@@ -399,7 +389,7 @@ pub async fn exclusive_publish_message_qos1(
             }
         }
 
-        retry_times = retry_times + 1;
+        retry_times += 1;
         publish.dup = retry_times >= 2;
 
         let mut contain_properties = false;
@@ -423,7 +413,7 @@ pub async fn exclusive_publish_message_qos1(
 
         match publish_message_to_client(resp.clone(), connection_manager).await {
             Ok(_) => {
-                if let Some(data) = wait_packet_ack(&wait_puback_sx).await {
+                if let Some(data) = wait_packet_ack(wait_puback_sx).await {
                     if data.ack_type == QosAckPackageType::PubAck && data.pkid == pkid {
                         return Ok(());
                     }
@@ -467,13 +457,10 @@ pub async fn exclusive_publish_message_qos2(
 
     // 2. wait PubRec ack
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    return Ok(());
-                }
+        if let Ok(flag) = stop_sx.subscribe().try_recv() {
+            if flag {
+                return Ok(());
             }
-            Err(_) => {}
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
             if data.ack_type == QosAckPackageType::PubRec && data.pkid == pkid {
@@ -498,15 +485,12 @@ pub async fn exclusive_publish_message_qos2(
 
     // 4. wait pub comp
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    break;
-                }
+        if let Ok(flag) = stop_sx.subscribe().try_recv() {
+            if flag {
+                break;
             }
-            Err(_) => {}
         }
-        if let Some(data) = wait_packet_ack(&wait_ack_sx).await {
+        if let Some(data) = wait_packet_ack(wait_ack_sx).await {
             if data.ack_type == QosAckPackageType::PubComp && data.pkid == pkid {
                 break;
             }
@@ -515,7 +499,7 @@ pub async fn exclusive_publish_message_qos2(
         }
         sleep(Duration::from_millis(1)).await;
     }
-    return Ok(());
+    Ok(())
 }
 #[cfg(test)]
 mod test {}

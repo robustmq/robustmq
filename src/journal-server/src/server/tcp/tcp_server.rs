@@ -52,9 +52,7 @@ pub struct TcpServerConfig {
 }
 
 impl TcpServer {
-    pub fn new(
-        config: TcpServerConfig,
-    ) -> Self {
+    pub fn new(config: TcpServerConfig) -> Self {
         let (request_queue_sx, _) = broadcast::channel(config.request_queue_size);
         let (response_queue_sx, _) = broadcast::channel(config.response_queue_size);
 

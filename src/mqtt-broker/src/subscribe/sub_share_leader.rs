@@ -61,13 +61,13 @@ where
         cache_manager: Arc<CacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
-        return SubscribeShareLeader {
+        SubscribeShareLeader {
             subscribe_manager,
             message_storage,
             connection_manager,
             cache_manager,
             client_poll,
-        };
+        }
     }
 
     pub async fn start(&self) {
@@ -104,19 +104,16 @@ where
     pub async fn start_push_thread(&self) {
         // Periodically verify if any push tasks are not started. If so, the thread is started
         for (share_leader_key, sub_data) in self.subscribe_manager.share_leader_subscribe.clone() {
-            if sub_data.sub_list.len() == 0 {
+            if sub_data.sub_list.is_empty() {
                 if let Some(sx) = self
                     .subscribe_manager
                     .share_leader_push_thread
                     .get(&share_leader_key)
                 {
-                    match sx.send(true) {
-                        Ok(_) => {
-                            self.subscribe_manager
-                                .share_leader_subscribe
-                                .remove(&share_leader_key);
-                        }
-                        Err(_) => {}
+                    if sx.send(true).is_ok() {
+                        self.subscribe_manager
+                            .share_leader_subscribe
+                            .remove(&share_leader_key);
                     }
                 }
             }
@@ -187,17 +184,14 @@ where
             loop {
                 select! {
                     val = sub_thread_stop_rx.recv() =>{
-                        match val {
-                            Ok(flag) => {
-                                if flag {
-                                    info!(
-                                        "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
-                                        group_name, topic_name
-                                    );
-                                    break;
-                                }
+                        if let Ok(flag) = val {
+                            if flag {
+                                info!(
+                                    "Share sub push data thread for GroupName {},Topic [{}] was stopped successfully",
+                                    group_name, topic_name
+                                );
+                                break;
                             }
-                            Err(_) => {}
                         }
                     }
                     cursor = read_message_process(
@@ -251,7 +245,7 @@ where
         .await
     {
         Ok(results) => {
-            if results.len() == 0 {
+            if results.is_empty() {
                 sleep(Duration::from_millis(max_wait_ms)).await;
                 return cursor_point;
             }
@@ -288,12 +282,12 @@ where
                     let subscribe = sub_list.get(cursor_point).unwrap();
 
                     if let Some((publish, properties)) =
-                        build_publish(&cache_manager, &subscribe, &topic_name, &msg)
+                        build_publish(cache_manager, subscribe, topic_name, &msg)
                     {
                         if qos_publish(
                             publish,
                             properties,
-                            &subscribe,
+                            subscribe,
                             topic_id,
                             group_id,
                             connection_manager,
@@ -307,13 +301,13 @@ where
                             break;
                         }
                     }
-                    loop_times = loop_times + 1;
+                    loop_times += 1;
                 }
 
                 // commit offset
                 loop_commit_offset(message_storage, topic_id, group_id, record.offset).await;
             }
-            return cursor_point;
+            cursor_point
         }
         Err(e) => {
             error!(
@@ -323,22 +317,22 @@ where
                 group_id
             );
             sleep(Duration::from_millis(max_wait_ms)).await;
-            return cursor_point;
+            cursor_point
         }
     }
 }
 
 fn try_loop_times(sub_len: usize) -> usize {
-    return sub_len * 2;
+    sub_len * 2
 }
 
 fn choose_available_sub(cursor_point: usize, sub_list: &Vec<Subscriber>) -> usize {
     let current_point = cursor_point + 1;
-    return if current_point < sub_list.len() {
+    if current_point < sub_list.len() {
         current_point
     } else {
         0
-    };
+    }
 }
 
 async fn qos_publish<S>(
@@ -367,7 +361,7 @@ where
                 stop_sx,
             )
             .await;
-            return true;
+            true
         }
 
         QoS::AtLeastOnce => {
@@ -399,7 +393,7 @@ where
                     // remove data
                     cache_manager.remove_pkid_info(&subscribe.client_id, pkid);
                     cache_manager.remove_ack_packet(&subscribe.client_id, pkid);
-                    return true;
+                    true
                 }
                 Err(e) => {
                     error!(
@@ -408,7 +402,7 @@ where
                         subscribe.client_id.clone(),
                         e.to_string()
                     );
-                    return false;
+                    false
                 }
             }
         }
@@ -443,16 +437,14 @@ where
             )
             .await
             {
-                Ok(()) => {
-                    return true;
-                }
+                Ok(()) => true,
                 Err(e) => {
                     error!("{}", e);
-                    return false;
+                    false
                 }
             }
         }
-    };
+    }
 }
 
 fn build_publish(
@@ -476,7 +468,7 @@ fn build_publish(
 
     let publish = Publish {
         dup: false,
-        qos: qos.clone(),
+        qos,
         pkid: 0,
         retain,
         topic: Bytes::from(topic_name.to_owned()),
@@ -498,7 +490,7 @@ fn build_publish(
         subscription_identifiers: sub_ids,
         content_type: msg.content_type.clone(),
     };
-    return Some((publish, properties));
+    Some((publish, properties))
 }
 
 // To avoid messages that are not successfully pushed to the client. When the client Session expires,
@@ -512,7 +504,7 @@ async fn share_leader_publish_message_qos1(
     connection_manager: &Arc<ConnectionManager>,
     wait_puback_sx: &broadcast::Sender<QosAckPackageData>,
 ) -> Result<(), CommonError> {
-    let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
+    let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
         id
     } else {
         return Err(CommonError::CommmonError(format!(
@@ -553,17 +545,15 @@ async fn share_leader_publish_message_qos1(
                     return Ok(());
                 }
             }
-            return Err(CommonError::CommmonError(
+            Err(CommonError::CommmonError(
                 "QOS1 publishes a message and waits for the PubAck packet to fail to be received"
                     .to_string(),
-            ));
+            ))
         }
-        Err(e) => {
-            return Err(CommonError::CommmonError(format!(
-                "Failed to write QOS1 Publish message to response queue, failure message: {}",
-                e.to_string()
-            )));
-        }
+        Err(e) => Err(CommonError::CommmonError(format!(
+            "Failed to write QOS1 Publish message to response queue, failure message: {}",
+            e
+        ))),
     }
 }
 
@@ -601,13 +591,10 @@ where
 
     // 2. wait pub rec
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    return Ok(());
-                }
+        if let Ok(flag) = stop_sx.subscribe().try_recv() {
+            if flag {
+                return Ok(());
             }
-            Err(_) => {}
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
             if data.ack_type == QosAckPackageType::PubRec && data.pkid == pkid {
@@ -627,18 +614,15 @@ where
 
     // 4. wait pub comp
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    break;
-                }
+        if let Ok(flag) = stop_sx.subscribe().try_recv() {
+            if flag {
+                break;
             }
-            Err(_) => {}
         }
         if let Some(data) = wait_packet_ack(wait_ack_sx).await {
             if data.ack_type == QosAckPackageType::PubComp && data.pkid == pkid {
-                cache_manager.remove_pkid_info(&client_id, pkid);
-                cache_manager.remove_ack_packet(&client_id, pkid);
+                cache_manager.remove_pkid_info(client_id, pkid);
+                cache_manager.remove_ack_packet(client_id, pkid);
                 break;
             }
         } else {
@@ -646,7 +630,7 @@ where
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn build_share_leader_sub_list(
@@ -663,7 +647,7 @@ fn build_share_leader_sub_list(
     for (_, sub) in sub_list {
         result.push(sub);
     }
-    return result;
+    result
 }
 
 fn calc_record_num(sub_len: usize) -> usize {
@@ -675,7 +659,7 @@ fn calc_record_num(sub_len: usize) -> usize {
     if num > 1000 {
         return 1000;
     }
-    return num;
+    num
 }
 
 #[cfg(test)]

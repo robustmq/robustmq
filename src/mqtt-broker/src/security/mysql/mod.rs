@@ -37,11 +37,11 @@ impl MySQLAuthStorageAdapter {
                 panic!("{}", e.to_string());
             }
         };
-        return MySQLAuthStorageAdapter { pool: poll };
+        MySQLAuthStorageAdapter { pool: poll }
     }
 
     fn table_user(&self) -> String {
-        return "mqtt_user".to_string();
+        "mqtt_user".to_string()
     }
 }
 
@@ -149,15 +149,14 @@ mod tests {
     fn init_user(addr: &str) {
         let poll = build_mysql_conn_pool(addr).unwrap();
         let mut conn = poll.get_conn().unwrap();
-        let mut values = Vec::new();
-        values.push(TAuthUser {
+        let values = [TAuthUser {
             username: username(),
             password: password(),
             ..Default::default()
-        });
+        }];
         conn.exec_batch(
             format!("REPLACE INTO {}(username,password,salt,is_superuser,created) VALUES (:username,:password,:salt,:is_superuser,:created)",
-            "mqtt_user".to_string()),
+            "mqtt_user"),
             values.iter().map(|p| {
                 params! {
                     "username" => p.username.clone(),
@@ -171,10 +170,10 @@ mod tests {
     }
 
     fn username() -> String {
-        return "robustmq".to_string();
+        "robustmq".to_string()
     }
 
     fn password() -> String {
-        return "robustmq@2024".to_string();
+        "robustmq@2024".to_string()
     }
 }

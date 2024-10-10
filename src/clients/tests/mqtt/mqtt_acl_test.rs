@@ -47,13 +47,9 @@ mod tests {
             cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
-        match create_acl(client_poll.clone(), addrs.clone(), request).await {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
-            }
-        }
+        create_acl(client_poll.clone(), addrs.clone(), request)
+            .await
+            .unwrap();
 
         let request = ListAclRequest {
             cluster_name: cluster_name.clone(),
@@ -77,8 +73,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -89,8 +84,7 @@ mod tests {
         match delete_acl(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -117,8 +111,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }

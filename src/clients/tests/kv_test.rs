@@ -41,8 +41,7 @@ mod tests {
         match placement_set(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false)
+                panic!("{:?}", e);
             }
         }
 
@@ -50,27 +49,15 @@ mod tests {
             key: "".to_string(),
             value: value.clone(),
         };
-        match placement_set(client_poll.clone(), addrs.clone(), request_key_empty).await{
-            Ok(_) => {
-                assert!(false)
-            }
-            Err(e) => {
-                assert!(e.to_string().contains("key or value"));
-            }
-        }
+        let err = placement_set(client_poll.clone(), addrs.clone(), request_key_empty).await.unwrap_err();
+        assert!(err.to_string().contains("key or value"));
 
-        let request_value_empty = SetRequest{
+        let request_value_empty = SetRequest {
             key: key.clone(),
             value: "".to_string(),
         };
-        match placement_set(client_poll.clone(), addrs.clone(), request_value_empty).await{
-            Ok(_) => {
-                assert!(false)
-            }
-            Err(e) => {
-                assert!(e.to_string().contains("key or value"));
-            }
-        }
+        let err = placement_set(client_poll.clone(), addrs.clone(), request_value_empty).await.unwrap_err();
+        assert!(err.to_string().contains("key or value"));
 
         let exist_req = ExistsRequest { key: key.clone() };
         match placement_exists(client_poll.clone(), addrs.clone(), exist_req).await {
@@ -78,8 +65,7 @@ mod tests {
                 assert!(da.flag)
             }
             Err(e) => {
-                println!("{}", e);
-                assert!(false)
+                panic!("{:?}", e);
             }
         }
 
@@ -89,8 +75,7 @@ mod tests {
                 assert_eq!(da.value, value);
             }
             Err(e) => {
-                println!("{}", e);
-                assert!(false)
+                panic!("{:?}", e);
             }
         }
 
@@ -98,8 +83,7 @@ mod tests {
         match placement_delete(client_poll.clone(), addrs.clone(), exist_req).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false)
+                panic!("{:?}", e);
             }
         }
 
@@ -109,8 +93,7 @@ mod tests {
                 assert!(!da.flag)
             }
             Err(e) => {
-                println!("{}", e);
-                assert!(false)
+                panic!("{:?}", e);
             }
         }
     }

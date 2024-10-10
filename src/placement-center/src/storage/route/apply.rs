@@ -145,7 +145,14 @@ impl RaftMachineApply {
     ) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         Ok(self
-            .apply_raft_status_machine_message(RaftMessage::Raft { message: Box::new(message), chan: sx }, action, rx)
+            .apply_raft_status_machine_message(
+                RaftMessage::Raft {
+                    message: Box::new(message),
+                    chan: sx,
+                },
+                action,
+                rx,
+            )
             .await?)
     }
 

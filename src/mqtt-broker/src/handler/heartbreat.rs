@@ -28,14 +28,11 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast
         let mut stop_recv = stop_send.subscribe();
         select! {
             val = stop_recv.recv() =>{
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            debug!("{}","Heartbeat reporting thread exited successfully");
-                            break;
-                        }
+                if let Ok(flag) = val {
+                    if flag {
+                        debug!("{}","Heartbeat reporting thread exited successfully");
+                        break;
                     }
-                    Err(_) => {}
                 }
             }
             _ = report(client_poll.clone()) => {

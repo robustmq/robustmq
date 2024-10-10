@@ -161,13 +161,23 @@ pub fn placement_center_conf() -> &'static PlacementCenterConfig {
 }
 
 pub fn placement_center_test_conf() -> PlacementCenterConfig {
-    let mut config = PlacementCenterConfig::default();
-    config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-    config.node.node_id = 1;
+    let rocksdb = Rocksdb {
+        data_path: format!("/tmp/{}", unique_id()),
+        max_open_files: Some(10),
+    };
+    
     let mut nodes = Map::new();
     nodes.insert("1".to_string(), Value::from("127.0.0.1:9982".to_string()));
-    config.rocksdb.max_open_files = Some(10);
-    config.node.nodes = nodes;
+    let node = Node {
+        node_id: 1,
+        nodes,
+    };
+
+    let config = PlacementCenterConfig {
+        rocksdb,
+        node,
+        ..Default::default()    
+    };
     init_placement_center_conf_by_config(config.clone());
     config
 }

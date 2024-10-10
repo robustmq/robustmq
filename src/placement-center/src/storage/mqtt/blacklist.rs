@@ -34,11 +34,7 @@ impl MQTTBlackListStorage {
         }
     }
 
-    pub fn save(
-        &self,
-        cluster_name: &str,
-        blacklist: MQTTAclBlackList,
-    ) -> Result<(), CommonError> {
+    pub fn save(&self, cluster_name: &str, blacklist: MQTTAclBlackList) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(
             cluster_name,
             &blacklist.blacklist_type.to_string(),

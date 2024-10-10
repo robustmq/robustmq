@@ -16,7 +16,8 @@ use bytes::BytesMut;
 use tokio_util::codec;
 
 use super::{
-    check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback, subscribe, unsuback, unsubscribe, ConnectReadOutcome, Error, MQTTPacket, PacketType
+    check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
+    subscribe, unsuback, unsubscribe, ConnectReadOutcome, Error, MQTTPacket, PacketType,
 };
 use crate::mqtt::common::LastWillProperties;
 

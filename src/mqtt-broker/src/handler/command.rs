@@ -80,12 +80,12 @@ where
             client_poll.clone(),
             auth_driver.clone(),
         );
-        return Command {
+        Command {
             mqtt3_service,
             mqtt4_service,
             mqtt5_service,
             metadata_cache: cache_manager,
-        };
+        }
     }
 
     pub async fn apply(
@@ -447,15 +447,15 @@ where
                 ));
             }
         }
-        return Some(response_packet_mqtt_connect_fail(
+        Some(response_packet_mqtt_connect_fail(
             &MQTTProtocol::MQTT5,
             ConnectReturnCode::UnsupportedProtocolVersion,
             &None,
             None,
-        ));
+        ))
     }
 
     pub async fn check_login_status(&self, connection_id: u64) -> bool {
-        return self.metadata_cache.is_login(connection_id);
+        self.metadata_cache.is_login(connection_id)
     }
 }

@@ -23,7 +23,6 @@ mod tests {
     };
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
-    
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::{Framed, FramedRead, FramedWrite};

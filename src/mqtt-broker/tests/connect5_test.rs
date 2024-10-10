@@ -82,15 +82,8 @@ mod tests {
 
         let props = build_v5_pros();
         let conn_opts = build_v5_conn_pros(props, true, ws, ssl);
-        match cli.connect(conn_opts) {
-            Ok(_) => {
-                assert!(false)
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                assert!(true)
-            }
-        }
+        let err = cli.connect(conn_opts).unwrap_err();
+        println!("Unable to connect:\n\t{:?}", err);
     }
 
     fn v5_session_present_test(client_id: &str, addr: &str, ws: bool, ssl: bool) {

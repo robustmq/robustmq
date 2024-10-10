@@ -33,7 +33,7 @@ pub struct PlacementAuthStorageAdapter {
 
 impl PlacementAuthStorageAdapter {
     pub fn new(client_poll: Arc<ClientPool>) -> PlacementAuthStorageAdapter {
-        return PlacementAuthStorageAdapter { client_poll };
+        PlacementAuthStorageAdapter { client_poll }
     }
 }
 
