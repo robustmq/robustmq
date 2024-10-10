@@ -22,8 +22,8 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::get_local_ip;
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::broker_node::BrokerNode;
 use protocol::placement_center::generate::common::ClusterType;
 use protocol::placement_center::generate::placement::{
@@ -75,7 +75,7 @@ impl ClusterStorage {
         req.node_ip = local_ip.clone();
         req.node_inner_addr = format!("{}:{}", local_ip, config.grpc_port);
 
-        let node = MQTTNodeExtend {
+        let node = MqttNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
             http_addr: format!("{}:{}", local_ip, config.http_port),
             mqtt_addr: format!("{}:{}", local_ip, config.network.tcp_port),
@@ -132,7 +132,7 @@ impl ClusterStorage {
     pub async fn set_cluster_config(
         &self,
         cluster_name: String,
-        cluster: MQTTClusterDynamicConfig,
+        cluster: MqttClusterDynamicConfig,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
@@ -172,7 +172,7 @@ impl ClusterStorage {
     pub async fn get_cluster_config(
         &self,
         cluster_name: String,
-    ) -> Result<Option<MQTTClusterDynamicConfig>, CommonError> {
+    ) -> Result<Option<MqttClusterDynamicConfig>, CommonError> {
         let config = broker_mqtt_conf();
         let resources = self.cluster_config_resources(cluster_name.clone());
         let request = GetResourceConfigRequest {
@@ -191,7 +191,7 @@ impl ClusterStorage {
                 if data.config.is_empty() {
                     return Ok(None);
                 } else {
-                    match serde_json::from_slice::<MQTTClusterDynamicConfig>(&data.config) {
+                    match serde_json::from_slice::<MqttClusterDynamicConfig>(&data.config) {
                         Ok(data) => {
                             return Ok(Some(data));
                         }
@@ -216,7 +216,7 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 
     use crate::storage::cluster::ClusterStorage;
 
@@ -235,7 +235,7 @@ mod tests {
         let cluster_storage = ClusterStorage::new(client_poll);
 
         let cluster_name = "robust_test".to_string();
-        let mut cluster = MQTTClusterDynamicConfig::default();
+        let mut cluster = MqttClusterDynamicConfig::default();
         cluster.protocol.topic_alias_max = 999;
         cluster_storage
             .set_cluster_config(cluster_name.clone(), cluster)

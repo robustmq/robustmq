@@ -30,10 +30,10 @@ use tonic::{Request, Response, Status};
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::share_sub::ShareSubLeader;
 use crate::storage::mqtt::acl::AclStorage;
-use crate::storage::mqtt::blacklist::MQTTBlackListStorage;
-use crate::storage::mqtt::session::MQTTSessionStorage;
-use crate::storage::mqtt::topic::MQTTTopicStorage;
-use crate::storage::mqtt::user::MQTTUserStorage;
+use crate::storage::mqtt::blacklist::MqttBlackListStorage;
+use crate::storage::mqtt::session::MqttSessionStorage;
+use crate::storage::mqtt::topic::MqttTopicStorage;
+use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::route::apply::RaftMachineApply;
 use crate::storage::route::data::{StorageData, StorageDataType};
@@ -97,7 +97,7 @@ impl MqttService for GrpcMqttService {
         request: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
         let req = request.into_inner();
-        let storage = MQTTUserStorage::new(self.rocksdb_engine_handler.clone());
+        let storage = MqttUserStorage::new(self.rocksdb_engine_handler.clone());
 
         if !req.user_name.is_empty() {
             match storage.get(&req.cluster_name, &req.user_name) {
@@ -208,7 +208,7 @@ impl MqttService for GrpcMqttService {
         request: Request<ListTopicRequest>,
     ) -> Result<Response<ListTopicReply>, Status> {
         let req = request.into_inner();
-        let storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
+        let storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
         if !req.topic_name.is_empty() {
             match storage.get(&req.cluster_name, &req.topic_name) {
                 Ok(Some(data)) => {
@@ -244,7 +244,7 @@ impl MqttService for GrpcMqttService {
         request: Request<ListSessionRequest>,
     ) -> Result<Response<ListSessionReply>, Status> {
         let req = request.into_inner();
-        let storage = MQTTSessionStorage::new(self.rocksdb_engine_handler.clone());
+        let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
 
         if !req.client_id.is_empty() {
             match storage.get(&req.cluster_name, &req.client_id) {
@@ -435,7 +435,7 @@ impl MqttService for GrpcMqttService {
         request: Request<ListBlacklistRequest>,
     ) -> Result<Response<ListBlacklistReply>, Status> {
         let req = request.into_inner();
-        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         match blacklist_storage.list(&req.cluster_name) {
             Ok(list) => {
                 let mut blacklists = Vec::new();

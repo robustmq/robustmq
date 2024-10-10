@@ -20,7 +20,7 @@ use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::common::{Connect, ConnectProperties};
 
 use super::cache::CacheManager;
@@ -129,7 +129,7 @@ impl Connection {
 pub fn build_connection(
     connect_id: u64,
     client_id: &String,
-    cluster: &MQTTClusterDynamicConfig,
+    cluster: &MqttClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
@@ -241,7 +241,7 @@ pub async fn disconnect_connection(
 
 #[cfg(test)]
 mod test {
-    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use protocol::mqtt::common::{Connect, ConnectProperties};
 
     use super::{
@@ -253,7 +253,7 @@ mod test {
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = MQTTClusterDynamicConfig::new();
+        let cluster = MqttClusterDynamicConfig::new();
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),

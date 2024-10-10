@@ -19,14 +19,14 @@ use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use log::{debug, error};
-use metadata_struct::mqtt::session::MQTTSession;
+use metadata_struct::mqtt::session::MqttSession;
 use tokio::time::sleep;
 
-use super::call_broker::MQTTBrokerCall;
+use super::call_broker::MqttBrokerCall;
 use crate::cache::mqtt::MqttCacheManager;
 use crate::cache::placement::PlacementCacheManager;
 use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
-use crate::storage::mqtt::lastwill::MQTTLastWillStorage;
+use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
 use crate::storage::StorageDataWrap;
 
@@ -79,7 +79,7 @@ impl SessionExpire {
         sleep(Duration::from_secs(10)).await;
     }
 
-    async fn get_expire_session_list(&self) -> Vec<MQTTSession> {
+    async fn get_expire_session_list(&self) -> Vec<MqttSession> {
         let search_key = storage_key_mqtt_session_cluster_prefix(&self.cluster_name);
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
@@ -119,7 +119,7 @@ impl SessionExpire {
             }
             let result_value = value.unwrap();
             let session = match serde_json::from_slice::<StorageDataWrap>(result_value) {
-                Ok(data) => match serde_json::from_slice::<MQTTSession>(&data.data) {
+                Ok(data) => match serde_json::from_slice::<MqttSession>(&data.data) {
                     Ok(da) => da,
                     Err(e) => {
                         error!(
@@ -147,8 +147,8 @@ impl SessionExpire {
         sessions
     }
 
-    fn delete_session(&self, sessions: Vec<MQTTSession>) {
-        let call = MQTTBrokerCall::new(
+    fn delete_session(&self, sessions: Vec<MqttSession>) {
+        let call = MqttBrokerCall::new(
             self.cluster_name.clone(),
             self.placement_cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
@@ -177,8 +177,8 @@ impl SessionExpire {
     }
 
     async fn send_expire_lastwill_messsage(&self, last_will_list: Vec<ExpireLastWill>) {
-        let lastwill_storage = MQTTLastWillStorage::new(self.rocksdb_engine_handler.clone());
-        let call = MQTTBrokerCall::new(
+        let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
+        let call = MqttBrokerCall::new(
             self.cluster_name.clone(),
             self.placement_cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
@@ -204,7 +204,7 @@ impl SessionExpire {
         }
     }
 
-    fn is_session_expire(&self, session: &MQTTSession) -> bool {
+    fn is_session_expire(&self, session: &MqttSession) -> bool {
         if session.connection_id.is_none() && session.broker_id.is_none() {
             if let Some(distinct_time) = session.distinct_time {
                 if now_second() >= (session.session_expiry + distinct_time) {
@@ -233,14 +233,14 @@ mod tests {
     use clients::poll::ClientPool;
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_second, unique_id};
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::session::MqttSession;
     use tokio::time::sleep;
 
     use super::SessionExpire;
     use crate::cache::mqtt::MqttCacheManager;
     use crate::cache::placement::PlacementCacheManager;
     use crate::controller::mqtt::session_expire::ExpireLastWill;
-    use crate::storage::mqtt::session::MQTTSessionStorage;
+    use crate::storage::mqtt::session::MqttSessionStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[test]
@@ -268,12 +268,12 @@ mod tests {
             cluster_name,
         );
 
-        let mut session = MQTTSession::default();
+        let mut session = MqttSession::default();
         session.session_expiry = now_second() - 100;
         session.distinct_time = Some(5);
         assert!(session_expire.is_session_expire(&session));
 
-        let mut session = MQTTSession::default();
+        let mut session = MqttSession::default();
         session.broker_id = Some(1);
         session.reconnect_time = Some(now_second());
         session.session_expiry = now_second() + 100;
@@ -308,9 +308,9 @@ mod tests {
             cluster_name.clone(),
         );
 
-        let session_storage = MQTTSessionStorage::new(rocksdb_engine_handler.clone());
+        let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
         let client_id = unique_id();
-        let mut session = MQTTSession::default();
+        let mut session = MqttSession::default();
 
         session.session_expiry = 3;
         session.distinct_time = Some(now_second());

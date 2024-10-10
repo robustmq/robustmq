@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::MqttTopic;
 
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
@@ -25,13 +25,13 @@ use crate::storage::engine::{
 use crate::storage::keys::{storage_key_mqtt_topic, storage_key_mqtt_topic_cluster_prefix};
 use crate::storage::rocksdb::RocksDBEngine;
 
-pub struct MQTTTopicStorage {
+pub struct MqttTopicStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl MQTTTopicStorage {
+impl MqttTopicStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        MQTTTopicStorage {
+        MqttTopicStorage {
             rocksdb_engine_handler,
         }
     }
@@ -40,19 +40,19 @@ impl MQTTTopicStorage {
         &self,
         cluster_name: &String,
         topic_name: &String,
-        topic: MQTTTopic,
+        topic: MqttTopic,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTTopic>, CommonError> {
+    pub fn list(&self, cluster_name: &String) -> Result<Vec<MqttTopic>, CommonError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
                 let mut results = Vec::new();
                 for raw in data {
-                    match serde_json::from_slice::<MQTTTopic>(&raw.data) {
+                    match serde_json::from_slice::<MqttTopic>(&raw.data) {
                         Ok(topic) => {
                             results.push(topic);
                         }
@@ -71,10 +71,10 @@ impl MQTTTopicStorage {
         &self,
         cluster_name: &String,
         topicname: &String,
-    ) -> Result<Option<MQTTTopic>, CommonError> {
+    ) -> Result<Option<MqttTopic>, CommonError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topicname);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<MQTTTopic>(&data.data) {
+            Ok(Some(data)) => match serde_json::from_slice::<MqttTopic>(&data.data) {
                 Ok(lastwill) => Ok(Some(lastwill)),
                 Err(e) => Err(e.into()),
             },
@@ -121,10 +121,10 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::topic::MqttTopic;
     use tokio::fs::remove_dir_all;
 
-    use crate::storage::mqtt::topic::MQTTTopicStorage;
+    use crate::storage::mqtt::topic::MqttTopicStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
@@ -136,10 +136,10 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let topic_storage = MQTTTopicStorage::new(rs);
+        let topic_storage = MqttTopicStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
         let topic_name = "loboxu".to_string();
-        let topic = MQTTTopic {
+        let topic = MqttTopic {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
             retain_message: None,
@@ -150,7 +150,7 @@ mod tests {
             .unwrap();
 
         let topic_name = "lobo1".to_string();
-        let topic = MQTTTopic {
+        let topic = MqttTopic {
             topic_id: "xxx".to_string(),
             topic_name: topic_name.clone(),
             retain_message: None,

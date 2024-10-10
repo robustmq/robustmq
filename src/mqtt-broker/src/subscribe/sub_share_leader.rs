@@ -21,7 +21,7 @@ use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::tools::now_second;
 use log::{debug, error, info};
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
@@ -257,7 +257,7 @@ where
             }
 
             for record in results {
-                let msg: MQTTMessage = match MQTTMessage::decode_record(record.clone()) {
+                let msg: MqttMessage = match MqttMessage::decode_record(record.clone()) {
                     Ok(msg) => msg,
                     Err(e) => {
                         error!(
@@ -459,7 +459,7 @@ fn build_publish(
     metadata_cache: &Arc<CacheManager>,
     subscribe: &Subscriber,
     topic_name: &String,
-    msg: &MQTTMessage,
+    msg: &MqttMessage,
 ) -> Option<(Publish, PublishProperties)> {
     let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);

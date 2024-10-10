@@ -20,7 +20,7 @@ mod tests {
         placement_create_user, placement_delete_user, placement_list_user,
     };
     use clients::poll::ClientPool;
-    use metadata_struct::mqtt::user::MQTTUser;
+    use metadata_struct::mqtt::user::MqttUser;
     use protocol::placement_center::generate::mqtt::{
         CreateUserRequest, DeleteUserRequest, ListUserRequest,
     };
@@ -35,7 +35,7 @@ mod tests {
         let password: String = "123456".to_string();
         let cluster_name: String = "test_cluster".to_string();
 
-        let mqtt_user: MQTTUser = MQTTUser {
+        let mqtt_user: MqttUser = MqttUser {
             username: user_name.clone(),
             password: password.clone(),
             is_superuser: false,
@@ -63,7 +63,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {
-                    let user = serde_json::from_slice::<MQTTUser>(raw.as_slice()).unwrap();
+                    let user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
                     if mqtt_user == user {
                         flag = true;
                     }
@@ -98,7 +98,7 @@ mod tests {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {
-                    let user = serde_json::from_slice::<MQTTUser>(raw.as_slice()).unwrap();
+                    let user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
                     if mqtt_user == user {
                         flag = true;
                     }

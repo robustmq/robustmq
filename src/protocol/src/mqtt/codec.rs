@@ -18,7 +18,7 @@ use tokio_util::codec;
 use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, PacketType};
 
 #[derive(Debug, Clone)]
-pub struct MQTTPacketWrapper {
+pub struct MqttPacketWrapper {
     pub protocol_version: u8,
     pub packet: MQTTPacket,
 }
@@ -221,7 +221,7 @@ impl MqttCodec {
 
     pub fn encode_data(
         &mut self,
-        packet_wrapper: MQTTPacketWrapper,
+        packet_wrapper: MqttPacketWrapper,
         buffer: &mut BytesMut,
     ) -> Result<(), crate::mqtt::common::Error> {
         let packet = packet_wrapper.packet;
@@ -280,11 +280,11 @@ impl MqttCodec {
     }
 }
 
-impl codec::Encoder<MQTTPacketWrapper> for MqttCodec {
+impl codec::Encoder<MqttPacketWrapper> for MqttCodec {
     type Error = crate::mqtt::common::Error;
     fn encode(
         &mut self,
-        packet_wrapper: MQTTPacketWrapper,
+        packet_wrapper: MqttPacketWrapper,
         buffer: &mut BytesMut,
     ) -> Result<(), Self::Error> {
         self.encode_data(packet_wrapper, buffer)
@@ -299,12 +299,12 @@ impl codec::Decoder for MqttCodec {
     }
 }
 
-pub fn calc_mqtt_packet_size(packet_wrapper: MQTTPacketWrapper) -> usize {
+pub fn calc_mqtt_packet_size(packet_wrapper: MqttPacketWrapper) -> usize {
     calc_mqtt_packet_len(packet_wrapper).unwrap_or_default()
 }
 
 fn calc_mqtt_packet_len(
-    packet_wrapper: MQTTPacketWrapper,
+    packet_wrapper: MqttPacketWrapper,
 ) -> Result<usize, crate::mqtt::common::Error> {
     let packet = packet_wrapper.packet;
     let protocol_version = packet_wrapper.protocol_version;

@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use clients::poll::ClientPool;
 use log::{debug, error};
-use protocol::mqtt::codec::MQTTPacketWrapper;
+use protocol::mqtt::codec::MqttPacketWrapper;
 use protocol::mqtt::common::MQTTPacket;
 use tokio::select;
 use tokio::sync::broadcast;
@@ -141,7 +141,7 @@ pub(crate) fn response_child_process(
                             if let Some(protocol) =
                             raw_connect_manager.get_connect_protocol(response_package.connection_id)
                             {
-                                let packet_wrapper = MQTTPacketWrapper {
+                                let packet_wrapper = MqttPacketWrapper {
                                     protocol_version: protocol.into(),
                                     packet: response_package.packet.clone(),
                                 };

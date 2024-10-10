@@ -22,7 +22,7 @@ use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use log::{error, info};
-use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
+use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, MQTTProtocol, PingReq,
     PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
@@ -131,8 +131,8 @@ impl SubscribeShareFollower {
                                     "MQTT 4 does not currently support shared subscriptions"
                                 );
                             } else if share_sub.protocol == MQTTProtocol::MQTT5 {
-                                let extend_info: MQTTNodeExtend = match serde_json::from_str::<
-                                    MQTTNodeExtend,
+                                let extend_info: MqttNodeExtend = match serde_json::from_str::<
+                                    MqttNodeExtend,
                                 >(
                                     &reply.extend_info
                                 ) {

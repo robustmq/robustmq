@@ -18,7 +18,7 @@ use std::sync::Arc;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, warn};
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
@@ -108,7 +108,7 @@ where
         login: &Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
-        let cluster: metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig =
+        let cluster: metadata_struct::mqtt::cluster::MqttClusterDynamicConfig =
             self.cache_manager.get_cluster_info();
 
         if let Some(res) = connect_validator(
@@ -419,7 +419,7 @@ where
 
         let message_expire = build_message_expire(&self.cache_manager, &publish_properties);
         let offset = if let Some(record) =
-            MQTTMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
+            MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
         {
             match message_storage
                 .append_topic_message(topic.topic_id.clone(), vec![record])
