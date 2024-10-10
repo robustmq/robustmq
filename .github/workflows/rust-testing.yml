@@ -44,6 +44,8 @@ jobs:
         with:
           toolchain: nightly
           override: true
+      - name: Install rustfmt
+        run: rustup component add rustfmt
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -57,6 +59,8 @@ jobs:
         with:
           toolchain: stable
           override: true
+      - name: Install clippy
+        run: rustup component add clippy
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
