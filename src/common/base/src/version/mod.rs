@@ -23,7 +23,7 @@ pub fn version() -> String {
         Ok(data) => data,
         Err(e) => {
             error!("{}", e.to_string());
-            return "-".to_string();
+            "-".to_string()
         }
     }
 }

@@ -194,7 +194,7 @@ mod tests {
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);
         println!("{}", config.rocksdb.data_path);
-        println!("{}", "/tmp/robust/placement-center/data");
+        println!("/tmp/robust/placement-center/data");
         assert_eq!(
             config.rocksdb.data_path,
             "/tmp/robust/placement-center/data".to_string()
