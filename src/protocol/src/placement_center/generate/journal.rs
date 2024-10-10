@@ -72,7 +72,6 @@ pub struct DeleteSegmentRequest {
     #[prost(uint64, tag = "3")]
     pub segment_seq: u64,
 }
-#[allow(clippy::empty_docs)]
 /// Generated client implementations.
 pub mod engine_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -253,7 +252,6 @@ pub mod engine_service_client {
         }
     }
 }
-#[allow(clippy::empty_docs)]
 /// Generated server implementations.
 pub mod engine_service_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
