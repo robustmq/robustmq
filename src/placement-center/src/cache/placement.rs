@@ -147,6 +147,7 @@ impl PlacementCacheManager {
         Vec::new()
     }
 
+    #[allow(dead_code)]
     pub fn get_raft_members(&self) -> Vec<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.members.iter().map(|v| v.clone()).collect();
@@ -170,6 +171,7 @@ impl PlacementCacheManager {
         false
     }
 
+    #[allow(dead_code)]
     pub fn is_leader(&self) -> bool {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.is_leader();
@@ -177,6 +179,7 @@ impl PlacementCacheManager {
         false
     }
 
+    #[allow(dead_code)]
     pub fn get_raft_leader(&self) -> Option<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return cluster.leader.clone();
@@ -184,6 +187,7 @@ impl PlacementCacheManager {
         None
     }
 
+    #[allow(dead_code)]
     pub fn get_raft_local_node(&self) -> Option<RaftNode> {
         if let Some(cluster) = self.placement_cluster.get(&self.cluster_key()) {
             return Some(cluster.local.clone());
