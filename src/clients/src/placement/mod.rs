@@ -135,6 +135,7 @@ pub mod journal;
 pub mod kv;
 pub mod mqtt;
 pub mod openraft;
+#[allow(clippy::module_inception)]
 pub mod placement;
 
 async fn retry_call(
@@ -207,7 +208,7 @@ async fn retry_call(
             Err(e) => {
                 if is_has_to_forward(&e) {
                     if let Some(leader_addr) = get_forward_addr(&e) {
-                        client_poll.set_leader_addr(&addr, &leader_addr);
+                        client_poll.set_leader_addr(addr, leader_addr);
                     }
                 } else {
                     error!(
@@ -229,7 +230,7 @@ async fn retry_call(
 
 fn calc_addr(
     client_poll: &Arc<ClientPool>,
-    addrs: &Vec<String>,
+    addrs: &[String],
     times: usize,
     service: &PlacementCenterService,
     interface: &PlacementCenterInterface,
@@ -245,8 +246,8 @@ fn calc_addr(
 }
 
 fn is_write_request(
-    service: &PlacementCenterService,
-    interface: &PlacementCenterInterface,
+    _service: &PlacementCenterService,
+    _interface: &PlacementCenterInterface,
 ) -> bool {
     true
 }

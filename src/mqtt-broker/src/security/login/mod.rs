@@ -29,7 +29,7 @@ pub trait Authentication {
 }
 
 pub fn is_ip_blacklist(_: &SocketAddr) -> bool {
-    return false;
+    false
 }
 
 #[cfg(test)]

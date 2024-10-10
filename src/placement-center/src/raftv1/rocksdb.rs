@@ -53,12 +53,12 @@ impl RaftMachineStorage {
 }
 
 impl RaftMachineStorage {
-    pub fn append_entrys(&mut self, entrys: &Vec<Entry>) -> Result<(), CommonError> {
-        if entrys.is_empty() {
+    pub fn append_entrys(&mut self, entries: &[Entry]) -> Result<(), CommonError> {
+        if entries.is_empty() {
             return Ok(());
         }
 
-        let entry_first_index = entrys[0].index;
+        let entry_first_index = entries[0].index;
 
         let first_index = self.first_index();
         if first_index > entry_first_index {
@@ -77,7 +77,7 @@ impl RaftMachineStorage {
             )));
         }
 
-        for entry in entrys {
+        for entry in entries {
             debug!(">> save entry index:{}, value:{:?}", entry.index, entry);
             let data: Vec<u8> = Entry::encode_to_vec(entry);
             let key = key_name_by_entry(entry.index);
@@ -119,10 +119,11 @@ impl RaftMachineStorage {
                 &key,
             )
             .unwrap();
-        if value.is_none() {
-            HardState::default()
-        } else {
-            return HardState::decode(value.unwrap().as_ref()).unwrap();
+        match value {
+            Some(v) => HardState::decode(v.as_ref())
+                .map_err(|e| tonic::Status::from_error(Box::new(e)))
+                .unwrap(),
+            None => HardState::default(),
         }
     }
 
@@ -137,12 +138,11 @@ impl RaftMachineStorage {
                 &key,
             )
             .unwrap();
-        if value.is_none() {
-            ConfState::default()
-        } else {
-            return ConfState::decode(value.unwrap().as_ref())
-                .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
-                .unwrap();
+        match value {
+            Some(v) => ConfState::decode(v.as_ref())
+                .map_err(|e| tonic::Status::from_error(Box::new(e)))
+                .unwrap(),
+            None => ConfState::default(),
         }
     }
 
@@ -228,6 +228,7 @@ impl RaftMachineStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn save_first_index(&self, index: u64) -> Result<(), CommonError> {
         let key = key_name_by_first_index();
         self.rocksdb_engine_handler.write(
@@ -300,6 +301,7 @@ impl RaftMachineStorage {
     }
 
     // Example Create a data snapshot for the current system
+    #[allow(dead_code)]
     pub fn create_snapshot(&mut self) -> Result<(), CommonError> {
         self.raft_snapshot.create_snapshot()
     }
@@ -355,7 +357,7 @@ impl RaftMachineStorage {
         }
     }
 
-    #[warn(dead_code)]
+    #[allow(dead_code)]
     pub fn all_uncommit_index(&self) -> Vec<RaftUncommitData> {
         let key = key_name_uncommit_prefix();
         let cf = self
@@ -364,7 +366,7 @@ impl RaftMachineStorage {
             .unwrap();
         let results = self.rocksdb_engine_handler.read_prefix(cf, &key);
         let mut data_list = Vec::new();
-        for raw in results {
+        if let Ok(raw) = results {
             for (_, v) in raw {
                 match serde_json::from_slice::<RaftUncommitData>(v.as_ref()) {
                     Ok(v) => data_list.push(v),

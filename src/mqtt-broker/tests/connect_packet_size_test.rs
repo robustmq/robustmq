@@ -51,15 +51,8 @@ mod tests {
             .qos(QOS_1)
             .finalize();
 
-        match cli.publish(msg) {
-            Ok(_) => {
-                assert!(false);
-            }
-            Err(e) => {
-                println!("{}", e);
-                assert!(true);
-            }
-        }
+        let err = cli.publish(msg).unwrap_err();
+        println!("{}", err);
 
         let message_content = vec!['a'; packet_size as usize].iter().collect::<String>();
         // publish
@@ -69,13 +62,7 @@ mod tests {
             .qos(QOS_1)
             .finalize();
 
-        match cli.publish(msg) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
-            }
-        }
+        cli.publish(msg).unwrap();
 
         // subscribe
         let rx = cli.start_consuming();
@@ -86,19 +73,14 @@ mod tests {
             }
         }
 
-        for msg in rx.iter() {
-            if let Some(msg) = msg {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+        if let Some(msg) = rx.iter().next() {
+            let msg = msg.unwrap();
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
 
-                println!("len: {} {}", payload.len(), payload);
+            println!("len: {} {}", payload.len(), payload);
 
-                assert!(payload.len() <= packet_size as usize);
-                assert_eq!(message_content, payload);
-
-                break;
-            } else {
-                assert!(false);
-            }
+            assert!(payload.len() <= packet_size as usize);
+            assert_eq!(message_content, payload);
         }
 
         distinct_conn(cli);

@@ -29,7 +29,7 @@ use super::cache::CacheManager;
 pub async fn pkid_save(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    client_id: &String,
+    client_id: &str,
     pkid: u16,
 ) -> Result<(), CommonError> {
     if cache_manager
@@ -40,7 +40,7 @@ pub async fn pkid_save(
         let conf = broker_mqtt_conf();
         let request = SetIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
-            producer_id: client_id.clone(),
+            producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
         match set_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request).await
@@ -55,13 +55,13 @@ pub async fn pkid_save(
     } else {
         cache_manager.add_client_pkid(client_id, pkid);
     }
-    return Ok(());
+    Ok(())
 }
 
 pub async fn pkid_exists(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    client_id: &String,
+    client_id: &str,
     pkid: u16,
 ) -> Result<bool, CommonError> {
     if cache_manager
@@ -72,28 +72,24 @@ pub async fn pkid_exists(
         let conf = broker_mqtt_conf();
         let request = ExistsIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
-            producer_id: client_id.clone(),
+            producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
         match exists_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)
             .await
         {
-            Ok(reply) => {
-                return Ok(reply.exists);
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(reply) => Ok(reply.exists),
+            Err(e) => Err(e),
         }
     } else {
-        return Ok(!cache_manager.get_client_pkid(client_id, pkid).is_none());
+        Ok(cache_manager.get_client_pkid(client_id, pkid).is_some())
     }
 }
 
 pub async fn pkid_delete(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    client_id: &String,
+    client_id: &str,
     pkid: u16,
 ) -> Result<(), CommonError> {
     if cache_manager
@@ -104,7 +100,7 @@ pub async fn pkid_delete(
         let conf = broker_mqtt_conf();
         let request = DeleteIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
-            producer_id: client_id.clone(),
+            producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
         match delete_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)
@@ -120,7 +116,7 @@ pub async fn pkid_delete(
     } else {
         cache_manager.delete_client_pkid(client_id, pkid);
     }
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(test)]
@@ -146,93 +142,53 @@ mod test {
         let cache_manager = Arc::new(CacheManager::new(client_poll.clone(), cluster_name));
         let client_id = "test".to_string();
         let pkid = 15;
-        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(flag) => {
-                assert!(!flag);
-            }
-            Err(_) => {
-                assert!(false);
-            }
-        }
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
+        assert!(!flag);
 
-        match pkid_save(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(()) => {}
-            Err(_) => {
-                assert!(false);
-            }
-        }
+        pkid_save(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(flag) => {
-                assert!(flag);
-            }
-            Err(_) => {
-                assert!(false);
-            }
-        }
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
+        assert!(flag);
 
-        match pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(_) => {}
-            Err(_) => {
-                assert!(false);
-            }
-        }
+        pkid_delete(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(flag) => {
-                assert!(!flag);
-            }
-            Err(_) => {
-                assert!(false);
-            }
-        }
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
+        assert!(!flag);
         let mut cluset_info = cache_manager.get_cluster_info();
         cluset_info.protocol.client_pkid_persistent = true;
         cache_manager.set_cluster_info(cluset_info);
 
-        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(flag) => {
-                assert!(!flag);
-            }
-            Err(_) => {
-                assert!(false);
-            }
-        }
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
+        assert!(!flag);
 
-        match pkid_save(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(()) => {}
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
-            }
-        }
+        pkid_save(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(flag) => {
-                assert!(flag);
-            }
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
-            }
-        }
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
+        assert!(flag);
 
-        match pkid_delete(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
-            }
-        }
+        pkid_delete(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
 
-        match pkid_exists(&cache_manager, &client_poll, &client_id, pkid).await {
-            Ok(flag) => {
-                assert!(!flag);
-            }
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
-            }
-        }
+        let flag = pkid_exists(&cache_manager, &client_poll, &client_id, pkid)
+            .await
+            .unwrap();
+        assert!(!flag);
     }
 }

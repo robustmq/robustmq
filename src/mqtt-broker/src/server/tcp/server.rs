@@ -54,11 +54,15 @@ pub async fn start_tcp_server<S>(
         auth_driver.clone(),
     );
 
+    let proc_config = ProcessorConfig {
+        accept_thread_num: conf.tcp_thread.accept_thread_num,
+        handler_process_num: conf.tcp_thread.handler_thread_num,
+        response_process_num: conf.tcp_thread.response_thread_num,
+    };
+
     let mut server = TcpServer::<S>::new(
         command.clone(),
-        conf.tcp_thread.accept_thread_num,
-        conf.tcp_thread.handler_thread_num,
-        conf.tcp_thread.response_thread_num,
+        proc_config,
         stop_sx.clone(),
         connection_manager.clone(),
         sucscribe_manager.clone(),
@@ -69,9 +73,7 @@ pub async fn start_tcp_server<S>(
 
     let mut server = TcpServer::<S>::new(
         command,
-        conf.tcp_thread.accept_thread_num,
-        conf.tcp_thread.handler_thread_num,
-        conf.tcp_thread.response_thread_num,
+        proc_config,
         stop_sx.clone(),
         connection_manager,
         sucscribe_manager.clone(),
@@ -96,15 +98,20 @@ struct TcpServer<S> {
     network_connection_type: NetworkConnectionType,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ProcessorConfig {
+    pub accept_thread_num: usize,
+    pub handler_process_num: usize,
+    pub response_process_num: usize,
+}
+
 impl<S> TcpServer<S>
 where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     pub fn new(
         command: Command<S>,
-        accept_thread_num: usize,
-        handler_process_num: usize,
-        response_process_num: usize,
+        proc_config: ProcessorConfig,
         stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
@@ -117,11 +124,11 @@ where
             cache_manager,
             client_poll,
             connection_manager,
-            accept_thread_num,
-            handler_process_num,
-            response_process_num,
+            accept_thread_num: proc_config.accept_thread_num,
+            handler_process_num: proc_config.handler_process_num,
+            response_process_num: proc_config.response_process_num,
             stop_sx,
-            network_connection_type: NetworkConnectionType::TCP,
+            network_connection_type: NetworkConnectionType::Tcp,
         }
     }
 
@@ -138,7 +145,7 @@ where
         let arc_listener = Arc::new(listener);
 
         acceptor_process(
-            self.accept_thread_num.clone(),
+            self.accept_thread_num,
             self.connection_manager.clone(),
             self.stop_sx.clone(),
             arc_listener.clone(),
@@ -149,7 +156,7 @@ where
         .await;
 
         handler_process(
-            self.handler_process_num.clone(),
+            self.handler_process_num,
             request_queue_rx,
             self.connection_manager.clone(),
             response_queue_sx,
@@ -169,7 +176,7 @@ where
         )
         .await;
 
-        self.network_connection_type = NetworkConnectionType::TCP;
+        self.network_connection_type = NetworkConnectionType::Tcp;
         info!("MQTT TCP Server started successfully, listening port: {port}");
     }
 
@@ -196,7 +203,7 @@ where
         .await;
 
         handler_process(
-            self.handler_process_num.clone(),
+            self.handler_process_num,
             request_queue_rx,
             self.connection_manager.clone(),
             response_queue_sx,
@@ -215,7 +222,7 @@ where
             self.stop_sx.clone(),
         )
         .await;
-        self.network_connection_type = NetworkConnectionType::TCPS;
+        self.network_connection_type = NetworkConnectionType::Tcps;
         info!("MQTT TCP TLS Server started successfully, listening port: {port}");
     }
 }

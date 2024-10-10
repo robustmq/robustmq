@@ -15,42 +15,42 @@
 use common_base::tools::unique_id;
 use protocol::placement_center::generate::common::ClusterType;
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn pc_addr() -> String {
     "http://127.0.0.1:1228".to_string()
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn shard_name() -> String {
     "test1".to_string()
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn shard_replica() -> u32 {
     1
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn cluster_type() -> i32 {
     ClusterType::JournalServer.into()
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn cluster_name() -> String {
     unique_id()
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn node_id() -> u64 {
     4
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn node_ip() -> String {
     "127.0.0.4".to_string()
 }
 
-#[warn(dead_code)]
+#[allow(dead_code)]
 pub fn extend_info() -> String {
     "extend info".to_string()
 }

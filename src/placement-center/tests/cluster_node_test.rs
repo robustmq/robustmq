@@ -31,19 +31,18 @@ mod tests {
             .unwrap();
         let cluster_name = cluster_name();
         let node_id = node_id();
-        let mut request = RegisterNodeRequest::default();
-        request.cluster_type = cluster_type();
-        request.cluster_name = cluster_name.clone();
-        request.node_id = node_id;
-        request.node_ip = node_ip();
-        request.extend_info = extend_info();
-        match client.register_node(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = RegisterNodeRequest {
+            cluster_type: cluster_type(),
+            cluster_name: cluster_name.clone(),
+            node_id,
+            node_ip: node_ip(),
+            extend_info: extend_info(),
+            ..Default::default()
+        };
+        client
+            .register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
 
         let request = NodeListRequest {
             cluster_name: cluster_name.clone(),
@@ -61,21 +60,18 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{}", e);
-                assert!(false)
+                panic!("{:?}", e);
             }
         }
-        let mut request = UnRegisterNodeRequest::default();
-        request.cluster_type = cluster_type();
-        request.cluster_name = cluster_name.clone();
-        request.node_id = node_id;
-        match client.un_register_node(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = UnRegisterNodeRequest {
+            cluster_type: cluster_type(),
+            cluster_name: cluster_name.clone(),
+            node_id,
+        };
+        client
+            .un_register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
 
         let request = NodeListRequest {
             cluster_name: cluster_name.clone(),
@@ -93,8 +89,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                println!("{}", e);
-                assert!(false)
+                panic!("{:?}", e);
             }
         }
     }

@@ -31,18 +31,19 @@ pub struct MQTTSession {
 
 impl MQTTSession {
     pub fn new(
-        client_id: &String,
+        client_id: String,
         session_expiry: u64,
         is_contain_last_will: bool,
         last_will_delay_interval: Option<u64>,
     ) -> MQTTSession {
-        let mut session = MQTTSession::default();
-        session.client_id = client_id.clone();
-        session.session_expiry = session_expiry;
-        session.is_contain_last_will = is_contain_last_will;
-        session.last_will_delay_interval = last_will_delay_interval;
-        session.create_time = now_second();
-        session
+        MQTTSession {
+            client_id,
+            session_expiry,
+            is_contain_last_will,
+            last_will_delay_interval,
+            create_time: now_second(),
+            ..Default::default()
+        }
     }
 
     pub fn update_connnction_id(&mut self, connection_id: Option<u64>) {

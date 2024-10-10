@@ -19,11 +19,11 @@ use logo::DEFAULT_PLACEMENT_CENTER_CONFIG;
 use crate::tools::read_file;
 
 pub fn version() -> String {
-    match read_file(&DEFAULT_PLACEMENT_CENTER_CONFIG.to_string()) {
+    match read_file(DEFAULT_PLACEMENT_CENTER_CONFIG) {
         Ok(data) => data,
         Err(e) => {
             error!("{}", e.to_string());
-            return "-".to_string();
+            "-".to_string()
         }
     }
 }

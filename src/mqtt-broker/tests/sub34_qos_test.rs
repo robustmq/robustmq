@@ -111,8 +111,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -124,18 +123,10 @@ mod tests {
                 panic!("{}", e)
             }
         }
-        for msg in rx.iter() {
-            if let Some(msg) = msg {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                if payload == message_content {
-                    assert!(true);
-                } else {
-                    assert!(false);
-                }
-                break;
-            } else {
-                assert!(false);
-            }
+        if let Some(msg) = rx.iter().next() {
+            let msg = msg.unwrap();
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            assert_eq!(payload, message_content);
         }
         distinct_conn(cli);
     }

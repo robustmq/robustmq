@@ -22,7 +22,6 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
-use protocol::mqtt::common::MQTTPacket;
 use rustls_pemfile::{certs, private_key};
 use tokio::net::TcpListener;
 use tokio::select;
@@ -47,12 +46,12 @@ pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>
 }
 
 pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
-    Ok(private_key(&mut BufReader::new(File::open(path)?))
+    private_key(&mut BufReader::new(File::open(path)?))
         .unwrap()
         .ok_or(io::Error::new(
             ErrorKind::Other,
             "no private key found".to_string(),
-        ))?)
+        ))
 }
 
 pub(crate) async fn acceptor_tls_process(
@@ -65,14 +64,14 @@ pub(crate) async fn acceptor_tls_process(
 ) {
     let conf = broker_mqtt_conf();
 
-    let certs = match load_certs(&Path::new(&conf.network.tls_cert)) {
+    let certs = match load_certs(Path::new(&conf.network.tls_cert)) {
         Ok(data) => data,
         Err(e) => {
             panic!("{}", e.to_string());
         }
     };
 
-    let key = match load_key(&Path::new(&conf.network.tls_key)) {
+    let key = match load_key(Path::new(&conf.network.tls_key)) {
         Ok(data) => data,
         Err(e) => {
             panic!("{}", e.to_string());
@@ -102,14 +101,11 @@ pub(crate) async fn acceptor_tls_process(
             loop {
                 select! {
                     val = stop_rx.recv() =>{
-                        match val{
-                            Ok(flag) => {
-                                if flag {
-                                    debug!("TCP Server acceptor thread {} stopped successfully.",index);
-                                    break;
-                                }
+                        if let Ok(flag) = val {
+                            if flag {
+                                debug!("TCP Server acceptor thread {} stopped successfully.",index);
+                                break;
                             }
-                            Err(_) => {}
                         }
                     }
                     val = listener.accept()=>{
@@ -134,7 +130,7 @@ pub(crate) async fn acceptor_tls_process(
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
-                                    crate::server::connection::NetworkConnectionType::TCPS,
+                                    crate::server::connection::NetworkConnectionType::Tcps,
                                     addr,
                                     Some(connection_stop_sx.clone())
                                 );
@@ -178,8 +174,7 @@ pub(crate) fn read_tls_frame_process(
                 val = read_frame_stream.next()=>{
                     if let Some(pkg) = val {
                         match pkg {
-                            Ok(data) => {
-                                let pack: MQTTPacket = data.try_into().unwrap();
+                            Ok(pack) => {
                                 record_received_metrics(&connection, &pack, &network_type);
                                 info!("revc tcp tls packet:{:?}", pack);
                                 let package =

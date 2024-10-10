@@ -28,11 +28,11 @@ pub struct Plaintext {
 
 impl Plaintext {
     pub fn new(username: String, password: String, cache_manager: Arc<CacheManager>) -> Self {
-        return Plaintext {
+        Plaintext {
             username,
             password,
             cache_manager,
-        };
+        }
     }
 }
 
@@ -61,8 +61,10 @@ mod test {
 
     #[tokio::test]
     pub async fn plaintext_test() {
-        let mut conf = BrokerMQTTConfig::default();
-        conf.cluster_name = "test".to_string();
+        let conf = BrokerMQTTConfig {
+            cluster_name: "test".to_string(),
+            ..Default::default()
+        };
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
             client_poll.clone(),

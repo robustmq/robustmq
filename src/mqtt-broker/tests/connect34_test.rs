@@ -76,13 +76,7 @@ mod tests {
         v3_session_present_test(mqtt_version, &client_id, &addr, true, true);
     }
 
-    fn v3_wrong_password_test(
-        mqtt_version: u32,
-        client_id: &String,
-        addr: &String,
-        ws: bool,
-        ssl: bool,
-    ) {
+    fn v3_wrong_password_test(mqtt_version: u32, client_id: &str, addr: &str, ws: bool, ssl: bool) {
         let create_opts = build_create_pros(client_id, addr);
         let cli = Client::new(create_opts).unwrap_or_else(|err| {
             println!("Error creating the client: {:?}", err);
@@ -91,106 +85,68 @@ mod tests {
 
         let conn_opts = build_v3_conn_pros(mqtt_version, true, ws, ssl);
 
-        match cli.connect(conn_opts) {
-            Ok(_) => {
-                assert!(false)
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                assert!(true)
-            }
-        }
+        let err = cli.connect(conn_opts).unwrap_err();
+        println!("Unable to connect:\n\t{:?}", err);
     }
 
     fn v3_session_present_test(
         mqtt_version: u32,
-        client_id: &String,
-        addr: &String,
+        client_id: &str,
+        addr: &str,
         ws: bool,
         ssl: bool,
     ) {
         let create_opts = build_create_pros(client_id, addr);
-        let cli = match Client::new(create_opts) {
-            Ok(data) => data,
-            Err(e) => {
-                println!("{}", e);
-                assert!(false);
-                return;
-            }
-        };
+        let cli = Client::new(create_opts).unwrap();
 
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
         println!("{:?}", conn_opts);
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                    assert_eq!(4, resp.mqtt_version);
-                } else {
-                    if ssl {
-                        assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                    } else {
-                        assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                    }
-                    assert_eq!(mqtt_version, resp.mqtt_version);
-                }
-                assert!(resp.session_present);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
+        let response = cli.connect(conn_opts).unwrap();
+        let resp = response.connect_response().unwrap();
+        if ws {
+            if ssl {
+                assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
+            } else {
+                assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
             }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                assert!(false);
-                return;
+            assert_eq!(4, resp.mqtt_version);
+        } else {
+            if ssl {
+                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+            } else {
+                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
             }
+            assert_eq!(mqtt_version, resp.mqtt_version);
         }
+        assert!(resp.session_present);
+        assert_eq!(response.reason_code(), ReasonCode::Success);
         distinct_conn(cli);
 
         let create_opts = build_create_pros(client_id, addr);
 
-        let cli = match Client::new(create_opts) {
-            Ok(data) => data,
-            Err(e) => {
-                println!("Error creating the client: {:?}", e);
-                assert!(false);
-                return;
-            }
-        };
+        let cli = Client::new(create_opts).unwrap();
 
         let conn_opts = build_v3_conn_pros(mqtt_version, false, ws, ssl);
 
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                    assert_eq!(4, resp.mqtt_version);
-                } else {
-                    if ssl {
-                        assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                    } else {
-                        assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                    }
-                    assert_eq!(mqtt_version, resp.mqtt_version);
-                }
-                assert!(!resp.session_present);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
+        let response = cli.connect(conn_opts).unwrap();
+        let resp = response.connect_response().unwrap();
+        if ws {
+            if ssl {
+                assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
+            } else {
+                assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
             }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                assert!(false);
-                return;
+            assert_eq!(4, resp.mqtt_version);
+        } else {
+            if ssl {
+                assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
+            } else {
+                assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
             }
+            assert_eq!(mqtt_version, resp.mqtt_version);
         }
-
+        assert!(!resp.session_present);
+        assert_eq!(response.reason_code(), ReasonCode::Success);
         distinct_conn(cli);
     }
 }

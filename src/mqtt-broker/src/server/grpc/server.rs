@@ -46,13 +46,13 @@ where
         client_poll: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
-        return Self {
+        Self {
             port,
             metadata_cache,
             subscribe_manager,
             client_poll,
             message_storage_adapter,
-        };
+        }
     }
     pub async fn start(&self) -> Result<(), CommonError> {
         let addr = format!("0.0.0.0:{}", self.port).parse()?;
@@ -69,6 +69,6 @@ where
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))
             .serve(addr)
             .await?;
-        return Ok(());
+        Ok(())
     }
 }

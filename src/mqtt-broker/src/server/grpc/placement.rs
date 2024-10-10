@@ -42,12 +42,12 @@ impl<S> GrpcPlacementServices<S> {
         client_poll: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
-        return GrpcPlacementServices {
+        GrpcPlacementServices {
             cache_manager: metadata_cache,
             subscribe_manager,
             client_poll,
             message_storage_adapter,
-        };
+        }
     }
 }
 

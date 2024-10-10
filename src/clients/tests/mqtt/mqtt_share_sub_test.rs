@@ -38,15 +38,14 @@ mod tests {
             cluster_type: ClusterType::MqttBrokerServer as i32,
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
-            node_id: node_id,
+            node_id,
             node_inner_addr: node_ip.clone(),
             extend_info: "".to_string(),
         };
         match register_node(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         };
 
@@ -66,8 +65,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }

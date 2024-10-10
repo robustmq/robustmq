@@ -13,5 +13,6 @@
 // limitations under the License.
 
 pub mod header;
+#[allow(clippy::module_inception)]
 pub mod record;
 pub mod record_batch;

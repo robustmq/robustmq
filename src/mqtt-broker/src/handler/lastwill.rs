@@ -30,7 +30,7 @@ use crate::storage::message::MessageStorage;
 use crate::storage::session::SessionStorage;
 
 pub async fn send_last_will_message<S>(
-    client_id: &String,
+    client_id: &str,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     last_will: &Option<LastWill>,
@@ -60,7 +60,7 @@ where
             match save_topic_retain_message(
                 cache_manager,
                 client_poll,
-                &topic_name,
+                topic_name,
                 client_id,
                 &publish,
                 &publish_properties,
@@ -92,11 +92,9 @@ where
                     }
                 }
             }
-            return Ok(());
+            Ok(())
         }
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -125,8 +123,9 @@ fn build_publish_message_by_lastwill(
             payload: will.message.clone(),
         };
 
-        let properties = if let Some(properties) = last_will_properties {
-            Some(PublishProperties {
+        let properties = last_will_properties
+            .as_ref()
+            .map(|properties| PublishProperties {
                 payload_format_indicator: properties.payload_format_indicator,
                 message_expiry_interval: properties.message_expiry_interval,
                 topic_alias: None,
@@ -135,17 +134,14 @@ fn build_publish_message_by_lastwill(
                 subscription_identifiers: Vec::new(),
                 correlation_data: properties.correlation_data.clone(),
                 content_type: properties.content_type.clone(),
-            })
-        } else {
-            None
-        };
+            });
         return Ok((topic_name, Some(publish), properties));
     }
-    return Ok(("".to_string(), None, None));
+    Ok(("".to_string(), None, None))
 }
 
 pub async fn save_last_will_message(
-    client_id: &String,
+    client_id: String,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     client_poll: &Arc<ClientPool>,
@@ -160,23 +156,19 @@ pub async fn save_last_will_message(
         last_will: last_will.clone(),
         last_will_properties: last_will_properties.clone(),
     };
-    return session_storage
-        .save_last_will_messae(&client_id, lastwill.encode())
-        .await;
+    session_storage
+        .save_last_will_messae(client_id, lastwill.encode())
+        .await
 }
 
 pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties>) -> Option<u64> {
     let delay_interval = if let Some(properties) = last_will_properties.clone() {
-        if let Some(value) = properties.delay_interval {
-            value
-        } else {
-            return None;
-        }
+        properties.delay_interval?
     } else {
         return None;
     };
 
-    return Some(delay_interval as u64);
+    Some(delay_interval as u64)
 }
 
 #[cfg(test)]
@@ -195,8 +187,10 @@ mod test {
         let res = last_will_delay_interval(&Some(last_will_properties));
         assert!(res.is_none());
 
-        let mut last_will_properties = LastWillProperties::default();
-        last_will_properties.delay_interval = Some(10);
+        let last_will_properties = LastWillProperties {
+            delay_interval: Some(10),
+            ..Default::default()
+        };
         let res = last_will_delay_interval(&Some(last_will_properties));
         assert_eq!(res.unwrap(), 10);
     }
@@ -229,7 +223,7 @@ mod test {
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
         assert_eq!(p_tmp.pkid, 0);
-        assert_eq!(p_tmp.dup, false);
+        assert!(!p_tmp.dup);
         assert!(pp.is_none());
 
         let lastwill_properties = Some(LastWillProperties {
@@ -251,8 +245,8 @@ mod test {
         assert_eq!(p_tmp.qos, protocol::mqtt::common::QoS::AtLeastOnce);
         assert!(!p_tmp.retain);
         assert_eq!(p_tmp.pkid, 0);
-        assert_eq!(p_tmp.dup, false);
-        assert!(!pp.is_none());
+        assert!(!p_tmp.dup);
+        assert!(pp.is_some());
 
         let pp_tmp = pp.unwrap();
         assert_eq!(pp_tmp.payload_format_indicator.unwrap(), 2);

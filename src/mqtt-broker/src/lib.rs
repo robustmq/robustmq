@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -36,7 +37,7 @@ use storage_adapter::local_rocksdb::RocksDBStorageAdapter;
 use storage_adapter::memory::MemoryStorageAdapter;
 use storage_adapter::mysql::MySQLStorageAdapter;
 use storage_adapter::storage::StorageAdapter;
-use storage_adapter::{storage_is_memory, storage_is_mysql, storage_is_rocksdb};
+use storage_adapter::StorageType;
 use subscribe::sub_exclusive::SubscribeExclusive;
 use subscribe::sub_share_follower::SubscribeShareFollower;
 use subscribe::sub_share_leader::SubscribeShareLeader;
@@ -65,32 +66,40 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
         client_poll.clone(),
         conf.cluster_name.clone(),
     ));
-    let storage_type = conf.storage.storage_type.clone();
-    if storage_is_memory(&storage_type) {
-        let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
-        let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
-        server.start(stop_send);
-    } else if storage_is_mysql(&storage_type) {
-        if conf.storage.mysql_addr.is_empty() {
-            panic!("storaget type is [mysql],[storage.mysql_addr] cannot be empty");
+    // let storage_type = conf.storage.storage_type.clone();
+    let storage_type = StorageType::from_str(conf.storage.storage_type.as_str())
+        .expect("Storage type not supported");
+    match storage_type {
+        StorageType::Memory => {
+            let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
+            let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+            server.start(stop_send);
         }
-        let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
-        let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
-        let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
-        server.start(stop_send);
-    } else if storage_is_rocksdb(&storage_type) {
-        if conf.storage.rocksdb_data_path.is_empty() {
-            panic!("storaget type is [rocksdb],[storage.rocksdb_path] cannot be empty");
+        StorageType::Mysql => {
+            if conf.storage.mysql_addr.is_empty() {
+                panic!("storaget type is [mysql],[storage.mysql_addr] cannot be empty");
+            }
+            let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
+            let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
+            let server: MqttBroker<MySQLStorageAdapter> =
+                MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+            server.start(stop_send);
         }
-        let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
-            conf.storage.rocksdb_data_path.as_str(),
-            conf.storage.rocksdb_max_open_files.unwrap_or(10000),
-        ));
-        let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
-        server.start(stop_send);
-    } else {
-        panic!("Message data storage type configuration error, optional :mysql, memory");
-    };
+        StorageType::RocksDB => {
+            if conf.storage.rocksdb_data_path.is_empty() {
+                panic!("storaget type is [rocksdb],[storage.rocksdb_path] cannot be empty");
+            }
+            let message_storage_adapter = Arc::new(RocksDBStorageAdapter::new(
+                conf.storage.rocksdb_data_path.as_str(),
+                conf.storage.rocksdb_max_open_files.unwrap_or(10000),
+            ));
+            let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+            server.start(stop_send);
+        }
+        _ => {
+            panic!("Message data storage type configuration error, optional :mysql, memory");
+        }
+    }
 }
 
 pub struct MqttBroker<S> {
@@ -126,7 +135,7 @@ where
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
 
         let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_poll.clone()));
-        return MqttBroker {
+        MqttBroker {
             runtime,
             cache_manager,
             client_poll,
@@ -134,7 +143,7 @@ where
             subscribe_manager,
             connection_manager,
             auth_driver,
-        };
+        }
     }
 
     pub fn start(&self, stop_send: broadcast::Sender<bool>) {
@@ -175,7 +184,7 @@ where
     fn start_grpc_server(&self) {
         let conf = broker_mqtt_conf();
         let server = GrpcServer::new(
-            conf.grpc_port.clone(),
+            conf.grpc_port,
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             self.client_poll.clone(),
@@ -315,20 +324,17 @@ where
 
         // Wait for the stop signal
         self.runtime.block_on(async move {
-            loop {
-                signal::ctrl_c().await.expect("failed to listen for event");
-                match stop_send.send(true) {
-                    Ok(_) => {
-                        info!(
-                            "{}",
-                            "When ctrl + c is received, the service starts to stop"
-                        );
-                        self.stop_server().await;
-                        break;
-                    }
-                    Err(_) => {
-                        break;
-                    }
+            signal::ctrl_c().await.expect("failed to listen for event");
+            match stop_send.send(true) {
+                Ok(_) => {
+                    info!(
+                        "{}",
+                        "When ctrl + c is received, the service starts to stop"
+                    );
+                    self.stop_server().await;
+                }
+                Err(_) => {
+                    error!("Failed to send stop signal");
                 }
             }
         });

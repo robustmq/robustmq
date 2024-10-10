@@ -268,16 +268,20 @@ mod tests {
             cluster_name,
         );
 
-        let mut session = MQTTSession::default();
-        session.session_expiry = now_second() - 100;
-        session.distinct_time = Some(5);
+        let session = MQTTSession {
+            session_expiry: now_second() - 100,
+            distinct_time: Some(5),
+            ..Default::default()
+        };
         assert!(session_expire.is_session_expire(&session));
 
-        let mut session = MQTTSession::default();
-        session.broker_id = Some(1);
-        session.reconnect_time = Some(now_second());
-        session.session_expiry = now_second() + 100;
-        session.distinct_time = None;
+        let session = MQTTSession {
+            broker_id: Some(1),
+            reconnect_time: Some(now_second()),
+            session_expiry: now_second() + 100,
+            distinct_time: None,
+            ..Default::default()
+        };
         assert!(!session_expire.is_session_expire(&session));
 
         remove_dir_all(config.rocksdb.data_path).unwrap();
@@ -310,12 +314,13 @@ mod tests {
 
         let session_storage = MQTTSessionStorage::new(rocksdb_engine_handler.clone());
         let client_id = unique_id();
-        let mut session = MQTTSession::default();
+        let session = MQTTSession {
+            session_expiry: 3,
+            distinct_time: Some(now_second()),
+            client_id: client_id.clone(),
+            ..Default::default()
+        };
 
-        session.session_expiry = 3;
-        session.distinct_time = Some(now_second());
-
-        session.client_id = client_id.clone();
         session_storage
             .save(&cluster_name, &client_id, session)
             .unwrap();

@@ -143,15 +143,13 @@ pub fn build_v3_conn_pros(mqtt_version: u32, err_pwd: bool, ws: bool, ssl: bool)
 }
 
 #[allow(dead_code)]
-pub fn build_create_pros(client_id: &String, addr: &String) -> CreateOptions {
+pub fn build_create_pros(client_id: &str, addr: &str) -> CreateOptions {
     if client_id.is_empty() {
-        CreateOptionsBuilder::new()
-            .server_uri(addr.clone())
-            .finalize()
+        CreateOptionsBuilder::new().server_uri(addr).finalize()
     } else {
         CreateOptionsBuilder::new()
-            .server_uri(addr.clone())
-            .client_id(client_id.clone())
+            .server_uri(addr)
+            .client_id(client_id)
             .finalize()
     }
 }
@@ -165,7 +163,7 @@ pub fn distinct_conn(cli: Client) {
 }
 
 #[allow(dead_code)]
-pub fn connect_server34(mqtt_version: u32, client_id: &String, addr: &String) -> Client {
+pub fn connect_server34(mqtt_version: u32, client_id: &str, addr: &str) -> Client {
     let create_opts = build_create_pros(client_id, addr);
     let cli = Client::new(create_opts).unwrap_or_else(|err| {
         println!("Error creating the client: {:?}", err);
@@ -174,18 +172,12 @@ pub fn connect_server34(mqtt_version: u32, client_id: &String, addr: &String) ->
 
     let conn_opts = build_v3_conn_pros(mqtt_version, false, false, false);
 
-    match cli.connect(conn_opts) {
-        Ok(_) => {}
-        Err(e) => {
-            println!("Unable to connect:\n\t{:?},{}", e, addr);
-            assert!(false)
-        }
-    }
+    cli.connect(conn_opts).unwrap();
     cli
 }
 
 #[allow(dead_code)]
-pub fn connect_server5(client_id: &String, addr: &String, ws: bool, ssl: bool) -> Client {
+pub fn connect_server5(client_id: &str, addr: &str, ws: bool, ssl: bool) -> Client {
     let mqtt_version = 5;
     let props = build_v5_pros();
 
@@ -223,8 +215,8 @@ pub fn connect_server5(client_id: &String, addr: &String, ws: bool, ssl: bool) -
 
 #[allow(dead_code)]
 pub fn connect_server5_packet_size(
-    client_id: &String,
-    addr: &String,
+    client_id: &str,
+    addr: &str,
     packet_size: i32,
     ws: bool,
     ssl: bool,
@@ -269,7 +261,7 @@ pub fn connect_server5_packet_size(
 }
 
 #[allow(dead_code)]
-pub fn connect_server5_response_information(client_id: &String, addr: &String) -> (Client, String) {
+pub fn connect_server5_response_information(client_id: &str, addr: &str) -> (Client, String) {
     let mqtt_version = 5;
     let mut props = build_v5_pros();
     props

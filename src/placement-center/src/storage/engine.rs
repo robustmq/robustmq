@@ -159,7 +159,7 @@ fn engine_prefix_list(
 
     let data_list = rocksdb_engine_handler.read_prefix(cf, &prefix_key_name);
     let mut results = Vec::new();
-    for raw in data_list {
+    if let Ok(raw) = data_list {
         for (_, v) in raw {
             match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
                 Ok(v) => results.push(v),
