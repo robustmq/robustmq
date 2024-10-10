@@ -44,6 +44,32 @@ mod tests {
             }
         }
 
+        let request_key_empty = SetRequest {
+            key: "".to_string(),
+            value: value.clone(),
+        };
+        match placement_set(client_poll.clone(), addrs.clone(), request_key_empty).await{
+            Ok(_) => {
+                panic!("Expected an error when key is empty, but got ok");
+            }
+            Err(e) => {
+                assert!(e.to_string().contains("key or value"));
+            }
+        }
+
+        let request_value_empty = SetRequest{
+            key: key.clone(),
+            value: "".to_string(),
+        };
+        match placement_set(client_poll.clone(), addrs.clone(), request_value_empty).await{
+            Ok(_) => {
+                panic!("Expected an error when value is empty, but got ok");
+            }
+            Err(e) => {
+                assert!(e.to_string().contains("key or value"));
+            }
+        }
+
         let exist_req = ExistsRequest { key: key.clone() };
         match placement_exists(client_poll.clone(), addrs.clone(), exist_req).await {
             Ok(da) => {
