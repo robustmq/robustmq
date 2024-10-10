@@ -23,6 +23,7 @@ mod tests {
     };
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+    
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::{Framed, FramedRead, FramedWrite};
@@ -186,8 +187,10 @@ mod tests {
             clean_session: true,
         };
 
-        let mut properties = ConnectProperties::default();
-        properties.session_expiry_interval = Some(30);
+        let properties = ConnectProperties {
+            session_expiry_interval: Some(30),
+            ..Default::default()
+        };
         MQTTPacket::Connect(5, connect, Some(properties), lastwill, None, login)
     }
 
@@ -197,8 +200,10 @@ mod tests {
             session_present: true,
             code: ConnectReturnCode::Success,
         };
-        let mut properties = ConnAckProperties::default();
-        properties.max_qos = Some(10u8);
+        let properties = ConnAckProperties {
+            max_qos: Some(10u8),
+            ..Default::default()
+        };
         MqttPacketWrapper {
             protocol_version: 5,
             packet: MQTTPacket::ConnAck(ack, Some(properties)),

@@ -266,15 +266,13 @@ pub fn connect_validator(
 
         if let Some(will_properties) = last_will_properties {
             if let Some(payload_format) = will_properties.payload_format_indicator {
-                if payload_format == 1 {
-                    if !std::str::from_utf8(&will.message.to_vec().as_slice()).is_ok() {
-                        return Some(response_packet_mqtt_connect_fail(
-                            protocol,
-                            ConnectReturnCode::PayloadFormatInvalid,
-                            connect_properties,
-                            None,
-                        ));
-                    };
+                if payload_format == 1 && !std::str::from_utf8(&will.message.to_vec().as_slice()).is_ok() {
+                    return Some(response_packet_mqtt_connect_fail(
+                        protocol,
+                        ConnectReturnCode::PayloadFormatInvalid,
+                        connect_properties,
+                        None,
+                    ));
                 }
             }
         }
@@ -349,31 +347,29 @@ pub async fn publish_validator(
 
     if let Some(properties) = publish_properties {
         if let Some(payload_format) = properties.payload_format_indicator {
-            if payload_format == 1 {
-                if !std::str::from_utf8(&publish.payload.to_vec().as_slice()).is_ok() {
-                    if is_puback {
-                        return Some(response_packet_mqtt_puback_fail(
-                            protocol,
-                            connection,
-                            publish.pkid,
-                            PubAckReason::PayloadFormatInvalid,
-                            Some(
-                                MQTTBrokerError::PacketLenthError(publish.payload.len())
-                                    .to_string(),
-                            ),
-                        ));
-                    } else {
-                        return Some(response_packet_mqtt_pubrec_fail(
-                            protocol,
-                            connection,
-                            publish.pkid,
-                            PubRecReason::PayloadFormatInvalid,
-                            Some(
-                                MQTTBrokerError::PacketLenthError(publish.payload.len())
-                                    .to_string(),
-                            ),
-                        ));
-                    }
+            if payload_format == 1 && !std::str::from_utf8(&publish.payload.to_vec().as_slice()).is_ok() {
+                if is_puback {
+                    return Some(response_packet_mqtt_puback_fail(
+                        protocol,
+                        connection,
+                        publish.pkid,
+                        PubAckReason::PayloadFormatInvalid,
+                        Some(
+                            MQTTBrokerError::PacketLenthError(publish.payload.len())
+                                .to_string(),
+                        ),
+                    ));
+                } else {
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        protocol,
+                        connection,
+                        publish.pkid,
+                        PubRecReason::PayloadFormatInvalid,
+                        Some(
+                            MQTTBrokerError::PacketLenthError(publish.payload.len())
+                                .to_string(),
+                        ),
+                    ));
                 }
             }
         }

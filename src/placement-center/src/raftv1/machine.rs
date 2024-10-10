@@ -111,7 +111,7 @@ impl RaftMachine {
                     }
                 }
 
-                Ok(Some(RaftMessage::Raft { message, chan })) => match raft_node.step(message) {
+                Ok(Some(RaftMessage::Raft { message, chan })) => match raft_node.step(*message) {
                     Ok(_) => match chan.send(RaftResponseMesage::Success) {
                         Ok(_) => {}
                         Err(_) => {

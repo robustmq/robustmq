@@ -152,8 +152,7 @@ mod tests {
             retain_forward_rule: RetainForwardRule::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
         };
 
-        let mut vec = Vec::new();
-        vec.push(topic_filter);
+        let vec = vec![topic_filter];
 
         // build subscribe
         let subscribe: Subscribe = Subscribe {

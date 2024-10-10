@@ -104,7 +104,7 @@ impl ShareSubLeader {
         };
         for (broker_id, mut group_list) in node_sub_info.clone() {
             if group_list.contains(group_name) {
-                group_list.retain(|x| *x != group_name.to_string());
+                group_list.retain(|x| x != group_name);
                 node_sub_info.insert(broker_id, group_list);
 
                 let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());

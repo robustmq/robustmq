@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use acl::is_allow_acl;
@@ -31,7 +32,7 @@ use metadata_struct::mqtt::user::MqttUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
-use storage_adapter::{storage_is_mysql, storage_is_placement};
+use storage_adapter::StorageType;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::Connection;
@@ -71,7 +72,7 @@ impl AuthDriver {
         };
         return AuthDriver {
             cache_manager,
-            driver: driver,
+            driver,
             client_poll,
         };
     }
@@ -219,12 +220,13 @@ pub fn build_driver(
     client_poll: Arc<ClientPool>,
     auth: Auth,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
-    if storage_is_placement(&auth.storage_type) {
+    let storage_type = StorageType::from_str(&auth.storage_type).map_err(|_| CommonError::UnavailableStorageType)?;
+    if matches!(storage_type, StorageType::Placement) {
         let driver = PlacementAuthStorageAdapter::new(client_poll);
         return Ok(Arc::new(driver));
     }
 
-    if storage_is_mysql(&auth.storage_type) {
+    if matches!(storage_type, StorageType::Mysql) {
         let driver = MySQLAuthStorageAdapter::new(auth.mysql_addr.clone());
         return Ok(Arc::new(driver));
     }
