@@ -214,7 +214,7 @@ mod tests {
             .unwrap();
 
         let retain_msg =
-            MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None, 600);
+            MQTTMessage::build_message("c1", &Publish::default(), &None, 600);
         topic_storage
             .set_topic_retain_message(
                 &cluster_name,
