@@ -107,7 +107,7 @@ mod tests {
             sleep(Duration::from_secs(5)).await;
         })
         .await
-        .unwrap();
+        .unwrap_err();
         assert_eq!(now.elapsed().as_secs(), 3);
     }
 
