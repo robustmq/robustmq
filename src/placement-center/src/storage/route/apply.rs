@@ -183,9 +183,6 @@ impl RaftMachineApply {
                 Err(_) => RaftResponseMesage::Fail,
             }
         });
-        match res.await {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        res.await.is_ok()
     }
 }

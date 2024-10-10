@@ -31,8 +31,8 @@ use crate::error::common::CommonError;
 /// Fold - a string that specifies the directory path to be created.
 ///
 /// # Return value
-/// * ` OK() ` - Indicates that the directory has been successfully created or the specified directory already exists.
-/// Err (CommonError) - Indicates that the directory creation failed, and CommonError is the error type that includes the reason for the failure.
+/// * `Ok(())` - Indicates that the directory has been successfully created or the specified directory already exists.
+/// * `Err(CommonError)` - Indicates that the directory creation failed, and CommonError is the error type that includes the reason for the failure.
 ///
 /// # Possible errors
 /// If the directory creation fails, a 'CommonError' containing the reason for the error will be returned.
