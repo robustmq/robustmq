@@ -245,8 +245,8 @@ fn calc_addr(
 }
 
 fn is_write_request(
-    service: &PlacementCenterService,
-    interface: &PlacementCenterInterface,
+    _service: &PlacementCenterService,
+    _interface: &PlacementCenterInterface,
 ) -> bool {
     true
 }

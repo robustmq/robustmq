@@ -355,7 +355,7 @@ impl RaftMachineStorage {
         }
     }
 
-    #[warn(dead_code)]
+    #[allow(dead_code)]
     pub fn all_uncommit_index(&self) -> Vec<RaftUncommitData> {
         let key = key_name_uncommit_prefix();
         let cf = self
