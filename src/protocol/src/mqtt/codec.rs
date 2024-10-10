@@ -17,6 +17,8 @@ use tokio_util::codec;
 
 use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, PacketType};
 
+use super::common::ConnectReadOutcome;
+
 #[derive(Debug, Clone)]
 pub struct MqttPacketWrapper {
     pub protocol_version: u8,
@@ -49,14 +51,14 @@ impl MqttCodec {
 
         if packet_type == PacketType::Connect {
             match connect_read(fixed_header, packet.clone()) {
-                Ok((
+                Ok(ConnectReadOutcome {
                     protocol_version,
                     connect,
                     properties,
                     last_will,
                     last_will_properties,
                     login,
-                )) => {
+                }) => {
                     self.protocol_version = Some(protocol_version);
 
                     if protocol_version == 4 || protocol_version == 3 {
