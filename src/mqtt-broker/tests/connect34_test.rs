@@ -78,8 +78,8 @@ mod tests {
 
     fn v3_wrong_password_test(
         mqtt_version: u32,
-        client_id: &String,
-        addr: &String,
+        client_id: &str,
+        addr: &str,
         ws: bool,
         ssl: bool,
     ) {
@@ -104,8 +104,8 @@ mod tests {
 
     fn v3_session_present_test(
         mqtt_version: u32,
-        client_id: &String,
-        addr: &String,
+        client_id: &str,
+        addr: &str,
         ws: bool,
         ssl: bool,
     ) {

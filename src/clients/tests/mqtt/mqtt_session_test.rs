@@ -41,7 +41,7 @@ mod tests {
         let last_will_delay_interval: u64 = 10000;
 
         let mut mqtt_session: MqttSession = MqttSession::new(
-            &client_id,
+            client_id.clone(),
             session_expiry,
             true,
             Some(last_will_delay_interval),

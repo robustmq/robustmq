@@ -123,7 +123,7 @@ impl AuthDriver {
     pub async fn allow_publish(
         &self,
         connection: &Connection,
-        topic_name: &String,
+        topic_name: &str,
         retain: bool,
         qos: QoS,
     ) -> bool {
@@ -158,12 +158,12 @@ impl AuthDriver {
 
     async fn plaintext_check_login(
         &self,
-        username: &String,
-        password: &String,
+        username: &str,
+        password: &str,
     ) -> Result<bool, CommonError> {
         let plaintext = Plaintext::new(
-            username.clone(),
-            password.clone(),
+            username.to_owned(),
+            password.to_owned(),
             self.cache_manager.clone(),
         );
         match plaintext.apply().await {
@@ -184,8 +184,8 @@ impl AuthDriver {
         return Ok(false);
     }
 
-    async fn try_get_check_user_by_driver(&self, username: &String) -> Result<bool, CommonError> {
-        match self.driver.get_user(username.clone()).await {
+    async fn try_get_check_user_by_driver(&self, username: &str) -> Result<bool, CommonError> {
+        match self.driver.get_user(username.to_owned()).await {
             Ok(Some(user)) => {
                 self.cache_manager.add_user(user.clone());
                 let plaintext = Plaintext::new(

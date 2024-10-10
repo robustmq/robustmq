@@ -146,7 +146,7 @@ mod tests {
         assert_eq!(user.password, "robustmq@2024");
     }
 
-    fn init_user(addr: &String) {
+    fn init_user(addr: &str) {
         let poll = build_mysql_conn_pool(addr).unwrap();
         let mut conn = poll.get_conn().unwrap();
         let mut values = Vec::new();

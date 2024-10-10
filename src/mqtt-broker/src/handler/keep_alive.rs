@@ -204,7 +204,7 @@ impl ClientKeepAlive {
                     heartbeat: now_second(),
                 };
                 self.cache_manager
-                    .report_heartbeat(&connection.client_id, live_time);
+                    .report_heartbeat(connection.client_id, live_time);
             }
         }
         return expire_connection;
@@ -294,12 +294,12 @@ mod test {
         let client_id = unique_id();
         let connect_id = 1;
 
-        let session = MqttSession::new(&client_id, 60, false, None);
+        let session = MqttSession::new(client_id.clone(), 60, false, None);
         cache_manager.add_session(client_id.clone(), session);
 
         let keep_alive = 2;
         let addr = "127.0.0.1".to_string();
-        let connection = Connection::new(1, &client_id, 100, 100, 100, 100, keep_alive, addr);
+        let connection = Connection::new(1, client_id, 100, 100, 100, 100, keep_alive, addr);
         cache_manager.add_connection(connect_id, connection);
 
         let start = now_second();

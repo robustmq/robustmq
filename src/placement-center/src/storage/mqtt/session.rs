@@ -49,23 +49,23 @@ impl MqttSessionStorage {
     }
     pub fn save(
         &self,
-        cluster_name: &String,
-        client_id: &String,
+        cluster_name: &str,
+        client_id: &str,
         session: MqttSession,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<StorageDataWrap>, CommonError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
         engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)
     }
 
     pub fn get(
         &self,
-        cluster_name: &String,
-        client_id: &String,
+        cluster_name: &str,
+        client_id: &str,
     ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
@@ -78,7 +78,7 @@ impl MqttSessionStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
@@ -121,16 +121,16 @@ mod tests {
         assert_eq!(res.len(), 2);
 
         let res = session_storage
-            .get(&cluster_name, &"lobo1".to_string())
+            .get(&cluster_name, "lobo1")
             .unwrap();
         assert!(res.is_some());
 
         session_storage
-            .delete(&cluster_name, &"lobo1".to_string())
+            .delete(&cluster_name, "lobo1")
             .unwrap();
 
         let res = session_storage
-            .get(&cluster_name, &"lobo1".to_string())
+            .get(&cluster_name, "lobo1")
             .unwrap();
         assert!(res.is_none());
 

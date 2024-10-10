@@ -52,8 +52,8 @@ impl ShardStorage {
     #[allow(dead_code)]
     pub fn get(
         &self,
-        cluster_name: &String,
-        shard_name: &String,
+        cluster_name: &str,
+        shard_name: &str,
     ) -> Result<Option<ShardInfo>, CommonError> {
         let shard_key: String = key_shard(cluster_name, shard_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
@@ -66,12 +66,12 @@ impl ShardStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, shard_name: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, shard_name: &str) -> Result<(), CommonError> {
         let shard_key = key_shard(cluster_name, shard_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)
     }
     #[allow(dead_code)]
-    pub fn list_by_shard(&self, cluster_name: &String) -> Result<Vec<ShardInfo>, CommonError> {
+    pub fn list_by_shard(&self, cluster_name: &str) -> Result<Vec<ShardInfo>, CommonError> {
         let prefix_key = key_shard_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {

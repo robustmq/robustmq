@@ -145,14 +145,14 @@ impl TopicStorage {
 
     pub async fn set_retain_message(
         &self,
-        topic_name: &String,
+        topic_name: String,
         retain_message: &MqttMessage,
         retain_message_expired_at: u64,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name: topic_name.clone(),
+            topic_name: topic_name,
             retain_message: retain_message.encode(),
             retain_message_expired_at,
         };
@@ -170,11 +170,11 @@ impl TopicStorage {
         }
     }
 
-    pub async fn delete_retain_message(&self, topic_name: &String) -> Result<(), CommonError> {
+    pub async fn delete_retain_message(&self, topic_name: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name: topic_name.clone(),
+            topic_name,
             retain_message: Vec::new(),
             retain_message_expired_at: 0,
         };
@@ -314,7 +314,7 @@ mod tests {
         let retain_message =
             MqttMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
         topic_storage
-            .set_retain_message(&topic_name, &retain_message, 3600)
+            .set_retain_message(topic_name.clone(), &retain_message, 3600)
             .await
             .unwrap();
 
@@ -327,7 +327,7 @@ mod tests {
         assert_eq!(payload, content);
 
         topic_storage
-            .delete_retain_message(&topic_name)
+            .delete_retain_message(topic_name.clone())
             .await
             .unwrap();
 

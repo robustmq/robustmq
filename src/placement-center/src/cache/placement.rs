@@ -68,7 +68,7 @@ impl PlacementCacheManager {
         }
     }
 
-    pub fn remove_broker_node(&self, cluster_name: &String, node_id: u64) {
+    pub fn remove_broker_node(&self, cluster_name: &str, node_id: u64) {
         if let Some(data) = self.node_list.get_mut(cluster_name) {
             data.remove(&node_id);
         }
@@ -77,7 +77,7 @@ impl PlacementCacheManager {
         }
     }
 
-    pub fn get_broker_node(&self, cluster_name: &String, node_id: u64) -> Option<BrokerNode> {
+    pub fn get_broker_node(&self, cluster_name: &str, node_id: u64) -> Option<BrokerNode> {
         if let Some(data) = self.node_list.get_mut(cluster_name) {
             if let Some(value) = data.get(&node_id) {
                 return Some(value.clone());
@@ -86,7 +86,7 @@ impl PlacementCacheManager {
         None
     }
 
-    pub fn get_broker_node_addr_by_cluster(&self, cluster_name: &String) -> Vec<String> {
+    pub fn get_broker_node_addr_by_cluster(&self, cluster_name: &str) -> Vec<String> {
         let mut results = Vec::new();
         if let Some(data) = self.node_list.get_mut(cluster_name) {
             for (_, node) in data.clone() {
@@ -98,13 +98,13 @@ impl PlacementCacheManager {
         results
     }
 
-    pub fn report_heart_by_broker_node(&self, cluster_name: &String, node_id: u64, time: u64) {
+    pub fn report_heart_by_broker_node(&self, cluster_name: &str, node_id: u64, time: u64) {
         if let Some(data) = self.node_heartbeat.get_mut(cluster_name) {
             data.insert(node_id, time);
         } else {
             let data = DashMap::with_capacity(2);
             data.insert(node_id, time);
-            self.node_heartbeat.insert(cluster_name.clone(), data);
+            self.node_heartbeat.insert(cluster_name.to_owned(), data);
         }
     }
 

@@ -39,13 +39,13 @@ impl SessionStorage {
 
     pub async fn set_session(
         &self,
-        client_id: &String,
+        client_id: String,
         session: &MqttSession,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateSessionRequest {
             cluster_name: config.cluster_name.clone(),
-            client_id: client_id.clone(),
+            client_id,
             session: session.encode(),
         };
         match placement_create_session(
@@ -64,7 +64,7 @@ impl SessionStorage {
 
     pub async fn update_session(
         &self,
-        client_id: &String,
+        client_id: String,
         connection_id: u64,
         broker_id: u64,
         reconnect_time: u64,
@@ -73,7 +73,7 @@ impl SessionStorage {
         let config = broker_mqtt_conf();
         let request = UpdateSessionRequest {
             cluster_name: config.cluster_name.clone(),
-            client_id: client_id.clone(),
+            client_id,
             connection_id,
             broker_id,
             reconnect_time,
@@ -179,13 +179,13 @@ impl SessionStorage {
 
     pub async fn save_last_will_messae(
         &self,
-        client_id: &String,
+        client_id: String,
         last_will_message: Vec<u8>,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SaveLastWillMessageRequest {
             cluster_name: config.cluster_name.clone(),
-            client_id: client_id.clone(),
+            client_id,
             last_will_message,
         };
         match placement_save_last_will_message(
@@ -232,7 +232,7 @@ mod tests {
         session.reconnect_time = Some(now_second());
 
         session_storage
-            .set_session(&client_id, &session)
+            .set_session(client_id.clone(), &session)
             .await
             .unwrap();
 
@@ -246,7 +246,7 @@ mod tests {
         assert!(result.connection_id.is_none());
 
         session_storage
-            .update_session(&client_id, 3, 3, now_second(), 0)
+            .update_session(client_id.clone(), 3, 3, now_second(), 0)
             .await
             .unwrap();
 

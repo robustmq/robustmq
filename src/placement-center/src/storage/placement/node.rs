@@ -40,7 +40,7 @@ impl NodeStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), node_key, node.clone())
     }
 
-    pub fn delete(&self, cluster_name: &String, node_id: u64) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, node_id: u64) -> Result<(), CommonError> {
         let node_key = key_node(cluster_name, node_id);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), node_key)
     }
@@ -48,7 +48,7 @@ impl NodeStorage {
     #[allow(dead_code)]
     pub fn get(
         &self,
-        cluster_name: &String,
+        cluster_name: &str,
         node_id: u64,
     ) -> Result<Option<BrokerNode>, CommonError> {
         let node_key = key_node(cluster_name, node_id);

@@ -45,30 +45,30 @@ impl MqttCacheManager {
         cache
     }
 
-    pub fn add_topic(&self, cluster_name: &String, topic: MqttTopic) {
+    pub fn add_topic(&self, cluster_name: &str, topic: MqttTopic) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
             data.insert(topic.topic_name.clone(), topic);
         } else {
             let data = DashMap::with_capacity(8);
             data.insert(topic.topic_name.clone(), topic);
-            self.topic_list.insert(cluster_name.clone(), data);
+            self.topic_list.insert(cluster_name.to_owned(), data);
         }
     }
 
     #[allow(dead_code)]
-    pub fn remove_topic(&self, cluster_name: &String, topic_name: &String) {
+    pub fn remove_topic(&self, cluster_name: &str, topic_name: &str) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
             data.remove(topic_name);
         }
     }
 
-    pub fn add_user(&self, cluster_name: &String, user: MqttUser) {
+    pub fn add_user(&self, cluster_name: &str, user: MqttUser) {
         if let Some(data) = self.user_list.get_mut(cluster_name) {
             data.insert(user.username.clone(), user);
         } else {
             let data = DashMap::with_capacity(8);
             data.insert(user.username.clone(), user);
-            self.user_list.insert(cluster_name.clone(), data);
+            self.user_list.insert(cluster_name.to_owned(), data);
         }
     }
 
@@ -86,7 +86,7 @@ impl MqttCacheManager {
         }
     }
 
-    pub fn remove_expire_last_will(&self, cluster_name: &String, client_id: &String) {
+    pub fn remove_expire_last_will(&self, cluster_name: &str, client_id: &str) {
         if let Some(data) = self.expire_last_wills.get_mut(cluster_name) {
             data.remove(client_id);
         }

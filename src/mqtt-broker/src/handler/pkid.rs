@@ -29,7 +29,7 @@ use super::cache::CacheManager;
 pub async fn pkid_save(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    client_id: &String,
+    client_id: &str,
     pkid: u16,
 ) -> Result<(), CommonError> {
     if cache_manager
@@ -40,7 +40,7 @@ pub async fn pkid_save(
         let conf = broker_mqtt_conf();
         let request = SetIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
-            producer_id: client_id.clone(),
+            producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
         match set_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request).await
@@ -61,7 +61,7 @@ pub async fn pkid_save(
 pub async fn pkid_exists(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    client_id: &String,
+    client_id: &str,
     pkid: u16,
 ) -> Result<bool, CommonError> {
     if cache_manager
@@ -72,7 +72,7 @@ pub async fn pkid_exists(
         let conf = broker_mqtt_conf();
         let request = ExistsIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
-            producer_id: client_id.clone(),
+            producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
         match exists_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)
@@ -93,7 +93,7 @@ pub async fn pkid_exists(
 pub async fn pkid_delete(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    client_id: &String,
+    client_id: &str,
     pkid: u16,
 ) -> Result<(), CommonError> {
     if cache_manager
@@ -104,7 +104,7 @@ pub async fn pkid_delete(
         let conf = broker_mqtt_conf();
         let request = DeleteIdempotentDataRequest {
             cluster_name: conf.cluster_name.clone(),
-            producer_id: client_id.clone(),
+            producer_id: client_id.to_owned(),
             seq_num: pkid as u64,
         };
         match delete_idempotent_data(client_poll.clone(), conf.placement_center.clone(), request)

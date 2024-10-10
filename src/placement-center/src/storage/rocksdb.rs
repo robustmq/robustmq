@@ -22,10 +22,10 @@ pub fn column_family_list() -> Vec<String> {
     list
 }
 
-pub fn storage_data_fold(path: &String) -> String {
+pub fn storage_data_fold(path: &str) -> String {
     format!("{}/_data", path)
 }
 
-pub fn storage_raft_fold(path: &String) -> String {
+pub fn storage_raft_fold(path: &str) -> String {
     format!("{}/_raft", path)
 }

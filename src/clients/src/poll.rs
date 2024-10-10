@@ -302,19 +302,19 @@ impl ClientPool {
         ))
     }
 
-    pub fn get_leader_addr(&self, addr: &String) -> Option<String> {
+    pub fn get_leader_addr(&self, addr: &str) -> Option<String> {
         if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(addr) {
             return Some(leader_addr.clone());
         }
         None
     }
 
-    pub fn set_leader_addr(&self, addr: &String, leader_addr: &String) {
+    pub fn set_leader_addr(&self, addr: String, leader_addr: String) {
         info!(
             "Update the Leader information in the client cache with the new Leader address :{}",
             leader_addr
         );
         self.placement_center_leader_addr_caches
-            .insert(addr.to_string(), leader_addr.clone());
+            .insert(addr, leader_addr);
     }
 }

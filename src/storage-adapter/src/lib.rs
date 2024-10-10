@@ -28,27 +28,27 @@ pub enum StorageType {
     RocksDB,
 }
 
-pub fn storage_is_journal(storage_type: &String) -> bool {
+pub fn storage_is_journal(storage_type: &str) -> bool {
     let st = format!("{:?}", StorageType::Journal).to_lowercase();
     st == storage_type.clone()
 }
 
-pub fn storage_is_memory(storage_type: &String) -> bool {
+pub fn storage_is_memory(storage_type: &str) -> bool {
     let st = format!("{:?}", StorageType::Memory).to_lowercase();
     st == storage_type.clone()
 }
 
-pub fn storage_is_placement(storage_type: &String) -> bool {
+pub fn storage_is_placement(storage_type: &str) -> bool {
     let st = format!("{:?}", StorageType::Placement).to_lowercase();
     st == storage_type.clone()
 }
 
-pub fn storage_is_mysql(storage_type: &String) -> bool {
+pub fn storage_is_mysql(storage_type: &str) -> bool {
     let st = format!("{:?}", StorageType::Mysql).to_lowercase();
     st == storage_type.clone()
 }
 
-pub fn storage_is_rocksdb(storage_type: &String) -> bool {
+pub fn storage_is_rocksdb(storage_type: &str) -> bool {
     let st = format!("{:?}", StorageType::RocksDB).to_lowercase();
     st == storage_type.clone()
 }
@@ -59,9 +59,9 @@ mod tests {
 
     #[tokio::test]
     async fn storage_type_test() {
-        assert!(storage_is_journal(&"journal".to_string()));
-        assert!(storage_is_memory(&"memory".to_string()));
-        assert!(storage_is_mysql(&"mysql".to_string()));
-        assert!(storage_is_rocksdb(&"rocksdb".to_string()));
+        assert!(storage_is_journal("journal"));
+        assert!(storage_is_memory("memory"));
+        assert!(storage_is_mysql("mysql"));
+        assert!(storage_is_rocksdb("rocksdb"));
     }
 }

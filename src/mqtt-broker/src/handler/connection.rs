@@ -66,7 +66,7 @@ pub struct Connection {
 impl Connection {
     pub fn new(
         connect_id: u64,
-        client_id: &String,
+        client_id: String,
         receive_maximum: u16,
         max_packet_size: u32,
         topic_alias_max: u16,
@@ -76,7 +76,7 @@ impl Connection {
     ) -> Connection {
         return Connection {
             connect_id,
-            client_id: client_id.clone(),
+            client_id,
             is_login: false,
             keep_alive,
             client_max_receive_maximum: receive_maximum,
@@ -128,7 +128,7 @@ impl Connection {
 
 pub fn build_connection(
     connect_id: u64,
-    client_id: &String,
+    client_id: String,
     cluster: &MqttClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
@@ -178,7 +178,7 @@ pub fn build_connection(
         };
     return Connection::new(
         connect_id,
-        &client_id,
+        client_id,
         client_receive_maximum,
         max_packet_size,
         topic_alias_max,
@@ -188,11 +188,11 @@ pub fn build_connection(
     );
 }
 
-pub fn get_client_id(client_id: &String) -> (String, bool) {
+pub fn get_client_id(client_id: &str) -> (String, bool) {
     if client_id.is_empty() {
         return (unique_id(), true);
     } else {
-        return (client_id.clone(), false);
+        return (client_id.to_owned(), false);
     };
 }
 
@@ -208,7 +208,7 @@ pub fn response_information(connect_properties: &Option<ConnectProperties>) -> O
 }
 
 pub async fn disconnect_connection(
-    client_id: &String,
+    client_id: &str,
     connect_id: u64,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
@@ -225,7 +225,7 @@ pub async fn disconnect_connection(
     // Remove the Connect id of the Session in the Placement Center
     let session_storage = SessionStorage::new(client_poll.clone());
     match session_storage
-        .update_session(client_id, 0, 0, 0, now_second())
+        .update_session(client_id.to_owned(), 0, 0, 0, now_second())
         .await
     {
         Ok(_) => {}
@@ -273,7 +273,7 @@ mod test {
         let addr = format!("0.0.0.0:8080").parse().unwrap();
         let mut conn = build_connection(
             connect_id,
-            &client_id,
+            client_id.clone(),
             &cluster,
             &connect,
             &Some(connect_properties),

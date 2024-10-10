@@ -38,15 +38,15 @@ impl MqttTopicStorage {
 
     pub fn save(
         &self,
-        cluster_name: &String,
-        topic_name: &String,
+        cluster_name: &str,
+        topic_name: &str,
         topic: MqttTopic,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, topic)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MqttTopic>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttTopic>, CommonError> {
         let prefix_key = storage_key_mqtt_topic_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -69,8 +69,8 @@ impl MqttTopicStorage {
 
     pub fn get(
         &self,
-        cluster_name: &String,
-        topicname: &String,
+        cluster_name: &str,
+        topicname: &str,
     ) -> Result<Option<MqttTopic>, CommonError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topicname);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
@@ -83,22 +83,22 @@ impl MqttTopicStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, topic_name: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, topic_name: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_topic(cluster_name, topic_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 
     pub fn set_topic_retain_message(
         &self,
-        cluster_name: &String,
-        topic_name: &String,
+        cluster_name: &str,
+        topic_name: &str,
         retain_message: Vec<u8>,
         retain_message_expired_at: u64,
     ) -> Result<(), CommonError> {
         let mut topic = match self.get(cluster_name, topic_name) {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
+                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.to_owned()).into());
             }
             Err(e) => {
                 return Err(e);
@@ -164,7 +164,7 @@ mod tests {
         assert_eq!(res.len(), 2);
 
         let res = topic_storage
-            .get(&cluster_name, &"lobo1".to_string())
+            .get(&cluster_name, "lobo1")
             .unwrap();
         assert!(res.is_some());
 
@@ -172,7 +172,7 @@ mod tests {
         topic_storage.delete(&cluster_name, &name).unwrap();
 
         let res = topic_storage
-            .get(&cluster_name, &"lobo1".to_string())
+            .get(&cluster_name, "lobo1")
             .unwrap();
         assert!(res.is_none());
 

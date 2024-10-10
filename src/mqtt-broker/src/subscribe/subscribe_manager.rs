@@ -142,7 +142,7 @@ impl SubscribeManager {
         }
     }
 
-    pub fn stop_push_by_client_id(&self, client_id: &String) {
+    pub fn stop_push_by_client_id(&self, client_id: &str) {
         for (key, subscriber) in self.exclusive_subscribe.clone() {
             if subscriber.client_id == *client_id {
                 self.exclusive_subscribe.remove(&key);
@@ -165,7 +165,7 @@ impl SubscribeManager {
         }
     }
 
-    pub fn remove_subscribe(&self, client_id: &String, filter_path: &Vec<String>) {
+    pub fn remove_subscribe(&self, client_id: &str, filter_path: &Vec<String>) {
         for (topic_name, _) in self.metadata_cache.topic_info.clone() {
             for path in filter_path.clone() {
                 if !path_regex_match(topic_name.clone(), path.clone()) {
@@ -412,15 +412,15 @@ impl SubscribeManager {
         }
     }
 
-    fn exclusive_key(&self, client_id: &String, sub_name: &String, topic_id: &String) -> String {
+    fn exclusive_key(&self, client_id: &str, sub_name: &str, topic_id: &str) -> String {
         return format!("{}_{}_{}", client_id, sub_name, topic_id);
     }
 
     fn share_leader_key(
         &self,
-        group_name: &String,
-        sub_name: &String,
-        topic_id: &String,
+        group_name: &str,
+        sub_name: &str,
+        topic_id: &str,
     ) -> String {
         return format!("{}_{}_{}", group_name, sub_name, topic_id);
     }

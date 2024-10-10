@@ -47,7 +47,7 @@ pub fn payload_format_validator(
     return false;
 }
 
-pub fn topic_name_validator(topic_name: &String) -> Result<(), MQTTBrokerError> {
+pub fn topic_name_validator(topic_name: &str) -> Result<(), MQTTBrokerError> {
     if topic_name.is_empty() {
         return Err(MQTTBrokerError::TopicNameIsEmpty);
     }
@@ -55,13 +55,13 @@ pub fn topic_name_validator(topic_name: &String) -> Result<(), MQTTBrokerError> 
     let topic_slice: Vec<&str> = topic_name.split("/").collect();
     if topic_slice.first().unwrap().to_string() == "/".to_string() {
         return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.clone(),
+            topic_name.to_owned(),
         ));
     }
 
     if topic_slice.last().unwrap().to_string() == "/".to_string() {
         return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.clone(),
+            topic_name.to_owned(),
         ));
     }
 
@@ -69,7 +69,7 @@ pub fn topic_name_validator(topic_name: &String) -> Result<(), MQTTBrokerError> 
     let re = Regex::new(&format!("{}", format_str)).unwrap();
     if !re.is_match(&topic_name) {
         return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.clone(),
+            topic_name.to_owned(),
         ));
     }
     return Ok(());
@@ -107,7 +107,7 @@ pub fn get_topic_name(
 }
 
 pub async fn try_init_topic<S>(
-    topic_name: &String,
+    topic_name: &str,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
     client_poll: &Arc<ClientPool>,
@@ -120,7 +120,7 @@ where
     } else {
         let topic_storage = TopicStorage::new(client_poll.clone());
         let topic_id = unique_id();
-        let topic = MqttTopic::new(topic_id, topic_name.clone());
+        let topic = MqttTopic::new(topic_id, topic_name.to_owned());
         topic_storage.save_topic(topic.clone()).await?;
         metadata_cache.add_topic(&topic_name, &topic);
 

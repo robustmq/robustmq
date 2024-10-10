@@ -230,11 +230,11 @@ where
 }
 
 async fn read_message_process<S>(
-    topic_id: &String,
-    topic_name: &String,
+    topic_id: &str,
+    topic_name: &str,
     message_storage: &MessageStorage<S>,
     sub_list: &Vec<Subscriber>,
-    group_id: &String,
+    group_id: &str,
     mut cursor_point: usize,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
@@ -247,7 +247,7 @@ where
     let record_num = calc_record_num(sub_list.len());
 
     match message_storage
-        .read_topic_message(topic_id.clone(), group_id.clone(), record_num as u128)
+        .read_topic_message(topic_id.to_owned(), group_id.to_owned(), record_num as u128)
         .await
     {
         Ok(results) => {
@@ -345,8 +345,8 @@ async fn qos_publish<S>(
     mut publish: Publish,
     properties: PublishProperties,
     subscribe: &Subscriber,
-    topic_id: &String,
-    group_id: &String,
+    topic_id: &str,
+    group_id: &str,
     connection_manager: &Arc<ConnectionManager>,
     cache_manager: &Arc<CacheManager>,
     stop_sx: &Sender<bool>,
@@ -458,8 +458,8 @@ where
 fn build_publish(
     metadata_cache: &Arc<CacheManager>,
     subscribe: &Subscriber,
-    topic_name: &String,
-    msg: &MqttMessage,
+    topic_name: &str,
+    msg: &MQTTMessage,
 ) -> Option<(Publish, PublishProperties)> {
     let cluster_qos = metadata_cache.get_cluster_info().protocol.max_qos;
     let qos = min_qos(cluster_qos, subscribe.qos);
@@ -479,7 +479,7 @@ fn build_publish(
         qos: qos.clone(),
         pkid: 0,
         retain,
-        topic: Bytes::from(topic_name.clone()),
+        topic: Bytes::from(topic_name.to_owned()),
         payload: msg.payload.clone(),
     };
 
@@ -505,7 +505,7 @@ fn build_publish(
 // the push thread will exit automatically and will not attempt to push again.
 async fn share_leader_publish_message_qos1(
     metadata_cache: &Arc<CacheManager>,
-    client_id: &String,
+    client_id: &str,
     publish: &Publish,
     publish_properties: &PublishProperties,
     pkid: u16,
@@ -573,15 +573,15 @@ async fn share_leader_publish_message_qos1(
 // wait pubcomp message
 async fn share_leader_publish_message_qos2<S>(
     cache_manager: &Arc<CacheManager>,
-    client_id: &String,
+    client_id: &str,
     publish: &Publish,
     publish_properties: &PublishProperties,
     pkid: u16,
     connection_manager: &Arc<ConnectionManager>,
     stop_sx: &broadcast::Sender<bool>,
     wait_ack_sx: &broadcast::Sender<QosAckPackageData>,
-    topic_id: &String,
-    group_id: &String,
+    topic_id: &str,
+    group_id: &str,
     offset: u128,
     message_storage: &MessageStorage<S>,
 ) -> Result<(), CommonError>
@@ -617,7 +617,7 @@ where
                 break;
             }
         } else {
-            return Err(MQTTBrokerError::SubPublishWaitPubRecTimeout(client_id.clone()).into());
+            return Err(MQTTBrokerError::SubPublishWaitPubRecTimeout(client_id.to_owned()).into());
         }
     }
 
@@ -651,7 +651,7 @@ where
 
 fn build_share_leader_sub_list(
     subscribe_manager: &Arc<SubscribeManager>,
-    key: &String,
+    key: &str,
 ) -> Vec<Subscriber> {
     let sub_list = if let Some(sub) = subscribe_manager.share_leader_subscribe.get(key) {
         sub.sub_list.clone()

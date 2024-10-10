@@ -27,7 +27,7 @@ use crate::storage::session::SessionStorage;
 
 pub async fn build_session(
     connect_id: u64,
-    client_id: &String,
+    client_id: String,
     connnect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
@@ -45,7 +45,7 @@ pub async fn build_session(
             Ok(Some(session)) => (session, false),
             Ok(None) => (
                 MqttSession::new(
-                    &client_id,
+                    client_id,
                     session_expiry,
                     is_contain_last_will,
                     last_will_delay_interval,
@@ -59,7 +59,7 @@ pub async fn build_session(
     } else {
         (
             MqttSession::new(
-                &client_id,
+                client_id,
                 session_expiry,
                 is_contain_last_will,
                 last_will_delay_interval,
@@ -79,7 +79,7 @@ pub async fn save_session(
     connect_id: u64,
     session: MqttSession,
     new_session: bool,
-    client_id: &String,
+    client_id: String,
     client_poll: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
     let conf = broker_mqtt_conf();
@@ -93,7 +93,7 @@ pub async fn save_session(
         }
     } else {
         match session_storage
-            .update_session(&client_id, connect_id, conf.broker_id, now_second(), 0)
+            .update_session(client_id, connect_id, conf.broker_id, now_second(), 0)
             .await
         {
             Ok(_) => {}
@@ -145,7 +145,7 @@ mod test {
     #[tokio::test]
     pub async fn build_session_test() {
         let client_id = "client_id_test-**".to_string();
-        let session = MqttSession::new(&client_id, 10, false, None);
+        let session = MqttSession::new(client_id.clone(), 10, false, None);
         assert_eq!(client_id, session.client_id);
         assert_eq!(10, session.session_expiry);
         assert!(!session.is_contain_last_will);

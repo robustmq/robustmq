@@ -50,8 +50,8 @@ impl MqttLastWillStorage {
 
     pub fn save(
         &self,
-        cluster_name: &String,
-        client_id: &String,
+        cluster_name: &str,
+        client_id: &str,
         last_will_message: LastWillData,
     ) -> Result<(), CommonError> {
         let session_storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
@@ -66,8 +66,8 @@ impl MqttLastWillStorage {
 
     pub fn get(
         &self,
-        cluster_name: &String,
-        client_id: &String,
+        cluster_name: &str,
+        client_id: &str,
     ) -> Result<Option<LastWillData>, CommonError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
@@ -80,7 +80,7 @@ impl MqttLastWillStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }

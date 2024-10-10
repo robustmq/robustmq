@@ -31,13 +31,13 @@ pub struct MqttSession {
 
 impl MqttSession {
     pub fn new(
-        client_id: &str,
+        client_id: String,
         session_expiry: u64,
         is_contain_last_will: bool,
         last_will_delay_interval: Option<u64>,
     ) -> MqttSession {
         MqttSession {
-            client_id: client_id.to_owned(),
+            client_id,
             session_expiry,
             is_contain_last_will,
             last_will_delay_interval,
