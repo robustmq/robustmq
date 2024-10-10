@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::heartbeat::BrokerHeartbeat;
-use crate::{cache::placement::PlacementCacheManager, storage::route::apply::RaftMachineApply};
-use common_base::config::placement_center::placement_center_conf;
 use std::sync::Arc;
-use tokio::{select, sync::broadcast};
+
+use common_base::config::placement_center::placement_center_conf;
+use tokio::select;
+use tokio::sync::broadcast;
+
+use super::heartbeat::BrokerHeartbeat;
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::route::apply::RaftMachineApply;
 
 pub struct ClusterController {
     cluster_cache: Arc<PlacementCacheManager>,
@@ -30,12 +34,11 @@ impl ClusterController {
         placement_center_storage: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) -> ClusterController {
-        let controller = ClusterController {
+        ClusterController {
             cluster_cache,
             placement_center_storage,
             stop_send,
-        };
-        return controller;
+        }
     }
 
     // Start the heartbeat detection thread of the Storage Engine node
@@ -43,7 +46,7 @@ impl ClusterController {
         let mut stop_recv = self.stop_send.subscribe();
         let config = placement_center_conf();
         let mut heartbeat = BrokerHeartbeat::new(
-            config.heartbeat.heartbeat_timeout_ms.into(),
+            config.heartbeat.heartbeat_timeout_ms,
             config.heartbeat.heartbeat_check_time_ms,
             self.cluster_cache.clone(),
             self.placement_center_storage.clone(),
@@ -51,14 +54,11 @@ impl ClusterController {
         loop {
             select! {
                 val = stop_recv.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
+                    if let Ok(flag) = val {
+                        if flag {
 
-                                break;
-                            }
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
                 _ = heartbeat.start()=>{

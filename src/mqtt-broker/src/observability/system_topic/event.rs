@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
 use common_base::tools::{get_local_ip, now_mills};
 use log::error;
-use metadata_struct::mqtt::{message::MQTTMessage, session::MQTTSession};
-use protocol::mqtt::common::{
-    DisconnectReasonCode, MQTTProtocol, Subscribe, Unsubscribe,
-};
+use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::session::MQTTSession;
+use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
 use storage_adapter::storage::StorageAdapter;
-
-use crate::{
-    handler::{cache::CacheManager, connection::Connection},
-    server::connection_manager::ConnectionManager,
-};
 
 use super::{
     write_topic_data, SYSTEM_TOPIC_BROKERS_CONNECTED, SYSTEM_TOPIC_BROKERS_DISCONNECTED,
     SYSTEM_TOPIC_BROKERS_SUBSCRIBED, SYSTEM_TOPIC_BROKERS_UNSUBSCRIBED,
 };
+use crate::handler::cache::CacheManager;
+use crate::handler::connection::Connection;
+use crate::server::connection_manager::ConnectionManager;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct SystemTopicConnectedEventMessge {

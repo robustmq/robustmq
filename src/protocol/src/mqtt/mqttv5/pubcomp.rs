@@ -240,7 +240,7 @@ mod tests {
             Some("Success".to_string())
         );
         assert_eq!(
-            pubcomp_properties.user_properties.get(0),
+            pubcomp_properties.user_properties.first(),
             Some(&("username".to_string(), "Justin".to_string()))
         );
 

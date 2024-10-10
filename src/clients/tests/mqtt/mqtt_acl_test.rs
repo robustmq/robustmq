@@ -14,12 +14,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use clients::{
-        placement::mqtt::call::{create_acl, delete_acl, list_acl, list_blacklist},
-        poll::ClientPool,
-    };
+    use std::sync::Arc;
 
+    use clients::placement::mqtt::call::{create_acl, delete_acl, list_acl, list_blacklist};
+    use clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use metadata_struct::acl::mqtt_acl::{
         MQTTAcl, MQTTAclAction, MQTTAclPermission, MQTTAclResourceType,
@@ -27,7 +25,8 @@ mod tests {
     use protocol::placement_center::generate::mqtt::{
         CreateAclRequest, DeleteAclRequest, ListAclRequest, ListBlacklistRequest,
     };
-    use std::sync::Arc;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_acl_test() {
@@ -103,7 +102,8 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MQTTAcl>(raw.as_slice()).unwrap_or_else(|e|panic!("{e} {:02x?}", raw.as_slice()));
+                    let tmp = serde_json::from_slice::<MQTTAcl>(raw.as_slice())
+                        .unwrap_or_else(|e| panic!("{e} {:02x?}", raw.as_slice()));
                     if tmp.resource_type == acl.resource_type
                         && tmp.resource_name == acl.resource_name
                         && tmp.topic == acl.topic

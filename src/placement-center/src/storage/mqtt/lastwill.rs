@@ -24,15 +24,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::session::MQTTSessionStorage;
-use crate::storage::{
-    engine::{engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster},
-    keys::storage_key_mqtt_last_will,
-    rocksdb::RocksDBEngine,
-};
-use common_base::error::{common::CommonError, mqtt_broker::MQTTBrokerError};
-use metadata_struct::mqtt::lastwill::LastWillData;
 use std::sync::Arc;
+
+use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
+use metadata_struct::mqtt::lastwill::LastWillData;
+
+use super::session::MQTTSessionStorage;
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
+};
+use crate::storage::keys::storage_key_mqtt_last_will;
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MQTTLastWillStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -58,7 +61,7 @@ impl MQTTLastWillStorage {
         }
 
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message)
     }
 
     pub fn get(
@@ -69,37 +72,32 @@ impl MQTTLastWillStorage {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<LastWillData>(&data.data) {
-                Ok(lastwill) => {
-                    return Ok(Some(lastwill));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(lastwill) => Ok(Some(lastwill)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => {
-                return Ok(None);
-            }
+            Ok(None) => Ok(None),
             Err(e) => Err(e),
         }
     }
 
     pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::remove_dir_all, sync::Arc};
+    use std::fs::remove_dir_all;
+    use std::sync::Arc;
+
+    use common_base::config::placement_center::placement_center_test_conf;
+    use metadata_struct::mqtt::lastwill::LastWillData;
+    use metadata_struct::mqtt::session::MQTTSession;
 
     use super::MQTTLastWillStorage;
-    use crate::storage::{
-        mqtt::session::MQTTSessionStorage,
-        rocksdb::{column_family_list, RocksDBEngine},
-    };
-    use common_base::{config::placement_center::{placement_center_test_conf, PlacementCenterConfig}, tools::unique_id};
-    use metadata_struct::mqtt::{lastwill::LastWillData, session::MQTTSession};
+    use crate::storage::mqtt::session::MQTTSessionStorage;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
     async fn lastwill_storage_test() {
@@ -131,7 +129,7 @@ mod tests {
             .unwrap();
 
         let data = lastwill_storage.get(&cluster_name, &client_id).unwrap();
-        assert!(!data.is_none());
+        assert!(data.is_some());
 
         lastwill_storage.delete(&cluster_name, &client_id).unwrap();
 

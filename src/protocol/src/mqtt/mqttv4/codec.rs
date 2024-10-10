@@ -20,12 +20,18 @@ use super::{
     subscribe, unsuback, unsubscribe, Error, MQTTPacket, PacketType,
 };
 
-#[derive(Clone,Debug)]
+#[derive(Clone, Debug)]
 pub struct Mqtt4Codec {}
+
+impl Default for Mqtt4Codec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Mqtt4Codec {
     pub fn new() -> Mqtt4Codec {
-        return Mqtt4Codec {};
+        Mqtt4Codec {}
     }
 }
 
@@ -70,7 +76,8 @@ impl codec::Decoder for Mqtt4Codec {
         let packet = packet.freeze();
         let packet = match packet_type {
             PacketType::Connect => {
-                let (protocol_level,connect, login, lastwill) = connect::read(fixed_header, packet)?;
+                let (protocol_level, connect, login, lastwill) =
+                    connect::read(fixed_header, packet)?;
                 MQTTPacket::Connect(protocol_level, connect, None, lastwill, None, login)
             }
             PacketType::ConnAck => MQTTPacket::ConnAck(connack::read(fixed_header, packet)?, None),
@@ -86,7 +93,9 @@ impl codec::Decoder for Mqtt4Codec {
             PacketType::Unsubscribe => {
                 MQTTPacket::Unsubscribe(unsubscribe::read(fixed_header, packet)?, None)
             }
-            PacketType::UnsubAck => MQTTPacket::UnsubAck(unsuback::read(fixed_header, packet)?, None),
+            PacketType::UnsubAck => {
+                MQTTPacket::UnsubAck(unsuback::read(fixed_header, packet)?, None)
+            }
             PacketType::PingReq => MQTTPacket::PingReq(super::PingReq),
             PacketType::PingResp => MQTTPacket::PingResp(super::PingResp),
             // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
@@ -94,6 +103,6 @@ impl codec::Decoder for Mqtt4Codec {
             PacketType::Disconnect => return Err(Error::InvalidProtocol),
             _ => unreachable!(),
         };
-        return Ok(Some(packet));
+        Ok(Some(packet))
     }
 }

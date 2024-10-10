@@ -12,33 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::keys::key_name_by_conf_state;
-use crate::storage::keys::key_name_by_entry;
-use crate::storage::keys::key_name_by_first_index;
-use crate::storage::keys::key_name_by_hard_state;
-use crate::storage::keys::key_name_by_last_index;
-use crate::storage::keys::key_name_uncommit;
-use crate::storage::keys::key_name_uncommit_prefix;
-use crate::storage::rocksdb::RocksDBEngine;
+use std::sync::Arc;
+
 use bincode::serialize;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use log::debug;
-use log::error;
-use log::info;
+use log::{debug, error, info};
 use prost::Message as _;
 use raft::eraftpb::HardState;
-use raft::prelude::ConfState;
-use raft::prelude::Entry;
-use raft::prelude::Snapshot;
-use raft::RaftState;
-use raft::Result as RaftResult;
+use raft::prelude::{ConfState, Entry, Snapshot};
+use raft::{RaftState, Result as RaftResult};
 use rocksdb::DEFAULT_COLUMN_FAMILY_NAME;
-use serde::Deserialize;
-use serde::Serialize;
-use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 
 use super::snapshot::RaftSnapshot;
+use crate::storage::keys::{
+    key_name_by_conf_state, key_name_by_entry, key_name_by_first_index, key_name_by_hard_state,
+    key_name_by_last_index, key_name_uncommit, key_name_uncommit_prefix,
+};
+use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Serialize, Deserialize)]
 pub struct RaftUncommitData {
@@ -53,17 +45,16 @@ pub struct RaftMachineStorage {
 
 impl RaftMachineStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        let rc = RaftMachineStorage {
+        RaftMachineStorage {
             rocksdb_engine_handler,
             raft_snapshot: RaftSnapshot::new(),
-        };
-        return rc;
+        }
     }
 }
 
 impl RaftMachineStorage {
     pub fn append_entrys(&mut self, entrys: &Vec<Entry>) -> Result<(), CommonError> {
-        if entrys.len() == 0 {
+        if entrys.is_empty() {
             return Ok(());
         }
 
@@ -88,7 +79,7 @@ impl RaftMachineStorage {
 
         for entry in entrys {
             debug!(">> save entry index:{}, value:{:?}", entry.index, entry);
-            let data: Vec<u8> = Entry::encode_to_vec(&entry);
+            let data: Vec<u8> = Entry::encode_to_vec(entry);
             let key = key_name_by_entry(entry.index);
             self.rocksdb_engine_handler
                 .write(
@@ -103,7 +94,7 @@ impl RaftMachineStorage {
             self.save_last_index(entry.index)?;
         }
 
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -128,7 +119,7 @@ impl RaftMachineStorage {
                 &key,
             )
             .unwrap();
-        if value == None {
+        if value.is_none() {
             HardState::default()
         } else {
             return HardState::decode(value.unwrap().as_ref()).unwrap();
@@ -220,7 +211,7 @@ impl RaftMachineStorage {
                 e, idx
             ),
         }
-        return None;
+        None
     }
 
     pub fn save_last_index(&self, index: u64) -> Result<(), CommonError> {
@@ -234,7 +225,7 @@ impl RaftMachineStorage {
                 &index,
             )
             .unwrap();
-        return Ok(());
+        Ok(())
     }
 
     pub fn save_first_index(&self, index: u64) -> Result<(), CommonError> {
@@ -286,7 +277,7 @@ impl RaftMachineStorage {
             snapshot.get_metadata().get_term(),
             snapshot.get_metadata().get_index()
         );
-        return self.raft_snapshot.recovery_snapshot();
+        self.raft_snapshot.recovery_snapshot()
     }
 
     pub fn get_snapshot(&mut self) -> Result<Snapshot, CommonError> {
@@ -305,12 +296,12 @@ impl RaftMachineStorage {
         //         .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
         //         .unwrap();
         // }
-        return Ok(Snapshot::default());
+        Ok(Snapshot::default())
     }
 
     // Example Create a data snapshot for the current system
     pub fn create_snapshot(&mut self) -> Result<(), CommonError> {
-        return self.raft_snapshot.create_snapshot();
+        self.raft_snapshot.create_snapshot()
     }
 }
 
@@ -329,7 +320,7 @@ impl RaftMachineStorage {
         hs.commit = idx;
         hs.term = entry.unwrap().get_term();
         let _ = self.save_hard_state(hs);
-        return Ok(());
+        Ok(())
     }
 
     pub fn remove_uncommit_index(&self, idx: u64) -> Result<(), CommonError> {
@@ -340,7 +331,7 @@ impl RaftMachineStorage {
                 .unwrap(),
             &key,
         );
-        return Ok(());
+        Ok(())
     }
 
     pub fn save_uncommit_index(&self, idx: u64) -> Result<(), CommonError> {
@@ -358,12 +349,10 @@ impl RaftMachineStorage {
                     &key,
                     &da,
                 );
-                return Ok(());
+                Ok(())
             }
-            Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
-            }
-        };
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        }
     }
 
     #[warn(dead_code)]
@@ -373,7 +362,7 @@ impl RaftMachineStorage {
             .rocksdb_engine_handler
             .cf_handle(DEFAULT_COLUMN_FAMILY_NAME)
             .unwrap();
-        let results = self.rocksdb_engine_handler.read_prefix(&cf, &key);
+        let results = self.rocksdb_engine_handler.read_prefix(cf, &key);
         let mut data_list = Vec::new();
         for raw in results {
             for (_, v) in raw {
@@ -386,18 +375,19 @@ impl RaftMachineStorage {
             }
         }
 
-        return data_list;
+        data_list
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::remove_dir_all, sync::Arc};
+    use std::fs::remove_dir_all;
+    use std::sync::Arc;
 
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
+    use common_base::config::placement_center::placement_center_test_conf;
 
     use super::RaftMachineStorage;
-    use common_base::config::placement_center::placement_center_test_conf;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[test]
     fn write_read_test() {

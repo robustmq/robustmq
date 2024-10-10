@@ -19,7 +19,8 @@ use log::{error, info};
 use protocol::mqtt::codec::parse_mqtt_packet_to_name;
 use serde::{Deserialize, Serialize};
 
-use crate::{handler::cache::CacheManager, server::packet::RequestPackage};
+use crate::handler::cache::CacheManager;
+use crate::server::packet::RequestPackage;
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct SlowRequestMs {
@@ -29,7 +30,6 @@ pub struct SlowRequestMs {
 
 // total processing time of the request packet was recorded
 pub fn try_record_total_request_ms(cache_manager: Arc<CacheManager>, package: RequestPackage) {
-    
     let cluster_config = cache_manager.get_cluster_info();
     if !cluster_config.slow.enable {
         return;

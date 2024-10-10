@@ -204,7 +204,7 @@ mod properties {
 
         if let Some(content_type) = &properties.content_type {
             buffer.put_u8(PropertyType::ContentType as u8);
-            write_mqtt_string(buffer, &content_type);
+            write_mqtt_string(buffer, content_type);
         }
 
         Ok(())
@@ -338,12 +338,12 @@ mod tests {
 
         // test the read function of publish packet and check the result of write function in MQTT v5
         let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(x.dup, true);
+        assert!(x.dup);
         assert_eq!(x.qos, QoS::AtLeastOnce);
         assert_eq!(x.pkid, 15);
         assert_eq!(x.topic, "test_topic");
         assert_eq!(x.payload, "test_payload");
-        assert_eq!(x.retain, false);
+        assert!(!x.retain);
 
         let pub_properties_read = y.unwrap();
         assert_eq!(pub_properties_read.payload_format_indicator, Some(1u8));

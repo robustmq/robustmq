@@ -36,43 +36,43 @@ impl Record {
         header: Option<Vec<Header>>,
         create_time: Option<u128>,
     ) -> Self {
-        return Record {
+        Record {
             offset: 0,
             key,
             data,
             create_time,
             header,
-        };
+        }
     }
 
     pub fn build_b(data: Vec<u8>) -> Self {
-        return Record {
+        Record {
             offset: 0,
             key: None,
             data,
             create_time: None,
             header: None,
-        };
+        }
     }
 
     pub fn build_c(key: String, data: Vec<u8>) -> Self {
-        return Record {
+        Record {
             offset: 0,
             key: Some(key),
             data,
             create_time: None,
             header: None,
-        };
+        }
     }
 
     pub fn build_d(key: String, header: Vec<Header>, data: Vec<u8>) -> Self {
-        return Record {
+        Record {
             offset: 0,
             key: Some(key),
             data,
             create_time: None,
             header: Some(header),
-        };
+        }
     }
 
     pub fn build_e(data: String) -> Self {

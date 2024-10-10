@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -37,8 +37,7 @@ pub fn len(subscribe: &Subscribe, properties: &Option<SubscribeProperties>) -> u
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    }
-    else {
+    } else {
         // just 1 byte representing 0 len
         len += 1;
     }
@@ -57,7 +56,7 @@ pub fn read(
     let properties = properties::read(&mut bytes)?;
     // variable header size = 2 (packet identifier)
     let mut filters = Vec::new();
-    while bytes.has_remaining(){
+    while bytes.has_remaining() {
         let path = read_mqtt_string(&mut bytes)?;
         let options = read_u8(&mut bytes)?;
         let requested_qos = options & 0b0000_0011;
@@ -77,7 +76,7 @@ pub fn read(
         };
 
         filters.push(Filter {
-            path, 
+            path,
             qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?,
             nolocal,
             preserve_retain,
@@ -87,7 +86,13 @@ pub fn read(
 
     match filters.len() {
         0 => Err(Error::EmptySubscription),
-        _ => Ok((Subscribe{packet_identifier: pkid, filters}, properties)),
+        _ => Ok((
+            Subscribe {
+                packet_identifier: pkid,
+                filters,
+            },
+            properties,
+        )),
     }
 }
 
@@ -98,7 +103,7 @@ pub fn write(
 ) -> Result<usize, Error> {
     // write packet type
     buffer.put_u8(0x82);
-    
+
     // write remaining length
     let remaining_len = len(subscribe, properties);
     let remaining_len_bytes = write_remaining_length(buffer, remaining_len)?;
@@ -108,17 +113,16 @@ pub fn write(
 
     if let Some(p) = properties {
         properties::write(p, buffer)?;
-    }
-    else {
+    } else {
         write_remaining_length(buffer, 0)?;
     }
 
     // write filters
-    for f in subscribe.filters.iter(){
+    for f in subscribe.filters.iter() {
         filter::write(f, buffer);
     }
 
-    Ok( 1 + remaining_len_bytes + remaining_len)
+    Ok(1 + remaining_len_bytes + remaining_len)
 }
 
 mod filter {
@@ -132,15 +136,15 @@ mod filter {
     pub fn read(bytes: &mut Bytes) -> Result<Vec<Filter>, Error> {
         // variable header size = 2 (packet identifier)
         let mut filters = Vec::new();
-        
-        while bytes.has_remaining(){
+
+        while bytes.has_remaining() {
             let path = read_mqtt_string(bytes)?;
             let options = read_u8(bytes)?;
             let requested_qos = options & 0b0000_0011;
 
             let nolocal = options >> 2 & 0b0000_0001;
             let nolocal = nolocal != 0;
-            
+
             let preserve_retain = options >> 3 & 0b0000_0011;
             let preserve_retain = preserve_retain != 0;
 
@@ -153,7 +157,7 @@ mod filter {
             };
 
             filters.push(Filter {
-                path, 
+                path,
                 qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?,
                 nolocal,
                 preserve_retain,

@@ -14,11 +14,11 @@
 
 use std::sync::Arc;
 
-use crate::handler::cache::CacheManager;
-
-use super::Authentication;
 use axum::async_trait;
 use common_base::error::mqtt_broker::MQTTBrokerError;
+
+use super::Authentication;
+use crate::handler::cache::CacheManager;
 
 pub struct Plaintext {
     username: String,
@@ -48,13 +48,16 @@ impl Authentication for Plaintext {
 
 #[cfg(test)]
 mod test {
-    use super::Plaintext;
-    use crate::{handler::cache::CacheManager, security::login::Authentication};
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use metadata_struct::mqtt::user::MQTTUser;
     use protocol::mqtt::common::Login;
-    use std::sync::Arc;
+
+    use super::Plaintext;
+    use crate::handler::cache::CacheManager;
+    use crate::security::login::Authentication;
 
     #[tokio::test]
     pub async fn plaintext_test() {

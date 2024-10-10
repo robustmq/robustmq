@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -44,8 +44,7 @@ fn len(pubrec: &PubRec, properties: &Option<PubRecProperties>) -> usize {
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    }
-    else {
+    } else {
         len += 1
     }
     len
@@ -116,7 +115,7 @@ pub fn read(
 
 mod properties {
     use super::*;
-    
+
     pub fn len(properties: &PubRecProperties) -> usize {
         let mut len = 0;
 
@@ -160,12 +159,12 @@ mod properties {
         }
 
         let mut cursor = 0;
-        // read until cursor reaches property length. It will skip this loop if properties_len is 0 
+        // read until cursor reaches property length. It will skip this loop if properties_len is 0
         while cursor < properties_len {
             let prop = read_u8(bytes)?;
             cursor += 1;
 
-            match property(prop)?{
+            match property(prop)? {
                 PropertyType::ReasonString => {
                     let reason = read_mqtt_string(bytes)?;
                     cursor += 2 + reason.len();
@@ -181,9 +180,9 @@ mod properties {
                 _ => return Err(Error::InvalidPacketType(prop)),
             }
         }
-        Ok(Some(PubRecProperties { 
-            reason_string, 
-            user_properties, 
+        Ok(Some(PubRecProperties {
+            reason_string,
+            user_properties,
         }))
     }
 }
@@ -247,20 +246,23 @@ mod tests {
         assert_eq!(fixed_header.fixed_header_len, 2);
         assert_eq!(fixed_header.remaining_len, 51);
 
-         // test the read function of pubrec packet and check the result of write function in MQTT v5
-         let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
-         assert_eq!(x.pkid, 20u16);
-         assert_eq!(x.reason.unwrap(), PubRecReason::NotAuthorized);
+        // test the read function of pubrec packet and check the result of write function in MQTT v5
+        let (x, y) = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        assert_eq!(x.pkid, 20u16);
+        assert_eq!(x.reason.unwrap(), PubRecReason::NotAuthorized);
 
-         let pubrec_properties = y.unwrap();
-         assert_eq!(pubrec_properties.reason_string, Some("user authorization failed".to_string()));
-         assert_eq!(pubrec_properties.user_properties.get(0), Some(&("username".to_string(), "Justin".to_string())));
+        let pubrec_properties = y.unwrap();
+        assert_eq!(
+            pubrec_properties.reason_string,
+            Some("user authorization failed".to_string())
+        );
+        assert_eq!(
+            pubrec_properties.user_properties.first(),
+            Some(&("username".to_string(), "Justin".to_string()))
+        );
 
-         // test display of puback and puback_properties in v5
-         println!("pubrec is {}", pubrec);
-         println!("pubrec_properties is {}", pubrec_properties);
-
-
+        // test display of puback and puback_properties in v5
+        println!("pubrec is {}", pubrec);
+        println!("pubrec_properties is {}", pubrec_properties);
     }
 }
-

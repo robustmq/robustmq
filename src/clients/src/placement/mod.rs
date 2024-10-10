@@ -12,18 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::{
-    journal::journal_interface_call, kv::kv_interface_call, mqtt::mqtt_interface_call,
-    placement::placement_interface_call,
-};
-use crate::{poll::ClientPool, retry_sleep_time, retry_times};
+use std::collections::HashSet;
+use std::sync::Arc;
+use std::time::Duration;
+
 use common_base::error::common::CommonError;
 use lazy_static::lazy_static;
 use log::error;
 use openraft::openraft_interface_call;
 use regex::Regex;
-use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::time::sleep;
+
+use self::journal::journal_interface_call;
+use self::kv::kv_interface_call;
+use self::mqtt::mqtt_interface_call;
+use self::placement::placement_interface_call;
+use crate::poll::ClientPool;
+use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone, Debug)]
 pub enum PlacementCenterService {
@@ -124,8 +129,6 @@ impl PlacementCenterInterface {
         }
         FORWARD_SET.contains(self)
     }
-
-
 }
 
 pub mod journal;
@@ -133,7 +136,6 @@ pub mod kv;
 pub mod mqtt;
 pub mod openraft;
 pub mod placement;
-
 
 async fn retry_call(
     service: PlacementCenterService,
@@ -215,7 +217,7 @@ async fn retry_call(
                         addr.clone(),
                         e
                     );
-                    sleep(Duration::from_secs(retry_sleep_time(times) as u64)).await;
+                    sleep(Duration::from_secs(retry_sleep_time(times))).await;
                 }
                 if times > retry_times() {
                     return Err(e);
@@ -231,7 +233,7 @@ fn calc_addr(
     times: usize,
     service: &PlacementCenterService,
     interface: &PlacementCenterInterface,
-) -> (String, usize) { 
+) -> (String, usize) {
     let index = times % addrs.len();
     let addr = addrs.get(index).unwrap().clone();
     if is_write_request(service, interface) {
@@ -239,34 +241,34 @@ fn calc_addr(
             return (leader_addr, times + 1);
         }
     }
-    return (addr, times + 1);
+    (addr, times + 1)
 }
 
 fn is_write_request(
     service: &PlacementCenterService,
     interface: &PlacementCenterInterface,
 ) -> bool {
-    return true;
+    true
 }
 
 ///Determines if the given error indicates that a request needs to be forwarded.
-/// 
+///
 /// Parameters:
 /// - `err: &CommonError`: error information
-/// 
+///
 /// Returns:
 /// - `Bool`: Returns 'true' if the error information indicates the request needs to be forwarded, 'false' otherwise.
 fn is_has_to_forward(err: &CommonError) -> bool {
     let error_info = err.to_string();
-    let res = error_info.contains("has to forward request to");
-    return res;
+
+    error_info.contains("has to forward request to")
 }
 
 /// Extracts the forward address from given error information.
-/// 
+///
 /// Parameters:
 /// - `err: &CommonError`: error information
-/// 
+///
 /// Returns:
 /// - `String`: Returns the forward address if found,'None' if no address is found
 pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
@@ -282,24 +284,25 @@ pub(crate) fn get_forward_addr(err: &CommonError) -> Option<String> {
         }
     }
 
-    return None;
+    None
 }
 
 #[cfg(test)]
 mod test {
-    use crate::placement::{is_has_to_forward,get_forward_addr};
     use common_base::error::common::CommonError;
 
+    use crate::placement::{get_forward_addr, is_has_to_forward};
+
     #[tokio::test]
-    pub async fn is_has_to_forward_test(){
+    pub async fn is_has_to_forward_test() {
         let err_info = r#"
         Grpc call of the node failed,Grpc status was status: Cancelled, message: "has to forward request to: Some(2), Some(Node { node_id: 2, rpc_addr: \"127.0.0.1:2228\" })", details: [], metadata: MetadataMap { headers: {"content-type": "application/grpc", "date": "Sun, 06 Oct 2024 10:25:36 GMT", "content-length": "0"} }
         "#;
         let err = CommonError::CommmonError(err_info.to_string());
-        assert!(is_has_to_forward(&err)); 
+        assert!(is_has_to_forward(&err));
 
-        let other_err_info="Other error";
-        let other_err=CommonError::CommmonError(other_err_info.to_string());
+        let other_err_info = "Other error";
+        let other_err = CommonError::CommmonError(other_err_info.to_string());
         assert!(!is_has_to_forward(&other_err));
     }
 

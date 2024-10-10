@@ -16,7 +16,8 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::{process, time::Duration};
+    use std::process;
+    use std::time::Duration;
 
     use common_base::tools::{now_second, unique_id};
     use paho_mqtt::{

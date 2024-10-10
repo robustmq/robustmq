@@ -14,7 +14,8 @@
 
 use std::sync::Arc;
 
-use clients::{placement::placement::call::cluster_status, poll::ClientPool};
+use clients::placement::placement::call::cluster_status;
+use clients::poll::ClientPool;
 use protocol::placement_center::generate::placement::ClusterStatusRequest;
 
 use crate::{error_info, grpc_addr};
@@ -40,9 +41,15 @@ impl From<String> for PlacementActionType {
 
 pub struct PlacementCenterCommand {}
 
+impl Default for PlacementCenterCommand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlacementCenterCommand {
     pub fn new() -> Self {
-        return PlacementCenterCommand {};
+        PlacementCenterCommand {}
     }
     pub async fn start(&self, params: PlacementCliCommandParam) {
         let action_type = PlacementActionType::from(params.action.clone());

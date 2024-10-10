@@ -12,29 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    cache::{CacheManager, QosAckPacketInfo},
-    constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE},
-    message::build_message_expire,
-};
-use crate::{
-    observability::metrics::packets::{record_retain_recv_metrics, record_retain_sent_metrics},
-    server::connection_manager::ConnectionManager,
-    storage::topic::TopicStorage,
-    subscribe::{
-        sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0},
-        sub_exclusive::{exclusive_publish_message_qos1, exclusive_publish_message_qos2},
-        subscriber::Subscriber,
-    },
-};
+use std::sync::Arc;
+
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use log::error;
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};
-use std::sync::Arc;
 use tokio::sync::broadcast::{self};
+
+use super::cache::{CacheManager, QosAckPacketInfo};
+use super::constant::{SUB_RETAIN_MESSAGE_PUSH_FLAG, SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE};
+use super::message::build_message_expire;
+use crate::observability::metrics::packets::{
+    record_retain_recv_metrics, record_retain_sent_metrics,
+};
+use crate::server::connection_manager::ConnectionManager;
+use crate::storage::topic::TopicStorage;
+use crate::subscribe::sub_common::{get_sub_topic_id_list, min_qos, publish_message_qos0};
+use crate::subscribe::sub_exclusive::{
+    exclusive_publish_message_qos1, exclusive_publish_message_qos2,
+};
+use crate::subscribe::subscriber::Subscriber;
 
 pub async fn save_topic_retain_message(
     cache_manager: &Arc<CacheManager>,
@@ -64,7 +65,10 @@ pub async fn save_topic_retain_message(
         let message_expire = build_message_expire(cache_manager, publish_properties);
         let retain_message =
             MQTTMessage::build_message(client_id, publish, publish_properties, message_expire);
-        match topic_storage.set_retain_message(topic_name, &retain_message, message_expire).await {
+        match topic_storage
+            .set_retain_message(topic_name, &retain_message, message_expire)
+            .await
+        {
             Ok(_) => {
                 cache_manager
                     .update_topic_retain_message(&topic_name, Some(retain_message.encode()));
@@ -109,7 +113,11 @@ pub async fn try_send_retain_message(
                             continue;
                         }
 
-                        let retain = if subscriber.preserve_retain { msg.retain } else { false };
+                        let retain = if subscriber.preserve_retain {
+                            msg.retain
+                        } else {
+                            false
+                        };
 
                         let qos = min_qos(cluster.protocol.max_qos, subscriber.qos);
                         let pkid = 1;

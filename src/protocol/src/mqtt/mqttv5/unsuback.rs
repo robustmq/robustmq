@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -37,8 +37,7 @@ pub fn len(unsuback: &UnsubAck, properties: &Option<UnsubAckProperties>) -> usiz
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    }
-    else {
+    } else {
         // just 1 byte representing 0 length
         len += 1;
     }
@@ -59,27 +58,26 @@ pub fn write(
 
     if let Some(p) = &properties {
         properties::write(p, buffer)?;
-    }
-    else {
+    } else {
         write_remaining_length(buffer, 0)?;
     }
 
     let p: Vec<u8> = unsuback.reasons.iter().map(|&c| code(c)).collect();
     buffer.extend_from_slice(&p);
-    Ok( 1 + remaining_len_bytes + remaining_len )
+    Ok(1 + remaining_len_bytes + remaining_len)
 }
 
 pub fn read(
     fixed_header: FixedHeader,
     mut bytes: Bytes,
-) -> Result<(UnsubAck, Option<UnsubAckProperties>),Error> {
+) -> Result<(UnsubAck, Option<UnsubAckProperties>), Error> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
     let pkid = read_u16(&mut bytes)?;
     let properties = properties::read(&mut bytes)?;
 
-    if !bytes.has_remaining(){
+    if !bytes.has_remaining() {
         return Err(Error::MalformedPacket);
     }
 
@@ -88,7 +86,7 @@ pub fn read(
         let r = read_u8(&mut bytes)?;
         reasons.push(reason(r)?);
     }
-    let unsuback = UnsubAck {pkid, reasons};
+    let unsuback = UnsubAck { pkid, reasons };
     Ok((unsuback, properties))
 }
 

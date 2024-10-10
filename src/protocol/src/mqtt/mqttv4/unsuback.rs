@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -56,14 +56,14 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<UnsubAck, Err
 mod tests {
 
     #[test]
-    fn test_unsuback(){
+    fn test_unsuback() {
         use super::*;
         let mut buffer = BytesMut::new();
         let unsuback = UnsubAck {
             pkid: 5u16,
             reasons: vec![], // reason is only valid in MQTT V5
         };
-        
+
         // test unsuback write function
         write(&unsuback, &mut buffer);
 
@@ -74,6 +74,5 @@ mod tests {
         assert_eq!(fixed_header.remaining_len, 2);
         let unsuback = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert_eq!(unsuback.pkid, 5u16);
-
     }
 }

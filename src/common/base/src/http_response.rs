@@ -21,11 +21,8 @@ pub struct Response<T> {
 }
 
 pub fn success_response<T: Serialize>(data: T) -> String {
-    let resp = Response {
-        code: 0,
-        data: data,
-    };
-    return serde_json::to_string(&resp).unwrap();
+    let resp = Response { code: 0, data };
+    serde_json::to_string(&resp).unwrap()
 }
 
 pub fn error_response(err: String) -> String {
@@ -33,5 +30,5 @@ pub fn error_response(err: String) -> String {
         code: 100,
         data: err,
     };
-    return serde_json::to_string(&resp).unwrap();
+    serde_json::to_string(&resp).unwrap()
 }

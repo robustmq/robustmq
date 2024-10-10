@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    cache::placement::PlacementCacheManager,
-    storage::route::apply::RaftMachineApply,
-    storage::route::data::{StorageData, StorageDataType},
-};
+use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
+
 use common_base::tools::now_second;
 use log::{error, info};
 use prost::Message;
-use protocol::placement_center::generate::{common::ClusterType, placement::UnRegisterNodeRequest};
-use std::{sync::Arc, thread::sleep, time::Duration};
+use protocol::placement_center::generate::common::ClusterType;
+use protocol::placement_center::generate::placement::UnRegisterNodeRequest;
+
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::route::apply::RaftMachineApply;
+use crate::storage::route::data::{StorageData, StorageDataType};
 
 pub struct BrokerHeartbeat {
     timeout_ms: u64,
@@ -37,12 +40,12 @@ impl BrokerHeartbeat {
         cluster_cache: Arc<PlacementCacheManager>,
         placement_center_storage: Arc<RaftMachineApply>,
     ) -> Self {
-        return BrokerHeartbeat {
+        BrokerHeartbeat {
             timeout_ms,
             check_time_ms,
             cluster_cache,
             placement_center_storage,
-        };
+        }
     }
 
     pub async fn start(&mut self) {
@@ -59,7 +62,7 @@ impl BrokerHeartbeat {
                     self.cluster_cache.node_heartbeat.get(&cluster_name)
                 {
                     if let Some(time) = cluster_heartbeat.get(&node_id) {
-                        if now_second() - time.clone() >= self.timeout_ms / 1000 {
+                        if now_second() - *time >= self.timeout_ms / 1000 {
                             let cluster_name = node.cluster_name.clone();
                             if let Some(_) = self.cluster_cache.cluster_list.get(&cluster_name) {
                                 let mut req = UnRegisterNodeRequest::default();

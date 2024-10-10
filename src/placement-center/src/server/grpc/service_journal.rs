@@ -27,20 +27,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::{
-    storage::route::apply::RaftMachineApply,
-    storage::route::data::{StorageData, StorageDataType},
-};
-use prost::Message;
-use protocol::placement_center::generate::{
-    common::CommonReply,
-    journal::{
-        engine_service_server::EngineService, CreateSegmentRequest, CreateShardRequest,
-        DeleteSegmentRequest, DeleteShardRequest, GetShardReply, GetShardRequest,
-    },
-};
 use std::sync::Arc;
+
+use prost::Message;
+use protocol::placement_center::generate::common::CommonReply;
+use protocol::placement_center::generate::journal::engine_service_server::EngineService;
+use protocol::placement_center::generate::journal::{
+    CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
+    GetShardReply, GetShardRequest,
+};
 use tonic::{Request, Response, Status};
+
+use crate::storage::route::apply::RaftMachineApply;
+use crate::storage::route::data::{StorageData, StorageDataType};
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,

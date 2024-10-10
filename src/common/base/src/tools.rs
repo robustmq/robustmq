@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{
-    fs,
-    path::{self, Path},
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::fs;
+use std::path::{self, Path};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use local_ip_address::local_ip;
 use log::warn;
@@ -74,7 +72,7 @@ pub fn now_second() -> u64 {
 ///
 /// This function generates a version 4 UUID (Universally Unique Identifier) and converts it to string form,
 /// Remove the connecting character (-) from it
-/// 
+///
 /// # Return value
 /// String - A Uuid without connecting characters
 pub fn unique_id() -> String {
@@ -83,18 +81,16 @@ pub fn unique_id() -> String {
 }
 
 /// Obtain local IP address
-/// 
+///
 /// This function attempts to obtain the local IP address of the device and returns the address as a string upon success
 /// If obtaining the IP address fails, this function will output a warning message and return the string '127.0.0.1'
-/// 
+///
 /// # Return value
 /// - When successfully obtaining a local IP address, return a string representation of the address
 /// - When obtaining the IP address fails, return the string '127.0.0.1'
 pub fn get_local_ip() -> String {
     match local_ip() {
-        Ok(data) => {
-            data.to_string()
-        }
+        Ok(data) => data.to_string(),
         Err(e) => {
             warn!(
                 "If the local IP fails, stop the process.error message:{}",
@@ -134,7 +130,7 @@ pub fn read_file(path: &String) -> Result<String, CommonError> {
         )));
     }
 
-    Ok(fs::read_to_string(&path)?)
+    Ok(fs::read_to_string(path)?)
 }
 
 #[cfg(test)]

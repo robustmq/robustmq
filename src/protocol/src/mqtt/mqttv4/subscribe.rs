@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,13 +31,13 @@
 use super::*;
 
 fn len(subscribe: &Subscribe) -> usize {
-    // length of pkid (variable header 2 bytes) + vec! [subscribed topic filter length] 
+    // length of pkid (variable header 2 bytes) + vec! [subscribed topic filter length]
     2 + subscribe.filters.iter().fold(0, |s, t| s + filter::len(t))
 }
 
 pub fn write(subscribe: &Subscribe, buffer: &mut BytesMut) -> Result<usize, Error> {
     // write packet type of subscribe
-    buffer.put_u8(0x82); 
+    buffer.put_u8(0x82);
 
     // write remaining length
     let remaining_length = len(subscribe);
@@ -52,7 +52,6 @@ pub fn write(subscribe: &Subscribe, buffer: &mut BytesMut) -> Result<usize, Erro
     }
 
     Ok(1 + remaining_length_bytes + remaining_length)
-
 }
 
 pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Subscribe, Error> {
@@ -64,7 +63,10 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Subscribe, Er
 
     match filters.len() {
         0 => Err(Error::EmptySubscription),
-        _ => Ok(Subscribe {packet_identifier: pkid, filters }),
+        _ => Ok(Subscribe {
+            packet_identifier: pkid,
+            filters,
+        }),
     }
 }
 
@@ -72,7 +74,7 @@ mod filter {
     use super::*;
 
     pub fn len(filter: &Filter) -> usize {
-        // filter length (2 bytes MSB + LSB)+ filter(subscribed topic name) + 
+        // filter length (2 bytes MSB + LSB)+ filter(subscribed topic name) +
         // options (QoS for 1 byte)
         2 + filter.path.len() + 1
     }
@@ -87,8 +89,8 @@ mod filter {
             let requested_qos = options & 0b0000_0011;
 
             filters.push(Filter {
-                path, 
-                qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?, 
+                path,
+                qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?,
                 // the following options only valid in mqtt v5 and will be ignored in mqtt v4
                 nolocal: false,
                 preserve_retain: false,
@@ -99,7 +101,7 @@ mod filter {
         Ok(filters)
     }
 
-    pub fn write(filter: &Filter, buffer: &mut BytesMut){
+    pub fn write(filter: &Filter, buffer: &mut BytesMut) {
         let mut options = 0;
         options |= filter.qos as u8;
 
@@ -119,45 +121,42 @@ mod tests {
         let topic_filter = Filter {
             path: "test_sub_topic".to_string(),
             qos: QoS::AtLeastOnce,
-            nolocal: false,  // invalid in mqtt v4, ignore here with default value
+            nolocal: false, // invalid in mqtt v4, ignore here with default value
             preserve_retain: false, // invalid in mqtt v4, ignore here with default value
-            retain_forward_rule: RetainForwardRule::OnEverySubscribe // invalid in mqtt v4, ignore here with default value
+            retain_forward_rule: RetainForwardRule::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
         };
         filter::write(&topic_filter, &mut buffer);
 
         // test filter read function and verify the result of write function
-        
-        let topic_filters_read: Vec<Filter> = filter::read(&mut buffer.copy_to_bytes(buffer.len())).unwrap();
 
-        for i in &topic_filters_read{
+        let topic_filters_read: Vec<Filter> =
+            filter::read(&mut buffer.copy_to_bytes(buffer.len())).unwrap();
 
+        for i in &topic_filters_read {
             // only check topic path and qos which are valid in mqtt v4
             assert_eq!(i.path, "test_sub_topic");
             assert_eq!(i.qos, QoS::AtLeastOnce);
-
         }
-        
     }
 
     #[test]
     fn test_subscribe() {
-
         use super::*;
-        // build filter 
+        // build filter
         let mut buffer = BytesMut::new();
         let topic_filter = Filter {
             path: "test_sub_topic".to_string(),
             qos: QoS::AtLeastOnce,
-            nolocal: false,  // invalid in mqtt v4, ignore here with default value
+            nolocal: false, // invalid in mqtt v4, ignore here with default value
             preserve_retain: false, // invalid in mqtt v4, ignore here with default value
-            retain_forward_rule: RetainForwardRule::OnEverySubscribe // invalid in mqtt v4, ignore here with default value
+            retain_forward_rule: RetainForwardRule::OnEverySubscribe, // invalid in mqtt v4, ignore here with default value
         };
-      
+
         let mut vec = Vec::new();
         vec.push(topic_filter);
 
         // build subscribe
-        let subscribe: Subscribe = Subscribe { 
+        let subscribe: Subscribe = Subscribe {
             packet_identifier: 5u16,
             filters: vec,
         };
@@ -170,9 +169,9 @@ mod tests {
         assert_eq!(fixed_header.byte1, 0b1000_0010);
         assert_eq!(fixed_header.fixed_header_len, 2);
         assert_eq!(fixed_header.remaining_len, 19);
-        let subscribe_read:Subscribe = read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
+        let subscribe_read: Subscribe =
+            read(fixed_header, buffer.copy_to_bytes(buffer.len())).unwrap();
         assert_eq!(subscribe_read.packet_identifier, 5u16);
-        assert_eq!(subscribe_read.filters.len(),1);
-
+        assert_eq!(subscribe_read.filters.len(), 1);
     }
 }

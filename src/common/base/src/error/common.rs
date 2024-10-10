@@ -28,13 +28,16 @@
  * limitations under the License.
  */
 
-use crate::error::{
-    journal_server::JournalServerError, mqtt_broker::MQTTBrokerError,
-    placement_center::PlacementCenterError,
-};
-use std::{io, net::AddrParseError, string::FromUtf8Error};
+use std::io;
+use std::net::AddrParseError;
+use std::string::FromUtf8Error;
+
 use thiserror::Error;
 use tonic::Status;
+
+use crate::error::journal_server::JournalServerError;
+use crate::error::mqtt_broker::MQTTBrokerError;
+use crate::error::placement_center::PlacementCenterError;
 
 #[derive(Error, Debug)]
 pub enum CommonError {

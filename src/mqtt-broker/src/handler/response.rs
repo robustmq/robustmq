@@ -22,11 +22,9 @@ use protocol::mqtt::common::{
     SubAckProperties, SubscribeReasonCode, UnsubAck, UnsubAckProperties, UnsubAckReason,
 };
 
-use super::{
-    connection::{response_information, Connection},
-    keep_alive::keep_live_time,
-    validator::is_request_problem_info,
-};
+use super::connection::{response_information, Connection};
+use super::keep_alive::keep_live_time;
+use super::validator::is_request_problem_info;
 
 pub fn response_packet_mqtt_connect_success(
     protocol: &MQTTProtocol,

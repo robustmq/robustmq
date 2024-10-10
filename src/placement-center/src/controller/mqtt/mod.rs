@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    cache::{mqtt::MqttCacheManager, placement::PlacementCacheManager},
-    storage::rocksdb::RocksDBEngine,
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use clients::poll::ClientPool;
 use dashmap::DashMap;
 use message_expire::MessageExpire;
 use session_expire::SessionExpire;
-use std::{sync::Arc, time::Duration};
-use tokio::{select, sync::broadcast, time::sleep};
+use tokio::select;
+use tokio::sync::broadcast;
+use tokio::time::sleep;
+
+use crate::cache::mqtt::MqttCacheManager;
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub mod call_broker;
 pub mod message_expire;
@@ -44,14 +48,14 @@ impl MQTTController {
         client_poll: Arc<ClientPool>,
         stop_send: broadcast::Sender<bool>,
     ) -> MQTTController {
-        return MQTTController {
+        MQTTController {
             rocksdb_engine_handler,
             placement_center_cache,
             mqtt_cache_manager,
             client_poll,
             thread_running_info: DashMap::with_capacity(2),
             stop_send,
-        };
+        }
     }
 
     pub async fn start(&self) {
@@ -59,13 +63,10 @@ impl MQTTController {
         loop {
             select! {
                 val = stop_recv.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                break;
-                            }
+                    if let Ok(flag) = val {
+                        if flag {
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
                 _ = self.check_start_thread() => {
@@ -94,13 +95,10 @@ impl MQTTController {
                 loop {
                     select! {
                         val = stop_recv.recv() =>{
-                            match val{
-                                Ok(flag) => {
-                                    if flag {
-                                        break;
-                                    }
+                            if let Ok(flag) = val {
+                                if flag {
+                                    break;
                                 }
-                                Err(_) => {}
                             }
                         }
 
@@ -123,14 +121,11 @@ impl MQTTController {
                 loop {
                     select! {
                         val = stop_recv.recv() =>{
-                            match val{
-                                Ok(flag) => {
-                                    if flag {
+                            if let Ok(flag) = val {
+                                if flag {
 
-                                        break;
-                                    }
+                                    break;
                                 }
-                                Err(_) => {}
                             }
                         }
                         _= session.lastwill_expire_send() => {
@@ -147,14 +142,11 @@ impl MQTTController {
                 loop {
                     select! {
                         val = stop_recv.recv() =>{
-                            match val{
-                                Ok(flag) => {
-                                    if flag {
+                            if let Ok(flag) = val {
+                                if flag {
 
-                                        break;
-                                    }
+                                    break;
                                 }
-                                Err(_) => {}
                             }
                         }
                         _ =  message.retain_message_expire() =>{
@@ -172,14 +164,11 @@ impl MQTTController {
                 loop {
                     select! {
                         val = stop_recv.recv() =>{
-                            match val{
-                                Ok(flag) => {
-                                    if flag {
+                            if let Ok(flag) = val {
+                                if flag {
 
-                                        break;
-                                    }
+                                    break;
                                 }
-                                Err(_) => {}
                             }
                         }
                         _ = message.last_will_message_expire() => {

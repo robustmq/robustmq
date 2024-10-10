@@ -24,18 +24,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{
-        engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
-        engine_save_by_cluster,
-    },
-    keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix},
-    rocksdb::RocksDBEngine,
-    StorageDataWrap,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::session::MQTTSession;
-use std::sync::Arc;
+
+use crate::storage::engine::{
+    engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
+    engine_save_by_cluster,
+};
+use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cluster_prefix};
+use crate::storage::rocksdb::RocksDBEngine;
+use crate::storage::StorageDataWrap;
 
 pub struct MQTTSessionStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -54,12 +54,12 @@ impl MQTTSessionStorage {
         session: MQTTSession,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session)
     }
 
     pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, CommonError> {
-        let prefix_key = storage_key_mqtt_session_cluster_prefix(&cluster_name);
-        return engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key);
+        let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
+        engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)
     }
 
     pub fn get(
@@ -70,36 +70,30 @@ impl MQTTSessionStorage {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<MQTTSession>(&data.data) {
-                Ok(session) => {
-                    return Ok(Some(session));
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(session) => Ok(Some(session)),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => {
-                return Ok(None);
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(None) => Ok(None),
+            Err(e) => Err(e),
         }
     }
 
     pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
-        return engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key);
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::mqtt::session::MQTTSessionStorage;
-    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
-    use common_base::config::placement_center::placement_center_test_conf;
-    use metadata_struct::mqtt::session::MQTTSession;
     use std::fs::remove_dir_all;
     use std::sync::Arc;
+
+    use common_base::config::placement_center::placement_center_test_conf;
+    use metadata_struct::mqtt::session::MQTTSession;
+
+    use crate::storage::mqtt::session::MQTTSessionStorage;
+    use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
     async fn topic_storage_test() {
@@ -129,7 +123,7 @@ mod tests {
         let res = session_storage
             .get(&cluster_name, &"lobo1".to_string())
             .unwrap();
-        assert!(!res.is_none());
+        assert!(res.is_some());
 
         session_storage
             .delete(&cluster_name, &"lobo1".to_string())

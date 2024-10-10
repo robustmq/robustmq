@@ -15,7 +15,8 @@
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::journal::{segment::SegmentInfo, shard::ShardInfo};
+use crate::storage::journal::segment::SegmentInfo;
+use crate::storage::journal::shard::ShardInfo;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct JournalCacheManager {
@@ -25,10 +26,10 @@ pub struct JournalCacheManager {
 
 impl JournalCacheManager {
     pub fn new() -> JournalCacheManager {
-        return JournalCacheManager {
+        JournalCacheManager {
             shard_list: DashMap::with_capacity(8),
             segment_list: DashMap::with_capacity(256),
-        };
+        }
     }
 
     pub fn add_shard(&self, shard: ShardInfo) {
@@ -48,16 +49,16 @@ impl JournalCacheManager {
         if let Some(shard) = self.shard_list.get(&key) {
             return shard.last_segment_seq + 1;
         }
-        return 1;
+        1
     }
-    
+
     #[allow(dead_code)]
     pub fn get_shard(&self, cluster_name: String, shard_name: String) -> Option<ShardInfo> {
         let key = self.shard_key(cluster_name, shard_name);
         if let Some(shard) = self.shard_list.get(&key) {
             return Some(shard.clone());
         }
-        return None;
+        None
     }
 
     pub fn add_segment(&self, segment: SegmentInfo) {
@@ -76,10 +77,10 @@ impl JournalCacheManager {
     }
 
     fn shard_key(&self, cluster_name: String, shard_name: String) -> String {
-        return format!("{}_{}", cluster_name, shard_name);
+        format!("{}_{}", cluster_name, shard_name)
     }
 
     fn segment_key(&self, cluster_name: String, shard_name: String, segment_num: u64) -> String {
-        return format!("{}_{}_{}", cluster_name, shard_name, segment_num);
+        format!("{}_{}_{}", cluster_name, shard_name, segment_num)
     }
 }

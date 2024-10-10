@@ -16,16 +16,18 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use clients::{
-        placement::{mqtt::call::placement_get_share_sub_leader, placement::call::register_node},
-        poll::ClientPool,
-    };
+    use std::sync::Arc;
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    use clients::placement::mqtt::call::placement_get_share_sub_leader;
+    use clients::placement::placement::call::register_node;
+    use clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use log::{error, info};
-    use protocol::placement_center::generate::{
-        common::ClusterType, mqtt::GetShareSubLeaderRequest, placement::RegisterNodeRequest,
-    };
-    use std::{sync::Arc, thread::sleep, time::Duration};
+    use protocol::placement_center::generate::common::ClusterType;
+    use protocol::placement_center::generate::mqtt::GetShareSubLeaderRequest;
+    use protocol::placement_center::generate::placement::RegisterNodeRequest;
 
     #[tokio::test]
     async fn test_share_sub() {
@@ -33,7 +35,7 @@ mod tests {
         let mut addrs = Vec::new();
         addrs.push("127.0.0.1:1228".to_string());
 
-        let cluster_type = ClusterType::MqttBrokerServer.try_into().unwrap();
+        let cluster_type = ClusterType::MqttBrokerServer.into();
         let cluster_name = unique_id();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 7;

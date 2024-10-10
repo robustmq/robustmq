@@ -28,8 +28,6 @@
  * limitations under the License.
  */
 
-
-
 pub const DEFAULT_PLACEMENT_CENTER_CONFIG: &str = "./version.ini";
 
 pub fn banner() {
@@ -44,8 +42,6 @@ pub fn banner() {
 
     println!("{B}\n");
 }
-
-
 
 #[cfg(test)]
 mod tests {

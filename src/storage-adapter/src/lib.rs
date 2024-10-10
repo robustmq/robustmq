@@ -13,11 +13,11 @@
 // limitations under the License.
 
 pub mod journal;
+pub mod local_rocksdb;
 pub mod memory;
 pub mod mysql;
 pub mod placement;
 pub mod storage;
-pub mod local_rocksdb;
 
 #[derive(Debug)]
 pub enum StorageType {
@@ -30,27 +30,27 @@ pub enum StorageType {
 
 pub fn storage_is_journal(storage_type: &String) -> bool {
     let st = format!("{:?}", StorageType::Journal).to_lowercase();
-    return st == storage_type.clone();
+    st == storage_type.clone()
 }
 
 pub fn storage_is_memory(storage_type: &String) -> bool {
     let st = format!("{:?}", StorageType::Memory).to_lowercase();
-    return st == storage_type.clone();
+    st == storage_type.clone()
 }
 
 pub fn storage_is_placement(storage_type: &String) -> bool {
     let st = format!("{:?}", StorageType::Placement).to_lowercase();
-    return st == storage_type.clone();
+    st == storage_type.clone()
 }
 
 pub fn storage_is_mysql(storage_type: &String) -> bool {
     let st = format!("{:?}", StorageType::Mysql).to_lowercase();
-    return st == storage_type.clone();
+    st == storage_type.clone()
 }
 
 pub fn storage_is_rocksdb(storage_type: &String) -> bool {
     let st = format!("{:?}", StorageType::RocksDB).to_lowercase();
-    return st == storage_type.clone();
+    st == storage_type.clone()
 }
 
 #[cfg(test)]

@@ -84,10 +84,8 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-   
 
     #[test]
     fn test_connack() {
@@ -111,10 +109,9 @@ mod tests {
 
         // test the read function
         let connack_return = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
-        assert_eq!(connack_return.session_present, false);
+        assert!(!connack_return.session_present);
         assert_eq!(connack_return.code, ConnectReturnCode::Success);
         // test the display function
         println!("connack display: {}", connack);
-
     }
 }

@@ -13,14 +13,14 @@
 // limitations under the License.
 
 /*
- * Copyright (c) 2023 robustmq team 
- * 
+ * Copyright (c) 2023 robustmq team
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -39,8 +39,7 @@ pub fn len(unsubscribe: &Unsubscribe, properties: &Option<UnsubscribeProperties>
         let properties_len = properties::len(p);
         let properties_len_len = len_len(properties_len);
         len += properties_len_len + properties_len;
-    }
-    else {
+    } else {
         // just 1 byte representing 0 length
         len += 1;
     }
@@ -49,7 +48,7 @@ pub fn len(unsubscribe: &Unsubscribe, properties: &Option<UnsubscribeProperties>
 }
 
 pub fn write(
-    unsubscribe: &Unsubscribe, 
+    unsubscribe: &Unsubscribe,
     properties: &Option<UnsubscribeProperties>,
     buffer: &mut BytesMut,
 ) -> Result<usize, Error> {
@@ -60,19 +59,18 @@ pub fn write(
 
     // write packet id
     buffer.put_u16(unsubscribe.pkid);
-    
+
     if let Some(p) = properties {
         properties::write(p, buffer)?;
-    }
-    else {
+    } else {
         write_remaining_length(buffer, 0)?;
     }
     // write filters
-    for filter in unsubscribe.filters.iter(){
+    for filter in unsubscribe.filters.iter() {
         write_mqtt_string(buffer, filter);
     }
 
-    Ok (1 + remaining_len_bytes + remaining_len)
+    Ok(1 + remaining_len_bytes + remaining_len)
 }
 
 pub fn read(
@@ -86,14 +84,13 @@ pub fn read(
     let properties = properties::read(&mut bytes)?;
 
     let mut filters = Vec::with_capacity(1);
-    while bytes.has_remaining(){
+    while bytes.has_remaining() {
         let filter = read_mqtt_string(&mut bytes)?;
         filters.push(filter);
     }
 
-    let unsubscribe = Unsubscribe {pkid, filters};
+    let unsubscribe = Unsubscribe { pkid, filters };
     Ok((unsubscribe, properties))
-
 }
 
 mod properties {
@@ -102,7 +99,7 @@ mod properties {
     pub fn len(properties: &UnsubscribeProperties) -> usize {
         let mut len = 0;
 
-        for (key, value) in properties.user_properties.iter(){
+        for (key, value) in properties.user_properties.iter() {
             len += 1 + 2 + key.len() + 2 + value.len();
         }
         len
@@ -117,7 +114,7 @@ mod properties {
         if properties_len == 0 {
             return Ok(None);
         }
-        
+
         let mut cursor = 0;
         // read until cursor reaches property length. it will skip this loop if properties_len is 0
         while cursor < properties_len {
@@ -134,14 +131,14 @@ mod properties {
                 _ => return Err(Error::InvalidPacketType(prop)),
             }
         }
-        Ok(Some(UnsubscribeProperties { user_properties}))
+        Ok(Some(UnsubscribeProperties { user_properties }))
     }
 
     pub fn write(properties: &UnsubscribeProperties, buffer: &mut BytesMut) -> Result<(), Error> {
         let len = len(properties);
         write_remaining_length(buffer, len)?;
 
-        for (key, value) in properties.user_properties.iter(){
+        for (key, value) in properties.user_properties.iter() {
             buffer.put_u8(PropertyType::UserProperty as u8);
             write_mqtt_string(buffer, key);
             write_mqtt_string(buffer, value);

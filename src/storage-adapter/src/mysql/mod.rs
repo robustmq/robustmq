@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{ShardConfig, StorageAdapter};
 use axum::async_trait;
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use metadata_struct::adapter::record::{Header, Record};
-use mysql::{params, prelude::Queryable, Pool};
+use mysql::prelude::Queryable;
+use mysql::{params, Pool};
 
 use self::schema::{TMqttKvMsg, TMqttRecord};
+use crate::storage::{ShardConfig, StorageAdapter};
 pub mod schema;
 
 #[derive(Clone)]
@@ -35,19 +37,19 @@ impl MySQLStorageAdapter {
                 panic!("{}", e.to_string())
             }
         }
-        return adapter;
+        adapter
     }
 
     pub fn storage_record_table(&self, shard_name: String) -> String {
-        return format!("storage_record_{}", shard_name);
+        format!("storage_record_{}", shard_name)
     }
 
     pub fn storage_kv_table(&self) -> String {
-        return format!("storage_kv");
+        "storage_kv".to_string()
     }
 
     pub fn group_offset_key(&self, shard_name: String, group_name: String) -> String {
-        return format!("__group_offset_{}_{}", group_name, shard_name);
+        format!("__group_offset_{}_{}", group_name, shard_name)
     }
 
     pub fn init_table(&self) -> Result<(), CommonError> {
@@ -65,13 +67,11 @@ impl MySQLStorageAdapter {
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8MB4;
                 ";
                 match conn.query_drop(show_table_sql) {
-                    Ok(()) => return Ok(()),
-                    Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+                    Ok(()) => Ok(()),
+                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
                 }
             }
-            Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
-            }
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
         }
     }
 }
@@ -125,7 +125,7 @@ impl StorageAdapter for MySQLStorageAdapter {
     async fn set(&self, key: String, value: Record) -> Result<(), CommonError> {
         match self.pool.get_conn() {
             Ok(mut conn) => {
-                let values = vec![TMqttKvMsg {
+                let values = [TMqttKvMsg {
                     key,
                     value: value.data,
                     create_time: now_second(),
@@ -205,7 +205,7 @@ impl StorageAdapter for MySQLStorageAdapter {
                 );
                 let data: Vec<u32> = conn.query(sql).unwrap();
                 if let Some(value) = data.first() {
-                    return Ok(value.clone() > 0);
+                    return Ok(*value > 0);
                 }
                 return Ok(false);
             }
@@ -220,7 +220,7 @@ impl StorageAdapter for MySQLStorageAdapter {
         shard_name: String,
         data: Vec<Record>,
     ) -> Result<Vec<usize>, CommonError> {
-        if data.len() == 0 {
+        if data.is_empty() {
             return Ok(Vec::new());
         }
         match self.pool.get_conn() {
@@ -288,7 +288,7 @@ impl StorageAdapter for MySQLStorageAdapter {
             Ok(None) => 0,
             Err(e) => return Err(CommonError::CommmonError(e.to_string())),
         };
-        let rn = if let Some(rn) = record_num { rn } else { 10 };
+        let rn = record_num.unwrap_or(10);
         match self.pool.get_conn() {
             Ok(mut conn) => {
                 let sql = format!(
@@ -301,10 +301,8 @@ impl StorageAdapter for MySQLStorageAdapter {
                     conn.query(sql).unwrap();
                 let mut result = Vec::new();
                 for raw in data {
-                    let headers: Vec<Header> = match serde_json::from_str::<Vec<Header>>(&raw.2) {
-                        Ok(hs) => hs,
-                        Err(_) => Vec::new(),
-                    };
+                    let headers: Vec<Header> =
+                        serde_json::from_str::<Vec<Header>>(&raw.2).unwrap_or_default();
                     result.push(Record {
                         offset: raw.0 as u128,
                         header: Some(headers),
@@ -389,11 +387,11 @@ impl StorageAdapter for MySQLStorageAdapter {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::{ShardConfig, StorageAdapter};
     use metadata_struct::adapter::record::{Header, Record};
     use third_driver::mysql::build_mysql_conn_pool;
 
     use super::MySQLStorageAdapter;
+    use crate::storage::{ShardConfig, StorageAdapter};
 
     #[tokio::test]
     #[ignore]
@@ -493,7 +491,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        if result.len() > 0 {
+        if !result.is_empty() {
             let offset = result.last().unwrap().offset;
             mysql_adapter
                 .stream_commit_offset(shard_name, group_id, offset)

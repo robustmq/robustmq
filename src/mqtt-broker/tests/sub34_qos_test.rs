@@ -16,9 +16,10 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{broker_addr, connect_server34, distinct_conn};
     use common_base::tools::unique_id;
     use paho_mqtt::{Message, QOS_1};
+
+    use crate::common::{broker_addr, connect_server34, distinct_conn};
 
     #[tokio::test]
     async fn client34_simple_subscribe_test() {
@@ -90,7 +91,6 @@ mod tests {
         )
         .await;
     }
-
 
     async fn simple_test(
         mqtt_version: u32,

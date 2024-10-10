@@ -28,18 +28,20 @@
  * limitations under the License.
  */
 
+use std::sync::OnceLock;
+
+use serde::{Deserialize, Serialize};
+use toml::map::Map;
+use toml::{Table, Value};
+
+use super::common::Log;
 use super::default_placement_center::{
     default_cluster_name, default_data_path, default_grpc_port, default_heartbeat,
     default_heartbeat_check_time_ms, default_heartbeat_timeout_ms, default_http_port, default_log,
     default_max_open_files, default_network, default_node, default_node_id, default_nodes,
     default_rocksdb, default_runtime_work_threads, default_system,
 };
-use crate::tools::{try_create_fold, read_file, unique_id};
-use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
-use toml::{map::Map, Table, Value};
-
-use super::common::Log;
+use crate::tools::{read_file, try_create_fold, unique_id};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct PlacementCenterConfig {
@@ -123,7 +125,7 @@ pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static Plac
                 panic!("{}", e);
             }
         }
-        return pc_config;
+        pc_config
     })
 }
 
@@ -144,16 +146,12 @@ pub fn init_placement_center_conf_by_config(
             panic!("{}", e);
         }
     }
-    PLACEMENT_CENTER_CONF.get_or_init(|| {
-        return config;
-    })
+    PLACEMENT_CENTER_CONF.get_or_init(|| config)
 }
 
 pub fn placement_center_conf() -> &'static PlacementCenterConfig {
     match PLACEMENT_CENTER_CONF.get() {
-        Some(config) => {
-            return config;
-        }
+        Some(config) => config,
         None => {
             panic!(
                 "Placement center configuration is not initialized, check the configuration file."
@@ -171,14 +169,15 @@ pub fn placement_center_test_conf() -> PlacementCenterConfig {
     config.rocksdb.max_open_files = Some(10);
     config.node.nodes = nodes;
     init_placement_center_conf_by_config(config.clone());
-    return config;
+    config
 }
 
 #[cfg(test)]
 mod tests {
+    use toml::Table;
+
     use super::{placement_center_conf, Log, PlacementCenterConfig};
     use crate::config::placement_center::init_placement_center_conf_by_path;
-    use toml::Table;
 
     #[test]
     fn meta_default() {
@@ -195,7 +194,7 @@ mod tests {
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);
         println!("{}", config.rocksdb.data_path);
-        println!("{}", "/tmp/robust/placement-center/data".to_string());
+        println!("{}", "/tmp/robust/placement-center/data");
         assert_eq!(
             config.rocksdb.data_path,
             "/tmp/robust/placement-center/data".to_string()
@@ -203,8 +202,8 @@ mod tests {
         assert_eq!(
             config.log,
             Log {
-                log_path: format!("./logs/placement-center"),
-                log_config: format!("./config/log4rs.yaml"),
+                log_path: "./logs/placement-center".to_string(),
+                log_config: "./config/log4rs.yaml".to_string(),
             }
         );
         let mut nodes = Table::new();
@@ -212,7 +211,7 @@ mod tests {
             "1".to_string(),
             toml::Value::String(format!("{}:{}", "127.0.0.1", "1228")),
         );
-        assert_eq!(config.rocksdb.max_open_files, Some(10000 as i32));
+        assert_eq!(config.rocksdb.max_open_files, Some(10000_i32));
         assert_eq!(config.heartbeat.heartbeat_timeout_ms, 30000);
         assert_eq!(config.heartbeat.heartbeat_check_time_ms, 1000);
     }

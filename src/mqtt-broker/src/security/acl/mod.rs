@@ -12,15 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::constant::WILDCARD_RESOURCE;
-use crate::handler::{cache::CacheManager, connection::Connection};
+use std::net::IpAddr;
+use std::str::FromStr;
+use std::sync::Arc;
+
 use common_base::tools::now_second;
 use ipnet::IpNet;
 use metadata_struct::acl::mqtt_acl::{MQTTAclAction, MQTTAclPermission};
 use protocol::mqtt::common::QoS;
 use regex::Regex;
-use std::str::FromStr;
-use std::{net::IpAddr, sync::Arc};
+
+use crate::handler::cache::CacheManager;
+use crate::handler::connection::Connection;
+use crate::handler::constant::WILDCARD_RESOURCE;
 
 pub mod metadata;
 
@@ -210,23 +214,20 @@ fn ip_match(source_ip_addr: String, ip_role: String) -> bool {
 
 #[cfg(test)]
 mod test {
-    use super::ip_match;
-    use super::is_acl_deny;
-    use super::is_blacklist;
-    use super::is_super_user;
-    use super::topic_match;
-    use crate::handler::constant::WILDCARD_RESOURCE;
-    use crate::handler::{cache::CacheManager, connection::Connection};
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::tools::now_second;
-    use metadata_struct::acl::mqtt_acl::MQTTAcl;
-    use metadata_struct::acl::mqtt_acl::MQTTAclAction;
-    use metadata_struct::acl::mqtt_acl::MQTTAclPermission;
-    use metadata_struct::acl::mqtt_acl::MQTTAclResourceType;
-    use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-    use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackListType;
+    use metadata_struct::acl::mqtt_acl::{
+        MQTTAcl, MQTTAclAction, MQTTAclPermission, MQTTAclResourceType,
+    };
+    use metadata_struct::acl::mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType};
     use metadata_struct::mqtt::user::MQTTUser;
-    use std::sync::Arc;
+
+    use super::{ip_match, is_acl_deny, is_blacklist, is_super_user, topic_match};
+    use crate::handler::cache::CacheManager;
+    use crate::handler::connection::Connection;
+    use crate::handler::constant::WILDCARD_RESOURCE;
 
     #[tokio::test]
     pub async fn check_super_user_test() {

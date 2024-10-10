@@ -12,17 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
 use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
-use common_base::{
-    config::journal_server::{journal_server_conf, JournalServerConfig},
-    metrics::register_prometheus_export,
-    runtime::create_runtime,
-};
+use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
+use common_base::metrics::register_prometheus_export;
+use common_base::runtime::create_runtime;
 use log::info;
 use server::start_tcp_server;
-use std::sync::Arc;
-use tokio::{runtime::Runtime, signal, sync::broadcast};
+use tokio::runtime::Runtime;
+use tokio::signal;
+use tokio::sync::broadcast;
 
 mod cluster;
 mod index;
@@ -50,13 +51,13 @@ impl JournalServer {
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
 
-        return JournalServer {
+        JournalServer {
             config,
             stop_send,
             server_runtime,
             daemon_runtime,
             client_poll,
-        };
+        }
     }
 
     pub fn start(&self) {
@@ -95,16 +96,13 @@ impl JournalServer {
         self.daemon_runtime.block_on(async move {
             loop {
                 signal::ctrl_c().await.expect("failed to listen for event");
-                match self.stop_send.send(true) {
-                    Ok(_) => {
-                        info!(
-                            "{}",
-                            "When ctrl + c is received, the service starts to stop"
-                        );
-                        self.stop_server().await;
-                        break;
-                    }
-                    Err(_) => {}
+                if self.stop_send.send(true).is_ok() {
+                    info!(
+                        "{}",
+                        "When ctrl + c is received, the service starts to stop"
+                    );
+                    self.stop_server().await;
+                    break;
                 }
             }
         });

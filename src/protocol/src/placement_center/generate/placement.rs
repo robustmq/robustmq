@@ -174,8 +174,8 @@ pub struct DeleteIdempotentDataRequest {
 /// Generated client implementations.
 pub mod placement_center_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct PlacementCenterServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -219,13 +219,10 @@ pub mod placement_center_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
-            PlacementCenterServiceClient::new(
-                InterceptedService::new(inner, interceptor),
-            )
+            PlacementCenterServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -261,398 +258,306 @@ pub mod placement_center_service_client {
         pub async fn cluster_status(
             &mut self,
             request: impl tonic::IntoRequest<super::ClusterStatusRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ClusterStatusReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ClusterStatusReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/ClusterStatus",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("placement.PlacementCenterService", "ClusterStatus"),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "ClusterStatus",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn node_list(
             &mut self,
             request: impl tonic::IntoRequest<super::NodeListRequest>,
         ) -> std::result::Result<tonic::Response<super::NodeListReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/placement.PlacementCenterService/NodeList",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/placement.PlacementCenterService/NodeList");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("placement.PlacementCenterService", "NodeList"));
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "NodeList",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn register_node(
             &mut self,
             request: impl tonic::IntoRequest<super::RegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/RegisterNode",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("placement.PlacementCenterService", "RegisterNode"),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "RegisterNode",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn un_register_node(
             &mut self,
             request: impl tonic::IntoRequest<super::UnRegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/UnRegisterNode",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("placement.PlacementCenterService", "UnRegisterNode"),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "UnRegisterNode",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn heartbeat(
             &mut self,
             request: impl tonic::IntoRequest<super::HeartbeatRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/placement.PlacementCenterService/Heartbeat",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/placement.PlacementCenterService/Heartbeat");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("placement.PlacementCenterService", "Heartbeat"),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "Heartbeat",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn report_monitor(
             &mut self,
             request: impl tonic::IntoRequest<super::ReportMonitorRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/ReportMonitor",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new("placement.PlacementCenterService", "ReportMonitor"),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "ReportMonitor",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn send_raft_message(
             &mut self,
             request: impl tonic::IntoRequest<super::SendRaftMessageRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::SendRaftMessageReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::SendRaftMessageReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/SendRaftMessage",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "SendRaftMessage",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "SendRaftMessage",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn send_raft_conf_change(
             &mut self,
             request: impl tonic::IntoRequest<super::SendRaftConfChangeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::SendRaftConfChangeReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::SendRaftConfChangeReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/SendRaftConfChange",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "SendRaftConfChange",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "SendRaftConfChange",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn set_resource_config(
             &mut self,
             request: impl tonic::IntoRequest<super::SetResourceConfigRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/SetResourceConfig",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "SetResourceConfig",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "SetResourceConfig",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_resource_config(
             &mut self,
             request: impl tonic::IntoRequest<super::GetResourceConfigRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetResourceConfigReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetResourceConfigReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/GetResourceConfig",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "GetResourceConfig",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "GetResourceConfig",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_resource_config(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteResourceConfigRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/DeleteResourceConfig",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "DeleteResourceConfig",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "DeleteResourceConfig",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn set_idempotent_data(
             &mut self,
             request: impl tonic::IntoRequest<super::SetIdempotentDataRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/SetIdempotentData",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "SetIdempotentData",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "SetIdempotentData",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn exists_idempotent_data(
             &mut self,
             request: impl tonic::IntoRequest<super::ExistsIdempotentDataRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ExistsIdempotentDataReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ExistsIdempotentDataReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/ExistsIdempotentData",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "ExistsIdempotentData",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "ExistsIdempotentData",
+            ));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_idempotent_data(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteIdempotentDataRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/placement.PlacementCenterService/DeleteIdempotentData",
             );
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(
-                    GrpcMethod::new(
-                        "placement.PlacementCenterService",
-                        "DeleteIdempotentData",
-                    ),
-                );
+            req.extensions_mut().insert(GrpcMethod::new(
+                "placement.PlacementCenterService",
+                "DeleteIdempotentData",
+            ));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -667,10 +572,7 @@ pub mod placement_center_service_server {
         async fn cluster_status(
             &self,
             request: tonic::Request<super::ClusterStatusRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ClusterStatusReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ClusterStatusReply>, tonic::Status>;
         async fn node_list(
             &self,
             request: tonic::Request<super::NodeListRequest>,
@@ -678,87 +580,51 @@ pub mod placement_center_service_server {
         async fn register_node(
             &self,
             request: tonic::Request<super::RegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         async fn un_register_node(
             &self,
             request: tonic::Request<super::UnRegisterNodeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         async fn heartbeat(
             &self,
             request: tonic::Request<super::HeartbeatRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         async fn report_monitor(
             &self,
             request: tonic::Request<super::ReportMonitorRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         async fn send_raft_message(
             &self,
             request: tonic::Request<super::SendRaftMessageRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::SendRaftMessageReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::SendRaftMessageReply>, tonic::Status>;
         async fn send_raft_conf_change(
             &self,
             request: tonic::Request<super::SendRaftConfChangeRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::SendRaftConfChangeReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::SendRaftConfChangeReply>, tonic::Status>;
         async fn set_resource_config(
             &self,
             request: tonic::Request<super::SetResourceConfigRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         async fn get_resource_config(
             &self,
             request: tonic::Request<super::GetResourceConfigRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetResourceConfigReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetResourceConfigReply>, tonic::Status>;
         async fn delete_resource_config(
             &self,
             request: tonic::Request<super::DeleteResourceConfigRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         async fn set_idempotent_data(
             &self,
             request: tonic::Request<super::SetIdempotentDataRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         async fn exists_idempotent_data(
             &self,
             request: tonic::Request<super::ExistsIdempotentDataRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ExistsIdempotentDataReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ExistsIdempotentDataReply>, tonic::Status>;
         async fn delete_idempotent_data(
             &self,
             request: tonic::Request<super::DeleteIdempotentDataRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct PlacementCenterServiceServer<T: PlacementCenterService> {
@@ -783,10 +649,7 @@ pub mod placement_center_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -821,8 +684,7 @@ pub mod placement_center_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>>
-    for PlacementCenterServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for PlacementCenterServiceServer<T>
     where
         T: PlacementCenterService,
         B: Body + Send + 'static,
@@ -843,26 +705,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/ClusterStatus" => {
                     #[allow(non_camel_case_types)]
                     struct ClusterStatusSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::ClusterStatusRequest>
-                    for ClusterStatusSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::ClusterStatusRequest>
+                        for ClusterStatusSvc<T>
+                    {
                         type Response = super::ClusterStatusReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ClusterStatusRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::cluster_status(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as PlacementCenterService>::cluster_status(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -893,23 +748,18 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/NodeList" => {
                     #[allow(non_camel_case_types)]
                     struct NodeListSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::NodeListRequest>
-                    for NodeListSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::NodeListRequest> for NodeListSvc<T>
+                    {
                         type Response = super::NodeListReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::NodeListRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::node_list(&inner, request)
-                                    .await
+                                <T as PlacementCenterService>::node_list(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -940,26 +790,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/RegisterNode" => {
                     #[allow(non_camel_case_types)]
                     struct RegisterNodeSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::RegisterNodeRequest>
-                    for RegisterNodeSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::RegisterNodeRequest>
+                        for RegisterNodeSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RegisterNodeRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::register_node(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as PlacementCenterService>::register_node(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -990,25 +833,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/UnRegisterNode" => {
                     #[allow(non_camel_case_types)]
                     struct UnRegisterNodeSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::UnRegisterNodeRequest>
-                    for UnRegisterNodeSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::UnRegisterNodeRequest>
+                        for UnRegisterNodeSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UnRegisterNodeRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::un_register_node(
-                                        &inner,
-                                        request,
-                                    )
+                                <T as PlacementCenterService>::un_register_node(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -1040,23 +877,18 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/Heartbeat" => {
                     #[allow(non_camel_case_types)]
                     struct HeartbeatSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::HeartbeatRequest>
-                    for HeartbeatSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::HeartbeatRequest> for HeartbeatSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::HeartbeatRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::heartbeat(&inner, request)
-                                    .await
+                                <T as PlacementCenterService>::heartbeat(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1087,26 +919,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/ReportMonitor" => {
                     #[allow(non_camel_case_types)]
                     struct ReportMonitorSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::ReportMonitorRequest>
-                    for ReportMonitorSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::ReportMonitorRequest>
+                        for ReportMonitorSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ReportMonitorRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::report_monitor(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as PlacementCenterService>::report_monitor(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1137,25 +962,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/SendRaftMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SendRaftMessageSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::SendRaftMessageRequest>
-                    for SendRaftMessageSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::SendRaftMessageRequest>
+                        for SendRaftMessageSvc<T>
+                    {
                         type Response = super::SendRaftMessageReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SendRaftMessageRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::send_raft_message(
-                                        &inner,
-                                        request,
-                                    )
+                                <T as PlacementCenterService>::send_raft_message(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -1187,15 +1006,12 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/SendRaftConfChange" => {
                     #[allow(non_camel_case_types)]
                     struct SendRaftConfChangeSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::SendRaftConfChangeRequest>
-                    for SendRaftConfChangeSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::SendRaftConfChangeRequest>
+                        for SendRaftConfChangeSvc<T>
+                    {
                         type Response = super::SendRaftConfChangeReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SendRaftConfChangeRequest>,
@@ -1203,10 +1019,9 @@ pub mod placement_center_service_server {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as PlacementCenterService>::send_raft_conf_change(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                    &inner, request,
+                                )
+                                .await
                             };
                             Box::pin(fut)
                         }
@@ -1237,25 +1052,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/SetResourceConfig" => {
                     #[allow(non_camel_case_types)]
                     struct SetResourceConfigSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::SetResourceConfigRequest>
-                    for SetResourceConfigSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::SetResourceConfigRequest>
+                        for SetResourceConfigSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SetResourceConfigRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::set_resource_config(
-                                        &inner,
-                                        request,
-                                    )
+                                <T as PlacementCenterService>::set_resource_config(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -1287,25 +1096,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/GetResourceConfig" => {
                     #[allow(non_camel_case_types)]
                     struct GetResourceConfigSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::GetResourceConfigRequest>
-                    for GetResourceConfigSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::GetResourceConfigRequest>
+                        for GetResourceConfigSvc<T>
+                    {
                         type Response = super::GetResourceConfigReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetResourceConfigRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::get_resource_config(
-                                        &inner,
-                                        request,
-                                    )
+                                <T as PlacementCenterService>::get_resource_config(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -1336,18 +1139,13 @@ pub mod placement_center_service_server {
                 }
                 "/placement.PlacementCenterService/DeleteResourceConfig" => {
                     #[allow(non_camel_case_types)]
-                    struct DeleteResourceConfigSvc<T: PlacementCenterService>(
-                        pub Arc<T>,
-                    );
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::DeleteResourceConfigRequest>
-                    for DeleteResourceConfigSvc<T> {
+                    struct DeleteResourceConfigSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::DeleteResourceConfigRequest>
+                        for DeleteResourceConfigSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteResourceConfigRequest>,
@@ -1355,10 +1153,9 @@ pub mod placement_center_service_server {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as PlacementCenterService>::delete_resource_config(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                    &inner, request,
+                                )
+                                .await
                             };
                             Box::pin(fut)
                         }
@@ -1389,25 +1186,19 @@ pub mod placement_center_service_server {
                 "/placement.PlacementCenterService/SetIdempotentData" => {
                     #[allow(non_camel_case_types)]
                     struct SetIdempotentDataSvc<T: PlacementCenterService>(pub Arc<T>);
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::SetIdempotentDataRequest>
-                    for SetIdempotentDataSvc<T> {
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::SetIdempotentDataRequest>
+                        for SetIdempotentDataSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SetIdempotentDataRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as PlacementCenterService>::set_idempotent_data(
-                                        &inner,
-                                        request,
-                                    )
+                                <T as PlacementCenterService>::set_idempotent_data(&inner, request)
                                     .await
                             };
                             Box::pin(fut)
@@ -1438,18 +1229,13 @@ pub mod placement_center_service_server {
                 }
                 "/placement.PlacementCenterService/ExistsIdempotentData" => {
                     #[allow(non_camel_case_types)]
-                    struct ExistsIdempotentDataSvc<T: PlacementCenterService>(
-                        pub Arc<T>,
-                    );
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::ExistsIdempotentDataRequest>
-                    for ExistsIdempotentDataSvc<T> {
+                    struct ExistsIdempotentDataSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::ExistsIdempotentDataRequest>
+                        for ExistsIdempotentDataSvc<T>
+                    {
                         type Response = super::ExistsIdempotentDataReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ExistsIdempotentDataRequest>,
@@ -1457,10 +1243,9 @@ pub mod placement_center_service_server {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as PlacementCenterService>::exists_idempotent_data(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                    &inner, request,
+                                )
+                                .await
                             };
                             Box::pin(fut)
                         }
@@ -1490,18 +1275,13 @@ pub mod placement_center_service_server {
                 }
                 "/placement.PlacementCenterService/DeleteIdempotentData" => {
                     #[allow(non_camel_case_types)]
-                    struct DeleteIdempotentDataSvc<T: PlacementCenterService>(
-                        pub Arc<T>,
-                    );
-                    impl<
-                        T: PlacementCenterService,
-                    > tonic::server::UnaryService<super::DeleteIdempotentDataRequest>
-                    for DeleteIdempotentDataSvc<T> {
+                    struct DeleteIdempotentDataSvc<T: PlacementCenterService>(pub Arc<T>);
+                    impl<T: PlacementCenterService>
+                        tonic::server::UnaryService<super::DeleteIdempotentDataRequest>
+                        for DeleteIdempotentDataSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteIdempotentDataRequest>,
@@ -1509,10 +1289,9 @@ pub mod placement_center_service_server {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as PlacementCenterService>::delete_idempotent_data(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                    &inner, request,
+                                )
+                                .await
                             };
                             Box::pin(fut)
                         }
@@ -1540,18 +1319,14 @@ pub mod placement_center_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }
@@ -1577,8 +1352,7 @@ pub mod placement_center_service_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: PlacementCenterService> tonic::server::NamedService
-    for PlacementCenterServiceServer<T> {
+    impl<T: PlacementCenterService> tonic::server::NamedService for PlacementCenterServiceServer<T> {
         const NAME: &'static str = "placement.PlacementCenterService";
     }
 }

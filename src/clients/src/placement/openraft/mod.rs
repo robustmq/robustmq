@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::PlacementCenterInterface;
-use crate::poll::ClientPool;
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::openraft::{open_raft_service_client::OpenRaftServiceClient, AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest};
-use std::sync::Arc;
+use protocol::placement_center::generate::openraft::open_raft_service_client::OpenRaftServiceClient;
+use protocol::placement_center::generate::openraft::{
+    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
+};
 use tonic::transport::Channel;
+
+use super::PlacementCenterInterface;
+use crate::poll::ClientPool;
 
 pub mod call;
 mod inner;
@@ -35,30 +40,33 @@ pub(crate) async fn openraft_interface_call(
             let result = match interface {
                 PlacementCenterInterface::Vote => {
                     client_call(
-                        client, 
-                        request.clone(), 
+                        client,
+                        request.clone(),
                         |data| VoteRequest::decode(data),
                         |mut client, request| async move { client.vote(request).await },
-                        |reply| VoteReply::encode_to_vec(reply),
-                    ).await
+                        VoteReply::encode_to_vec,
+                    )
+                    .await
                 }
                 PlacementCenterInterface::Append => {
                     client_call(
-                        client, 
-                        request.clone(), 
+                        client,
+                        request.clone(),
                         |data| AppendRequest::decode(data),
                         |mut client, request| async move { client.append(request).await },
-                        |reply| AppendReply::encode_to_vec(reply),
-                    ).await
+                        AppendReply::encode_to_vec,
+                    )
+                    .await
                 }
                 PlacementCenterInterface::Snapshot => {
                     client_call(
-                        client, 
-                        request.clone(), 
+                        client,
+                        request.clone(),
                         |data| SnapshotRequest::decode(data),
                         |mut client, request| async move { client.snapshot(request).await },
-                        |reply| SnapshotReply::encode_to_vec(reply),
-                    ).await
+                        SnapshotReply::encode_to_vec,
+                    )
+                    .await
                 }
                 _ => {
                     return Err(CommonError::CommmonError(format!(
@@ -68,15 +76,11 @@ pub(crate) async fn openraft_interface_call(
                 }
             };
             match result {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    return Err(e);
-                }
+                Ok(data) => Ok(data),
+                Err(e) => Err(e),
             }
         }
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -88,12 +92,8 @@ async fn openraft_client(
         .placement_center_openraft_services_client(addr)
         .await
     {
-        Ok(client) => {
-            return Ok(client);
-        }
-        Err(e) => {
-            return Err(e);
-        }
+        Ok(client) => Ok(client),
+        Err(e) => Err(e),
     }
 }
 
@@ -120,13 +120,7 @@ impl Manager for OpenRaftServiceManager {
             Ok(client) => {
                 return Ok(client);
             }
-            Err(err) => {
-                return Err(CommonError::CommmonError(format!(
-                    "{},{}",
-                    err.to_string(),
-                    addr
-                )))
-            }
+            Err(err) => return Err(CommonError::CommmonError(format!("{},{}", err, addr))),
         };
     }
 
@@ -152,11 +146,9 @@ where
 {
     match decode_fn(request.as_ref()) {
         Ok(decoded_request) => match client_fn(client, decoded_request).await {
-            Ok(result) => {
-                return Ok(encode_fn(&result.into_inner()));
-            }
-            Err(e) => return Err(CommonError::GrpcServerStatus(e)),
+            Ok(result) => Ok(encode_fn(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
-        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
     }
 }

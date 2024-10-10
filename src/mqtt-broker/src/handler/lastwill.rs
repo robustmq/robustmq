@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    cache::CacheManager, message::build_message_expire, retain::save_topic_retain_message,
-    topic::try_init_topic,
-};
-use crate::storage::{message::MessageStorage, session::SessionStorage};
+use std::sync::Arc;
+
 use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::{lastwill::LastWillData, message::MQTTMessage};
+use metadata_struct::mqtt::lastwill::LastWillData;
+use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
-use std::sync::Arc;
 use storage_adapter::storage::StorageAdapter;
+
+use super::cache::CacheManager;
+use super::message::build_message_expire;
+use super::retain::save_topic_retain_message;
+use super::topic::try_init_topic;
+use crate::storage::message::MessageStorage;
+use crate::storage::session::SessionStorage;
 
 pub async fn send_last_will_message<S>(
     client_id: &String,
@@ -45,9 +49,13 @@ where
 
             let publish = publish_res.unwrap();
 
-            let topic =
-                try_init_topic(&topic_name, cache_manager, &message_storage_adapter, client_poll)
-                    .await?;
+            let topic = try_init_topic(
+                &topic_name,
+                cache_manager,
+                &message_storage_adapter,
+                client_poll,
+            )
+            .await?;
 
             match save_topic_retain_message(
                 cache_manager,
@@ -152,7 +160,9 @@ pub async fn save_last_will_message(
         last_will: last_will.clone(),
         last_will_properties: last_will_properties.clone(),
     };
-    return session_storage.save_last_will_messae(&client_id, lastwill.encode()).await;
+    return session_storage
+        .save_last_will_messae(&client_id, lastwill.encode())
+        .await;
 }
 
 pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties>) -> Option<u64> {
@@ -171,10 +181,10 @@ pub fn last_will_delay_interval(last_will_properties: &Option<LastWillProperties
 
 #[cfg(test)]
 mod test {
-    use super::build_publish_message_by_lastwill;
-    use super::last_will_delay_interval;
     use bytes::Bytes;
     use protocol::mqtt::common::{LastWill, LastWillProperties};
+
+    use super::{build_publish_message_by_lastwill, last_will_delay_interval};
 
     #[tokio::test]
     pub async fn last_will_delay_interval_test() {
@@ -249,7 +259,10 @@ mod test {
         assert_eq!(pp_tmp.message_expiry_interval.unwrap(), 3);
         assert!(pp_tmp.topic_alias.is_none());
         assert_eq!(pp_tmp.response_topic.unwrap(), "t2".to_string());
-        assert_eq!(pp_tmp.correlation_data.unwrap(), Bytes::from("t3".to_string()));
+        assert_eq!(
+            pp_tmp.correlation_data.unwrap(),
+            Bytes::from("t3".to_string())
+        );
         assert!(pp_tmp.user_properties.is_empty());
         assert!(pp_tmp.subscription_identifiers.is_empty());
         assert_eq!(pp_tmp.content_type.unwrap(), "t1".to_string())

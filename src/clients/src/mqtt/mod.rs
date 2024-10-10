@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{poll::ClientPool, retry_sleep_time, retry_times};
+use std::sync::Arc;
+use std::time::Duration;
+
 use admin::admin_interface_call;
 use common_base::error::common::CommonError;
 use log::error;
-
 use placement::placement_interface_call;
-use std::{sync::Arc, time::Duration};
 use tokio::time::sleep;
+
+use crate::poll::ClientPool;
+use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone)]
 pub enum MQTTBrokerService {
@@ -48,7 +51,7 @@ async fn retry_call(
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    if addrs.len() == 0 {
+    if addrs.is_empty() {
         return Err(CommonError::CommmonError(
             "Call address list cannot be empty".to_string(),
         ));
@@ -87,10 +90,10 @@ async fn retry_call(
                 if times > retry_times() {
                     return Err(e);
                 }
-                times = times + 1;
+                times += 1;
             }
         }
-        sleep(Duration::from_secs(retry_sleep_time(times) as u64)).await;
+        sleep(Duration::from_secs(retry_sleep_time(times))).await;
     }
 }
 

@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::connection::Connection;
-use crate::security::acl::metadata::AclMetadata;
-use crate::security::AuthDriver;
-use crate::storage::user::UserStorage;
-use crate::storage::{cluster::ClusterStorage, topic::TopicStorage};
-use crate::subscribe::subscriber::SubscribeData;
+use std::sync::Arc;
+use std::time::Duration;
+
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
@@ -34,10 +31,16 @@ use protocol::broker_server::generate::placement::{
 };
 use protocol::mqtt::common::{MQTTProtocol, PublishProperties, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
+
+use crate::handler::connection::Connection;
+use crate::security::acl::metadata::AclMetadata;
+use crate::security::AuthDriver;
+use crate::storage::cluster::ClusterStorage;
+use crate::storage::topic::TopicStorage;
+use crate::storage::user::UserStorage;
+use crate::subscribe::subscriber::SubscribeData;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum MetadataCacheAction {
@@ -530,7 +533,6 @@ impl CacheManager {
     }
 
     pub fn report_heartbeat(&self, client_id: &String, live_time: ConnectionLiveTime) {
-        
         self.heartbeat_data.insert(client_id.clone(), live_time);
     }
 

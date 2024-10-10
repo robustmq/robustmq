@@ -14,5 +14,5 @@
 
 use common_base::metrics::dump_metrics;
 pub async fn metrics() -> String {
-    return dump_metrics();
+    dump_metrics()
 }

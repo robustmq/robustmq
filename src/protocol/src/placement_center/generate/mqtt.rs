@@ -280,8 +280,8 @@ pub struct DeleteBlacklistRequest {
 /// Generated client implementations.
 pub mod mqtt_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    use tonic::codegen::*;
     #[derive(Debug, Clone)]
     pub struct MqttServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -325,9 +325,8 @@ pub mod mqtt_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::BoxBody>,
-            >>::Error: Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
+                Into<StdError> + Send + Sync,
         {
             MqttServiceClient::new(InterceptedService::new(inner, interceptor))
         }
@@ -374,21 +373,17 @@ pub mod mqtt_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ListUserRequest>,
         ) -> std::result::Result<tonic::Response<super::ListUserReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/ListUser",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/ListUser");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("mqtt.MqttService", "ListUser"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "ListUser"));
             self.inner.unary(req, path, codec).await
         }
         /// Creates the corresponding user based on the request
@@ -402,23 +397,16 @@ pub mod mqtt_service_client {
         pub async fn create_user(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateUserRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/CreateUser",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/CreateUser");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateUser"));
@@ -434,23 +422,16 @@ pub mod mqtt_service_client {
         pub async fn delete_user(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteUserRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/DeleteUser",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/DeleteUser");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteUser"));
@@ -467,23 +448,15 @@ pub mod mqtt_service_client {
         pub async fn list_session(
             &mut self,
             request: impl tonic::IntoRequest<super::ListSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListSessionReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListSessionReply>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/ListSession",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/ListSession");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "ListSession"));
@@ -500,23 +473,16 @@ pub mod mqtt_service_client {
         pub async fn create_session(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/CreateSession",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/CreateSession");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateSession"));
@@ -536,23 +502,16 @@ pub mod mqtt_service_client {
         pub async fn update_session(
             &mut self,
             request: impl tonic::IntoRequest<super::UpdateSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/UpdateSession",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/UpdateSession");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "UpdateSession"));
@@ -568,23 +527,16 @@ pub mod mqtt_service_client {
         pub async fn delete_session(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/DeleteSession",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/DeleteSession");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteSession"));
@@ -602,19 +554,14 @@ pub mod mqtt_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ListTopicRequest>,
         ) -> std::result::Result<tonic::Response<super::ListTopicReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/ListTopic",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/ListTopic");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "ListTopic"));
@@ -631,23 +578,16 @@ pub mod mqtt_service_client {
         pub async fn create_topic(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateTopicRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/CreateTopic",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/CreateTopic");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateTopic"));
@@ -663,23 +603,16 @@ pub mod mqtt_service_client {
         pub async fn delete_topic(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteTopicRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/DeleteTopic",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/DeleteTopic");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteTopic"));
@@ -697,23 +630,17 @@ pub mod mqtt_service_client {
         pub async fn set_topic_retain_message(
             &mut self,
             request: impl tonic::IntoRequest<super::SetTopicRetainMessageRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/SetTopicRetainMessage",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/mqtt.MqttService/SetTopicRetainMessage");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "SetTopicRetainMessage"));
@@ -732,23 +659,16 @@ pub mod mqtt_service_client {
         pub async fn get_share_sub_leader(
             &mut self,
             request: impl tonic::IntoRequest<super::GetShareSubLeaderRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetShareSubLeaderReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetShareSubLeaderReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/GetShareSubLeader",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/GetShareSubLeader");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "GetShareSubLeader"));
@@ -765,23 +685,17 @@ pub mod mqtt_service_client {
         pub async fn save_last_will_message(
             &mut self,
             request: impl tonic::IntoRequest<super::SaveLastWillMessageRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/SaveLastWillMessage",
-            );
+            let path =
+                http::uri::PathAndQuery::from_static("/mqtt.MqttService/SaveLastWillMessage");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "SaveLastWillMessage"));
@@ -798,19 +712,17 @@ pub mod mqtt_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::ListAclRequest>,
         ) -> std::result::Result<tonic::Response<super::ListAclReply>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/ListAcl");
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("mqtt.MqttService", "ListAcl"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("mqtt.MqttService", "ListAcl"));
             self.inner.unary(req, path, codec).await
         }
         /// Deletes the corresponding ACL based on the request
@@ -823,23 +735,16 @@ pub mod mqtt_service_client {
         pub async fn delete_acl(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteAclRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/DeleteAcl",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/DeleteAcl");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteAcl"));
@@ -855,23 +760,16 @@ pub mod mqtt_service_client {
         pub async fn create_acl(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateAclRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/CreateAcl",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/CreateAcl");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateAcl"));
@@ -887,23 +785,16 @@ pub mod mqtt_service_client {
         pub async fn list_blacklist(
             &mut self,
             request: impl tonic::IntoRequest<super::ListBlacklistRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListBlacklistReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListBlacklistReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/ListBlacklist",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/ListBlacklist");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "ListBlacklist"));
@@ -920,23 +811,16 @@ pub mod mqtt_service_client {
         pub async fn delete_blacklist(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteBlacklistRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/DeleteBlacklist",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/DeleteBlacklist");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "DeleteBlacklist"));
@@ -952,23 +836,16 @@ pub mod mqtt_service_client {
         pub async fn create_blacklist(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateBlacklistRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::new(
+                    tonic::Code::Unknown,
+                    format!("Service was not ready: {}", e.into()),
+                )
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/mqtt.MqttService/CreateBlacklist",
-            );
+            let path = http::uri::PathAndQuery::from_static("/mqtt.MqttService/CreateBlacklist");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("mqtt.MqttService", "CreateBlacklist"));
@@ -1006,10 +883,7 @@ pub mod mqtt_service_server {
         async fn create_user(
             &self,
             request: tonic::Request<super::CreateUserRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Deletes the corresponding user based on the request
         ///
         /// Parameters:
@@ -1020,10 +894,7 @@ pub mod mqtt_service_server {
         async fn delete_user(
             &self,
             request: tonic::Request<super::DeleteUserRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Returns a list of sessions based on the parameters of the request
         ///
         /// Parameters:
@@ -1035,10 +906,7 @@ pub mod mqtt_service_server {
         async fn list_session(
             &self,
             request: tonic::Request<super::ListSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListSessionReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListSessionReply>, tonic::Status>;
         /// Creates the corresponding session based on the request
         ///
         /// Parameters:
@@ -1050,10 +918,7 @@ pub mod mqtt_service_server {
         async fn create_session(
             &self,
             request: tonic::Request<super::CreateSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Updates the corresponding session based on the request
         ///
         /// Parameters:
@@ -1068,10 +933,7 @@ pub mod mqtt_service_server {
         async fn update_session(
             &self,
             request: tonic::Request<super::UpdateSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Deletes the corresponding session based on the request
         ///
         /// Parameters:
@@ -1082,10 +944,7 @@ pub mod mqtt_service_server {
         async fn delete_session(
             &self,
             request: tonic::Request<super::DeleteSessionRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Returns a list of topics based on the parameters of the request
         ///
         /// Parameters:
@@ -1109,10 +968,7 @@ pub mod mqtt_service_server {
         async fn create_topic(
             &self,
             request: tonic::Request<super::CreateTopicRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Deletes the corresponding topic based on the request
         ///
         /// Parameters:
@@ -1123,10 +979,7 @@ pub mod mqtt_service_server {
         async fn delete_topic(
             &self,
             request: tonic::Request<super::DeleteTopicRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Sets the retain message for the corresponding topic based on the request
         ///
         /// Parameters:
@@ -1139,10 +992,7 @@ pub mod mqtt_service_server {
         async fn set_topic_retain_message(
             &self,
             request: tonic::Request<super::SetTopicRetainMessageRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Gets the share sub leader based on the request
         ///
         /// Parameters:
@@ -1156,10 +1006,7 @@ pub mod mqtt_service_server {
         async fn get_share_sub_leader(
             &self,
             request: tonic::Request<super::GetShareSubLeaderRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetShareSubLeaderReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetShareSubLeaderReply>, tonic::Status>;
         /// Saves the client's will message based on request
         ///
         /// Parameters:
@@ -1171,10 +1018,7 @@ pub mod mqtt_service_server {
         async fn save_last_will_message(
             &self,
             request: tonic::Request<super::SaveLastWillMessageRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Returns a list of ACLs based on the parameters of the request
         ///
         /// Parameters:
@@ -1196,10 +1040,7 @@ pub mod mqtt_service_server {
         async fn delete_acl(
             &self,
             request: tonic::Request<super::DeleteAclRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Creates the corresponding ACL based on the request
         ///
         /// Parameters:
@@ -1210,10 +1051,7 @@ pub mod mqtt_service_server {
         async fn create_acl(
             &self,
             request: tonic::Request<super::CreateAclRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Returns a list of blacklist based on the parameters of the request
         ///
         /// Parameters:
@@ -1224,10 +1062,7 @@ pub mod mqtt_service_server {
         async fn list_blacklist(
             &self,
             request: tonic::Request<super::ListBlacklistRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListBlacklistReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListBlacklistReply>, tonic::Status>;
         /// Deletes the corresponding blacklist based on the request
         ///
         /// Parameters:
@@ -1239,10 +1074,7 @@ pub mod mqtt_service_server {
         async fn delete_blacklist(
             &self,
             request: tonic::Request<super::DeleteBlacklistRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
         /// Creates the corresponding blacklist based on the request
         ///
         /// Parameters:
@@ -1253,10 +1085,7 @@ pub mod mqtt_service_server {
         async fn create_blacklist(
             &self,
             request: tonic::Request<super::CreateBlacklistRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::super::common::CommonReply>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::super::common::CommonReply>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct MqttServiceServer<T: MqttService> {
@@ -1281,10 +1110,7 @@ pub mod mqtt_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -1340,23 +1166,16 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/ListUser" => {
                     #[allow(non_camel_case_types)]
                     struct ListUserSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::ListUserRequest>
-                    for ListUserSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::ListUserRequest> for ListUserSvc<T> {
                         type Response = super::ListUserReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListUserRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as MqttService>::list_user(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as MqttService>::list_user(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1386,15 +1205,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/CreateUser" => {
                     #[allow(non_camel_case_types)]
                     struct CreateUserSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::CreateUserRequest>
-                    for CreateUserSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::CreateUserRequest> for CreateUserSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateUserRequest>,
@@ -1432,15 +1245,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/DeleteUser" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteUserSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::DeleteUserRequest>
-                    for DeleteUserSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::DeleteUserRequest> for DeleteUserSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteUserRequest>,
@@ -1478,15 +1285,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/ListSession" => {
                     #[allow(non_camel_case_types)]
                     struct ListSessionSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::ListSessionRequest>
-                    for ListSessionSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::ListSessionRequest> for ListSessionSvc<T> {
                         type Response = super::ListSessionReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListSessionRequest>,
@@ -1524,15 +1325,11 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/CreateSession" => {
                     #[allow(non_camel_case_types)]
                     struct CreateSessionSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::CreateSessionRequest>
-                    for CreateSessionSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::CreateSessionRequest>
+                        for CreateSessionSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateSessionRequest>,
@@ -1570,15 +1367,11 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/UpdateSession" => {
                     #[allow(non_camel_case_types)]
                     struct UpdateSessionSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::UpdateSessionRequest>
-                    for UpdateSessionSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::UpdateSessionRequest>
+                        for UpdateSessionSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UpdateSessionRequest>,
@@ -1616,15 +1409,11 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/DeleteSession" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteSessionSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::DeleteSessionRequest>
-                    for DeleteSessionSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::DeleteSessionRequest>
+                        for DeleteSessionSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteSessionRequest>,
@@ -1662,15 +1451,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/ListTopic" => {
                     #[allow(non_camel_case_types)]
                     struct ListTopicSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::ListTopicRequest>
-                    for ListTopicSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::ListTopicRequest> for ListTopicSvc<T> {
                         type Response = super::ListTopicReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListTopicRequest>,
@@ -1708,15 +1491,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/CreateTopic" => {
                     #[allow(non_camel_case_types)]
                     struct CreateTopicSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::CreateTopicRequest>
-                    for CreateTopicSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::CreateTopicRequest> for CreateTopicSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateTopicRequest>,
@@ -1754,15 +1531,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/DeleteTopic" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteTopicSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::DeleteTopicRequest>
-                    for DeleteTopicSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::DeleteTopicRequest> for DeleteTopicSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteTopicRequest>,
@@ -1800,26 +1571,19 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/SetTopicRetainMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SetTopicRetainMessageSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::SetTopicRetainMessageRequest>
-                    for SetTopicRetainMessageSvc<T> {
+                    impl<T: MqttService>
+                        tonic::server::UnaryService<super::SetTopicRetainMessageRequest>
+                        for SetTopicRetainMessageSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SetTopicRetainMessageRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttService>::set_topic_retain_message(
-                                        &inner,
-                                        request,
-                                    )
-                                    .await
+                                <T as MqttService>::set_topic_retain_message(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1850,23 +1614,19 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/GetShareSubLeader" => {
                     #[allow(non_camel_case_types)]
                     struct GetShareSubLeaderSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::GetShareSubLeaderRequest>
-                    for GetShareSubLeaderSvc<T> {
+                    impl<T: MqttService>
+                        tonic::server::UnaryService<super::GetShareSubLeaderRequest>
+                        for GetShareSubLeaderSvc<T>
+                    {
                         type Response = super::GetShareSubLeaderReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetShareSubLeaderRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttService>::get_share_sub_leader(&inner, request)
-                                    .await
+                                <T as MqttService>::get_share_sub_leader(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1897,23 +1657,19 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/SaveLastWillMessage" => {
                     #[allow(non_camel_case_types)]
                     struct SaveLastWillMessageSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::SaveLastWillMessageRequest>
-                    for SaveLastWillMessageSvc<T> {
+                    impl<T: MqttService>
+                        tonic::server::UnaryService<super::SaveLastWillMessageRequest>
+                        for SaveLastWillMessageSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::SaveLastWillMessageRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as MqttService>::save_last_will_message(&inner, request)
-                                    .await
+                                <T as MqttService>::save_last_will_message(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -1944,23 +1700,16 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/ListAcl" => {
                     #[allow(non_camel_case_types)]
                     struct ListAclSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::ListAclRequest>
-                    for ListAclSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::ListAclRequest> for ListAclSvc<T> {
                         type Response = super::ListAclReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListAclRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as MqttService>::list_acl(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as MqttService>::list_acl(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -1990,15 +1739,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/DeleteAcl" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteAclSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::DeleteAclRequest>
-                    for DeleteAclSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::DeleteAclRequest> for DeleteAclSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteAclRequest>,
@@ -2036,15 +1779,9 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/CreateAcl" => {
                     #[allow(non_camel_case_types)]
                     struct CreateAclSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::CreateAclRequest>
-                    for CreateAclSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::CreateAclRequest> for CreateAclSvc<T> {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateAclRequest>,
@@ -2082,15 +1819,11 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/ListBlacklist" => {
                     #[allow(non_camel_case_types)]
                     struct ListBlacklistSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::ListBlacklistRequest>
-                    for ListBlacklistSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::ListBlacklistRequest>
+                        for ListBlacklistSvc<T>
+                    {
                         type Response = super::ListBlacklistReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListBlacklistRequest>,
@@ -2128,15 +1861,11 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/DeleteBlacklist" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteBlacklistSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::DeleteBlacklistRequest>
-                    for DeleteBlacklistSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::DeleteBlacklistRequest>
+                        for DeleteBlacklistSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteBlacklistRequest>,
@@ -2174,15 +1903,11 @@ pub mod mqtt_service_server {
                 "/mqtt.MqttService/CreateBlacklist" => {
                     #[allow(non_camel_case_types)]
                     struct CreateBlacklistSvc<T: MqttService>(pub Arc<T>);
-                    impl<
-                        T: MqttService,
-                    > tonic::server::UnaryService<super::CreateBlacklistRequest>
-                    for CreateBlacklistSvc<T> {
+                    impl<T: MqttService> tonic::server::UnaryService<super::CreateBlacklistRequest>
+                        for CreateBlacklistSvc<T>
+                    {
                         type Response = super::super::common::CommonReply;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateBlacklistRequest>,
@@ -2217,18 +1942,14 @@ pub mod mqtt_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        Ok(
-                            http::Response::builder()
-                                .status(200)
-                                .header("grpc-status", "12")
-                                .header("content-type", "application/grpc")
-                                .body(empty_body())
-                                .unwrap(),
-                        )
-                    })
-                }
+                _ => Box::pin(async move {
+                    Ok(http::Response::builder()
+                        .status(200)
+                        .header("grpc-status", "12")
+                        .header("content-type", "application/grpc")
+                        .body(empty_body())
+                        .unwrap())
+                }),
             }
         }
     }

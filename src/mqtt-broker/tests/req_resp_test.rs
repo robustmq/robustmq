@@ -16,11 +16,12 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::unique_id;
+    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_1};
+
     use crate::common::{
         broker_addr, connect_server5, connect_server5_response_information, distinct_conn,
     };
-    use common_base::tools::unique_id;
-    use paho_mqtt::{Message, MessageBuilder, Properties, PropertyCode, QOS_1};
 
     #[tokio::test]
     async fn client5_reuqset_response_test() {
@@ -29,29 +30,59 @@ mod tests {
         let topic = unique_id();
         let requset_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
-        simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), None, false).await;
+        simple_test(
+            requset_topic,
+            response_topic,
+            sub_qos,
+            "2".to_string(),
+            None,
+            false,
+        )
+        .await;
 
         // correlation data
         let topic = unique_id();
         let requset_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
         let data = "123456".to_string();
-        simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), Some(data), false)
-            .await;
+        simple_test(
+            requset_topic,
+            response_topic,
+            sub_qos,
+            "2".to_string(),
+            Some(data),
+            false,
+        )
+        .await;
 
         // connect response information
         let topic = unique_id();
         let requset_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
-        simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), None, true).await;
+        simple_test(
+            requset_topic,
+            response_topic,
+            sub_qos,
+            "2".to_string(),
+            None,
+            true,
+        )
+        .await;
 
         // connect response information correlation data
         let topic = unique_id();
         let requset_topic = format!("/request/{}", topic);
         let response_topic = format!("/response/{}", topic);
         let data = "123456".to_string();
-        simple_test(requset_topic, response_topic, sub_qos, "2".to_string(), Some(data), true)
-            .await;
+        simple_test(
+            requset_topic,
+            response_topic,
+            sub_qos,
+            "2".to_string(),
+            Some(data),
+            true,
+        )
+        .await;
     }
 
     async fn simple_test(
@@ -70,18 +101,28 @@ mod tests {
             true => {
                 let (cli, response_information) =
                     connect_server5_response_information(&client_id, &addr);
-                (cli, format!("{response_information}{}", &response_topic[1..]))
+                (
+                    cli,
+                    format!("{response_information}{}", &response_topic[1..]),
+                )
             }
-            false => (connect_server5(&client_id, &addr, false, false), response_topic),
+            false => (
+                connect_server5(&client_id, &addr, false, false),
+                response_topic,
+            ),
         };
 
         let message_content = format!("mqtt {payload_flag} message");
 
         // publish
         let mut props: Properties = Properties::new();
-        props.push_string(PropertyCode::ResponseTopic, response_topic.as_str()).unwrap();
+        props
+            .push_string(PropertyCode::ResponseTopic, response_topic.as_str())
+            .unwrap();
         if let Some(correlation_data) = correlation_data.as_ref() {
-            props.push_val(PropertyCode::CorrelationData, correlation_data.clone()).unwrap();
+            props
+                .push_val(PropertyCode::CorrelationData, correlation_data.clone())
+                .unwrap();
         }
         let msg = MessageBuilder::new()
             .properties(props)
@@ -112,7 +153,10 @@ mod tests {
                 let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
                 assert_eq!(payload, message_content);
 
-                let topic = msg.properties().get_string(PropertyCode::ResponseTopic).unwrap();
+                let topic = msg
+                    .properties()
+                    .get_string(PropertyCode::ResponseTopic)
+                    .unwrap();
                 assert_eq!(topic, response_topic);
 
                 println!("{msg:?}");

@@ -12,31 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    cache::{CacheManager, ConnectionLiveTime},
-    connection::disconnect_connection,
-    response::response_packet_mqtt_distinct_by_reason,
-};
-use crate::{
-    server::connection_manager::ConnectionManager, subscribe::subscribe_manager::SubscribeManager,
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, info, warn};
 use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use protocol::mqtt::{
-    codec::{MQTTPacketWrapper, MqttCodec},
-    common::{DisconnectReasonCode, MQTTProtocol},
-};
+use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol};
 use serde::{Deserialize, Serialize};
-use std::{sync::Arc, time::Duration};
-use tokio::{
-    select,
-    sync::broadcast::{self},
-    time::sleep,
-};
+use tokio::select;
+use tokio::sync::broadcast::{self};
+use tokio::time::sleep;
+
+use super::cache::{CacheManager, ConnectionLiveTime};
+use super::connection::disconnect_connection;
+use super::response::response_packet_mqtt_distinct_by_reason;
+use crate::server::connection_manager::ConnectionManager;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
@@ -242,20 +238,22 @@ pub struct KeepAliveRunInfo {
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use clients::poll::ClientPool;
+    use common_base::config::broker_mqtt::BrokerMQTTConfig;
+    use common_base::tools::{now_second, unique_id};
+    use metadata_struct::mqtt::session::MQTTSession;
+    use tokio::sync::broadcast;
+    use tokio::time::sleep;
+
     use super::keep_live_time;
     use crate::handler::cache::CacheManager;
     use crate::handler::connection::Connection;
     use crate::handler::keep_alive::ClientKeepAlive;
     use crate::server::connection_manager::ConnectionManager;
     use crate::subscribe::subscribe_manager::SubscribeManager;
-    use clients::poll::ClientPool;
-    use common_base::config::broker_mqtt::BrokerMQTTConfig;
-    use common_base::tools::{now_second, unique_id};
-    use metadata_struct::mqtt::session::MQTTSession;
-    use std::sync::Arc;
-    use std::time::Duration;
-    use tokio::sync::broadcast;
-    use tokio::time::sleep;
 
     #[tokio::test]
     pub async fn keep_live_time_test() {

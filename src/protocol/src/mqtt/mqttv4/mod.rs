@@ -27,23 +27,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-use crate::mqtt::common::*;
-use std::{str::Utf8Error, slice::Iter, fmt};
+use std::fmt;
+use std::slice::Iter;
+use std::str::Utf8Error;
+
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
+use crate::mqtt::common::*;
 
-pub mod connect;
+pub mod codec;
 pub mod connack;
-pub mod publish;
+pub mod connect;
+pub mod disconnect;
+pub mod ping;
 pub mod puback;
+pub mod pubcomp;
+pub mod publish;
 pub mod pubrec;
 pub mod pubrel;
-pub mod pubcomp;
-pub mod subscribe;
 pub mod suback;
-pub mod unsubscribe;
+pub mod subscribe;
 pub mod unsuback;
-pub mod ping;
-pub mod disconnect;
-pub mod codec;
-
+pub mod unsubscribe;

@@ -17,40 +17,40 @@ use protocol::placement_center::generate::common::ClusterType;
 
 #[warn(dead_code)]
 pub fn pc_addr() -> String {
-    return "http://127.0.0.1:1228".to_string();
+    "http://127.0.0.1:1228".to_string()
 }
 
 #[warn(dead_code)]
 pub fn shard_name() -> String {
-    return "test1".to_string();
+    "test1".to_string()
 }
 
 #[warn(dead_code)]
 pub fn shard_replica() -> u32 {
-    return 1;
+    1
 }
 
 #[warn(dead_code)]
 pub fn cluster_type() -> i32 {
-    return ClusterType::JournalServer.into();
+    ClusterType::JournalServer.into()
 }
 
 #[warn(dead_code)]
 pub fn cluster_name() -> String {
-    return unique_id();
+    unique_id()
 }
 
 #[warn(dead_code)]
 pub fn node_id() -> u64 {
-    return 4;
+    4
 }
 
 #[warn(dead_code)]
 pub fn node_ip() -> String {
-    return "127.0.0.4".to_string();
+    "127.0.0.4".to_string()
 }
 
 #[warn(dead_code)]
 pub fn extend_info() -> String {
-    return "extend info".to_string();
+    "extend info".to_string()
 }

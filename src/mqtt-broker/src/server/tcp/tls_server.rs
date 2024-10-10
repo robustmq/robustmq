@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::handler::validator::tcp_tls_establish_connection_check;
-use crate::observability::metrics::packets::{
-    record_received_error_metrics, record_received_metrics,
-};
-use crate::server::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::RequestPackage;
+use std::fs::File;
+use std::io::{self, BufReader, ErrorKind};
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
+
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
 use protocol::mqtt::common::MQTTPacket;
 use rustls_pemfile::{certs, private_key};
-use std::fs::File;
-use std::io::{self, BufReader, ErrorKind};
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -40,6 +34,14 @@ use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
+use crate::handler::validator::tcp_tls_establish_connection_check;
+use crate::observability::metrics::packets::{
+    record_received_error_metrics, record_received_metrics,
+};
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::RequestPackage;
+
 pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
     certs(&mut BufReader::new(File::open(path)?)).collect()
 }
@@ -47,7 +49,10 @@ pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>
 pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
     Ok(private_key(&mut BufReader::new(File::open(path)?))
         .unwrap()
-        .ok_or(io::Error::new(ErrorKind::Other, "no private key found".to_string()))?)
+        .ok_or(io::Error::new(
+            ErrorKind::Other,
+            "no private key found".to_string(),
+        ))?)
 }
 
 pub(crate) async fn acceptor_tls_process(
@@ -74,7 +79,10 @@ pub(crate) async fn acceptor_tls_process(
         }
     };
 
-    let config = match ServerConfig::builder().with_no_client_auth().with_single_cert(certs, key) {
+    let config = match ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+    {
         Ok(data) => data,
         Err(e) => {
             panic!("{}", e.to_string());

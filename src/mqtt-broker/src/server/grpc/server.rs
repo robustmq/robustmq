@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::placement::GrpcPlacementServices;
-use crate::{
-    handler::cache::CacheManager, server::grpc::admin::services::GrpcAdminServices,
-    subscribe::subscribe_manager::SubscribeManager,
-};
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use log::info;
-use protocol::broker_server::generate::{
-    admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer,
-    placement::mqtt_broker_placement_service_server::MqttBrokerPlacementServiceServer,
-};
-use std::sync::Arc;
+use protocol::broker_server::generate::admin::mqtt_broker_admin_service_server::MqttBrokerAdminServiceServer;
+use protocol::broker_server::generate::placement::mqtt_broker_placement_service_server::MqttBrokerPlacementServiceServer;
 use storage_adapter::storage::StorageAdapter;
 use tonic::transport::Server;
+
+use super::placement::GrpcPlacementServices;
+use crate::handler::cache::CacheManager;
+use crate::server::grpc::admin::services::GrpcAdminServices;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub struct GrpcServer<S> {
     port: u32,

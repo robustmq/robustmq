@@ -28,16 +28,17 @@
  * limitations under the License.
  */
 
+use std::fmt;
+
 /// puback packet is an acknowledgement to QoS 1 publish packet
 use super::*;
-use std::fmt;
 
 impl PubAck {
     fn mqttv4(pkid: u16) -> PubAck {
-        return PubAck {
-            pkid: pkid,
+        PubAck {
+            pkid,
             reason: Some(PubAckReason::Success),
-        };
+        }
     }
 }
 fn len() -> usize {
@@ -68,7 +69,6 @@ pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
     buffer.put_u16(puback.pkid);
     Ok(1 + count + len)
 }
-
 
 #[cfg(test)]
 mod tests {

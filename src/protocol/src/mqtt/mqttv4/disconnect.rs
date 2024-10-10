@@ -32,9 +32,9 @@ use super::*;
 
 impl Disconnect {
     fn mqttv4() -> Disconnect {
-        return Disconnect {
+        Disconnect {
             reason_code: Some(DisconnectReasonCode::NormalDisconnection),
-        };
+        }
     }
 }
 

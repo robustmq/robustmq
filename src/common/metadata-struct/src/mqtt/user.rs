@@ -23,6 +23,6 @@ pub struct MQTTUser {
 
 impl MQTTUser {
     pub fn encode(&self) -> Vec<u8> {
-        return serde_json::to_vec(&self).unwrap();
+        serde_json::to_vec(&self).unwrap()
     }
 }

@@ -17,9 +17,9 @@ pub mod raft;
 pub mod server;
 
 pub(crate) fn v1_path(path: &str) -> String {
-    return format!("/v1{}", path);
+    format!("/v1{}", path)
 }
 
 pub(crate) fn list_path(path: &str) -> String {
-    return format!("{}/list", path);
+    format!("{}/list", path)
 }

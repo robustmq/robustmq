@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::cache::CacheManager;
-use clients::{
-    placement::placement::call::{
-        delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
-    },
-    poll::ClientPool,
+use std::sync::Arc;
+
+use clients::placement::placement::call::{
+    delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
 };
-use common_base::{config::broker_mqtt::broker_mqtt_conf, error::common::CommonError};
+use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
 use protocol::placement_center::generate::placement::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
-use std::sync::Arc;
+
+use super::cache::CacheManager;
 
 pub async fn pkid_save(
     cache_manager: &Arc<CacheManager>,
@@ -124,13 +125,13 @@ pub async fn pkid_delete(
 
 #[cfg(test)]
 mod test {
-    use super::pkid_delete;
-    use super::pkid_exists;
-    use super::pkid_save;
-    use crate::handler::cache::CacheManager;
+    use std::sync::Arc;
+
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use std::sync::Arc;
+
+    use super::{pkid_delete, pkid_exists, pkid_save};
+    use crate::handler::cache::CacheManager;
 
     #[tokio::test]
     pub async fn pkid_test() {

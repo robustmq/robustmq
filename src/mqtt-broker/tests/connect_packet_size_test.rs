@@ -16,9 +16,10 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::{broker_addr, broker_ssl_addr, connect_server5_packet_size, distinct_conn};
     use common_base::tools::unique_id;
     use paho_mqtt::{MessageBuilder, QOS_1};
+
+    use crate::common::{broker_addr, broker_ssl_addr, connect_server5_packet_size, distinct_conn};
 
     #[tokio::test]
     async fn client5_packet_size_test_tcp() {
@@ -55,7 +56,7 @@ mod tests {
                 assert!(false);
             }
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(true);
             }
         }

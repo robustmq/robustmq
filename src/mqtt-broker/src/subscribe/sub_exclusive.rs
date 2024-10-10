@@ -12,35 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    handler::{
-        cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo},
-        message::is_message_expire,
-        retain::try_send_retain_message,
-    },
-    server::{connection_manager::ConnectionManager, packet::ResponsePackage},
-    storage::message::MessageStorage,
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use bytes::Bytes;
 use clients::poll::ClientPool;
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use log::{debug, error, info};
 use metadata_struct::mqtt::message::MQTTMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
-use std::{sync::Arc, time::Duration};
 use storage_adapter::storage::StorageAdapter;
-use tokio::{
-    sync::broadcast::{self},
-    time::sleep,
-};
+use tokio::sync::broadcast::{self};
+use tokio::time::sleep;
 
-use super::{
-    sub_common::{
-        loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
-        qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
-    },
-    subscribe_manager::SubscribeManager,
+use super::sub_common::{
+    loop_commit_offset, min_qos, publish_message_qos0, publish_message_to_client,
+    qos2_send_publish, qos2_send_pubrel, wait_packet_ack,
 };
+use super::subscribe_manager::SubscribeManager;
+use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::handler::message::is_message_expire;
+use crate::handler::retain::try_send_retain_message;
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::ResponsePackage;
+use crate::storage::message::MessageStorage;
 
 pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
@@ -82,10 +78,16 @@ where
         // Periodically verify that a push task is running, but the subscribe task has stopped
         // If so, stop the process and clean up the data
         for (exclusive_key, sx) in self.subscribe_manager.exclusive_push_thread.clone() {
-            if !self.subscribe_manager.exclusive_subscribe.contains_key(&exclusive_key) {
+            if !self
+                .subscribe_manager
+                .exclusive_subscribe
+                .contains_key(&exclusive_key)
+            {
                 match sx.send(true) {
                     Ok(_) => {
-                        self.subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
+                        self.subscribe_manager
+                            .exclusive_push_thread
+                            .remove(&exclusive_key);
                     }
                     Err(_) => {}
                 }
@@ -99,7 +101,11 @@ where
         for (exclusive_key, subscriber) in self.subscribe_manager.exclusive_subscribe.clone() {
             let client_id = subscriber.client_id.clone();
 
-            if self.subscribe_manager.exclusive_push_thread.contains_key(&exclusive_key) {
+            if self
+                .subscribe_manager
+                .exclusive_push_thread
+                .contains_key(&exclusive_key)
+            {
                 continue;
             }
 
@@ -214,8 +220,11 @@ where
                                     continue;
                                 }
 
-                                let retain =
-                                    if subscriber.preserve_retain { msg.retain } else { false };
+                                let retain = if subscriber.preserve_retain {
+                                    msg.retain
+                                } else {
+                                    false
+                                };
 
                                 let mut publish = Publish {
                                     dup: false,
@@ -345,7 +354,9 @@ where
                     }
                 }
 
-                subscribe_manager.exclusive_push_thread.remove(&exclusive_key);
+                subscribe_manager
+                    .exclusive_push_thread
+                    .remove(&exclusive_key);
             });
         }
     }

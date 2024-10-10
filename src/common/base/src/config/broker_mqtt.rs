@@ -28,19 +28,18 @@
  * limitations under the License.
  */
 
-use super::common::Auth;
-use super::common::Log;
-use super::common::Storage;
+use std::sync::OnceLock;
+
+use serde::{Deserialize, Serialize};
+
+use super::common::{Auth, Log, Storage};
 use super::default_mqtt::{
     default_auth, default_grpc_port, default_http_port, default_log, default_network,
     default_network_quic_port, default_network_tcp_port, default_network_tcps_port,
     default_network_websocket_port, default_network_websockets_port, default_storage,
     default_system, default_tcp_thread,
 };
-use crate::tools::try_create_fold;
-use crate::tools::read_file;
-use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
+use crate::tools::{read_file, try_create_fold};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct BrokerMQTTConfig {
@@ -138,27 +137,21 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &String) -> &'static BrokerMQT
                 panic!("{}", e);
             }
         }
-        return config;
+        config
     })
 }
 
 pub fn init_broker_mqtt_conf_by_config(config: BrokerMQTTConfig) -> &'static BrokerMQTTConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
-    BROKER_MQTT_CONF.get_or_init(|| {
-        return config;
-    })
+    BROKER_MQTT_CONF.get_or_init(|| config)
 }
 
 pub fn broker_mqtt_conf() -> &'static BrokerMQTTConfig {
     match BROKER_MQTT_CONF.get() {
-        Some(config) => {
-            return config;
-        }
+        Some(config) => config,
         None => {
-            panic!(
-                "MQTT Broker configuration is not initialized, check the configuration file."
-            );
+            panic!("MQTT Broker configuration is not initialized, check the configuration file.");
         }
     }
 }

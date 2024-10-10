@@ -12,23 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clients::{
-    placement::mqtt::call::{
-        placement_create_topic, placement_delete_topic, placement_list_topic,
-        placement_set_topic_retain_message,
-    },
-    poll::ClientPool,
+use std::sync::Arc;
+
+use clients::placement::mqtt::call::{
+    placement_create_topic, placement_delete_topic, placement_list_topic,
+    placement_set_topic_retain_message,
 };
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    error::{common::CommonError, mqtt_broker::MQTTBrokerError},
-};
+use clients::poll::ClientPool;
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
+use common_base::error::mqtt_broker::MQTTBrokerError;
 use dashmap::DashMap;
-use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
+use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::topic::MQTTTopic;
 use protocol::placement_center::generate::mqtt::{
     CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
-use std::sync::Arc;
 
 pub struct TopicStorage {
     client_poll: Arc<ClientPool>,
@@ -227,15 +226,18 @@ impl TopicStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::storage::topic::TopicStorage;
+    use std::sync::Arc;
+
     use bytes::Bytes;
     use clients::poll::ClientPool;
-    use common_base::{
-        config::broker_mqtt::init_broker_mqtt_conf_by_path, logs::init_log, tools::unique_id,
-    };
-    use metadata_struct::mqtt::{message::MQTTMessage, topic::MQTTTopic};
+    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+    use common_base::logs::init_log;
+    use common_base::tools::unique_id;
+    use metadata_struct::mqtt::message::MQTTMessage;
+    use metadata_struct::mqtt::topic::MQTTTopic;
     use protocol::mqtt::common::{Publish, PublishProperties};
-    use std::sync::Arc;
+
+    use crate::storage::topic::TopicStorage;
 
     #[tokio::test]
     async fn topic_test() {

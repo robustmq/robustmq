@@ -76,7 +76,7 @@ pub struct MQTTClusterDynamicSlowSub {
 
 impl MQTTClusterDynamicConfig {
     pub fn new() -> Self {
-        return MQTTClusterDynamicConfig {
+        MQTTClusterDynamicConfig {
             protocol: MQTTClusterDynamicConfigProtocol {
                 session_expiry_interval: 1800,
                 topic_alias_max: 65535,
@@ -112,11 +112,11 @@ impl MQTTClusterDynamicConfig {
                 internal_ms: 0,
                 response_ms: 0,
             },
-        };
+        }
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        return serde_json::to_vec(&self).unwrap();
+        serde_json::to_vec(&self).unwrap()
     }
 }
 

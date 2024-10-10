@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+use std::sync::atomic::AtomicU64;
+use std::time::Duration;
+
 use dashmap::DashMap;
 use futures::SinkExt;
 use log::error;
 use protocol::journal_server::codec::{StorageEngineCodec, StorageEnginePacket};
-use std::{net::SocketAddr, sync::atomic::AtomicU64, time::Duration};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 
@@ -52,7 +55,7 @@ impl ConnectionManager {
     pub fn add(&self, connection: Connection) -> u64 {
         let connection_id = connection.connection_id;
         self.connections.insert(connection_id, connection);
-        return connection_id;
+        connection_id
     }
 
     #[allow(dead_code)]
@@ -80,7 +83,7 @@ impl ConnectionManager {
                     }
                 }
             }
-            times = times + 1;
+            times += 1;
             sleep(Duration::from_millis(self.try_mut_sleep_time_ms)).await
         }
     }
@@ -94,7 +97,7 @@ impl ConnectionManager {
         }
 
         // authentication
-        return Ok(());
+        Ok(())
     }
 }
 

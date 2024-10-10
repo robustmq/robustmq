@@ -29,13 +29,19 @@ mod tests {
         let sub_topics = &[topic.clone()];
 
         let cli = connect_server5(&client_id, &addr, false, false);
-        let message_content = format!("mqtt message");
+        let message_content = "mqtt message".to_string();
 
         // publish
         let mut props = Properties::new();
-        props.push_u32(PropertyCode::MessageExpiryInterval, 50).unwrap();
-        props.push_string_pair(PropertyCode::UserProperty, "age", "1").unwrap();
-        props.push_string_pair(PropertyCode::UserProperty, "name", "robustmq").unwrap();
+        props
+            .push_u32(PropertyCode::MessageExpiryInterval, 50)
+            .unwrap();
+        props
+            .push_string_pair(PropertyCode::UserProperty, "age", "1")
+            .unwrap();
+        props
+            .push_string_pair(PropertyCode::UserProperty, "name", "robustmq")
+            .unwrap();
 
         let msg = MessageBuilder::new()
             .properties(props.clone())
@@ -69,13 +75,17 @@ mod tests {
                 } else {
                     assert!(false);
                 }
-                let user_properties =
-                    msg.properties().get_string_pair_at(PropertyCode::UserProperty, 0).unwrap();
+                let user_properties = msg
+                    .properties()
+                    .get_string_pair_at(PropertyCode::UserProperty, 0)
+                    .unwrap();
                 assert_eq!(user_properties.0, "age".to_string());
                 assert_eq!(user_properties.1, "1".to_string());
 
-                let user_properties =
-                    msg.properties().get_string_pair_at(PropertyCode::UserProperty, 1).unwrap();
+                let user_properties = msg
+                    .properties()
+                    .get_string_pair_at(PropertyCode::UserProperty, 1)
+                    .unwrap();
                 assert_eq!(user_properties.0, "name".to_string());
                 assert_eq!(user_properties.1, "robustmq".to_string());
 

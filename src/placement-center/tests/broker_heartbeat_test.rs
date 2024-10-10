@@ -20,17 +20,17 @@ mod tests {
 
     use common_base::tools::now_second;
     use metadata_struct::placement::broker_node::BrokerNode;
-    use protocol::placement_center::generate::placement::{
-        placement_center_service_client::PlacementCenterServiceClient, NodeListRequest,
-        RegisterNodeRequest,
-    };
+    use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
+    use protocol::placement_center::generate::placement::{NodeListRequest, RegisterNodeRequest};
     use tokio::time::sleep;
 
     use crate::common::{cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr};
 
     #[tokio::test]
     async fn node_heartbeat_keep_alive_test() {
-        let mut client = PlacementCenterServiceClient::connect(pc_addr()).await.unwrap();
+        let mut client = PlacementCenterServiceClient::connect(pc_addr())
+            .await
+            .unwrap();
         let cluster_name = cluster_name();
         let node_id = node_id();
         let mut request = RegisterNodeRequest::default();
@@ -42,13 +42,15 @@ mod tests {
         match client.register_node(tonic::Request::new(request)).await {
             Ok(_) => assert!(true),
             Err(e) => {
-                println!("{}", e.to_string());
+                println!("{}", e);
                 assert!(false)
             }
         }
         let start_time = now_second();
         loop {
-            let request = NodeListRequest { cluster_name: cluster_name.clone() };
+            let request = NodeListRequest {
+                cluster_name: cluster_name.clone(),
+            };
             match client.node_list(request).await {
                 Ok(rep) => {
                     let mut flag = false;
@@ -64,7 +66,7 @@ mod tests {
                     }
                 }
                 Err(e) => {
-                    println!("{}", e.to_string());
+                    println!("{}", e);
                     assert!(false)
                 }
             }
@@ -72,6 +74,6 @@ mod tests {
         }
         let total_ms = now_second() - start_time;
         println!("{}", total_ms);
-        assert!(total_ms >= 5 && total_ms <= 10);
+        assert!((5..=10).contains(&total_ms));
     }
 }

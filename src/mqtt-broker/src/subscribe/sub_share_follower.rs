@@ -12,48 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    sub_common::{
-        get_share_sub_leader, publish_message_qos0, publish_message_to_client, qos2_send_publish,
-        qos2_send_pubrel, wait_packet_ack,
-    },
-    subscribe_manager::SubscribeManager,
-};
-use crate::{
-    handler::cache::{
-        CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo,
-    },
-    server::{connection_manager::ConnectionManager, packet::ResponsePackage},
-    subscribe::subscribe_manager::ShareSubShareSub,
-};
+use std::sync::Arc;
+use std::time::Duration;
+
 use clients::poll::ClientPool;
-use common_base::{
-    config::broker_mqtt::broker_mqtt_conf,
-    error::common::CommonError,
-    tools::{now_second, unique_id},
-};
+use common_base::config::broker_mqtt::broker_mqtt_conf;
+use common_base::error::common::CommonError;
+use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
 use log::{error, info};
 use metadata_struct::mqtt::node_extend::MQTTNodeExtend;
-use protocol::mqtt::{
-    common::{
-        Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, MQTTProtocol, PingReq,
-        PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
-        PubRecProperties, PubRecReason, Publish, PublishProperties, Subscribe, SubscribeProperties,
-        SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
-    },
-    mqttv5::codec::Mqtt5Codec,
+use protocol::mqtt::common::{
+    Connect, ConnectProperties, ConnectReturnCode, Login, MQTTPacket, MQTTProtocol, PingReq,
+    PubAck, PubAckProperties, PubAckReason, PubComp, PubCompProperties, PubCompReason, PubRec,
+    PubRecProperties, PubRecReason, Publish, PublishProperties, Subscribe, SubscribeProperties,
+    SubscribeReasonCode, Unsubscribe, UnsubscribeProperties,
 };
-use std::{sync::Arc, time::Duration};
-use tokio::{
-    io,
-    net::TcpStream,
-    select,
-    sync::broadcast::{self, Sender},
-    time::sleep,
-};
+use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
+use tokio::net::TcpStream;
+use tokio::sync::broadcast::{self, Sender};
+use tokio::time::sleep;
+use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
+
+use super::sub_common::{
+    get_share_sub_leader, publish_message_qos0, publish_message_to_client, qos2_send_publish,
+    qos2_send_pubrel, wait_packet_ack,
+};
+use super::subscribe_manager::SubscribeManager;
+use crate::handler::cache::{CacheManager, QosAckPackageData, QosAckPackageType, QosAckPacketInfo};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::ResponsePackage;
+use crate::subscribe::subscribe_manager::ShareSubShareSub;
 
 #[derive(Clone)]
 pub struct SubscribeShareFollower {

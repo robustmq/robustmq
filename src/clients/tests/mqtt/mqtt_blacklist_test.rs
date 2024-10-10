@@ -14,17 +14,17 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use clients::{
-        placement::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist},
-        poll::ClientPool,
-    };
+    use std::sync::Arc;
+
+    use clients::placement::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
+    use clients::poll::ClientPool;
     use common_base::tools::now_second;
     use metadata_struct::acl::mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType};
     use protocol::placement_center::generate::mqtt::{
         CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
     };
-    use std::sync::Arc;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn mqtt_blacklist_test() {

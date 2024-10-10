@@ -24,15 +24,15 @@ pub struct MQTTTopic {
 
 impl MQTTTopic {
     pub fn new(topic_id: String, topic_name: String) -> Self {
-        return MQTTTopic {
+        MQTTTopic {
             topic_id,
-            topic_name: topic_name,
+            topic_name,
             retain_message: None,
             retain_message_expired_at: None,
-        };
+        }
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        return serde_json::to_vec(&self).unwrap();
+        serde_json::to_vec(&self).unwrap()
     }
 }

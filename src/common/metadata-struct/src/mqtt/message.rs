@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::adapter::record::Record;
 use bytes::Bytes;
-use common_base::{error::common::CommonError, tools::now_second};
+use common_base::error::common::CommonError;
+use common_base::tools::now_second;
 use log::error;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS};
 use serde::{Deserialize, Serialize};
+
+use crate::adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug)]
 pub struct MQTTMessage {
@@ -51,13 +53,11 @@ impl MQTTMessage {
         message.create_time = now_second();
 
         match serde_json::to_vec(&message) {
-            Ok(data) => {
-                return Some(Record::build_b(data));
-            }
+            Ok(data) => Some(Record::build_b(data)),
 
             Err(e) => {
                 error!("Message encoding failed, error message :{}", e.to_string());
-                return None;
+                None
             }
         }
     }
@@ -94,7 +94,7 @@ impl MQTTMessage {
             message.content_type = None;
         }
         message.create_time = now_second();
-        return message;
+        message
     }
 
     pub fn build_record(
@@ -106,13 +106,11 @@ impl MQTTMessage {
         let msg =
             MQTTMessage::build_message(client_id, publish, publish_properties, expiry_interval);
         match serde_json::to_vec(&msg) {
-            Ok(data) => {
-                return Some(Record::build_b(data));
-            }
+            Ok(data) => Some(Record::build_b(data)),
 
             Err(e) => {
                 error!("Message encoding failed, error message :{}", e.to_string());
-                return None;
+                None
             }
         }
     }
@@ -124,10 +122,10 @@ impl MQTTMessage {
                 return Err(CommonError::CommmonError(e.to_string()));
             }
         };
-        return Ok(data);
+        Ok(data)
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        return serde_json::to_vec(&self).unwrap();
+        serde_json::to_vec(&self).unwrap()
     }
 }

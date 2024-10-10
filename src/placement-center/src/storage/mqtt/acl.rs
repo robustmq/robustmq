@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::storage::{
-    engine::{engine_get_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster},
-    keys::{storage_key_mqtt_acl, storage_key_mqtt_acl_prefix},
-    rocksdb::RocksDBEngine,
-};
+use std::sync::Arc;
+
 use common_base::error::common::CommonError;
 use metadata_struct::acl::mqtt_acl::MQTTAcl;
-use std::sync::Arc;
+
+use crate::storage::engine::{
+    engine_get_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
+};
+use crate::storage::keys::{storage_key_mqtt_acl, storage_key_mqtt_acl_prefix};
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct AclStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -50,7 +52,7 @@ impl AclStorage {
             &acl.resource_type.to_string(),
             &acl.resource_name,
         );
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, acl_list);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, acl_list)
     }
 
     pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTAcl>, CommonError> {
@@ -68,11 +70,9 @@ impl AclStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -83,7 +83,7 @@ impl AclStorage {
             &delete_acl.resource_name,
         )?;
 
-        if !self.acl_exists(&acl_list, &delete_acl) {
+        if !self.acl_exists(&acl_list, delete_acl) {
             return Ok(());
         }
 
@@ -102,7 +102,7 @@ impl AclStorage {
             &delete_acl.resource_type.to_string(),
             &delete_acl.resource_name,
         );
-        return engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, new_acl_list);
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, new_acl_list)
     }
 
     pub fn get(
@@ -111,22 +111,14 @@ impl AclStorage {
         resource_type: &String,
         resource_name: &String,
     ) -> Result<Vec<MQTTAcl>, CommonError> {
-        let key = storage_key_mqtt_acl(cluster_name, &resource_type, &resource_name);
+        let key = storage_key_mqtt_acl(cluster_name, resource_type, resource_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<Vec<MQTTAcl>>(&data.data) {
-                Ok(session) => {
-                    return Ok(session);
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
+                Ok(session) => Ok(session),
+                Err(e) => Err(e.into()),
             },
-            Ok(None) => {
-                return Ok(Vec::new());
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(None) => Ok(Vec::new()),
+            Err(e) => Err(e),
         }
     }
 
@@ -140,7 +132,7 @@ impl AclStorage {
                 return true;
             }
         }
-        return false;
+        false
     }
 }
 

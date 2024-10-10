@@ -12,20 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    controller::mqtt::session_expire::ExpireLastWill,
-    storage::{
-        mqtt::{topic::MQTTTopicStorage, user::MQTTUserStorage},
-        rocksdb::RocksDBEngine,
-    },
-};
-use dashmap::DashMap;
-use metadata_struct::mqtt::{topic::MQTTTopic, user::MQTTUser};
-use protocol::placement_center::generate::common::ClusterType;
-
 use std::sync::Arc;
 
+use dashmap::DashMap;
+use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::user::MQTTUser;
+use protocol::placement_center::generate::common::ClusterType;
+
 use super::placement::PlacementCacheManager;
+use crate::controller::mqtt::session_expire::ExpireLastWill;
+use crate::storage::mqtt::topic::MQTTTopicStorage;
+use crate::storage::mqtt::user::MQTTUserStorage;
+use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MqttCacheManager {
     pub topic_list: DashMap<String, DashMap<String, MQTTTopic>>,
@@ -44,7 +42,7 @@ impl MqttCacheManager {
             expire_last_wills: DashMap::with_capacity(8),
         };
         cache.load_cache(rocksdb_engine_handler, placement_cache);
-        return cache;
+        cache
     }
 
     pub fn add_topic(&self, cluster_name: &String, topic: MQTTTopic) {
@@ -73,7 +71,7 @@ impl MqttCacheManager {
             self.user_list.insert(cluster_name.clone(), data);
         }
     }
-    
+
     pub fn add_expire_last_will(&self, expire_last_will: ExpireLastWill) {
         if let Some(data) = self
             .expire_last_wills
@@ -100,7 +98,7 @@ impl MqttCacheManager {
         placement_cache: Arc<PlacementCacheManager>,
     ) {
         for (_, cluster) in placement_cache.cluster_list.clone() {
-            if cluster.cluster_type == ClusterType::MqttBrokerServer.as_str_name().to_string() {
+            if cluster.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
                 let topic = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
                 match topic.list(&cluster.cluster_name) {
                     Ok(data) => {

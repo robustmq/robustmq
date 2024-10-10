@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clients::{placement::placement::call::send_raft_message, poll::ClientPool};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use clients::placement::placement::call::send_raft_message;
+use clients::poll::ClientPool;
 use log::{debug, error};
 use protocol::placement_center::generate::placement::SendRaftMessageRequest;
-use std::{collections::HashMap, sync::Arc};
-use tokio::{
-    select,
-    sync::{
-        broadcast,
-        mpsc::{self, Receiver, Sender},
-    },
-};
+use tokio::select;
+use tokio::sync::broadcast;
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 #[derive(Debug)]
 pub struct PeerMessage {
@@ -45,14 +44,13 @@ impl RaftPeersManager {
         send_thread_num: usize,
         stop_send: broadcast::Sender<bool>,
     ) -> RaftPeersManager {
-        let pm = RaftPeersManager {
+        RaftPeersManager {
             peer_message_recv,
             client_poll,
             send_thread_num,
             stop_send,
             sender_threads: HashMap::new(),
-        };
-        return pm;
+        }
     }
 
     pub async fn start(&mut self) {
@@ -77,14 +75,11 @@ impl RaftPeersManager {
             select! {
 
                 val = stop_rx.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                debug!("Raft peer main thread stopped successfully.");
-                                break;
-                            }
+                    if let Ok(flag) = val {
+                        if flag {
+                            debug!("Raft peer main thread stopped successfully.");
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
 
@@ -101,7 +96,7 @@ impl RaftPeersManager {
                                     error!("{}",e);
                                 }
                             }
-                            child_channel_index = child_channel_index + 1;
+                            child_channel_index += 1;
                         }
                     }
                 }
@@ -123,14 +118,11 @@ fn start_child_send_thread(
         loop {
             select! {
                 val = stop_rx.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                debug!("Raft peer child thread {} stopped successfully.",index);
-                                break;
-                            }
+                    if let Ok(flag) = val {
+                        if flag {
+                            debug!("Raft peer child thread {} stopped successfully.",index);
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
 

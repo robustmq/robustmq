@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
+use std::net::SocketAddr;
+use std::sync::atomic::AtomicU64;
+
 use log::error;
 use protocol::mqtt::common::MQTTProtocol;
-use std::{fmt, net::SocketAddr, sync::atomic::AtomicU64};
 use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 

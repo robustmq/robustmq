@@ -12,26 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{cache::CacheManager, keep_alive::client_keep_live_time};
-use crate::{
-    server::connection_manager::ConnectionManager, storage::session::SessionStorage,
-    subscribe::subscribe_manager::SubscribeManager,
-};
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::Arc;
+
 use clients::poll::ClientPool;
-use common_base::{
-    error::common::CommonError,
-    tools::{now_second, unique_id},
-};
+use common_base::error::common::CommonError;
+use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
 use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
 use protocol::mqtt::common::{Connect, ConnectProperties};
-use std::{
-    net::SocketAddr,
-    sync::{
-        atomic::{AtomicIsize, Ordering},
-        Arc,
-    },
-};
+
+use super::cache::CacheManager;
+use super::keep_alive::client_keep_live_time;
+use crate::server::connection_manager::ConnectionManager;
+use crate::storage::session::SessionStorage;
+use crate::subscribe::subscribe_manager::SubscribeManager;
 
 pub const REQUEST_RESPONSE_PREFIX_NAME: &str = "/sys/request_response/";
 
@@ -245,14 +241,13 @@ pub async fn disconnect_connection(
 
 #[cfg(test)]
 mod test {
-    use super::build_connection;
-    use super::get_client_id;
-    use super::response_information;
-    use super::Connection;
-    use super::REQUEST_RESPONSE_PREFIX_NAME;
     use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-    use protocol::mqtt::common::Connect;
-    use protocol::mqtt::common::ConnectProperties;
+    use protocol::mqtt::common::{Connect, ConnectProperties};
+
+    use super::{
+        build_connection, get_client_id, response_information, Connection,
+        REQUEST_RESPONSE_PREFIX_NAME,
+    };
 
     #[tokio::test]
     pub async fn build_connection_test() {
