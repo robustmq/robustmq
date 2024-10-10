@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use clients::placement::placement::call::{
     delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
-    set_resource_config, un_register_node,
+    set_resource_config, unregister_node,
 };
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
@@ -37,7 +37,7 @@ pub struct ClusterStorage {
 
 impl ClusterStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return ClusterStorage { client_poll };
+        ClusterStorage { client_poll }
     }
 
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
@@ -58,22 +58,16 @@ impl ClusterStorage {
             match serde_json::from_slice::<BrokerNode>(&node) {
                 Ok(data) => node_list.push(data),
                 Err(e) => {
-                    return Err(CommonError::CommmonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}",e.to_string())));
+                    return Err(CommonError::CommmonError(format!("Retrieving cluster Node list, parsing Node information failed, error message :{}",e)));
                 }
             }
         }
-        return Ok(node_list);
+        Ok(node_list)
     }
 
     pub async fn register_node(&self) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let local_ip = get_local_ip();
-        let mut req = RegisterNodeRequest::default();
-        req.cluster_type = ClusterType::MqttBrokerServer.into();
-        req.cluster_name = config.cluster_name.clone();
-        req.node_id = config.broker_id;
-        req.node_ip = local_ip.clone();
-        req.node_inner_addr = format!("{}:{}", local_ip, config.grpc_port);
 
         let node = MqttNodeExtend {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
@@ -84,7 +78,14 @@ impl ClusterStorage {
             websockets_addr: format!("{}:{}", local_ip, config.network.websockets_port),
             quic_addr: format!("{}:{}", local_ip, config.network.quic_port),
         };
-        req.extend_info = serde_json::to_string(&node).unwrap();
+        let req = RegisterNodeRequest {
+            cluster_type: ClusterType::MqttBrokerServer.into(),
+            cluster_name: config.cluster_name.clone(),
+            node_ip: local_ip.clone(),
+            node_id: config.broker_id,
+            node_inner_addr: format!("{}:{}", local_ip, config.grpc_port),
+            extend_info: serde_json::to_string(&node).unwrap(),
+        };
 
         register_node(
             self.client_poll.clone(),
@@ -93,31 +94,33 @@ impl ClusterStorage {
         )
         .await?;
 
-        return Ok(());
+        Ok(())
     }
 
     pub async fn unregister_node(&self) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let mut req = UnRegisterNodeRequest::default();
-        req.cluster_type = ClusterType::MqttBrokerServer.into();
-        req.cluster_name = config.cluster_name.clone();
-        req.node_id = config.broker_id;
+        let req = UnRegisterNodeRequest {
+            cluster_type: ClusterType::MqttBrokerServer.into(),
+            cluster_name: config.cluster_name.clone(),
+            node_id: config.broker_id,
+        };
 
-        un_register_node(
+        unregister_node(
             self.client_poll.clone(),
             config.placement_center.clone(),
             req.clone(),
         )
         .await?;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn heartbeat(&self) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
-        let mut req = HeartbeatRequest::default();
-        req.cluster_name = config.cluster_name.clone();
-        req.cluster_type = ClusterType::MqttBrokerServer.into();
-        req.node_id = config.broker_id;
+        let req = HeartbeatRequest {
+            cluster_name: config.cluster_name.clone(),
+            cluster_type: ClusterType::MqttBrokerServer.into(),
+            node_id: config.broker_id,
+        };
 
         heartbeat(
             self.client_poll.clone(),
@@ -126,7 +129,7 @@ impl ClusterStorage {
         )
         .await?;
 
-        return Ok(());
+        Ok(())
     }
 
     pub async fn set_cluster_config(
@@ -149,7 +152,7 @@ impl ClusterStorage {
         )
         .await?;
 
-        return Ok(());
+        Ok(())
     }
 
     pub async fn delete_cluster_config(&self, cluster_name: String) -> Result<(), CommonError> {
@@ -166,7 +169,7 @@ impl ClusterStorage {
             request,
         )
         .await?;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn get_cluster_config(
@@ -189,24 +192,20 @@ impl ClusterStorage {
         {
             Ok(data) => {
                 if data.config.is_empty() {
-                    return Ok(None);
+                    Ok(None)
                 } else {
                     match serde_json::from_slice::<MqttClusterDynamicConfig>(&data.config) {
-                        Ok(data) => {
-                            return Ok(Some(data));
-                        }
-                        Err(e) => {
-                            return Err(CommonError::CommmonError(e.to_string()));
-                        }
+                        Ok(data) => Ok(Some(data)),
+                        Err(e) => Err(CommonError::CommmonError(e.to_string())),
                     }
                 }
             }
-            Err(e) => return Err(e),
+            Err(e) => Err(e),
         }
     }
 
     fn cluster_config_resources(&self, cluster_name: String) -> Vec<String> {
-        return vec!["cluster".to_string(), cluster_name];
+        vec!["cluster".to_string(), cluster_name]
     }
 }
 
@@ -216,7 +215,7 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+    use metadata_struct::mqtt::cluster::{MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol};
 
     use crate::storage::cluster::ClusterStorage;
 
@@ -235,8 +234,13 @@ mod tests {
         let cluster_storage = ClusterStorage::new(client_poll);
 
         let cluster_name = "robust_test".to_string();
-        let mut cluster = MqttClusterDynamicConfig::default();
-        cluster.protocol.topic_alias_max = 999;
+        let cluster = MqttClusterDynamicConfig {
+            protocol: MqttClusterDynamicConfigProtocol {
+                topic_alias_max: 999,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         cluster_storage
             .set_cluster_config(cluster_name.clone(), cluster)
             .await

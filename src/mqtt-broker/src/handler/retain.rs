@@ -52,7 +52,10 @@ pub async fn save_topic_retain_message(
     let topic_storage = TopicStorage::new(client_poll.clone());
 
     if publish.payload.is_empty() {
-        match topic_storage.delete_retain_message(topic_name.clone()).await {
+        match topic_storage
+            .delete_retain_message(topic_name.clone())
+            .await
+        {
             Ok(_) => {
                 cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
             }
@@ -79,7 +82,7 @@ pub async fn save_topic_retain_message(
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 // Reservation messages are processed when a subscription is created
@@ -146,7 +149,7 @@ pub async fn try_send_retain_message(
                             topic_alias: None,
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,
-                            user_properties: user_properties,
+                            user_properties,
                             subscription_identifiers: sub_ids,
                             content_type: msg.content_type,
                         };

@@ -70,11 +70,11 @@ impl AuthDriver {
                 panic!("{}", e.to_string());
             }
         };
-        return AuthDriver {
+        AuthDriver {
             cache_manager,
             driver,
             client_poll,
-        };
+        }
     }
 
     pub fn update_driver(&mut self, auth: Auth) -> Result<(), CommonError> {
@@ -85,19 +85,19 @@ impl AuthDriver {
             }
         };
         self.driver = driver;
-        return Ok(());
+        Ok(())
     }
 
     pub async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
-        return self.driver.read_all_user().await;
+        self.driver.read_all_user().await
     }
 
     pub async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
-        return self.driver.read_all_acl().await;
+        self.driver.read_all_acl().await
     }
 
     pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
-        return self.driver.read_all_blacklist().await;
+        self.driver.read_all_blacklist().await
     }
 
     pub async fn check_login_auth(
@@ -118,7 +118,7 @@ impl AuthDriver {
                 .await;
         }
 
-        return Ok(false);
+        Ok(false)
     }
 
     pub async fn allow_publish(
@@ -128,14 +128,14 @@ impl AuthDriver {
         retain: bool,
         qos: QoS,
     ) -> bool {
-        return is_allow_acl(
+        is_allow_acl(
             &self.cache_manager,
             connection,
             topic_name,
             MqttAclAction::Publish,
             retain,
             qos,
-        );
+        )
     }
 
     pub async fn allow_subscribe(&self, connection: &Connection, subscribe: &Subscribe) -> bool {
@@ -154,7 +154,7 @@ impl AuthDriver {
                 }
             }
         }
-        return true;
+        true
     }
 
     async fn plaintext_check_login(
@@ -182,7 +182,7 @@ impl AuthDriver {
             }
         }
 
-        return Ok(false);
+        Ok(false)
     }
 
     async fn try_get_check_user_by_driver(&self, username: &str) -> Result<bool, CommonError> {
@@ -212,7 +212,7 @@ impl AuthDriver {
                 return Err(e);
             }
         }
-        return Ok(false);
+        Ok(false)
     }
 }
 
@@ -220,7 +220,8 @@ pub fn build_driver(
     client_poll: Arc<ClientPool>,
     auth: Auth,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
-    let storage_type = StorageType::from_str(&auth.storage_type).map_err(|_| CommonError::UnavailableStorageType)?;
+    let storage_type = StorageType::from_str(&auth.storage_type)
+        .map_err(|_| CommonError::UnavailableStorageType)?;
     if matches!(storage_type, StorageType::Placement) {
         let driver = PlacementAuthStorageAdapter::new(client_poll);
         return Ok(Arc::new(driver));
@@ -231,9 +232,9 @@ pub fn build_driver(
         return Ok(Arc::new(driver));
     }
 
-    return Err(CommonError::UnavailableStorageType);
+    Err(CommonError::UnavailableStorageType)
 }
 
 pub fn authentication_acl() -> bool {
-    return false;
+    false
 }

@@ -53,8 +53,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -67,32 +66,23 @@ mod tests {
                 panic!("{}", e)
             }
         }
-        for msg in rx.iter() {
-            if let Some(msg) = msg {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                if payload == message_content {
-                    assert!(true);
-                } else {
-                    assert!(false);
-                }
-                let user_properties = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 0)
-                    .unwrap();
-                assert_eq!(user_properties.0, "age".to_string());
-                assert_eq!(user_properties.1, "1".to_string());
+        if let Some(msg) = rx.iter().next() {
+            let msg = msg.unwrap();
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            assert_eq!(payload, message_content);
+            let user_properties = msg
+                .properties()
+                .get_string_pair_at(PropertyCode::UserProperty, 0)
+                .unwrap();
+            assert_eq!(user_properties.0, "age".to_string());
+            assert_eq!(user_properties.1, "1".to_string());
 
-                let user_properties = msg
-                    .properties()
-                    .get_string_pair_at(PropertyCode::UserProperty, 1)
-                    .unwrap();
-                assert_eq!(user_properties.0, "name".to_string());
-                assert_eq!(user_properties.1, "robustmq".to_string());
-
-                break;
-            } else {
-                assert!(false);
-            }
+            let user_properties = msg
+                .properties()
+                .get_string_pair_at(PropertyCode::UserProperty, 1)
+                .unwrap();
+            assert_eq!(user_properties.0, "name".to_string());
+            assert_eq!(user_properties.1, "robustmq".to_string());
         }
         distinct_conn(cli);
     }

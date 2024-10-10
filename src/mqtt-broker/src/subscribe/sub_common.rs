@@ -43,7 +43,7 @@ use crate::storage::message::MessageStorage;
 const SHARE_SUB_PREFIX: &str = "$share";
 
 pub fn path_contain_sub(_: &str) -> bool {
-    return true;
+    true
 }
 
 pub fn sub_path_validator(sub_path: String) -> bool {
@@ -62,7 +62,7 @@ pub fn sub_path_validator(sub_path: String) -> bool {
         }
     }
 
-    return true;
+    true
 }
 
 pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
@@ -80,27 +80,27 @@ pub fn path_regex_match(topic_name: String, sub_path: String) -> bool {
 
     if path.contains("+") {
         let sub_regex = path.replace("+", "[^+*/]+");
-        let re = Regex::new(&format!("{}", sub_regex)).unwrap();
+        let re = Regex::new(&sub_regex.to_string()).unwrap();
         return re.is_match(&topic_name);
     }
 
     if path.contains("#") {
-        if path.split("/").last().unwrap() != "#".to_string() {
+        if path.split("/").last().unwrap() != "#" {
             return false;
         }
         let sub_regex = path.replace("#", "[^+#]+");
-        let re = Regex::new(&format!("{}", sub_regex)).unwrap();
+        let re = Regex::new(&sub_regex.to_string()).unwrap();
         return re.is_match(&topic_name);
     }
 
-    return false;
+    false
 }
 
 pub fn min_qos(qos: QoS, sub_qos: QoS) -> QoS {
     if qos <= sub_qos {
         return qos;
     }
-    return sub_qos;
+    sub_qos
 }
 
 pub async fn get_sub_topic_id_list(
@@ -113,11 +113,11 @@ pub async fn get_sub_topic_id_list(
             result.push(topic_id);
         }
     }
-    return result;
+    result
 }
 
 pub fn is_share_sub(sub_name: String) -> bool {
-    return sub_name.starts_with(SHARE_SUB_PREFIX);
+    sub_name.starts_with(SHARE_SUB_PREFIX)
 }
 
 pub fn decode_share_info(sub_name: String) -> (String, String) {
@@ -125,7 +125,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
     str_slice.remove(0);
     let group_name = str_slice.remove(0).to_string();
     let sub_name = format!("/{}", str_slice.join("/"));
-    return (group_name, sub_name);
+    (group_name, sub_name)
 }
 
 pub async fn get_share_sub_leader(
@@ -138,33 +138,20 @@ pub async fn get_share_sub_leader(
         group_name,
     };
     match placement_get_share_sub_leader(client_poll, conf.placement_center.clone(), req).await {
-        Ok(reply) => {
-            return Ok(reply);
-        }
-        Err(e) => {
-            return Err(e);
-        }
+        Ok(reply) => Ok(reply),
+        Err(e) => Err(e),
     }
 }
 
 pub async fn wait_packet_ack(sx: &Sender<QosAckPackageData>) -> Option<QosAckPackageData> {
     let res = timeout(Duration::from_secs(120), async {
         match sx.subscribe().recv().await {
-            Ok(data) => {
-                return Some(data);
-            }
-            Err(_) => {
-                return None;
-            }
+            Ok(data) => Some(data),
+            Err(_) => None,
         }
     });
 
-    match res.await {
-        Ok(data) => data,
-        Err(_) => {
-            return None;
-        }
-    }
+    (res.await).unwrap_or_default()
 }
 
 pub async fn publish_message_to_client(
@@ -196,7 +183,7 @@ pub async fn publish_message_to_client(
             .write_tcp_frame(resp.connection_id, response)
             .await;
     }
-    return Ok(());
+    Ok(())
 }
 
 pub async fn qos2_send_publish(
@@ -210,7 +197,7 @@ pub async fn qos2_send_publish(
     let mut retry_times = 0;
     let mut stop_rx = stop_sx.subscribe();
     loop {
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;
@@ -223,7 +210,7 @@ pub async fn qos2_send_publish(
             }
         }
 
-        retry_times = retry_times + 1;
+        retry_times += 1;
         let mut publish = publish.clone();
         publish.dup = retry_times >= 2;
 
@@ -248,13 +235,10 @@ pub async fn qos2_send_publish(
 
         select! {
             val = stop_rx.recv() => {
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            return Ok(());
-                        }
+                if let Ok(flag) = val {
+                    if flag {
+                        return Ok(());
                     }
-                    Err(_) => {}
                 }
             }
             val = publish_message_to_client(
@@ -276,7 +260,7 @@ pub async fn qos2_send_publish(
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 pub async fn qos2_send_pubrel(
@@ -289,7 +273,7 @@ pub async fn qos2_send_pubrel(
     let mut stop_rx = stop_sx.subscribe();
 
     loop {
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&client_id) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;
@@ -308,13 +292,10 @@ pub async fn qos2_send_pubrel(
 
         select! {
             val = stop_rx.recv() => {
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            return;
-                        }
+                if let Ok(flag) = val {
+                    if flag {
+                        return;
                     }
-                    Err(_) => {}
                 }
             }
 
@@ -374,16 +355,13 @@ pub async fn publish_message_qos0(
 ) {
     let connect_id;
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    return;
-                }
+        if let Ok(flag) = stop_sx.subscribe().try_recv() {
+            if flag {
+                return;
             }
-            Err(_) => {}
         }
 
-        if let Some(id) = metadata_cache.get_connect_id(&mqtt_client_id) {
+        if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id) {
             connect_id = id;
             break;
         } else {
@@ -498,23 +476,23 @@ mod tests {
 
         let topic_name = r"/sensor/1/temperature".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+        assert!(path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/1/2/temperature3".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+        assert!(!path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"/sensor/+/temperature".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+        assert!(!path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"/sensor/+".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+        assert!(path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"/sensor/#".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+        assert!(path_regex_match(topic_name, sub_regex));
 
         let topic_name = "/topic/test".to_string();
         let sub_regex = "$share/groupname/topic/test".to_string();
@@ -522,23 +500,23 @@ mod tests {
 
         let topic_name = r"/sensor/1/temperature".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+        assert!(path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/1/2/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+        assert!(!path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+/temperature".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), false);
+        assert!(!path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/temperature3".to_string();
         let sub_regex = r"$share/groupname/sensor/+".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+        assert!(path_regex_match(topic_name, sub_regex));
 
         let topic_name = r"/sensor/temperature3/tmpq".to_string();
         let sub_regex = r"$share/groupname/sensor/#".to_string();
-        assert_eq!(path_regex_match(topic_name, sub_regex), true);
+        assert!(path_regex_match(topic_name, sub_regex));
     }
 
     #[test]
@@ -563,7 +541,7 @@ mod tests {
         let sub_path = "/test/topic".to_string();
         let result = get_sub_topic_id_list(metadata_cache.clone(), sub_path).await;
         assert!(result.len() == 1);
-        assert_eq!(result.get(0).unwrap().clone(), topic.topic_id);
+        assert_eq!(result.first().unwrap().clone(), topic.topic_id);
     }
 
     #[tokio::test]

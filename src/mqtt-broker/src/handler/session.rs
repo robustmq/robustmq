@@ -37,7 +37,7 @@ pub async fn build_session(
 ) -> Result<(MqttSession, bool), CommonError> {
     let session_expiry = session_expiry_interval(cache_manager, connect_properties);
     let is_contain_last_will = !last_will.is_none();
-    let last_will_delay_interval = last_will_delay_interval(&last_will_properties);
+    let last_will_delay_interval = last_will_delay_interval(last_will_properties);
 
     let (mut session, new_session) = if connnect.clean_session {
         let session_storage = SessionStorage::new(client_poll.clone());
@@ -72,7 +72,7 @@ pub async fn build_session(
     session.update_connnction_id(Some(connect_id));
     session.update_broker_id(Some(conf.broker_id));
     session.update_reconnect_time();
-    return Ok((session, new_session));
+    Ok((session, new_session))
 }
 
 pub async fn save_session(
@@ -103,7 +103,7 @@ pub async fn save_session(
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn session_expiry_interval(
@@ -127,7 +127,7 @@ fn session_expiry_interval(
         cluster_session_expiry_interval,
         connection_session_expiry_interval,
     );
-    return expiry as u64;
+    expiry as u64
 }
 
 #[cfg(test)]
@@ -159,8 +159,10 @@ mod test {
 
     #[test]
     pub fn session_expiry_interval_test() {
-        let mut conf = BrokerMQTTConfig::default();
-        conf.cluster_name = "test".to_string();
+        let conf = BrokerMQTTConfig {
+            cluster_name: "test".to_string(),
+            ..Default::default()
+        };
         let client_poll = Arc::new(ClientPool::new(100));
         let cache_manager = Arc::new(CacheManager::new(
             client_poll.clone(),
@@ -175,19 +177,25 @@ mod test {
                 .session_expiry_interval as u64
         );
 
-        let mut properteis = ConnectProperties::default();
-        properteis.session_expiry_interval = Some(120);
-        let res = session_expiry_interval(&cache_manager, &Some(properteis));
+        let properties = ConnectProperties {
+            session_expiry_interval: Some(120),
+            ..Default::default()
+        };
+        let res = session_expiry_interval(&cache_manager, &Some(properties));
         assert_eq!(res, 120);
 
-        let mut properteis = ConnectProperties::default();
-        properteis.session_expiry_interval = Some(3600);
-        let res = session_expiry_interval(&cache_manager, &Some(properteis));
+        let properties = ConnectProperties {
+            session_expiry_interval: Some(3600),
+            ..Default::default()
+        };
+        let res = session_expiry_interval(&cache_manager, &Some(properties));
         assert_eq!(res, 1800);
 
-        let mut properteis = ConnectProperties::default();
-        properteis.session_expiry_interval = None;
-        let res = session_expiry_interval(&cache_manager, &Some(properteis));
+        let properties = ConnectProperties {
+            session_expiry_interval: None,
+            ..Default::default()
+        };
+        let res = session_expiry_interval(&cache_manager, &Some(properties));
         assert_eq!(res, 1800);
     }
 }

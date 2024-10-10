@@ -24,7 +24,7 @@ mod tests {
     use clients::placement::placement::call::register_node;
     use clients::poll::ClientPool;
     use common_base::tools::unique_id;
-    use log::{error, info};
+    use log::info;
     use protocol::placement_center::generate::common::ClusterType;
     use protocol::placement_center::generate::mqtt::GetShareSubLeaderRequest;
     use protocol::placement_center::generate::placement::RegisterNodeRequest;
@@ -32,8 +32,7 @@ mod tests {
     #[tokio::test]
     async fn test_share_sub() {
         let client_poll = Arc::new(ClientPool::new(3));
-        let mut addrs = Vec::new();
-        addrs.push("127.0.0.1:1228".to_string());
+        let addrs = vec!["127.0.0.1:1228".to_string()];
 
         let cluster_type = ClusterType::MqttBrokerServer.into();
         let cluster_name = unique_id();
@@ -52,15 +51,8 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        match register_node(client_poll.clone(), addrs.clone(), request).await {
-            Ok(res) => {
-                info!("{:?}", res);
-            }
-            Err(e) => {
-                error!("{}", e);
-                assert!(false);
-            }
-        }
+        let res = register_node(client_poll.clone(), addrs.clone(), request).await.unwrap();
+        info!("{:?}", res);
 
         let group_name = "test".to_string();
         let req = GetShareSubLeaderRequest {
@@ -68,16 +60,9 @@ mod tests {
             group_name,
         };
 
-        match placement_get_share_sub_leader(client_poll.clone(), addrs.clone(), req).await {
-            Ok(rep) => {
-                println!("rep broker_id:{}", rep.broker_id);
-                println!("node_id:{}", node_id);
-                assert_eq!(rep.broker_id, node_id);
-            }
-            Err(e) => {
-                error!("{}", e);
-                assert!(false);
-            }
-        }
+        let resp = placement_get_share_sub_leader(client_poll.clone(), addrs.clone(), req).await.unwrap();
+        println!("resp broker_id:{}", resp.broker_id);
+        println!("node_id:{}", node_id);
+        assert_eq!(resp.broker_id, node_id);
     }
 }

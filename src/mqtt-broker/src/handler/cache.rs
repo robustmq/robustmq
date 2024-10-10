@@ -141,7 +141,7 @@ pub struct CacheManager {
 
 impl CacheManager {
     pub fn new(client_poll: Arc<ClientPool>, cluster_name: String) -> Self {
-        let cache = CacheManager {
+        CacheManager {
             client_poll,
             cluster_name,
             cluster_info: DashMap::with_capacity(1),
@@ -156,8 +156,7 @@ impl CacheManager {
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
-        };
-        return cache;
+        }
     }
 
     pub fn add_client_subscribe(
@@ -210,7 +209,7 @@ impl CacheManager {
         if let Some(session) = self.session_info.get(client_id) {
             return Some(session.clone());
         }
-        return None;
+        None
     }
 
     pub fn update_session_connect_id(&self, client_id: &str, connect_id: Option<u64>) {
@@ -251,7 +250,7 @@ impl CacheManager {
         if let Some(cluster) = self.cluster_info.get(&self.cluster_name) {
             return cluster.clone();
         }
-        return MqttClusterDynamicConfig::new();
+        MqttClusterDynamicConfig::new()
     }
 
     pub fn add_user(&self, user: MqttUser) {
@@ -280,11 +279,7 @@ impl CacheManager {
         self.topic_id_name.insert(t.topic_id, topic_name.to_owned());
     }
 
-    pub fn update_topic_retain_message(
-        &self,
-        topic_name: &str,
-        retain_message: Option<Vec<u8>>,
-    ) {
+    pub fn update_topic_retain_message(&self, topic_name: &str, retain_message: Option<Vec<u8>>) {
         if let Some(mut topic) = self.topic_info.get_mut(topic_name) {
             topic.retain_message = retain_message;
         }
@@ -300,25 +295,25 @@ impl CacheManager {
         if let Some(conn) = self.connection_info.get(&connect_id) {
             return conn.is_login;
         }
-        return false;
+        false
     }
 
     pub fn topic_exists(&self, topic: &str) -> bool {
-        return self.topic_info.contains_key(topic);
+        self.topic_info.contains_key(topic)
     }
 
     pub fn topic_name_by_id(&self, topic_id: String) -> Option<String> {
         if let Some(data) = self.topic_id_name.get(&topic_id) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
     pub fn get_topic_by_name(&self, topic_name: &str) -> Option<MqttTopic> {
         if let Some(topic) = self.topic_info.get(topic_name) {
             return Some(topic.clone());
         }
-        return None;
+        None
     }
 
     pub fn remove_session(&self, client_id: &str) {
@@ -352,14 +347,14 @@ impl CacheManager {
                 return None;
             }
         }
-        return None;
+        None
     }
 
     pub fn topic_alias_exists(&self, connect_id: u64, topic_alias: u16) -> bool {
         if let Some(conn) = self.connection_info.get(&connect_id) {
             return conn.topic_alias.contains_key(&topic_alias);
         }
-        return false;
+        false
     }
 
     pub fn add_topic_alias(
@@ -383,14 +378,14 @@ impl CacheManager {
                 return Some(conn_id);
             }
         }
-        return None;
+        None
     }
 
     pub fn get_connection(&self, connect_id: u64) -> Option<Connection> {
         if let Some(conn) = self.connection_info.get(&connect_id) {
             return Some(conn.clone());
         }
-        return None;
+        None
     }
 
     pub async fn get_pkid(&self, client_id: &str) -> u16 {
@@ -398,9 +393,10 @@ impl CacheManager {
         if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(client_id) {
             pkid_list.push(pkid);
         } else {
-            self.publish_pkid_info.insert(client_id.to_owned(), vec![pkid]);
+            self.publish_pkid_info
+                .insert(client_id.to_owned(), vec![pkid]);
         }
-        return pkid;
+        pkid
     }
 
     async fn get_available_pkid(&self, client_id: &str) -> u16 {
@@ -431,7 +427,7 @@ impl CacheManager {
         if let Some(sub) = self.subscribe_filter.get(client_id) {
             return !sub.contains_key(path);
         }
-        return true;
+        true
     }
 
     pub async fn load_metadata_cache(&self, auth_driver: Arc<AuthDriver>) {
@@ -447,7 +443,7 @@ impl CacheManager {
             Err(e) => {
                 panic!(
                     "Failed to load the cluster configuration with error message:{}",
-                    e.to_string()
+                    e
                 );
             }
         };
@@ -458,10 +454,7 @@ impl CacheManager {
         let topic_list = match topic_storage.topic_list().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the topic list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the topic list with error message:{}", e);
             }
         };
 
@@ -473,10 +466,7 @@ impl CacheManager {
         let user_list = match auth_driver.read_all_user().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the user list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the user list with error message:{}", e);
             }
         };
 
@@ -488,10 +478,7 @@ impl CacheManager {
         let acl_list = match auth_driver.read_all_acl().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the acl list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the acl list with error message:{}", e);
             }
         };
         for acl in acl_list {
@@ -502,10 +489,7 @@ impl CacheManager {
         let blacklist_list = match auth_driver.read_all_blacklist().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the blacklist list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the blacklist list with error message:{}", e);
             }
         };
         for blacklist in blacklist_list {
@@ -563,11 +547,11 @@ impl CacheManager {
         if let Some(data) = self.qos_ack_packet.get(&key) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
     pub fn add_client_pkid(&self, client_id: &str, pkid: u16) {
-        let key = self.key(&client_id, pkid);
+        let key = self.key(client_id, pkid);
         self.client_pkid_data.insert(
             key,
             ClientPkidData {
@@ -587,11 +571,11 @@ impl CacheManager {
         if let Some(data) = self.client_pkid_data.get(&key) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
     fn key(&self, client_id: &str, pkid: u16) -> String {
-        return format!("{}_{}", client_id, pkid);
+        format!("{}_{}", client_id, pkid)
     }
 }
 

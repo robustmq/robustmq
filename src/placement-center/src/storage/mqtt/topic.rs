@@ -163,17 +163,13 @@ mod tests {
         let res = topic_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
-        let res = topic_storage
-            .get(&cluster_name, "lobo1")
-            .unwrap();
+        let res = topic_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_some());
 
         let name = "lobo1".to_string();
         topic_storage.delete(&cluster_name, &name).unwrap();
 
-        let res = topic_storage
-            .get(&cluster_name, "lobo1")
-            .unwrap();
+        let res = topic_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
 
         remove_dir_all(config.rocksdb.data_path).await.unwrap();

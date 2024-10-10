@@ -78,7 +78,7 @@ pub struct SubscribeManager {
 
 impl SubscribeManager {
     pub fn new(metadata_cache: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> Self {
-        return SubscribeManager {
+        SubscribeManager {
             client_poll,
             metadata_cache,
             exclusive_subscribe: DashMap::with_capacity(8),
@@ -88,7 +88,7 @@ impl SubscribeManager {
             exclusive_push_thread: DashMap::with_capacity(8),
             share_leader_push_thread: DashMap::with_capacity(8),
             share_follower_resub_thread: DashMap::with_capacity(8),
-        };
+        }
     }
 
     pub async fn start(&self) {
@@ -165,9 +165,9 @@ impl SubscribeManager {
         }
     }
 
-    pub fn remove_subscribe(&self, client_id: &str, filter_path: &Vec<String>) {
+    pub fn remove_subscribe(&self, client_id: &str, filter_path: &[String]) {
         for (topic_name, _) in self.metadata_cache.topic_info.clone() {
-            for path in filter_path.clone() {
+            for path in filter_path {
                 if !path_regex_match(topic_name.clone(), path.clone()) {
                     continue;
                 }
@@ -179,7 +179,7 @@ impl SubscribeManager {
                         let mut flag = false;
                         for (sub_key, share_sub) in data.sub_list {
                             if share_sub.client_id == *client_id
-                                && (share_sub.group_name != None
+                                && (share_sub.group_name.is_some()
                                     && share_sub.group_name.unwrap() == group_name)
                                 && share_sub.sub_path == sub_name
                             {
@@ -201,7 +201,7 @@ impl SubscribeManager {
 
                     // share follower
                     for (key, data) in self.share_follower_subscribe.clone() {
-                        if data.client_id == *client_id && data.filter.path == path {
+                        if data.client_id == *client_id && data.filter.path == *path {
                             self.share_follower_subscribe.remove(&key);
                             if let Some(sx) = self.share_follower_resub_thread.get(&key) {
                                 match sx.send(true) {
@@ -213,7 +213,7 @@ impl SubscribeManager {
                     }
                 } else {
                     for (key, subscriber) in self.exclusive_subscribe.clone() {
-                        if subscriber.client_id == *client_id && subscriber.sub_path == path {
+                        if subscriber.client_id == *client_id && subscriber.sub_path == *path {
                             if let Some(sx) = self.exclusive_push_thread.get(&key) {
                                 match sx.send(true) {
                                     Ok(_) => {}
@@ -413,20 +413,15 @@ impl SubscribeManager {
     }
 
     fn exclusive_key(&self, client_id: &str, sub_name: &str, topic_id: &str) -> String {
-        return format!("{}_{}_{}", client_id, sub_name, topic_id);
+        format!("{}_{}_{}", client_id, sub_name, topic_id)
     }
 
-    fn share_leader_key(
-        &self,
-        group_name: &str,
-        sub_name: &str,
-        topic_id: &str,
-    ) -> String {
-        return format!("{}_{}_{}", group_name, sub_name, topic_id);
+    fn share_leader_key(&self, group_name: &str, sub_name: &str, topic_id: &str) -> String {
+        format!("{}_{}_{}", group_name, sub_name, topic_id)
     }
 
     fn share_leader_sub_key(&self, client_id: String, sub_path: String) -> String {
-        return format!("{}_{}", client_id, sub_path);
+        format!("{}_{}", client_id, sub_path)
     }
 
     fn share_follower_key(
@@ -435,6 +430,6 @@ impl SubscribeManager {
         group_name: String,
         topic_id: String,
     ) -> String {
-        return format!("{}_{}_{}", client_id, group_name, topic_id);
+        format!("{}_{}_{}", client_id, group_name, topic_id)
     }
 }

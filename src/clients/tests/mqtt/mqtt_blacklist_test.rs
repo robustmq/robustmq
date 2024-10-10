@@ -46,8 +46,7 @@ mod tests {
         match create_blacklist(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -71,8 +70,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -84,8 +82,7 @@ mod tests {
         match delete_blacklist(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -109,8 +106,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }

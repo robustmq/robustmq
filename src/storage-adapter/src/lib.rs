@@ -46,7 +46,7 @@ impl FromStr for StorageType {
 }
 
 // pub fn storage_is_journal(storage_type: &str) -> bool {
-    
+
 // }
 
 // pub fn storage_is_memory(storage_type: &str) -> bool {
@@ -87,10 +87,22 @@ mod tests {
 
     #[test]
     fn storage_type_from_str() {
-        assert_eq!(StorageType::from_str("journal").unwrap(), StorageType::Journal);
-        assert_eq!(StorageType::from_str("memory").unwrap(), StorageType::Memory);
+        assert_eq!(
+            StorageType::from_str("journal").unwrap(),
+            StorageType::Journal
+        );
+        assert_eq!(
+            StorageType::from_str("memory").unwrap(),
+            StorageType::Memory
+        );
         assert_eq!(StorageType::from_str("mysql").unwrap(), StorageType::Mysql);
-        assert_eq!(StorageType::from_str("placement").unwrap(), StorageType::Placement);
-        assert_eq!(StorageType::from_str("rocksdb").unwrap(), StorageType::RocksDB);
+        assert_eq!(
+            StorageType::from_str("placement").unwrap(),
+            StorageType::Placement
+        );
+        assert_eq!(
+            StorageType::from_str("rocksdb").unwrap(),
+            StorageType::RocksDB
+        );
     }
 }

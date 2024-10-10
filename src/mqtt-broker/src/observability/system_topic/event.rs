@@ -311,5 +311,5 @@ fn replace_name(mut topic_name: String, client_id: String) -> String {
     if topic_name.contains("${clientid}") {
         topic_name = topic_name.replace("${clientid}", &client_id)
     }
-    return topic_name;
+    topic_name
 }

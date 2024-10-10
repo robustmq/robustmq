@@ -42,26 +42,28 @@ pub fn is_allow_acl(
     }
 
     // check blacklist
-    if is_blacklist(cache_mamanger, &connection) {
+    if is_blacklist(cache_mamanger, connection) {
         return false;
     }
 
     // chack acl
-    if is_acl_deny(cache_mamanger, &connection, &topic_name, action) {
+    if is_acl_deny(cache_mamanger, connection, topic_name, action) {
         return false;
     }
 
     // check retain acl
-    if retain && is_acl_deny(
-        cache_mamanger,
-        &connection,
-        &topic_name,
-        MqttAclAction::Retain,
-    ) {
+    if retain
+        && is_acl_deny(
+            cache_mamanger,
+            connection,
+            topic_name,
+            MqttAclAction::Retain,
+        )
+    {
         return false;
     }
 
-    return true;
+    true
 }
 
 fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool {
@@ -71,7 +73,7 @@ fn is_super_user(cache_manager: &Arc<CacheManager>, username: &str) -> bool {
     if let Some(user) = cache_manager.user_info.get(username) {
         return user.is_superuser;
     }
-    return false;
+    false
 }
 
 fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &Connection) -> bool {
@@ -89,10 +91,8 @@ fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &Connection) -> b
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_user_match() {
         for raw in data {
             let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
-            if re.is_match(&connection.login_user) {
-                if raw.end_time > now_second() {
-                    return true;
-                }
+            if re.is_match(&connection.login_user) && raw.end_time > now_second() {
+                return true;
             }
         }
     }
@@ -111,10 +111,8 @@ fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &Connection) -> b
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_client_id_match() {
         for raw in data {
             let re = Regex::new(&format!("^{}$", raw.resource_name)).unwrap();
-            if re.is_match(&connection.client_id) {
-                if raw.end_time > now_second() {
-                    return true;
-                }
+            if re.is_match(&connection.client_id) && raw.end_time > now_second() {
+                return true;
             }
         }
     }
@@ -132,15 +130,15 @@ fn is_blacklist(cache_manager: &Arc<CacheManager>, connection: &Connection) -> b
 
     if let Some(data) = cache_manager.acl_metadata.get_blacklist_ip_match() {
         for raw in data {
-            if ip_match(&connection.source_ip_addr, &raw.resource_name) {
-                if raw.end_time < now_second() {
-                    return true;
-                }
+            if ip_match(&connection.source_ip_addr, &raw.resource_name)
+                && raw.end_time < now_second()
+            {
+                return true;
             }
         }
     }
 
-    return false;
+    false
 }
 
 fn is_acl_deny(
@@ -181,14 +179,14 @@ fn is_acl_deny(
             }
         }
     }
-    return false;
+    false
 }
 
 fn topic_match(topic_name: &str, match_topic_name: &str) -> bool {
-    if match_topic_name == WILDCARD_RESOURCE.to_string() {
+    if match_topic_name == WILDCARD_RESOURCE {
         return true;
     }
-    return topic_name == match_topic_name;
+    topic_name == match_topic_name
 }
 
 fn ip_match(source_ip_addr: &str, ip_role: &str) -> bool {
@@ -198,16 +196,12 @@ fn ip_match(source_ip_addr: &str, ip_role: &str) -> bool {
     if source_ip_addr == ip_role {
         return true;
     }
-    match source_ip_addr.parse::<IpAddr>() {
-        Ok(ip) => match IpNet::from_str(&ip_role) {
-            Ok(ip_cidr) => {
-                return ip_cidr.contains(&ip);
-            }
-            Err(_) => {}
-        },
-        Err(_) => {}
+    if let Ok(ip) = source_ip_addr.parse::<IpAddr>() {
+        if let Ok(ip_cidr) = IpNet::from_str(ip_role) {
+            return ip_cidr.contains(&ip);
+        }
     }
-    return false;
+    false
 }
 
 #[cfg(test)]
@@ -224,7 +218,7 @@ mod test {
 
     use super::{ip_match, is_acl_deny, is_blacklist, is_super_user, topic_match};
     use crate::handler::cache::CacheManager;
-    use crate::handler::connection::Connection;
+    use crate::handler::connection::{Connection, ConnectionConfig};
     use crate::handler::constant::WILDCARD_RESOURCE;
 
     #[tokio::test]
@@ -269,16 +263,17 @@ mod test {
         };
 
         cache_manager.add_user(user.clone());
-        let mut connection = Connection::new(
-            1,
-            "client_id-1".to_string(),
-            3,
-            3,
-            3,
-            1,
-            2,
-            "127.0.0.1".to_string(),
-        );
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id: "client_id-1".to_string(),
+            receive_maximum: 3,
+            max_packet_size: 3,
+            topic_alias_max: 3,
+            request_problem_info: 1,
+            keep_alive: 2,
+            source_ip_addr: "127.0.0.1".to_string(),
+        };
+        let mut connection = Connection::new(config);
         connection.login_success(user.username.clone());
 
         // not black list
@@ -355,16 +350,17 @@ mod test {
         };
 
         cache_manager.add_user(user.clone());
-        let mut connection = Connection::new(
-            1,
-            "client_id-1".to_string(),
-            3,
-            3,
-            3,
-            1,
-            2,
-            "127.0.0.1".to_string(),
-        );
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id: "client_id-1".to_string(),
+            receive_maximum: 3,
+            max_packet_size: 3,
+            topic_alias_max: 3,
+            request_problem_info: 1,
+            keep_alive: 2,
+            source_ip_addr: "127.0.0.1".to_string(),
+        };
+        let mut connection = Connection::new(config);
         connection.login_success(user.username.clone());
 
         assert!(!is_acl_deny(
@@ -395,16 +391,17 @@ mod test {
         };
 
         cache_manager.add_user(user.clone());
-        let mut connection = Connection::new(
-            1,
-            "client_id-1".to_string(),
-            3,
-            3,
-            3,
-            1,
-            2,
-            "127.0.0.1".to_string(),
-        );
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id: "client_id-1".to_string(),
+            receive_maximum: 3,
+            max_packet_size: 3,
+            topic_alias_max: 3,
+            request_problem_info: 1,
+            keep_alive: 2,
+            source_ip_addr: "127.0.0.1".to_string(),
+        };
+        let mut connection = Connection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {
@@ -460,16 +457,17 @@ mod test {
         };
 
         cache_manager.add_user(user.clone());
-        let mut connection = Connection::new(
-            1,
-            "client_id-1".to_string(),
-            3,
-            3,
-            3,
-            1,
-            2,
-            "127.0.0.1".to_string(),
-        );
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id: "client_id-1".to_string(),
+            receive_maximum: 3,
+            max_packet_size: 3,
+            topic_alias_max: 3,
+            request_problem_info: 1,
+            keep_alive: 2,
+            source_ip_addr: "127.0.0.1".to_string(),
+        };
+        let mut connection = Connection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {
@@ -525,16 +523,17 @@ mod test {
         };
 
         cache_manager.add_user(user.clone());
-        let mut connection = Connection::new(
-            1,
-            "client_id-1".to_string(),
-            3,
-            3,
-            3,
-            1,
-            2,
-            "127.0.0.1".to_string(),
-        );
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id: "client_id-1".to_string(),
+            receive_maximum: 3,
+            max_packet_size: 3,
+            topic_alias_max: 3,
+            request_problem_info: 1,
+            keep_alive: 2,
+            source_ip_addr: "127.0.0.1".to_string(),
+        };
+        let mut connection = Connection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {
@@ -590,16 +589,17 @@ mod test {
         };
 
         cache_manager.add_user(user.clone());
-        let mut connection = Connection::new(
-            1,
-            "client_id-1".to_string(),
-            3,
-            3,
-            3,
-            1,
-            2,
-            "127.0.0.1".to_string(),
-        );
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id: "client_id-1".to_string(),
+            receive_maximum: 3,
+            max_packet_size: 3,
+            topic_alias_max: 3,
+            request_problem_info: 1,
+            keep_alive: 2,
+            source_ip_addr: "127.0.0.1".to_string(),
+        };
+        let mut connection = Connection::new(config);
         connection.login_success(user.username.clone());
 
         let acl = MqttAcl {

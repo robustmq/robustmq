@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use clients::placement::placement::call::{heartbeat, register_node, un_register_node};
+use clients::placement::placement::call::{heartbeat, register_node, unregister_node};
 use clients::poll::ClientPool;
 use common_base::config::journal_server::JournalServerConfig;
 use common_base::tools::get_local_ip;
@@ -58,7 +58,7 @@ pub async fn unregister_storage_engine_node(
         node_id: config.node_id,
     };
 
-    match un_register_node(client_poll.clone(), config.placement_center, req.clone()).await {
+    match unregister_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {
             info!("Node {} exits successfully", config.node_id);
         }

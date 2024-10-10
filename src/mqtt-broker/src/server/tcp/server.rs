@@ -121,7 +121,7 @@ where
             handler_process_num,
             response_process_num,
             stop_sx,
-            network_connection_type: NetworkConnectionType::TCP,
+            network_connection_type: NetworkConnectionType::Tcp,
         }
     }
 
@@ -138,7 +138,7 @@ where
         let arc_listener = Arc::new(listener);
 
         acceptor_process(
-            self.accept_thread_num.clone(),
+            self.accept_thread_num,
             self.connection_manager.clone(),
             self.stop_sx.clone(),
             arc_listener.clone(),
@@ -149,7 +149,7 @@ where
         .await;
 
         handler_process(
-            self.handler_process_num.clone(),
+            self.handler_process_num,
             request_queue_rx,
             self.connection_manager.clone(),
             response_queue_sx,
@@ -169,7 +169,7 @@ where
         )
         .await;
 
-        self.network_connection_type = NetworkConnectionType::TCP;
+        self.network_connection_type = NetworkConnectionType::Tcp;
         info!("MQTT TCP Server started successfully, listening port: {port}");
     }
 
@@ -196,7 +196,7 @@ where
         .await;
 
         handler_process(
-            self.handler_process_num.clone(),
+            self.handler_process_num,
             request_queue_rx,
             self.connection_manager.clone(),
             response_queue_sx,
@@ -215,7 +215,7 @@ where
             self.stop_sx.clone(),
         )
         .await;
-        self.network_connection_type = NetworkConnectionType::TCPS;
+        self.network_connection_type = NetworkConnectionType::Tcps;
         info!("MQTT TCP TLS Server started successfully, listening port: {port}");
     }
 }

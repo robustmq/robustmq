@@ -77,13 +77,13 @@ pub fn response_packet_mqtt_connect_success(
         authentication_method: None,
         authentication_data: None,
     };
-    return MQTTPacket::ConnAck(
+    MQTTPacket::ConnAck(
         ConnAck {
             session_present,
             code: ConnectReturnCode::Success,
         },
         Some(properties),
-    );
+    )
 }
 
 pub fn response_packet_mqtt_connect_fail(
@@ -115,13 +115,13 @@ pub fn response_packet_mqtt_connect_fail(
     if is_request_problem_info(connect_properties) {
         properties.reason_string = error_reason;
     }
-    return MQTTPacket::ConnAck(
+    MQTTPacket::ConnAck(
         ConnAck {
             session_present: false,
             code,
         },
         Some(properties),
-    );
+    )
 }
 
 pub fn response_packet_mqtt_distinct(
@@ -138,7 +138,7 @@ pub fn response_packet_mqtt_distinct(
         properteis.reason_string = reason_string;
     }
 
-    return MQTTPacket::Disconnect(Disconnect { reason_code: code }, None);
+    MQTTPacket::Disconnect(Disconnect { reason_code: code }, None)
 }
 
 pub fn response_packet_mqtt_distinct_by_reason(
@@ -149,10 +149,10 @@ pub fn response_packet_mqtt_distinct_by_reason(
         return MQTTPacket::Disconnect(Disconnect { reason_code: None }, None);
     }
 
-    return MQTTPacket::Disconnect(
+    MQTTPacket::Disconnect(
         Disconnect { reason_code: code },
         Some(DisconnectProperties::default()),
-    );
+    )
 }
 
 pub fn response_packet_mqtt_puback_success(
@@ -172,9 +172,9 @@ pub fn response_packet_mqtt_puback_success(
     };
     let properties = Some(PubAckProperties {
         reason_string: None,
-        user_properties: user_properties,
+        user_properties,
     });
-    return MQTTPacket::PubAck(pub_ack, properties);
+    MQTTPacket::PubAck(pub_ack, properties)
 }
 
 pub fn response_packet_mqtt_puback_fail(
@@ -198,7 +198,7 @@ pub fn response_packet_mqtt_puback_fail(
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
     }
-    return MQTTPacket::PubAck(pub_ack, Some(properties));
+    MQTTPacket::PubAck(pub_ack, Some(properties))
 }
 
 pub fn response_packet_mqtt_pubrec_success(
@@ -216,9 +216,9 @@ pub fn response_packet_mqtt_pubrec_success(
     };
     let properties = Some(PubRecProperties {
         reason_string: None,
-        user_properties: user_properties,
+        user_properties,
     });
-    return MQTTPacket::PubRec(rec, properties);
+    MQTTPacket::PubRec(rec, properties)
 }
 
 pub fn response_packet_mqtt_pubrec_fail(
@@ -240,7 +240,7 @@ pub fn response_packet_mqtt_pubrec_fail(
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
     }
-    return MQTTPacket::PubRec(pub_ack, Some(properties));
+    MQTTPacket::PubRec(pub_ack, Some(properties))
 }
 
 pub fn response_packet_mqtt_pubrel_success(
@@ -256,7 +256,7 @@ pub fn response_packet_mqtt_pubrel_success(
         reason: Some(reason),
     };
     let properties = Some(PubRelProperties::default());
-    return MQTTPacket::PubRel(rel, properties);
+    MQTTPacket::PubRel(rel, properties)
 }
 
 pub fn response_packet_mqtt_pubcomp_success(protocol: &MQTTProtocol, pkid: u16) -> MQTTPacket {
@@ -269,7 +269,7 @@ pub fn response_packet_mqtt_pubcomp_success(protocol: &MQTTProtocol, pkid: u16) 
         reason: Some(PubCompReason::Success),
     };
     let properties = Some(PubCompProperties::default());
-    return MQTTPacket::PubComp(rec, properties);
+    MQTTPacket::PubComp(rec, properties)
 }
 
 pub fn response_packet_mqtt_pubcomp_fail(
@@ -290,7 +290,7 @@ pub fn response_packet_mqtt_pubcomp_fail(
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
     }
-    return MQTTPacket::PubComp(pub_ack, Some(properties));
+    MQTTPacket::PubComp(pub_ack, Some(properties))
 }
 
 pub fn response_packet_mqtt_suback(
@@ -309,11 +309,11 @@ pub fn response_packet_mqtt_suback(
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
     }
-    return MQTTPacket::SubAck(sub_ack, Some(properties));
+    MQTTPacket::SubAck(sub_ack, Some(properties))
 }
 
 pub fn response_packet_mqtt_ping_resp() -> MQTTPacket {
-    return MQTTPacket::PingResp(PingResp {});
+    MQTTPacket::PingResp(PingResp {})
 }
 
 pub fn response_packet_mqtt_unsuback(
@@ -327,5 +327,5 @@ pub fn response_packet_mqtt_unsuback(
     if connection.is_response_proplem_info() {
         properties.reason_string = reason_string;
     }
-    return MQTTPacket::UnsubAck(unsub_ack, None);
+    MQTTPacket::UnsubAck(unsub_ack, None)
 }

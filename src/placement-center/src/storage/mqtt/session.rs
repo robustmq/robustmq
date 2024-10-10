@@ -120,18 +120,12 @@ mod tests {
         let res = session_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
-        let res = session_storage
-            .get(&cluster_name, "lobo1")
-            .unwrap();
+        let res = session_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_some());
 
-        session_storage
-            .delete(&cluster_name, "lobo1")
-            .unwrap();
+        session_storage.delete(&cluster_name, "lobo1").unwrap();
 
-        let res = session_storage
-            .get(&cluster_name, "lobo1")
-            .unwrap();
+        let res = session_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
 
         remove_dir_all(config.rocksdb.data_path).unwrap();

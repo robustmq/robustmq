@@ -45,8 +45,7 @@ mod tests {
         match register_node(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         };
 
@@ -66,8 +65,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }

@@ -28,7 +28,7 @@ pub struct GrpcAdminServices {
 
 impl GrpcAdminServices {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return GrpcAdminServices { client_poll };
+        GrpcAdminServices { client_poll }
     }
 }
 

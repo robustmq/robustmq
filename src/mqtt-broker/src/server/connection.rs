@@ -23,8 +23,8 @@ static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
-    TCP,
-    TCPS,
+    Tcp,
+    Tcps,
     WebSocket,
     WebSockets,
 }
@@ -35,8 +35,8 @@ impl fmt::Display for NetworkConnectionType {
             f,
             "{}",
             match self {
-                NetworkConnectionType::TCP => "tcp",
-                NetworkConnectionType::TCPS => "tcps",
+                NetworkConnectionType::Tcp => "tcp",
+                NetworkConnectionType::Tcps => "tcps",
                 NetworkConnectionType::WebSocket => "websocket",
                 NetworkConnectionType::WebSockets => "websockets",
             }
@@ -70,7 +70,7 @@ impl NetworkConnection {
     }
 
     pub fn connection_id(&self) -> u64 {
-        return self.connection_id;
+        self.connection_id
     }
 
     pub fn set_protocol(&mut self, protocol: MQTTProtocol) {
@@ -81,26 +81,26 @@ impl NetworkConnection {
         if let Some(protocol) = self.protocol.clone() {
             return protocol == MQTTProtocol::MQTT3;
         }
-        return false;
+        false
     }
 
     pub fn is_mqtt4(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
             return protocol == MQTTProtocol::MQTT4;
         }
-        return false;
+        false
     }
 
     pub fn is_mqtt5(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
             return protocol == MQTTProtocol::MQTT5;
         }
-        return false;
+        false
     }
 
     pub fn is_tcp(&self) -> bool {
-        return self.connection_type == NetworkConnectionType::TCP
-            || self.connection_type == NetworkConnectionType::TCPS;
+        self.connection_type == NetworkConnectionType::Tcp
+            || self.connection_type == NetworkConnectionType::Tcps
     }
 
     pub async fn stop_connection(&self) {

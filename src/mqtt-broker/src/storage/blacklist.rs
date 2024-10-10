@@ -27,7 +27,7 @@ pub struct BlackListStorage {
 
 impl BlackListStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return BlackListStorage { client_poll };
+        BlackListStorage { client_poll }
     }
 
     pub async fn list_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
@@ -47,9 +47,9 @@ impl BlackListStorage {
                 for raw in reply.blacklists {
                     list.push(serde_json::from_slice::<MqttAclBlackList>(raw.as_slice())?);
                 }
-                return Ok(list);
+                Ok(list)
             }
-            Err(e) => return Err(e),
+            Err(e) => Err(e),
         }
     }
 }

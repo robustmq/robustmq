@@ -87,7 +87,7 @@ where
         client_poll: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
-        return MqttService {
+        MqttService {
             protocol,
             cache_manager,
             connnection_manager,
@@ -95,7 +95,7 @@ where
             sucscribe_manager,
             client_poll,
             auth_driver,
-        };
+        }
     }
 
     pub async fn connect(
@@ -118,7 +118,7 @@ where
             &connect_properties,
             &last_will,
             &last_will_properties,
-            &login,
+            login,
             &addr,
         ) {
             return res;
@@ -126,7 +126,7 @@ where
 
         match self
             .auth_driver
-            .check_login_auth(&login, &connect_properties, &addr)
+            .check_login_auth(login, &connect_properties, &addr)
             .await
         {
             Ok(flag) => {
@@ -227,7 +227,8 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager.report_heartbeat(client_id.clone(), live_time);
+        self.cache_manager
+            .report_heartbeat(client_id.clone(), live_time);
 
         self.cache_manager
             .add_session(client_id.clone(), session.clone());
@@ -245,7 +246,7 @@ where
         )
         .await;
 
-        return response_packet_mqtt_connect_success(
+        response_packet_mqtt_connect_success(
             &self.protocol,
             &cluster,
             client_id,
@@ -254,7 +255,7 @@ where
             new_session,
             connection.keep_alive,
             &connect_properties,
-        );
+        )
     }
 
     pub async fn publish(
@@ -461,9 +462,7 @@ where
             .add_topic_alias(connect_id, &topic_name, &publish_properties);
 
         match publish.qos {
-            QoS::AtMostOnce => {
-                return None;
-            }
+            QoS::AtMostOnce => None,
             QoS::AtLeastOnce => {
                 if is_flow_control(&self.protocol, publish.qos) {
                     connection.recv_qos_message_decr();
@@ -474,12 +473,12 @@ where
                 } else {
                     PubAckReason::NoMatchingSubscribers
                 };
-                return Some(response_packet_mqtt_puback_success(
+                Some(response_packet_mqtt_puback_success(
                     &self.protocol,
                     reason_code,
                     publish.pkid,
                     user_properties,
-                ));
+                ))
             }
             QoS::ExactlyOnce => {
                 match pkid_save(
@@ -521,12 +520,12 @@ where
                     PubRecReason::NoMatchingSubscribers
                 };
 
-                return Some(response_packet_mqtt_pubrec_success(
+                Some(response_packet_mqtt_pubrec_success(
                     &self.protocol,
                     reason_code,
                     publish.pkid,
                     user_properties,
-                ));
+                ))
             }
         }
     }
@@ -556,7 +555,7 @@ where
             }
         }
 
-        return None;
+        None
     }
 
     pub async fn publish_rec(
@@ -584,11 +583,11 @@ where
             }
         }
 
-        return Some(response_packet_mqtt_pubrel_success(
+        Some(response_packet_mqtt_pubrel_success(
             &self.protocol,
             pub_rec.pkid,
             PubRelReason::Success,
-        ));
+        ))
     }
 
     pub async fn publish_comp(
@@ -615,7 +614,7 @@ where
                 }
             }
         }
-        return None;
+        None
     }
 
     pub async fn publish_rel(
@@ -686,7 +685,7 @@ where
                 );
             }
         }
-        return response_packet_mqtt_pubcomp_success(&self.protocol, pub_rel.pkid);
+        response_packet_mqtt_pubcomp_success(&self.protocol, pub_rel.pkid)
     }
 
     pub async fn subscribe(
@@ -795,7 +794,7 @@ where
             &subscribe,
         )
         .await;
-        return response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None);
+        response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None)
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
@@ -815,7 +814,7 @@ where
         };
         self.cache_manager
             .report_heartbeat(connection.client_id, live_time);
-        return response_packet_mqtt_ping_resp();
+        response_packet_mqtt_ping_resp()
     }
 
     pub async fn un_subscribe(
@@ -881,12 +880,12 @@ where
         )
         .await;
 
-        return response_packet_mqtt_unsuback(
+        response_packet_mqtt_unsuback(
             &connection,
             un_subscribe.pkid,
             vec![UnsubAckReason::Success],
             None,
-        );
+        )
     }
 
     pub async fn disconnect(
@@ -931,6 +930,6 @@ where
             }
         }
 
-        return None;
+        None
     }
 }

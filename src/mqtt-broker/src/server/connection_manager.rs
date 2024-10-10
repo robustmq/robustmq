@@ -62,7 +62,7 @@ impl ConnectionManager {
     pub fn add_connection(&self, connection: NetworkConnection) -> u64 {
         let connection_id = connection.connection_id();
         self.connections.insert(connection_id, connection);
-        return connection_id;
+        connection_id
     }
 
     pub fn add_tcp_write(
@@ -178,13 +178,13 @@ impl ConnectionManager {
                     }
                 }
             }
-            times = times + 1;
+            times += 1;
             sleep(Duration::from_millis(
                 cluster.network.response_try_mut_sleep_time_ms,
             ))
             .await
         }
-        return Ok(());
+        Ok(())
     }
 
     pub async fn write_tcp_frame(
@@ -196,7 +196,7 @@ impl ConnectionManager {
 
         // write tls stream
         if let Some(connection) = self.get_connect(connection_id) {
-            if connection.connection_type == NetworkConnectionType::TCPS {
+            if connection.connection_type == NetworkConnectionType::Tcps {
                 return self.write_tcp_tls_frame(connection_id, resp).await;
             }
         }
@@ -240,13 +240,13 @@ impl ConnectionManager {
                     }
                 }
             }
-            times = times + 1;
+            times += 1;
             sleep(Duration::from_millis(
                 cluster.network.response_try_mut_sleep_time_ms,
             ))
             .await
         }
-        return Ok(());
+        Ok(())
     }
 
     async fn write_tcp_tls_frame(
@@ -293,13 +293,13 @@ impl ConnectionManager {
                     }
                 }
             }
-            times = times + 1;
+            times += 1;
             sleep(Duration::from_millis(
                 cluster.network.response_try_mut_sleep_time_ms,
             ))
             .await
         }
-        return Ok(());
+        Ok(())
     }
 
     pub fn tcp_connect_num_check(&self) -> bool {
@@ -307,21 +307,21 @@ impl ConnectionManager {
         if self.connections.len() >= cluster.network.tcp_max_connection_num as usize {
             return true;
         }
-        return false;
+        false
     }
 
     pub fn get_connect(&self, connect_id: u64) -> Option<NetworkConnection> {
         if let Some(connec) = self.connections.get(&connect_id) {
             return Some(connec.clone());
         }
-        return None;
+        None
     }
 
     pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MQTTProtocol> {
         if let Some(connec) = self.connections.get(&connect_id) {
             return connec.protocol.clone();
         }
-        return None;
+        None
     }
 
     pub fn set_connect_protocol(&self, connect_id: u64, protocol: u8) {
@@ -339,6 +339,6 @@ impl ConnectionManager {
         if let Some(connec) = self.connections.get(&connect_id) {
             return connec.connection_type == NetworkConnectionType::WebSocket;
         }
-        return false;
+        false
     }
 }

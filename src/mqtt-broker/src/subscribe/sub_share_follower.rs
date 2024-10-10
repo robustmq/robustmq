@@ -61,12 +61,12 @@ impl SubscribeShareFollower {
         cache_manager: Arc<CacheManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
-        return SubscribeShareFollower {
+        SubscribeShareFollower {
             subscribe_manager,
             connection_manager,
             cache_manager,
             client_poll,
-        };
+        }
     }
 
     pub async fn start(&self) {
@@ -177,15 +177,11 @@ impl SubscribeShareFollower {
                 .subscribe_manager
                 .share_follower_subscribe
                 .contains_key(&share_fllower_key)
+                && sx.send(true).is_ok()
             {
-                match sx.send(true) {
-                    Ok(_) => {
-                        self.subscribe_manager
-                            .share_follower_subscribe
-                            .remove(&share_fllower_key);
-                    }
-                    Err(_) => {}
-                }
+                self.subscribe_manager
+                    .share_follower_subscribe
+                    .remove(&share_fllower_key);
             }
         }
     }
@@ -241,58 +237,49 @@ async fn resub_sub_mqtt5(
     loop {
         select! {
             val = stop_rx.recv() =>{
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            info!(
-                                "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
-                                mqtt_client_id,
-                                group_name,
-                                sub_name,
-                            );
+                if let Ok(flag) = val {
+                    if flag {
+                        info!(
+                            "Rewrite sub mqtt5 thread for client_id:[{}], group_name:[{}], sub_name:[{}] was stopped successfully",
+                            mqtt_client_id,
+                            group_name,
+                            sub_name,
+                        );
 
-                            // When a thread exits, an unsubscribed mqtt packet is sent
-                            let unscribe_pkg =
-                                build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
-                            write_stream.write_frame(unscribe_pkg).await;
-                            break;
-                        }
+                        // When a thread exits, an unsubscribed mqtt packet is sent
+                        let unscribe_pkg =
+                            build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
+                        write_stream.write_frame(unscribe_pkg).await;
+                        break;
                     }
-                    Err(_) => {}
                 }
             }
             val = read_frame_stream.next()=>{
-                if let Some(data) = val{
-                    match data{
-                        Ok(packet) => {
-                            let is_break = process_packet(
-                                &cache_manager,
-                                &share_sub,
-                                &stop_sx,
-                                &connection_manager,
-                                packet,
-                                &write_stream,
-                                follower_sub_leader_pkid,
-                                &follower_sub_leader_client_id,
-                                &mqtt_client_id,
-                                &group_name,
-                                &sub_name,
-                            ).await;
+                if let Some(Ok(packet)) = val{
+                    let is_break = process_packet(
+                        &cache_manager,
+                        &share_sub,
+                        &stop_sx,
+                        &connection_manager,
+                        packet,
+                        &write_stream,
+                        follower_sub_leader_pkid,
+                        &follower_sub_leader_client_id,
+                        &mqtt_client_id,
+                        &group_name,
+                        &sub_name,
+                    ).await;
 
-                            if is_break{
-                                break;
-                            }else{
-                                continue;
-                            }
-                        },
-                        Err(_) =>{
-                        }
+                    if is_break{
+                        break;
+                    }else{
+                        continue;
                     }
                 }
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 async fn process_packet(
@@ -320,11 +307,11 @@ async fn process_packet(
                     build_resub_subscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
                 write_stream.write_frame(sub_packet).await;
 
-                return false;
+                false
             } else {
-                error!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error, 
+                error!("client_id:[{}], group_name:[{}], sub_name:[{}] Follower forwarding subscription connection request error,
                             error message: {:?},{:?}",mqtt_client_id,group_name,sub_name,connack,connack_properties);
-                return true;
+                true
             }
         }
 
@@ -344,7 +331,7 @@ async fn process_packet(
                     is_success = false;
                 }
             }
-            return !is_success;
+            !is_success
         }
 
         MQTTPacket::Publish(mut publish, publish_properties) => {
@@ -466,7 +453,7 @@ async fn process_packet(
                 }
             });
 
-            return false;
+            false
         }
 
         MQTTPacket::PubRel(pubrel, _) => {
@@ -483,12 +470,12 @@ async fn process_packet(
                     }
                 }
             }
-            return false;
+            false
         }
 
         MQTTPacket::Disconnect(_, _) => {
             info!("{}", "receive disconnect");
-            return true;
+            true
         }
 
         MQTTPacket::UnsubAck(_, _) => {
@@ -496,17 +483,15 @@ async fn process_packet(
             let unscribe_pkg =
                 build_resub_unsubscribe_pkg(follower_sub_leader_pkid, share_sub.clone());
             write_stream.write_frame(unscribe_pkg).await;
-            return true;
+            true
         }
-        MQTTPacket::PingResp(_) => {
-            return false;
-        }
+        MQTTPacket::PingResp(_) => false,
         _ => {
             error!(
                 "{}",
                 "Rewrite subscription thread cannot recognize the currently returned package"
             );
-            return false;
+            false
         }
     }
 }
@@ -525,14 +510,11 @@ async fn start_ping_thread(write_stream: Arc<WriteStream>, stop_sx: Sender<bool>
             let mut stop_rx = stop_sx.subscribe();
             select! {
                 val = stop_rx.recv() => {
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                info!("{}","start_ping_thread stop");
-                                break;
-                            }
+                    if let Ok(flag) = val {
+                        if flag {
+                            info!("{}","start_ping_thread stop");
+                            break;
                         }
-                        Err(_) => {}
                     }
                 },
                 _ = send_ping => {}
@@ -556,16 +538,13 @@ async fn resub_publish_message_qos1(
     let mut retry_times = 0;
     let current_message_pkid = publish.pkid;
     loop {
-        match stop_sx.subscribe().try_recv() {
-            Ok(flag) => {
-                if flag {
-                    return Ok(());
-                }
+        if let Ok(flag) = stop_sx.subscribe().try_recv() {
+            if flag {
+                return Ok(());
             }
-            Err(_) => {}
         }
 
-        let connect_id = if let Some(id) = metadata_cache.get_connect_id(&mqtt_client_id) {
+        let connect_id = if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id) {
             id
         } else {
             sleep(Duration::from_secs(1)).await;
@@ -578,7 +557,7 @@ async fn resub_publish_message_qos1(
             }
         }
 
-        retry_times = retry_times + 1;
+        retry_times += 1;
         publish.pkid = publish_to_client_pkid;
         publish.dup = retry_times >= 2;
 
@@ -649,13 +628,10 @@ pub async fn resub_publish_message_qos2(
     loop {
         select! {
             val = stop_rx.recv() => {
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            return Ok(());
-                        }
+                if let Ok(flag) = val {
+                    if flag {
+                        return Ok(());
                     }
-                    Err(_) => {}
                 }
             }
             // 3. Wait mqtt client PubRec
@@ -665,7 +641,7 @@ pub async fn resub_publish_message_qos2(
                     if data.ack_type == QosAckPackageType::PubRec && data.pkid == publish_to_client_pkid {
                         // 4. pubrec to leader
                         let connect_id =
-                            if let Some(id) = metadata_cache.get_connect_id(&mqtt_client_id) {
+                            if let Some(id) = metadata_cache.get_connect_id(mqtt_client_id) {
                                 id
                             } else {
                                 sleep(Duration::from_secs(1)).await;
@@ -690,13 +666,10 @@ pub async fn resub_publish_message_qos2(
     loop {
         select! {
             val = stop_rx.recv() => {
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            return Ok(());
-                        }
+                if let Ok(flag) = val {
+                    if flag {
+                        return Ok(());
                     }
-                    Err(_) => {}
                 }
             }
 
@@ -724,13 +697,10 @@ pub async fn resub_publish_message_qos2(
     loop {
         select! {
             val = stop_rx.recv() => {
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            return Ok(());
-                        }
+                if let Ok(flag) = val {
+                    if flag {
+                        return Ok(());
                     }
-                    Err(_) => {}
                 }
             }
             val = wait_packet_ack(wait_client_ack_sx) => {
@@ -748,7 +718,7 @@ pub async fn resub_publish_message_qos2(
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MQTTPacket {
@@ -759,23 +729,25 @@ fn build_resub_connect_pkg(protocol_level: u8, client_id: String) -> MQTTPacket 
         clean_session: true,
     };
 
-    let mut properties = ConnectProperties::default();
-    properties.session_expiry_interval = Some(60);
-    properties.user_properties = Vec::new();
+    let properties = ConnectProperties {
+        session_expiry_interval: Some(60),
+        user_properties: Vec::new(),
+        ..Default::default()
+    };
 
     let login = Login {
         username: conf.system.default_user.clone(),
         password: conf.system.default_password.clone(),
     };
 
-    return MQTTPacket::Connect(
+    MQTTPacket::Connect(
         protocol_level,
         connect,
         Some(properties),
         None,
         None,
         Some(login),
-    );
+    )
 }
 
 fn build_resub_subscribe_pkg(
@@ -792,14 +764,14 @@ fn build_resub_subscribe_pkg(
         user_properties: Vec::new(),
     };
 
-    return MQTTPacket::Subscribe(subscribe, Some(subscribe_poperties));
+    MQTTPacket::Subscribe(subscribe, Some(subscribe_poperties))
 }
 
 fn build_resub_unsubscribe_pkg(
     follower_sub_leader_pkid: u16,
     rewrite_sub: ShareSubShareSub,
 ) -> MQTTPacket {
-    return MQTTPacket::Unsubscribe(
+    MQTTPacket::Unsubscribe(
         Unsubscribe {
             pkid: follower_sub_leader_pkid,
             filters: vec![rewrite_sub.filter.path],
@@ -807,7 +779,7 @@ fn build_resub_unsubscribe_pkg(
         Some(UnsubscribeProperties {
             user_properties: Vec::new(),
         }),
-    );
+    )
 }
 
 fn build_resub_publish_ack(pkid: u16, reason: PubAckReason) -> MQTTPacket {
@@ -816,7 +788,7 @@ fn build_resub_publish_ack(pkid: u16, reason: PubAckReason) -> MQTTPacket {
         reason: Some(reason),
     };
     let puback_properties = PubAckProperties::default();
-    return MQTTPacket::PubAck(puback, Some(puback_properties));
+    MQTTPacket::PubAck(puback, Some(puback_properties))
 }
 
 fn build_resub_publish_rec(pkid: u16, reason: PubRecReason, mqtt_client_pkid: u64) -> MQTTPacket {
@@ -828,7 +800,7 @@ fn build_resub_publish_rec(pkid: u16, reason: PubRecReason, mqtt_client_pkid: u6
         reason_string: None,
         user_properties: vec![("mqtt_client_pkid".to_string(), mqtt_client_pkid.to_string())],
     };
-    return MQTTPacket::PubRec(puback, Some(puback_properties));
+    MQTTPacket::PubRec(puback, Some(puback_properties))
 }
 
 fn build_resub_publish_comp(pkid: u16, reason: PubCompReason) -> MQTTPacket {
@@ -837,7 +809,7 @@ fn build_resub_publish_comp(pkid: u16, reason: PubCompReason) -> MQTTPacket {
         reason: Some(reason),
     };
     let pubcomp_properties = PubCompProperties::default();
-    return MQTTPacket::PubComp(pubcomp, Some(pubcomp_properties));
+    MQTTPacket::PubComp(pubcomp, Some(pubcomp_properties))
 }
 
 pub struct WriteStream {
@@ -849,11 +821,11 @@ pub struct WriteStream {
 
 impl WriteStream {
     pub fn new(stop_sx: Sender<bool>) -> Self {
-        return WriteStream {
+        WriteStream {
             key: "default".to_string(),
             write_list: DashMap::with_capacity(2),
             stop_sx,
-        };
+        }
     }
 
     pub fn add_write(
@@ -865,13 +837,10 @@ impl WriteStream {
 
     pub async fn write_frame(&self, resp: MQTTPacket) {
         loop {
-            match self.stop_sx.subscribe().try_recv() {
-                Ok(flag) => {
-                    if flag {
-                        break;
-                    }
+            if let Ok(flag) = self.stop_sx.subscribe().try_recv() {
+                if flag {
+                    break;
                 }
-                Err(_) => {}
             }
 
             match self.write_list.try_get_mut(&self.key) {

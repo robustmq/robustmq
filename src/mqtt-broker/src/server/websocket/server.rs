@@ -68,7 +68,7 @@ where
         auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
-        return Self {
+        Self {
             sucscribe_manager,
             cache_manager,
             connection_manager,
@@ -76,7 +76,7 @@ where
             client_poll,
             auth_driver,
             stop_sx,
-        };
+        }
     }
 }
 
@@ -144,7 +144,7 @@ where
     let mqtt_ws = Router::new().route(ROUTE_ROOT, get(ws_handler));
 
     let app = Router::new().merge(mqtt_ws);
-    return app.with_state(state);
+    app.with_state(state)
 }
 
 async fn ws_handler<S>(
@@ -209,13 +209,10 @@ async fn handle_socket<S>(
     loop {
         select! {
             val = stop_rx.recv() =>{
-                match val{
-                    Ok(flag) => {
-                        if flag {
-                            break;
-                        }
+                if let Ok(flag) = val {
+                    if flag {
+                        break;
                     }
-                    Err(_) => {}
                 }
             },
             val = receiver.next()=>{
@@ -231,7 +228,7 @@ async fn handle_socket<S>(
                                         .apply(
                                             connection_manager.clone(),
                                             tcp_connection.clone(),
-                                            addr.clone(),
+                                            addr,
                                             packet.clone(),
                                         )
                                         .await

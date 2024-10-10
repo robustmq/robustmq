@@ -27,7 +27,7 @@ pub struct AclStorage {
 
 impl AclStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return AclStorage { client_poll };
+        AclStorage { client_poll }
     }
 
     pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
@@ -47,9 +47,9 @@ impl AclStorage {
                 for raw in reply.acls {
                     list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
                 }
-                return Ok(list);
+                Ok(list)
             }
-            Err(e) => return Err(e),
+            Err(e) => Err(e),
         }
     }
 }

@@ -15,9 +15,8 @@
 use bytes::BytesMut;
 use tokio_util::codec;
 
-use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, PacketType};
-
 use super::common::ConnectReadOutcome;
+use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, PacketType};
 
 #[derive(Debug, Clone)]
 pub struct MqttPacketWrapper {
@@ -247,7 +246,7 @@ impl MqttCodec {
                 MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv4::ping::pingreq::write(buffer)?,
                 MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv4::ping::pingresp::write(buffer)?,
                 MQTTPacket::Disconnect(disconnect, None) => crate::mqtt::mqttv4::disconnect::write(&disconnect, buffer)?,
-    
+
                 //Packet::
                 _=> unreachable!(
                     "This branch only matches for packets with Properties, which is not possible in MQTT V4",
@@ -271,7 +270,7 @@ impl MqttCodec {
                 MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv5::ping::pingreq::write(buffer)?,
                 MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv5::ping::pingresp::write(buffer)?,
                 MQTTPacket::Disconnect(disconnect, disconnect_properties) => crate::mqtt::mqttv5::disconnect::write(&disconnect, &disconnect_properties,buffer)?,
-    
+
                 //Packet::
                 _=> unreachable!(
                     "This branch only matches for packets with Properties, which is not possible in MQTT V4",

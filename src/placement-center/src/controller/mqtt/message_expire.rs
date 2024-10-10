@@ -213,8 +213,7 @@ mod tests {
             .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
             .unwrap();
 
-        let retain_msg =
-            MqttMessage::build_message(&"c1".to_string(), &Publish::default(), &None, 600);
+        let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
         topic_storage
             .set_topic_retain_message(
                 &cluster_name,
@@ -259,8 +258,10 @@ mod tests {
         let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
 
         let client_id = unique_id();
-        let mut last_will_properties = LastWillProperties::default();
-        last_will_properties.message_expiry_interval = Some(3);
+        let last_will_properties = LastWillProperties {
+            message_expiry_interval: Some(3),
+            ..Default::default()
+        };
         let last_will_message = LastWillData {
             client_id: client_id.clone(),
             last_will: None,
@@ -274,8 +275,10 @@ mod tests {
             }
         });
 
-        let mut session = MqttSession::default();
-        session.client_id = client_id.clone();
+        let session = MqttSession {
+            client_id: client_id.clone(),
+            ..Default::default()
+        };
         session_storage
             .save(&cluster_name, &client_id, session)
             .unwrap();
