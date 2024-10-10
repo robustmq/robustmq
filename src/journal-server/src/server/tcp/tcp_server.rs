@@ -39,32 +39,37 @@ pub struct TcpServer {
     codec: StorageEngineCodec,
 }
 
+// This is to avoid #[warn(clippy::too_many_arguments)]
+pub struct TcpServerConfig {
+    pub accept_thread_num: usize,
+    pub max_connection_num: usize,
+    pub request_queue_size: usize,
+    pub handler_process_num: usize,
+    pub response_queue_size: usize,
+    pub response_process_num: usize,
+    pub max_try_mut_times: u64,
+    pub try_mut_sleep_time_ms: u64,
+}
+
 impl TcpServer {
     pub fn new(
-        accept_thread_num: usize,
-        max_connection_num: usize,
-        request_queue_size: usize,
-        handler_process_num: usize,
-        response_queue_size: usize,
-        response_process_num: usize,
-        max_try_mut_times: u64,
-        try_mut_sleep_time_ms: u64,
+        config: TcpServerConfig,
     ) -> Self {
-        let (request_queue_sx, _) = broadcast::channel(request_queue_size);
-        let (response_queue_sx, _) = broadcast::channel(response_queue_size);
+        let (request_queue_sx, _) = broadcast::channel(config.request_queue_size);
+        let (response_queue_sx, _) = broadcast::channel(config.response_queue_size);
 
         let connection_manager = Arc::new(ConnectionManager::new(
-            max_connection_num,
-            max_try_mut_times,
-            try_mut_sleep_time_ms,
+            config.max_connection_num,
+            config.max_try_mut_times,
+            config.try_mut_sleep_time_ms,
         ));
         let codec = StorageEngineCodec::new();
 
         Self {
             connection_manager,
-            accept_thread_num,
-            handler_process_num,
-            response_process_num,
+            accept_thread_num: config.accept_thread_num,
+            handler_process_num: config.handler_process_num,
+            response_process_num: config.response_process_num,
             request_queue_sx,
             response_queue_sx,
             codec,

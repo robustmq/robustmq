@@ -52,15 +52,13 @@ pub fn is_allow_acl(
     }
 
     // check retain acl
-    if retain {
-        if is_acl_deny(
-            cache_mamanger,
-            &connection,
-            &topic_name,
-            MQTTAclAction::Retain,
-        ) {
-            return false;
-        }
+    if retain && is_acl_deny(
+        cache_mamanger,
+        &connection,
+        &topic_name,
+        MQTTAclAction::Retain,
+    ) {
+        return false;
     }
 
     return true;

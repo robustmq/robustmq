@@ -44,13 +44,8 @@ impl OpenRaftService for GrpcOpenRaftServices {
             }
         };
 
-        let mut reply = VoteReply::default();
-        reply.value = match serialize(&res) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
+        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
+        let reply = VoteReply { value };
         return Ok(Response::new(reply));
     }
 
@@ -66,13 +61,8 @@ impl OpenRaftService for GrpcOpenRaftServices {
                 return Err(Status::cancelled(e.to_string()));
             }
         };
-        let mut reply = AppendReply::default();
-        reply.value = match serialize(&res) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
+        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
+        let reply = AppendReply { value };
         return Ok(Response::new(reply));
     }
 
@@ -89,13 +79,8 @@ impl OpenRaftService for GrpcOpenRaftServices {
             }
         };
 
-        let mut reply = SnapshotReply::default();
-        reply.value = match serialize(&res) {
-            Ok(data) => data,
-            Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
-            }
-        };
+        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
+        let reply = SnapshotReply { value };
         return Ok(Response::new(reply));
     }
 }

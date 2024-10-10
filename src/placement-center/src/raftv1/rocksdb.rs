@@ -119,10 +119,11 @@ impl RaftMachineStorage {
                 &key,
             )
             .unwrap();
-        if value.is_none() {
-            HardState::default()
-        } else {
-            return HardState::decode(value.unwrap().as_ref()).unwrap();
+        match value {
+            Some(v) => HardState::decode(v.as_ref())
+                .map_err(|e| tonic::Status::from_error(Box::new(e)))
+                .unwrap(),
+            None => HardState::default(),
         }
     }
 
@@ -137,12 +138,11 @@ impl RaftMachineStorage {
                 &key,
             )
             .unwrap();
-        if value.is_none() {
-            ConfState::default()
-        } else {
-            return ConfState::decode(value.unwrap().as_ref())
-                .map_err(|e| tonic::Status::invalid_argument(e.to_string()))
-                .unwrap();
+        match value {
+            Some(v) => ConfState::decode(v.as_ref())
+                .map_err(|e| tonic::Status::from_error(Box::new(e)))
+                .unwrap(),
+            None => ConfState::default(),
         }
     }
 

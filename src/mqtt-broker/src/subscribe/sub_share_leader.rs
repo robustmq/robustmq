@@ -319,8 +319,8 @@ where
             error!(
                 "Failed to read message from storage, failure message: {},topic:{},group{}",
                 e.to_string(),
-                topic_id.clone(),
-                group_id.clone()
+                topic_id,
+                group_id
             );
             sleep(Duration::from_millis(max_wait_ms)).await;
             return cursor_point;
@@ -517,7 +517,7 @@ async fn share_leader_publish_message_qos1(
     } else {
         return Err(CommonError::CommmonError(format!(
             "Client [{}] failed to get connect id, no connection available.",
-            client_id.clone()
+            client_id
         )));
     };
 

@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use common_base::error::placement_center::PlacementCenterError;
 use openraft::raft::ClientWriteResponse;
 use openraft::Raft;
-use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
+use raft::eraftpb::{ConfChange, Message as RaftPreludeMessage};
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::{Receiver, Sender};
 use tokio::time::timeout;
@@ -39,7 +39,8 @@ pub enum RaftMessage {
 
     // Received a message from another node
     Raft {
-        message: raftPreludeMessage,
+        // We put the message in the box to avoid having a large enum variant
+        message: Box<RaftPreludeMessage>,
         chan: Sender<RaftResponseMesage>,
     },
 
@@ -139,12 +140,12 @@ impl RaftMachineApply {
 
     pub async fn apply_raft_message(
         &self,
-        message: raftPreludeMessage,
+        message: RaftPreludeMessage,
         action: String,
     ) -> Result<(), CommonError> {
         let (sx, rx) = oneshot::channel::<RaftResponseMesage>();
         Ok(self
-            .apply_raft_status_machine_message(RaftMessage::Raft { message, chan: sx }, action, rx)
+            .apply_raft_status_machine_message(RaftMessage::Raft { message: Box::new(message), chan: sx }, action, rx)
             .await?)
     }
 

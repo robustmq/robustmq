@@ -30,12 +30,14 @@ pub async fn register_storage_engine_node(
     client_poll: Arc<ClientPool>,
     config: JournalServerConfig,
 ) {
-    let mut req = RegisterNodeRequest::default();
-    req.cluster_type = ClusterType::JournalServer.into();
-    req.cluster_name = config.cluster_name;
-    req.node_id = config.node_id;
-    req.node_ip = get_local_ip();
-    req.extend_info = "".to_string();
+    let req = RegisterNodeRequest {
+        cluster_type: ClusterType::JournalServer.into(),
+        cluster_name: config.cluster_name,
+        node_id: config.node_id,
+        node_ip: get_local_ip(),
+        extend_info: "".to_string(),
+        ..Default::default()
+    };
     match register_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {
             info!("Node {} has been successfully registered", config.node_id);
@@ -50,10 +52,11 @@ pub async fn unregister_storage_engine_node(
     client_poll: Arc<ClientPool>,
     config: JournalServerConfig,
 ) {
-    let mut req = UnRegisterNodeRequest::default();
-    req.cluster_type = ClusterType::JournalServer.into();
-    req.cluster_name = config.cluster_name;
-    req.node_id = config.node_id;
+    let req = UnRegisterNodeRequest {
+        cluster_type: ClusterType::JournalServer.into(),
+        cluster_name: config.cluster_name,
+        node_id: config.node_id,
+    };
 
     match un_register_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {
@@ -67,10 +70,11 @@ pub async fn unregister_storage_engine_node(
 
 pub async fn report_heartbeat(client_poll: Arc<ClientPool>, config: JournalServerConfig) {
     loop {
-        let mut req = HeartbeatRequest::default();
-        req.cluster_name = config.cluster_name.clone();
-        req.cluster_type = ClusterType::JournalServer.into();
-        req.node_id = config.node_id;
+        let req = HeartbeatRequest {
+            cluster_name: config.cluster_name.clone(),
+            cluster_type: ClusterType::JournalServer.into(),
+            node_id: config.node_id,
+        };
         match heartbeat(
             client_poll.clone(),
             config.placement_center.clone(),

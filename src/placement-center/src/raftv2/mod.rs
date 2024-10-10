@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod error;
+#[allow(clippy::module_inception)]
 pub mod network;
 pub mod raft_node;
 pub mod route;

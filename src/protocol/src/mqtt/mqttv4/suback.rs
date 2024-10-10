@@ -105,8 +105,7 @@ mod tests {
     fn test_suback() {
         use super::*;
         let mut buffer = BytesMut::new();
-        let mut return_codes = Vec::new();
-        return_codes.push(reason(1).unwrap());
+        let return_codes = vec![reason(1).unwrap()];
         let suback = SubAck {
             pkid: 5u16,
             return_codes,
