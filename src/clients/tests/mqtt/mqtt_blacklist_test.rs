@@ -19,7 +19,7 @@ mod tests {
     use clients::placement::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
     use clients::poll::ClientPool;
     use common_base::tools::now_second;
-    use metadata_struct::acl::mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType};
+    use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
     use protocol::placement_center::generate::mqtt::{
         CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,
     };
@@ -32,8 +32,8 @@ mod tests {
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = "test_cluster".to_string();
 
-        let blacklist = MQTTAclBlackList {
-            blacklist_type: MQTTAclBlackListType::User,
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::User,
             resource_name: "loboxu".to_string(),
             end_time: now_second() + 100,
             desc: "loboxu test".to_string(),
@@ -59,7 +59,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MQTTAclBlackList>(raw.as_slice()).unwrap();
+                    let tmp = serde_json::from_slice::<MqttAclBlackList>(raw.as_slice()).unwrap();
                     if tmp.blacklist_type == blacklist.blacklist_type
                         && tmp.resource_name == blacklist.resource_name
                         && tmp.end_time == blacklist.end_time
@@ -97,7 +97,7 @@ mod tests {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {
-                    let tmp = serde_json::from_slice::<MQTTAclBlackList>(raw.as_slice()).unwrap();
+                    let tmp = serde_json::from_slice::<MqttAclBlackList>(raw.as_slice()).unwrap();
                     if tmp.blacklist_type == blacklist.blacklist_type
                         && tmp.resource_name == blacklist.resource_name
                         && tmp.end_time == blacklist.end_time

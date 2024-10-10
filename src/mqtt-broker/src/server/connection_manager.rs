@@ -21,7 +21,7 @@ use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use log::{debug, error, info};
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
 use protocol::mqtt::common::MQTTProtocol;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
@@ -190,7 +190,7 @@ impl ConnectionManager {
     pub async fn write_tcp_frame(
         &self,
         connection_id: u64,
-        resp: MQTTPacketWrapper,
+        resp: MqttPacketWrapper,
     ) -> Result<(), CommonError> {
         debug!("response packet:{resp:?},connection_id:{connection_id}");
 
@@ -252,7 +252,7 @@ impl ConnectionManager {
     async fn write_tcp_tls_frame(
         &self,
         connection_id: u64,
-        resp: MQTTPacketWrapper,
+        resp: MqttPacketWrapper,
     ) -> Result<(), CommonError> {
         let mut times = 0;
         let cluster = self.cache_manager.get_cluster_info();

@@ -18,7 +18,7 @@ use bytes::Bytes;
 use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};
 use storage_adapter::storage::StorageAdapter;
 
@@ -78,7 +78,7 @@ where
 
             let message_expire = build_message_expire(cache_manager, &publish_properties);
             if let Some(record) =
-                MQTTMessage::build_record(client_id, &publish, &publish_properties, message_expire)
+                MqttMessage::build_record(client_id, &publish, &publish_properties, message_expire)
             {
                 match message_storage
                     .append_topic_message(topic.topic_id.clone(), vec![record])

@@ -23,8 +23,8 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use dashmap::DashMap;
-use metadata_struct::mqtt::message::MQTTMessage;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::placement_center::generate::mqtt::{
     CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
@@ -38,7 +38,7 @@ impl TopicStorage {
         return TopicStorage { client_poll };
     }
 
-    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), CommonError> {
+    pub async fn save_topic(&self, topic: MqttTopic) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -79,7 +79,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn topic_list(&self) -> Result<DashMap<String, MQTTTopic>, CommonError> {
+    pub async fn topic_list(&self) -> Result<DashMap<String, MqttTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -95,7 +95,7 @@ impl TopicStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.topics {
-                    match serde_json::from_slice::<MQTTTopic>(&raw) {
+                    match serde_json::from_slice::<MqttTopic>(&raw) {
                         Ok(data) => {
                             results.insert(data.topic_name.clone(), data);
                         }
@@ -112,7 +112,7 @@ impl TopicStorage {
         }
     }
 
-    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MQTTTopic>, CommonError> {
+    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MqttTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -130,7 +130,7 @@ impl TopicStorage {
                     return Ok(None);
                 }
                 let raw = reply.topics.get(0).unwrap();
-                match serde_json::from_slice::<MQTTTopic>(&raw) {
+                match serde_json::from_slice::<MqttTopic>(&raw) {
                     Ok(data) => return Ok(Some(data)),
                     Err(e) => {
                         return Err(CommonError::CommmonError(e.to_string()));
@@ -146,7 +146,7 @@ impl TopicStorage {
     pub async fn set_retain_message(
         &self,
         topic_name: &String,
-        retain_message: &MQTTMessage,
+        retain_message: &MqttMessage,
         retain_message_expired_at: u64,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
@@ -196,7 +196,7 @@ impl TopicStorage {
     pub async fn get_retain_message(
         &self,
         topic_name: String,
-    ) -> Result<Option<MQTTMessage>, CommonError> {
+    ) -> Result<Option<MqttMessage>, CommonError> {
         let topic = match self.get_topic(topic_name.clone()).await {
             Ok(Some(data)) => data,
             Ok(None) => {
@@ -211,7 +211,7 @@ impl TopicStorage {
             if retain_message.len() == 0 {
                 return Ok(None);
             }
-            let message = match serde_json::from_slice::<MQTTMessage>(retain_message.as_slice()) {
+            let message = match serde_json::from_slice::<MqttMessage>(retain_message.as_slice()) {
                 Ok(data) => data,
                 Err(e) => {
                     return Err(CommonError::CommmonError(e.to_string()));
@@ -233,8 +233,8 @@ mod tests {
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::logs::init_log;
     use common_base::tools::unique_id;
-    use metadata_struct::mqtt::message::MQTTMessage;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::message::MqttMessage;
+    use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{Publish, PublishProperties};
 
     use crate::storage::topic::TopicStorage;
@@ -254,7 +254,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);
         let topic_name: String = "test_password".to_string();
-        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
+        let topic = MqttTopic::new(unique_id(), topic_name.clone());
         topic_storage.save_topic(topic).await.unwrap();
 
         let result = topic_storage
@@ -301,7 +301,7 @@ mod tests {
 
         let mut publish = Publish::default();
         publish.payload = Bytes::from(content.clone());
-        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
+        let topic = MqttTopic::new(unique_id(), topic_name.clone());
         topic_storage.save_topic(topic).await.unwrap();
 
         let result_message = topic_storage
@@ -312,7 +312,7 @@ mod tests {
 
         let publish_properties = PublishProperties::default();
         let retain_message =
-            MQTTMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
+            MqttMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
         topic_storage
             .set_retain_message(&topic_name, &retain_message, 3600)
             .await

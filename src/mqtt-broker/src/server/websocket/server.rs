@@ -29,7 +29,7 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::stream::StreamExt;
 use log::{debug, error, info};
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
@@ -244,7 +244,7 @@ async fn handle_socket<S>(
                                         }
 
                                         let mut response_buff = BytesMut::new();
-                                        let packet_wrapper = MQTTPacketWrapper {
+                                        let packet_wrapper = MqttPacketWrapper {
                                             protocol_version: protocol_version.clone().into(),
                                             packet: resp_pkg,
                                         };

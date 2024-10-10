@@ -20,7 +20,7 @@ use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use log::{debug, error, info};
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self};
@@ -182,7 +182,7 @@ where
                             }
 
                             for record in result.clone() {
-                                let msg = match MQTTMessage::decode_record(record.clone()) {
+                                let msg = match MqttMessage::decode_record(record.clone()) {
                                     Ok(msg) => msg,
                                     Err(e) => {
                                         error!("Storage layer message Decord failed with error message :{}",e);

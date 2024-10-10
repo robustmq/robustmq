@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use log::{error, warn};
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::common::{
     ConnAck, ConnAckProperties, ConnectProperties, ConnectReturnCode, Disconnect,
     DisconnectProperties, DisconnectReasonCode, MQTTPacket, MQTTProtocol, PingResp, PubAck,
@@ -28,7 +28,7 @@ use super::validator::is_request_problem_info;
 
 pub fn response_packet_mqtt_connect_success(
     protocol: &MQTTProtocol,
-    cluster: &MQTTClusterDynamicConfig,
+    cluster: &MqttClusterDynamicConfig,
     client_id: String,
     auto_client_id: bool,
     session_expiry_interval: u32,

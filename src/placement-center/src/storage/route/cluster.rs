@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::tools::{now_mills, unique_id};
-use metadata_struct::acl::mqtt_acl::MQTTAcl;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::broker_node::BrokerNode;
 use metadata_struct::placement::cluster::ClusterInfo;
 use prost::Message as _;
@@ -31,7 +31,7 @@ use protocol::placement_center::generate::placement::{
 
 use crate::cache::placement::PlacementCacheManager;
 use crate::storage::mqtt::acl::AclStorage;
-use crate::storage::mqtt::blacklist::MQTTBlackListStorage;
+use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -127,27 +127,27 @@ impl DataRouteCluster {
     pub fn create_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
         acl_storage.save(&req.cluster_name, acl)
     }
 
     pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
         acl_storage.delete(&req.cluster_name, &acl)
     }
 
     pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
-        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        let blacklist = serde_json::from_slice::<MQTTAclBlackList>(&req.blacklist)?;
+        let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        let blacklist = serde_json::from_slice::<MqttAclBlackList>(&req.blacklist)?;
         blacklist_storage.save(&req.cluster_name, blacklist)
     }
 
     pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
-        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)
     }
 }

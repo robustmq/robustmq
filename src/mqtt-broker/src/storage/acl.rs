@@ -18,7 +18,7 @@ use clients::placement::mqtt::call::list_acl;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use metadata_struct::acl::mqtt_acl::MQTTAcl;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
 use protocol::placement_center::generate::mqtt::ListAclRequest;
 
 pub struct AclStorage {
@@ -30,7 +30,7 @@ impl AclStorage {
         return AclStorage { client_poll };
     }
 
-    pub async fn list_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
+    pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListAclRequest {
             cluster_name: config.cluster_name.clone(),
@@ -45,7 +45,7 @@ impl AclStorage {
             Ok(reply) => {
                 let mut list = Vec::new();
                 for raw in reply.acls {
-                    list.push(serde_json::from_slice::<MQTTAcl>(raw.as_slice())?);
+                    list.push(serde_json::from_slice::<MqttAcl>(raw.as_slice())?);
                 }
                 return Ok(list);
             }

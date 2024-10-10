@@ -18,7 +18,7 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use metadata_struct::mqtt::session::MQTTSession;
+use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
 use super::cache::CacheManager;
@@ -34,7 +34,7 @@ pub async fn build_session(
     last_will_properties: &Option<LastWillProperties>,
     client_poll: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<(MQTTSession, bool), CommonError> {
+) -> Result<(MqttSession, bool), CommonError> {
     let session_expiry = session_expiry_interval(cache_manager, connect_properties);
     let is_contain_last_will = !last_will.is_none();
     let last_will_delay_interval = last_will_delay_interval(&last_will_properties);
@@ -44,7 +44,7 @@ pub async fn build_session(
         match session_storage.get_session(client_id.clone()).await {
             Ok(Some(session)) => (session, false),
             Ok(None) => (
-                MQTTSession::new(
+                MqttSession::new(
                     &client_id,
                     session_expiry,
                     is_contain_last_will,
@@ -58,7 +58,7 @@ pub async fn build_session(
         }
     } else {
         (
-            MQTTSession::new(
+            MqttSession::new(
                 &client_id,
                 session_expiry,
                 is_contain_last_will,
@@ -77,7 +77,7 @@ pub async fn build_session(
 
 pub async fn save_session(
     connect_id: u64,
-    session: MQTTSession,
+    session: MqttSession,
     new_session: bool,
     client_id: &String,
     client_poll: &Arc<ClientPool>,
@@ -136,7 +136,7 @@ mod test {
 
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;
 
     use super::session_expiry_interval;
@@ -145,7 +145,7 @@ mod test {
     #[tokio::test]
     pub async fn build_session_test() {
         let client_id = "client_id_test-**".to_string();
-        let session = MQTTSession::new(&client_id, 10, false, None);
+        let session = MqttSession::new(&client_id, 10, false, None);
         assert_eq!(client_id, session.client_id);
         assert_eq!(10, session.session_expiry);
         assert!(!session.is_contain_last_will);

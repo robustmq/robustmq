@@ -21,7 +21,7 @@ use cache::placement::PlacementCacheManager;
 use clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use controller::journal::controller::StorageEngineController;
-use controller::mqtt::MQTTController;
+use controller::mqtt::MqttController;
 use controller::placement::controller::ClusterController;
 use log::info;
 use openraft::Raft;
@@ -217,7 +217,7 @@ impl PlacementCenter {
             ctrl.start_node_heartbeat_check().await;
         });
 
-        let mqtt_controller = MQTTController::new(
+        let mqtt_controller = MqttController::new(
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.mqtt_cache.clone(),

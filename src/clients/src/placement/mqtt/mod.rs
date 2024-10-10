@@ -38,7 +38,7 @@ mod inner;
 async fn mqtt_client(
     client_poll: Arc<ClientPool>,
     addr: String,
-) -> Result<Connection<MQTTServiceManager>, CommonError> {
+) -> Result<Connection<MqttServiceManager>, CommonError> {
     match client_poll
         .placement_center_mqtt_services_client(addr)
         .await
@@ -125,7 +125,7 @@ pub(crate) async fn mqtt_interface_call(
                             client,
                             request.clone(),
                             |data| DeleteTopicRequest::decode(data),
-                            |mut client: Connection<MQTTServiceManager>, request| async move {
+                            |mut client: Connection<MqttServiceManager>, request| async move {
                                 client.delete_topic(request).await
                             },
                             CommonReply::encode_to_vec,
@@ -261,18 +261,18 @@ pub(crate) async fn mqtt_interface_call(
 }
 
 #[derive(Clone)]
-pub struct MQTTServiceManager {
+pub struct MqttServiceManager {
     pub addr: String,
 }
 
-impl MQTTServiceManager {
+impl MqttServiceManager {
     pub fn new(addr: String) -> Self {
         Self { addr }
     }
 }
 
 #[tonic::async_trait]
-impl Manager for MQTTServiceManager {
+impl Manager for MqttServiceManager {
     type Connection = MqttServiceClient<Channel>;
     type Error = CommonError;
 
@@ -297,7 +297,7 @@ impl Manager for MQTTServiceManager {
 }
 
 pub(crate) async fn client_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
-    client: Connection<MQTTServiceManager>,
+    client: Connection<MqttServiceManager>,
     request: Vec<u8>,
     decode_fn: DecodeFunction,
     client_fn: ClientFunction,
@@ -307,7 +307,7 @@ where
     R: prost::Message + Default,
     Resp: prost::Message,
     DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
-    ClientFunction: FnOnce(Connection<MQTTServiceManager>, R) -> Fut,
+    ClientFunction: FnOnce(Connection<MqttServiceManager>, R) -> Fut,
     Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
     EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
 {

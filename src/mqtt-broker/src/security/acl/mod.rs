@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use common_base::tools::now_second;
 use ipnet::IpNet;
-use metadata_struct::acl::mqtt_acl::{MQTTAclAction, MQTTAclPermission};
+use metadata_struct::acl::mqtt_acl::{MqttAclAction, MqttAclPermission};
 use protocol::mqtt::common::QoS;
 use regex::Regex;
 
@@ -32,7 +32,7 @@ pub fn is_allow_acl(
     cache_mamanger: &Arc<CacheManager>,
     connection: &Connection,
     topic_name: &String,
-    action: MQTTAclAction,
+    action: MqttAclAction,
     retain: bool,
     _: QoS,
 ) -> bool {
@@ -57,7 +57,7 @@ pub fn is_allow_acl(
             cache_mamanger,
             &connection,
             &topic_name,
-            MQTTAclAction::Retain,
+            MqttAclAction::Retain,
         ) {
             return false;
         }
@@ -149,7 +149,7 @@ fn is_acl_deny(
     cache_mamanger: &Arc<CacheManager>,
     connection: &Connection,
     topic_name: &String,
-    action: MQTTAclAction,
+    action: MqttAclAction,
 ) -> bool {
     // check user acl
     if let Some(acl_list) = cache_mamanger
@@ -161,7 +161,7 @@ fn is_acl_deny(
             if topic_match(topic_name.clone(), raw.topic.clone())
                 && ip_match(connection.source_ip_addr.clone(), raw.ip.clone())
                 && raw.action == action
-                && raw.permission == MQTTAclPermission::Deny
+                && raw.permission == MqttAclPermission::Deny
             {
                 return true;
             }
@@ -177,7 +177,7 @@ fn is_acl_deny(
             if topic_match(topic_name.clone(), raw.topic.clone())
                 && ip_match(connection.source_ip_addr.clone(), raw.ip.clone())
                 && raw.action == action
-                && raw.permission == MQTTAclPermission::Deny
+                && raw.permission == MqttAclPermission::Deny
             {
                 return true;
             }
@@ -219,10 +219,10 @@ mod test {
     use clients::poll::ClientPool;
     use common_base::tools::now_second;
     use metadata_struct::acl::mqtt_acl::{
-        MQTTAcl, MQTTAclAction, MQTTAclPermission, MQTTAclResourceType,
+        MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
-    use metadata_struct::acl::mqtt_blacklist::{MQTTAclBlackList, MQTTAclBlackListType};
-    use metadata_struct::mqtt::user::MQTTUser;
+    use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
+    use metadata_struct::mqtt::user::MqttUser;
 
     use super::{ip_match, is_acl_deny, is_blacklist, is_super_user, topic_match};
     use crate::handler::cache::CacheManager;
@@ -235,7 +235,7 @@ mod test {
         let cluster_name = "test".to_string();
 
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: true,
@@ -250,7 +250,7 @@ mod test {
 
         assert!(is_super_user(&cache_manager, &user.username));
 
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: false,
@@ -264,7 +264,7 @@ mod test {
         let client_poll = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: true,
@@ -287,8 +287,8 @@ mod test {
         assert!(!is_blacklist(&cache_manager, &connection));
 
         // user blacklist
-        let blacklist = MQTTAclBlackList {
-            blacklist_type: MQTTAclBlackListType::User,
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::User,
             resource_name: user.username.clone(),
             end_time: now_second() + 100,
             desc: "".to_string(),
@@ -296,8 +296,8 @@ mod test {
         cache_manager.add_blacklist(blacklist);
         assert!(is_blacklist(&cache_manager, &connection));
 
-        let blacklist = MQTTAclBlackList {
-            blacklist_type: MQTTAclBlackListType::UserMatch,
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::UserMatch,
             resource_name: user.username.clone(),
             end_time: now_second() + 100,
             desc: "".to_string(),
@@ -306,8 +306,8 @@ mod test {
         assert!(is_blacklist(&cache_manager, &connection));
 
         // client id blacklist
-        let blacklist = MQTTAclBlackList {
-            blacklist_type: MQTTAclBlackListType::ClientId,
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::ClientId,
             resource_name: connection.client_id.clone(),
             end_time: now_second() + 100,
             desc: "".to_string(),
@@ -315,8 +315,8 @@ mod test {
         cache_manager.add_blacklist(blacklist);
         assert!(is_blacklist(&cache_manager, &connection));
 
-        let blacklist = MQTTAclBlackList {
-            blacklist_type: MQTTAclBlackListType::ClientIdMatch,
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::ClientIdMatch,
             resource_name: connection.client_id.clone(),
             end_time: now_second() + 100,
             desc: "".to_string(),
@@ -325,8 +325,8 @@ mod test {
         assert!(is_blacklist(&cache_manager, &connection));
 
         // client ip blacklist
-        let blacklist = MQTTAclBlackList {
-            blacklist_type: MQTTAclBlackListType::Ip,
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::Ip,
             resource_name: connection.source_ip_addr.clone(),
             end_time: now_second() + 100,
             desc: "".to_string(),
@@ -334,8 +334,8 @@ mod test {
         cache_manager.add_blacklist(blacklist);
         assert!(is_blacklist(&cache_manager, &connection));
 
-        let blacklist = MQTTAclBlackList {
-            blacklist_type: MQTTAclBlackListType::IPCIDR,
+        let blacklist = MqttAclBlackList {
+            blacklist_type: MqttAclBlackListType::IPCIDR,
             resource_name: "127.0.0.0/24".to_string(),
             end_time: now_second() + 100,
             desc: "".to_string(),
@@ -350,7 +350,7 @@ mod test {
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: true,
@@ -373,14 +373,14 @@ mod test {
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Publish
+            MqttAclAction::Publish
         ));
 
         assert!(!is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
     }
 
@@ -390,7 +390,7 @@ mod test {
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: true,
@@ -409,43 +409,43 @@ mod test {
         );
         connection.login_success(user.username.clone());
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::User,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
             resource_name: user.username.clone(),
             topic: WILDCARD_RESOURCE.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Publish,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Publish
+            MqttAclAction::Publish
         ));
 
         assert!(!is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::User,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
             resource_name: user.username.clone(),
             topic: WILDCARD_RESOURCE.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Subscribe,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Subscribe,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
     }
 
@@ -455,7 +455,7 @@ mod test {
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: true,
@@ -474,43 +474,43 @@ mod test {
         );
         connection.login_success(user.username.clone());
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::User,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
             resource_name: user.username.clone(),
             topic: topic_name.clone(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Publish,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Publish
+            MqttAclAction::Publish
         ));
 
         assert!(!is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::User,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::User,
             resource_name: user.username.clone(),
             topic: topic_name.clone(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Subscribe,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Subscribe,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
     }
 
@@ -520,7 +520,7 @@ mod test {
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: true,
@@ -539,43 +539,43 @@ mod test {
         );
         connection.login_success(user.username.clone());
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::ClientId,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
             resource_name: connection.client_id.clone(),
             topic: WILDCARD_RESOURCE.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Publish,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Publish
+            MqttAclAction::Publish
         ));
 
         assert!(!is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::ClientId,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
             resource_name: connection.client_id.clone(),
             topic: WILDCARD_RESOURCE.to_string(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Subscribe,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Subscribe,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
     }
 
@@ -585,7 +585,7 @@ mod test {
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let user = MQTTUser {
+        let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
             is_superuser: true,
@@ -604,43 +604,43 @@ mod test {
         );
         connection.login_success(user.username.clone());
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::ClientId,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
             resource_name: connection.client_id.clone(),
             topic: topic_name.clone(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Publish,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Publish,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Publish
+            MqttAclAction::Publish
         ));
 
         assert!(!is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
 
-        let acl = MQTTAcl {
-            resource_type: MQTTAclResourceType::ClientId,
+        let acl = MqttAcl {
+            resource_type: MqttAclResourceType::ClientId,
             resource_name: connection.client_id.clone(),
             topic: topic_name.clone(),
             ip: WILDCARD_RESOURCE.to_string(),
-            action: MQTTAclAction::Subscribe,
-            permission: MQTTAclPermission::Deny,
+            action: MqttAclAction::Subscribe,
+            permission: MqttAclPermission::Deny,
         };
         cache_manager.add_acl(acl);
         assert!(is_acl_deny(
             &cache_manager,
             &connection,
             &topic_name,
-            MQTTAclAction::Subscribe
+            MqttAclAction::Subscribe
         ));
     }
 

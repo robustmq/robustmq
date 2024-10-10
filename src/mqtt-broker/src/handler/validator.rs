@@ -20,8 +20,8 @@ use clients::poll::ClientPool;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use futures::SinkExt;
 use log::error;
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
     LastWillProperties, Login, MQTTPacket, MQTTProtocol, PubAckReason, PubRecReason, Publish,
@@ -52,7 +52,7 @@ pub async fn tcp_establish_connection_check(
     write_frame_stream: &mut FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
 ) -> bool {
     if connection_manager.tcp_connect_num_check() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -77,7 +77,7 @@ pub async fn tcp_establish_connection_check(
     }
 
     if is_connection_rate_exceeded() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -112,7 +112,7 @@ pub async fn tcp_tls_establish_connection_check(
     >,
 ) -> bool {
     if connection_manager.tcp_connect_num_check() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -137,7 +137,7 @@ pub async fn tcp_tls_establish_connection_check(
     }
 
     if is_connection_rate_exceeded() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -165,7 +165,7 @@ pub async fn tcp_tls_establish_connection_check(
 
 pub fn connect_validator(
     protocol: &MQTTProtocol,
-    cluster: &MQTTClusterDynamicConfig,
+    cluster: &MqttClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
@@ -612,7 +612,7 @@ pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -
 
 pub fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
-    cluster: &MQTTClusterDynamicConfig,
+    cluster: &MqttClusterDynamicConfig,
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
