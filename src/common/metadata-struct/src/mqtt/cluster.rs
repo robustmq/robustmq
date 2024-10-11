@@ -17,17 +17,17 @@ use serde::{Deserialize, Serialize};
 
 // Dynamic configuration of MQTT cluster latitude
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MQTTClusterDynamicConfig {
-    pub protocol: MQTTClusterDynamicConfigProtocol,
-    pub feature: MQTTClusterDynamicConfigFeature,
-    pub security: MQTTClusterDynamicConfigSecurity,
-    pub network: MQTTClusterDynamicConfigNetwork,
-    pub slow: MQTTClusterDynamicSlowSub,
+pub struct MqttClusterDynamicConfig {
+    pub protocol: MqttClusterDynamicConfigProtocol,
+    pub feature: MqttClusterDynamicConfigFeature,
+    pub security: MqttClusterDynamicConfigSecurity,
+    pub network: MqttClusterDynamicConfigNetwork,
+    pub slow: MqttClusterDynamicSlowSub,
 }
 
 // MQTT cluster protocol related dynamic configuration
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MQTTClusterDynamicConfigProtocol {
+pub struct MqttClusterDynamicConfigProtocol {
     pub session_expiry_interval: u32,
     pub topic_alias_max: u16,
     pub max_qos: QoS,
@@ -41,14 +41,14 @@ pub struct MQTTClusterDynamicConfigProtocol {
 
 // MQTT cluster security related dynamic configuration
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MQTTClusterDynamicConfigSecurity {
+pub struct MqttClusterDynamicConfigSecurity {
     pub is_self_protection_status: bool,
     pub secret_free_login: bool,
 }
 
 // MQTT cluster network related dynamic configuration
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MQTTClusterDynamicConfigNetwork {
+pub struct MqttClusterDynamicConfigNetwork {
     pub tcp_max_connection_num: u64,
     pub tcps_max_connection_num: u64,
     pub websocket_max_connection_num: u64,
@@ -59,7 +59,7 @@ pub struct MQTTClusterDynamicConfigNetwork {
 
 // MQTT cluster Feature related dynamic configuration
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MQTTClusterDynamicConfigFeature {
+pub struct MqttClusterDynamicConfigFeature {
     pub retain_available: AvailableFlag,
     pub wildcard_subscription_available: AvailableFlag,
     pub subscription_identifiers_available: AvailableFlag,
@@ -67,17 +67,17 @@ pub struct MQTTClusterDynamicConfigFeature {
 }
 
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct MQTTClusterDynamicSlowSub {
+pub struct MqttClusterDynamicSlowSub {
     pub enable: bool,
     pub whole_ms: u128,
     pub internal_ms: u32,
     pub response_ms: u32,
 }
 
-impl MQTTClusterDynamicConfig {
+impl MqttClusterDynamicConfig {
     pub fn new() -> Self {
-        MQTTClusterDynamicConfig {
-            protocol: MQTTClusterDynamicConfigProtocol {
+        MqttClusterDynamicConfig {
+            protocol: MqttClusterDynamicConfigProtocol {
                 session_expiry_interval: 1800,
                 topic_alias_max: 65535,
                 max_qos: QoS::ExactlyOnce,
@@ -88,17 +88,17 @@ impl MQTTClusterDynamicConfig {
                 client_pkid_persistent: false,
                 max_message_expiry_interval: 3600,
             },
-            feature: MQTTClusterDynamicConfigFeature {
+            feature: MqttClusterDynamicConfigFeature {
                 retain_available: AvailableFlag::Enable,
                 wildcard_subscription_available: AvailableFlag::Enable,
                 subscription_identifiers_available: AvailableFlag::Enable,
                 shared_subscription_available: AvailableFlag::Enable,
             },
-            security: MQTTClusterDynamicConfigSecurity {
+            security: MqttClusterDynamicConfigSecurity {
                 secret_free_login: false,
                 is_self_protection_status: false,
             },
-            network: MQTTClusterDynamicConfigNetwork {
+            network: MqttClusterDynamicConfigNetwork {
                 tcp_max_connection_num: 1000,
                 tcps_max_connection_num: 1000,
                 websocket_max_connection_num: 1000,
@@ -106,7 +106,7 @@ impl MQTTClusterDynamicConfig {
                 response_max_try_mut_times: 128,
                 response_try_mut_sleep_time_ms: 100,
             },
-            slow: MQTTClusterDynamicSlowSub {
+            slow: MqttClusterDynamicSlowSub {
                 enable: false,
                 whole_ms: 0,
                 internal_ms: 0,

@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::tools::{now_mills, unique_id};
-use metadata_struct::acl::mqtt_acl::MQTTAcl;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::broker_node::BrokerNode;
 use metadata_struct::placement::cluster::ClusterInfo;
 use prost::Message as _;
@@ -31,7 +31,7 @@ use protocol::placement_center::generate::placement::{
 
 use crate::cache::placement::PlacementCacheManager;
 use crate::storage::mqtt::acl::AclStorage;
-use crate::storage::mqtt::blacklist::MQTTBlackListStorage;
+use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::placement::cluster::ClusterStorage;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -127,27 +127,27 @@ impl DataRouteCluster {
     pub fn create_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
         acl_storage.save(&req.cluster_name, acl)
     }
 
     pub fn delete_acl(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteAclRequest::decode(value.as_ref())?;
         let acl_storage = AclStorage::new(self.rocksdb_engine_handler.clone());
-        let acl = serde_json::from_slice::<MQTTAcl>(&req.acl)?;
+        let acl = serde_json::from_slice::<MqttAcl>(&req.acl)?;
         acl_storage.delete(&req.cluster_name, &acl)
     }
 
     pub fn create_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = CreateBlacklistRequest::decode(value.as_ref())?;
-        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
-        let blacklist = serde_json::from_slice::<MQTTAclBlackList>(&req.blacklist)?;
+        let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        let blacklist = serde_json::from_slice::<MqttAclBlackList>(&req.blacklist)?;
         blacklist_storage.save(&req.cluster_name, blacklist)
     }
 
     pub fn delete_blacklist(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req = DeleteBlacklistRequest::decode(value.as_ref())?;
-        let blacklist_storage = MQTTBlackListStorage::new(self.rocksdb_engine_handler.clone());
+        let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)
     }
 }
@@ -176,12 +176,14 @@ mod tests {
         let node_id = 1;
         let node_ip = "127.0.0.1".to_string();
 
-        let mut req = RegisterNodeRequest::default();
-        req.node_id = node_id;
-        req.node_ip = node_ip.clone();
-        req.cluster_type = ClusterType::MqttBrokerServer.into();
-        req.cluster_name = cluster_name.clone();
-        req.extend_info = "{}".to_string();
+        let req = RegisterNodeRequest {
+            node_id,
+            node_ip: node_ip.clone(),
+            cluster_type: ClusterType::MqttBrokerServer.into(),
+            cluster_name: cluster_name.clone(),
+            extend_info: "{}".to_string(),
+            ..Default::default()
+        };
         let data = RegisterNodeRequest::encode_to_vec(&req);
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path,
@@ -197,10 +199,7 @@ mod tests {
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
 
         let cluster = cluster_storage
-            .get(
-                &ClusterType::MqttBrokerServer.as_str_name().to_string(),
-                &cluster_name,
-            )
+            .get(ClusterType::MqttBrokerServer.as_str_name(), &cluster_name)
             .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
@@ -215,10 +214,7 @@ mod tests {
         assert!(res.is_none());
 
         let cluster = cluster_storage
-            .get(
-                &ClusterType::MqttBrokerServer.as_str_name().to_string(),
-                &cluster_name,
-            )
+            .get(ClusterType::MqttBrokerServer.as_str_name(), &cluster_name)
             .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);

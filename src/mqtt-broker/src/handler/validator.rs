@@ -20,8 +20,8 @@ use clients::poll::ClientPool;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use futures::SinkExt;
 use log::error;
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
     LastWillProperties, Login, MQTTPacket, MQTTProtocol, PubAckReason, PubRecReason, Publish,
@@ -52,7 +52,7 @@ pub async fn tcp_establish_connection_check(
     write_frame_stream: &mut FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, MqttCodec>,
 ) -> bool {
     if connection_manager.tcp_connect_num_check() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -77,7 +77,7 @@ pub async fn tcp_establish_connection_check(
     }
 
     if is_connection_rate_exceeded() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -100,7 +100,7 @@ pub async fn tcp_establish_connection_check(
         }
         return false;
     }
-    return true;
+    true
 }
 
 pub async fn tcp_tls_establish_connection_check(
@@ -112,7 +112,7 @@ pub async fn tcp_tls_establish_connection_check(
     >,
 ) -> bool {
     if connection_manager.tcp_connect_num_check() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -137,7 +137,7 @@ pub async fn tcp_tls_establish_connection_check(
     }
 
     if is_connection_rate_exceeded() {
-        let packet_wrapper = MQTTPacketWrapper {
+        let packet_wrapper = MqttPacketWrapper {
             protocol_version: MQTTProtocol::MQTT5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
                 &MQTTProtocol::MQTT5,
@@ -160,12 +160,13 @@ pub async fn tcp_tls_establish_connection_check(
         }
         return false;
     }
-    return true;
+    true
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn connect_validator(
     protocol: &MQTTProtocol,
-    cluster: &MQTTClusterDynamicConfig,
+    cluster: &MqttClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
@@ -236,12 +237,12 @@ pub fn connect_validator(
         match topic_name_validator(&topic_name) {
             Ok(()) => {}
             Err(e) => {
-                Some(response_packet_mqtt_connect_fail(
+                response_packet_mqtt_connect_fail(
                     protocol,
                     ConnectReturnCode::TopicNameInvalid,
                     connect_properties,
                     Some(e.to_string()),
-                ));
+                );
             }
         }
 
@@ -266,20 +267,20 @@ pub fn connect_validator(
 
         if let Some(will_properties) = last_will_properties {
             if let Some(payload_format) = will_properties.payload_format_indicator {
-                if payload_format == 1 {
-                    if !std::str::from_utf8(&will.message.to_vec().as_slice()).is_ok() {
-                        return Some(response_packet_mqtt_connect_fail(
-                            protocol,
-                            ConnectReturnCode::PayloadFormatInvalid,
-                            connect_properties,
-                            None,
-                        ));
-                    };
+                if payload_format == 1
+                    && std::str::from_utf8(will.message.to_vec().as_slice()).is_err()
+                {
+                    return Some(response_packet_mqtt_connect_fail(
+                        protocol,
+                        ConnectReturnCode::PayloadFormatInvalid,
+                        connect_properties,
+                        None,
+                    ));
                 }
             }
         }
     }
-    return None;
+    None
 }
 
 pub async fn publish_validator(
@@ -349,31 +350,25 @@ pub async fn publish_validator(
 
     if let Some(properties) = publish_properties {
         if let Some(payload_format) = properties.payload_format_indicator {
-            if payload_format == 1 {
-                if !std::str::from_utf8(&publish.payload.to_vec().as_slice()).is_ok() {
-                    if is_puback {
-                        return Some(response_packet_mqtt_puback_fail(
-                            protocol,
-                            connection,
-                            publish.pkid,
-                            PubAckReason::PayloadFormatInvalid,
-                            Some(
-                                MQTTBrokerError::PacketLenthError(publish.payload.len())
-                                    .to_string(),
-                            ),
-                        ));
-                    } else {
-                        return Some(response_packet_mqtt_pubrec_fail(
-                            protocol,
-                            connection,
-                            publish.pkid,
-                            PubRecReason::PayloadFormatInvalid,
-                            Some(
-                                MQTTBrokerError::PacketLenthError(publish.payload.len())
-                                    .to_string(),
-                            ),
-                        ));
-                    }
+            if payload_format == 1
+                && std::str::from_utf8(publish.payload.to_vec().as_slice()).is_err()
+            {
+                if is_puback {
+                    return Some(response_packet_mqtt_puback_fail(
+                        protocol,
+                        connection,
+                        publish.pkid,
+                        PubAckReason::PayloadFormatInvalid,
+                        Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                    ));
+                } else {
+                    return Some(response_packet_mqtt_pubrec_fail(
+                        protocol,
+                        connection,
+                        publish.pkid,
+                        PubRecReason::PayloadFormatInvalid,
+                        Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                    ));
                 }
             }
         }
@@ -445,7 +440,7 @@ pub async fn publish_validator(
         }
     }
 
-    return None;
+    None
 }
 
 pub async fn subscribe_validator(
@@ -456,8 +451,8 @@ pub async fn subscribe_validator(
     subscribe: &Subscribe,
 ) -> Option<MQTTPacket> {
     match pkid_exists(
-        &cache_manager,
-        &client_poll,
+        cache_manager,
+        client_poll,
         &connection.client_id,
         subscribe.packet_identifier,
     )
@@ -467,7 +462,7 @@ pub async fn subscribe_validator(
             if res {
                 return Some(response_packet_mqtt_suback(
                     protocol,
-                    &connection,
+                    connection,
                     subscribe.packet_identifier,
                     vec![SubscribeReasonCode::PkidInUse],
                     None,
@@ -477,7 +472,7 @@ pub async fn subscribe_validator(
         Err(e) => {
             return Some(response_packet_mqtt_suback(
                 protocol,
-                &connection,
+                connection,
                 subscribe.packet_identifier,
                 vec![SubscribeReasonCode::Unspecified],
                 Some(e.to_string()),
@@ -495,7 +490,7 @@ pub async fn subscribe_validator(
     if !return_codes.is_empty() {
         return Some(response_packet_mqtt_suback(
             protocol,
-            &connection,
+            connection,
             subscribe.packet_identifier,
             return_codes,
             None,
@@ -505,7 +500,7 @@ pub async fn subscribe_validator(
     if authentication_acl() {
         return Some(response_packet_mqtt_suback(
             protocol,
-            &connection,
+            connection,
             subscribe.packet_identifier,
             vec![SubscribeReasonCode::NotAuthorized],
             None,
@@ -515,26 +510,26 @@ pub async fn subscribe_validator(
     if is_subscribe_rate_exceeded() {
         return Some(response_packet_mqtt_suback(
             protocol,
-            &connection,
+            connection,
             subscribe.packet_identifier,
             vec![SubscribeReasonCode::QuotaExceeded],
             None,
         ));
     }
 
-    return None;
+    None
 }
 
 pub async fn un_subscribe_validator(
-    client_id: &String,
+    client_id: &str,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
     un_subscribe: &Unsubscribe,
 ) -> Option<MQTTPacket> {
     match pkid_exists(
-        &cache_manager,
-        &client_poll,
+        cache_manager,
+        client_poll,
         &connection.client_id,
         un_subscribe.pkid,
     )
@@ -543,7 +538,7 @@ pub async fn un_subscribe_validator(
         Ok(res) => {
             if res {
                 return Some(response_packet_mqtt_unsuback(
-                    &connection,
+                    connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::PacketIdentifierInUse],
                     None,
@@ -552,7 +547,7 @@ pub async fn un_subscribe_validator(
         }
         Err(e) => {
             return Some(response_packet_mqtt_unsuback(
-                &connection,
+                connection,
                 un_subscribe.pkid,
                 vec![UnsubAckReason::UnspecifiedError],
                 Some(e.to_string()),
@@ -569,7 +564,7 @@ pub async fn un_subscribe_validator(
     }
     if !return_codes.is_empty() {
         return Some(response_packet_mqtt_unsuback(
-            &connection,
+            connection,
             un_subscribe.pkid,
             return_codes,
             None,
@@ -578,7 +573,7 @@ pub async fn un_subscribe_validator(
 
     if authentication_acl() {
         return Some(response_packet_mqtt_unsuback(
-            &connection,
+            connection,
             un_subscribe.pkid,
             vec![UnsubAckReason::NotAuthorized],
             None,
@@ -589,7 +584,7 @@ pub async fn un_subscribe_validator(
         if let Some(sub_list) = cache_manager.subscribe_filter.get_mut(client_id) {
             if !sub_list.contains_key(&path) {
                 return Some(response_packet_mqtt_unsuback(
-                    &connection,
+                    connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::NoSubscriptionExisted],
                     Some(MQTTBrokerError::SubscriptionPathNotExists(path).to_string()),
@@ -598,7 +593,7 @@ pub async fn un_subscribe_validator(
         }
     }
 
-    return None;
+    None
 }
 
 pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -> bool {
@@ -607,40 +602,40 @@ pub fn is_request_problem_info(connect_properties: &Option<ConnectProperties>) -
             return problem_info == 1;
         }
     }
-    return false;
+    false
 }
 
 pub fn connection_max_packet_size(
     connect_properties: &Option<ConnectProperties>,
-    cluster: &MQTTClusterDynamicConfig,
+    cluster: &MqttClusterDynamicConfig,
 ) -> u32 {
     if let Some(properties) = connect_properties {
         if let Some(size) = properties.max_packet_size {
             return min(size, cluster.protocol.max_packet_size);
         }
     }
-    return cluster.protocol.max_packet_size;
+    cluster.protocol.max_packet_size
 }
 
-pub fn client_id_validator(client_id: &String) -> bool {
+pub fn client_id_validator(client_id: &str) -> bool {
     if client_id.len() == 5 && client_id.len() > 23 {
         return false;
     }
-    return true;
+    true
 }
 
-pub fn username_validator(username: &String) -> bool {
+pub fn username_validator(username: &str) -> bool {
     if username.is_empty() {
         return false;
     }
-    return true;
+    true
 }
 
-pub fn password_validator(password: &String) -> bool {
+pub fn password_validator(password: &str) -> bool {
     if password.is_empty() {
         return false;
     }
-    return true;
+    true
 }
 
 #[cfg(test)]

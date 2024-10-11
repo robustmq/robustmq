@@ -68,11 +68,11 @@ where
         message_storage_adapter: Arc<S>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
-        return SystemTopic {
+        SystemTopic {
             metadata_cache,
             message_storage_adapter,
             client_poll,
-        };
+        }
     }
 
     pub async fn start_thread(&self, stop_send: broadcast::Sender<bool>) {
@@ -81,14 +81,11 @@ where
         loop {
             select! {
                 val = stop_rx.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                debug!("System topic thread stopped successfully");
-                                break;
-                            }
+                    if let Ok(flag) = val {
+                        if flag {
+                            debug!("System topic thread stopped successfully");
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
                 _ = self.report_info()=>{}
@@ -122,8 +119,7 @@ where
                 Err(e) => {
                     panic!(
                         "Initializing system topic {} Failed, error message :{}",
-                        new_topic_name,
-                        e.to_string()
+                        new_topic_name, e
                     );
                 }
             }
@@ -131,13 +127,13 @@ where
     }
 
     fn get_all_system_topic(&self) -> Vec<String> {
-        let mut results = Vec::new();
-        results.push(SYSTEM_TOPIC_BROKERS.to_string());
-        results.push(SYSTEM_TOPIC_BROKERS_VERSION.to_string());
-        results.push(SYSTEM_TOPIC_BROKERS_UPTIME.to_string());
-        results.push(SYSTEM_TOPIC_BROKERS_DATETIME.to_string());
-        results.push(SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string());
-        return results;
+        vec![
+            SYSTEM_TOPIC_BROKERS.to_string(),
+            SYSTEM_TOPIC_BROKERS_VERSION.to_string(),
+            SYSTEM_TOPIC_BROKERS_UPTIME.to_string(),
+            SYSTEM_TOPIC_BROKERS_DATETIME.to_string(),
+            SYSTEM_TOPIC_BROKERS_SYSDESCR.to_string(),
+        ]
     }
 }
 
@@ -146,7 +142,7 @@ fn replace_topic_name(mut topic_name: String) -> String {
         let local_ip = get_local_ip();
         topic_name = topic_name.replace("${node}", &local_ip)
     }
-    return topic_name;
+    topic_name
 }
 
 pub(crate) async fn write_topic_data<S>(
@@ -188,7 +184,6 @@ pub(crate) async fn write_topic_data<S>(
                 topic_name,
                 e.to_string()
             );
-            return;
         }
-    };
+    }
 }

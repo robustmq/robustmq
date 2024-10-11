@@ -85,7 +85,6 @@ pub fn default_rocksdb() -> Rocksdb {
     Rocksdb {
         max_open_files: default_max_open_files(),
         data_path: default_data_path(),
-        ..Default::default()
     }
 }
 

@@ -64,11 +64,12 @@ impl BrokerHeartbeat {
                     if let Some(time) = cluster_heartbeat.get(&node_id) {
                         if now_second() - *time >= self.timeout_ms / 1000 {
                             let cluster_name = node.cluster_name.clone();
-                            if let Some(_) = self.cluster_cache.cluster_list.get(&cluster_name) {
-                                let mut req = UnRegisterNodeRequest::default();
-                                req.node_id = node.node_id;
-                                req.cluster_name = node.cluster_name.clone();
-                                req.cluster_type = ClusterType::JournalServer.into();
+                            if self.cluster_cache.cluster_list.get(&cluster_name).is_some() {
+                                let req = UnRegisterNodeRequest {
+                                    node_id: node.node_id,
+                                    cluster_name: node.cluster_name.clone(),
+                                    cluster_type: ClusterType::JournalServer.into(),
+                                };
                                 let pcs = self.placement_center_storage.clone();
                                 let data = StorageData::new(
                                     StorageDataType::ClusterUngisterNode,

@@ -20,7 +20,7 @@ use clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::common::{Connect, ConnectProperties};
 
 use super::cache::CacheManager;
@@ -63,33 +63,35 @@ pub struct Connection {
     pub create_time: u64,
 }
 
+pub struct ConnectionConfig {
+    pub connect_id: u64,
+    pub client_id: String,
+    pub receive_maximum: u16,
+    pub max_packet_size: u32,
+    pub topic_alias_max: u16,
+    pub request_problem_info: u8,
+    pub keep_alive: u16,
+    pub source_ip_addr: String,
+}
+
 impl Connection {
-    pub fn new(
-        connect_id: u64,
-        client_id: &String,
-        receive_maximum: u16,
-        max_packet_size: u32,
-        topic_alias_max: u16,
-        request_problem_info: u8,
-        keep_alive: u16,
-        source_ip_addr: String,
-    ) -> Connection {
-        return Connection {
-            connect_id,
-            client_id: client_id.clone(),
+    pub fn new(config: ConnectionConfig) -> Connection {
+        Connection {
+            connect_id: config.connect_id,
+            client_id: config.client_id,
             is_login: false,
-            keep_alive,
-            client_max_receive_maximum: receive_maximum,
-            max_packet_size,
+            keep_alive: config.keep_alive,
+            client_max_receive_maximum: config.receive_maximum,
+            max_packet_size: config.max_packet_size,
             topic_alias: DashMap::with_capacity(2),
-            topic_alias_max,
-            request_problem_info,
+            topic_alias_max: config.topic_alias_max,
+            request_problem_info: config.request_problem_info,
             receive_qos_message: Arc::new(AtomicIsize::new(0)),
             sender_qos_message: Arc::new(AtomicIsize::new(0)),
             create_time: now_second(),
-            source_ip_addr,
+            source_ip_addr: config.source_ip_addr,
             ..Default::default()
-        };
+        }
     }
 
     pub fn login_success(&mut self, user_name: String) {
@@ -98,11 +100,11 @@ impl Connection {
     }
 
     pub fn is_response_proplem_info(&self) -> bool {
-        return self.request_problem_info == 1;
+        self.request_problem_info == 1
     }
 
     pub fn get_recv_qos_message(&self) -> isize {
-        return self.receive_qos_message.fetch_add(0, Ordering::Relaxed);
+        self.receive_qos_message.fetch_add(0, Ordering::Relaxed)
     }
 
     pub fn recv_qos_message_incr(&self) {
@@ -114,7 +116,7 @@ impl Connection {
     }
 
     pub fn get_send_qos_message(&self) -> isize {
-        return self.sender_qos_message.fetch_add(0, Ordering::Relaxed);
+        self.sender_qos_message.fetch_add(0, Ordering::Relaxed)
     }
 
     pub fn send_qos_message_incr(&self) {
@@ -128,8 +130,8 @@ impl Connection {
 
 pub fn build_connection(
     connect_id: u64,
-    client_id: &String,
-    cluster: &MQTTClusterDynamicConfig,
+    client_id: String,
+    cluster: &MqttClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     addr: &SocketAddr,
@@ -156,11 +158,7 @@ pub fn build_connection(
                 cluster.protocol.topic_alias_max
             };
 
-            let request_problem_info = if let Some(value) = properties.request_problem_info {
-                value
-            } else {
-                0
-            };
+            let request_problem_info = properties.request_problem_info.unwrap_or_default();
 
             (
                 client_receive_maximum,
@@ -176,24 +174,26 @@ pub fn build_connection(
                 0,
             )
         };
-    return Connection::new(
+
+    let config = ConnectionConfig {
         connect_id,
-        &client_id,
-        client_receive_maximum,
+        client_id: client_id.clone(),
+        receive_maximum: client_receive_maximum,
         max_packet_size,
         topic_alias_max,
         request_problem_info,
         keep_alive,
-        addr.to_string(),
-    );
+        source_ip_addr: addr.to_string(),
+    };
+    Connection::new(config)
 }
 
-pub fn get_client_id(client_id: &String) -> (String, bool) {
+pub fn get_client_id(client_id: &str) -> (String, bool) {
     if client_id.is_empty() {
-        return (unique_id(), true);
+        (unique_id(), true)
     } else {
-        return (client_id.clone(), false);
-    };
+        (client_id.to_owned(), false)
+    }
 }
 
 pub fn response_information(connect_properties: &Option<ConnectProperties>) -> Option<String> {
@@ -204,11 +204,11 @@ pub fn response_information(connect_properties: &Option<ConnectProperties>) -> O
             }
         }
     }
-    return None;
+    None
 }
 
 pub async fn disconnect_connection(
-    client_id: &String,
+    client_id: &str,
     connect_id: u64,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
@@ -220,12 +220,12 @@ pub async fn disconnect_connection(
     // Remove the client id bound connection information
     cache_manager.update_session_connect_id(client_id, None);
     // Once the connection is dropped, the push thread for the Client ID dimension is paused
-    subscribe_manager.stop_push_by_client_id(&client_id);
+    subscribe_manager.stop_push_by_client_id(client_id);
 
     // Remove the Connect id of the Session in the Placement Center
     let session_storage = SessionStorage::new(client_poll.clone());
     match session_storage
-        .update_session(client_id, 0, 0, 0, now_second())
+        .update_session(client_id.to_owned(), 0, 0, 0, now_second())
         .await
     {
         Ok(_) => {}
@@ -236,12 +236,12 @@ pub async fn disconnect_connection(
 
     // Close the real network connection
     connnection_manager.close_connect(connect_id).await;
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(test)]
 mod test {
-    use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
+    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
     use protocol::mqtt::common::{Connect, ConnectProperties};
 
     use super::{
@@ -253,7 +253,7 @@ mod test {
     pub async fn build_connection_test() {
         let connect_id = 1;
         let client_id = "client_id-***".to_string();
-        let cluster = MQTTClusterDynamicConfig::new();
+        let cluster = MqttClusterDynamicConfig::new();
         let connect = Connect {
             keep_alive: 10,
             client_id: client_id.clone(),
@@ -270,10 +270,10 @@ mod test {
             authentication_method: None,
             authentication_data: None,
         };
-        let addr = format!("0.0.0.0:8080").parse().unwrap();
+        let addr = "0.0.0.0:8080".to_string().parse().unwrap();
         let mut conn = build_connection(
             connect_id,
-            &client_id,
+            client_id.clone(),
             &cluster,
             &connect,
             &Some(connect_properties),
@@ -307,16 +307,20 @@ mod test {
 
     #[tokio::test]
     pub async fn response_information_test() {
-        let mut connect_properties = ConnectProperties::default();
-        connect_properties.request_response_info = Some(1);
+        let connect_properties = ConnectProperties {
+            request_response_info: Some(1),
+            ..Default::default()
+        };
         let res = response_information(&Some(connect_properties));
         assert_eq!(res.unwrap(), REQUEST_RESPONSE_PREFIX_NAME.to_string());
 
         let res = response_information(&Some(ConnectProperties::default()));
         assert!(res.is_none());
 
-        let mut connect_properties = ConnectProperties::default();
-        connect_properties.request_response_info = Some(0);
+        let connect_properties = ConnectProperties {
+            request_response_info: Some(0),
+            ..Default::default()
+        };
         let res = response_information(&Some(connect_properties));
         assert!(res.is_none());
     }

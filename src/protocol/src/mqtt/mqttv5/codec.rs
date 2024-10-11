@@ -17,7 +17,7 @@ use tokio_util::codec;
 
 use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
-    subscribe, unsuback, unsubscribe, Error, MQTTPacket, PacketType,
+    subscribe, unsuback, unsubscribe, ConnectReadOutcome, Error, MQTTPacket, PacketType,
 };
 use crate::mqtt::common::LastWillProperties;
 
@@ -77,10 +77,16 @@ impl codec::Decoder for Mqtt5Codec {
         let packet = packet.freeze();
         let packet = match packet_type {
             PacketType::Connect => {
-                let (protocol_level, connect, properties, last_will, last_will_properties, login) =
-                    connect::read(fixed_header, packet)?;
+                let ConnectReadOutcome {
+                    protocol_version,
+                    connect,
+                    properties,
+                    last_will,
+                    last_will_properties,
+                    login,
+                } = connect::read(fixed_header, packet)?;
                 MQTTPacket::Connect(
-                    protocol_level,
+                    protocol_version,
                     connect,
                     properties,
                     last_will,

@@ -18,7 +18,7 @@ use clients::placement::mqtt::call::list_blacklist;
 use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::placement_center::generate::mqtt::ListBlacklistRequest;
 
 pub struct BlackListStorage {
@@ -27,10 +27,10 @@ pub struct BlackListStorage {
 
 impl BlackListStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return BlackListStorage { client_poll };
+        BlackListStorage { client_poll }
     }
 
-    pub async fn list_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+    pub async fn list_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListBlacklistRequest {
             cluster_name: config.cluster_name.clone(),
@@ -45,11 +45,11 @@ impl BlackListStorage {
             Ok(reply) => {
                 let mut list = Vec::new();
                 for raw in reply.blacklists {
-                    list.push(serde_json::from_slice::<MQTTAclBlackList>(raw.as_slice())?);
+                    list.push(serde_json::from_slice::<MqttAclBlackList>(raw.as_slice())?);
                 }
-                return Ok(list);
+                Ok(list)
             }
-            Err(e) => return Err(e),
+            Err(e) => Err(e),
         }
     }
 }

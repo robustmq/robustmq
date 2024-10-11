@@ -23,8 +23,8 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use dashmap::DashMap;
-use metadata_struct::mqtt::message::MQTTMessage;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::placement_center::generate::mqtt::{
     CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
@@ -35,10 +35,10 @@ pub struct TopicStorage {
 
 impl TopicStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return TopicStorage { client_poll };
+        TopicStorage { client_poll }
     }
 
-    pub async fn save_topic(&self, topic: MQTTTopic) -> Result<(), CommonError> {
+    pub async fn save_topic(&self, topic: MqttTopic) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -52,10 +52,8 @@ impl TopicStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -72,14 +70,12 @@ impl TopicStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
-    pub async fn topic_list(&self) -> Result<DashMap<String, MQTTTopic>, CommonError> {
+    pub async fn topic_list(&self) -> Result<DashMap<String, MqttTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -95,7 +91,7 @@ impl TopicStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.topics {
-                    match serde_json::from_slice::<MQTTTopic>(&raw) {
+                    match serde_json::from_slice::<MqttTopic>(&raw) {
                         Ok(data) => {
                             results.insert(data.topic_name.clone(), data);
                         }
@@ -104,15 +100,13 @@ impl TopicStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
-    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MQTTTopic>, CommonError> {
+    pub async fn get_topic(&self, topic_name: String) -> Result<Option<MqttTopic>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListTopicRequest {
             cluster_name: config.cluster_name.clone(),
@@ -126,33 +120,29 @@ impl TopicStorage {
         .await
         {
             Ok(reply) => {
-                if reply.topics.len() == 0 {
+                if reply.topics.is_empty() {
                     return Ok(None);
                 }
-                let raw = reply.topics.get(0).unwrap();
-                match serde_json::from_slice::<MQTTTopic>(&raw) {
-                    Ok(data) => return Ok(Some(data)),
-                    Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
-                    }
+                let raw = reply.topics.first().unwrap();
+                match serde_json::from_slice::<MqttTopic>(raw) {
+                    Ok(data) => Ok(Some(data)),
+                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
                 }
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
     pub async fn set_retain_message(
         &self,
-        topic_name: &String,
-        retain_message: &MQTTMessage,
+        topic_name: String,
+        retain_message: &MqttMessage,
         retain_message_expired_at: u64,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name: topic_name.clone(),
+            topic_name,
             retain_message: retain_message.encode(),
             retain_message_expired_at,
         };
@@ -163,18 +153,16 @@ impl TopicStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
-    pub async fn delete_retain_message(&self, topic_name: &String) -> Result<(), CommonError> {
+    pub async fn delete_retain_message(&self, topic_name: String) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SetTopicRetainMessageRequest {
             cluster_name: config.cluster_name.clone(),
-            topic_name: topic_name.clone(),
+            topic_name,
             retain_message: Vec::new(),
             retain_message_expired_at: 0,
         };
@@ -185,10 +173,8 @@ impl TopicStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -196,7 +182,7 @@ impl TopicStorage {
     pub async fn get_retain_message(
         &self,
         topic_name: String,
-    ) -> Result<Option<MQTTMessage>, CommonError> {
+    ) -> Result<Option<MqttMessage>, CommonError> {
         let topic = match self.get_topic(topic_name.clone()).await {
             Ok(Some(data)) => data,
             Ok(None) => {
@@ -208,10 +194,10 @@ impl TopicStorage {
         };
 
         if let Some(retain_message) = topic.retain_message {
-            if retain_message.len() == 0 {
+            if retain_message.is_empty() {
                 return Ok(None);
             }
-            let message = match serde_json::from_slice::<MQTTMessage>(retain_message.as_slice()) {
+            let message = match serde_json::from_slice::<MqttMessage>(retain_message.as_slice()) {
                 Ok(data) => data,
                 Err(e) => {
                     return Err(CommonError::CommmonError(e.to_string()));
@@ -220,7 +206,7 @@ impl TopicStorage {
             return Ok(Some(message));
         }
 
-        return Ok(None);
+        Ok(None)
     }
 }
 
@@ -233,8 +219,8 @@ mod tests {
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::logs::init_log;
     use common_base::tools::unique_id;
-    use metadata_struct::mqtt::message::MQTTMessage;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::message::MqttMessage;
+    use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{Publish, PublishProperties};
 
     use crate::storage::topic::TopicStorage;
@@ -254,7 +240,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let topic_storage = TopicStorage::new(client_poll);
         let topic_name: String = "test_password".to_string();
-        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
+        let topic = MqttTopic::new(unique_id(), topic_name.clone());
         topic_storage.save_topic(topic).await.unwrap();
 
         let result = topic_storage
@@ -267,7 +253,7 @@ mod tests {
         assert!(!result.topic_id.is_empty());
 
         let result = topic_storage.topic_list().await.unwrap();
-        assert!(result.len() >= 1);
+        assert!(!result.is_empty());
 
         topic_storage
             .delete_topic(topic_name.clone())
@@ -277,10 +263,7 @@ mod tests {
         let result = topic_storage.get_topic(topic_name.clone()).await.unwrap();
         assert!(result.is_none());
 
-        match topic_storage.topic_list().await {
-            Ok(_) => assert!(true),
-            Err(_) => assert!(false),
-        }
+        topic_storage.topic_list().await.unwrap();
     }
 
     #[tokio::test]
@@ -299,9 +282,11 @@ mod tests {
         let client_id = unique_id();
         let content = "Robust Data".to_string();
 
-        let mut publish = Publish::default();
-        publish.payload = Bytes::from(content.clone());
-        let topic = MQTTTopic::new(unique_id(), topic_name.clone());
+        let publish = Publish {
+            payload: Bytes::from(content.clone()),
+            ..Default::default()
+        };
+        let topic = MqttTopic::new(unique_id(), topic_name.clone());
         topic_storage.save_topic(topic).await.unwrap();
 
         let result_message = topic_storage
@@ -312,9 +297,9 @@ mod tests {
 
         let publish_properties = PublishProperties::default();
         let retain_message =
-            MQTTMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
+            MqttMessage::build_message(&client_id, &publish, &Some(publish_properties), 600);
         topic_storage
-            .set_retain_message(&topic_name, &retain_message, 3600)
+            .set_retain_message(topic_name.clone(), &retain_message, 3600)
             .await
             .unwrap();
 
@@ -327,7 +312,7 @@ mod tests {
         assert_eq!(payload, content);
 
         topic_storage
-            .delete_retain_message(&topic_name)
+            .delete_retain_message(topic_name.clone())
             .await
             .unwrap();
 

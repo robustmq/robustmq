@@ -43,8 +43,7 @@ mod tests {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -63,24 +62,20 @@ mod tests {
         }
 
         for msg in rx.iter() {
-            if let Some(msg) = msg {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                println!("{}", payload.clone());
-                if payload == message_content {
-                    if let Some(raw) = msg
-                        .properties()
-                        .get_string_pair_at(PropertyCode::UserProperty, 0)
+            let msg = msg.unwrap();
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            println!("{}", payload.clone());
+            if payload == message_content {
+                if let Some(raw) = msg
+                    .properties()
+                    .get_string_pair_at(PropertyCode::UserProperty, 0)
+                {
+                    if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
+                        && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
                     {
-                        if raw.0 == *SUB_RETAIN_MESSAGE_PUSH_FLAG
-                            && raw.1 == *SUB_RETAIN_MESSAGE_PUSH_FLAG_VALUE
-                        {
-                            assert!(true);
-                            break;
-                        }
+                        break;
                     }
                 }
-            } else {
-                assert!(false);
             }
         }
         distinct_conn(cli);

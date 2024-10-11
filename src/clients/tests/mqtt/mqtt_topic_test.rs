@@ -22,8 +22,8 @@ mod tests {
         placement_set_topic_retain_message,
     };
     use clients::poll::ClientPool;
-    use metadata_struct::mqtt::message::MQTTMessage;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::message::MqttMessage;
+    use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{qos, Publish};
     use protocol::placement_center::generate::mqtt::{
         CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
@@ -42,7 +42,7 @@ mod tests {
         let payload: String = "test_message".to_string();
         let retain_message_expired_at: u64 = 10000;
 
-        let mut mqtt_topic: MQTTTopic = MQTTTopic {
+        let mut mqtt_topic: MqttTopic = MqttTopic {
             topic_id: topic_id.clone(),
             topic_name: topic_name.clone(),
             retain_message: None,
@@ -57,8 +57,7 @@ mod tests {
         match placement_create_topic(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -71,7 +70,7 @@ mod tests {
                 assert!(!data.topics.is_empty());
                 let mut flag: bool = false;
                 for raw in data.topics {
-                    let topic = serde_json::from_slice::<MQTTTopic>(raw.as_slice()).unwrap();
+                    let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
                     if topic == mqtt_topic {
                         flag = true;
                     }
@@ -79,8 +78,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -92,8 +90,8 @@ mod tests {
             topic: Bytes::from(topic_name.clone()),
             payload: Bytes::from(payload.clone()),
         };
-        let retain_message = MQTTMessage::build_message(&client_id, &publish, &None, 600);
-        mqtt_topic = MQTTTopic {
+        let retain_message = MqttMessage::build_message(&client_id, &publish, &None, 600);
+        mqtt_topic = MqttTopic {
             topic_id: topic_id.clone(),
             topic_name: topic_name.clone(),
             retain_message: Some(retain_message.encode()),
@@ -110,8 +108,7 @@ mod tests {
         {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -124,7 +121,7 @@ mod tests {
                 assert!(!data.topics.is_empty());
                 let mut flag: bool = false;
                 for raw in data.topics {
-                    let topic = serde_json::from_slice::<MQTTTopic>(raw.as_slice()).unwrap();
+                    let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
                     if topic == mqtt_topic {
                         flag = true;
                     }
@@ -132,8 +129,7 @@ mod tests {
                 assert!(flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -144,8 +140,7 @@ mod tests {
         match placement_delete_topic(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
 
@@ -158,7 +153,7 @@ mod tests {
                 assert!(data.topics.is_empty());
                 let mut flag: bool = false;
                 for raw in data.topics {
-                    let topic = serde_json::from_slice::<MQTTTopic>(raw.as_slice()).unwrap();
+                    let topic = serde_json::from_slice::<MqttTopic>(raw.as_slice()).unwrap();
                     if topic == mqtt_topic {
                         flag = true;
                     }
@@ -166,8 +161,7 @@ mod tests {
                 assert!(!flag);
             }
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }

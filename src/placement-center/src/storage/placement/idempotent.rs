@@ -34,8 +34,8 @@ impl IdempotentStorage {
     }
     pub fn save(
         &self,
-        cluster_name: &String,
-        producer_id: &String,
+        cluster_name: &str,
+        producer_id: &str,
         seq_num: u64,
     ) -> Result<(), CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
@@ -44,8 +44,8 @@ impl IdempotentStorage {
 
     pub fn delete(
         &self,
-        cluster_name: &String,
-        producer_id: &String,
+        cluster_name: &str,
+        producer_id: &str,
         seq_num: u64,
     ) -> Result<(), CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);
@@ -54,8 +54,8 @@ impl IdempotentStorage {
 
     pub fn exists(
         &self,
-        cluster_name: &String,
-        producer_id: &String,
+        cluster_name: &str,
+        producer_id: &str,
         seq_num: u64,
     ) -> Result<bool, CommonError> {
         let key = key_resource_idempotent(cluster_name, producer_id, seq_num);

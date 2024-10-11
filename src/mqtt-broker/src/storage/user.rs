@@ -21,7 +21,7 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::generate::mqtt::{
     CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
@@ -31,10 +31,10 @@ pub struct UserStorage {
 }
 impl UserStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return UserStorage { client_poll };
+        UserStorage { client_poll }
     }
 
-    pub async fn save_user(&self, user_info: MQTTUser) -> Result<(), CommonError> {
+    pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateUserRequest {
             cluster_name: config.cluster_name.clone(),
@@ -48,10 +48,8 @@ impl UserStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -68,14 +66,12 @@ impl UserStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
-    pub async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError> {
+    pub async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
@@ -89,26 +85,20 @@ impl UserStorage {
         .await
         {
             Ok(reply) => {
-                if reply.users.len() == 0 {
+                if reply.users.is_empty() {
                     return Ok(None);
                 }
-                let raw = reply.users.get(0).unwrap();
-                match serde_json::from_slice::<MQTTUser>(raw) {
-                    Ok(data) => {
-                        return Ok(Some(data));
-                    }
-                    Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
-                    }
+                let raw = reply.users.first().unwrap();
+                match serde_json::from_slice::<MqttUser>(raw) {
+                    Ok(data) => Ok(Some(data)),
+                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
                 }
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
-    pub async fn user_list(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
+    pub async fn user_list(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
         let config = broker_mqtt_conf();
         let request = ListUserRequest {
             cluster_name: config.cluster_name.clone(),
@@ -124,7 +114,7 @@ impl UserStorage {
             Ok(reply) => {
                 let results = DashMap::with_capacity(2);
                 for raw in reply.users {
-                    match serde_json::from_slice::<MQTTUser>(&raw) {
+                    match serde_json::from_slice::<MqttUser>(&raw) {
                         Ok(data) => {
                             results.insert(data.username.clone(), data);
                         }
@@ -133,11 +123,9 @@ impl UserStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 }
@@ -164,7 +152,7 @@ mod tests {
         let username = "test".to_string();
         let password = "test_password".to_string();
         let is_superuser = true;
-        let user_info = metadata_struct::mqtt::user::MQTTUser {
+        let user_info = metadata_struct::mqtt::user::MqttUser {
             username: username.clone(),
             password: password.clone(),
             is_superuser,
@@ -182,7 +170,7 @@ mod tests {
 
         let result = user_storage.user_list().await.unwrap();
         let prev_len = result.len();
-        assert!(result.len() >= 1);
+        assert!(!result.is_empty());
 
         user_storage.delete_user(username.clone()).await.unwrap();
         let result = user_storage.get_user(username.clone()).await.unwrap();

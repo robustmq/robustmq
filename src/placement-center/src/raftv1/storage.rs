@@ -52,7 +52,7 @@ impl RaftRocksDBStorage {
         store.recovery_snapshot(snapshot)
     }
 
-    pub fn append_entrys(&self, entrys: &Vec<Entry>) -> Result<(), CommonError> {
+    pub fn append_entries(&self, entrys: &[Entry]) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
         store.append_entrys(entrys)
     }
@@ -81,6 +81,7 @@ impl RaftRocksDBStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn create_snapshot(&self) -> Result<(), CommonError> {
         let mut store = self.write_lock()?;
         let _ = store.create_snapshot();

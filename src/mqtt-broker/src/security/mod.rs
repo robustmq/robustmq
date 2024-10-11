@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::net::SocketAddr;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use acl::is_allow_acl;
@@ -25,13 +26,13 @@ use common_base::error::mqtt_broker::MQTTBrokerError;
 use dashmap::DashMap;
 use login::plaintext::Plaintext;
 use login::Authentication;
-use metadata_struct::acl::mqtt_acl::{MQTTAcl, MQTTAclAction};
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction};
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::user::MqttUser;
 use mysql::MySQLAuthStorageAdapter;
 use placement::PlacementAuthStorageAdapter;
 use protocol::mqtt::common::{ConnectProperties, Login, QoS, Subscribe};
-use storage_adapter::{storage_is_mysql, storage_is_placement};
+use storage_adapter::StorageType;
 
 use crate::handler::cache::CacheManager;
 use crate::handler::connection::Connection;
@@ -45,13 +46,13 @@ pub mod redis;
 
 #[async_trait]
 pub trait AuthStorageAdapter {
-    async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError>;
+    async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError>;
 
-    async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError>;
+    async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError>;
 
-    async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError>;
+    async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError>;
 
-    async fn get_user(&self, username: String) -> Result<Option<MQTTUser>, CommonError>;
+    async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError>;
 }
 
 pub struct AuthDriver {
@@ -69,11 +70,11 @@ impl AuthDriver {
                 panic!("{}", e.to_string());
             }
         };
-        return AuthDriver {
+        AuthDriver {
             cache_manager,
-            driver: driver,
+            driver,
             client_poll,
-        };
+        }
     }
 
     pub fn update_driver(&mut self, auth: Auth) -> Result<(), CommonError> {
@@ -84,19 +85,19 @@ impl AuthDriver {
             }
         };
         self.driver = driver;
-        return Ok(());
+        Ok(())
     }
 
-    pub async fn read_all_user(&self) -> Result<DashMap<String, MQTTUser>, CommonError> {
-        return self.driver.read_all_user().await;
+    pub async fn read_all_user(&self) -> Result<DashMap<String, MqttUser>, CommonError> {
+        self.driver.read_all_user().await
     }
 
-    pub async fn read_all_acl(&self) -> Result<Vec<MQTTAcl>, CommonError> {
-        return self.driver.read_all_acl().await;
+    pub async fn read_all_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
+        self.driver.read_all_acl().await
     }
 
-    pub async fn read_all_blacklist(&self) -> Result<Vec<MQTTAclBlackList>, CommonError> {
-        return self.driver.read_all_blacklist().await;
+    pub async fn read_all_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
+        self.driver.read_all_blacklist().await
     }
 
     pub async fn check_login_auth(
@@ -117,24 +118,24 @@ impl AuthDriver {
                 .await;
         }
 
-        return Ok(false);
+        Ok(false)
     }
 
     pub async fn allow_publish(
         &self,
         connection: &Connection,
-        topic_name: &String,
+        topic_name: &str,
         retain: bool,
         qos: QoS,
     ) -> bool {
-        return is_allow_acl(
+        is_allow_acl(
             &self.cache_manager,
             connection,
             topic_name,
-            MQTTAclAction::Publish,
+            MqttAclAction::Publish,
             retain,
             qos,
-        );
+        )
     }
 
     pub async fn allow_subscribe(&self, connection: &Connection, subscribe: &Subscribe) -> bool {
@@ -145,7 +146,7 @@ impl AuthDriver {
                     &self.cache_manager,
                     connection,
                     &topic,
-                    MQTTAclAction::Publish,
+                    MqttAclAction::Publish,
                     false,
                     filter.qos,
                 ) {
@@ -153,17 +154,17 @@ impl AuthDriver {
                 }
             }
         }
-        return true;
+        true
     }
 
     async fn plaintext_check_login(
         &self,
-        username: &String,
-        password: &String,
+        username: &str,
+        password: &str,
     ) -> Result<bool, CommonError> {
         let plaintext = Plaintext::new(
-            username.clone(),
-            password.clone(),
+            username.to_owned(),
+            password.to_owned(),
             self.cache_manager.clone(),
         );
         match plaintext.apply().await {
@@ -181,11 +182,11 @@ impl AuthDriver {
             }
         }
 
-        return Ok(false);
+        Ok(false)
     }
 
-    async fn try_get_check_user_by_driver(&self, username: &String) -> Result<bool, CommonError> {
-        match self.driver.get_user(username.clone()).await {
+    async fn try_get_check_user_by_driver(&self, username: &str) -> Result<bool, CommonError> {
+        match self.driver.get_user(username.to_owned()).await {
             Ok(Some(user)) => {
                 self.cache_manager.add_user(user.clone());
                 let plaintext = Plaintext::new(
@@ -211,7 +212,7 @@ impl AuthDriver {
                 return Err(e);
             }
         }
-        return Ok(false);
+        Ok(false)
     }
 }
 
@@ -219,19 +220,21 @@ pub fn build_driver(
     client_poll: Arc<ClientPool>,
     auth: Auth,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
-    if storage_is_placement(&auth.storage_type) {
+    let storage_type = StorageType::from_str(&auth.storage_type)
+        .map_err(|_| CommonError::UnavailableStorageType)?;
+    if matches!(storage_type, StorageType::Placement) {
         let driver = PlacementAuthStorageAdapter::new(client_poll);
         return Ok(Arc::new(driver));
     }
 
-    if storage_is_mysql(&auth.storage_type) {
+    if matches!(storage_type, StorageType::Mysql) {
         let driver = MySQLAuthStorageAdapter::new(auth.mysql_addr.clone());
         return Ok(Arc::new(driver));
     }
 
-    return Err(CommonError::UnavailableStorageType);
+    Err(CommonError::UnavailableStorageType)
 }
 
 pub fn authentication_acl() -> bool {
-    return false;
+    false
 }

@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::session::MQTTSession;
+use metadata_struct::mqtt::session::MqttSession;
 
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
@@ -37,39 +37,39 @@ use crate::storage::keys::{storage_key_mqtt_session, storage_key_mqtt_session_cl
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::StorageDataWrap;
 
-pub struct MQTTSessionStorage {
+pub struct MqttSessionStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl MQTTSessionStorage {
+impl MqttSessionStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        MQTTSessionStorage {
+        MqttSessionStorage {
             rocksdb_engine_handler,
         }
     }
     pub fn save(
         &self,
-        cluster_name: &String,
-        client_id: &String,
-        session: MQTTSession,
+        cluster_name: &str,
+        client_id: &str,
+        session: MqttSession,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_session(cluster_name, client_id);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, session)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<StorageDataWrap>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<StorageDataWrap>, CommonError> {
         let prefix_key = storage_key_mqtt_session_cluster_prefix(cluster_name);
         engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key)
     }
 
     pub fn get(
         &self,
-        cluster_name: &String,
-        client_id: &String,
-    ) -> Result<Option<MQTTSession>, CommonError> {
+        cluster_name: &str,
+        client_id: &str,
+    ) -> Result<Option<MqttSession>, CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<MQTTSession>(&data.data) {
+            Ok(Some(data)) => match serde_json::from_slice::<MqttSession>(&data.data) {
                 Ok(session) => Ok(Some(session)),
                 Err(e) => Err(e.into()),
             },
@@ -78,7 +78,7 @@ impl MQTTSessionStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, client_id: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_session(cluster_name, client_id);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
@@ -90,9 +90,9 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::session::MqttSession;
 
-    use crate::storage::mqtt::session::MQTTSessionStorage;
+    use crate::storage::mqtt::session::MqttSessionStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
@@ -103,16 +103,16 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let session_storage = MQTTSessionStorage::new(rs);
+        let session_storage = MqttSessionStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
         let client_id = "loboxu".to_string();
-        let session = MQTTSession::default();
+        let session = MqttSession::default();
         session_storage
             .save(&cluster_name, &client_id, session)
             .unwrap();
 
         let client_id = "lobo1".to_string();
-        let session = MQTTSession::default();
+        let session = MqttSession::default();
         session_storage
             .save(&cluster_name, &client_id, session)
             .unwrap();
@@ -120,18 +120,12 @@ mod tests {
         let res = session_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
-        let res = session_storage
-            .get(&cluster_name, &"lobo1".to_string())
-            .unwrap();
+        let res = session_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_some());
 
-        session_storage
-            .delete(&cluster_name, &"lobo1".to_string())
-            .unwrap();
+        session_storage.delete(&cluster_name, "lobo1").unwrap();
 
-        let res = session_storage
-            .get(&cluster_name, &"lobo1".to_string())
-            .unwrap();
+        let res = session_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
 
         remove_dir_all(config.rocksdb.data_path).unwrap();

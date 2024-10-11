@@ -15,10 +15,10 @@
 // use common_base::error::common::CommonError;
 // use mobc::Connection;
 
-// use super::MQTTServiceManager;
+// use super::MqttServiceManager;
 
 // pub(crate) async fn inner_call<R, Resp, ClientFunction, Fut, DecodeFunction, EncodeFunction>(
-//     client: Connection<MQTTServiceManager>,
+//     client: Connection<MqttServiceManager>,
 //     request: Vec<u8>,
 //     decode_fn: DecodeFunction,
 //     client_fn: ClientFunction,
@@ -28,7 +28,7 @@
 //     R: prost::Message + Default,
 //     Resp: prost::Message,
 //     DecodeFunction: FnOnce(&[u8]) -> Result<R, prost::DecodeError>,
-//     ClientFunction: FnOnce(Connection<MQTTServiceManager>, R) -> Fut,
+//     ClientFunction: FnOnce(Connection<MqttServiceManager>, R) -> Fut,
 //     Fut: std::future::Future<Output = Result<tonic::Response<Resp>, tonic::Status>>,
 //     EncodeFunction: FnOnce(&Resp) -> Vec<u8>,
 // {

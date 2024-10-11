@@ -33,7 +33,7 @@ pub struct HttpServerState {}
 
 impl HttpServerState {
     pub fn new() -> Self {
-        return Self {};
+        Self {}
     }
 }
 
@@ -47,7 +47,7 @@ pub async fn start_http_server(state: HttpServerState) -> Result<(), CommonError
         config.http_port
     );
     axum::serve(listener, app).await?;
-    return Ok(());
+    Ok(())
 }
 
 fn routes_v1(state: HttpServerState) -> Router {
@@ -57,5 +57,5 @@ fn routes_v1(state: HttpServerState) -> Router {
         .route(ROUTE_METRICS, get(metrics));
 
     let app = Router::new().merge(meta);
-    return app.with_state(state);
+    app.with_state(state)
 }

@@ -89,16 +89,12 @@ mod tests {
             }
         }
         for msg in rx.iter() {
-            if let Some(msg) = msg {
-                let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
-                println!("recv message: {}", payload);
-                if payload == will_message_content {
-                    println!("{}", now_second() - start);
-                    assert!(true);
-                    break;
-                }
-            } else {
-                assert!(false);
+            let msg = msg.unwrap();
+            let payload = String::from_utf8(msg.payload().to_vec()).unwrap();
+            println!("recv message: {}", payload);
+            if payload == will_message_content {
+                println!("{}", now_second() - start);
+                break;
             }
         }
         distinct_conn(cli);

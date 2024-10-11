@@ -21,7 +21,7 @@ use crate::mqtt::admin::MqttBrokerAdminServiceManager;
 use crate::mqtt::placement::MqttBrokerPlacementServiceManager;
 use crate::placement::journal::JournalServiceManager;
 use crate::placement::kv::KvServiceManager;
-use crate::placement::mqtt::MQTTServiceManager;
+use crate::placement::mqtt::MqttServiceManager;
 use crate::placement::openraft::OpenRaftServiceManager;
 use crate::placement::placement::PlacementServiceManager;
 
@@ -32,7 +32,7 @@ pub struct ClientPool {
     placement_center_inner_pools: DashMap<String, Pool<PlacementServiceManager>>,
     placement_center_journal_service_pools: DashMap<String, Pool<JournalServiceManager>>,
     placement_center_kv_service_pools: DashMap<String, Pool<KvServiceManager>>,
-    placement_center_mqtt_service_pools: DashMap<String, Pool<MQTTServiceManager>>,
+    placement_center_mqtt_service_pools: DashMap<String, Pool<MqttServiceManager>>,
     placement_center_openraft_service_pools: DashMap<String, Pool<OpenRaftServiceManager>>,
 
     // mqtt broker
@@ -163,12 +163,12 @@ impl ClientPool {
     pub async fn placement_center_mqtt_services_client(
         &self,
         addr: String,
-    ) -> Result<Connection<MQTTServiceManager>, CommonError> {
+    ) -> Result<Connection<MqttServiceManager>, CommonError> {
         let module = "MqttServices".to_string();
         let key = format!("{}_{}_{}", "PlacementCenter", module, addr);
 
         if !self.placement_center_mqtt_service_pools.contains_key(&key) {
-            let manager = MQTTServiceManager::new(addr.clone());
+            let manager = MqttServiceManager::new(addr.clone());
             let pool = Pool::builder()
                 .max_open(self.max_open_connection)
                 .build(manager);
@@ -302,19 +302,19 @@ impl ClientPool {
         ))
     }
 
-    pub fn get_leader_addr(&self, addr: &String) -> Option<String> {
+    pub fn get_leader_addr(&self, addr: &str) -> Option<String> {
         if let Some(leader_addr) = self.placement_center_leader_addr_caches.get(addr) {
             return Some(leader_addr.clone());
         }
         None
     }
 
-    pub fn set_leader_addr(&self, addr: &String, leader_addr: &String) {
+    pub fn set_leader_addr(&self, addr: String, leader_addr: String) {
         info!(
             "Update the Leader information in the client cache with the new Leader address :{}",
             leader_addr
         );
         self.placement_center_leader_addr_caches
-            .insert(addr.to_string(), leader_addr.clone());
+            .insert(addr, leader_addr);
     }
 }

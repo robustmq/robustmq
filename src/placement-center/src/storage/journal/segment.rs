@@ -73,8 +73,8 @@ impl SegmentStorage {
     #[allow(dead_code)]
     pub fn get(
         &self,
-        cluster_name: &String,
-        shard_name: &String,
+        cluster_name: &str,
+        shard_name: &str,
         segment_seq: u64,
     ) -> Result<Option<SegmentInfo>, CommonError> {
         let shard_key: String = key_segment(cluster_name, shard_name, segment_seq);
@@ -90,7 +90,7 @@ impl SegmentStorage {
     }
 
     #[allow(dead_code)]
-    pub fn list_by_cluster(&self, cluster_name: &String) -> Result<Vec<SegmentInfo>, CommonError> {
+    pub fn list_by_cluster(&self, cluster_name: &str) -> Result<Vec<SegmentInfo>, CommonError> {
         let prefix_key = key_segment_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -114,8 +114,8 @@ impl SegmentStorage {
     #[allow(dead_code)]
     pub fn list_by_shard(
         &self,
-        cluster_name: &String,
-        shard_name: &String,
+        cluster_name: &str,
+        shard_name: &str,
     ) -> Result<Vec<SegmentInfo>, CommonError> {
         let prefix_key = key_segment_shard_prefix(cluster_name, shard_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
@@ -139,8 +139,8 @@ impl SegmentStorage {
 
     pub fn delete(
         &self,
-        cluster_name: &String,
-        shard_name: &String,
+        cluster_name: &str,
+        shard_name: &str,
         segment_seq: u64,
     ) -> Result<(), CommonError> {
         let shard_key = key_segment(cluster_name, shard_name, segment_seq);

@@ -20,12 +20,12 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use log::warn;
-use metadata_struct::acl::mqtt_acl::MQTTAcl;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use metadata_struct::mqtt::session::MQTTSession;
-use metadata_struct::mqtt::topic::MQTTTopic;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::acl::mqtt_acl::MqttAcl;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use metadata_struct::mqtt::session::MqttSession;
+use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_server::generate::placement::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
@@ -103,13 +103,13 @@ pub struct CacheManager {
     pub cluster_name: String,
 
     // (cluster_name, Cluster)
-    pub cluster_info: DashMap<String, MQTTClusterDynamicConfig>,
+    pub cluster_info: DashMap<String, MqttClusterDynamicConfig>,
 
     // (username, User)
-    pub user_info: DashMap<String, MQTTUser>,
+    pub user_info: DashMap<String, MqttUser>,
 
     // (client_id, Session)
-    pub session_info: DashMap<String, MQTTSession>,
+    pub session_info: DashMap<String, MqttSession>,
 
     // (client_id, <path,SubscribeData>)
     pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
@@ -121,7 +121,7 @@ pub struct CacheManager {
     pub connection_info: DashMap<u64, Connection>,
 
     // (topic_name, Topic)
-    pub topic_info: DashMap<String, MQTTTopic>,
+    pub topic_info: DashMap<String, MqttTopic>,
 
     // (topic_id, topic_name)
     pub topic_id_name: DashMap<String, String>,
@@ -141,7 +141,7 @@ pub struct CacheManager {
 
 impl CacheManager {
     pub fn new(client_poll: Arc<ClientPool>, cluster_name: String) -> Self {
-        let cache = CacheManager {
+        CacheManager {
             client_poll,
             cluster_name,
             cluster_info: DashMap::with_capacity(1),
@@ -156,8 +156,7 @@ impl CacheManager {
             qos_ack_packet: DashMap::with_capacity(8),
             client_pkid_data: DashMap::with_capacity(8),
             acl_metadata: AclMetadata::new(),
-        };
-        return cache;
+        }
     }
 
     pub fn add_client_subscribe(
@@ -192,7 +191,7 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_filter_by_pkid(&self, client_id: &String, filters: &Vec<String>) {
+    pub fn remove_filter_by_pkid(&self, client_id: &str, filters: &[String]) {
         for path in filters {
             if let Some(sub_list) = self.subscribe_filter.get_mut(client_id) {
                 if sub_list.contains_key(path) {
@@ -206,14 +205,14 @@ impl CacheManager {
         self.subscribe_filter.remove(&client_id);
     }
 
-    pub fn get_session_info(&self, client_id: &String) -> Option<MQTTSession> {
+    pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {
         if let Some(session) = self.session_info.get(client_id) {
             return Some(session.clone());
         }
-        return None;
+        None
     }
 
-    pub fn update_session_connect_id(&self, client_id: &String, connect_id: Option<u64>) {
+    pub fn update_session_connect_id(&self, client_id: &str, connect_id: Option<u64>) {
         if let Some(mut session) = self.session_info.get_mut(client_id) {
             session.update_connnction_id(connect_id);
             if connect_id.is_none() {
@@ -227,7 +226,7 @@ impl CacheManager {
         match data.data_type {
             MetadataCacheType::User => match data.action {
                 MetadataCacheAction::Set => {
-                    let user: MQTTUser = serde_json::from_str(&data.value).unwrap();
+                    let user: MqttUser = serde_json::from_str(&data.value).unwrap();
                     self.add_user(user);
                 }
                 MetadataCacheAction::Del => self.del_user(data.value),
@@ -243,27 +242,27 @@ impl CacheManager {
         }
     }
 
-    pub fn set_cluster_info(&self, cluster: MQTTClusterDynamicConfig) {
+    pub fn set_cluster_info(&self, cluster: MqttClusterDynamicConfig) {
         self.cluster_info.insert(self.cluster_name.clone(), cluster);
     }
 
-    pub fn get_cluster_info(&self) -> MQTTClusterDynamicConfig {
+    pub fn get_cluster_info(&self) -> MqttClusterDynamicConfig {
         if let Some(cluster) = self.cluster_info.get(&self.cluster_name) {
             return cluster.clone();
         }
-        return MQTTClusterDynamicConfig::new();
+        MqttClusterDynamicConfig::new()
     }
 
-    pub fn add_user(&self, user: MQTTUser) {
+    pub fn add_user(&self, user: MqttUser) {
         self.user_info.insert(user.username.clone(), user);
     }
 
     pub fn del_user(&self, value: String) {
-        let data: MQTTUser = serde_json::from_str(&value).unwrap();
+        let data: MqttUser = serde_json::from_str(&value).unwrap();
         self.user_info.remove(&data.username);
     }
 
-    pub fn add_session(&self, client_id: String, session: MQTTSession) {
+    pub fn add_session(&self, client_id: String, session: MqttSession) {
         self.session_info.insert(client_id, session);
     }
 
@@ -274,17 +273,13 @@ impl CacheManager {
         }
     }
 
-    pub fn add_topic(&self, topic_name: &String, topic: &MQTTTopic) {
+    pub fn add_topic(&self, topic_name: &str, topic: &MqttTopic) {
         let t = topic.clone();
-        self.topic_info.insert(topic_name.clone(), t.clone());
-        self.topic_id_name.insert(t.topic_id, topic_name.clone());
+        self.topic_info.insert(topic_name.to_owned(), t.clone());
+        self.topic_id_name.insert(t.topic_id, topic_name.to_owned());
     }
 
-    pub fn update_topic_retain_message(
-        &self,
-        topic_name: &String,
-        retain_message: Option<Vec<u8>>,
-    ) {
+    pub fn update_topic_retain_message(&self, topic_name: &str, retain_message: Option<Vec<u8>>) {
         if let Some(mut topic) = self.topic_info.get_mut(topic_name) {
             topic.retain_message = retain_message;
         }
@@ -300,28 +295,28 @@ impl CacheManager {
         if let Some(conn) = self.connection_info.get(&connect_id) {
             return conn.is_login;
         }
-        return false;
+        false
     }
 
-    pub fn topic_exists(&self, topic: &String) -> bool {
-        return self.topic_info.contains_key(topic);
+    pub fn topic_exists(&self, topic: &str) -> bool {
+        self.topic_info.contains_key(topic)
     }
 
     pub fn topic_name_by_id(&self, topic_id: String) -> Option<String> {
         if let Some(data) = self.topic_id_name.get(&topic_id) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
-    pub fn get_topic_by_name(&self, topic_name: &String) -> Option<MQTTTopic> {
+    pub fn get_topic_by_name(&self, topic_name: &str) -> Option<MqttTopic> {
         if let Some(topic) = self.topic_info.get(topic_name) {
             return Some(topic.clone());
         }
-        return None;
+        None
     }
 
-    pub fn remove_session(&self, client_id: &String) {
+    pub fn remove_session(&self, client_id: &str) {
         self.session_info.remove(client_id);
         self.subscribe_filter.remove(client_id);
         self.publish_pkid_info.remove(client_id);
@@ -352,58 +347,59 @@ impl CacheManager {
                 return None;
             }
         }
-        return None;
+        None
     }
 
     pub fn topic_alias_exists(&self, connect_id: u64, topic_alias: u16) -> bool {
         if let Some(conn) = self.connection_info.get(&connect_id) {
             return conn.topic_alias.contains_key(&topic_alias);
         }
-        return false;
+        false
     }
 
     pub fn add_topic_alias(
         &self,
         connect_id: u64,
-        topic_name: &String,
+        topic_name: &str,
         publish_properties: &Option<PublishProperties>,
     ) {
         if let Some(properties) = publish_properties {
             if let Some(alias) = properties.topic_alias {
                 if let Some(conn) = self.connection_info.get_mut(&connect_id) {
-                    conn.topic_alias.insert(alias, topic_name.clone());
+                    conn.topic_alias.insert(alias, topic_name.to_owned());
                 }
             }
         }
     }
 
-    pub fn get_connect_id(&self, client_id: &String) -> Option<u64> {
+    pub fn get_connect_id(&self, client_id: &str) -> Option<u64> {
         if let Some(sess) = self.session_info.get(client_id) {
             if let Some(conn_id) = sess.connection_id {
                 return Some(conn_id);
             }
         }
-        return None;
+        None
     }
 
     pub fn get_connection(&self, connect_id: u64) -> Option<Connection> {
         if let Some(conn) = self.connection_info.get(&connect_id) {
             return Some(conn.clone());
         }
-        return None;
+        None
     }
 
-    pub async fn get_pkid(&self, client_id: &String) -> u16 {
+    pub async fn get_pkid(&self, client_id: &str) -> u16 {
         let pkid = self.get_available_pkid(client_id).await;
         if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(client_id) {
             pkid_list.push(pkid);
         } else {
-            self.publish_pkid_info.insert(client_id.clone(), vec![pkid]);
+            self.publish_pkid_info
+                .insert(client_id.to_owned(), vec![pkid]);
         }
-        return pkid;
+        pkid
     }
 
-    async fn get_available_pkid(&self, client_id: &String) -> u16 {
+    async fn get_available_pkid(&self, client_id: &str) -> u16 {
         loop {
             if let Some(pkid_list) = self.publish_pkid_info.get(client_id) {
                 for i in 1..65535 {
@@ -413,7 +409,7 @@ impl CacheManager {
                     return i;
                 }
             } else {
-                self.publish_pkid_info.insert(client_id.clone(), vec![1]);
+                self.publish_pkid_info.insert(client_id.to_owned(), vec![1]);
                 return 1;
             }
             sleep(Duration::from_millis(10)).await;
@@ -421,17 +417,17 @@ impl CacheManager {
         }
     }
 
-    pub fn remove_pkid_info(&self, client_id: &String, pkid: u16) {
+    pub fn remove_pkid_info(&self, client_id: &str, pkid: u16) {
         if let Some(mut pkid_list) = self.publish_pkid_info.get_mut(client_id) {
             pkid_list.retain(|x| *x == pkid);
         }
     }
 
-    pub fn is_new_sub(&self, client_id: &String, path: &String) -> bool {
+    pub fn is_new_sub(&self, client_id: &str, path: &str) -> bool {
         if let Some(sub) = self.subscribe_filter.get(client_id) {
             return !sub.contains_key(path);
         }
-        return true;
+        true
     }
 
     pub async fn load_metadata_cache(&self, auth_driver: Arc<AuthDriver>) {
@@ -443,11 +439,11 @@ impl CacheManager {
             .await
         {
             Ok(Some(cluster)) => cluster,
-            Ok(None) => MQTTClusterDynamicConfig::new(),
+            Ok(None) => MqttClusterDynamicConfig::new(),
             Err(e) => {
                 panic!(
                     "Failed to load the cluster configuration with error message:{}",
-                    e.to_string()
+                    e
                 );
             }
         };
@@ -458,10 +454,7 @@ impl CacheManager {
         let topic_list = match topic_storage.topic_list().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the topic list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the topic list with error message:{}", e);
             }
         };
 
@@ -473,10 +466,7 @@ impl CacheManager {
         let user_list = match auth_driver.read_all_user().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the user list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the user list with error message:{}", e);
             }
         };
 
@@ -488,10 +478,7 @@ impl CacheManager {
         let acl_list = match auth_driver.read_all_acl().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the acl list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the acl list with error message:{}", e);
             }
         };
         for acl in acl_list {
@@ -502,10 +489,7 @@ impl CacheManager {
         let blacklist_list = match auth_driver.read_all_blacklist().await {
             Ok(list) => list,
             Err(e) => {
-                panic!(
-                    "Failed to load the blacklist list with error message:{}",
-                    e.to_string()
-                );
+                panic!("Failed to load the blacklist list with error message:{}", e);
             }
         };
         for blacklist in blacklist_list {
@@ -516,7 +500,7 @@ impl CacheManager {
     pub async fn init_system_user(&self) {
         // init system user
         let conf = broker_mqtt_conf();
-        let system_user_info = MQTTUser {
+        let system_user_info = MqttUser {
             username: conf.system.default_user.clone(),
             password: conf.system.default_password.clone(),
             is_superuser: true,
@@ -532,28 +516,28 @@ impl CacheManager {
         }
     }
 
-    pub fn report_heartbeat(&self, client_id: &String, live_time: ConnectionLiveTime) {
-        self.heartbeat_data.insert(client_id.clone(), live_time);
+    pub fn report_heartbeat(&self, client_id: String, live_time: ConnectionLiveTime) {
+        self.heartbeat_data.insert(client_id, live_time);
     }
 
-    pub fn remove_heartbeat(&self, client_id: &String) {
+    pub fn remove_heartbeat(&self, client_id: &str) {
         self.heartbeat_data.remove(client_id);
     }
 
-    pub fn add_ack_packet(&self, client_id: &String, pkid: u16, packet: QosAckPacketInfo) {
+    pub fn add_ack_packet(&self, client_id: &str, pkid: u16, packet: QosAckPacketInfo) {
         let key = self.key(client_id, pkid);
         self.qos_ack_packet.insert(key, packet);
     }
 
-    pub fn add_acl(&self, acl: MQTTAcl) {
+    pub fn add_acl(&self, acl: MqttAcl) {
         self.acl_metadata.parse_mqtt_acl(acl);
     }
 
-    pub fn add_blacklist(&self, blacklist: MQTTAclBlackList) {
+    pub fn add_blacklist(&self, blacklist: MqttAclBlackList) {
         self.acl_metadata.parse_mqtt_blacklist(blacklist);
     }
 
-    pub fn remove_ack_packet(&self, client_id: &String, pkid: u16) {
+    pub fn remove_ack_packet(&self, client_id: &str, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.qos_ack_packet.remove(&key);
     }
@@ -563,35 +547,35 @@ impl CacheManager {
         if let Some(data) = self.qos_ack_packet.get(&key) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
-    pub fn add_client_pkid(&self, client_id: &String, pkid: u16) {
+    pub fn add_client_pkid(&self, client_id: &str, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.client_pkid_data.insert(
             key,
             ClientPkidData {
-                client_id: client_id.clone(),
+                client_id: client_id.to_owned(),
                 create_time: now_second(),
             },
         );
     }
 
-    pub fn delete_client_pkid(&self, client_id: &String, pkid: u16) {
+    pub fn delete_client_pkid(&self, client_id: &str, pkid: u16) {
         let key = self.key(client_id, pkid);
         self.client_pkid_data.remove(&key);
     }
 
-    pub fn get_client_pkid(&self, client_id: &String, pkid: u16) -> Option<ClientPkidData> {
+    pub fn get_client_pkid(&self, client_id: &str, pkid: u16) -> Option<ClientPkidData> {
         let key = self.key(client_id, pkid);
         if let Some(data) = self.client_pkid_data.get(&key) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
-    fn key(&self, client_id: &String, pkid: u16) -> String {
-        return format!("{}_{}", client_id, pkid);
+    fn key(&self, client_id: &str, pkid: u16) -> String {
+        format!("{}_{}", client_id, pkid)
     }
 }
 

@@ -19,14 +19,14 @@ use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use log::error;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use metadata_struct::mqtt::topic::MQTTTopic;
+use metadata_struct::mqtt::topic::MqttTopic;
 use tokio::time::sleep;
 
 use crate::storage::keys::{
     storage_key_mqtt_last_will_prefix, storage_key_mqtt_topic_cluster_prefix,
 };
-use crate::storage::mqtt::lastwill::MQTTLastWillStorage;
-use crate::storage::mqtt::topic::MQTTTopicStorage;
+use crate::storage::mqtt::lastwill::MqttLastWillStorage;
+use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
 use crate::storage::StorageDataWrap;
 
@@ -45,7 +45,7 @@ impl MessageExpire {
 
     pub async fn retain_message_expire(&self) {
         let search_key = storage_key_mqtt_topic_cluster_prefix(&self.cluster_name);
-        let topic_storage = MQTTTopicStorage::new(self.rocksdb_engine_handler.clone());
+        let topic_storage = MqttTopicStorage::new(self.rocksdb_engine_handler.clone());
 
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
@@ -84,7 +84,7 @@ impl MessageExpire {
 
             let result_value = value.unwrap().to_vec();
             let data = serde_json::from_slice::<StorageDataWrap>(&result_value).unwrap();
-            let mut value = serde_json::from_slice::<MQTTTopic>(data.data.as_slice()).unwrap();
+            let mut value = serde_json::from_slice::<MqttTopic>(data.data.as_slice()).unwrap();
 
             if value.retain_message.is_some() {
                 let delete = if let Some(expired_at) = value.retain_message_expired_at {
@@ -110,7 +110,7 @@ impl MessageExpire {
 
     pub async fn last_will_message_expire(&self) {
         let search_key = storage_key_mqtt_last_will_prefix(&self.cluster_name);
-        let lastwill_storage = MQTTLastWillStorage::new(self.rocksdb_engine_handler.clone());
+        let lastwill_storage = MqttLastWillStorage::new(self.rocksdb_engine_handler.clone());
 
         let cf = if let Some(cf) = self
             .rocksdb_engine_handler
@@ -182,16 +182,16 @@ mod tests {
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_second, unique_id};
     use metadata_struct::mqtt::lastwill::LastWillData;
-    use metadata_struct::mqtt::message::MQTTMessage;
-    use metadata_struct::mqtt::session::MQTTSession;
-    use metadata_struct::mqtt::topic::MQTTTopic;
+    use metadata_struct::mqtt::message::MqttMessage;
+    use metadata_struct::mqtt::session::MqttSession;
+    use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{LastWillProperties, Publish};
     use tokio::time::sleep;
 
     use super::MessageExpire;
-    use crate::storage::mqtt::lastwill::MQTTLastWillStorage;
-    use crate::storage::mqtt::session::MQTTSessionStorage;
-    use crate::storage::mqtt::topic::MQTTTopicStorage;
+    use crate::storage::mqtt::lastwill::MqttLastWillStorage;
+    use crate::storage::mqtt::session::MqttSessionStorage;
+    use crate::storage::mqtt::topic::MqttTopicStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
@@ -207,14 +207,13 @@ mod tests {
         let message_expire =
             MessageExpire::new(cluster_name.clone(), rocksdb_engine_handler.clone());
 
-        let topic_storage = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
-        let topic = MQTTTopic::new(unique_id(), "tp1".to_string());
+        let topic_storage = MqttTopicStorage::new(rocksdb_engine_handler.clone());
+        let topic = MqttTopic::new(unique_id(), "tp1".to_string());
         topic_storage
             .save(&cluster_name, &topic.topic_name.clone(), topic.clone())
             .unwrap();
 
-        let retain_msg =
-            MQTTMessage::build_message(&"c1".to_string(), &Publish::default(), &None, 600);
+        let retain_msg = MqttMessage::build_message("c1", &Publish::default(), &None, 600);
         topic_storage
             .set_topic_retain_message(
                 &cluster_name,
@@ -255,12 +254,14 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let lastwill_storage = MQTTLastWillStorage::new(rocksdb_engine_handler.clone());
-        let session_storage = MQTTSessionStorage::new(rocksdb_engine_handler.clone());
+        let lastwill_storage = MqttLastWillStorage::new(rocksdb_engine_handler.clone());
+        let session_storage = MqttSessionStorage::new(rocksdb_engine_handler.clone());
 
         let client_id = unique_id();
-        let mut last_will_properties = LastWillProperties::default();
-        last_will_properties.message_expiry_interval = Some(3);
+        let last_will_properties = LastWillProperties {
+            message_expiry_interval: Some(3),
+            ..Default::default()
+        };
         let last_will_message = LastWillData {
             client_id: client_id.clone(),
             last_will: None,
@@ -274,8 +275,10 @@ mod tests {
             }
         });
 
-        let mut session = MQTTSession::default();
-        session.client_id = client_id.clone();
+        let session = MqttSession {
+            client_id: client_id.clone(),
+            ..Default::default()
+        };
         session_storage
             .save(&cluster_name, &client_id, session)
             .unwrap();

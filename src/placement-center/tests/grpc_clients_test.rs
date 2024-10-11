@@ -35,19 +35,18 @@ mod tests {
             .await
             .unwrap();
 
-        let mut request = RegisterNodeRequest::default();
-        request.cluster_type = cluster_type();
-        request.cluster_name = cluster_name();
-        request.node_id = node_id();
-        request.node_ip = node_ip();
-        request.extend_info = extend_info();
-        match client.register_node(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = RegisterNodeRequest {
+            cluster_type: cluster_type(),
+            cluster_name: cluster_name(),
+            node_id: node_id(),
+            node_ip: node_ip(),
+            extend_info: extend_info(),
+            ..Default::default()
+        };
+        client
+            .register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -56,17 +55,15 @@ mod tests {
             .await
             .unwrap();
 
-        let mut request = HeartbeatRequest::default();
-        request.cluster_type = cluster_type();
-        request.cluster_name = cluster_name();
-        request.node_id = node_id();
-        match client.heartbeat(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = HeartbeatRequest {
+            cluster_type: cluster_type(),
+            cluster_name: cluster_name(),
+            node_id: node_id(),
+        };
+        client
+            .heartbeat(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
@@ -75,82 +72,72 @@ mod tests {
             .await
             .unwrap();
 
-        let mut request = UnRegisterNodeRequest::default();
-        request.cluster_type = cluster_type();
-        request.cluster_name = cluster_name();
-        request.node_id = node_id();
-        match client.un_register_node(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = UnRegisterNodeRequest {
+            cluster_type: cluster_type(),
+            cluster_name: cluster_name(),
+            node_id: node_id(),
+        };
+        client
+            .un_register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn test_create_shard() {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
-        let mut request = CreateShardRequest::default();
-        request.cluster_name = cluster_name();
-        request.shard_name = shard_name();
-        request.replica = shard_replica();
-        match client.create_shard(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = CreateShardRequest {
+            cluster_name: cluster_name(),
+            shard_name: shard_name(),
+            replica: shard_replica(),
+        };
+        client
+            .create_shard(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn test_delete_shard() {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
-        let mut request = DeleteShardRequest::default();
-        request.cluster_name = cluster_name();
-        request.shard_name = shard_name();
-        match client.delete_shard(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = DeleteShardRequest {
+            cluster_name: cluster_name(),
+            shard_name: shard_name(),
+        };
+        client
+            .delete_shard(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn test_create_segment() {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
-        let mut request = CreateSegmentRequest::default();
-        request.cluster_name = cluster_name();
-        request.shard_name = shard_name();
-        match client.create_segment(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = CreateSegmentRequest {
+            cluster_name: cluster_name(),
+            shard_name: shard_name(),
+        };
+        client
+            .create_segment(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn test_delete_segment() {
         let mut client = EngineServiceClient::connect(pc_addr()).await.unwrap();
 
-        let mut request = DeleteSegmentRequest::default();
-        request.cluster_name = cluster_name();
-        request.shard_name = shard_name();
-        request.segment_seq = 1;
-        match client.delete_segment(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = DeleteSegmentRequest {
+            cluster_name: cluster_name(),
+            shard_name: shard_name(),
+            segment_seq: 1,
+        };
+        client
+            .delete_segment(tonic::Request::new(request))
+            .await
+            .unwrap();
     }
 }

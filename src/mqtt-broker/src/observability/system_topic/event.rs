@@ -18,8 +18,8 @@ use std::sync::Arc;
 use clients::poll::ClientPool;
 use common_base::tools::{get_local_ip, now_mills};
 use log::error;
-use metadata_struct::mqtt::message::MQTTMessage;
-use metadata_struct::mqtt::session::MQTTSession;
+use metadata_struct::mqtt::message::MqttMessage;
+use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
 use storage_adapter::storage::StorageAdapter;
@@ -94,7 +94,7 @@ pub async fn st_report_connected_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    session: &MQTTSession,
+    session: &MqttSession,
     connection: &Connection,
     connect_id: u64,
     connnection_manager: &Arc<ConnectionManager>,
@@ -124,7 +124,7 @@ pub async fn st_report_connected_event<S>(
                 );
 
                 if let Some(record) =
-                    MQTTMessage::build_system_topic_message(topic_name.clone(), data)
+                    MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
                     write_topic_data(
                         message_storage_adapter,
@@ -144,11 +144,12 @@ pub async fn st_report_connected_event<S>(
 }
 
 // Offline events. When any client goes offline, a message for that topic is published
+#[allow(clippy::too_many_arguments)]
 pub async fn st_report_disconnected_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    session: &MQTTSession,
+    session: &MqttSession,
     connection: &Connection,
     connect_id: u64,
     connnection_manager: &Arc<ConnectionManager>,
@@ -177,7 +178,7 @@ pub async fn st_report_disconnected_event<S>(
                 );
 
                 if let Some(record) =
-                    MQTTMessage::build_system_topic_message(topic_name.clone(), data)
+                    MqttMessage::build_system_topic_message(topic_name.clone(), data)
                 {
                     write_topic_data(
                         message_storage_adapter,
@@ -234,7 +235,7 @@ pub async fn st_report_subscribed_event<S>(
                     );
 
                     if let Some(record) =
-                        MQTTMessage::build_system_topic_message(topic_name.clone(), data)
+                        MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
                         write_topic_data(
                             message_storage_adapter,
@@ -283,7 +284,7 @@ pub async fn st_report_unsubscribed_event<S>(
                     );
 
                     if let Some(record) =
-                        MQTTMessage::build_system_topic_message(topic_name.clone(), data)
+                        MqttMessage::build_system_topic_message(topic_name.clone(), data)
                     {
                         write_topic_data(
                             message_storage_adapter,
@@ -311,5 +312,5 @@ fn replace_name(mut topic_name: String, client_id: String) -> String {
     if topic_name.contains("${clientid}") {
         topic_name = topic_name.replace("${clientid}", &client_id)
     }
-    return topic_name;
+    topic_name
 }

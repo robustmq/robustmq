@@ -16,7 +16,7 @@
 mod tests {
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+    use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use protocol::mqtt::common::{
         ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
         MQTTPacket,
@@ -120,12 +120,12 @@ mod tests {
 
     /// Build the connect content package for the mqtt4 protocol
     #[allow(dead_code)]
-    fn build_mqtt4_pg_connect_ack() -> MQTTPacketWrapper {
+    fn build_mqtt4_pg_connect_ack() -> MqttPacketWrapper {
         let ack: ConnAck = ConnAck {
             session_present: false,
             code: ConnectReturnCode::Success,
         };
-        MQTTPacketWrapper {
+        MqttPacketWrapper {
             protocol_version: 4,
             packet: MQTTPacket::ConnAck(ack, None),
         }
@@ -186,20 +186,24 @@ mod tests {
             clean_session: true,
         };
 
-        let mut properties = ConnectProperties::default();
-        properties.session_expiry_interval = Some(30);
+        let properties = ConnectProperties {
+            session_expiry_interval: Some(30),
+            ..Default::default()
+        };
         MQTTPacket::Connect(5, connect, Some(properties), lastwill, None, login)
     }
 
     /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect_ack() -> MQTTPacketWrapper {
+    fn build_mqtt5_pg_connect_ack() -> MqttPacketWrapper {
         let ack: ConnAck = ConnAck {
             session_present: true,
             code: ConnectReturnCode::Success,
         };
-        let mut properties = ConnAckProperties::default();
-        properties.max_qos = Some(10u8);
-        MQTTPacketWrapper {
+        let properties = ConnAckProperties {
+            max_qos: Some(10u8),
+            ..Default::default()
+        };
+        MqttPacketWrapper {
             protocol_version: 5,
             packet: MQTTPacket::ConnAck(ack, Some(properties)),
         }

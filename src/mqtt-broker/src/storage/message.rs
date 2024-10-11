@@ -27,7 +27,7 @@ where
     T: StorageAdapter + Send + Sync + 'static,
 {
     pub fn new(storage_adapter: Arc<T>) -> Self {
-        return MessageStorage { storage_adapter };
+        MessageStorage { storage_adapter }
     }
 
     // Save the data for the Topic dimension
@@ -38,12 +38,8 @@ where
     ) -> Result<Vec<usize>, CommonError> {
         let shard_name = topic_id;
         match self.storage_adapter.stream_write(shard_name, record).await {
-            Ok(id) => {
-                return Ok(id);
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(id) => Ok(id),
+            Err(e) => Err(e),
         }
     }
 
@@ -60,15 +56,9 @@ where
             .stream_read(shard_name, group_id, Some(record_num), None)
             .await
         {
-            Ok(Some(data)) => {
-                return Ok(data);
-            }
-            Ok(None) => {
-                return Ok(Vec::new());
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(Some(data)) => Ok(data),
+            Ok(None) => Ok(Vec::new()),
+            Err(e) => Err(e),
         }
     }
 
@@ -85,12 +75,8 @@ where
             .stream_commit_offset(shard_name, group_id, offset)
             .await
         {
-            Ok(flag) => {
-                return Ok(flag);
-            }
-            Err(e) => {
-                return Err(e);
-            }
+            Ok(flag) => Ok(flag),
+            Err(e) => Err(e),
         }
     }
 }

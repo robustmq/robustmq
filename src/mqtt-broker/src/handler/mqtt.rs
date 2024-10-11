@@ -18,7 +18,7 @@ use std::sync::Arc;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, warn};
-use metadata_struct::mqtt::message::MQTTMessage;
+use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, Disconnect, DisconnectProperties,
     DisconnectReasonCode, LastWill, LastWillProperties, Login, MQTTPacket, MQTTProtocol, PingReq,
@@ -87,7 +87,7 @@ where
         client_poll: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
-        return MqttService {
+        MqttService {
             protocol,
             cache_manager,
             connnection_manager,
@@ -95,9 +95,10 @@ where
             sucscribe_manager,
             client_poll,
             auth_driver,
-        };
+        }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn connect(
         &mut self,
         connect_id: u64,
@@ -108,7 +109,7 @@ where
         login: &Option<Login>,
         addr: SocketAddr,
     ) -> MQTTPacket {
-        let cluster: metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig =
+        let cluster: metadata_struct::mqtt::cluster::MqttClusterDynamicConfig =
             self.cache_manager.get_cluster_info();
 
         if let Some(res) = connect_validator(
@@ -118,7 +119,7 @@ where
             &connect_properties,
             &last_will,
             &last_will_properties,
-            &login,
+            login,
             &addr,
         ) {
             return res;
@@ -126,7 +127,7 @@ where
 
         match self
             .auth_driver
-            .check_login_auth(&login, &connect_properties, &addr)
+            .check_login_auth(login, &connect_properties, &addr)
             .await
         {
             Ok(flag) => {
@@ -153,7 +154,7 @@ where
 
         let connection = build_connection(
             connect_id,
-            &client_id,
+            client_id.clone(),
             &cluster,
             &connnect,
             &connect_properties,
@@ -162,7 +163,7 @@ where
 
         let (session, new_session) = match build_session(
             connect_id,
-            &client_id,
+            client_id.clone(),
             &connnect,
             &connect_properties,
             &last_will,
@@ -187,7 +188,7 @@ where
             connect_id,
             session.clone(),
             new_session,
-            &client_id,
+            client_id.clone(),
             &self.client_poll,
         )
         .await
@@ -204,7 +205,7 @@ where
         }
 
         match save_last_will_message(
-            &client_id,
+            client_id.clone(),
             &last_will,
             &last_will_properties,
             &self.client_poll,
@@ -227,7 +228,8 @@ where
             keep_live: connection.keep_alive as u16,
             heartbeat: now_second(),
         };
-        self.cache_manager.report_heartbeat(&client_id, live_time);
+        self.cache_manager
+            .report_heartbeat(client_id.clone(), live_time);
 
         self.cache_manager
             .add_session(client_id.clone(), session.clone());
@@ -245,16 +247,16 @@ where
         )
         .await;
 
-        return response_packet_mqtt_connect_success(
+        response_packet_mqtt_connect_success(
             &self.protocol,
             &cluster,
-            client_id.clone(),
+            client_id,
             new_client_id,
             session.session_expiry as u32,
             new_session,
             connection.keep_alive,
             &connect_properties,
-        );
+        )
     }
 
     pub async fn publish(
@@ -381,7 +383,7 @@ where
         match save_topic_retain_message(
             &self.cache_manager,
             &self.client_poll,
-            &topic_name,
+            topic_name.clone(),
             &client_id,
             &publish,
             &publish_properties,
@@ -419,7 +421,7 @@ where
 
         let message_expire = build_message_expire(&self.cache_manager, &publish_properties);
         let offset = if let Some(record) =
-            MQTTMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
+            MqttMessage::build_record(&client_id, &publish, &publish_properties, message_expire)
         {
             match message_storage
                 .append_topic_message(topic.topic_id.clone(), vec![record])
@@ -461,9 +463,7 @@ where
             .add_topic_alias(connect_id, &topic_name, &publish_properties);
 
         match publish.qos {
-            QoS::AtMostOnce => {
-                return None;
-            }
+            QoS::AtMostOnce => None,
             QoS::AtLeastOnce => {
                 if is_flow_control(&self.protocol, publish.qos) {
                     connection.recv_qos_message_decr();
@@ -474,12 +474,12 @@ where
                 } else {
                     PubAckReason::NoMatchingSubscribers
                 };
-                return Some(response_packet_mqtt_puback_success(
+                Some(response_packet_mqtt_puback_success(
                     &self.protocol,
                     reason_code,
                     publish.pkid,
                     user_properties,
-                ));
+                ))
             }
             QoS::ExactlyOnce => {
                 match pkid_save(
@@ -521,12 +521,12 @@ where
                     PubRecReason::NoMatchingSubscribers
                 };
 
-                return Some(response_packet_mqtt_pubrec_success(
+                Some(response_packet_mqtt_pubrec_success(
                     &self.protocol,
                     reason_code,
                     publish.pkid,
                     user_properties,
-                ));
+                ))
             }
         }
     }
@@ -556,7 +556,7 @@ where
             }
         }
 
-        return None;
+        None
     }
 
     pub async fn publish_rec(
@@ -584,11 +584,11 @@ where
             }
         }
 
-        return Some(response_packet_mqtt_pubrel_success(
+        Some(response_packet_mqtt_pubrel_success(
             &self.protocol,
             pub_rec.pkid,
             PubRelReason::Success,
-        ));
+        ))
     }
 
     pub async fn publish_comp(
@@ -615,7 +615,7 @@ where
                 }
             }
         }
-        return None;
+        None
     }
 
     pub async fn publish_rel(
@@ -686,7 +686,7 @@ where
                 );
             }
         }
-        return response_packet_mqtt_pubcomp_success(&self.protocol, pub_rel.pkid);
+        response_packet_mqtt_pubcomp_success(&self.protocol, pub_rel.pkid)
     }
 
     pub async fn subscribe(
@@ -795,7 +795,7 @@ where
             &subscribe,
         )
         .await;
-        return response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None);
+        response_packet_mqtt_suback(&self.protocol, &connection, pkid, return_codes, None)
     }
 
     pub async fn ping(&self, connect_id: u64, _: PingReq) -> MQTTPacket {
@@ -814,8 +814,8 @@ where
             heartbeat: now_second(),
         };
         self.cache_manager
-            .report_heartbeat(&connection.client_id, live_time);
-        return response_packet_mqtt_ping_resp();
+            .report_heartbeat(connection.client_id, live_time);
+        response_packet_mqtt_ping_resp()
     }
 
     pub async fn un_subscribe(
@@ -881,12 +881,12 @@ where
         )
         .await;
 
-        return response_packet_mqtt_unsuback(
+        response_packet_mqtt_unsuback(
             &connection,
             un_subscribe.pkid,
             vec![UnsubAckReason::Success],
             None,
-        );
+        )
     }
 
     pub async fn disconnect(
@@ -931,6 +931,6 @@ where
             }
         }
 
-        return None;
+        None
     }
 }

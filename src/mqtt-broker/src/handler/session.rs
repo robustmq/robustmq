@@ -18,34 +18,35 @@ use clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use metadata_struct::mqtt::session::MQTTSession;
+use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
 use super::cache::CacheManager;
 use super::lastwill::last_will_delay_interval;
 use crate::storage::session::SessionStorage;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn build_session(
     connect_id: u64,
-    client_id: &String,
+    client_id: String,
     connnect: &Connect,
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
     client_poll: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
-) -> Result<(MQTTSession, bool), CommonError> {
+) -> Result<(MqttSession, bool), CommonError> {
     let session_expiry = session_expiry_interval(cache_manager, connect_properties);
     let is_contain_last_will = !last_will.is_none();
-    let last_will_delay_interval = last_will_delay_interval(&last_will_properties);
+    let last_will_delay_interval = last_will_delay_interval(last_will_properties);
 
     let (mut session, new_session) = if connnect.clean_session {
         let session_storage = SessionStorage::new(client_poll.clone());
         match session_storage.get_session(client_id.clone()).await {
             Ok(Some(session)) => (session, false),
             Ok(None) => (
-                MQTTSession::new(
-                    &client_id,
+                MqttSession::new(
+                    client_id,
                     session_expiry,
                     is_contain_last_will,
                     last_will_delay_interval,
@@ -58,8 +59,8 @@ pub async fn build_session(
         }
     } else {
         (
-            MQTTSession::new(
-                &client_id,
+            MqttSession::new(
+                client_id,
                 session_expiry,
                 is_contain_last_will,
                 last_will_delay_interval,
@@ -72,14 +73,14 @@ pub async fn build_session(
     session.update_connnction_id(Some(connect_id));
     session.update_broker_id(Some(conf.broker_id));
     session.update_reconnect_time();
-    return Ok((session, new_session));
+    Ok((session, new_session))
 }
 
 pub async fn save_session(
     connect_id: u64,
-    session: MQTTSession,
+    session: MqttSession,
     new_session: bool,
-    client_id: &String,
+    client_id: String,
     client_poll: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
     let conf = broker_mqtt_conf();
@@ -93,7 +94,7 @@ pub async fn save_session(
         }
     } else {
         match session_storage
-            .update_session(&client_id, connect_id, conf.broker_id, now_second(), 0)
+            .update_session(client_id, connect_id, conf.broker_id, now_second(), 0)
             .await
         {
             Ok(_) => {}
@@ -103,7 +104,7 @@ pub async fn save_session(
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn session_expiry_interval(
@@ -127,7 +128,7 @@ fn session_expiry_interval(
         cluster_session_expiry_interval,
         connection_session_expiry_interval,
     );
-    return expiry as u64;
+    expiry as u64
 }
 
 #[cfg(test)]
@@ -136,7 +137,7 @@ mod test {
 
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;
 
     use super::session_expiry_interval;
@@ -145,7 +146,7 @@ mod test {
     #[tokio::test]
     pub async fn build_session_test() {
         let client_id = "client_id_test-**".to_string();
-        let session = MQTTSession::new(&client_id, 10, false, None);
+        let session = MqttSession::new(client_id.clone(), 10, false, None);
         assert_eq!(client_id, session.client_id);
         assert_eq!(10, session.session_expiry);
         assert!(!session.is_contain_last_will);
@@ -159,8 +160,10 @@ mod test {
 
     #[test]
     pub fn session_expiry_interval_test() {
-        let mut conf = BrokerMQTTConfig::default();
-        conf.cluster_name = "test".to_string();
+        let conf = BrokerMQTTConfig {
+            cluster_name: "test".to_string(),
+            ..Default::default()
+        };
         let client_poll = Arc::new(ClientPool::new(100));
         let cache_manager = Arc::new(CacheManager::new(
             client_poll.clone(),
@@ -175,19 +178,25 @@ mod test {
                 .session_expiry_interval as u64
         );
 
-        let mut properteis = ConnectProperties::default();
-        properteis.session_expiry_interval = Some(120);
-        let res = session_expiry_interval(&cache_manager, &Some(properteis));
+        let properties = ConnectProperties {
+            session_expiry_interval: Some(120),
+            ..Default::default()
+        };
+        let res = session_expiry_interval(&cache_manager, &Some(properties));
         assert_eq!(res, 120);
 
-        let mut properteis = ConnectProperties::default();
-        properteis.session_expiry_interval = Some(3600);
-        let res = session_expiry_interval(&cache_manager, &Some(properteis));
+        let properties = ConnectProperties {
+            session_expiry_interval: Some(3600),
+            ..Default::default()
+        };
+        let res = session_expiry_interval(&cache_manager, &Some(properties));
         assert_eq!(res, 1800);
 
-        let mut properteis = ConnectProperties::default();
-        properteis.session_expiry_interval = None;
-        let res = session_expiry_interval(&cache_manager, &Some(properteis));
+        let properties = ConnectProperties {
+            session_expiry_interval: None,
+            ..Default::default()
+        };
+        let res = session_expiry_interval(&cache_manager, &Some(properties));
         assert_eq!(res, 1800);
     }
 }

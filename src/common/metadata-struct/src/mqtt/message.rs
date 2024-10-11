@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use crate::adapter::record::Record;
 
 #[derive(Clone, Serialize, Deserialize, Default, Debug)]
-pub struct MQTTMessage {
+pub struct MqttMessage {
     pub client_id: String,
     pub dup: bool,
     pub qos: QoS,
@@ -40,17 +40,19 @@ pub struct MQTTMessage {
     pub create_time: u64,
 }
 
-impl MQTTMessage {
+impl MqttMessage {
     pub fn build_system_topic_message(topic_name: String, payload: String) -> Option<Record> {
-        let mut message = MQTTMessage::default();
-        message.client_id = "-".to_string();
-        message.dup = false;
-        message.qos = QoS::AtMostOnce;
-        message.pkid = 0;
-        message.retain = false;
-        message.topic = Bytes::from(topic_name);
-        message.payload = Bytes::from(payload);
-        message.create_time = now_second();
+        let message = MqttMessage {
+            client_id: "-".to_string(),
+            dup: false,
+            qos: QoS::AtMostOnce,
+            pkid: 0,
+            retain: false,
+            topic: Bytes::from(topic_name),
+            payload: Bytes::from(payload),
+            create_time: now_second(),
+            ..Default::default()
+        };
 
         match serde_json::to_vec(&message) {
             Ok(data) => Some(Record::build_b(data)),
@@ -63,19 +65,21 @@ impl MQTTMessage {
     }
 
     pub fn build_message(
-        client_id: &String,
+        client_id: &str,
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
         expiry_interval: u64,
-    ) -> MQTTMessage {
-        let mut message = MQTTMessage::default();
-        message.client_id = client_id.clone();
-        message.dup = publish.dup;
-        message.qos = publish.qos;
-        message.pkid = publish.pkid;
-        message.retain = publish.retain;
-        message.topic = publish.topic.clone();
-        message.payload = publish.payload.clone();
+    ) -> MqttMessage {
+        let mut message = MqttMessage {
+            client_id: client_id.to_owned(),
+            dup: publish.dup,
+            qos: publish.qos,
+            pkid: publish.pkid,
+            retain: publish.retain,
+            topic: publish.topic.clone(),
+            payload: publish.payload.clone(),
+            ..Default::default()
+        };
         if let Some(properties) = publish_properties {
             message.format_indicator = properties.payload_format_indicator;
             message.expiry_interval = expiry_interval;
@@ -98,13 +102,13 @@ impl MQTTMessage {
     }
 
     pub fn build_record(
-        client_id: &String,
+        client_id: &str,
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
         expiry_interval: u64,
     ) -> Option<Record> {
         let msg =
-            MQTTMessage::build_message(client_id, publish, publish_properties, expiry_interval);
+            MqttMessage::build_message(client_id, publish, publish_properties, expiry_interval);
         match serde_json::to_vec(&msg) {
             Ok(data) => Some(Record::build_b(data)),
 
@@ -115,8 +119,8 @@ impl MQTTMessage {
         }
     }
 
-    pub fn decode_record(record: Record) -> Result<MQTTMessage, CommonError> {
-        let data: MQTTMessage = match serde_json::from_slice(record.data.as_slice()) {
+    pub fn decode_record(record: Record) -> Result<MqttMessage, CommonError> {
+        let data: MqttMessage = match serde_json::from_slice(record.data.as_slice()) {
             Ok(da) => da,
             Err(e) => {
                 return Err(CommonError::CommmonError(e.to_string()));

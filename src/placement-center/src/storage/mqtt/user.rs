@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::mqtt::user::MqttUser;
 
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_prefix_list_by_cluster,
@@ -24,34 +24,34 @@ use crate::storage::engine::{
 use crate::storage::keys::{storage_key_mqtt_user, storage_key_mqtt_user_cluster_prefix};
 use crate::storage::rocksdb::RocksDBEngine;
 
-pub struct MQTTUserStorage {
+pub struct MqttUserStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl MQTTUserStorage {
+impl MqttUserStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        MQTTUserStorage {
+        MqttUserStorage {
             rocksdb_engine_handler,
         }
     }
 
     pub fn save(
         &self,
-        cluster_name: &String,
-        user_name: &String,
-        user: MQTTUser,
+        cluster_name: &str,
+        user_name: &str,
+        user: MqttUser,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(cluster_name, user_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTUser>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
                 let mut results = Vec::new();
                 for raw in data {
-                    match serde_json::from_slice::<MQTTUser>(&raw.data) {
+                    match serde_json::from_slice::<MqttUser>(&raw.data) {
                         Ok(topic) => {
                             results.push(topic);
                         }
@@ -66,14 +66,10 @@ impl MQTTUserStorage {
         }
     }
 
-    pub fn get(
-        &self,
-        cluster_name: &String,
-        username: &String,
-    ) -> Result<Option<MQTTUser>, CommonError> {
+    pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<MQTTUser>(&data.data) {
+            Ok(Some(data)) => match serde_json::from_slice::<MqttUser>(&data.data) {
                 Ok(user) => Ok(Some(user)),
                 Err(e) => Err(e.into()),
             },
@@ -82,7 +78,7 @@ impl MQTTUserStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, user_name: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, user_name: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, user_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
@@ -94,9 +90,9 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
-    use metadata_struct::mqtt::user::MQTTUser;
+    use metadata_struct::mqtt::user::MqttUser;
 
-    use crate::storage::mqtt::user::MQTTUserStorage;
+    use crate::storage::mqtt::user::MqttUserStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[tokio::test]
@@ -108,10 +104,10 @@ mod tests {
             config.rocksdb.max_open_files.unwrap(),
             column_family_list(),
         ));
-        let user_storage = MQTTUserStorage::new(rs);
+        let user_storage = MqttUserStorage::new(rs);
         let cluster_name = "test_cluster".to_string();
         let username = "loboxu".to_string();
-        let user = MQTTUser {
+        let user = MqttUser {
             username: username.clone(),
             password: "pwd123".to_string(),
             is_superuser: true,
@@ -119,7 +115,7 @@ mod tests {
         user_storage.save(&cluster_name, &username, user).unwrap();
 
         let username = "lobo1".to_string();
-        let user = MQTTUser {
+        let user = MqttUser {
             username: username.clone(),
             password: "pwd1231".to_string(),
             is_superuser: true,
@@ -129,17 +125,13 @@ mod tests {
         let res = user_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
-        let res = user_storage
-            .get(&cluster_name, &"lobo1".to_string())
-            .unwrap();
+        let res = user_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_some());
 
         let name = "lobo1".to_string();
         user_storage.delete(&cluster_name, &name).unwrap();
 
-        let res = user_storage
-            .get(&cluster_name, &"lobo1".to_string())
-            .unwrap();
+        let res = user_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
 
         remove_dir_all(config.rocksdb.data_path).unwrap();

@@ -52,14 +52,11 @@ pub(crate) async fn handler_process<S>(
         loop {
             select! {
                 val = stop_rx.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                debug!("{}","TCP Server handler thread stopped successfully.");
-                                break;
-                            }
+                    if let Ok(flag) = val {
+                        if flag {
+                            debug!("{}","TCP Server handler thread stopped successfully.");
+                            break;
                         }
-                        Err(_) => {}
                     }
                 },
                 val = request_queue_rx.recv()=>{
@@ -83,7 +80,7 @@ pub(crate) async fn handler_process<S>(
                                         err
                                     ),
                                 }
-                                process_handler_seq = process_handler_seq + 1;
+                                process_handler_seq += 1;
                             }else{
                                 // In exceptional cases, if no available child handler can be found, the request packet is dropped.
                                 // If the client does not receive a return packet, it will retry the request.
@@ -127,14 +124,11 @@ fn handler_child_process<S>(
             loop {
                 select! {
                     val = raw_stop_rx.recv() =>{
-                        match val{
-                            Ok(flag) => {
-                                if flag {
-                                    debug!("TCP Server handler process thread {} stopped successfully.",index);
-                                    break;
-                                }
+                        if let Ok(flag) = val {
+                            if flag {
+                                debug!("TCP Server handler process thread {} stopped successfully.",index);
+                                break;
                             }
-                            Err(_) => {}
                         }
                     },
                     val = child_process_rx.recv()=>{

@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use metadata_struct::acl::mqtt_blacklist::MQTTAclBlackList;
+use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_prefix_list_by_cluster, engine_save_by_cluster,
@@ -23,22 +23,18 @@ use crate::storage::engine::{
 use crate::storage::keys::{storage_key_mqtt_blacklist, storage_key_mqtt_blacklist_prefix};
 use crate::storage::rocksdb::RocksDBEngine;
 
-pub struct MQTTBlackListStorage {
+pub struct MqttBlackListStorage {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
-impl MQTTBlackListStorage {
+impl MqttBlackListStorage {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        MQTTBlackListStorage {
+        MqttBlackListStorage {
             rocksdb_engine_handler,
         }
     }
 
-    pub fn save(
-        &self,
-        cluster_name: &String,
-        blacklist: MQTTAclBlackList,
-    ) -> Result<(), CommonError> {
+    pub fn save(&self, cluster_name: &str, blacklist: MqttAclBlackList) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(
             cluster_name,
             &blacklist.blacklist_type.to_string(),
@@ -47,13 +43,13 @@ impl MQTTBlackListStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, blacklist)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MQTTAclBlackList>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAclBlackList>, CommonError> {
         let prefix_key = storage_key_mqtt_blacklist_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
                 let mut results = Vec::new();
                 for raw in data {
-                    match serde_json::from_slice::<MQTTAclBlackList>(&raw.data) {
+                    match serde_json::from_slice::<MqttAclBlackList>(&raw.data) {
                         Ok(blacklist) => {
                             results.push(blacklist);
                         }
@@ -70,9 +66,9 @@ impl MQTTBlackListStorage {
 
     pub fn delete(
         &self,
-        cluster_name: &String,
-        blacklist_type: &String,
-        resource_name: &String,
+        cluster_name: &str,
+        blacklist_type: &str,
+        resource_name: &str,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_blacklist(cluster_name, blacklist_type, resource_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)

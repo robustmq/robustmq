@@ -15,19 +15,19 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use metadata_struct::mqtt::topic::MQTTTopic;
-use metadata_struct::mqtt::user::MQTTUser;
+use metadata_struct::mqtt::topic::MqttTopic;
+use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::generate::common::ClusterType;
 
 use super::placement::PlacementCacheManager;
 use crate::controller::mqtt::session_expire::ExpireLastWill;
-use crate::storage::mqtt::topic::MQTTTopicStorage;
-use crate::storage::mqtt::user::MQTTUserStorage;
+use crate::storage::mqtt::topic::MqttTopicStorage;
+use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub struct MqttCacheManager {
-    pub topic_list: DashMap<String, DashMap<String, MQTTTopic>>,
-    pub user_list: DashMap<String, DashMap<String, MQTTUser>>,
+    pub topic_list: DashMap<String, DashMap<String, MqttTopic>>,
+    pub user_list: DashMap<String, DashMap<String, MqttUser>>,
     pub expire_last_wills: DashMap<String, DashMap<String, ExpireLastWill>>,
 }
 
@@ -45,30 +45,30 @@ impl MqttCacheManager {
         cache
     }
 
-    pub fn add_topic(&self, cluster_name: &String, topic: MQTTTopic) {
+    pub fn add_topic(&self, cluster_name: &str, topic: MqttTopic) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
             data.insert(topic.topic_name.clone(), topic);
         } else {
             let data = DashMap::with_capacity(8);
             data.insert(topic.topic_name.clone(), topic);
-            self.topic_list.insert(cluster_name.clone(), data);
+            self.topic_list.insert(cluster_name.to_owned(), data);
         }
     }
 
     #[allow(dead_code)]
-    pub fn remove_topic(&self, cluster_name: &String, topic_name: &String) {
+    pub fn remove_topic(&self, cluster_name: &str, topic_name: &str) {
         if let Some(data) = self.topic_list.get_mut(cluster_name) {
             data.remove(topic_name);
         }
     }
 
-    pub fn add_user(&self, cluster_name: &String, user: MQTTUser) {
+    pub fn add_user(&self, cluster_name: &str, user: MqttUser) {
         if let Some(data) = self.user_list.get_mut(cluster_name) {
             data.insert(user.username.clone(), user);
         } else {
             let data = DashMap::with_capacity(8);
             data.insert(user.username.clone(), user);
-            self.user_list.insert(cluster_name.clone(), data);
+            self.user_list.insert(cluster_name.to_owned(), data);
         }
     }
 
@@ -86,7 +86,7 @@ impl MqttCacheManager {
         }
     }
 
-    pub fn remove_expire_last_will(&self, cluster_name: &String, client_id: &String) {
+    pub fn remove_expire_last_will(&self, cluster_name: &str, client_id: &str) {
         if let Some(data) = self.expire_last_wills.get_mut(cluster_name) {
             data.remove(client_id);
         }
@@ -99,7 +99,7 @@ impl MqttCacheManager {
     ) {
         for (_, cluster) in placement_cache.cluster_list.clone() {
             if cluster.cluster_type == *ClusterType::MqttBrokerServer.as_str_name() {
-                let topic = MQTTTopicStorage::new(rocksdb_engine_handler.clone());
+                let topic = MqttTopicStorage::new(rocksdb_engine_handler.clone());
                 match topic.list(&cluster.cluster_name) {
                     Ok(data) => {
                         for topic in data {
@@ -111,7 +111,7 @@ impl MqttCacheManager {
                     }
                 }
 
-                let user = MQTTUserStorage::new(rocksdb_engine_handler.clone());
+                let user = MqttUserStorage::new(rocksdb_engine_handler.clone());
                 match user.list(&cluster.cluster_name) {
                     Ok(data) => {
                         for user in data {

@@ -15,10 +15,11 @@
 use bytes::BytesMut;
 use tokio_util::codec;
 
+use super::common::ConnectReadOutcome;
 use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, PacketType};
 
 #[derive(Debug, Clone)]
-pub struct MQTTPacketWrapper {
+pub struct MqttPacketWrapper {
     pub protocol_version: u8,
     pub packet: MQTTPacket,
 }
@@ -49,14 +50,14 @@ impl MqttCodec {
 
         if packet_type == PacketType::Connect {
             match connect_read(fixed_header, packet.clone()) {
-                Ok((
+                Ok(ConnectReadOutcome {
                     protocol_version,
                     connect,
                     properties,
                     last_will,
                     last_will_properties,
                     login,
-                )) => {
+                }) => {
                     self.protocol_version = Some(protocol_version);
 
                     if protocol_version == 4 || protocol_version == 3 {
@@ -221,7 +222,7 @@ impl MqttCodec {
 
     pub fn encode_data(
         &mut self,
-        packet_wrapper: MQTTPacketWrapper,
+        packet_wrapper: MqttPacketWrapper,
         buffer: &mut BytesMut,
     ) -> Result<(), crate::mqtt::common::Error> {
         let packet = packet_wrapper.packet;
@@ -245,7 +246,7 @@ impl MqttCodec {
                 MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv4::ping::pingreq::write(buffer)?,
                 MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv4::ping::pingresp::write(buffer)?,
                 MQTTPacket::Disconnect(disconnect, None) => crate::mqtt::mqttv4::disconnect::write(&disconnect, buffer)?,
-    
+
                 //Packet::
                 _=> unreachable!(
                     "This branch only matches for packets with Properties, which is not possible in MQTT V4",
@@ -269,7 +270,7 @@ impl MqttCodec {
                 MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv5::ping::pingreq::write(buffer)?,
                 MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv5::ping::pingresp::write(buffer)?,
                 MQTTPacket::Disconnect(disconnect, disconnect_properties) => crate::mqtt::mqttv5::disconnect::write(&disconnect, &disconnect_properties,buffer)?,
-    
+
                 //Packet::
                 _=> unreachable!(
                     "This branch only matches for packets with Properties, which is not possible in MQTT V4",
@@ -280,11 +281,11 @@ impl MqttCodec {
     }
 }
 
-impl codec::Encoder<MQTTPacketWrapper> for MqttCodec {
+impl codec::Encoder<MqttPacketWrapper> for MqttCodec {
     type Error = crate::mqtt::common::Error;
     fn encode(
         &mut self,
-        packet_wrapper: MQTTPacketWrapper,
+        packet_wrapper: MqttPacketWrapper,
         buffer: &mut BytesMut,
     ) -> Result<(), Self::Error> {
         self.encode_data(packet_wrapper, buffer)
@@ -299,12 +300,12 @@ impl codec::Decoder for MqttCodec {
     }
 }
 
-pub fn calc_mqtt_packet_size(packet_wrapper: MQTTPacketWrapper) -> usize {
+pub fn calc_mqtt_packet_size(packet_wrapper: MqttPacketWrapper) -> usize {
     calc_mqtt_packet_len(packet_wrapper).unwrap_or_default()
 }
 
 fn calc_mqtt_packet_len(
-    packet_wrapper: MQTTPacketWrapper,
+    packet_wrapper: MqttPacketWrapper,
 ) -> Result<usize, crate::mqtt::common::Error> {
     let packet = packet_wrapper.packet;
     let protocol_version = packet_wrapper.protocol_version;

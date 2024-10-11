@@ -20,8 +20,8 @@ use bytes::BytesMut;
 use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, info, warn};
-use metadata_struct::mqtt::cluster::MQTTClusterDynamicConfig;
-use protocol::mqtt::codec::{MQTTPacketWrapper, MqttCodec};
+use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol};
 use serde::{Deserialize, Serialize};
 use tokio::select;
@@ -50,13 +50,13 @@ impl ClientKeepAlive {
         cache_manager: Arc<CacheManager>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
-        return ClientKeepAlive {
+        ClientKeepAlive {
             client_poll,
             connnection_manager,
             cache_manager,
             stop_send,
             subscribe_manager,
-        };
+        }
     }
 
     pub async fn start_heartbeat_check(&mut self) {
@@ -64,14 +64,11 @@ impl ClientKeepAlive {
             let mut stop_rx = self.stop_send.subscribe();
             select! {
                 val = stop_rx.recv() =>{
-                    match val{
-                        Ok(flag) => {
-                            if flag {
-                                info!("{}","Heartbeat check thread stopped successfully.");
-                                break;
-                            }
+                    if let Ok(flag) = val {
+                        if flag {
+                            info!("{}","Heartbeat check thread stopped successfully.");
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
                 _ = self.keep_alive()=>{
@@ -92,7 +89,7 @@ impl ClientKeepAlive {
                         Some(DisconnectReasonCode::KeepAliveTimeout),
                     );
 
-                    let wrap = MQTTPacketWrapper {
+                    let wrap = MqttPacketWrapper {
                         protocol_version: protocol.clone().into(),
                         packet: resp,
                     };
@@ -200,14 +197,14 @@ impl ClientKeepAlive {
             } else {
                 let live_time = ConnectionLiveTime {
                     protobol: MQTTProtocol::MQTT5,
-                    keep_live: connection.keep_alive as u16,
+                    keep_live: connection.keep_alive,
                     heartbeat: now_second(),
                 };
                 self.cache_manager
-                    .report_heartbeat(&connection.client_id, live_time);
+                    .report_heartbeat(connection.client_id, live_time);
             }
         }
-        return expire_connection;
+        expire_connection
     }
 }
 
@@ -216,17 +213,17 @@ pub fn keep_live_time(keep_alive: u16) -> u16 {
     if new_keep_alive > 65535 {
         return 65535;
     }
-    return new_keep_alive as u16;
+    new_keep_alive as u16
 }
 
-pub fn client_keep_live_time(cluster: &MQTTClusterDynamicConfig, mut keep_alive: u16) -> u16 {
-    if keep_alive <= 0 {
+pub fn client_keep_live_time(cluster: &MqttClusterDynamicConfig, mut keep_alive: u16) -> u16 {
+    if keep_alive == 0 {
         keep_alive = cluster.protocol.default_server_keep_alive;
     }
     if keep_alive > cluster.protocol.max_server_keep_alive {
         keep_alive = cluster.protocol.max_server_keep_alive / 2;
     }
-    return keep_alive;
+    keep_alive
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -244,13 +241,13 @@ mod test {
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::BrokerMQTTConfig;
     use common_base::tools::{now_second, unique_id};
-    use metadata_struct::mqtt::session::MQTTSession;
+    use metadata_struct::mqtt::session::MqttSession;
     use tokio::sync::broadcast;
     use tokio::time::sleep;
 
     use super::keep_live_time;
     use crate::handler::cache::CacheManager;
-    use crate::handler::connection::Connection;
+    use crate::handler::connection::{Connection, ConnectionConfig};
     use crate::handler::keep_alive::ClientKeepAlive;
     use crate::server::connection_manager::ConnectionManager;
     use crate::subscribe::subscribe_manager::SubscribeManager;
@@ -267,8 +264,10 @@ mod test {
 
     #[tokio::test]
     pub async fn get_expire_connection_test() {
-        let mut conf = BrokerMQTTConfig::default();
-        conf.cluster_name = "test".to_string();
+        let conf = BrokerMQTTConfig {
+            cluster_name: "test".to_string(),
+            ..Default::default()
+        };
         let client_poll = Arc::new(ClientPool::new(100));
         let (stop_send, _) = broadcast::channel::<bool>(2);
 
@@ -294,12 +293,22 @@ mod test {
         let client_id = unique_id();
         let connect_id = 1;
 
-        let session = MQTTSession::new(&client_id, 60, false, None);
+        let session = MqttSession::new(client_id.clone(), 60, false, None);
         cache_manager.add_session(client_id.clone(), session);
 
         let keep_alive = 2;
         let addr = "127.0.0.1".to_string();
-        let connection = Connection::new(1, &client_id, 100, 100, 100, 100, keep_alive, addr);
+        let config = ConnectionConfig {
+            connect_id: 1,
+            client_id,
+            receive_maximum: 100,
+            max_packet_size: 100,
+            topic_alias_max: 100,
+            request_problem_info: 100,
+            keep_alive,
+            source_ip_addr: addr,
+        };
+        let connection = Connection::new(config);
         cache_manager.add_connection(connect_id, connection);
 
         let start = now_second();
@@ -310,9 +319,6 @@ mod test {
             }
             sleep(Duration::from_millis(100)).await;
         }
-        assert_eq!(
-            (now_second() - start),
-            keep_live_time(keep_alive as u16) as u64
-        );
+        assert_eq!((now_second() - start), keep_live_time(keep_alive) as u64);
     }
 }
