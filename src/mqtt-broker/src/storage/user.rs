@@ -31,7 +31,7 @@ pub struct UserStorage {
 }
 impl UserStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return UserStorage { client_poll };
+        UserStorage { client_poll }
     }
 
     pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
@@ -48,10 +48,8 @@ impl UserStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -68,10 +66,8 @@ impl UserStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -89,22 +85,16 @@ impl UserStorage {
         .await
         {
             Ok(reply) => {
-                if reply.users.len() == 0 {
+                if reply.users.is_empty() {
                     return Ok(None);
                 }
-                let raw = reply.users.get(0).unwrap();
+                let raw = reply.users.first().unwrap();
                 match serde_json::from_slice::<MqttUser>(raw) {
-                    Ok(data) => {
-                        return Ok(Some(data));
-                    }
-                    Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
-                    }
+                    Ok(data) => Ok(Some(data)),
+                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
                 }
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -133,11 +123,9 @@ impl UserStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 }
@@ -182,7 +170,7 @@ mod tests {
 
         let result = user_storage.user_list().await.unwrap();
         let prev_len = result.len();
-        assert!(result.len() >= 1);
+        assert!(!result.is_empty());
 
         user_storage.delete_user(username.clone()).await.unwrap();
         let result = user_storage.get_user(username.clone()).await.unwrap();

@@ -20,6 +20,7 @@ pub(crate) fn v1_path(path: &str) -> String {
     format!("/v1{}", path)
 }
 
+#[allow(dead_code)]
 pub(crate) fn list_path(path: &str) -> String {
     format!("{}/list", path)
 }

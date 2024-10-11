@@ -34,7 +34,7 @@ impl AclStorage {
         }
     }
 
-    pub fn save(&self, cluster_name: &String, acl: MqttAcl) -> Result<(), CommonError> {
+    pub fn save(&self, cluster_name: &str, acl: MqttAcl) -> Result<(), CommonError> {
         let mut acl_list = self.get(
             cluster_name,
             &acl.resource_type.to_string(),
@@ -55,7 +55,7 @@ impl AclStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, acl_list)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MqttAcl>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttAcl>, CommonError> {
         let prefix_key = storage_key_mqtt_acl_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -76,7 +76,7 @@ impl AclStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, delete_acl: &MqttAcl) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, delete_acl: &MqttAcl) -> Result<(), CommonError> {
         let acl_list = self.get(
             cluster_name,
             &delete_acl.resource_type.to_string(),
@@ -107,9 +107,9 @@ impl AclStorage {
 
     pub fn get(
         &self,
-        cluster_name: &String,
-        resource_type: &String,
-        resource_name: &String,
+        cluster_name: &str,
+        resource_type: &str,
+        resource_name: &str,
     ) -> Result<Vec<MqttAcl>, CommonError> {
         let key = storage_key_mqtt_acl(cluster_name, resource_type, resource_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
@@ -122,7 +122,7 @@ impl AclStorage {
         }
     }
 
-    fn acl_exists(&self, acl_list: &Vec<MqttAcl>, acl: &MqttAcl) -> bool {
+    fn acl_exists(&self, acl_list: &[MqttAcl], acl: &MqttAcl) -> bool {
         for raw in acl_list {
             if !(raw.permission == acl.permission
                 && raw.action == acl.action

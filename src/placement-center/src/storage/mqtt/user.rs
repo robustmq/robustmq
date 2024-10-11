@@ -37,15 +37,15 @@ impl MqttUserStorage {
 
     pub fn save(
         &self,
-        cluster_name: &String,
-        user_name: &String,
+        cluster_name: &str,
+        user_name: &str,
         user: MqttUser,
     ) -> Result<(), CommonError> {
         let key = storage_key_mqtt_user(cluster_name, user_name);
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, user)
     }
 
-    pub fn list(&self, cluster_name: &String) -> Result<Vec<MqttUser>, CommonError> {
+    pub fn list(&self, cluster_name: &str) -> Result<Vec<MqttUser>, CommonError> {
         let prefix_key = storage_key_mqtt_user_cluster_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {
@@ -66,11 +66,7 @@ impl MqttUserStorage {
         }
     }
 
-    pub fn get(
-        &self,
-        cluster_name: &String,
-        username: &String,
-    ) -> Result<Option<MqttUser>, CommonError> {
+    pub fn get(&self, cluster_name: &str, username: &str) -> Result<Option<MqttUser>, CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, username);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
             Ok(Some(data)) => match serde_json::from_slice::<MqttUser>(&data.data) {
@@ -82,7 +78,7 @@ impl MqttUserStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &String, user_name: &String) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, user_name: &str) -> Result<(), CommonError> {
         let key: String = storage_key_mqtt_user(cluster_name, user_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
     }
@@ -129,17 +125,13 @@ mod tests {
         let res = user_storage.list(&cluster_name).unwrap();
         assert_eq!(res.len(), 2);
 
-        let res = user_storage
-            .get(&cluster_name, &"lobo1".to_string())
-            .unwrap();
+        let res = user_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_some());
 
         let name = "lobo1".to_string();
         user_storage.delete(&cluster_name, &name).unwrap();
 
-        let res = user_storage
-            .get(&cluster_name, &"lobo1".to_string())
-            .unwrap();
+        let res = user_storage.get(&cluster_name, "lobo1").unwrap();
         assert!(res.is_none());
 
         remove_dir_all(config.rocksdb.data_path).unwrap();

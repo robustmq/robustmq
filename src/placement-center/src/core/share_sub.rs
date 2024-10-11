@@ -40,7 +40,7 @@ impl ShareSubLeader {
 
     pub fn get_leader_node(
         &self,
-        cluster_name: &String,
+        cluster_name: &str,
         group_name: &String,
     ) -> Result<u64, CommonError> {
         let mut broker_ids = Vec::new();
@@ -95,7 +95,7 @@ impl ShareSubLeader {
     #[allow(dead_code)]
     pub fn remove_group_by_node(
         &self,
-        cluster_name: &String,
+        cluster_name: &str,
         group_name: &String,
     ) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
@@ -104,7 +104,7 @@ impl ShareSubLeader {
         };
         for (broker_id, mut group_list) in node_sub_info.clone() {
             if group_list.contains(group_name) {
-                group_list.retain(|x| *x != group_name.to_string());
+                group_list.retain(|x| x != group_name);
                 node_sub_info.insert(broker_id, group_list);
 
                 let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
@@ -127,7 +127,7 @@ impl ShareSubLeader {
     }
 
     #[allow(dead_code)]
-    pub fn delete_node(&self, cluster_name: &String, broker_id: u64) -> Result<(), CommonError> {
+    pub fn delete_node(&self, cluster_name: &str, broker_id: u64) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,
             Err(e) => return Err(e),
@@ -154,7 +154,7 @@ impl ShareSubLeader {
 
     fn save_node_sub_info(
         &self,
-        cluster_name: &String,
+        cluster_name: &str,
         broker_id: u64,
         group_name: &String,
     ) -> Result<(), CommonError> {
@@ -189,7 +189,7 @@ impl ShareSubLeader {
 
     fn read_node_sub_info(
         &self,
-        cluster_name: &String,
+        cluster_name: &str,
     ) -> Result<HashMap<u64, Vec<String>>, CommonError> {
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());
         let key = storage_key_mqtt_node_sub_group_leader(cluster_name);

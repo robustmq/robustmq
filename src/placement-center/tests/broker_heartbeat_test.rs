@@ -33,42 +33,34 @@ mod tests {
             .unwrap();
         let cluster_name = cluster_name();
         let node_id = node_id();
-        let mut request = RegisterNodeRequest::default();
-        request.cluster_type = cluster_type();
-        request.cluster_name = cluster_name.clone();
-        request.node_id = node_id;
-        request.node_ip = node_ip();
-        request.extend_info = extend_info();
-        match client.register_node(tonic::Request::new(request)).await {
-            Ok(_) => assert!(true),
-            Err(e) => {
-                println!("{}", e);
-                assert!(false)
-            }
-        }
+        let request = RegisterNodeRequest {
+            cluster_type: cluster_type(),
+            cluster_name: cluster_name.clone(),
+            node_id,
+            node_ip: node_ip(),
+            extend_info: extend_info(),
+            ..Default::default()
+        };
+        client
+            .register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
         let start_time = now_second();
         loop {
             let request = NodeListRequest {
                 cluster_name: cluster_name.clone(),
             };
-            match client.node_list(request).await {
-                Ok(rep) => {
-                    let mut flag = false;
-                    let nodes = rep.into_inner().nodes;
-                    for raw in nodes {
-                        let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
-                        if node.node_id == node_id {
-                            flag = true;
-                        }
-                    }
-                    if !flag {
-                        break;
-                    }
+            let resp = client.node_list(request).await.unwrap();
+            let mut flag = false;
+            let nodes = resp.into_inner().nodes;
+            for raw in nodes {
+                let node = serde_json::from_slice::<BrokerNode>(&raw).unwrap();
+                if node.node_id == node_id {
+                    flag = true;
                 }
-                Err(e) => {
-                    println!("{}", e);
-                    assert!(false)
-                }
+            }
+            if !flag {
+                break;
             }
             sleep(Duration::from_millis(100)).await;
         }

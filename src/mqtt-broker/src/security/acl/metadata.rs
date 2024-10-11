@@ -31,9 +31,15 @@ pub struct AclMetadata {
     pub acl_client_id: DashMap<String, Vec<MqttAcl>>,
 }
 
+impl Default for AclMetadata {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AclMetadata {
     pub fn new() -> Self {
-        return AclMetadata {
+        AclMetadata {
             blacklist_user: DashMap::with_capacity(2),
             blacklist_client_id: DashMap::with_capacity(2),
             blacklist_ip: DashMap::with_capacity(2),
@@ -43,7 +49,7 @@ impl AclMetadata {
 
             acl_user: DashMap::with_capacity(2),
             acl_client_id: DashMap::with_capacity(2),
-        };
+        }
     }
 
     pub fn parse_mqtt_acl(&self, acl: MqttAcl) {
@@ -112,7 +118,7 @@ impl AclMetadata {
         if let Some(data) = self.blacklist_user_match.get(&key) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
     pub fn get_blacklist_client_id_match(&self) -> Option<Vec<MqttAclBlackList>> {
@@ -120,7 +126,7 @@ impl AclMetadata {
         if let Some(data) = self.blacklist_client_id_match.get(&key) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
     pub fn get_blacklist_ip_match(&self) -> Option<Vec<MqttAclBlackList>> {
@@ -128,19 +134,19 @@ impl AclMetadata {
         if let Some(data) = self.blacklist_ip_match.get(&key) {
             return Some(data.clone());
         }
-        return None;
+        None
     }
 
     fn get_client_id_match_key(&self) -> String {
-        return "ClientIdMatch".to_string();
+        "ClientIdMatch".to_string()
     }
 
     fn get_user_match_key(&self) -> String {
-        return "UserMatch".to_string();
+        "UserMatch".to_string()
     }
 
     fn get_ip_cidr_key(&self) -> String {
-        return "IPCIDR".to_string();
+        "IPCIDR".to_string()
     }
 }
 

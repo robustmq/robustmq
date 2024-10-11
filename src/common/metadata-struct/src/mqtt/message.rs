@@ -42,15 +42,17 @@ pub struct MqttMessage {
 
 impl MqttMessage {
     pub fn build_system_topic_message(topic_name: String, payload: String) -> Option<Record> {
-        let mut message = MqttMessage::default();
-        message.client_id = "-".to_string();
-        message.dup = false;
-        message.qos = QoS::AtMostOnce;
-        message.pkid = 0;
-        message.retain = false;
-        message.topic = Bytes::from(topic_name);
-        message.payload = Bytes::from(payload);
-        message.create_time = now_second();
+        let message = MqttMessage {
+            client_id: "-".to_string(),
+            dup: false,
+            qos: QoS::AtMostOnce,
+            pkid: 0,
+            retain: false,
+            topic: Bytes::from(topic_name),
+            payload: Bytes::from(payload),
+            create_time: now_second(),
+            ..Default::default()
+        };
 
         match serde_json::to_vec(&message) {
             Ok(data) => Some(Record::build_b(data)),
@@ -63,19 +65,21 @@ impl MqttMessage {
     }
 
     pub fn build_message(
-        client_id: &String,
+        client_id: &str,
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
         expiry_interval: u64,
     ) -> MqttMessage {
-        let mut message = MqttMessage::default();
-        message.client_id = client_id.clone();
-        message.dup = publish.dup;
-        message.qos = publish.qos;
-        message.pkid = publish.pkid;
-        message.retain = publish.retain;
-        message.topic = publish.topic.clone();
-        message.payload = publish.payload.clone();
+        let mut message = MqttMessage {
+            client_id: client_id.to_owned(),
+            dup: publish.dup,
+            qos: publish.qos,
+            pkid: publish.pkid,
+            retain: publish.retain,
+            topic: publish.topic.clone(),
+            payload: publish.payload.clone(),
+            ..Default::default()
+        };
         if let Some(properties) = publish_properties {
             message.format_indicator = properties.payload_format_indicator;
             message.expiry_interval = expiry_interval;
@@ -98,7 +102,7 @@ impl MqttMessage {
     }
 
     pub fn build_record(
-        client_id: &String,
+        client_id: &str,
         publish: &Publish,
         publish_properties: &Option<PublishProperties>,
         expiry_interval: u64,

@@ -28,8 +28,7 @@ async fn publish34_qos(num: i32, qos: i32) {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }
@@ -45,8 +44,7 @@ async fn publish34_qos(num: i32, qos: i32) {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }
@@ -75,8 +73,7 @@ async fn publish5_qos(num: i32, qos: i32, retained: bool) {
         match cli.publish(msg) {
             Ok(_) => {}
             Err(e) => {
-                println!("{}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }

@@ -505,8 +505,8 @@ mod tests {
         let connack_properties = connack_properties_read.unwrap();
         assert_eq!(connack_properties.session_expiry_interval, Some(30u32));
         assert_eq!(connack_properties.receive_max, Some(1024u16));
-        assert_eq!(connack_properties.max_qos, Some(01u8));
-        assert_eq!(connack_properties.retain_available, Some(01u8));
+        assert_eq!(connack_properties.max_qos, Some(1u8));
+        assert_eq!(connack_properties.retain_available, Some(1u8));
 
         println!("connack in v5 {}", connack_read);
         println!("connack_properties in v5 {}", connack_properties);

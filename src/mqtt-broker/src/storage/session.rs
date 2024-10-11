@@ -34,18 +34,18 @@ pub struct SessionStorage {
 
 impl SessionStorage {
     pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        return SessionStorage { client_poll };
+        SessionStorage { client_poll }
     }
 
     pub async fn set_session(
         &self,
-        client_id: &String,
+        client_id: String,
         session: &MqttSession,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = CreateSessionRequest {
             cluster_name: config.cluster_name.clone(),
-            client_id: client_id.clone(),
+            client_id,
             session: session.encode(),
         };
         match placement_create_session(
@@ -55,16 +55,14 @@ impl SessionStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
     pub async fn update_session(
         &self,
-        client_id: &String,
+        client_id: String,
         connection_id: u64,
         broker_id: u64,
         reconnect_time: u64,
@@ -73,7 +71,7 @@ impl SessionStorage {
         let config = broker_mqtt_conf();
         let request = UpdateSessionRequest {
             cluster_name: config.cluster_name.clone(),
-            client_id: client_id.clone(),
+            client_id,
             connection_id,
             broker_id,
             reconnect_time,
@@ -86,10 +84,8 @@ impl SessionStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -106,10 +102,8 @@ impl SessionStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 
@@ -127,20 +121,16 @@ impl SessionStorage {
         .await
         {
             Ok(reply) => {
-                if reply.sessions.len() == 0 {
+                if reply.sessions.is_empty() {
                     return Ok(None);
                 }
-                let raw = reply.sessions.get(0).unwrap();
-                match serde_json::from_slice::<MqttSession>(&raw) {
-                    Ok(data) => return Ok(Some(data)),
-                    Err(e) => {
-                        return Err(CommonError::CommmonError(e.to_string()));
-                    }
+                let raw = reply.sessions.first().unwrap();
+                match serde_json::from_slice::<MqttSession>(raw) {
+                    Ok(data) => Ok(Some(data)),
+                    Err(e) => Err(CommonError::CommmonError(e.to_string())),
                 }
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
@@ -169,23 +159,21 @@ impl SessionStorage {
                         }
                     }
                 }
-                return Ok(results);
+                Ok(results)
             }
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => Err(e),
         }
     }
 
     pub async fn save_last_will_messae(
         &self,
-        client_id: &String,
+        client_id: String,
         last_will_message: Vec<u8>,
     ) -> Result<(), CommonError> {
         let config = broker_mqtt_conf();
         let request = SaveLastWillMessageRequest {
             cluster_name: config.cluster_name.clone(),
-            client_id: client_id.clone(),
+            client_id,
             last_will_message,
         };
         match placement_save_last_will_message(
@@ -195,10 +183,8 @@ impl SessionStorage {
         )
         .await
         {
-            Ok(_) => {
-                return Ok(());
-            }
-            Err(e) => return Err(e),
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
         }
     }
 }
@@ -225,14 +211,16 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
         let session_storage = SessionStorage::new(client_poll);
         let client_id: String = "client_id_11111".to_string();
-        let mut session = MqttSession::default();
-        session.client_id = client_id.clone();
-        session.session_expiry = 1000;
-        session.broker_id = Some(1);
-        session.reconnect_time = Some(now_second());
+        let session = MqttSession {
+            client_id: client_id.clone(),
+            session_expiry: 1000,
+            broker_id: Some(1),
+            reconnect_time: Some(now_second()),
+            ..Default::default()
+        };
 
         session_storage
-            .set_session(&client_id, &session)
+            .set_session(client_id.clone(), &session)
             .await
             .unwrap();
 
@@ -246,7 +234,7 @@ mod tests {
         assert!(result.connection_id.is_none());
 
         session_storage
-            .update_session(&client_id, 3, 3, now_second(), 0)
+            .update_session(client_id.clone(), 3, 3, now_second(), 0)
             .await
             .unwrap();
 
@@ -260,7 +248,7 @@ mod tests {
 
         let result = session_storage.list_session().await.unwrap();
         let prefix_len = result.len();
-        assert!(result.len() >= 1);
+        assert!(!result.is_empty());
 
         session_storage
             .delete_session(client_id.clone())

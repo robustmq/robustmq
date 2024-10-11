@@ -16,7 +16,7 @@
 mod tests {
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
+    use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use protocol::mqtt::common::{
         ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
         MQTTPacket,
@@ -186,8 +186,10 @@ mod tests {
             clean_session: true,
         };
 
-        let mut properties = ConnectProperties::default();
-        properties.session_expiry_interval = Some(30);
+        let properties = ConnectProperties {
+            session_expiry_interval: Some(30),
+            ..Default::default()
+        };
         MQTTPacket::Connect(5, connect, Some(properties), lastwill, None, login)
     }
 
@@ -197,8 +199,10 @@ mod tests {
             session_present: true,
             code: ConnectReturnCode::Success,
         };
-        let mut properties = ConnAckProperties::default();
-        properties.max_qos = Some(10u8);
+        let properties = ConnAckProperties {
+            max_qos: Some(10u8),
+            ..Default::default()
+        };
         MqttPacketWrapper {
             protocol_version: 5,
             packet: MQTTPacket::ConnAck(ack, Some(properties)),

@@ -101,7 +101,7 @@ pub struct Rocksdb {
 
 static PLACEMENT_CENTER_CONF: OnceLock<PlacementCenterConfig> = OnceLock::new();
 
-pub fn init_placement_center_conf_by_path(config_path: &String) -> &'static PlacementCenterConfig {
+pub fn init_placement_center_conf_by_path(config_path: &str) -> &'static PlacementCenterConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     PLACEMENT_CENTER_CONF.get_or_init(|| {
@@ -161,13 +161,20 @@ pub fn placement_center_conf() -> &'static PlacementCenterConfig {
 }
 
 pub fn placement_center_test_conf() -> PlacementCenterConfig {
-    let mut config = PlacementCenterConfig::default();
-    config.rocksdb.data_path = format!("/tmp/{}", unique_id());
-    config.node.node_id = 1;
+    let rocksdb = Rocksdb {
+        data_path: format!("/tmp/{}", unique_id()),
+        max_open_files: Some(10),
+    };
+
     let mut nodes = Map::new();
     nodes.insert("1".to_string(), Value::from("127.0.0.1:9982".to_string()));
-    config.rocksdb.max_open_files = Some(10);
-    config.node.nodes = nodes;
+    let node = Node { node_id: 1, nodes };
+
+    let config = PlacementCenterConfig {
+        rocksdb,
+        node,
+        ..Default::default()
+    };
     init_placement_center_conf_by_config(config.clone());
     config
 }
@@ -194,7 +201,7 @@ mod tests {
         assert_eq!(config.network.http_port, 1227);
         assert_eq!(config.system.runtime_work_threads, 100);
         println!("{}", config.rocksdb.data_path);
-        println!("{}", "/tmp/robust/placement-center/data");
+        println!("/tmp/robust/placement-center/data");
         assert_eq!(
             config.rocksdb.data_path,
             "/tmp/robust/placement-center/data".to_string()

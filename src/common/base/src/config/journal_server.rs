@@ -68,7 +68,7 @@ pub struct Rocksdb {
 
 static STORAGE_ENGINE_CONFIG: OnceLock<JournalServerConfig> = OnceLock::new();
 
-pub fn init_journal_server_conf_by_path(config_path: &String) -> &'static JournalServerConfig {
+pub fn init_journal_server_conf_by_path(config_path: &str) -> &'static JournalServerConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     STORAGE_ENGINE_CONFIG.get_or_init(|| {
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     #[ignore]
     fn meta_default() {
-        init_journal_server_conf_by_path(&"../../config/storage-engine.toml".to_string());
+        init_journal_server_conf_by_path("../../config/storage-engine.toml");
 
         let conf = journal_server_conf();
         assert_eq!(conf.grpc_port, 2228);

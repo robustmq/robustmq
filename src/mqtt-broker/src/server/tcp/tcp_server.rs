@@ -18,7 +18,6 @@ use std::time::Duration;
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::mqtt::codec::MqttCodec;
-use protocol::mqtt::common::MQTTPacket;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -57,14 +56,11 @@ pub(crate) async fn acceptor_process(
             loop {
                 select! {
                     val = stop_rx.recv() =>{
-                        match val{
-                            Ok(flag) => {
-                                if flag {
-                                    debug!("TCP Server acceptor thread {} stopped successfully.",index);
-                                    break;
-                                }
+                        if let Ok(flag) = val {
+                            if flag {
+                                debug!("TCP Server acceptor thread {} stopped successfully.",index);
+                                break;
                             }
-                            Err(_) => {}
                         }
                     }
                     val = listener.accept()=>{
@@ -83,7 +79,7 @@ pub(crate) async fn acceptor_process(
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
-                                    crate::server::connection::NetworkConnectionType::TCP,
+                                    crate::server::connection::NetworkConnectionType::Tcp,
                                     addr,
                                     Some(connection_stop_sx.clone())
                                 );
@@ -125,8 +121,7 @@ fn read_frame_process(
                 val = read_frame_stream.next()=>{
                     if let Some(pkg) = val {
                         match pkg {
-                            Ok(data) => {
-                                let pack: MQTTPacket = data.try_into().unwrap();
+                            Ok(pack) => {
                                 record_received_metrics(&connection, &pack, &network_type);
 
                                 debug!("revc tcp packet:{:?}", pack);

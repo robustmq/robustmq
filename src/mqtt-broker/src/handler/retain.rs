@@ -40,8 +40,8 @@ use crate::subscribe::subscriber::Subscriber;
 pub async fn save_topic_retain_message(
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
-    topic_name: &String,
-    client_id: &String,
+    topic_name: String,
+    client_id: &str,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
 ) -> Result<(), CommonError> {
@@ -52,7 +52,10 @@ pub async fn save_topic_retain_message(
     let topic_storage = TopicStorage::new(client_poll.clone());
 
     if publish.payload.is_empty() {
-        match topic_storage.delete_retain_message(topic_name).await {
+        match topic_storage
+            .delete_retain_message(topic_name.clone())
+            .await
+        {
             Ok(_) => {
                 cache_manager.update_topic_retain_message(&topic_name, Some(Vec::new()));
             }
@@ -66,7 +69,7 @@ pub async fn save_topic_retain_message(
         let retain_message =
             MqttMessage::build_message(client_id, publish, publish_properties, message_expire);
         match topic_storage
-            .set_retain_message(topic_name, &retain_message, message_expire)
+            .set_retain_message(topic_name.clone(), &retain_message, message_expire)
             .await
         {
             Ok(_) => {
@@ -79,7 +82,7 @@ pub async fn save_topic_retain_message(
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 // Reservation messages are processed when a subscription is created
@@ -146,7 +149,7 @@ pub async fn try_send_retain_message(
                             topic_alias: None,
                             response_topic: msg.response_topic,
                             correlation_data: msg.correlation_data,
-                            user_properties: user_properties,
+                            user_properties,
                             subscription_identifiers: sub_ids,
                             content_type: msg.content_type,
                         };

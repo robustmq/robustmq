@@ -45,8 +45,7 @@ mod tests {
         match placement_save_last_will_message(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
-                println!("{:?}", e);
-                assert!(false);
+                panic!("{:?}", e);
             }
         }
     }

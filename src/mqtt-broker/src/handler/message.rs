@@ -21,7 +21,7 @@ use protocol::mqtt::common::PublishProperties;
 use super::cache::CacheManager;
 
 pub fn is_message_expire(message: &MqttMessage) -> bool {
-    return message.expiry_interval < now_second();
+    message.expiry_interval < now_second()
 }
 
 pub fn build_message_expire(
@@ -37,7 +37,7 @@ pub fn build_message_expire(
     }
 
     let cluster = cache_manager.get_cluster_info();
-    return now_second() + cluster.protocol.max_message_expiry_interval;
+    now_second() + cluster.protocol.max_message_expiry_interval
 }
 
 #[cfg(test)]
@@ -46,7 +46,9 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::tools::now_second;
-    use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
+    use metadata_struct::mqtt::cluster::{
+        MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
+    };
     use protocol::mqtt::common::PublishProperties;
 
     use crate::handler::cache::CacheManager;
@@ -57,16 +59,23 @@ mod tests {
         let client_poll = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
-        let mut cluster = MqttClusterDynamicConfig::default();
-        cluster.protocol.max_message_expiry_interval = 10;
+        let cluster = MqttClusterDynamicConfig {
+            protocol: MqttClusterDynamicConfigProtocol {
+                max_message_expiry_interval: 10,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         cache_manager.set_cluster_info(cluster);
 
         let publish_properties = None;
         let res = build_message_expire(&cache_manager, &publish_properties);
         assert_eq!(res, now_second() + 10);
 
-        let mut publish_properties = PublishProperties::default();
-        publish_properties.message_expiry_interval = Some(3);
+        let publish_properties = PublishProperties {
+            message_expiry_interval: Some(3),
+            ..Default::default()
+        };
         let res = build_message_expire(&cache_manager, &Some(publish_properties));
         assert_eq!(res, now_second() + 3);
     }

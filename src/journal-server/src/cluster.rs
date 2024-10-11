@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use clients::placement::placement::call::{heartbeat, register_node, un_register_node};
+use clients::placement::placement::call::{heartbeat, register_node, unregister_node};
 use clients::poll::ClientPool;
 use common_base::config::journal_server::JournalServerConfig;
 use common_base::tools::get_local_ip;
@@ -30,12 +30,14 @@ pub async fn register_storage_engine_node(
     client_poll: Arc<ClientPool>,
     config: JournalServerConfig,
 ) {
-    let mut req = RegisterNodeRequest::default();
-    req.cluster_type = ClusterType::JournalServer.into();
-    req.cluster_name = config.cluster_name;
-    req.node_id = config.node_id;
-    req.node_ip = get_local_ip();
-    req.extend_info = "".to_string();
+    let req = RegisterNodeRequest {
+        cluster_type: ClusterType::JournalServer.into(),
+        cluster_name: config.cluster_name,
+        node_id: config.node_id,
+        node_ip: get_local_ip(),
+        extend_info: "".to_string(),
+        ..Default::default()
+    };
     match register_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {
             info!("Node {} has been successfully registered", config.node_id);
@@ -50,12 +52,13 @@ pub async fn unregister_storage_engine_node(
     client_poll: Arc<ClientPool>,
     config: JournalServerConfig,
 ) {
-    let mut req = UnRegisterNodeRequest::default();
-    req.cluster_type = ClusterType::JournalServer.into();
-    req.cluster_name = config.cluster_name;
-    req.node_id = config.node_id;
+    let req = UnRegisterNodeRequest {
+        cluster_type: ClusterType::JournalServer.into(),
+        cluster_name: config.cluster_name,
+        node_id: config.node_id,
+    };
 
-    match un_register_node(client_poll.clone(), config.placement_center, req.clone()).await {
+    match unregister_node(client_poll.clone(), config.placement_center, req.clone()).await {
         Ok(_) => {
             info!("Node {} exits successfully", config.node_id);
         }
@@ -67,10 +70,11 @@ pub async fn unregister_storage_engine_node(
 
 pub async fn report_heartbeat(client_poll: Arc<ClientPool>, config: JournalServerConfig) {
     loop {
-        let mut req = HeartbeatRequest::default();
-        req.cluster_name = config.cluster_name.clone();
-        req.cluster_type = ClusterType::JournalServer.into();
-        req.node_id = config.node_id;
+        let req = HeartbeatRequest {
+            cluster_name: config.cluster_name.clone(),
+            cluster_type: ClusterType::JournalServer.into(),
+            node_id: config.node_id,
+        };
         match heartbeat(
             client_poll.clone(),
             config.placement_center.clone(),

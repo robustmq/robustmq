@@ -105,20 +105,7 @@ pub fn write(
     Ok(len)
 }
 
-pub fn read(
-    fixed_header: FixedHeader,
-    mut bytes: Bytes,
-) -> Result<
-    (
-        u8,
-        Connect,
-        Option<ConnectProperties>,
-        Option<LastWill>,
-        Option<LastWillProperties>,
-        Option<Login>,
-    ),
-    Error,
-> {
+pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnectReadOutcome, Error> {
     let variable_header_index = fixed_header.fixed_header_len;
     bytes.advance(variable_header_index);
 
@@ -147,14 +134,14 @@ pub fn read(
         clean_session,
     };
 
-    Ok((
-        protocol_level,
+    Ok(ConnectReadOutcome {
+        protocol_version: protocol_level,
         connect,
         properties,
-        will,
-        willproperties,
+        last_will: will,
+        last_will_properties: willproperties,
         login,
-    ))
+    })
 }
 
 pub mod properties {
@@ -698,8 +685,14 @@ mod tests {
         assert_eq!(fixedheader.fixed_header_len, 3);
         assert!(fixedheader.remaining_len == 273);
         // test the read method of connect packet in v5 and verify the result of the write method
-        let (protocol_level, connect, connectproperties, lastwill, lastwillproperties, login) =
-            read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
+        let ConnectReadOutcome {
+            protocol_version,
+            connect,
+            properties: connectproperties,
+            last_will,
+            last_will_properties,
+            login,
+        } = read(fixedheader, buffer.copy_to_bytes(buffer.len())).unwrap();
 
         assert_eq!(connect.client_id, "test_client_id");
         assert_eq!(connect.keep_alive, 30u16);
@@ -729,13 +722,13 @@ mod tests {
         assert_eq!(login_read.username, "test_user");
         assert_eq!(login_read.password, "test_password");
 
-        let lastwill_read = lastwill.unwrap();
+        let lastwill_read = last_will.unwrap();
         assert_eq!(lastwill_read.topic, "will_topic");
         assert_eq!(lastwill_read.message, "will_message");
         assert_eq!(lastwill_read.qos, QoS::AtLeastOnce);
         assert!(lastwill_read.retain);
 
-        let lastwillproperties_read = lastwillproperties.unwrap();
+        let lastwillproperties_read = last_will_properties.unwrap();
         assert_eq!(lastwillproperties_read.delay_interval, Some(60u32));
         assert_eq!(lastwillproperties_read.payload_format_indicator, Some(1u8));
         assert_eq!(lastwillproperties_read.message_expiry_interval, Some(60u32));

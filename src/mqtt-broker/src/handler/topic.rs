@@ -28,7 +28,7 @@ use crate::handler::cache::CacheManager;
 use crate::storage::topic::TopicStorage;
 
 pub fn is_system_topic(_: String) -> bool {
-    return true;
+    true
 }
 
 pub fn payload_format_validator(
@@ -36,7 +36,7 @@ pub fn payload_format_validator(
     payload_format_indicator: u8,
     max_packet_size: usize,
 ) -> bool {
-    if payload.len() == 0 || payload.len() > max_packet_size {
+    if payload.is_empty() || payload.len() > max_packet_size {
         return false;
     }
 
@@ -44,35 +44,35 @@ pub fn payload_format_validator(
         return std::str::from_utf8(payload.to_vec().as_slice()).is_ok();
     }
 
-    return false;
+    false
 }
 
-pub fn topic_name_validator(topic_name: &String) -> Result<(), MQTTBrokerError> {
+pub fn topic_name_validator(topic_name: &str) -> Result<(), MQTTBrokerError> {
     if topic_name.is_empty() {
         return Err(MQTTBrokerError::TopicNameIsEmpty);
     }
 
     let topic_slice: Vec<&str> = topic_name.split("/").collect();
-    if topic_slice.first().unwrap().to_string() == "/".to_string() {
+    if topic_slice.first().unwrap() == &"/" {
         return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.clone(),
+            topic_name.to_owned(),
         ));
     }
 
-    if topic_slice.last().unwrap().to_string() == "/".to_string() {
+    if topic_slice.last().unwrap() == &"/" {
         return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.clone(),
+            topic_name.to_owned(),
         ));
     }
 
-    let format_str = "^[A-Za-z0-9_+#/$]+$".to_string();
-    let re = Regex::new(&format!("{}", format_str)).unwrap();
-    if !re.is_match(&topic_name) {
+    let format_str = "^[A-Za-z0-9_+#/$]+$";
+    let re = Regex::new(format_str).unwrap();
+    if !re.is_match(topic_name) {
         return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
-            topic_name.clone(),
+            topic_name.to_owned(),
         ));
     }
-    return Ok(());
+    Ok(())
 }
 
 pub fn get_topic_name(
@@ -103,11 +103,11 @@ pub fn get_topic_name(
         topic
     };
     topic_name_validator(&topic_name)?;
-    return Ok(topic_name);
+    Ok(topic_name)
 }
 
 pub async fn try_init_topic<S>(
-    topic_name: &String,
+    topic_name: &str,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
     client_poll: &Arc<ClientPool>,
@@ -115,14 +115,14 @@ pub async fn try_init_topic<S>(
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
-    let topic = if let Some(tp) = metadata_cache.get_topic_by_name(&topic_name) {
+    let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {
         let topic_storage = TopicStorage::new(client_poll.clone());
         let topic_id = unique_id();
-        let topic = MqttTopic::new(topic_id, topic_name.clone());
+        let topic = MqttTopic::new(topic_id, topic_name.to_owned());
         topic_storage.save_topic(topic.clone()).await?;
-        metadata_cache.add_topic(&topic_name, &topic);
+        metadata_cache.add_topic(topic_name, &topic);
 
         // Create the resource object of the storage layer
         let shard_name = topic.topic_id.clone();
@@ -132,7 +132,7 @@ where
             .await?;
         return Ok(topic);
     };
-    return Ok(topic);
+    Ok(topic)
 }
 
 #[cfg(test)]
@@ -145,57 +145,27 @@ mod test {
     #[test]
     pub fn topic_name_validator_test() {
         let topic_name = "".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                assert!(e.to_string() == MQTTBrokerError::TopicNameIsEmpty.to_string())
-            }
+        if let Err(e) = topic_name_validator(&topic_name) {
+            // assert!(e.to_string() == MQTTBrokerError::TopicNameIsEmpty.to_string())
+            assert_eq!(e, MQTTBrokerError::TopicNameIsEmpty);
         }
 
         let topic_name = "/test/test".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
 
         let topic_name = "test/test/".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
 
         let topic_name = "test/$1".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(true)
-            }
+        if let Err(err) = topic_name_validator(&topic_name) {
+            println!("{:?}", err);
         }
 
         let topic_name = "test/1".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
 
         let topic_name =
             "/sys/request_response/response/1eb1f833e0de4169908acedec8eb62f7".to_string();
-        match topic_name_validator(&topic_name) {
-            Ok(_) => {}
-            Err(e) => {
-                println!("{}", e.to_string());
-                assert!(false)
-            }
-        }
+        topic_name_validator(&topic_name).unwrap();
     }
 }
