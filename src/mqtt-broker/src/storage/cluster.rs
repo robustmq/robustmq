@@ -245,15 +245,9 @@ mod tests {
             .await
             .unwrap();
 
-        cluster_storage
-            .register_node()
-            .await
-            .unwrap();
+        cluster_storage.register_node().await.unwrap();
 
-        let node_list_after_regist = cluster_storage
-            .node_list()
-            .await
-            .unwrap();
+        let node_list_after_regist = cluster_storage.node_list().await.unwrap();
         assert!(!node_list_after_regist.is_empty());
     }
 
