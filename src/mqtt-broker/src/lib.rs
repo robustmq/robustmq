@@ -351,9 +351,9 @@ where
             metadata_cache.load_metadata_cache(auth_driver).await;
 
             let cluster_storage = ClusterStorage::new(client_poll.clone());
-            match cluster_storage.register_node().await {
+            let config = broker_mqtt_conf();
+            match cluster_storage.register_node(config).await {
                 Ok(_) => {
-                    let config = broker_mqtt_conf();
                     info!("Node {} has been successfully registered", config.broker_id);
                 }
                 Err(e) => {
@@ -365,9 +365,9 @@ where
 
     async fn stop_server(&self) {
         let cluster_storage = ClusterStorage::new(self.client_poll.clone());
-        match cluster_storage.unregister_node().await {
+        let config = broker_mqtt_conf();
+        match cluster_storage.unregister_node(config).await {
             Ok(()) => {
-                let config = broker_mqtt_conf();
                 info!("Node {} exits successfully", config.broker_id);
             }
             Err(e) => {
