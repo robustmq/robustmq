@@ -16,7 +16,7 @@
 mod tests {
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
+    use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use protocol::mqtt::common::{
         ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
         MQTTPacket,

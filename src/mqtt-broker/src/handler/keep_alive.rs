@@ -21,7 +21,7 @@ use clients::poll::ClientPool;
 use common_base::tools::now_second;
 use log::{error, info, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
-use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol};
 use serde::{Deserialize, Serialize};
 use tokio::select;

@@ -215,7 +215,9 @@ mod tests {
 
     use clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use metadata_struct::mqtt::cluster::{MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol};
+    use metadata_struct::mqtt::cluster::{
+        MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
+    };
 
     use crate::storage::cluster::ClusterStorage;
 

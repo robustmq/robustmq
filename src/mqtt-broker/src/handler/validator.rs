@@ -21,7 +21,7 @@ use common_base::error::mqtt_broker::MQTTBrokerError;
 use futures::SinkExt;
 use log::error;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
-use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
     LastWillProperties, Login, MQTTPacket, MQTTProtocol, PubAckReason, PubRecReason, Publish,

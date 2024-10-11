@@ -23,7 +23,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use log::error;
-use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS};
 use protocol::placement_center::generate::mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,

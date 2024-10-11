@@ -21,7 +21,7 @@ use dashmap::DashMap;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use log::{debug, error, info};
-use protocol::mqtt::codec::{MqttPacketWrapper, MqttCodec};
+use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::MQTTProtocol;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
