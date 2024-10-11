@@ -212,7 +212,7 @@ mod tests {
     use std::sync::Arc;
 
     use clients::poll::ClientPool;
-    use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+    use common_base::config::broker_mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
     use metadata_struct::mqtt::cluster::{
         MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
     };
@@ -220,7 +220,34 @@ mod tests {
     use crate::storage::cluster::ClusterStorage;
 
     #[tokio::test]
-    async fn cluster_node_test() {}
+    async fn cluster_node_test() {
+        let path = format!(
+            "{}/../../config/mqtt-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_broker_mqtt_conf_by_path(&path);
+
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let cluster_storage = ClusterStorage::new(client_poll);
+
+        let mut config = broker_mqtt_conf().clone();
+        config.broker_id = 1234u64;
+        cluster_storage.register_node(&config).await.unwrap();
+
+        let node_list = cluster_storage.node_list().await.unwrap();
+        let register_node_exist = node_list
+            .iter()
+            .any(|node| node.node_id == config.broker_id);
+        assert!(register_node_exist);
+
+        cluster_storage.unregister_node(&config).await.unwrap();
+
+        let node_list_after_unregister = cluster_storage.node_list().await.unwrap();
+        let unregister_node_exist = node_list_after_unregister
+            .iter()
+            .any(|node| node.node_id == config.broker_id);
+        assert!(!unregister_node_exist);
+    }
 
     #[tokio::test]
     async fn cluster_config_test() {
