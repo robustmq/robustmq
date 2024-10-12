@@ -28,7 +28,6 @@ use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 
 pub mod call;
-pub mod inner;
 
 pub async fn journal_interface_call(
     interface: PlacementCenterInterface,

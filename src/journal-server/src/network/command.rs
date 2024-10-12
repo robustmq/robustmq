@@ -12,30 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::error;
-use protocol::journal_server::codec::StorageEnginePacket;
-
 use super::response::build_produce_resp;
 use super::services::Services;
+use log::error;
+use protocol::journal_server::codec::JournalEnginePacket;
 
 pub struct Command {
-    packet: StorageEnginePacket,
+    packet: JournalEnginePacket,
     services: Services,
 }
 
 impl Command {
-    pub fn new(packet: StorageEnginePacket) -> Self {
+    pub fn new(packet: JournalEnginePacket) -> Self {
         let services = Services::new();
         Command { packet, services }
     }
 
-    pub fn apply(&self) -> StorageEnginePacket {
+    pub fn apply(&self) -> JournalEnginePacket {
         match self.packet.clone() {
-            StorageEnginePacket::ProduceReq(data) => {
-                self.services.produce(data);
+            JournalEnginePacket::WriteReq(_) => {
+                self.services.write();
             }
-            StorageEnginePacket::FetchReq(data) => {
-                self.services.fetch(data);
+            JournalEnginePacket::ReadReq(_) => {
+                self.services.read();
             }
             _ => {
                 error!(

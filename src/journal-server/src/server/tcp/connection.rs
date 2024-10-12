@@ -19,7 +19,7 @@ use std::time::Duration;
 use dashmap::DashMap;
 use futures::SinkExt;
 use log::error;
-use protocol::journal_server::codec::{StorageEngineCodec, StorageEnginePacket};
+use protocol::journal_server::codec::{StorageEngineCodec, JournalEnginePacket};
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 
@@ -63,7 +63,7 @@ impl ConnectionManager {
         self.connections.remove(&connection_id);
     }
 
-    pub async fn write_frame(&self, connection_id: u64, resp: StorageEnginePacket) {
+    pub async fn write_frame(&self, connection_id: u64, resp: JournalEnginePacket) {
         let mut times = 0;
         loop {
             match self.connections.try_get_mut(&connection_id) {
@@ -123,7 +123,7 @@ impl Connection {
         }
     }
 
-    pub async fn write_frame(&mut self, resp: StorageEnginePacket) {
+    pub async fn write_frame(&mut self, resp: JournalEnginePacket) {
         match self.write.send(resp).await {
             Ok(_) => {}
             Err(err) => error!(

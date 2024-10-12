@@ -12,28 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::{
+    generate::protocol::read::{
+        ApiKey, GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentResp,
+        GetActiveSegmentRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
+        OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader,
+        WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+    },
+    Error,
+};
 use axum::error_handling;
 use bytes::{buf, Buf, BufMut, BytesMut};
 use prost::Message as _;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec;
 
-use super::generate::protocol::fetch::{FetchReq, FetchReqBody, FetchResp, FetchRespBody};
-use super::generate::protocol::header::{ApiKey, ApiType, Header};
-use super::generate::protocol::produce::{
-    ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody,
-};
-use super::Error;
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct StorageEngineCodec {}
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum StorageEnginePacket {
-    ProduceReq(ProduceReq),
-    ProduceResp(ProduceResp),
-    FetchReq(FetchReq),
-    FetchResp(FetchResp),
+pub enum JournalEnginePacket {
+    //Write
+    WriteReq(WriteReq),
+    WriteResp(WriteResp),
+
+    // Read
+    ReadReq(ReadReq),
+    ReadResp(ReadResp),
+
+    // GetActiveSegment
+    GetActiveSegmentReq(GetActiveSegmentReq),
+    GetActiveSegmentResp(GetActiveSegmentResp),
+
+    // OffsetCommit
+    OffsetCommitReq(OffsetCommitReq),
+    OffsetCommitResp(OffsetCommitResp),
 }
 
 impl Default for StorageEngineCodec {
@@ -51,30 +64,76 @@ impl StorageEngineCodec {
     }
 }
 
-impl codec::Encoder<StorageEnginePacket> for StorageEngineCodec {
+impl codec::Encoder<JournalEnginePacket> for StorageEngineCodec {
     type Error = Error;
     fn encode(
         &mut self,
-        item: StorageEnginePacket,
+        item: JournalEnginePacket,
         dst: &mut bytes::BytesMut,
     ) -> Result<(), Self::Error> {
         let mut header_byte = Vec::new();
         let mut body_byte = Vec::new();
+        let mut req_type = 2;
         match item {
-            StorageEnginePacket::ProduceReq(data) => {
+            // Write
+            JournalEnginePacket::WriteReq(data) => {
                 let header = data.header.unwrap();
                 let body = data.body.unwrap();
-                header_byte = Header::encode_to_vec(&header);
-                body_byte = ProduceReqBody::encode_to_vec(&body);
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = WriteReqBody::encode_to_vec(&body);
+                req_type = 1;
             }
-            StorageEnginePacket::ProduceResp(data) => {
+            JournalEnginePacket::WriteResp(data) => {
                 let header = data.header.unwrap();
                 let body = data.body.unwrap();
-                header_byte = Header::encode_to_vec(&header);
-                body_byte = ProduceRespBody::encode_to_vec(&body);
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = WriteRespBody::encode_to_vec(&body);
             }
-            StorageEnginePacket::FetchReq(data) => {}
-            StorageEnginePacket::FetchResp(data) => {}
+
+            // Read
+            JournalEnginePacket::ReadReq(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = ReadReqBody::encode_to_vec(&body);
+                req_type = 1;
+            }
+            JournalEnginePacket::ReadResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = ReadRespBody::encode_to_vec(&body);
+            }
+
+            // GetActiveSegment
+            JournalEnginePacket::GetActiveSegmentReq(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = GetActiveSegmentReqBody::encode_to_vec(&body);
+                req_type = 1;
+            }
+            JournalEnginePacket::GetActiveSegmentResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = GetActiveSegmentRespBody::encode_to_vec(&body);
+            }
+
+            // OffsetCommit
+            JournalEnginePacket::OffsetCommitReq(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = OffsetCommitReqBody::encode_to_vec(&body);
+                req_type = 1;
+            }
+            JournalEnginePacket::OffsetCommitResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = OffsetCommitRespBody::encode_to_vec(&body);
+            }
         }
 
         let header_len = header_byte.len();
@@ -84,11 +143,14 @@ impl codec::Encoder<StorageEnginePacket> for StorageEngineCodec {
             return Err(Error::PayloadSizeLimitExceeded(data_len));
         }
 
-        //data len + data_len + header_len + body_len
-        dst.reserve(data_len + 4 + 4 + 4);
+        //data len + data_len  + req_type + header_len + body_len
+        dst.reserve(data_len + 1 + 4 + 4 + 4);
 
         // data len = header len + body len
         dst.put_u32(data_len as u32);
+
+        // req type
+        dst.put_u8(req_type);
 
         // header len + header body
         dst.put_u32(header_len as u32);
@@ -102,7 +164,7 @@ impl codec::Encoder<StorageEnginePacket> for StorageEngineCodec {
 }
 
 impl codec::Decoder for StorageEngineCodec {
-    type Item = StorageEnginePacket;
+    type Item = JournalEnginePacket;
     type Error = Error;
     fn decode(&mut self, src: &mut bytes::BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let src_len = src.len();
@@ -125,7 +187,7 @@ impl codec::Decoder for StorageEngineCodec {
         }
 
         // Total frame length = total packet length (data_len) + Total length (4) + header length (4) + body length (4)
-        let frame_len = data_len + 4 + 4 + 4;
+        let frame_len = data_len + 1 + 4 + 4 + 4;
         if src_len < frame_len {
             src.reserve(frame_len - src_len);
             return Ok(None);
@@ -137,8 +199,15 @@ impl codec::Decoder for StorageEngineCodec {
         // Also truncate buf (split_to will truncate)
         let frame_bytes = src.split_to(frame_len);
 
-        // length of the header is parsed
+        // parsed req type
         position += 4;
+        let mut req_type_bytes = BytesMut::with_capacity(4);
+        req_type_bytes.extend_from_slice(&frame_bytes[position..(position + 1)]);
+        let req_type: u8 = u8::from_be_bytes([req_type_bytes[0]]);
+        println!("{}", req_type);
+
+        // length of the header is parsed
+        position += 1;
         let mut header_len_bytes = BytesMut::with_capacity(4);
         header_len_bytes.extend_from_slice(&frame_bytes[position..(position + 4)]);
         let header_len = u32::from_be_bytes([
@@ -172,88 +241,209 @@ impl codec::Decoder for StorageEngineCodec {
         let mut body_bytes = BytesMut::with_capacity(body_len);
         body_bytes.extend_from_slice(&frame_bytes[position..(position + body_len)]);
 
-        // Build structured data from the contents of the body and header
-        match Header::decode(header_body_bytes.as_ref()) {
-            Ok(header) => match header.api_key() {
-                ApiKey::Produce => match header.api_type() {
-                    ApiType::Request => return produce_req(body_bytes, header),
-                    ApiType::Response => return produce_resp(body_bytes, header),
+        match req_type {
+            // Request
+            1 => {
+                // Build structured data from the contents of the body and header
+                match ReqHeader::decode(header_body_bytes.as_ref()) {
+                    Ok(header) => match header.api_key() {
+                        ApiKey::Write => {
+                            return write_req(body_bytes, header);
+                        }
+
+                        ApiKey::Read => {
+                            return read_req(body_bytes, header);
+                        }
+
+                        ApiKey::GetActiveSegment => {
+                            return get_active_segment_req(body_bytes, header);
+                        }
+
+                        ApiKey::OffsetCommit => {
+                            return offset_commit_req(body_bytes, header);
+                        }
+                    },
+                    Err(e) => {
+                        return Err(Error::DecodeHeaderError(e.to_string()));
+                    }
+                }
+            }
+            // Response
+            2 => match RespHeader::decode(header_body_bytes.as_ref()) {
+                Ok(header) => match header.api_key() {
+                    ApiKey::Write => {
+                        return write_resp(body_bytes, header);
+                    }
+
+                    ApiKey::Read => {
+                        return read_resp(body_bytes, header);
+                    }
+
+                    ApiKey::GetActiveSegment => {
+                        return get_active_segment_resp(body_bytes, header);
+                    }
+
+                    ApiKey::OffsetCommit => {
+                        return offset_commit_resp(body_bytes, header);
+                    }
                 },
-                ApiKey::Consume => match header.api_type() {
-                    ApiType::Request => return fetch_req(body_bytes, header),
-                    ApiType::Response => return fetch_resp(body_bytes, header),
-                },
+                Err(e) => {
+                    return Err(Error::DecodeHeaderError(e.to_string()));
+                }
             },
-            Err(e) => {
-                return Err(Error::DecodeHeaderError(e.to_string()));
+            _ => {
+                return Err(Error::NotAvailableRequestType(req_type));
             }
         }
+
         Ok(None)
     }
 }
 
-fn produce_req(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEnginePacket>, Error> {
-    match ProduceReqBody::decode(body_bytes.as_ref()) {
-        Ok(body) => {
-            let item = StorageEnginePacket::ProduceReq(ProduceReq {
-                header: Some(header),
-                body: Some(body),
-            });
-            Ok(Some(item))
-        }
-        Err(e) => Err(Error::DecodeBodyError(
-            "produce_req".to_string(),
-            e.to_string(),
-        )),
-    }
-}
-
-fn produce_resp(
+fn write_req(
     body_bytes: BytesMut,
-    header: Header,
-) -> Result<Option<StorageEnginePacket>, Error> {
-    match ProduceRespBody::decode(body_bytes.as_ref()) {
+    header: ReqHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match WriteReqBody::decode(body_bytes.as_ref()) {
         Ok(body) => {
-            let item = StorageEnginePacket::ProduceResp(ProduceResp {
+            let item = JournalEnginePacket::WriteReq(WriteReq {
                 header: Some(header),
                 body: Some(body),
             });
             Ok(Some(item))
         }
         Err(e) => Err(Error::DecodeBodyError(
-            "produce_resp".to_string(),
+            "write_req".to_string(),
             e.to_string(),
         )),
     }
 }
 
-fn fetch_req(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEnginePacket>, Error> {
-    match FetchReqBody::decode(body_bytes.as_ref()) {
+fn write_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match WriteRespBody::decode(body_bytes.as_ref()) {
         Ok(body) => {
-            let item = StorageEnginePacket::FetchReq(FetchReq {
+            let item = JournalEnginePacket::WriteResp(WriteResp {
                 header: Some(header),
                 body: Some(body),
             });
             Ok(Some(item))
         }
         Err(e) => Err(Error::DecodeBodyError(
-            "fetch_req".to_string(),
+            "write_resp".to_string(),
             e.to_string(),
         )),
     }
 }
 
-fn fetch_resp(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEnginePacket>, Error> {
-    match FetchRespBody::decode(body_bytes.as_ref()) {
+fn read_req(body_bytes: BytesMut, header: ReqHeader) -> Result<Option<JournalEnginePacket>, Error> {
+    match ReadReqBody::decode(body_bytes.as_ref()) {
         Ok(body) => {
-            let item = StorageEnginePacket::FetchResp(FetchResp {
+            let item = JournalEnginePacket::ReadReq(ReadReq {
                 header: Some(header),
                 body: Some(body),
             });
             Ok(Some(item))
         }
         Err(e) => Err(Error::DecodeBodyError(
-            "fetch_resp".to_string(),
+            "read_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn read_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match ReadRespBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::ReadResp(ReadResp {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "read_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn get_active_segment_req(
+    body_bytes: BytesMut,
+    header: ReqHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match GetActiveSegmentReqBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::GetActiveSegmentReq(GetActiveSegmentReq {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "get_active_segment_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn get_active_segment_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match GetActiveSegmentRespBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::GetActiveSegmentResp(GetActiveSegmentResp {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "get_active_segment_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn offset_commit_req(
+    body_bytes: BytesMut,
+    header: ReqHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match OffsetCommitReqBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::OffsetCommitReq(OffsetCommitReq {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "offset_commit_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn offset_commit_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match OffsetCommitRespBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::OffsetCommitResp(OffsetCommitResp {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "offset_commit_resp".to_string(),
             e.to_string(),
         )),
     }
@@ -261,25 +451,23 @@ fn fetch_resp(body_bytes: BytesMut, header: Header) -> Result<Option<StorageEngi
 
 #[cfg(test)]
 mod tests {
+    use crate::journal_server::generate::protocol::read::{
+        ApiKey, ApiVersion, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+    };
+
+    use super::{JournalEnginePacket, StorageEngineCodec};
     use futures::{SinkExt, StreamExt};
     use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
     use tokio::net::{TcpListener, TcpStream};
     use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
 
-    use super::{StorageEngineCodec, StorageEnginePacket};
-    use crate::journal_server::generate::protocol::header::{
-        ApiKey, ApiType, ApiVersion, Header, RequestCommon, ResponseCommon,
-    };
-    use crate::journal_server::generate::protocol::produce::{
-        ProduceReq, ProduceReqBody, ProduceResp, ProduceRespBody,
-    };
-
     #[test]
-    fn codec_test() {
+    fn write_codec_test() {
         let mut codec = StorageEngineCodec::new();
-        let source = build_produce_req();
+        let source = build_write_req();
         let mut dst = bytes::BytesMut::new();
         codec.encode(source.clone(), &mut dst).unwrap();
+
         let target = codec.decode(&mut dst).unwrap().unwrap();
         assert_eq!(source, target);
     }
@@ -301,7 +489,7 @@ mod tests {
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
-                    let resp = build_produce_resp();
+                    let resp = build_write_resp();
                     write_frame_stream.send(resp.clone()).await.unwrap();
                     write_frame_stream.send(resp.clone()).await.unwrap();
                     write_frame_stream.send(resp.clone()).await.unwrap();
@@ -318,7 +506,7 @@ mod tests {
         let mut stream: Framed<TcpStream, StorageEngineCodec> =
             Framed::new(socket, StorageEngineCodec::new());
 
-        let _ = stream.send(build_produce_req()).await;
+        let _ = stream.send(build_write_req()).await;
 
         if let Some(res) = stream.next().await {
             match res {
@@ -332,45 +520,31 @@ mod tests {
         }
     }
 
-    fn build_produce_resp() -> StorageEnginePacket {
-        let header = Header {
-            api_key: ApiKey::Produce.into(),
-            api_type: ApiType::Response.into(),
+    fn build_write_resp() -> JournalEnginePacket {
+        let header = RespHeader {
+            api_key: ApiKey::Write.into(),
             api_version: ApiVersion::V0.into(),
-            request: None,
-            response: Some(ResponseCommon { correlation_id: 33 }),
         };
 
-        let body = ProduceRespBody {};
-        let req = ProduceResp {
+        let body = WriteRespBody {};
+        let req = WriteResp {
             header: Some(header),
             body: Some(body),
         };
-        StorageEnginePacket::ProduceResp(req)
+        JournalEnginePacket::WriteResp(req)
     }
 
-    fn build_produce_req() -> StorageEnginePacket {
-        let header = Header {
-            api_key: ApiKey::Produce.into(),
-            api_type: ApiType::Request.into(),
+    fn build_write_req() -> JournalEnginePacket {
+        let header = ReqHeader {
+            api_key: ApiKey::Write.into(),
             api_version: ApiVersion::V0.into(),
-            request: Some(RequestCommon {
-                correlation_id: 3,
-                client_id: "testsssss".to_string(),
-            }),
-            response: None,
         };
 
-        let body = ProduceReqBody {
-            transactional_id: 1,
-            acks: 1,
-            timeout_ms: 60000,
-            topic_data: None,
-        };
-        let req = ProduceReq {
+        let body: WriteReqBody = WriteReqBody {};
+        let req = WriteReq {
             header: Some(header),
             body: Some(body),
         };
-        StorageEnginePacket::ProduceReq(req)
+        JournalEnginePacket::WriteReq(req)
     }
 }

@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::codec::StorageEnginePacket;
+use protocol::journal_server::codec::JournalEnginePacket;
 
 #[derive(Debug, Clone)]
 pub struct RequestPackage {
     pub connection_id: u64,
-    pub packet: StorageEnginePacket,
+    pub packet: JournalEnginePacket,
 }
 
 impl RequestPackage {
-    pub fn new(connection_id: u64, packet: StorageEnginePacket) -> Self {
+    pub fn new(connection_id: u64, packet: JournalEnginePacket) -> Self {
         Self {
             connection_id,
             packet,
@@ -32,11 +32,11 @@ impl RequestPackage {
 #[derive(Debug, Clone)]
 pub struct ResponsePackage {
     pub connection_id: u64,
-    pub packet: StorageEnginePacket,
+    pub packet: JournalEnginePacket,
 }
 
 impl ResponsePackage {
-    pub fn new(connection_id: u64, packet: StorageEnginePacket) -> Self {
+    pub fn new(connection_id: u64, packet: JournalEnginePacket) -> Self {
         Self {
             connection_id,
             packet,
