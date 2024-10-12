@@ -17,6 +17,7 @@ mod common;
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
+    
     use clients::placement::placement::call::cluster_status;
     use protocol::placement_center::generate::placement::ClusterStatusRequest;
 
@@ -28,9 +29,9 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let request=ClusterStatusRequest::default();
+        let request = ClusterStatusRequest::default();
 
-        match cluster_status(client_poll.clone(), addrs.clone(), request).await{
+        match cluster_status(client_poll.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
