@@ -44,15 +44,19 @@ mod tests {
                 &["src/placement_center/proto"], // specify the root location to search proto dependencies
             )
             .unwrap();
+    }
 
+    #[test]
+    #[ignore]
+    fn create_rust_pb_journal() {
         tonic_build::configure()
             .build_server(false)
             .out_dir("src/journal_server/generate/protocol") // you can change the generated code's location
             .compile(
                 &[
-                    "src/journal_server/proto/protocol/header.proto",
-                    "src/journal_server/proto/protocol/fetch.proto",
-                    "src/journal_server/proto/protocol/produce.proto",
+                    "src/journal_server/proto/protocol/admin.proto",
+                    "src/journal_server/proto/protocol/engine.proto",
+                    "src/journal_server/proto/protocol/inner.proto",
                 ],
                 &["src/journal_server/proto/protocol/"], // specify the root location to search proto dependencies
             )

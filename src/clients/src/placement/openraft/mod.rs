@@ -27,7 +27,6 @@ use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 
 pub mod call;
-mod inner;
 
 pub(crate) async fn openraft_interface_call(
     interface: PlacementCenterInterface,

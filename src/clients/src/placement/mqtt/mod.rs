@@ -33,7 +33,6 @@ use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 
 pub mod call;
-mod inner;
 
 async fn mqtt_client(
     client_poll: Arc<ClientPool>,

@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod fetch;
-pub mod header;
-pub mod produce;
+pub mod admin;
+pub mod inner;
+pub mod read;
