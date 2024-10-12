@@ -1,0 +1,96 @@
+syntax = "proto3";
+package read;
+
+/** Header **/
+enum ApiKey{
+    Read = 0;
+    Write = 1;
+    GetActiveSegment = 2;
+    OffsetCommit = 3;
+}
+
+enum ApiVersion{
+     V0 = 0;
+}
+
+enum ErrorCode{
+    Success = 0;
+}
+
+message ReqHeader{
+    ApiKey api_key = 1;
+    ApiVersion api_version = 2;
+}
+
+/**  Read Request **/
+message RespHeader{
+    ApiKey api_key = 1;
+    ApiVersion api_version = 2;
+}
+
+message ReadReqBody{
+}
+
+message ReadRespBody{
+}
+
+message ReadReq{
+    ReqHeader header = 1;
+    ReadReqBody body = 2;
+}
+
+message ReadResp{
+    RespHeader header = 1;
+    ReadRespBody body = 2;
+}
+
+/** Write Request **/
+message WriteReqBody{
+}
+
+message WriteRespBody{
+}
+
+message WriteReq{
+    ReqHeader header = 1;
+    WriteReqBody body = 2;
+}
+
+message WriteResp{
+    RespHeader header = 1;
+    WriteRespBody body = 2;
+}
+
+/** Get the Segment where the Shard is active **/
+message GetActiveSegmentReqBody{
+}
+
+message GetActiveSegmentRespBody{
+}
+
+message GetActiveSegmentReq{
+    ReqHeader header = 1;
+    GetActiveSegmentReqBody body = 2;
+}
+
+message GetActiveSegmentResp{
+    RespHeader header = 1;
+    GetActiveSegmentRespBody body = 2;
+}
+
+/** Get the Segment where the Shard is active **/
+message OffsetCommitReqBody{
+}
+
+message OffsetCommitRespBody{
+}
+
+message OffsetCommitReq{
+    ReqHeader header = 1;
+    OffsetCommitReqBody body = 2;
+}
+
+message OffsetCommitResp{
+    RespHeader header = 1;
+    OffsetCommitRespBody body = 2;
+}

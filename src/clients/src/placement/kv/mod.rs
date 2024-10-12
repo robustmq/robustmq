@@ -28,7 +28,6 @@ use super::PlacementCenterInterface;
 use crate::poll::ClientPool;
 
 pub mod call;
-mod inner;
 
 async fn kv_client(
     client_poll: Arc<ClientPool>,

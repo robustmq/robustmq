@@ -30,4 +30,6 @@ pub enum Error {
     DecodeHeaderError(String),
     #[error("Parsing request body error, request body identification: {0}, error message {1}")]
     DecodeBodyError(String, String),
+    #[error("Type {0} is an unavailable request type")]
+    NotAvailableRequestType(u8),
 }
