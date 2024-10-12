@@ -17,7 +17,7 @@ mod common;
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-    use clients::placement::placement::call::{cluster_status, register_node};
+    use clients::placement::placement::call::cluster_status;
     use protocol::placement_center::generate::placement::ClusterStatusRequest;
 
     use crate::common::get_placement_addr;
