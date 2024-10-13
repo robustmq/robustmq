@@ -12,24 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::{
-    codec::JournalEnginePacket,
-    generate::protocol::engine::{ApiKey, ApiVersion, RespHeader, WriteResp, WriteRespBody},
-};
+use serde::{Deserialize, Serialize};
 
-pub fn build_produce_resp() -> JournalEnginePacket {
-    let header = build_resp_header();
-    let body = WriteRespBody {};
-    let req = WriteResp {
-        header: Some(header),
-        body: Some(body),
-    };
-    JournalEnginePacket::WriteResp(req)
-}
-
-fn build_resp_header() -> RespHeader {
-    RespHeader {
-        api_key: ApiKey::Write.into(),
-        api_version: ApiVersion::V0.into(),
-    }
+#[derive(Serialize, Deserialize, Clone)]
+pub struct JournalNodeExtend {
+    pub data_fold: Vec<String>,
 }

@@ -12,14 +12,3 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct Services {}
-
-impl Services {
-    pub fn new() -> Self {
-        Services {}
-    }
-
-    pub fn write(&self) {}
-
-    pub fn read(&self) {}
-}

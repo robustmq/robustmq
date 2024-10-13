@@ -14,15 +14,13 @@
 
 use std::sync::Arc;
 
- use grpc_clients::poll::ClientPool;
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
-use handler::cache::CacheManager;
-use handler::heartbeat::{
-    register_storage_engine_node, report_heartbeat, unregister_storage_engine_node,
-};
-use log::info;
+use core::cache::CacheManager;
+use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
+use grpc_clients::poll::ClientPool;
+use log::{error, info};
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
@@ -30,12 +28,13 @@ use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast;
 
-mod handler;
+mod core;
 mod index;
-mod network;
+mod kv;
 mod record;
+mod segment;
+mod metadata;
 mod server;
-mod shard;
 
 pub struct JournalServer {
     config: JournalServerConfig,
@@ -116,10 +115,10 @@ impl JournalServer {
     }
 
     fn start_daemon_thread(&self) {
-        let config = self.config.clone();
         let client_poll = self.client_poll.clone();
+        let stop_sx = self.stop_send.clone();
         self.daemon_runtime
-            .spawn(async move { report_heartbeat(client_poll, config).await });
+            .spawn(async move { report_heartbeat(client_poll, stop_sx).await });
     }
 
     fn waiting_stop(&self) {
@@ -140,12 +139,21 @@ impl JournalServer {
 
     fn register_node(&self) {
         self.daemon_runtime.block_on(async move {
-            register_storage_engine_node(self.client_poll.clone(), self.config.clone()).await;
+            match register_journal_node(self.client_poll.clone(), self.config.clone()).await {
+                Ok(()) => {}
+                Err(e) => {
+                    panic!("{}", e);
+                }
+            }
         });
     }
 
     async fn stop_server(&self) {
-        // unregister node
-        unregister_storage_engine_node(self.client_poll.clone(), self.config.clone()).await;
+        match unregister_journal_node(self.client_poll.clone(), self.config.clone()).await {
+            Ok(()) => {}
+            Err(e) => {
+                error!("{}", e);
+            }
+        }
     }
 }
