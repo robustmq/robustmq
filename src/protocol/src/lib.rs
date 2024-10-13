@@ -27,7 +27,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#![allow(dead_code, unused)]
 pub mod amqp;
 pub mod broker_server;
 pub mod journal_server;

@@ -720,31 +720,10 @@ version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
- "clients",
  "common-base",
+ "grpc-clients",
  "protocol",
  "thiserror",
-]
-
-[[package]]
-name = "clients"
-version = "0.1.0-beta"
-dependencies = [
- "axum 0.7.4",
- "bytes",
- "common-base",
- "dashmap",
- "lazy_static",
- "log",
- "metadata-struct",
- "mobc",
- "prost 0.12.3",
- "protocol",
- "regex",
- "serde_json",
- "thiserror",
- "tokio",
- "tonic",
 ]
 
 [[package]]
@@ -1370,6 +1349,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
+name = "grpc-clients"
+version = "0.1.0-beta"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "common-base",
+ "dashmap",
+ "lazy_static",
+ "log",
+ "metadata-struct",
+ "mobc",
+ "prost 0.12.3",
+ "protocol",
+ "regex",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tonic",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1754,19 +1754,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "journal-client"
+version = "0.1.0-beta"
+dependencies = [
+ "axum 0.7.4",
+ "bytes",
+ "thiserror",
+]
+
+[[package]]
 name = "journal-server"
 version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
- "clients",
  "common-base",
  "dashmap",
  "futures",
+ "futures-util",
+ "grpc-clients",
  "log",
  "protocol",
+ "rustls-pemfile",
  "thiserror",
  "tokio",
+ "tokio-rustls 0.26.0",
  "tokio-util",
  "tonic",
 ]
@@ -2095,11 +2107,11 @@ dependencies = [
  "axum-extra",
  "axum-server",
  "bytes",
- "clients",
  "common-base",
  "dashmap",
  "futures",
  "futures-util",
+ "grpc-clients",
  "ipnet",
  "lazy_static",
  "log",
@@ -2594,11 +2606,11 @@ dependencies = [
  "bincode",
  "byteorder",
  "bytes",
- "clients",
  "common-base",
  "dashmap",
  "futures",
  "futures-util",
+ "grpc-clients",
  "lazy_static",
  "log",
  "metadata-struct",
@@ -3499,9 +3511,9 @@ version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
- "clients",
  "common-base",
  "dashmap",
+ "grpc-clients",
  "metadata-struct",
  "mysql",
  "protocol",
@@ -3512,15 +3524,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "storage-remote"
-version = "0.1.0-beta"
-dependencies = [
- "axum 0.7.4",
- "bytes",
- "thiserror",
 ]
 
 [[package]]

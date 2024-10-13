@@ -12,26 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common_base::config::journal_server::journal_server_conf;
-use tcp::tcp_server::TcpServerConfig;
-
-use self::tcp::tcp_server::TcpServer;
-
+pub mod connection;
+pub mod connection_manager;
+pub mod grpc;
+pub mod packet;
 pub mod quic;
 pub mod tcp;
-
-pub async fn start_tcp_server() {
-    let conf = journal_server_conf();
-    let tcp_server_config = TcpServerConfig {
-        accept_thread_num: conf.network.accept_thread_num,
-        max_connection_num: conf.network.max_connection_num,
-        request_queue_size: conf.network.request_queue_size,
-        handler_process_num: conf.network.handler_thread_num,
-        response_queue_size: conf.network.response_queue_size,
-        response_process_num: conf.network.response_thread_num,
-        max_try_mut_times: 60,
-        try_mut_sleep_time_ms: 10,
-    };
-    let tcp = TcpServer::new(tcp_server_config);
-    tcp.start(conf.grpc_port).await;
-}

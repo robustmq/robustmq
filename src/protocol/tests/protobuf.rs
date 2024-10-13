@@ -50,7 +50,7 @@ mod tests {
     #[ignore]
     fn create_rust_pb_journal() {
         tonic_build::configure()
-            .build_server(false)
+            .build_server(true)
             .out_dir("src/journal_server/generate/protocol") // you can change the generated code's location
             .compile(
                 &[
@@ -63,7 +63,7 @@ mod tests {
             .unwrap();
 
         tonic_build::configure()
-            .build_server(false)
+            .build_server(true)
             .out_dir("src/journal_server/generate/record") // you can change the generated code's location
             .compile(
                 &["src/journal_server/proto/record/record.proto"],
