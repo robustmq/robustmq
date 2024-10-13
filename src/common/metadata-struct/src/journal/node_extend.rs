@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod command;
-pub mod response;
-pub mod services;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct JournalNodeExtend {
+    pub data_fold: Vec<String>,
+}

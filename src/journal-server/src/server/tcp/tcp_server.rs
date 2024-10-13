@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::handler::cache::CacheManager;
+use crate::core::cache::CacheManager;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;

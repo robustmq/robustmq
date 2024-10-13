@@ -13,5 +13,6 @@
 // limitations under the License.
 
 pub mod namespace;
+pub mod node_extend;
 pub mod segment;
 pub mod shard;

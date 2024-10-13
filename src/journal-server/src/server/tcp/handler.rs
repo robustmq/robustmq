@@ -21,7 +21,7 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
-use crate::network::command::Command;
+use crate::core::command::Command;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
 
