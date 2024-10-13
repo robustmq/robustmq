@@ -5,20 +5,9 @@ impl Shard {
         Shard {}
     }
 
-    pub fn create(){
+    pub fn create() {}
 
-    }
+    pub fn delete() {}
 
-    pub fn delete(){
-
-    }
-
-    pub fn get(){
-
-    }
-
-    pub fn get(){
-
-    }
-
+    pub fn get() {}
 }

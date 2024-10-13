@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod admin;
-pub mod inner;
-pub mod server;
+pub mod heartbeat;
+pub mod cache;
