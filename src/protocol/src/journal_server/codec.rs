@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use super::{
-    generate::protocol::read::{
+    generate::protocol::engine::{
         ApiKey, GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentResp,
         GetActiveSegmentRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
         OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader,
@@ -21,14 +21,12 @@ use super::{
     },
     Error,
 };
-use axum::error_handling;
-use bytes::{buf, Buf, BufMut, BytesMut};
+use bytes::{BufMut, BytesMut};
 use prost::Message as _;
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct StorageEngineCodec {}
+pub struct JournalServerCodec {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum JournalEnginePacket {
@@ -49,22 +47,22 @@ pub enum JournalEnginePacket {
     OffsetCommitResp(OffsetCommitResp),
 }
 
-impl Default for StorageEngineCodec {
+impl Default for JournalServerCodec {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl StorageEngineCodec {
+impl JournalServerCodec {
     // A maximum of 1G data is transferred per request
     const MAX_SIZE: usize = 1024 * 1024 * 1024 * 8;
 
-    pub fn new() -> StorageEngineCodec {
-        StorageEngineCodec {}
+    pub fn new() -> JournalServerCodec {
+        JournalServerCodec {}
     }
 }
 
-impl codec::Encoder<JournalEnginePacket> for StorageEngineCodec {
+impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
     type Error = Error;
     fn encode(
         &mut self,
@@ -163,7 +161,7 @@ impl codec::Encoder<JournalEnginePacket> for StorageEngineCodec {
     }
 }
 
-impl codec::Decoder for StorageEngineCodec {
+impl codec::Decoder for JournalServerCodec {
     type Item = JournalEnginePacket;
     type Error = Error;
     fn decode(&mut self, src: &mut bytes::BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -204,7 +202,6 @@ impl codec::Decoder for StorageEngineCodec {
         let mut req_type_bytes = BytesMut::with_capacity(4);
         req_type_bytes.extend_from_slice(&frame_bytes[position..(position + 1)]);
         let req_type: u8 = u8::from_be_bytes([req_type_bytes[0]]);
-        println!("{}", req_type);
 
         // length of the header is parsed
         position += 1;
@@ -451,19 +448,22 @@ fn offset_commit_resp(
 
 #[cfg(test)]
 mod tests {
-    use crate::journal_server::generate::protocol::read::{
+    use std::time::Duration;
+
+    use crate::journal_server::generate::protocol::engine::{
         ApiKey, ApiVersion, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
     };
 
-    use super::{JournalEnginePacket, StorageEngineCodec};
+    use super::{JournalEnginePacket, JournalServerCodec};
     use futures::{SinkExt, StreamExt};
-    use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+    use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
+    use tokio::time::sleep;
     use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
 
     #[test]
     fn write_codec_test() {
-        let mut codec = StorageEngineCodec::new();
+        let mut codec = JournalServerCodec::new();
         let source = build_write_req();
         let mut dst = bytes::BytesMut::new();
         codec.encode(source.clone(), &mut dst).unwrap();
@@ -473,48 +473,49 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn storage_engine_frame_server() {
-        let ip = "127.0.0.1:1228";
-        let listener = TcpListener::bind(ip).await.unwrap();
-        loop {
+        let req_pkg = build_write_req();
+        let resp_pkg = build_write_resp();
+
+        let resp = resp_pkg.clone();
+        tokio::spawn(async move {
+            let ip = "127.0.0.1:7228";
+            let listener = TcpListener::bind(ip).await.unwrap();
+
             let (stream, _) = listener.accept().await.unwrap();
             let (r_stream, w_stream) = io::split(stream);
-            let mut read_frame_stream = FramedRead::new(r_stream, StorageEngineCodec::new());
-            let mut write_frame_stream = FramedWrite::new(w_stream, StorageEngineCodec::new());
-            tokio::spawn(async move {
-                while let Some(Ok(data)) = read_frame_stream.next().await {
-                    println!("Server Receive: {:?}", data);
+            let mut read_frame_stream = FramedRead::new(r_stream, JournalServerCodec::new());
+            let mut write_frame_stream = FramedWrite::new(w_stream, JournalServerCodec::new());
 
-                    // 发送的消息也只需要发送消息主体，不需要提供长度
-                    // Framed/LengthDelimitedCodec 会自动计算并添加
-                    //    let response = &data[0..5];
-                    let resp = build_write_resp();
-                    write_frame_stream.send(resp.clone()).await.unwrap();
-                    write_frame_stream.send(resp.clone()).await.unwrap();
-                    write_frame_stream.send(resp.clone()).await.unwrap();
-                    write_frame_stream.send(resp.clone()).await.unwrap();
-                }
-            });
-        }
-    }
+            while let Some(Ok(data)) = read_frame_stream.next().await {
+                println!("Server Receive: {:?}", data);
 
-    #[tokio::test]
-    #[ignore]
-    async fn storage_engine_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1228").await.unwrap();
-        let mut stream: Framed<TcpStream, StorageEngineCodec> =
-            Framed::new(socket, StorageEngineCodec::new());
+                // 发送的消息也只需要发送消息主体，不需要提供长度
+                // Framed/LengthDelimitedCodec 会自动计算并添加
+                //    let response = &data[0..5];
+                write_frame_stream.send(resp.clone()).await.unwrap();
+                write_frame_stream.send(resp.clone()).await.unwrap();
+                write_frame_stream.send(resp.clone()).await.unwrap();
+                write_frame_stream.send(resp.clone()).await.unwrap();
+            }
+        });
 
-        let _ = stream.send(build_write_req()).await;
+        sleep(Duration::from_secs(5)).await;
+
+        let socket = TcpStream::connect("127.0.0.1:7228").await.unwrap();
+        let mut stream: Framed<TcpStream, JournalServerCodec> =
+            Framed::new(socket, JournalServerCodec::new());
+
+        let _ = stream.send(req_pkg).await;
 
         if let Some(res) = stream.next().await {
             match res {
                 Ok(da) => {
-                    println!("{:?}", da);
+                    assert_eq!(da, resp_pkg);
                 }
                 Err(e) => {
                     println!("{}", e);
+                    assert!(false);
                 }
             }
         }

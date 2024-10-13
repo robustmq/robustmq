@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use clients::placement::placement::call::cluster_status;
-use clients::poll::ClientPool;
+use grpc_clients::placement::placement::call::cluster_status;
+use grpc_clients::poll::ClientPool;
 use protocol::placement_center::generate::placement::ClusterStatusRequest;
 
 use crate::{error_info, grpc_addr};

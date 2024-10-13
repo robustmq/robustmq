@@ -14,10 +14,10 @@
 
 use std::sync::Arc;
 
-use clients::placement::mqtt::call::{
+ use grpc_clients::placement::mqtt::call::{
     placement_create_user, placement_delete_user, placement_list_user,
 };
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
@@ -134,7 +134,7 @@ impl UserStorage {
 mod tests {
     use std::sync::Arc;
 
-    use clients::poll::ClientPool;
+     use grpc_clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
 
     use crate::storage::user::UserStorage;

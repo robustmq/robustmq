@@ -14,6 +14,7 @@
 
 pub mod broker_mqtt;
 pub mod common;
+pub mod default_journal_server;
 pub mod default_mqtt;
 pub mod default_placement_center;
 pub mod journal_server;

@@ -20,9 +20,9 @@ mod tests {
     use std::thread::sleep;
     use std::time::Duration;
 
-    use clients::placement::mqtt::call::placement_get_share_sub_leader;
-    use clients::placement::placement::call::register_node;
-    use clients::poll::ClientPool;
+     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
+     use grpc_clients::placement::placement::call::register_node;
+     use grpc_clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use log::info;
     use protocol::placement_center::generate::common::ClusterType;

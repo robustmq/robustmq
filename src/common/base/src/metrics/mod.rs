@@ -36,7 +36,7 @@ pub fn dump_metrics() -> String {
     String::from_utf8(buffer).unwrap()
 }
 
-pub async fn register_prometheus_export(port: u16) {
+pub async fn register_prometheus_export(port: u32) {
     let ip = format!("0.0.0.0:{}", port);
     let route = Router::new().route("/metrics", get(route_metrics));
     let listener = tokio::net::TcpListener::bind(ip).await.unwrap();

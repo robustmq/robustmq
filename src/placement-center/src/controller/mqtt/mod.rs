@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use dashmap::DashMap;
 use message_expire::MessageExpire;
 use session_expire::SessionExpire;

@@ -15,7 +15,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
 use log::{debug, error};
@@ -230,7 +230,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use clients::poll::ClientPool;
+     use grpc_clients::poll::ClientPool;
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_second, unique_id};
     use metadata_struct::mqtt::session::MqttSession;

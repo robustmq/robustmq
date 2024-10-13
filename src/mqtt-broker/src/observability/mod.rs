@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use storage_adapter::storage::StorageAdapter;
 use system_topic::SystemTopic;
 use tokio::sync::broadcast;

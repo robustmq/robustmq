@@ -29,6 +29,13 @@ runtime_work_threads = 100
 heartbeat_timeout_ms = 5000
 heartbeat_check_time_ms = 1000
 
+[prometheus]
+model = "pull"
+port = 3306
+# push_gateway_server = "127.0.0.1:8081"
+# interval = 10
+# header = ""
+
 [rocksdb]
 data_path = "/tmp/robust/placement-center/data"
 max_open_files = 10000

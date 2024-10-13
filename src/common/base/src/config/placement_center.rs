@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn meta_default() {
         let path = format!(
-            "{}/src/config/test/placement-center.toml",
+            "{}/../../../config/placement-center.toml",
             env!("CARGO_MANIFEST_DIR")
         );
         init_placement_center_conf_by_path(&path);
@@ -209,7 +209,7 @@ mod tests {
         assert_eq!(
             config.log,
             Log {
-                log_path: "./logs/placement-center".to_string(),
+                log_path: "/tmp/robust/placement-center/logs".to_string(),
                 log_config: "./config/log4rs.yaml".to_string(),
             }
         );
@@ -219,7 +219,7 @@ mod tests {
             toml::Value::String(format!("{}:{}", "127.0.0.1", "1228")),
         );
         assert_eq!(config.rocksdb.max_open_files, Some(10000_i32));
-        assert_eq!(config.heartbeat.heartbeat_timeout_ms, 30000);
+        assert_eq!(config.heartbeat.heartbeat_timeout_ms, 5000);
         assert_eq!(config.heartbeat.heartbeat_check_time_ms, 1000);
     }
 }
