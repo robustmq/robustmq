@@ -15,3 +15,4 @@
 pub mod cluster;
 pub mod cache;
 pub mod command;
+pub mod handler;
