@@ -35,3 +35,6 @@ log.workspace = true
 rustls-pemfile.workspace = true
 tokio-rustls.workspace = true
 futures-util.workspace = true
+metadata-struct.workspace = true
+serde.workspace = true
+serde_json.workspace = true

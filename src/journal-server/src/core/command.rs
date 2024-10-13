@@ -32,12 +32,17 @@ use protocol::journal_server::codec::JournalEnginePacket;
 
 use crate::server::{connection::NetworkConnection, connection_manager::ConnectionManager};
 
+use super::handler::Handler;
+
 #[derive(Debug, Clone)]
-pub struct Command {}
+pub struct Command {
+    handler: Handler,
+}
 
 impl Command {
     pub fn new() -> Self {
-        Command {}
+        let handler = Handler::new();
+        Command { handler }
     }
 
     pub async fn apply(
@@ -48,12 +53,23 @@ impl Command {
         packet: JournalEnginePacket,
     ) -> Option<JournalEnginePacket> {
         match packet {
+            
+            JournalEnginePacket::GetActiveSegmentReq(_) => {
+                self.handler.active_segment().await;
+            }
+
+            JournalEnginePacket::OffsetCommitReq(_) => {
+                self.handler.offset_commit().await;
+            }
+
             JournalEnginePacket::WriteReq(_) => {
-                // self.services.write();
+                self.handler.write().await;
             }
+
             JournalEnginePacket::ReadReq(_) => {
-                // self.services.read();
+                self.handler.read().await;
             }
+
             _ => {
                 error!(
                     "server received an unrecognized request, request info: {:?}",

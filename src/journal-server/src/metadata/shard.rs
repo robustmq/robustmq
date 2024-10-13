@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct JournalShard{
-    
+pub struct Shard {}
+
+impl Shard {
+    pub fn new() -> Self {
+        Shard {}
+    }
+
+    pub fn create() {}
+
+    pub fn delete() {}
+
+    pub fn get() {}
 }
