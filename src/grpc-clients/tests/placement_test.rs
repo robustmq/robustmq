@@ -45,6 +45,21 @@ mod tests {
         let node_inner_addr = node_ip.clone();
         let extend_info = "".to_string();
 
+        let request = RegisterNodeRequest{
+            cluster_type: cluster_type.clone(),
+            cluster_name: cluster_name.clone(),
+            node_ip: node_ip.clone(),
+            node_id: node_id.clone(),
+            node_inner_addr: node_inner_addr.clone(),
+            extend_info: extend_info.clone(),
+        };
+        match register_node(client_poll.clone(), addrs.clone(), request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+
         let request_cluster_name_empty = RegisterNodeRequest{
             cluster_type: cluster_type.clone(),
             cluster_name: "".to_string(),
