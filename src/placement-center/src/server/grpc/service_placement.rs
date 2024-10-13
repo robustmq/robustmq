@@ -29,6 +29,7 @@
  */
 use std::sync::Arc;
 
+use axum::http::request;
 use common_base::error::common::CommonError;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
@@ -117,6 +118,13 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<RegisterNodeRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
+
+        if req.cluster_name.is_empty() || req.node_ip.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("cluster name or node ip".to_string())
+                .to_string(),
+            ));
+        }
 
         let data = StorageData::new(
             StorageDataType::ClusterRegisterNode,
