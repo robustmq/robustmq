@@ -44,6 +44,7 @@ start_pc_cluster(){
 
     echo "\nNode 1:"
     resp1=$(curl -s http://127.0.0.1:1227/v1/cluster/status)
+    echo ${resp1}
     role=$(echo $resp1 | jq -r '.data.Ok.state')
     echo "Role:"${role}
     echo ${resp1}
@@ -52,6 +53,7 @@ start_pc_cluster(){
 
     echo "\nNode 2:"
     resp2=$(curl -s http://127.0.0.1:2227/v1/cluster/status)
+     echo ${resp2}
     role=$(echo $resp2 | jq -r '.data.Ok.state')
     echo "Role:"${role}
     echo ${resp2}
@@ -59,6 +61,7 @@ start_pc_cluster(){
     echo "\n-------------------------------------\n"
     echo "\nNode 3:"
     resp3=$(curl -s http://127.0.0.1:3227/v1/cluster/status)
+     echo ${resp3}
     role=$(echo $resp3 | jq -r '.data.Ok.state')
     echo "Role:"${role}
     echo ${resp3}
