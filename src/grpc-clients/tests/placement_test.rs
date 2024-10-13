@@ -41,7 +41,7 @@ mod tests {
         let cluster_type = ClusterType::PlacementCenter as i32;
         let cluster_name= "test-cluster-name".to_string();
         let node_ip = "127.0.0.1".to_string();
-        let node_id = 1234u64;
+        let node_id = 1235u64;
         let node_inner_addr = node_ip.clone();
         let extend_info = "".to_string();
 
