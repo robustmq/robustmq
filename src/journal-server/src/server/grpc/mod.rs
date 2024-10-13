@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct SegmentStorage {}
-
-impl SegmentStorage {
-    #[allow(dead_code)]
-    pub fn new() -> Self {
-        SegmentStorage {}
-    }
-}
+pub mod admin;
+pub mod inner;
+pub mod server;

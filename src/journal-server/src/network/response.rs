@@ -14,7 +14,7 @@
 
 use protocol::journal_server::{
     codec::JournalEnginePacket,
-    generate::protocol::read::{ApiKey, ApiVersion, RespHeader, WriteResp, WriteRespBody},
+    generate::protocol::engine::{ApiKey, ApiVersion, RespHeader, WriteResp, WriteRespBody},
 };
 
 pub fn build_produce_resp() -> JournalEnginePacket {

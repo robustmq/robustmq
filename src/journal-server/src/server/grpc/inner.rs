@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct SegmentStatusMachine {}
+use protocol::journal_server::generate::protocol::inner::journal_server_inner_service_server::JournalServerInnerService;
 
-impl SegmentStatusMachine {
-    #[allow(dead_code)]
+pub struct GrpcJournalServerInnerService {}
+
+impl GrpcJournalServerInnerService {
     pub fn new() -> Self {
-        SegmentStatusMachine {}
+        GrpcJournalServerInnerService {}
     }
 }
+
+#[tonic::async_trait]
+impl JournalServerInnerService for GrpcJournalServerInnerService {}

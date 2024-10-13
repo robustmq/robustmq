@@ -1763,10 +1763,13 @@ dependencies = [
  "common-base",
  "dashmap",
  "futures",
+ "futures-util",
  "log",
  "protocol",
+ "rustls-pemfile",
  "thiserror",
  "tokio",
+ "tokio-rustls 0.26.0",
  "tokio-util",
  "tonic",
 ]

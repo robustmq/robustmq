@@ -28,31 +28,46 @@
  * limitations under the License.
  */
 
-use std::sync::OnceLock;
-
-use serde::Deserialize;
-use toml::Table;
-
 use super::common::Log;
 use crate::tools::{read_file, try_create_fold};
+use serde::Deserialize;
+use std::sync::OnceLock;
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct JournalServerConfig {
     pub cluster_name: String,
     pub node_id: u64,
-    pub grpc_port: u32,
-    pub prometheus_port: u16,
-    pub runtime_work_threads: usize,
-    pub data_path: Vec<String>,
     pub placement_center: Vec<String>,
-    pub nodes: Table,
-    pub rocksdb: Rocksdb,
     pub network: Network,
+    pub system: System,
+    pub storage: Storage,
+    pub tcp_thread: TcpThread,
+    pub prometheus: Prometheus,
     pub log: Log,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Network {
+    pub grpc_port: u32,
+    pub tcp_port: u32,
+    pub tcps_port: u32,
+    pub tls_cert: String,
+    pub tls_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct System {
+    pub runtime_work_threads: usize,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Storage {
+    pub data_path: Vec<String>,
+    pub rocksdb_max_open_files: Option<i32>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct TcpThread {
     pub accept_thread_num: usize,
     pub handler_thread_num: usize,
     pub response_thread_num: usize,
@@ -62,8 +77,13 @@ pub struct Network {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct Rocksdb {
-    pub max_open_files: Option<i32>,
+pub struct Prometheus {
+    pub enable: bool,
+    pub model: String,
+    pub port: u32,
+    pub push_gateway_server: String,
+    pub interval: u32,
+    pub header: String,
 }
 
 static STORAGE_ENGINE_CONFIG: OnceLock<JournalServerConfig> = OnceLock::new();
@@ -79,7 +99,7 @@ pub fn init_journal_server_conf_by_path(config_path: &str) -> &'static JournalSe
             }
         };
         let pc_config: JournalServerConfig = toml::from_str(&content).unwrap();
-        for fold in pc_config.data_path.clone() {
+        for fold in pc_config.storage.data_path.clone() {
             match try_create_fold(&fold) {
                 Ok(()) => {}
                 Err(e) => {
@@ -121,12 +141,14 @@ mod tests {
     use super::init_journal_server_conf_by_path;
     use crate::config::journal_server::journal_server_conf;
     #[test]
-    #[ignore]
-    fn meta_default() {
-        init_journal_server_conf_by_path("../../config/storage-engine.toml");
+    fn journal_server_toml_test() {
+        let path = format!(
+            "{}/../../../config/journal-server.toml",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        init_journal_server_conf_by_path(&path);
 
         let conf = journal_server_conf();
-        assert_eq!(conf.grpc_port, 2228);
-        //todo meta test case
+        assert_eq!(conf.network.grpc_port, 2228);
     }
 }

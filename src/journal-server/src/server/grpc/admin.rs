@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[allow(dead_code)]
-pub trait StorageFormat {
-    fn create_segment(&self);
-    fn append(&self);
-    fn read(&self);
+use protocol::journal_server::generate::protocol::admin::journal_server_admin_service_server::JournalServerAdminService;
+
+pub struct GrpcJournalServerAdminService {}
+
+impl GrpcJournalServerAdminService {
+    pub fn new() -> Self {
+        GrpcJournalServerAdminService {}
+    }
+}
+
+#[tonic::async_trait]
+impl JournalServerAdminService for GrpcJournalServerAdminService {
+
 }

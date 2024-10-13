@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn config_default_test() {
         let path = format!(
-            "{}/src/config/test/mqtt-server.toml",
+            "{}/../../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
 
@@ -183,15 +183,15 @@ mod tests {
         assert_eq!(config.http_port, 9982);
 
         assert_eq!(config.network.tcp_port, 1883);
-        assert_eq!(config.network.tcps_port, 1884);
-        assert_eq!(config.network.websocket_port, 8083);
-        assert_eq!(config.network.websockets_port, 8084);
+        assert_eq!(config.network.tcps_port, 8883);
+        assert_eq!(config.network.websocket_port, 8093);
+        assert_eq!(config.network.websockets_port, 8043);
         assert_eq!(config.network.quic_port, 9083);
-        assert!(config.network.tls_cert.is_empty());
-        assert!(config.network.tls_key.is_empty());
+        assert!(!config.network.tls_cert.is_empty());
+        assert!(!config.network.tls_key.is_empty());
 
         assert_eq!(config.tcp_thread.accept_thread_num, 1);
-        assert_eq!(config.tcp_thread.handler_thread_num, 1);
+        assert_eq!(config.tcp_thread.handler_thread_num, 10);
         assert_eq!(config.tcp_thread.response_thread_num, 1);
         assert_eq!(config.tcp_thread.max_connection_num, 1000);
         assert_eq!(config.tcp_thread.request_queue_size, 2000);
@@ -199,15 +199,15 @@ mod tests {
         assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
         assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
-        assert_eq!(config.system.runtime_worker_threads, 16);
+        assert_eq!(config.system.runtime_worker_threads, 128);
         assert_eq!(config.system.default_user, "admin".to_string());
-        assert_eq!(config.system.default_password, "robustmq".to_string());
+        assert_eq!(config.system.default_password, "pwd123".to_string());
 
         assert_eq!(config.storage.storage_type, "memory".to_string());
         assert_eq!(config.storage.journal_addr, "".to_string());
         assert_eq!(config.storage.mysql_addr, "".to_string());
 
-        assert_eq!(config.log.log_path, "./logs".to_string());
+        assert_eq!(config.log.log_path, "/tmp/robust/mqtt-broker/logs".to_string());
         assert_eq!(config.log.log_config, "./config/log4rs.yaml");
 
         assert_eq!(config.auth.storage_type, "memory".to_string());
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn config_init_test() {
         let path = format!(
-            "{}/src/config/test/mqtt-server.toml",
+            "{}/../../../config/mqtt-server.toml",
             env!("CARGO_MANIFEST_DIR")
         );
 
@@ -231,15 +231,15 @@ mod tests {
         assert_eq!(config.http_port, 9982);
 
         assert_eq!(config.network.tcp_port, 1883);
-        assert_eq!(config.network.tcps_port, 1884);
-        assert_eq!(config.network.websocket_port, 8083);
-        assert_eq!(config.network.websockets_port, 8084);
+        assert_eq!(config.network.tcps_port, 8883);
+        assert_eq!(config.network.websocket_port, 8093);
+        assert_eq!(config.network.websockets_port, 8043);
         assert_eq!(config.network.quic_port, 9083);
-        assert!(config.network.tls_cert.is_empty());
-        assert!(config.network.tls_key.is_empty());
+        assert!(!config.network.tls_cert.is_empty());
+        assert!(!config.network.tls_key.is_empty());
 
         assert_eq!(config.tcp_thread.accept_thread_num, 1);
-        assert_eq!(config.tcp_thread.handler_thread_num, 1);
+        assert_eq!(config.tcp_thread.handler_thread_num, 10);
         assert_eq!(config.tcp_thread.response_thread_num, 1);
         assert_eq!(config.tcp_thread.max_connection_num, 1000);
         assert_eq!(config.tcp_thread.request_queue_size, 2000);
@@ -247,15 +247,15 @@ mod tests {
         assert_eq!(config.tcp_thread.lock_max_try_mut_times, 30);
         assert_eq!(config.tcp_thread.lock_try_mut_sleep_time_ms, 50);
 
-        assert_eq!(config.system.runtime_worker_threads, 16);
+        assert_eq!(config.system.runtime_worker_threads, 128);
         assert_eq!(config.system.default_user, "admin".to_string());
-        assert_eq!(config.system.default_password, "robustmq".to_string());
+        assert_eq!(config.system.default_password, "pwd123".to_string());
 
         assert_eq!(config.storage.storage_type, "memory".to_string());
         assert_eq!(config.storage.journal_addr, "".to_string());
         assert_eq!(config.storage.mysql_addr, "".to_string());
 
-        assert_eq!(config.log.log_path, "./logs".to_string());
+        assert_eq!(config.log.log_path, "/tmp/robust/mqtt-broker/logs".to_string());
         assert_eq!(config.log.log_config, "./config/log4rs.yaml");
 
         assert_eq!(config.auth.storage_type, "memory".to_string());

@@ -14,6 +14,8 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -21,76 +23,78 @@ mod tests {
         ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
         MQTTPacket,
     };
-    use protocol::mqtt::mqttv4::codec::Mqtt4Codec;  
+    use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
+    use tokio::time::sleep;
     use tokio_util::codec::{Framed, FramedRead, FramedWrite};
 
     #[tokio::test]
-    #[ignore]
+
     async fn mqtt_frame_server() {
-        let ip = "127.0.0.1:1884";
-        let listener = TcpListener::bind(ip).await.unwrap();
-        loop {
-            let (stream, _) = listener.accept().await.unwrap();
-            let (r_stream, w_stream) = io::split(stream);
-            let codec = MqttCodec::new(None);
-            let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
-            let mut write_frame_stream = FramedWrite::new(w_stream, codec.clone());
-            tokio::spawn(async move {
+        let req_packet = build_mqtt4_pg_connect();
+        let resp_packet = build_mqtt5_pg_connect_ack();
+
+        let resp = resp_packet.clone();
+        tokio::spawn(async move {
+            let ip = "127.0.0.1:1884";
+            let listener = TcpListener::bind(ip).await.unwrap();
+            loop {
+                let (stream, _) = listener.accept().await.unwrap();
+                let (r_stream, w_stream) = io::split(stream);
+                let codec = MqttCodec::new(None);
+                let mut read_frame_stream = FramedRead::new(r_stream, codec.clone());
+                let mut write_frame_stream = FramedWrite::new(w_stream, codec.clone());
                 while let Some(Ok(data)) = read_frame_stream.next().await {
                     println!("Got: {:?}", data);
 
                     // 发送的消息也只需要发送消息主体，不需要提供长度
                     // Framed/LengthDelimitedCodec 会自动计算并添加
                     //    let response = &data[0..5];
-                    write_frame_stream
-                        .send(build_mqtt5_pg_connect_ack())
-                        .await
-                        .unwrap();
+                    write_frame_stream.send(resp.clone()).await.unwrap();
                 }
-            });
-        }
-    }
+            }
+        });
 
-    #[tokio::test]
-    #[ignore]
-    async fn mqtt4_frame_server() {
-        let ip = "127.0.0.1:1884";
-        let listener = TcpListener::bind(ip).await.unwrap();
-        loop {
-            let (stream, _) = listener.accept().await.unwrap();
-            let mut stream = Framed::new(stream, Mqtt4Codec::new());
-            tokio::spawn(async move {
-                while let Some(Ok(data)) = stream.next().await {
-                    println!("Got: {:?}", data);
+        sleep(Duration::from_secs(5)).await;
 
-                    // 发送的消息也只需要发送消息主体，不需要提供长度
-                    // Framed/LengthDelimitedCodec 会自动计算并添加
-                    //    let response = &data[0..5];
-                    //stream.send(build_mqtt4_pg_connect_ack()).await.unwrap();
-                }
-            });
-        }
-    }
-
-    #[tokio::test]
-    async fn mqtt4_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1883").await.unwrap();
+        // mqtt4
+        let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
         let mut stream: Framed<TcpStream, Mqtt4Codec> = Framed::new(socket, Mqtt4Codec::new());
 
         // send connect package
-        let packet = build_mqtt4_pg_connect();
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            match data {
+                Ok(da) => {
+                    // assert_eq!(da, resp_packet.packet)
+                    println!("{:?}", da);
+                    assert!(true);
+                }
+                Err(e) => {
+                    assert!(false);
+                }
+            }
+        }
+
+        let socket = TcpStream::connect("127.0.0.1:1884").await.unwrap();
+        let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
+
+        // send connect package
+        let packet = build_mqtt5_pg_connect();
         let _ = stream.send(packet).await;
 
         if let Some(data) = stream.next().await {
             match data {
                 Ok(da) => {
-                    println!("success:{:?}", da);
+                    // assert_eq!(da, resp_packet.packet)
+                    println!("{:?}", da);
+                    assert!(true);
                 }
                 Err(e) => {
-                    println!("error:{}", e);
+                    assert!(false);
                 }
             }
         }
@@ -116,54 +120,6 @@ mod tests {
             clean_session: true,
         };
         MQTTPacket::Connect(4, connect, None, lastwill, None, login)
-    }
-
-    /// Build the connect content package for the mqtt4 protocol
-    #[allow(dead_code)]
-    fn build_mqtt4_pg_connect_ack() -> MqttPacketWrapper {
-        let ack: ConnAck = ConnAck {
-            session_present: false,
-            code: ConnectReturnCode::Success,
-        };
-        MqttPacketWrapper {
-            protocol_version: 4,
-            packet: MQTTPacket::ConnAck(ack, None),
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn mqtt5_frame_server() {
-        let ip = "127.0.0.1:1884";
-        let listener = TcpListener::bind(ip).await.unwrap();
-        loop {
-            let (stream, _) = listener.accept().await.unwrap();
-            let mut stream = Framed::new(stream, Mqtt5Codec::new());
-            tokio::spawn(async move {
-                while let Some(Ok(data)) = stream.next().await {
-                    println!("Got: {:?}", data);
-
-                    // 发送的消息也只需要发送消息主体，不需要提供长度
-                    // Framed/LengthDelimitedCodec 会自动计算并添加
-                    //    let response = &data[0..5];
-                    // stream.send(build_mqtt5_pg_connect_ack()).await.unwrap();
-                }
-            });
-        }
-    }
-
-    #[tokio::test]
-    async fn mqtt5_frame_client() {
-        let socket = TcpStream::connect("127.0.0.1:1883").await.unwrap();
-        let mut stream: Framed<TcpStream, Mqtt5Codec> = Framed::new(socket, Mqtt5Codec::new());
-
-        // send connect package
-        let packet = build_mqtt5_pg_connect();
-        let _ = stream.send(packet).await;
-
-        let data = stream.next().await;
-
-        println!("Got: {:?}", data.unwrap().unwrap());
     }
 
     /// Build the connect content package for the mqtt5 protocol

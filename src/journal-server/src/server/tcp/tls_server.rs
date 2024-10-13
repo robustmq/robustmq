@@ -12,39 +12,83 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use crate::handler::cache::CacheManager;
 use crate::server::connection::{NetworkConnection, NetworkConnectionType};
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::RequestPackage;
+use common_base::config::journal_server::journal_server_conf;
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::journal_server::codec::JournalServerCodec;
+use rustls_pemfile::{certs, private_key};
+use std::fs::File;
+use std::io::{self, BufReader, ErrorKind};
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio::net::TcpListener;
-use tokio::sync::broadcast;
-use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::select;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::{broadcast, mpsc};
 use tokio::time::sleep;
-use tokio::{io, select};
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::TlsAcceptor;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
-pub(crate) async fn acceptor_process(
+pub(crate) fn load_certs(path: &Path) -> io::Result<Vec<CertificateDer<'static>>> {
+    certs(&mut BufReader::new(File::open(path)?)).collect()
+}
+
+pub(crate) fn load_key(path: &Path) -> io::Result<PrivateKeyDer<'static>> {
+    private_key(&mut BufReader::new(File::open(path)?))
+        .unwrap()
+        .ok_or(io::Error::new(
+            ErrorKind::Other,
+            "no private key found".to_string(),
+        ))
+}
+
+pub(crate) async fn acceptor_tls_process(
     accept_thread_num: usize,
-    connection_manager: Arc<ConnectionManager>,
-    stop_sx: broadcast::Sender<bool>,
     listener_arc: Arc<TcpListener>,
-    request_queue_sx: Sender<RequestPackage>,
-    cache_manager: Arc<CacheManager>,
+    stop_sx: broadcast::Sender<bool>,
     network_connection_type: NetworkConnectionType,
+    connection_manager: Arc<ConnectionManager>,
+    request_queue_sx: Sender<RequestPackage>,
 ) {
+    let conf = journal_server_conf();
+    let certs = match load_certs(Path::new(&conf.network.tls_cert)) {
+        Ok(data) => data,
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
+    };
+
+    let key = match load_key(Path::new(&conf.network.tls_key)) {
+        Ok(data) => data,
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
+    };
+
+    let config = match ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certs, key)
+    {
+        Ok(data) => data,
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
+    };
+    let tls_acceptor = TlsAcceptor::from(Arc::new(config));
+
     for index in 1..=accept_thread_num {
         let listener = listener_arc.clone();
         let connection_manager = connection_manager.clone();
         let mut stop_rx = stop_sx.subscribe();
         let raw_request_queue_sx = request_queue_sx.clone();
+        let raw_tls_acceptor = tls_acceptor.clone();
         let network_type = network_connection_type.clone();
-        let cache_manager = cache_manager.clone();
         tokio::spawn(async move {
             debug!("TCP Server acceptor thread {} start successfully.", index);
             loop {
@@ -60,27 +104,33 @@ pub(crate) async fn acceptor_process(
                     val = listener.accept()=>{
                         match val{
                             Ok((stream, addr)) => {
-                                info!("accept tcp connection:{:?}",addr);
-
-                                let (r_stream, w_stream) = io::split(stream);
+                                info!("accept tcp tls connection:{:?}",addr);
+                                let stream = match raw_tls_acceptor.accept(stream).await{
+                                    Ok(da) => da,
+                                    Err(e) => {
+                                        error!("Tls Accepter failed to read Stream with error message :{e:?}");
+                                        continue;
+                                    }
+                                };
+                                let (r_stream, w_stream) = tokio::io::split(stream);
                                 let codec = JournalServerCodec::new();
                                 let read_frame_stream = FramedRead::new(r_stream, codec.clone());
                                 let mut  write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
-                                // if !tcp_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
+                                // if !tcp_tls_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
                                 //     continue;
                                 // }
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
-                                    crate::server::connection::NetworkConnectionType::Tcp,
+                                    crate::server::connection::NetworkConnectionType::Tcps,
                                     addr,
                                     Some(connection_stop_sx.clone())
                                 );
                                 connection_manager.add_connection(connection.clone());
-                                connection_manager.add_tcp_write(connection.connection_id, write_frame_stream);
+                                connection_manager.add_tcp_tls_write(connection.connection_id, write_frame_stream);
 
-                                read_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx,network_type.clone(),cache_manager.clone());
+                                read_tls_frame_process(read_frame_stream,connection,raw_request_queue_sx.clone(),connection_stop_rx, network_type.clone());
                             }
                             Err(e) => {
                                 error!("TCP accept failed to create connection with error message :{:?}",e);
@@ -93,16 +143,15 @@ pub(crate) async fn acceptor_process(
     }
 }
 
-fn read_frame_process(
+pub(crate) fn read_tls_frame_process(
     mut read_frame_stream: FramedRead<
-        tokio::io::ReadHalf<tokio::net::TcpStream>,
+        tokio::io::ReadHalf<tokio_rustls::server::TlsStream<tokio::net::TcpStream>>,
         JournalServerCodec,
     >,
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
     network_type: NetworkConnectionType,
-    cache_manager: Arc<CacheManager>,
 ) {
     tokio::spawn(async move {
         loop {
@@ -120,11 +169,10 @@ fn read_frame_process(
                         match pkg {
                             Ok(pack) => {
 
-                                debug!("revc tcp packet:{:?}", pack);
+                                info!("revc tcp tls packet:{:?}", pack);
                                 let package =
                                     RequestPackage::new(connection.connection_id, connection.addr, pack);
-
-                                match request_queue_sx.send(package.clone()).await {
+                                match request_queue_sx.send(package).await {
                                     Ok(_) => {
                                     }
                                     Err(err) => error!("Failed to write data to the request queue, error message: {:?}",err),
@@ -134,7 +182,7 @@ fn read_frame_process(
                                 debug!("TCP connection parsing packet format error message :{:?}",e)
                             }
                         }
-                    }else {
+                    } else {
                         sleep(Duration::from_millis(10)).await;
                     }
                 }

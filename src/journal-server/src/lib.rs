@@ -15,24 +15,27 @@
 use std::sync::Arc;
 
 use clients::poll::ClientPool;
-use cluster::{register_storage_engine_node, report_heartbeat, unregister_storage_engine_node};
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
+use handler::cache::CacheManager;
+use handler::heartbeat::{
+    register_storage_engine_node, report_heartbeat, unregister_storage_engine_node,
+};
 use log::info;
-use server::start_tcp_server;
+use server::connection_manager::ConnectionManager;
+use server::grpc::server::GrpcServer;
+use server::tcp::server::start_tcp_server;
 use tokio::runtime::Runtime;
 use tokio::signal;
 use tokio::sync::broadcast;
 
-mod cluster;
+mod handler;
 mod index;
 mod network;
-mod raft;
 mod record;
 mod server;
 mod shard;
-mod storage;
 
 pub struct JournalServer {
     config: JournalServerConfig,
@@ -40,49 +43,76 @@ pub struct JournalServer {
     server_runtime: Runtime,
     daemon_runtime: Runtime,
     client_poll: Arc<ClientPool>,
+    connection_manager: Arc<ConnectionManager>,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl JournalServer {
     pub fn new(stop_send: broadcast::Sender<bool>) -> Self {
         let config = journal_server_conf().clone();
-        let server_runtime =
-            create_runtime("storage-engine-server-runtime", config.runtime_work_threads);
-        let daemon_runtime = create_runtime("daemon-runtime", config.runtime_work_threads);
+        let server_runtime = create_runtime(
+            "storage-engine-server-runtime",
+            config.system.runtime_work_threads,
+        );
+        let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-
+        let connection_manager: Arc<ConnectionManager> = Arc::new(ConnectionManager::new());
+        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new());
         JournalServer {
             config,
             stop_send,
             server_runtime,
             daemon_runtime,
             client_poll,
+            connection_manager,
+            cache_manager,
         }
     }
 
     pub fn start(&self) {
         self.register_node();
 
-        self.start_prometheus_export();
+        self.start_grpc_server();
 
         self.start_tcp_server();
 
         self.start_daemon_thread();
 
+        self.start_prometheus();
+
         self.waiting_stop();
     }
 
-    fn start_tcp_server(&self) {
-        self.server_runtime.spawn(async {
-            start_tcp_server().await;
+    fn start_grpc_server(&self) {
+        let server = GrpcServer::new(self.config.network.grpc_port, self.client_poll.clone());
+        self.server_runtime.spawn(async move {
+            match server.start().await {
+                Ok(()) => {}
+                Err(e) => {
+                    panic!("{}", e.to_string());
+                }
+            }
         });
     }
 
-    fn start_prometheus_export(&self) {
-        let prometheus_port = self.config.prometheus_port;
-        self.server_runtime.spawn(async move {
-            register_prometheus_export(prometheus_port).await;
+    fn start_tcp_server(&self) {
+        let client_poll = self.client_poll.clone();
+        let connection_manager = self.connection_manager.clone();
+        let cache_manager = self.cache_manager.clone();
+        let stop_sx = self.stop_send.clone();
+        self.server_runtime.spawn(async {
+            start_tcp_server(client_poll, connection_manager, cache_manager, stop_sx).await;
         });
+    }
+
+    fn start_prometheus(&self) {
+        if self.config.prometheus.enable {
+            let prometheus_port = self.config.prometheus.port;
+            self.server_runtime.spawn(async move {
+                register_prometheus_export(prometheus_port).await;
+            });
+        }
     }
 
     fn start_daemon_thread(&self) {
