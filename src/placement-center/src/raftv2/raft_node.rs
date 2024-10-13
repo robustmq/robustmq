@@ -17,7 +17,7 @@ use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
 
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
 use log::info;
 use openraft::{Config, Raft};

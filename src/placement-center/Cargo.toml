@@ -36,7 +36,7 @@ dashmap.workspace = true
 byteorder.workspace = true
 axum.workspace = true
 toml.workspace = true
-clients.workspace = true
+grpc-clients.workspace = true
 metadata-struct.workspace = true
 openraft.workspace = true
 # raft = { version = "0.7", features = ["prost-codec"], default-features = false }

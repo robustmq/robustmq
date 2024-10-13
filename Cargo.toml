@@ -22,7 +22,7 @@ members = [
     "src/amqp-broker",
     "src/placement-center",
     "src/cli-command",
-    "src/clients",
+    "src/grpc-clients",
     "src/cmd",
     "src/common/base",
     "src/common/rocksdb-engine",
@@ -30,7 +30,7 @@ members = [
     "src/common/third-driver",
     "src/protocol",
     "src/journal-server",
-    "src/journal-remote",
+    "src/journal-client",
     "src/storage-adapter",
 ]
 
@@ -102,9 +102,9 @@ amqp-broker = { path = "src/amqp-broker" }
 amqp-plugins = { path = "src/amqp-plugins" }
 placement-center = { path = "src/placement-center" }
 cli-command = { path = "src/cli-command" }
-clients = { path = "src/clients" }
+grpc-clients = { path = "src/grpc-clients" }
 journal-server = { path = "src/journal-server" }
-journal-remote = { path = "src/journal-remote" }
+journal-client = { path = "src/journal-client" }
 storage-adapter = { path = "src/storage-adapter" }
 cmd = { path = "src/cmd" }
 common-base = { path = "src/common/base" }

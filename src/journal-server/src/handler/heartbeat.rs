@@ -15,8 +15,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use clients::placement::placement::call::{heartbeat, register_node, unregister_node};
-use clients::poll::ClientPool;
+ use grpc_clients::placement::placement::call::{heartbeat, register_node, unregister_node};
+ use grpc_clients::poll::ClientPool;
 use common_base::config::journal_server::JournalServerConfig;
 use common_base::tools::get_local_ip;
 use log::{debug, error, info};

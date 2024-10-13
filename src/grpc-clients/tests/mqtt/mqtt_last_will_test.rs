@@ -16,8 +16,8 @@
 mod tests {
     use std::sync::Arc;
 
-    use clients::placement::mqtt::call::placement_save_last_will_message;
-    use clients::poll::ClientPool;
+     use grpc_clients::placement::mqtt::call::placement_save_last_will_message;
+     use grpc_clients::poll::ClientPool;
     use common_base::tools::unique_id;
     use metadata_struct::mqtt::lastwill::LastWillData;
     use protocol::placement_center::generate::mqtt::SaveLastWillMessageRequest;

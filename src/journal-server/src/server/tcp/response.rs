@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use log::{debug, error};
 use tokio::select;
 use tokio::sync::broadcast;

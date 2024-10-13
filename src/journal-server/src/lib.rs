@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;

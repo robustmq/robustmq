@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct JournalEngineClient {}
-
-impl JournalEngineClient {}
+pub mod admin;
+pub mod inner;

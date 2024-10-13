@@ -17,11 +17,11 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-    use clients::placement::mqtt::call::{
+     use grpc_clients::placement::mqtt::call::{
         placement_create_topic, placement_delete_topic, placement_list_topic,
         placement_set_topic_retain_message,
     };
-    use clients::poll::ClientPool;
+     use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{qos, Publish};

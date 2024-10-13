@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use clients::poll::ClientPool;
+ use grpc_clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use log::info;
 use protocol::journal_server::generate::protocol::admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
