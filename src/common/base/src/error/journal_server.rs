@@ -14,5 +14,13 @@
 
 use thiserror::Error;
 
+use super::common::CommonError;
+
 #[derive(Error, Debug)]
-pub enum JournalServerError {}
+pub enum JournalServerError {
+    #[error("Directory {0} No rocksdb instance available")]
+    NoRocksdbInstanceAvailable(String),
+    
+    #[error("{0}")]
+    CommonError(#[from] CommonError),
+}

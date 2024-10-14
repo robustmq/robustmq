@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cluster;
 pub mod cache;
+pub mod cluster;
 pub mod command;
 pub mod handler;
+pub mod namespace;
+pub mod record;
+pub mod shard;
