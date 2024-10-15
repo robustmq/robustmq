@@ -20,9 +20,13 @@ impl Handler {
         Handler {}
     }
 
-    pub async fn write(&self) {}
+    pub async fn write(&self) {
 
-    pub async fn read(&self) {}
+    }
+
+    pub async fn read(&self) {
+        
+    }
 
     pub async fn active_segment(&self) {}
 

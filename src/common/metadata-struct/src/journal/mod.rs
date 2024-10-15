@@ -17,3 +17,4 @@ pub mod namespace;
 pub mod node_extend;
 pub mod segment;
 pub mod shard;
+pub mod group;
