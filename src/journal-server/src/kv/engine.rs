@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::rocksdb::{column_family_list, kv_storage_data_fold, DB_COLUMN_FAMILY_DEFAULT};
-use crate::core::record::KvRecord;
-use common_base::{
-    config::journal_server::JournalServerConfig, error::journal_server::JournalServerError,
-};
+use common_base::config::journal_server::JournalServerConfig;
+use common_base::error::journal_server::JournalServerError;
 use dashmap::DashMap;
 use rocksdb_engine::RocksDBEngine;
+
+use super::rocksdb::{column_family_list, kv_storage_data_fold, DB_COLUMN_FAMILY_DEFAULT};
+use crate::core::record::KvRecord;
 
 pub struct KvEngine {
     rocksdb_instances: DashMap<String, RocksDBEngine>,

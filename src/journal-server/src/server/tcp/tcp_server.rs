@@ -15,10 +15,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::core::cache::CacheManager;
-use crate::server::connection::{NetworkConnection, NetworkConnectionType};
-use crate::server::connection_manager::ConnectionManager;
-use crate::server::packet::RequestPackage;
 use futures_util::StreamExt;
 use log::{debug, error, info};
 use protocol::journal_server::codec::JournalServerCodec;
@@ -28,6 +24,11 @@ use tokio::sync::mpsc::{self, Receiver, Sender};
 use tokio::time::sleep;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
+
+use crate::core::cache::CacheManager;
+use crate::server::connection::{NetworkConnection, NetworkConnectionType};
+use crate::server::connection_manager::ConnectionManager;
+use crate::server::packet::RequestPackage;
 
 pub(crate) async fn acceptor_process(
     accept_thread_num: usize,
@@ -65,7 +66,7 @@ pub(crate) async fn acceptor_process(
                                 let (r_stream, w_stream) = io::split(stream);
                                 let codec = JournalServerCodec::new();
                                 let read_frame_stream = FramedRead::new(r_stream, codec.clone());
-                                let mut  write_frame_stream = FramedWrite::new(w_stream, codec.clone());
+                                let write_frame_stream = FramedWrite::new(w_stream, codec.clone());
 
                                 // if !tcp_establish_connection_check(&addr,&connection_manager,&mut write_frame_stream).await{
                                 //     continue;

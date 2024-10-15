@@ -105,7 +105,7 @@ mod properties {
         len
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<UnsubscribeProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<UnsubscribeProperties>, Error> {
         let mut user_properties = Vec::new();
 
         let (properties_len_len, properties_len) = length(bytes.iter())?;

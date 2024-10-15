@@ -16,9 +16,9 @@ use std::cmp::min;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
- use grpc_clients::poll::ClientPool;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use futures::SinkExt;
+use grpc_clients::poll::ClientPool;
 use log::error;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};

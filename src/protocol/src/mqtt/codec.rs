@@ -16,7 +16,7 @@ use bytes::BytesMut;
 use tokio_util::codec;
 
 use super::common::ConnectReadOutcome;
-use crate::mqtt::common::{check, connect_read, Error, LastWillProperties, MQTTPacket, PacketType};
+use crate::mqtt::common::{check, connect_read, Error, MQTTPacket, PacketType};
 
 #[derive(Debug, Clone)]
 pub struct MqttPacketWrapper {
@@ -365,27 +365,20 @@ fn calc_mqtt_packet_len(
 
 pub fn parse_mqtt_packet_to_name(packet: MQTTPacket) -> String {
     let name = match packet {
-        MQTTPacket::Connect(
-            protocol_version,
-            connect,
-            properties,
-            last_will,
-            last_will_peoperties,
-            login,
-        ) => "connect",
-        MQTTPacket::ConnAck(connack, conn_ack_properties) => "conn_ack",
-        MQTTPacket::Publish(publish, publish_properties) => "publish",
-        MQTTPacket::PubAck(puback, pub_ack_properties) => "pub_ack",
-        MQTTPacket::PubRec(pubrec, pub_rec_properties) => "pub_rec",
-        MQTTPacket::PubRel(pubrel, pub_rel_properties) => "pub_rel",
-        MQTTPacket::PubComp(pubcomp, pub_comp_properties) => "pub_comp",
-        MQTTPacket::Subscribe(subscribe, subscribe_properties) => "subscribe",
-        MQTTPacket::SubAck(suback, suback_properties) => "sub_ack",
-        MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => "sub_ack",
-        MQTTPacket::UnsubAck(unsuback, unsuback_properties) => "unsub_ack",
-        MQTTPacket::PingReq(pingreq) => "ping",
-        MQTTPacket::PingResp(pingresp) => "pong",
-        MQTTPacket::Disconnect(disconnect, disconnect_properties) => "disconnect",
+        MQTTPacket::Connect(_, _, _, _, _, login_) => "connect",
+        MQTTPacket::ConnAck(_, _) => "conn_ack",
+        MQTTPacket::Publish(_, _) => "publish",
+        MQTTPacket::PubAck(_, _) => "pub_ack",
+        MQTTPacket::PubRec(_, _) => "pub_rec",
+        MQTTPacket::PubRel(_, _) => "pub_rel",
+        MQTTPacket::PubComp(_, _) => "pub_comp",
+        MQTTPacket::Subscribe(_, _) => "subscribe",
+        MQTTPacket::SubAck(_, _) => "sub_ack",
+        MQTTPacket::Unsubscribe(_, _) => "sub_ack",
+        MQTTPacket::UnsubAck(_, _) => "unsub_ack",
+        MQTTPacket::PingReq(_) => "ping",
+        MQTTPacket::PingResp(_) => "pong",
+        MQTTPacket::Disconnect(_, _) => "disconnect",
         _ => "-",
     };
     name.to_string()

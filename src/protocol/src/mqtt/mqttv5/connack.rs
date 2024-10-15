@@ -145,7 +145,6 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
 }
 
 mod properties {
-    use axum::http::header::ValueDrain;
 
     use super::*;
 
@@ -223,7 +222,7 @@ mod properties {
         len
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<ConnAckProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<ConnAckProperties>, Error> {
         let mut session_expiry_interval = None;
         let mut receive_max = None;
         let mut max_qos = None;

@@ -168,7 +168,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<DisconnectProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<DisconnectProperties>, Error> {
         let (properties_len_len, properties_len) = length(bytes.iter())?;
 
         bytes.advance(properties_len_len);

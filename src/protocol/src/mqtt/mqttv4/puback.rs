@@ -28,8 +28,6 @@
  * limitations under the License.
  */
 
-use std::fmt;
-
 /// puback packet is an acknowledgement to QoS 1 publish packet
 use super::*;
 
@@ -72,7 +70,6 @@ pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt::common::PubAckReason;
 
     #[test]
     fn test_puback() {

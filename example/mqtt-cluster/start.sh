@@ -40,7 +40,7 @@ start_pc_cluster(){
         echo "placement-center node 3 started successfully. process no: $no3"
     fi
 
-    sleep 5
+    sleep 10
 
     echo "\nNode 1:"
     resp1=$(curl -s http://127.0.0.1:1227/v1/cluster/status)

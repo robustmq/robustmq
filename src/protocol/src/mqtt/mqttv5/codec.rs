@@ -17,9 +17,8 @@ use tokio_util::codec;
 
 use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
-    subscribe, unsuback, unsubscribe, ConnectReadOutcome, Error, MQTTPacket, PacketType,
+    subscribe, unsuback, unsubscribe, ConnectReadOutcome, MQTTPacket, PacketType,
 };
-use crate::mqtt::common::LastWillProperties;
 
 #[derive(Clone, Debug)]
 pub struct Mqtt5Codec {}

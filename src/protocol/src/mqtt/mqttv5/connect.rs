@@ -147,7 +147,7 @@ pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<ConnectReadOu
 pub mod properties {
     use super::*;
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<ConnectProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<ConnectProperties>, Error> {
         let mut session_expiry_interval = None;
         let mut receive_maximum = None;
         let mut max_packet_size = None;
@@ -343,7 +343,7 @@ pub mod will {
 
     pub fn read(
         connect_flags: u8,
-        mut bytes: &mut Bytes,
+        bytes: &mut Bytes,
     ) -> Result<(Option<LastWill>, Option<LastWillProperties>), Error> {
         let o = match connect_flags & 0b100 {
             0 if (connect_flags & 0b0011_1000) != 0 => {
@@ -433,7 +433,7 @@ mod willproperties {
         len
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<LastWillProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<LastWillProperties>, Error> {
         let mut delay_interval = None;
         let mut payload_format_indicator = None;
         let mut message_expiry_interval = None;
@@ -557,7 +557,7 @@ pub mod login {
         }
     }
 
-    pub fn read(connect_flags: u8, mut bytes: &mut Bytes) -> Result<Option<Login>, Error> {
+    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, Error> {
         let username = match connect_flags & 0b1000_0000 {
             0 => String::new(),
             _ => read_mqtt_string(bytes)?,

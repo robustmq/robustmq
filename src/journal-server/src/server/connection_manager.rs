@@ -12,15 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::connection::{NetworkConnection, NetworkConnectionType};
+use std::time::Duration;
+
 use common_base::error::common::CommonError;
 use dashmap::DashMap;
 use futures::SinkExt;
 use log::{debug, error, info};
 use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
-use std::time::Duration;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
+
+use super::connection::{NetworkConnection, NetworkConnectionType};
 
 pub struct ConnectionManager {
     connections: DashMap<u64, NetworkConnection>,
@@ -38,7 +40,10 @@ pub struct ConnectionManager {
 impl ConnectionManager {
     pub fn new() -> ConnectionManager {
         let connections = DashMap::with_capacity(64);
-        let tcp_write_list: DashMap<u64, FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, JournalServerCodec>> = DashMap::with_capacity(64);
+        let tcp_write_list: DashMap<
+            u64,
+            FramedWrite<tokio::io::WriteHalf<tokio::net::TcpStream>, JournalServerCodec>,
+        > = DashMap::with_capacity(64);
         let tcp_tls_write_list = DashMap::with_capacity(64);
         ConnectionManager {
             connections,

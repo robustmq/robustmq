@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{
-    generate::protocol::engine::{
-        ApiKey, GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentResp,
-        GetActiveSegmentRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
-        OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader,
-        WriteReq, WriteReqBody, WriteResp, WriteRespBody,
-    },
-    Error,
-};
 use bytes::{BufMut, BytesMut};
 use prost::Message as _;
 use tokio_util::codec;
+
+use super::generate::protocol::engine::{
+    ApiKey, GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentResp,
+    GetActiveSegmentRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
+    OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader,
+    WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+};
+use super::Error;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct JournalServerCodec {}
@@ -450,16 +449,16 @@ fn offset_commit_resp(
 mod tests {
     use std::time::Duration;
 
-    use crate::journal_server::generate::protocol::engine::{
-        ApiKey, ApiVersion, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
-    };
-
-    use super::{JournalEnginePacket, JournalServerCodec};
     use futures::{SinkExt, StreamExt};
     use tokio::io;
     use tokio::net::{TcpListener, TcpStream};
     use tokio::time::sleep;
     use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
+
+    use super::{JournalEnginePacket, JournalServerCodec};
+    use crate::journal_server::generate::protocol::engine::{
+        ApiKey, ApiVersion, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+    };
 
     #[test]
     fn write_codec_test() {

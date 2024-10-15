@@ -16,10 +16,10 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::Arc;
 
- use grpc_clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::tools::{now_second, unique_id};
 use dashmap::DashMap;
+use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::common::{Connect, ConnectProperties};
 

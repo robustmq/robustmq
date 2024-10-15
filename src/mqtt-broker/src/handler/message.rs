@@ -44,8 +44,8 @@ pub fn build_message_expire(
 mod tests {
     use std::sync::Arc;
 
-     use grpc_clients::poll::ClientPool;
     use common_base::tools::now_second;
+    use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::cluster::{
         MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
     };

@@ -28,10 +28,12 @@
  * limitations under the License.
  */
 
+use std::sync::OnceLock;
+
+use serde::Deserialize;
+
 use super::common::Log;
 use crate::tools::{read_file, try_create_fold};
-use serde::Deserialize;
-use std::sync::OnceLock;
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct JournalServerConfig {

@@ -142,7 +142,7 @@ pub mod will {
         len
     }
 
-    pub fn read(connect_flags: u8, mut bytes: &mut Bytes) -> Result<Option<LastWill>, Error> {
+    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<LastWill>, Error> {
         let last_will = match connect_flags & 0b100 {
             // & 0b100 to check Will Flag(bit 2) is 0 or 1
             0 if (connect_flags & 0b0011_1000) != 0 => {
@@ -188,7 +188,7 @@ pub mod login {
 
     use super::*;
 
-    pub fn read(connect_flags: u8, mut bytes: &mut Bytes) -> Result<Option<Login>, Error> {
+    pub fn read(connect_flags: u8, bytes: &mut Bytes) -> Result<Option<Login>, Error> {
         let username = match connect_flags & 0b1000_0000 {
             0 => String::new(),
             _ => {
@@ -327,7 +327,7 @@ mod tests {
 
         let client_id = String::from("test_client_id");
         let client_id_length = client_id.len();
-        let mut buff_write = BytesMut::new();
+        let buff_write = BytesMut::new();
 
         let login: Login = Login {
             username: String::from("test_user"),

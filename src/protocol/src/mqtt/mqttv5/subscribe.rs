@@ -207,7 +207,7 @@ mod properties {
         len
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<SubscribeProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<SubscribeProperties>, Error> {
         let mut id = None;
         let mut user_properties = Vec::new();
 

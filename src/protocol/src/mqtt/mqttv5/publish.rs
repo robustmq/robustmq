@@ -120,7 +120,6 @@ pub fn len(publish: &Publish, properties: &Option<PublishProperties>) -> usize {
 }
 
 mod properties {
-    use axum::extract::rejection::JsonDataError;
 
     use super::*;
 
@@ -210,7 +209,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<PublishProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PublishProperties>, Error> {
         let mut payload_format_indicator = None;
         let mut message_expiry_interval = None;
         let mut topic_alias = None;

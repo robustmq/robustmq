@@ -20,7 +20,7 @@ use super::common::CommonError;
 pub enum JournalServerError {
     #[error("Directory {0} No rocksdb instance available")]
     NoRocksdbInstanceAvailable(String),
-    
+
     #[error("{0}")]
     CommonError(#[from] CommonError),
 }

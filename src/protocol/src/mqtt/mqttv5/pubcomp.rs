@@ -146,7 +146,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<PubCompProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PubCompProperties>, Error> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 

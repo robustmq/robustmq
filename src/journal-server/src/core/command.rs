@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
+use std::sync::Arc;
 
 // Copyright 2023 RobustMQ Team
 //
@@ -30,9 +31,9 @@ use std::{net::SocketAddr, sync::Arc};
 use log::error;
 use protocol::journal_server::codec::JournalEnginePacket;
 
-use crate::server::{connection::NetworkConnection, connection_manager::ConnectionManager};
-
 use super::handler::Handler;
+use crate::server::connection::NetworkConnection;
+use crate::server::connection_manager::ConnectionManager;
 
 #[derive(Debug, Clone)]
 pub struct Command {
@@ -53,7 +54,6 @@ impl Command {
         packet: JournalEnginePacket,
     ) -> Option<JournalEnginePacket> {
         match packet {
-            
             JournalEnginePacket::GetActiveSegmentReq(_) => {
                 self.handler.active_segment().await;
             }

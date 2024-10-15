@@ -16,10 +16,10 @@
 mod tests {
     use std::sync::Arc;
 
-     use grpc_clients::placement::mqtt::call::{
+    use grpc_clients::placement::mqtt::call::{
         placement_create_user, placement_delete_user, placement_list_user,
     };
-     use grpc_clients::poll::ClientPool;
+    use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::placement_center::generate::mqtt::{
         CreateUserRequest, DeleteUserRequest, ListUserRequest,

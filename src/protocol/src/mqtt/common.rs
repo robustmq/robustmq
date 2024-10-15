@@ -30,8 +30,7 @@
 
 use std::slice::Iter;
 use std::str::Utf8Error;
-use std::string::FromUtf8Error;
-use std::{default, fmt, io};
+use std::{fmt, io};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};

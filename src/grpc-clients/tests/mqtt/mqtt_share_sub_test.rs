@@ -16,9 +16,9 @@
 mod tests {
     use std::sync::Arc;
 
-     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
-     use grpc_clients::placement::placement::call::register_node;
-     use grpc_clients::poll::ClientPool;
+    use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
+    use grpc_clients::placement::placement::call::register_node;
+    use grpc_clients::poll::ClientPool;
     use protocol::placement_center::generate::common::ClusterType;
     use protocol::placement_center::generate::mqtt::GetShareSubLeaderRequest;
     use protocol::placement_center::generate::placement::RegisterNodeRequest;
