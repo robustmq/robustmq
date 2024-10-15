@@ -31,14 +31,7 @@
 /// puback packet is an acknowledgement to QoS 1 publish packet
 use super::*;
 
-impl PubAck {
-    fn mqttv4(pkid: u16) -> PubAck {
-        PubAck {
-            pkid,
-            reason: Some(PubAckReason::Success),
-        }
-    }
-}
+impl PubAck {}
 fn len() -> usize {
     2 // pkid - publish identifier
 }
@@ -76,7 +69,10 @@ mod tests {
         use super::*;
 
         let mut buffer: BytesMut = BytesMut::new();
-        let puback: PubAck = PubAck::mqttv4(5u16);
+        let puback: PubAck = PubAck {
+            pkid: 1,
+            reason: None,
+        };
 
         // test the write function
         write(&puback, &mut buffer).unwrap();

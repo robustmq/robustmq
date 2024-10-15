@@ -65,9 +65,12 @@ mod tests {
     fn test_pubrel() {
         use super::*;
         let mut buffer = BytesMut::new();
-        let pubrel = PubRel
+        let pubrel = PubRel {
+            pkid: 0,
+            reason: None,
+        };
         // test the write function of pubrec
-        write(&pubrel, &mut buffer);
+        write(&pubrel, &mut buffer).unwrap();
 
         // test the read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

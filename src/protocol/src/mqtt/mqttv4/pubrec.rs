@@ -29,14 +29,7 @@
  */
 use super::*;
 
-impl PubRec {
-    fn mqttv4(pkid: u16) -> PubRec {
-        PubRec {
-            pkid,
-            reason: Some(PubRecReason::Success),
-        }
-    }
-}
+impl PubRec {}
 
 fn len() -> usize {
     // pkid
@@ -72,9 +65,12 @@ mod tests {
     fn test_pubrec() {
         use super::*;
         let mut buffer = BytesMut::new();
-        let pubrec = PubRec::mqttv4(5u16);
+        let pubrec = PubRec {
+            pkid: 1,
+            reason: None,
+        };
         // test the write function of pubrec
-        write(&pubrec, &mut buffer);
+        write(&pubrec, &mut buffer).unwrap();
 
         // test the read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

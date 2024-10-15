@@ -455,7 +455,7 @@ pub fn qos(num: u8) -> Option<QoS> {
         0 => Some(QoS::AtMostOnce),
         1 => Some(QoS::AtLeastOnce),
         2 => Some(QoS::ExactlyOnce),
-        qos => None,
+        _ => None,
     }
 }
 

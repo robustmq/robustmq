@@ -30,13 +30,7 @@
 
 use super::*;
 
-impl Disconnect {
-    fn new() -> Disconnect {
-        Disconnect {
-            reason_code: Some(DisconnectReasonCode::NormalDisconnection),
-        }
-    }
-}
+impl Disconnect {}
 
 // In MQTT V4(3.1.1) there are no reason code and properties for disconnect packet
 pub fn write(_disconnect: &Disconnect, payload: &mut BytesMut) -> Result<usize, Error> {
@@ -54,9 +48,9 @@ mod tests {
     #[test]
     fn test_disconnect() {
         let mut buffer = BytesMut::new();
-        let disconnect = Disconnect::new();
+        let disconnect = Disconnect { reason_code: None };
         // test write function
-        write(&disconnect, &mut buffer);
+        write(&disconnect, &mut buffer).unwrap();
         assert_eq!(buffer.get_u8(), 0b11100000);
     }
 }
