@@ -31,6 +31,7 @@ use tokio::sync::broadcast;
 mod core;
 mod index;
 mod kv;
+mod record;
 mod segment;
 mod metadata;
 mod server;
@@ -53,7 +54,6 @@ impl JournalServer {
             config.system.runtime_work_threads,
         );
         let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
-     
 
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let connection_manager: Arc<ConnectionManager> = Arc::new(ConnectionManager::new());
