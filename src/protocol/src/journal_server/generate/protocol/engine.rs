@@ -100,10 +100,42 @@ pub struct GetActiveSegmentResp {
 /// * Get the Segment where the Shard is active *
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct OffsetCommitReqBody {}
+pub struct OffsetCommitReqBody {
+    #[prost(string, tag = "1")]
+    pub namespace: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub group: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub shard: ::prost::alloc::vec::Vec<OffsetCommitShard>,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct OffsetCommitRespBody {}
+pub struct OffsetCommitShard {
+    #[prost(string, tag = "1")]
+    pub shard_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub offset: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct OffsetCommitRespBody {
+    #[prost(string, tag = "1")]
+    pub namespace: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub group: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub resp: ::prost::alloc::vec::Vec<OffsetCommitShardResp>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct OffsetCommitShardResp {
+    #[prost(string, tag = "1")]
+    pub shard_name: ::prost::alloc::string::String,
+    #[prost(enumeration = "ErrorCode", tag = "2")]
+    pub err_code: i32,
+    #[prost(string, tag = "3")]
+    pub error: ::prost::alloc::string::String,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OffsetCommitReq {

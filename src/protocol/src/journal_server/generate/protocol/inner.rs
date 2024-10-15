@@ -15,8 +15,8 @@
 /// Generated client implementations.
 pub mod journal_server_inner_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
-    use tonic::codegen::http::Uri;
     use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     #[derive(Debug, Clone)]
     pub struct JournalServerInnerServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -60,10 +60,13 @@ pub mod journal_server_inner_service_client {
                     <T as tonic::client::GrpcService<tonic::body::BoxBody>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::BoxBody>>>::Error:
-                Into<StdError> + Send + Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::BoxBody>,
+            >>::Error: Into<StdError> + Send + Sync,
         {
-            JournalServerInnerServiceClient::new(InterceptedService::new(inner, interceptor))
+            JournalServerInnerServiceClient::new(
+                InterceptedService::new(inner, interceptor),
+            )
         }
         /// Compress requests with the given encoding.
         ///
@@ -128,7 +131,10 @@ pub mod journal_server_inner_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -163,7 +169,8 @@ pub mod journal_server_inner_service_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for JournalServerInnerServiceServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>>
+    for JournalServerInnerServiceServer<T>
     where
         T: JournalServerInnerService,
         B: Body + Send + 'static,
@@ -181,14 +188,18 @@ pub mod journal_server_inner_service_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                _ => Box::pin(async move {
-                    Ok(http::Response::builder()
-                        .status(200)
-                        .header("grpc-status", "12")
-                        .header("content-type", "application/grpc")
-                        .body(empty_body())
-                        .unwrap())
-                }),
+                _ => {
+                    Box::pin(async move {
+                        Ok(
+                            http::Response::builder()
+                                .status(200)
+                                .header("grpc-status", "12")
+                                .header("content-type", "application/grpc")
+                                .body(empty_body())
+                                .unwrap(),
+                        )
+                    })
+                }
             }
         }
     }
@@ -215,8 +226,7 @@ pub mod journal_server_inner_service_server {
         }
     }
     impl<T: JournalServerInnerService> tonic::server::NamedService
-        for JournalServerInnerServiceServer<T>
-    {
+    for JournalServerInnerServiceServer<T> {
         const NAME: &'static str = "inner.JournalServerInnerService";
     }
 }
