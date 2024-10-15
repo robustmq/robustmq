@@ -132,7 +132,7 @@ mod filter {
         // filter len + filter + options
         2 + filter.path.len() + 1
     }
-    
+
     pub fn write(filter: &Filter, buffer: &mut BytesMut) {
         let mut options = 0;
         options |= filter.qos as u8;
