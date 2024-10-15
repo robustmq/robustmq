@@ -12,16 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bytes::Bytes;
-#[allow(dead_code)]
-pub struct Header {
-    pub key: String,
-    pub value: Bytes,
+pub const DB_COLUMN_FAMILY_DEFAULT: &str = "default";
+
+pub fn column_family_list() -> Vec<String> {
+    vec![DB_COLUMN_FAMILY_DEFAULT.to_string()]
 }
 
-impl Header {
-    #[allow(dead_code)]
-    pub fn new(key: String, value: Bytes) -> Self {
-        Header { key, value }
-    }
+pub fn kv_storage_data_fold(path: &str) -> String {
+    format!("{}/_kv_data", path)
 }
