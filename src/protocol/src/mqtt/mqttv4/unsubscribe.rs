@@ -90,7 +90,7 @@ mod tests {
         };
 
         // test unsubscribe write function
-        write(&unsubscribe, &mut buffer);
+        write(&unsubscribe, &mut buffer).unwrap();
 
         // test unsubscribe read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

@@ -23,6 +23,4 @@ impl GrpcJournalServerAdminService {
 }
 
 #[tonic::async_trait]
-impl JournalServerAdminService for GrpcJournalServerAdminService {
-
-}
+impl JournalServerAdminService for GrpcJournalServerAdminService {}

@@ -145,7 +145,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<PubAckProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PubAckProperties>, Error> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 
@@ -233,7 +233,7 @@ mod tests {
         };
 
         // test the write function of PubAck in v5
-        write(&puback, &Some(properties), &mut buffer);
+        write(&puback, &Some(properties), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

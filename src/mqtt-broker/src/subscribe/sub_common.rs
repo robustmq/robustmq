@@ -17,11 +17,11 @@ use std::time::Duration;
 
 use axum::extract::ws::Message;
 use bytes::BytesMut;
- use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
- use grpc_clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
+use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
+use grpc_clients::poll::ClientPool;
 use log::error;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS};
@@ -411,8 +411,8 @@ pub async fn publish_message_qos0(
 mod tests {
     use std::sync::Arc;
 
-     use grpc_clients::poll::ClientPool;
     use common_base::tools::unique_id;
+    use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::QoS;
 

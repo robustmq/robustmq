@@ -31,7 +31,6 @@
 use super::*;
 
 /// pingreq and pingresp in MQTT v5 are as same as that in MQTT v4
-
 pub mod pingreq {
     use super::*;
     pub fn write(payload: &mut BytesMut) -> Result<usize, Error> {

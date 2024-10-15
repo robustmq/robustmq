@@ -133,40 +133,6 @@ mod filter {
         2 + filter.path.len() + 1
     }
 
-    pub fn read(bytes: &mut Bytes) -> Result<Vec<Filter>, Error> {
-        // variable header size = 2 (packet identifier)
-        let mut filters = Vec::new();
-
-        while bytes.has_remaining() {
-            let path = read_mqtt_string(bytes)?;
-            let options = read_u8(bytes)?;
-            let requested_qos = options & 0b0000_0011;
-
-            let nolocal = options >> 2 & 0b0000_0001;
-            let nolocal = nolocal != 0;
-
-            let preserve_retain = options >> 3 & 0b0000_0011;
-            let preserve_retain = preserve_retain != 0;
-
-            let retain_forward_rule = (options >> 4) & 0b0000_0011;
-            let retain_forward_rule = match retain_forward_rule {
-                0 => RetainForwardRule::OnEverySubscribe,
-                1 => RetainForwardRule::OnNewSubscribe,
-                2 => RetainForwardRule::Never,
-                r => return Err(Error::InvalidRetainForwardRule(r)),
-            };
-
-            filters.push(Filter {
-                path,
-                qos: qos(requested_qos).ok_or(Error::InvalidQoS(requested_qos))?,
-                nolocal,
-                preserve_retain,
-                retain_forward_rule,
-            });
-        }
-        Ok(filters)
-    }
-
     pub fn write(filter: &Filter, buffer: &mut BytesMut) {
         let mut options = 0;
         options |= filter.qos as u8;
@@ -207,7 +173,7 @@ mod properties {
         len
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<SubscribeProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<SubscribeProperties>, Error> {
         let mut id = None;
         let mut user_properties = Vec::new();
 

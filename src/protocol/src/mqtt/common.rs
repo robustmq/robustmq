@@ -30,8 +30,7 @@
 
 use std::slice::Iter;
 use std::str::Utf8Error;
-use std::string::FromUtf8Error;
-use std::{default, fmt, io};
+use std::{fmt, io};
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
@@ -310,8 +309,8 @@ pub fn read_mqtt_string(stream: &mut Bytes) -> Result<String, Error> {
     }
 }
 
-/// After collecting enough bytes to frame a packet (packet's frame()), it's possible that
-/// content itself in the stream is wrong. Like expected packet id or qos not being present.
+/// After collecting enough bytes to frame a packet (packet's frame()),
+/// it's possible thatcontent itself in the stream is wrong. Like expected packet id or qos not being present.
 /// In cases where 'read_mqtt_string' or 'read_mqtt_bytes' exhausted remaining length but
 /// packet framing expects to parse qos next, these pre checks will prevent 'bytes' crashes.
 pub fn read_u16(stream: &mut Bytes) -> Result<u16, Error> {
@@ -456,7 +455,7 @@ pub fn qos(num: u8) -> Option<QoS> {
         0 => Some(QoS::AtMostOnce),
         1 => Some(QoS::AtLeastOnce),
         2 => Some(QoS::ExactlyOnce),
-        qos => None,
+        _ => None,
     }
 }
 

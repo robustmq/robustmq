@@ -15,10 +15,10 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
- use grpc_clients::poll::ClientPool;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use common_base::tools::unique_id;
+use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::mqtt::common::{Publish, PublishProperties};
 use regex::Regex;

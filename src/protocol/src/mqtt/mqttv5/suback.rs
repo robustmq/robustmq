@@ -114,7 +114,7 @@ mod properties {
         len
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<SubAckProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<SubAckProperties>, Error> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 

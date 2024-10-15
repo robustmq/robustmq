@@ -17,8 +17,8 @@ use std::fmt::Display;
 use std::path::Path;
 use std::sync::Arc;
 
- use grpc_clients::poll::ClientPool;
 use common_base::config::placement_center::placement_center_conf;
+use grpc_clients::poll::ClientPool;
 use log::info;
 use openraft::{Config, Raft};
 
@@ -106,7 +106,7 @@ pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
 pub fn calc_init_node(nodes: &BTreeMap<u64, Node>) -> u64 {
     let mut node_ids: Vec<u64> = nodes.keys().copied().collect();
     node_ids.sort();
-    return *node_ids.first().unwrap();
+    *node_ids.first().unwrap()
 }
 
 pub async fn create_raft_node(

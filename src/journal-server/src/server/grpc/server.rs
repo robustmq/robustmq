@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
- use grpc_clients::poll::ClientPool;
 use common_base::error::common::CommonError;
+use grpc_clients::poll::ClientPool;
 use log::info;
 use protocol::journal_server::generate::protocol::admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 use protocol::journal_server::generate::protocol::inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
@@ -31,7 +31,10 @@ pub struct GrpcServer {
 
 impl GrpcServer {
     pub fn new(port: u32, client_poll: Arc<ClientPool>) -> Self {
-        Self { port, _client_poll: client_poll }
+        Self {
+            port,
+            _client_poll: client_poll,
+        }
     }
     pub async fn start(&self) -> Result<(), CommonError> {
         let addr = format!("0.0.0.0:{}", self.port).parse()?;

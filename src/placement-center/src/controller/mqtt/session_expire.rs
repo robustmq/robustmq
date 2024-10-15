@@ -346,7 +346,7 @@ mod tests {
         }
         let esp = now_second() - start;
         println!("{}", esp);
-        assert!(esp >= 3 && esp <= 5);
+        assert!((3..=5).contains(&esp));
 
         remove_dir_all(config.rocksdb.data_path).unwrap();
     }

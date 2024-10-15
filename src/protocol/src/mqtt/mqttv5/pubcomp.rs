@@ -146,7 +146,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<PubCompProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PubCompProperties>, Error> {
         let mut reason_string = None;
         let mut user_properties = Vec::new();
 
@@ -221,7 +221,7 @@ mod tests {
         };
 
         // test the write function of PubRel in v5
-        write(&pubcomp, &Some(properties), &mut buffer);
+        write(&pubcomp, &Some(properties), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

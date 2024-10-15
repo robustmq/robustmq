@@ -109,7 +109,7 @@ fn handler_child_process(
         let mut raw_stop_rx = stop_sx.subscribe();
         let raw_connect_manager = connection_manager.clone();
         let raw_response_queue_sx = response_queue_sx.clone();
-        let mut raw_command = command.clone();
+        let raw_command = command.clone();
 
         tokio::spawn(async move {
             debug!(

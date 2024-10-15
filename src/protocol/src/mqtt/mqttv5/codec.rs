@@ -17,9 +17,8 @@ use tokio_util::codec;
 
 use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
-    subscribe, unsuback, unsubscribe, ConnectReadOutcome, Error, MQTTPacket, PacketType,
+    subscribe, unsuback, unsubscribe, ConnectReadOutcome, MQTTPacket, PacketType,
 };
-use crate::mqtt::common::LastWillProperties;
 
 #[derive(Clone, Debug)]
 pub struct Mqtt5Codec {}
@@ -39,28 +38,52 @@ impl Mqtt5Codec {
 impl codec::Encoder<MQTTPacket> for Mqtt5Codec {
     type Error = super::Error;
     fn encode(&mut self, packet: MQTTPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
-        let size = match packet {
-            MQTTPacket::Connect(protocol_level,connect, properties, last_will, last_will_peoperties, login) => {
-                connect::write(&connect, &properties, &last_will,  &last_will_peoperties, &login, buffer)?
+        match packet {
+            MQTTPacket::Connect(_, connect, properties, last_will, last_will_peoperties, login) => {
+                connect::write(
+                    &connect,
+                    &properties,
+                    &last_will,
+                    &last_will_peoperties,
+                    &login,
+                    buffer,
+                )?
             }
-            MQTTPacket::ConnAck(connack, conn_ack_properties) => connack::write(&connack,&conn_ack_properties, buffer)?,
-            MQTTPacket::Publish(publish, publish_properties ) => publish::write(&publish, &publish_properties,buffer)?,
-            MQTTPacket::PubAck(puback, pub_ack_properties) => puback::write(&puback, &pub_ack_properties,buffer)?,
-            MQTTPacket::PubRec(pubrec, pub_rec_properties) => pubrec::write(&pubrec, &pub_rec_properties,buffer)?,
-            MQTTPacket::PubRel(pubrel, pub_rel_properties) => pubrel::write(&pubrel, &pub_rel_properties,buffer)?,
-            MQTTPacket::PubComp(pubcomp, pub_comp_properties) => pubcomp::write(&pubcomp, &pub_comp_properties,buffer)?,
-            MQTTPacket::Subscribe(subscribe, subscribe_properties) => subscribe::write(&subscribe,&subscribe_properties, buffer)?,
-            MQTTPacket::SubAck(suback, suback_properties) => suback::write(&suback, &suback_properties,buffer)?,
-            MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => unsubscribe::write(&unsubscribe, &unsubscribe_properties,buffer)?,
-            MQTTPacket::UnsubAck(unsuback, unsuback_properties) => unsuback::write(&unsuback, &unsuback_properties,buffer)?,
-            MQTTPacket::PingReq(pingreq) => ping::pingreq::write(buffer)?,
-            MQTTPacket::PingResp(pingresp) => ping::pingresp::write(buffer)?,
-            MQTTPacket::Disconnect(disconnect, disconnect_properties) => disconnect::write(&disconnect, &disconnect_properties,buffer)?,
-
-            //Packet::
-            _=> unreachable!(
-                "This branch only matches for packets with Properties, which is not possible in MQTT V4",
-            ),
+            MQTTPacket::ConnAck(connack, conn_ack_properties) => {
+                connack::write(&connack, &conn_ack_properties, buffer)?
+            }
+            MQTTPacket::Publish(publish, publish_properties) => {
+                publish::write(&publish, &publish_properties, buffer)?
+            }
+            MQTTPacket::PubAck(puback, pub_ack_properties) => {
+                puback::write(&puback, &pub_ack_properties, buffer)?
+            }
+            MQTTPacket::PubRec(pubrec, pub_rec_properties) => {
+                pubrec::write(&pubrec, &pub_rec_properties, buffer)?
+            }
+            MQTTPacket::PubRel(pubrel, pub_rel_properties) => {
+                pubrel::write(&pubrel, &pub_rel_properties, buffer)?
+            }
+            MQTTPacket::PubComp(pubcomp, pub_comp_properties) => {
+                pubcomp::write(&pubcomp, &pub_comp_properties, buffer)?
+            }
+            MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
+                subscribe::write(&subscribe, &subscribe_properties, buffer)?
+            }
+            MQTTPacket::SubAck(suback, suback_properties) => {
+                suback::write(&suback, &suback_properties, buffer)?
+            }
+            MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
+                unsubscribe::write(&unsubscribe, &unsubscribe_properties, buffer)?
+            }
+            MQTTPacket::UnsubAck(unsuback, unsuback_properties) => {
+                unsuback::write(&unsuback, &unsuback_properties, buffer)?
+            }
+            MQTTPacket::PingReq(_) => ping::pingreq::write(buffer)?,
+            MQTTPacket::PingResp(_) => ping::pingresp::write(buffer)?,
+            MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
+                disconnect::write(&disconnect, &disconnect_properties, buffer)?
+            }
         };
         Ok(())
     }
@@ -143,7 +166,6 @@ impl codec::Decoder for Mqtt5Codec {
                 let (disconnect, disconnect_properties) = disconnect::read(fixed_header, packet)?;
                 MQTTPacket::Disconnect(disconnect, disconnect_properties)
             }
-            _ => unreachable!(),
         };
         Ok(Some(packet))
     }

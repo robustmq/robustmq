@@ -29,14 +29,6 @@
  */
 use super::*;
 
-fn len(publish: &Publish) -> usize {
-    let len = 2 + publish.topic.len() + publish.payload.len();
-    match publish.qos != QoS::AtMostOnce && publish.pkid != 0 {
-        true => len + 2, // Add 2 more bytes if packet identifier not null
-        _ => len,
-    }
-}
-
 pub fn read(fixed_header: FixedHeader, mut bytes: Bytes) -> Result<Publish, Error> {
     let qos_num = (fixed_header.byte1 & 0b0110) >> 1;
     let qos = qos(qos_num).ok_or(Error::InvalidQoS(qos_num))?;
@@ -105,7 +97,7 @@ mod tests {
         let retain_flag: bool = false;
         let publish: Publish = Publish::new(topic_name, payload_value, retain_flag);
         // test the write function of publish packet
-        write(&publish, &mut buffer);
+        write(&publish, &mut buffer).unwrap();
 
         // test the read function of publish packet and check the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

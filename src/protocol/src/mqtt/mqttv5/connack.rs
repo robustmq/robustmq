@@ -30,7 +30,7 @@
 
 use super::*;
 
-fn len(connack: &ConnAck, properties: &Option<ConnAckProperties>) -> usize {
+fn len(properties: &Option<ConnAckProperties>) -> usize {
     let mut len = 1     // session present
                 + 1; // code
 
@@ -50,7 +50,7 @@ pub fn write(
     properties: &Option<ConnAckProperties>,
     buffer: &mut BytesMut,
 ) -> Result<usize, Error> {
-    let len = len(connack, properties);
+    let len = len(properties);
     buffer.put_u8(0x20);
 
     let count = write_remaining_length(buffer, len)?;
@@ -145,7 +145,6 @@ fn connect_code(return_code: ConnectReturnCode) -> u8 {
 }
 
 mod properties {
-    use axum::http::header::ValueDrain;
 
     use super::*;
 
@@ -223,7 +222,7 @@ mod properties {
         len
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<ConnAckProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<ConnAckProperties>, Error> {
         let mut session_expiry_interval = None;
         let mut receive_max = None;
         let mut max_qos = None;
@@ -485,7 +484,7 @@ mod tests {
         };
 
         // test write function of connack in v5
-        write(&connack, &Some(properties), &mut buffer);
+        write(&connack, &Some(properties), &mut buffer).unwrap();
 
         // read the fixed header
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

@@ -17,12 +17,15 @@ mod common;
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
-    
+
     use grpc_clients::placement::placement::call::{cluster_status, register_node};
-    use protocol::placement_center::generate::{common::ClusterType, placement::{ClusterStatusRequest, RegisterNodeRequest}};
+    use grpc_clients::poll::ClientPool;
+    use protocol::placement_center::generate::common::ClusterType;
+    use protocol::placement_center::generate::placement::{
+        ClusterStatusRequest, RegisterNodeRequest,
+    };
 
     use crate::common::get_placement_addr;
-    use grpc_clients::poll::ClientPool;
 
     #[tokio::test]
     async fn placement_test() {
@@ -39,17 +42,17 @@ mod tests {
         }
 
         let cluster_type = ClusterType::PlacementCenter as i32;
-        let cluster_name= "test-cluster-name".to_string();
+        let cluster_name = "test-cluster-name".to_string();
         let node_ip = "127.0.0.1".to_string();
         let node_id = 1235u64;
         let node_inner_addr = node_ip.clone();
         let extend_info = "".to_string();
 
-        let request = RegisterNodeRequest{
-            cluster_type: cluster_type.clone(),
+        let request = RegisterNodeRequest {
+            cluster_type,
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
-            node_id: node_id.clone(),
+            node_id,
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
@@ -60,26 +63,32 @@ mod tests {
             }
         }
 
-        let request_cluster_name_empty = RegisterNodeRequest{
-            cluster_type: cluster_type.clone(),
+        let request_cluster_name_empty = RegisterNodeRequest {
+            cluster_type,
             cluster_name: "".to_string(),
             node_ip: node_ip.clone(),
-            node_id: node_id.clone(),
+            node_id,
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
-        match register_node(client_poll.clone(), addrs.clone(), request_cluster_name_empty).await {
+        match register_node(
+            client_poll.clone(),
+            addrs.clone(),
+            request_cluster_name_empty,
+        )
+        .await
+        {
             Ok(_) => {
                 panic!("Should not passed because cluster_name is empty");
             }
             Err(_e) => {}
         }
 
-        let request_node_ip_empty = RegisterNodeRequest{
-            cluster_type: cluster_type.clone(),
+        let request_node_ip_empty = RegisterNodeRequest {
+            cluster_type,
             cluster_name: cluster_name.to_string(),
             node_ip: "".to_string(),
-            node_id: node_id.clone(),
+            node_id,
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
@@ -89,6 +98,5 @@ mod tests {
             }
             Err(_e) => {}
         }
-
     }
 }

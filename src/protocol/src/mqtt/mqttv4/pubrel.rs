@@ -30,14 +30,7 @@
 
 use super::*;
 
-impl PubRel {
-    fn mqttv4(pkid: u16) -> PubRel {
-        PubRel {
-            pkid,
-            reason: Some(PubRelReason::Success),
-        }
-    }
-}
+impl PubRel {}
 
 fn len() -> usize {
     2 //pkid which is publish packet identifier
@@ -72,9 +65,12 @@ mod tests {
     fn test_pubrel() {
         use super::*;
         let mut buffer = BytesMut::new();
-        let pubrel = PubRel::mqttv4(5u16);
+        let pubrel = PubRel {
+            pkid: 5,
+            reason: Some(PubRelReason::Success),
+        };
         // test the write function of pubrec
-        write(&pubrel, &mut buffer);
+        write(&pubrel, &mut buffer).unwrap();
 
         // test the read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

@@ -161,7 +161,7 @@ mod tests {
         };
 
         // test write function of subscribe
-        write(&subscribe, &mut buffer);
+        write(&subscribe, &mut buffer).unwrap();
 
         // test read function of subscribe and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

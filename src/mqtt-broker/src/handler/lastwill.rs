@@ -15,8 +15,8 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
- use grpc_clients::poll::ClientPool;
 use common_base::error::common::CommonError;
+use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{LastWill, LastWillProperties, Publish, PublishProperties};

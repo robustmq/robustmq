@@ -15,8 +15,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
- use grpc_clients::placement::placement::call::send_raft_message;
- use grpc_clients::poll::ClientPool;
+use grpc_clients::placement::placement::call::send_raft_message;
+use grpc_clients::poll::ClientPool;
 use log::{debug, error};
 use protocol::placement_center::generate::placement::SendRaftMessageRequest;
 use tokio::select;

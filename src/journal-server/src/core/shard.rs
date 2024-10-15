@@ -30,14 +30,14 @@ impl ShardManager {
         if let Some(shard) = self.shards.get(shar_name) {
             return Some(shard.clone());
         }
-        return None;
+        None
     }
 
     pub fn create_shard(&self) -> Result<(), JournalServerError> {
-        return Ok(());
+        Ok(())
     }
 
     pub fn delete_shard(&self) -> Result<(), JournalServerError> {
-        return Ok(());
+        Ok(())
     }
 }

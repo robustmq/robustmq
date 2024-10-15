@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::rocksdb::{column_family_list, kv_storage_data_fold, DB_COLUMN_FAMILY_DEFAULT};
-use crate::core::record::KvRecord;
-use common_base::{
-    config::journal_server::JournalServerConfig, error::journal_server::JournalServerError,
-};
+use common_base::config::journal_server::JournalServerConfig;
+use common_base::error::journal_server::JournalServerError;
 use dashmap::DashMap;
 use rocksdb_engine::RocksDBEngine;
+
+use super::rocksdb::{column_family_list, kv_storage_data_fold, DB_COLUMN_FAMILY_DEFAULT};
+use crate::core::record::KvRecord;
 
 pub struct KvEngine {
     rocksdb_instances: DashMap<String, RocksDBEngine>,
@@ -53,9 +53,9 @@ impl KvEngine {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.write(cf, key, &value)?);
         }
-        return Err(JournalServerError::NoRocksdbInstanceAvailable(
+        Err(JournalServerError::NoRocksdbInstanceAvailable(
             fold.to_string(),
-        ));
+        ))
     }
 
     pub fn delete(&self, fold: &String, key: &String) -> Result<(), JournalServerError> {
@@ -63,9 +63,9 @@ impl KvEngine {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.delete(cf, key)?);
         }
-        return Err(JournalServerError::NoRocksdbInstanceAvailable(
+        Err(JournalServerError::NoRocksdbInstanceAvailable(
             fold.to_string(),
-        ));
+        ))
     }
 
     pub fn exists(&self, fold: &String, key: &String) -> Result<bool, JournalServerError> {
@@ -73,9 +73,9 @@ impl KvEngine {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.exist(cf, key));
         }
-        return Err(JournalServerError::NoRocksdbInstanceAvailable(
+        Err(JournalServerError::NoRocksdbInstanceAvailable(
             fold.to_string(),
-        ));
+        ))
     }
 
     pub fn get(&self, fold: &String, key: &String) -> Result<Option<KvRecord>, JournalServerError> {
@@ -83,8 +83,8 @@ impl KvEngine {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.read::<KvRecord>(cf, key)?);
         }
-        return Err(JournalServerError::NoRocksdbInstanceAvailable(
+        Err(JournalServerError::NoRocksdbInstanceAvailable(
             fold.to_string(),
-        ));
+        ))
     }
 }
