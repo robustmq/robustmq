@@ -31,7 +31,6 @@ use tokio::sync::broadcast;
 mod core;
 mod index;
 mod kv;
-mod record;
 mod segment;
 mod metadata;
 mod server;
