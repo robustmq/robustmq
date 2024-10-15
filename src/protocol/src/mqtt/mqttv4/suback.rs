@@ -111,7 +111,7 @@ mod tests {
             return_codes,
         };
         // test suback write function
-        write(&suback, &mut buffer);
+        write(&suback, &mut buffer).unwrap();
 
         // test suback read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

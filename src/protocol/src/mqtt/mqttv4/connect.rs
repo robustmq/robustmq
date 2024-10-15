@@ -266,7 +266,7 @@ mod tests {
             clean_session: true,
         };
         // test function write
-        write(&connect, &login, &lastwill, &mut buff_write);
+        write(&connect, &login, &lastwill, &mut buff_write).unwrap();
 
         //construct the test case - connect packet: b"\x10\x1a\0\x04MQTT\x04\x02\0\x1e\0\x0etest_client_id”
         //The total length is 28 bytes. break it down into 3 parts - fixed header, variable header and payload
@@ -314,7 +314,7 @@ mod tests {
         assert_eq!(fixheader.fixed_header_len, 2);
         assert!(fixheader.remaining_len == 26);
         // test read function, x gets connect, y gets login and z gets will
-        let (l, x, y, z) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
+        let (l, x, _, _) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
         // only check connect value in this case as login and will being none
         assert_eq!(x.client_id, "test_client_id");
         assert_eq!(x.keep_alive, 30);
@@ -326,8 +326,6 @@ mod tests {
         use super::*;
 
         let client_id = String::from("test_client_id");
-        let client_id_length = client_id.len();
-        let buff_write = BytesMut::new();
 
         let login: Login = Login {
             username: String::from("test_user"),

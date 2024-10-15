@@ -71,7 +71,7 @@ mod tests {
         let mut buffer: BytesMut = BytesMut::new();
         let puback: PubAck = PubAck {
             pkid: 1,
-            reason: None,
+            reason: Some(PubAckReason::Success),
         };
 
         // test the write function

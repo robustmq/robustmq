@@ -484,7 +484,7 @@ mod tests {
         };
 
         // test write function of connack in v5
-        write(&connack, &Some(properties), &mut buffer);
+        write(&connack, &Some(properties), &mut buffer).unwrap();
 
         // read the fixed header
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

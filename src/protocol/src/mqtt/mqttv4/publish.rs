@@ -97,7 +97,7 @@ mod tests {
         let retain_flag: bool = false;
         let publish: Publish = Publish::new(topic_name, payload_value, retain_flag);
         // test the write function of publish packet
-        write(&publish, &mut buffer);
+        write(&publish, &mut buffer).unwrap();
 
         // test the read function of publish packet and check the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

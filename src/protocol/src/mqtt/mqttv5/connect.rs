@@ -687,7 +687,7 @@ mod tests {
         assert!(fixedheader.remaining_len == 273);
         // test the read method of connect packet in v5 and verify the result of the write method
         let ConnectReadOutcome {
-            protocol_version,
+            protocol_version: _,
             connect,
             properties: connectproperties,
             last_will,

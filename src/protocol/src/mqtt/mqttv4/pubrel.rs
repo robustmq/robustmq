@@ -66,8 +66,8 @@ mod tests {
         use super::*;
         let mut buffer = BytesMut::new();
         let pubrel = PubRel {
-            pkid: 0,
-            reason: None,
+            pkid: 5,
+            reason: Some(PubRelReason::Success),
         };
         // test the write function of pubrec
         write(&pubrel, &mut buffer).unwrap();

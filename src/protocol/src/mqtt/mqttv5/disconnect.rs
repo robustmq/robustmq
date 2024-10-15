@@ -315,7 +315,7 @@ mod test {
 
         let fixed_header = parse_fixed_header(buffer.iter()).unwrap();
         let disconnect_bytes = buffer.split_to(fixed_header.frame_length()).freeze();
-        let (disconnect, properties) = read(fixed_header, disconnect_bytes).unwrap();
+        let (disconnect, _) = read(fixed_header, disconnect_bytes).unwrap();
 
         assert_eq!(disconnect, expected);
     }
