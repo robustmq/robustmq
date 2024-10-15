@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::broker_server::generate::admin::{ClusterStatusReply, ClusterStatusRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest};
 
 use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
 use crate::poll::ClientPool;

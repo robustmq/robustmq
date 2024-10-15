@@ -15,7 +15,7 @@
  */
 
 syntax = "proto3";
-package mqtt;
+package placement.center.mqtt;
 import "common.proto";
 
 service MqttService {

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use inner::{inner_delete_session, inner_send_last_will_message, inner_update_cache};
 use mobc::{Connection, Manager};
-use protocol::broker_server::generate::placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
+use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
 use tonic::transport::Channel;
 
 use super::MQTTBrokerPlacementInterface;

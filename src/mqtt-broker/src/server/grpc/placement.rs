@@ -17,8 +17,8 @@ use std::sync::Arc;
 use grpc_clients::poll::ClientPool;
 use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
-use protocol::broker_server::generate::placement::mqtt_broker_placement_service_server::MqttBrokerPlacementService;
-use protocol::broker_server::generate::placement::{
+use protocol::broker_mqtt::generate::placement::mqtt_broker_placement_service_server::MqttBrokerPlacementService;
+use protocol::broker_mqtt::generate::placement::{
     CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
 };
 use storage_adapter::storage::StorageAdapter;

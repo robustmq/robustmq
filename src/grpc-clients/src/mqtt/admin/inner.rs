@@ -15,7 +15,7 @@
 use common_base::error::common::CommonError;
 use mobc::Connection;
 use prost::Message;
-use protocol::broker_server::generate::admin::{ClusterStatusReply, ClusterStatusRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest};
 
 use super::MqttBrokerAdminServiceManager;
 

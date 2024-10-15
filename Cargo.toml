@@ -113,9 +113,3 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
-
-[workspace.metadata.cross.target.x86_64-unknown-linux-gnu]
-pre-build = ["yum install clang", "yum install llvm", "yum install rocksdb"]
-
-[workspace.metadata.cross.target.x86_64-unknown-linux-musl]
-pre-build = ["yum install clang", "yum install llvm", "yum install rocksdb"]

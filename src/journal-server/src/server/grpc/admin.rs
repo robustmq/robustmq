@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::generate::protocol::admin::journal_server_admin_service_server::JournalServerAdminService;
+use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminService;
 
 pub struct GrpcJournalServerAdminService {}
 

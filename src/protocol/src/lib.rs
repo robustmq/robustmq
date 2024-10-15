@@ -28,7 +28,7 @@
  * limitations under the License.
  */
 pub mod amqp;
-pub mod broker_server;
+pub mod broker_mqtt;
 pub mod journal_server;
 pub mod mqtt;
 pub mod placement_center;

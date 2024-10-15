@@ -15,7 +15,7 @@
  */
 
 syntax = "proto3";
-package placement;
+package placement.center.inner;
 import "common.proto";
 
 service PlacementCenterService {
