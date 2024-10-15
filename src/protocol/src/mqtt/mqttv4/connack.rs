@@ -97,7 +97,7 @@ mod tests {
         };
         let mut buffer = BytesMut::new();
         // test the write function
-        write(&connack, &mut buffer);
+        write(&connack, &mut buffer).unwrap();
 
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
         // read the 1st byte and check its packet type which should be connack(0x20)

@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use log::error;
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicU64;
+
+use log::error;
 use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 

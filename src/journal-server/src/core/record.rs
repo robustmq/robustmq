@@ -12,8 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[allow(dead_code)]
-pub struct RecordBatch {
-    pub first_offset: u32,
-    pub leader_epoch: u16,
+use bytes::Bytes;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct KvRecord {
+    pub key: Bytes,
+    pub value: Bytes,
+    pub timestamp: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SegmentRecord {
+    pub offset: u64,
+    pub sequence: u32,
+    pub timestamp: u64,
+    pub size: u32,
+    pub is_compressed: bool,
+    pub key_size: u32,
+    pub key: Bytes,
+    pub value_size: u32,
+    pub value: Bytes,
 }

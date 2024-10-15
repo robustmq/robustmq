@@ -39,7 +39,7 @@ impl codec::Encoder<MQTTPacket> for Mqtt4Codec {
     type Error = super::Error;
     fn encode(&mut self, packet: MQTTPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         match packet {
-            MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login) => {
+            MQTTPacket::Connect(_,connect, None, last_will, None, login) => {
                 connect::write(&connect, &login, &last_will, buffer)?
             }
             MQTTPacket::ConnAck(connack, _) => connack::write(&connack, buffer)?,
@@ -52,8 +52,8 @@ impl codec::Encoder<MQTTPacket> for Mqtt4Codec {
             MQTTPacket::SubAck(suback, None) => suback::write(&suback, buffer)?,
             MQTTPacket::Unsubscribe(unsubscribe, None) => unsubscribe::write(&unsubscribe, buffer)?,
             MQTTPacket::UnsubAck(unsuback, None) => unsuback::write(&unsuback, buffer)?,
-            MQTTPacket::PingReq(pingreq) => ping::pingreq::write(buffer)?,
-            MQTTPacket::PingResp(pingresp) => ping::pingresp::write(buffer)?,
+            MQTTPacket::PingReq(_) => ping::pingreq::write(buffer)?,
+            MQTTPacket::PingResp(_) => ping::pingresp::write(buffer)?,
             MQTTPacket::Disconnect(disconnect, None) => disconnect::write(&disconnect, buffer)?,
 
             //Packet::
@@ -101,7 +101,6 @@ impl codec::Decoder for Mqtt4Codec {
             // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
             // hit when Disconnect packet has properties which are only valid for MQTT V5
             PacketType::Disconnect => return Err(Error::InvalidProtocol),
-            _ => unreachable!(),
         };
         Ok(Some(packet))
     }

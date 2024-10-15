@@ -12,6 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct JournalSegment{
-    
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct JournalSegment {
+    shard_name: String,
+    segment_seq: u32,
+    start_offset: u64,
+    end_offset: u64,
+    replica: Vec<JournalSegmentNode>,
+    status: JournalSegmentStatus,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct JournalSegmentNode {
+    node_id: u32,
+    data_fold: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum JournalSegmentStatus {
+    CREATE,
+    AVTIVE,
+    BLOCKED,
 }

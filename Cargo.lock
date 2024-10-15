@@ -1777,6 +1777,7 @@ dependencies = [
  "log",
  "metadata-struct",
  "protocol",
+ "rocksdb-engine",
  "rustls-pemfile",
  "serde",
  "serde_json",

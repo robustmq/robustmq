@@ -14,15 +14,15 @@
 
 use std::sync::Arc;
 
- use grpc_clients::placement::mqtt::call::{
-    placement_create_topic, placement_delete_topic, placement_list_topic,
-    placement_set_topic_retain_message,
-};
- use grpc_clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use dashmap::DashMap;
+use grpc_clients::placement::mqtt::call::{
+    placement_create_topic, placement_delete_topic, placement_list_topic,
+    placement_set_topic_retain_message,
+};
+use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::placement_center::generate::mqtt::{
@@ -215,10 +215,10 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
-     use grpc_clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::logs::init_log;
     use common_base::tools::unique_id;
+    use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{Publish, PublishProperties};

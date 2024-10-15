@@ -49,7 +49,7 @@ pub async fn register_journal_node(
     };
     register_node(client_poll.clone(), config.placement_center, req.clone()).await?;
     info!("Node {} register successfully", config.node_id);
-    return Ok(());
+    Ok(())
 }
 
 pub async fn unregister_journal_node(
@@ -63,7 +63,7 @@ pub async fn unregister_journal_node(
     };
     unregister_node(client_poll.clone(), config.placement_center, req.clone()).await?;
     info!("Node {} exits successfully", config.node_id);
-    return Ok(());
+    Ok(())
 }
 
 pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {

@@ -80,9 +80,26 @@ message GetActiveSegmentResp{
 
 /** Get the Segment where the Shard is active **/
 message OffsetCommitReqBody{
+    string namespace = 1;
+    string group = 2;
+    repeated OffsetCommitShard shard = 3;
+}
+
+message OffsetCommitShard{
+    string shard_name = 1;
+    string offset =2;
 }
 
 message OffsetCommitRespBody{
+    string namespace = 1;
+    string group = 2;
+    repeated OffsetCommitShardResp resp = 3;
+}
+
+message OffsetCommitShardResp{
+    string shard_name = 1;
+    ErrorCode err_code = 2;
+    string error = 3;
 }
 
 message OffsetCommitReq{

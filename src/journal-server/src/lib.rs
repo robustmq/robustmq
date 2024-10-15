@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::cache::CacheManager;
+use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use std::sync::Arc;
 
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
-use core::cache::CacheManager;
-use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use grpc_clients::poll::ClientPool;
 use log::{error, info};
 use server::connection_manager::ConnectionManager;
@@ -31,9 +31,8 @@ use tokio::sync::broadcast;
 mod core;
 mod index;
 mod kv;
-mod record;
-mod segment;
 mod metadata;
+mod segment;
 mod server;
 
 pub struct JournalServer {

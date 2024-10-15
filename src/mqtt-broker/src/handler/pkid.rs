@@ -14,12 +14,12 @@
 
 use std::sync::Arc;
 
- use grpc_clients::placement::placement::call::{
-    delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
-};
- use grpc_clients::poll::ClientPool;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
+use grpc_clients::placement::placement::call::{
+    delete_idempotent_data, exists_idempotent_data, set_idempotent_data,
+};
+use grpc_clients::poll::ClientPool;
 use protocol::placement_center::generate::placement::{
     DeleteIdempotentDataRequest, ExistsIdempotentDataRequest, SetIdempotentDataRequest,
 };
@@ -123,8 +123,8 @@ pub async fn pkid_delete(
 mod test {
     use std::sync::Arc;
 
-     use grpc_clients::poll::ClientPool;
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
+    use grpc_clients::poll::ClientPool;
 
     use super::{pkid_delete, pkid_exists, pkid_save};
     use crate::handler::cache::CacheManager;

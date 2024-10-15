@@ -35,7 +35,6 @@ use std::string::FromUtf8Error;
 use thiserror::Error;
 use tonic::Status;
 
-use crate::error::journal_server::JournalServerError;
 use crate::error::mqtt_broker::MQTTBrokerError;
 use crate::error::placement_center::PlacementCenterError;
 
@@ -64,9 +63,6 @@ pub enum CommonError {
 
     #[error("{0}")]
     PlacementCenterError(#[from] PlacementCenterError),
-
-    #[error("{0}")]
-    JournalServerError(#[from] JournalServerError),
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),

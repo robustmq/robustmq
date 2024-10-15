@@ -19,9 +19,9 @@ impl Shard {
         Shard {}
     }
 
-    pub fn create() {}
+    pub fn create(&self) {}
 
-    pub fn delete() {}
+    pub fn delete(&self) {}
 
-    pub fn get() {}
+    pub fn get(&self) {}
 }

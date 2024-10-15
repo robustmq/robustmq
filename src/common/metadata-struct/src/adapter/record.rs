@@ -76,12 +76,12 @@ impl Record {
     }
 
     pub fn build_e(data: String) -> Self {
-        return Record {
+        Record {
             offset: 0,
             key: None,
             data: data.as_bytes().to_vec(),
             create_time: None,
             header: None,
-        };
+        }
     }
 }

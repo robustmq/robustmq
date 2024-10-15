@@ -30,7 +30,6 @@
 
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-use super::*;
 use crate::mqtt::common::*;
 
 pub mod codec;

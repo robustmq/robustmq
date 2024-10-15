@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::net::SocketAddr;
+
 use common_base::tools::now_mills;
 use protocol::journal_server::codec::JournalEnginePacket;
-use std::net::SocketAddr;
 
 #[derive(Clone, Debug)]
 pub struct RequestPackage {

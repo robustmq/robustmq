@@ -30,14 +30,7 @@
 
 use super::*;
 
-impl PubComp {
-    fn mqttv4(pkid: u16) -> PubComp {
-        PubComp {
-            pkid,
-            reason: Some(PubCompReason::Success),
-        }
-    }
-}
+impl PubComp {}
 
 fn len() -> usize {
     2 // pkid which is packet identifier
@@ -72,9 +65,12 @@ mod tests {
     fn test_pubcomp() {
         use super::*;
         let mut buffer = BytesMut::new();
-        let pubcomp = PubComp::mqttv4(5u16);
+        let pubcomp = PubComp {
+            pkid: 5,
+            reason: Some(PubCompReason::Success),
+        };
         // test the write function of pubrec
-        write(&pubcomp, &mut buffer);
+        write(&pubcomp, &mut buffer).unwrap();
 
         // test the read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

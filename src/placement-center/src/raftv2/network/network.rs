@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
- use grpc_clients::poll::ClientPool;
+use grpc_clients::poll::ClientPool;
 use openraft::RaftNetworkFactory;
 
 use super::connection::NetworkConnection;

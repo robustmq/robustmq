@@ -28,19 +28,10 @@
  * limitations under the License.
  */
 
-use std::fmt;
-
 /// puback packet is an acknowledgement to QoS 1 publish packet
 use super::*;
 
-impl PubAck {
-    fn mqttv4(pkid: u16) -> PubAck {
-        PubAck {
-            pkid,
-            reason: Some(PubAckReason::Success),
-        }
-    }
-}
+impl PubAck {}
 fn len() -> usize {
     2 // pkid - publish identifier
 }
@@ -72,17 +63,19 @@ pub fn write(puback: &PubAck, buffer: &mut BytesMut) -> Result<usize, Error> {
 
 #[cfg(test)]
 mod tests {
-    use crate::mqtt::common::PubAckReason;
 
     #[test]
     fn test_puback() {
         use super::*;
 
         let mut buffer: BytesMut = BytesMut::new();
-        let puback: PubAck = PubAck::mqttv4(5u16);
+        let puback: PubAck = PubAck {
+            pkid: 1,
+            reason: Some(PubAckReason::Success),
+        };
 
         // test the write function
-        write(&puback, &mut buffer);
+        write(&puback, &mut buffer).unwrap();
 
         // test the read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

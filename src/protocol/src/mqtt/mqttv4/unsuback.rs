@@ -65,7 +65,7 @@ mod tests {
         };
 
         // test unsuback write function
-        write(&unsuback, &mut buffer);
+        write(&unsuback, &mut buffer).unwrap();
 
         // test read and verify the result of the write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

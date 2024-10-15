@@ -55,7 +55,7 @@ pub fn write(
     if let Some(p) = properties {
         properties::write(p, buffer)?;
     } else {
-        write_remaining_length(buffer, 0);
+        write_remaining_length(buffer, 0).unwrap();
     }
 
     buffer.extend_from_slice(&publish.payload);
@@ -120,7 +120,6 @@ pub fn len(publish: &Publish, properties: &Option<PublishProperties>) -> usize {
 }
 
 mod properties {
-    use axum::extract::rejection::JsonDataError;
 
     use super::*;
 
@@ -210,7 +209,7 @@ mod properties {
         Ok(())
     }
 
-    pub fn read(mut bytes: &mut Bytes) -> Result<Option<PublishProperties>, Error> {
+    pub fn read(bytes: &mut Bytes) -> Result<Option<PublishProperties>, Error> {
         let mut payload_format_indicator = None;
         let mut message_expiry_interval = None;
         let mut topic_alias = None;
@@ -328,7 +327,7 @@ mod tests {
         };
 
         // test write function of publish in MQTT v5
-        write(&publish, &Some(pub_properties), &mut buffer);
+        write(&publish, &Some(pub_properties), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();
