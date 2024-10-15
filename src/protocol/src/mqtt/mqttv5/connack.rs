@@ -30,7 +30,7 @@
 
 use super::*;
 
-fn len(connack: &ConnAck, properties: &Option<ConnAckProperties>) -> usize {
+fn len(properties: &Option<ConnAckProperties>) -> usize {
     let mut len = 1     // session present
                 + 1; // code
 
@@ -50,7 +50,7 @@ pub fn write(
     properties: &Option<ConnAckProperties>,
     buffer: &mut BytesMut,
 ) -> Result<usize, Error> {
-    let len = len(connack, properties);
+    let len = len(properties);
     buffer.put_u8(0x20);
 
     let count = write_remaining_length(buffer, len)?;

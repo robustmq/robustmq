@@ -79,7 +79,7 @@ mod tests {
         let puback: PubAck = PubAck::mqttv4(5u16);
 
         // test the write function
-        write(&puback, &mut buffer);
+        write(&puback, &mut buffer).unwrap();
 
         // test the read function and verify the result of write function
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

@@ -77,6 +77,6 @@ impl Command {
                 );
             }
         }
-        return None;
+        None
     }
 }

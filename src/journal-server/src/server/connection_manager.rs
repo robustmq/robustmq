@@ -77,7 +77,7 @@ impl ConnectionManager {
         self.tcp_tls_write_list.insert(connection_id, write);
     }
 
-    pub async fn close_all_connect(&self) {
+    pub async fn _close_all_connect(&self) {
         for (connect_id, _) in self.connections.clone() {
             self.close_connect(connect_id).await;
         }

@@ -55,7 +55,7 @@ pub fn write(
     if let Some(p) = properties {
         properties::write(p, buffer)?;
     } else {
-        write_remaining_length(buffer, 0);
+        write_remaining_length(buffer, 0).unwrap();
     }
 
     buffer.extend_from_slice(&publish.payload);
@@ -327,7 +327,7 @@ mod tests {
         };
 
         // test write function of publish in MQTT v5
-        write(&publish, &Some(pub_properties), &mut buffer);
+        write(&publish, &Some(pub_properties), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

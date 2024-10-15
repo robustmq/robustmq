@@ -106,7 +106,7 @@ pub async fn start_openraft_node(raft_node: Raft<TypeConfig>) {
 pub fn calc_init_node(nodes: &BTreeMap<u64, Node>) -> u64 {
     let mut node_ids: Vec<u64> = nodes.keys().copied().collect();
     node_ids.sort();
-    return *node_ids.first().unwrap();
+    *node_ids.first().unwrap()
 }
 
 pub async fn create_raft_node(

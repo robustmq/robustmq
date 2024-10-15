@@ -674,7 +674,8 @@ mod tests {
             &Some(will_properties),
             &Some(login),
             &mut buffer,
-        );
+        )
+        .unwrap();
 
         // read the fixed header
         let fixedheader: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

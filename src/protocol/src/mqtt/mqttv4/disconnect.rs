@@ -31,7 +31,7 @@
 use super::*;
 
 impl Disconnect {
-    fn mqttv4() -> Disconnect {
+    fn new() -> Disconnect {
         Disconnect {
             reason_code: Some(DisconnectReasonCode::NormalDisconnection),
         }
@@ -54,7 +54,7 @@ mod tests {
     #[test]
     fn test_disconnect() {
         let mut buffer = BytesMut::new();
-        let disconnect = Disconnect::mqttv4();
+        let disconnect = Disconnect::new();
         // test write function
         write(&disconnect, &mut buffer);
         assert_eq!(buffer.get_u8(), 0b11100000);

@@ -233,7 +233,7 @@ mod tests {
         };
 
         // test the write function of PubAck in v5
-        write(&puback, &Some(properties), &mut buffer);
+        write(&puback, &Some(properties), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

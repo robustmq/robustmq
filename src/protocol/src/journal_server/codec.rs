@@ -68,8 +68,8 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
         item: JournalEnginePacket,
         dst: &mut bytes::BytesMut,
     ) -> Result<(), Self::Error> {
-        let mut header_byte = Vec::new();
-        let mut body_byte = Vec::new();
+        let header_byte;
+        let body_byte;
         let mut req_type = 2;
         match item {
             // Write
@@ -243,56 +243,32 @@ impl codec::Decoder for JournalServerCodec {
                 // Build structured data from the contents of the body and header
                 match ReqHeader::decode(header_body_bytes.as_ref()) {
                     Ok(header) => match header.api_key() {
-                        ApiKey::Write => {
-                            return write_req(body_bytes, header);
-                        }
+                        ApiKey::Write => write_req(body_bytes, header),
 
-                        ApiKey::Read => {
-                            return read_req(body_bytes, header);
-                        }
+                        ApiKey::Read => read_req(body_bytes, header),
 
-                        ApiKey::GetActiveSegment => {
-                            return get_active_segment_req(body_bytes, header);
-                        }
+                        ApiKey::GetActiveSegment => get_active_segment_req(body_bytes, header),
 
-                        ApiKey::OffsetCommit => {
-                            return offset_commit_req(body_bytes, header);
-                        }
+                        ApiKey::OffsetCommit => offset_commit_req(body_bytes, header),
                     },
-                    Err(e) => {
-                        return Err(Error::DecodeHeaderError(e.to_string()));
-                    }
+                    Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
                 }
             }
             // Response
             2 => match RespHeader::decode(header_body_bytes.as_ref()) {
                 Ok(header) => match header.api_key() {
-                    ApiKey::Write => {
-                        return write_resp(body_bytes, header);
-                    }
+                    ApiKey::Write => write_resp(body_bytes, header),
 
-                    ApiKey::Read => {
-                        return read_resp(body_bytes, header);
-                    }
+                    ApiKey::Read => read_resp(body_bytes, header),
 
-                    ApiKey::GetActiveSegment => {
-                        return get_active_segment_resp(body_bytes, header);
-                    }
+                    ApiKey::GetActiveSegment => get_active_segment_resp(body_bytes, header),
 
-                    ApiKey::OffsetCommit => {
-                        return offset_commit_resp(body_bytes, header);
-                    }
+                    ApiKey::OffsetCommit => offset_commit_resp(body_bytes, header),
                 },
-                Err(e) => {
-                    return Err(Error::DecodeHeaderError(e.to_string()));
-                }
+                Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
             },
-            _ => {
-                return Err(Error::NotAvailableRequestType(req_type));
-            }
+            _ => Err(Error::NotAvailableRequestType(req_type)),
         }
-
-        Ok(None)
     }
 }
 

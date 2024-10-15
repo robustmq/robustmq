@@ -17,7 +17,7 @@ pub struct Handler {}
 
 impl Handler {
     pub fn new() -> Handler {
-        return Handler {};
+        Handler {}
     }
 
     pub async fn write(&self) {}

@@ -31,9 +31,7 @@ pub struct MqttCodec {
 
 impl MqttCodec {
     pub fn new(protocol_version: Option<u8>) -> MqttCodec {
-        MqttCodec {
-            protocol_version: None,
-        }
+        MqttCodec { protocol_version }
     }
 }
 
@@ -84,7 +82,7 @@ impl MqttCodec {
                         return Ok(Some(packet));
                     }
                 }
-                Err(e) => {
+                Err(_) => {
                     return Err(Error::InvalidProtocol);
                 }
             }
@@ -229,8 +227,8 @@ impl MqttCodec {
         let protocol_version = packet_wrapper.protocol_version;
 
         if protocol_version == 4 || protocol_version == 3 {
-            let size = match packet {
-                MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login) => {
+            match packet {
+                MQTTPacket::Connect(_,connect, None, last_will, None, login) => {
                     crate::mqtt::mqttv4::connect::write(&connect, &login, &last_will, buffer)?
                 }
                 MQTTPacket::ConnAck(connack, _) => crate::mqtt::mqttv4::connack::write(&connack, buffer)?,
@@ -243,8 +241,8 @@ impl MqttCodec {
                 MQTTPacket::SubAck(suback, None) => crate::mqtt::mqttv4::suback::write(&suback, buffer)?,
                 MQTTPacket::Unsubscribe(unsubscribe, None) => crate::mqtt::mqttv4::unsubscribe::write(&unsubscribe, buffer)?,
                 MQTTPacket::UnsubAck(unsuback, None) => crate::mqtt::mqttv4::unsuback::write(&unsuback, buffer)?,
-                MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv4::ping::pingreq::write(buffer)?,
-                MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv4::ping::pingresp::write(buffer)?,
+                MQTTPacket::PingReq(_) => crate::mqtt::mqttv4::ping::pingreq::write(buffer)?,
+                MQTTPacket::PingResp(_) => crate::mqtt::mqttv4::ping::pingresp::write(buffer)?,
                 MQTTPacket::Disconnect(disconnect, None) => crate::mqtt::mqttv4::disconnect::write(&disconnect, buffer)?,
 
                 //Packet::
@@ -253,28 +251,69 @@ impl MqttCodec {
                 ),
             };
         } else if protocol_version == 5 {
-            let size = match packet {
-                MQTTPacket::Connect(protocol_version,connect, properties, last_will, last_will_peoperties, login) => {
-                    crate::mqtt::mqttv5::connect::write(&connect, &properties, &last_will,  &last_will_peoperties, &login, buffer)?
+            match packet {
+                MQTTPacket::Connect(
+                    _,
+                    connect,
+                    properties,
+                    last_will,
+                    last_will_peoperties,
+                    login,
+                ) => crate::mqtt::mqttv5::connect::write(
+                    &connect,
+                    &properties,
+                    &last_will,
+                    &last_will_peoperties,
+                    &login,
+                    buffer,
+                )?,
+                MQTTPacket::ConnAck(connack, conn_ack_properties) => {
+                    crate::mqtt::mqttv5::connack::write(&connack, &conn_ack_properties, buffer)?
                 }
-                MQTTPacket::ConnAck(connack, conn_ack_properties) => crate::mqtt::mqttv5::connack::write(&connack,&conn_ack_properties, buffer)?,
-                MQTTPacket::Publish(publish, publish_properties ) => crate::mqtt::mqttv5::publish::write(&publish, &publish_properties,buffer)?,
-                MQTTPacket::PubAck(puback, pub_ack_properties) => crate::mqtt::mqttv5::puback::write(&puback, &pub_ack_properties,buffer)?,
-                MQTTPacket::PubRec(pubrec, pub_rec_properties) => crate::mqtt::mqttv5::pubrec::write(&pubrec, &pub_rec_properties,buffer)?,
-                MQTTPacket::PubRel(pubrel, pub_rel_properties) => crate::mqtt::mqttv5::pubrel::write(&pubrel, &pub_rel_properties,buffer)?,
-                MQTTPacket::PubComp(pubcomp, pub_comp_properties) => crate::mqtt::mqttv5::pubcomp::write(&pubcomp, &pub_comp_properties,buffer)?,
-                MQTTPacket::Subscribe(subscribe, subscribe_properties) => crate::mqtt::mqttv5::subscribe::write(&subscribe,&subscribe_properties, buffer)?,
-                MQTTPacket::SubAck(suback, suback_properties) => crate::mqtt::mqttv5::suback::write(&suback, &suback_properties,buffer)?,
-                MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => crate::mqtt::mqttv5::unsubscribe::write(&unsubscribe, &unsubscribe_properties,buffer)?,
-                MQTTPacket::UnsubAck(unsuback, unsuback_properties) => crate::mqtt::mqttv5::unsuback::write(&unsuback, &unsuback_properties,buffer)?,
-                MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv5::ping::pingreq::write(buffer)?,
-                MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv5::ping::pingresp::write(buffer)?,
-                MQTTPacket::Disconnect(disconnect, disconnect_properties) => crate::mqtt::mqttv5::disconnect::write(&disconnect, &disconnect_properties,buffer)?,
-
-                //Packet::
-                _=> unreachable!(
-                    "This branch only matches for packets with Properties, which is not possible in MQTT V4",
-                ),
+                MQTTPacket::Publish(publish, publish_properties) => {
+                    crate::mqtt::mqttv5::publish::write(&publish, &publish_properties, buffer)?
+                }
+                MQTTPacket::PubAck(puback, pub_ack_properties) => {
+                    crate::mqtt::mqttv5::puback::write(&puback, &pub_ack_properties, buffer)?
+                }
+                MQTTPacket::PubRec(pubrec, pub_rec_properties) => {
+                    crate::mqtt::mqttv5::pubrec::write(&pubrec, &pub_rec_properties, buffer)?
+                }
+                MQTTPacket::PubRel(pubrel, pub_rel_properties) => {
+                    crate::mqtt::mqttv5::pubrel::write(&pubrel, &pub_rel_properties, buffer)?
+                }
+                MQTTPacket::PubComp(pubcomp, pub_comp_properties) => {
+                    crate::mqtt::mqttv5::pubcomp::write(&pubcomp, &pub_comp_properties, buffer)?
+                }
+                MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
+                    crate::mqtt::mqttv5::subscribe::write(
+                        &subscribe,
+                        &subscribe_properties,
+                        buffer,
+                    )?
+                }
+                MQTTPacket::SubAck(suback, suback_properties) => {
+                    crate::mqtt::mqttv5::suback::write(&suback, &suback_properties, buffer)?
+                }
+                MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
+                    crate::mqtt::mqttv5::unsubscribe::write(
+                        &unsubscribe,
+                        &unsubscribe_properties,
+                        buffer,
+                    )?
+                }
+                MQTTPacket::UnsubAck(unsuback, unsuback_properties) => {
+                    crate::mqtt::mqttv5::unsuback::write(&unsuback, &unsuback_properties, buffer)?
+                }
+                MQTTPacket::PingReq(_) => crate::mqtt::mqttv5::ping::pingreq::write(buffer)?,
+                MQTTPacket::PingResp(_) => crate::mqtt::mqttv5::ping::pingresp::write(buffer)?,
+                MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
+                    crate::mqtt::mqttv5::disconnect::write(
+                        &disconnect,
+                        &disconnect_properties,
+                        buffer,
+                    )?
+                }
             };
         }
         Ok(())
@@ -313,7 +352,7 @@ fn calc_mqtt_packet_len(
     let mut size = 0;
     if protocol_version == 4 || protocol_version == 3 {
         size = match packet {
-            MQTTPacket::Connect(protocol_version,connect, None, last_will, None, login) => {
+            MQTTPacket::Connect(_,connect, None, last_will, None, login) => {
                 crate::mqtt::mqttv4::connect::write(&connect, &login, &last_will, &mut buffer)?
             }
             MQTTPacket::ConnAck(connack, _) => crate::mqtt::mqttv4::connack::write(&connack, &mut buffer)?,
@@ -326,8 +365,8 @@ fn calc_mqtt_packet_len(
             MQTTPacket::SubAck(suback, None) => crate::mqtt::mqttv4::suback::write(&suback, &mut buffer)?,
             MQTTPacket::Unsubscribe(unsubscribe, None) => crate::mqtt::mqttv4::unsubscribe::write(&unsubscribe, &mut buffer)?,
             MQTTPacket::UnsubAck(unsuback, None) => crate::mqtt::mqttv4::unsuback::write(&unsuback, &mut buffer)?,
-            MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv4::ping::pingreq::write(&mut buffer)?,
-            MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv4::ping::pingresp::write(&mut buffer)?,
+            MQTTPacket::PingReq(_) => crate::mqtt::mqttv4::ping::pingreq::write(&mut buffer)?,
+            MQTTPacket::PingResp(_) => crate::mqtt::mqttv4::ping::pingresp::write(&mut buffer)?,
             MQTTPacket::Disconnect(disconnect, None) => crate::mqtt::mqttv4::disconnect::write(&disconnect, &mut buffer)?,
 
             //Packet::
@@ -337,27 +376,63 @@ fn calc_mqtt_packet_len(
         };
     } else if protocol_version == 5 {
         size = match packet {
-            MQTTPacket::Connect(protocol_version,connect, properties, last_will, last_will_peoperties, login) => {
-                crate::mqtt::mqttv5::connect::write(&connect, &properties, &last_will,  &last_will_peoperties, &login, &mut buffer)?
+            MQTTPacket::Connect(_, connect, properties, last_will, last_will_peoperties, login) => {
+                crate::mqtt::mqttv5::connect::write(
+                    &connect,
+                    &properties,
+                    &last_will,
+                    &last_will_peoperties,
+                    &login,
+                    &mut buffer,
+                )?
             }
-            MQTTPacket::ConnAck(connack, conn_ack_properties) => crate::mqtt::mqttv5::connack::write(&connack,&conn_ack_properties, &mut buffer)?,
-            MQTTPacket::Publish(publish, publish_properties ) => crate::mqtt::mqttv5::publish::write(&publish, &publish_properties,&mut buffer)?,
-            MQTTPacket::PubAck(puback, pub_ack_properties) => crate::mqtt::mqttv5::puback::write(&puback, &pub_ack_properties,&mut buffer)?,
-            MQTTPacket::PubRec(pubrec, pub_rec_properties) => crate::mqtt::mqttv5::pubrec::write(&pubrec, &pub_rec_properties,&mut buffer)?,
-            MQTTPacket::PubRel(pubrel, pub_rel_properties) => crate::mqtt::mqttv5::pubrel::write(&pubrel, &pub_rel_properties,&mut buffer)?,
-            MQTTPacket::PubComp(pubcomp, pub_comp_properties) => crate::mqtt::mqttv5::pubcomp::write(&pubcomp, &pub_comp_properties,&mut buffer)?,
-            MQTTPacket::Subscribe(subscribe, subscribe_properties) => crate::mqtt::mqttv5::subscribe::write(&subscribe,&subscribe_properties, &mut buffer)?,
-            MQTTPacket::SubAck(suback, suback_properties) => crate::mqtt::mqttv5::suback::write(&suback, &suback_properties,&mut buffer)?,
-            MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => crate::mqtt::mqttv5::unsubscribe::write(&unsubscribe, &unsubscribe_properties,&mut buffer)?,
-            MQTTPacket::UnsubAck(unsuback, unsuback_properties) => crate::mqtt::mqttv5::unsuback::write(&unsuback, &unsuback_properties,&mut buffer)?,
-            MQTTPacket::PingReq(pingreq) => crate::mqtt::mqttv5::ping::pingreq::write(&mut buffer)?,
-            MQTTPacket::PingResp(pingresp) => crate::mqtt::mqttv5::ping::pingresp::write(&mut buffer)?,
-            MQTTPacket::Disconnect(disconnect, disconnect_properties) => crate::mqtt::mqttv5::disconnect::write(&disconnect, &disconnect_properties,&mut buffer)?,
-
-            //Packet::
-            _=> unreachable!(
-                "This branch only matches for packets with Properties, which is not possible in MQTT V4",
-            ),
+            MQTTPacket::ConnAck(connack, conn_ack_properties) => {
+                crate::mqtt::mqttv5::connack::write(&connack, &conn_ack_properties, &mut buffer)?
+            }
+            MQTTPacket::Publish(publish, publish_properties) => {
+                crate::mqtt::mqttv5::publish::write(&publish, &publish_properties, &mut buffer)?
+            }
+            MQTTPacket::PubAck(puback, pub_ack_properties) => {
+                crate::mqtt::mqttv5::puback::write(&puback, &pub_ack_properties, &mut buffer)?
+            }
+            MQTTPacket::PubRec(pubrec, pub_rec_properties) => {
+                crate::mqtt::mqttv5::pubrec::write(&pubrec, &pub_rec_properties, &mut buffer)?
+            }
+            MQTTPacket::PubRel(pubrel, pub_rel_properties) => {
+                crate::mqtt::mqttv5::pubrel::write(&pubrel, &pub_rel_properties, &mut buffer)?
+            }
+            MQTTPacket::PubComp(pubcomp, pub_comp_properties) => {
+                crate::mqtt::mqttv5::pubcomp::write(&pubcomp, &pub_comp_properties, &mut buffer)?
+            }
+            MQTTPacket::Subscribe(subscribe, subscribe_properties) => {
+                crate::mqtt::mqttv5::subscribe::write(
+                    &subscribe,
+                    &subscribe_properties,
+                    &mut buffer,
+                )?
+            }
+            MQTTPacket::SubAck(suback, suback_properties) => {
+                crate::mqtt::mqttv5::suback::write(&suback, &suback_properties, &mut buffer)?
+            }
+            MQTTPacket::Unsubscribe(unsubscribe, unsubscribe_properties) => {
+                crate::mqtt::mqttv5::unsubscribe::write(
+                    &unsubscribe,
+                    &unsubscribe_properties,
+                    &mut buffer,
+                )?
+            }
+            MQTTPacket::UnsubAck(unsuback, unsuback_properties) => {
+                crate::mqtt::mqttv5::unsuback::write(&unsuback, &unsuback_properties, &mut buffer)?
+            }
+            MQTTPacket::PingReq(_) => crate::mqtt::mqttv5::ping::pingreq::write(&mut buffer)?,
+            MQTTPacket::PingResp(_) => crate::mqtt::mqttv5::ping::pingresp::write(&mut buffer)?,
+            MQTTPacket::Disconnect(disconnect, disconnect_properties) => {
+                crate::mqtt::mqttv5::disconnect::write(
+                    &disconnect,
+                    &disconnect_properties,
+                    &mut buffer,
+                )?
+            }
         };
     }
     Ok(size)
@@ -365,7 +440,7 @@ fn calc_mqtt_packet_len(
 
 pub fn parse_mqtt_packet_to_name(packet: MQTTPacket) -> String {
     let name = match packet {
-        MQTTPacket::Connect(_, _, _, _, _, login_) => "connect",
+        MQTTPacket::Connect(_, _, _, _, _, _) => "connect",
         MQTTPacket::ConnAck(_, _) => "conn_ack",
         MQTTPacket::Publish(_, _) => "publish",
         MQTTPacket::PubAck(_, _) => "pub_ack",
@@ -379,7 +454,6 @@ pub fn parse_mqtt_packet_to_name(packet: MQTTPacket) -> String {
         MQTTPacket::PingReq(_) => "ping",
         MQTTPacket::PingResp(_) => "pong",
         MQTTPacket::Disconnect(_, _) => "disconnect",
-        _ => "-",
     };
     name.to_string()
 }

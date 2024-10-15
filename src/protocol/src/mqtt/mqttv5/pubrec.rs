@@ -238,7 +238,7 @@ mod tests {
         };
 
         // test the write function of PubRec in v5
-        write(&pubrec, &Some(properties), &mut buffer);
+        write(&pubrec, &Some(properties), &mut buffer).unwrap();
 
         // test the fixed_header part
         let fixed_header: FixedHeader = parse_fixed_header(buffer.iter()).unwrap();

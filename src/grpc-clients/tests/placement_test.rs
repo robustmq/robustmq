@@ -49,10 +49,10 @@ mod tests {
         let extend_info = "".to_string();
 
         let request = RegisterNodeRequest {
-            cluster_type: cluster_type.clone(),
+            cluster_type,
             cluster_name: cluster_name.clone(),
             node_ip: node_ip.clone(),
-            node_id: node_id.clone(),
+            node_id,
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
@@ -64,10 +64,10 @@ mod tests {
         }
 
         let request_cluster_name_empty = RegisterNodeRequest {
-            cluster_type: cluster_type.clone(),
+            cluster_type,
             cluster_name: "".to_string(),
             node_ip: node_ip.clone(),
-            node_id: node_id.clone(),
+            node_id,
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
@@ -85,10 +85,10 @@ mod tests {
         }
 
         let request_node_ip_empty = RegisterNodeRequest {
-            cluster_type: cluster_type.clone(),
+            cluster_type,
             cluster_name: cluster_name.to_string(),
             node_ip: "".to_string(),
-            node_id: node_id.clone(),
+            node_id,
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
