@@ -56,4 +56,5 @@ mobc.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 rocksdb.workspace = true
+validator.workspace = true
 

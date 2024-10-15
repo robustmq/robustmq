@@ -62,13 +62,15 @@ pub struct NodeListReply {
     pub nodes: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message, validator::Validate)]
 pub struct RegisterNodeRequest {
     #[prost(enumeration = "super::common::ClusterType", tag = "1")]
     pub cluster_type: i32,
     #[prost(string, tag = "2")]
+    #[validate(length(min = 1, message = "cluster name should not be empty"))]
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
+    #[validate(length(min = 1, message = "node ip should not be empty"))]
     pub node_ip: ::prost::alloc::string::String,
     #[prost(uint64, tag = "4")]
     pub node_id: u64,
@@ -78,11 +80,12 @@ pub struct RegisterNodeRequest {
     pub extend_info: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message, validator::Validate)]
 pub struct UnRegisterNodeRequest {
     #[prost(enumeration = "super::common::ClusterType", tag = "1")]
     pub cluster_type: i32,
     #[prost(string, tag = "2")]
+    #[validate(length(min = 1, message = "cluster name should not be empty"))]
     pub cluster_name: ::prost::alloc::string::String,
     #[prost(uint64, tag = "3")]
     pub node_id: u64,

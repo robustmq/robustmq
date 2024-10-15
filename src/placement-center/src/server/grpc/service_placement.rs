@@ -44,6 +44,7 @@ use protocol::placement_center::generate::placement::{
     SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
+use protocol::placement_center::generate::validate::ValidateExt;
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tonic::{Request, Response, Status};
 
@@ -118,13 +119,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<RegisterNodeRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
-
-        if req.cluster_name.is_empty() || req.node_ip.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("cluster name or node ip".to_string())
-                .to_string(),
-            ));
-        }
+        let _ = req.validate_ext()?;
 
         let data = StorageData::new(
             StorageDataType::ClusterRegisterNode,
@@ -143,6 +138,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UnRegisterNodeRequest>,
     ) -> Result<Response<CommonReply>, Status> {
         let req = request.into_inner();
+        let _ = req.validate_ext()?;
 
         let data = StorageData::new(
             StorageDataType::ClusterUngisterNode,

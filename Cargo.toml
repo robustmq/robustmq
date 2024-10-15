@@ -91,6 +91,7 @@ openraft = { git = "https://github.com/databendlabs/openraft.git", features = [
 ] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.0", features = ["env-filter"] }
+validator = { version = "0.18", features = ["derive"] }
 
 
 ## workspaces members

@@ -20,3 +20,4 @@ pub mod kv;
 pub mod mqtt;
 pub mod openraft;
 pub mod placement;
+pub mod validate;
