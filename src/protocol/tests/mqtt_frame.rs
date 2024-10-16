@@ -71,10 +71,9 @@ mod tests {
                 Ok(da) => {
                     // assert_eq!(da, resp_packet.packet)
                     println!("{:?}", da);
-                    assert!(true);
                 }
                 Err(e) => {
-                    assert!(false);
+                    panic!("error: {:?}", e);
                 }
             }
         }
@@ -91,10 +90,9 @@ mod tests {
                 Ok(da) => {
                     // assert_eq!(da, resp_packet.packet)
                     println!("{:?}", da);
-                    assert!(true);
                 }
                 Err(e) => {
-                    assert!(false);
+                    panic!("error: {:?}", e);
                 }
             }
         }
