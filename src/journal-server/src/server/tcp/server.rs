@@ -19,7 +19,6 @@ use grpc_clients::poll::ClientPool;
 use log::info;
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
-
 use crate::core::cache::CacheManager;
 use crate::core::command::Command;
 use crate::server::connection::NetworkConnectionType;
@@ -37,7 +36,7 @@ pub async fn start_tcp_server(
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
-    let command = Command::new();
+    let command = Command::new(cache_manager.clone());
 
     let proc_config = ProcessorConfig {
         accept_thread_num: conf.tcp_thread.accept_thread_num,

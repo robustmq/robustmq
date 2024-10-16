@@ -13,6 +13,9 @@
 // limitations under the License.
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    
+
     // Journal Engine
     tonic_build::configure().build_server(true).compile(
         &[

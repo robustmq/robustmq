@@ -18,7 +18,7 @@ use common_base::error::common::CommonError;
 use common_base::tools::{now_mills, unique_id};
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use metadata_struct::placement::broker_node::BrokerNode;
+use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::placement::cluster::ClusterInfo;
 use prost::Message as _;
 use protocol::placement_center::placement_center_inner::{

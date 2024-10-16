@@ -19,4 +19,5 @@ pub mod group;
 pub mod handler;
 pub mod namespace;
 pub mod record;
+pub mod segment;
 pub mod shard;

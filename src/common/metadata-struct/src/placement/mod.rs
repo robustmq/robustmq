@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod broker_node;
+pub mod node;
 pub mod cluster;
