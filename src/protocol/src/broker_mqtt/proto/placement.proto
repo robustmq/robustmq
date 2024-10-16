@@ -17,9 +17,9 @@
 syntax = "proto3";
 package broker.mqtt.placement;
 service MQTTBrokerPlacementService {
-    rpc updateCache(UpdateCacheRequest) returns(CommonReply){}
-    rpc deleteSession(DeleteSessionRequest) returns(CommonReply){}
-    rpc sendLastWillMessage(SendLastWillMessageRequest) returns(CommonReply){}
+    rpc updateCache(UpdateCacheRequest) returns(UpdateCacheReply){}
+    rpc deleteSession(DeleteSessionRequest) returns(DeleteSessionReply){}
+    rpc sendLastWillMessage(SendLastWillMessageRequest) returns(SendLastWillMessageReply){}
 }
 
 message UpdateCacheRequest{
@@ -34,7 +34,17 @@ message DeleteSessionRequest{
     repeated string client_id = 2;
 }
 
-message CommonReply{
+message UpdateCacheReply{
+    bool code = 1;
+    string data = 2;
+}
+
+message DeleteSessionReply{
+    bool code = 1;
+    string data = 2;
+}
+
+message SendLastWillMessageReply{
     bool code = 1;
     string data = 2;
 }

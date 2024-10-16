@@ -16,7 +16,8 @@ use common_base::error::common::CommonError;
 use mobc::Connection;
 use prost::Message;
 use protocol::broker_mqtt::broker_mqtt_placement::{
-    CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
+    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest,
+    UpdateCacheReply, UpdateCacheRequest,
 };
 
 use super::MqttBrokerPlacementServiceManager;
@@ -27,7 +28,7 @@ pub(crate) async fn inner_delete_session(
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteSessionRequest::decode(request.as_ref()) {
         Ok(request) => match client.delete_session(request).await {
-            Ok(result) => Ok(CommonReply::encode_to_vec(&result.into_inner())),
+            Ok(result) => Ok(DeleteSessionReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => Err(CommonError::CommmonError(e.to_string())),
@@ -40,7 +41,7 @@ pub(crate) async fn inner_update_cache(
 ) -> Result<Vec<u8>, CommonError> {
     match UpdateCacheRequest::decode(request.as_ref()) {
         Ok(request) => match client.update_cache(request).await {
-            Ok(result) => Ok(CommonReply::encode_to_vec(&result.into_inner())),
+            Ok(result) => Ok(UpdateCacheReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => Err(CommonError::CommmonError(e.to_string())),
@@ -53,7 +54,9 @@ pub(crate) async fn inner_send_last_will_message(
 ) -> Result<Vec<u8>, CommonError> {
     match SendLastWillMessageRequest::decode(request.as_ref()) {
         Ok(request) => match client.send_last_will_message(request).await {
-            Ok(result) => Ok(CommonReply::encode_to_vec(&result.into_inner())),
+            Ok(result) => Ok(SendLastWillMessageReply::encode_to_vec(
+                &result.into_inner(),
+            )),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => Err(CommonError::CommmonError(e.to_string())),
