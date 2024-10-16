@@ -253,7 +253,6 @@ pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error> {
     Ok((len_len, len))
 }
 
-
 pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, Error> {
     // Create fixed header if there are enough bytes in the stream to frame full packet
     let stream_len = stream.len();

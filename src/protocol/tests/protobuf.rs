@@ -16,13 +16,9 @@
 mod tests {
     #[test]
     #[ignore]
-    fn create_rust_pb() {
-       
-    }
+    fn create_rust_pb() {}
 
     #[test]
     #[ignore]
-    fn create_rust_pb_journal() {
-        
-    }
+    fn create_rust_pb_journal() {}
 }

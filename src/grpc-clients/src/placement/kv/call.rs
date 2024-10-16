@@ -17,7 +17,8 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::placement_center_kv::{
-    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply, SetRequest
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
+    SetRequest,
 };
 
 use super::PlacementCenterInterface;

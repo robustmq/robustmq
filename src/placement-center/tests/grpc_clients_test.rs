@@ -15,13 +15,13 @@
 mod common;
 #[cfg(test)]
 mod tests {
-    use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
-    use protocol::placement_center::placement_center_journal::{
-        CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
-    };
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::placement_center_inner::{
         HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+    };
+    use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
+    use protocol::placement_center::placement_center_journal::{
+        CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
     };
 
     use crate::common::{

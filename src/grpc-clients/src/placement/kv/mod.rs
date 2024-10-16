@@ -19,7 +19,8 @@ use mobc::{Connection, Manager};
 use prost::Message;
 use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
 use protocol::placement_center::placement_center_kv::{
-    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply, SetRequest
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
+    SetRequest,
 };
 use tonic::transport::Channel;
 

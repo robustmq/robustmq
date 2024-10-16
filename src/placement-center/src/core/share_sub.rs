@@ -219,7 +219,6 @@ mod tests {
     use common_base::tools::{now_mills, unique_id};
     use metadata_struct::placement::broker_node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
-    
 
     use super::ShareSubLeader;
     use crate::cache::placement::PlacementCacheManager;

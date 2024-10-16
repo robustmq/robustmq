@@ -31,4 +31,3 @@ pub mod placement_center_mqtt {
 pub mod placement_center_openraft {
     tonic::include_proto!("placement.center.openraft");
 }
-

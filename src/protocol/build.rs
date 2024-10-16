@@ -37,7 +37,7 @@ fn main() {
             &["src/broker_mqtt/proto"], // specify the root location to search proto dependencies
         )
         .unwrap();
-    
+
     // // Placement Center
     tonic_build::configure()
         .build_server(true)
