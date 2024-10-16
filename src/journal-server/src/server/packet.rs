@@ -13,8 +13,6 @@
 // limitations under the License.
 
 use std::net::SocketAddr;
-
-use common_base::tools::now_mills;
 use protocol::journal_server::codec::JournalEnginePacket;
 
 #[derive(Clone, Debug)]
@@ -22,7 +20,6 @@ pub struct RequestPackage {
     pub connection_id: u64,
     pub addr: SocketAddr,
     pub packet: JournalEnginePacket,
-    pub receive_ms: u128,
 }
 
 impl RequestPackage {
@@ -31,7 +28,6 @@ impl RequestPackage {
             connection_id,
             addr,
             packet,
-            receive_ms: now_mills(),
         }
     }
 }

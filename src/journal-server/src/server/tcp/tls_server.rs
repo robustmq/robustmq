@@ -153,7 +153,7 @@ pub(crate) fn read_tls_frame_process(
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
-    network_type: NetworkConnectionType,
+    _network_type: NetworkConnectionType,
 ) {
     tokio::spawn(async move {
         loop {

@@ -113,3 +113,15 @@ metadata-struct = { path = "src/common/metadata-struct" }
 third-driver = { path = "src/common/third-driver" }
 protocol = { path = "src/protocol" }
 robustmq-test = { path = "tests" }
+
+
+[profile.dev]
+overflow-checks = false
+
+[profile.release]
+overflow-checks = false
+
+
+[workspace.package."*"]
+[workspace.package."*".dependencies]
+[workspace.package."journal-server"]

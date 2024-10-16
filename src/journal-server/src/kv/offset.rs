@@ -25,9 +25,7 @@ impl OffsetManager {
         OffsetManager { kv_engine }
     }
 
-    pub fn commit(&self, namespace: &str, group_name: &str, shard_name: &str, offset: u64) {
-        let key = self.shard_offset_key(namespace, group_name, shard_name);
-    }
+    pub fn commit(&self, namespace: &str, group_name: &str, shard_name: &str, offset: u64) {}
 
     pub fn get_group_offset(&self) {}
 
