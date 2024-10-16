@@ -12,9 +12,3 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<<< HEAD:src/journal-server/src/core/group.rs
-========
-pub mod admin;
-pub mod engine;
-pub mod inner;
->>>>>>>> 424e635f4545f9913228066663ad2ad3d66187e3:src/protocol/src/journal_server/generate/protocol/mod.rs

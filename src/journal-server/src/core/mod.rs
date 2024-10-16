@@ -19,3 +19,4 @@ pub mod handler;
 pub mod namespace;
 pub mod record;
 pub mod shard;
+pub mod group;
