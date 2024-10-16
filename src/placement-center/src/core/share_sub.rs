@@ -41,7 +41,7 @@ impl ShareSubLeader {
     pub fn get_leader_node(
         &self,
         cluster_name: &str,
-        group_name: &String,
+        group_name: &str,
     ) -> Result<u64, CommonError> {
         let mut broker_ids = Vec::new();
         if let Some(cluster) = self.cluster_cache.node_list.get(cluster_name) {
@@ -58,7 +58,7 @@ impl ShareSubLeader {
         };
 
         for (broker_id, group_list) in node_sub_info.clone() {
-            if group_list.contains(group_name) {
+            if group_list.iter().any(|x| x == group_name) {
                 return Ok(broker_id);
             }
         }
@@ -96,14 +96,14 @@ impl ShareSubLeader {
     pub fn remove_group_by_node(
         &self,
         cluster_name: &str,
-        group_name: &String,
+        group_name: &str,
     ) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,
             Err(e) => return Err(e),
         };
         for (broker_id, mut group_list) in node_sub_info.clone() {
-            if group_list.contains(group_name) {
+            if group_list.iter().any(|x| x == group_name) {
                 group_list.retain(|x| x != group_name);
                 node_sub_info.insert(broker_id, group_list);
 
@@ -156,18 +156,18 @@ impl ShareSubLeader {
         &self,
         cluster_name: &str,
         broker_id: u64,
-        group_name: &String,
+        group_name: &str,
     ) -> Result<(), CommonError> {
         let mut node_sub_info = match self.read_node_sub_info(cluster_name) {
             Ok(data) => data,
             Err(e) => return Err(e),
         };
         if let Some(data) = node_sub_info.get_mut(&broker_id) {
-            if !data.contains(group_name) {
-                data.push(group_name.clone());
+            if data.iter().all(|x| x != group_name) {
+                data.push(group_name.to_owned());
             }
         } else {
-            node_sub_info.insert(broker_id, vec![group_name.clone()]);
+            node_sub_info.insert(broker_id, vec![group_name.to_owned()]);
         }
 
         let kv_storage = KvStorage::new(self.rocksdb_engine_handler.clone());

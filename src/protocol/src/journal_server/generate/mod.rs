@@ -12,5 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![cfg_attr(any(), rustfmt::skip)]
+#![allow(clippy::all)]
+
 pub mod protocol;
 pub mod record;
