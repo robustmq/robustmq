@@ -16,8 +16,8 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
-    use protocol::placement_center::generate::kv::{
+    use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
+    use protocol::placement_center::placement_center_kv::{
         DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
 

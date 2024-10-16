@@ -18,7 +18,7 @@ use std::sync::Arc;
 use grpc_clients::placement::placement::call::send_raft_message;
 use grpc_clients::poll::ClientPool;
 use log::{debug, error};
-use protocol::placement_center::generate::placement::SendRaftMessageRequest;
+use protocol::placement_center::placement_center_inner::SendRaftMessageRequest;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};

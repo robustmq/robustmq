@@ -15,8 +15,19 @@
  */
 
 syntax = "proto3";
-package placement;
-import "common.proto";
+package placement.center.inner;
+
+// The type of the cluster.
+enum ClusterType{
+    // The type of the PlacementCenter.
+    PlacementCenter = 0;
+    // The type of the JournalServer.
+    JournalServer = 1;
+    // The type of the MQTTBrokerServer.
+    MQTTBrokerServer = 2;
+    // The type of the AMQPBrokerServer.
+    AMQPBrokerServer = 3;
+}
 
 service PlacementCenterService {
 
@@ -24,29 +35,29 @@ service PlacementCenterService {
 
   rpc NodeList(NodeListRequest) returns(NodeListReply){}
 
-  rpc RegisterNode(RegisterNodeRequest) returns(common.CommonReply){}
+  rpc RegisterNode(RegisterNodeRequest) returns(RegisterNodeReply){}
 
-  rpc UnRegisterNode(UnRegisterNodeRequest) returns(common.CommonReply){}
+  rpc UnRegisterNode(UnRegisterNodeRequest) returns(UnRegisterNodeReply){}
 
-  rpc Heartbeat(HeartbeatRequest) returns(common.CommonReply){}
+  rpc Heartbeat(HeartbeatRequest) returns(HeartbeatReply){}
 
-  rpc ReportMonitor(ReportMonitorRequest) returns(common.CommonReply){}
+  rpc ReportMonitor(ReportMonitorRequest) returns(ReportMonitorReply){}
 
   rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
 
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
 
-  rpc SetResourceConfig(SetResourceConfigRequest) returns(common.CommonReply) {}
+  rpc SetResourceConfig(SetResourceConfigRequest) returns(SetResourceConfigReply) {}
 
   rpc GetResourceConfig(GetResourceConfigRequest) returns(GetResourceConfigReply) {}
 
-  rpc DeleteResourceConfig(DeleteResourceConfigRequest) returns(common.CommonReply) {}
+  rpc DeleteResourceConfig(DeleteResourceConfigRequest) returns(DeleteResourceConfigReply) {}
 
-  rpc SetIdempotentData(SetIdempotentDataRequest) returns(common.CommonReply) {}
+  rpc SetIdempotentData(SetIdempotentDataRequest) returns(SetIdempotentDataReply) {}
 
   rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns(ExistsIdempotentDataReply) {}
 
-  rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(common.CommonReply) {}
+  rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(DeleteIdempotentDataReply) {}
 }
 
 message ClusterStatusRequest{
@@ -57,10 +68,59 @@ message ClusterStatusReply{
     string content = 1;
 }
 
+message NodeListRequest{
+    string cluster_name = 1;
+}
+
+message NodeListReply{
+    repeated bytes nodes = 1;
+
+}
+
+message RegisterNodeRequest{
+    ClusterType cluster_type = 1;
+    string cluster_name = 2;
+    string node_ip = 3;
+    uint64 node_id = 4;
+    string node_inner_addr = 5;
+    string extend_info = 6;
+}
+
+message RegisterNodeReply{
+
+}
+
+message UnRegisterNodeRequest{
+    ClusterType cluster_type = 1;
+    string cluster_name = 2;
+    uint64 node_id = 3;
+}
+
+message UnRegisterNodeReply{
+
+}
+
 message HeartbeatRequest{
-    common.ClusterType cluster_type = 1;
+    ClusterType cluster_type = 1;
     string cluster_name = 2;
     uint64 node_id = 4;
+}
+
+message HeartbeatReply{
+
+}
+
+message ReportMonitorRequest{
+    string cluster_name = 1;
+    uint64 node_id = 2;
+    float cpu_rate = 3;
+    float memory_rate = 4;
+    float disk_rate = 5;
+    float network_rate = 6;
+}
+
+message ReportMonitorReply{
+
 }
 
 message SendRaftMessageRequest{
@@ -78,43 +138,14 @@ message SendRaftConfChangeRequest{
 message SendRaftConfChangeReply{
 }
 
-message NodeListRequest{
-    string cluster_name = 1;
-}
-
-message NodeListReply{
-    repeated bytes nodes = 1;
-
-}
-
-message RegisterNodeRequest{
-    common.ClusterType cluster_type = 1;
-    string cluster_name = 2;
-    string node_ip = 3;
-    uint64 node_id = 4;
-    string node_inner_addr = 5;
-    string extend_info = 6;
-}
-
-message UnRegisterNodeRequest{
-    common.ClusterType cluster_type = 1;
-    string cluster_name = 2;
-    uint64 node_id = 3;
-}
-
-message ReportMonitorRequest{
-    string cluster_name = 1;
-    uint64 node_id = 2;
-    float cpu_rate = 3;
-    float memory_rate = 4;
-    float disk_rate = 5;
-    float network_rate = 6;
-}
-
 message SetResourceConfigRequest{
     string cluster_name = 1;
     repeated string resources = 2;
     bytes config = 3;
+}
+
+message SetResourceConfigReply{
+
 }
 
 message GetResourceConfigRequest{
@@ -131,10 +162,18 @@ message DeleteResourceConfigRequest{
     repeated string resources = 2;
 }
 
+message DeleteResourceConfigReply{
+
+}
+
 message SetIdempotentDataRequest{
     string cluster_name = 1;
     string producer_id = 2;
     uint64 seq_num = 3;
+}
+
+message SetIdempotentDataReply{
+
 }
 
 message ExistsIdempotentDataRequest{
@@ -151,4 +190,8 @@ message DeleteIdempotentDataRequest{
     string cluster_name = 1;
     string producer_id = 2;
     uint64 seq_num = 3;
+}
+
+message DeleteIdempotentDataReply{
+
 }

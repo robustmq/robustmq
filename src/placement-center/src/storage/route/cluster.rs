@@ -21,12 +21,12 @@ use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::broker_node::BrokerNode;
 use metadata_struct::placement::cluster::ClusterInfo;
 use prost::Message as _;
-use protocol::placement_center::generate::mqtt::{
-    CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest,
-};
-use protocol::placement_center::generate::placement::{
+use protocol::placement_center::placement_center_inner::{
     DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+};
+use protocol::placement_center::placement_center_mqtt::{
+    CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest,
 };
 
 use crate::cache::placement::PlacementCacheManager;
@@ -159,8 +159,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use prost::Message as _;
-    use protocol::placement_center::generate::common::ClusterType;
-    use protocol::placement_center::generate::placement::RegisterNodeRequest;
+    use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
 
     use crate::cache::placement::PlacementCacheManager;
     use crate::storage::placement::cluster::ClusterStorage;

@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::placement::mqtt::call::list_blacklist;
 use grpc_clients::poll::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
-use protocol::placement_center::generate::mqtt::ListBlacklistRequest;
+use protocol::placement_center::placement_center_mqtt::ListBlacklistRequest;
 
 pub struct BlackListStorage {
     client_poll: Arc<ClientPool>,

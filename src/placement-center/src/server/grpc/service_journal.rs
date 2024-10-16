@@ -30,11 +30,11 @@
 use std::sync::Arc;
 
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::journal::engine_service_server::EngineService;
-use protocol::placement_center::generate::journal::{
-    CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
-    GetShardReply, GetShardRequest,
+use protocol::placement_center::placement_center_journal::engine_service_server::EngineService;
+use protocol::placement_center::placement_center_journal::{
+    CreateSegmentReply, CreateSegmentRequest, CreateShardReply, CreateShardRequest,
+    DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest, GetShardReply,
+    GetShardRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -56,7 +56,7 @@ impl EngineService for GrpcEngineService {
     async fn create_shard(
         &self,
         request: Request<CreateShardRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<CreateShardReply>, Status> {
         let req = request.into_inner();
 
         // Raft state machine is used to store Node data
@@ -65,7 +65,7 @@ impl EngineService for GrpcEngineService {
             CreateShardRequest::encode_to_vec(&req),
         );
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(CreateShardReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -75,7 +75,7 @@ impl EngineService for GrpcEngineService {
     async fn delete_shard(
         &self,
         request: Request<DeleteShardRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteShardReply>, Status> {
         let req = request.into_inner();
 
         // Raft state machine is used to store Node data
@@ -84,7 +84,7 @@ impl EngineService for GrpcEngineService {
             DeleteShardRequest::encode_to_vec(&req),
         );
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteShardReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -103,7 +103,7 @@ impl EngineService for GrpcEngineService {
     async fn create_segment(
         &self,
         request: Request<CreateSegmentRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<CreateSegmentReply>, Status> {
         let req = request.into_inner();
 
         // Raft state machine is used to store Node data
@@ -112,7 +112,7 @@ impl EngineService for GrpcEngineService {
             CreateSegmentRequest::encode_to_vec(&req),
         );
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(CreateSegmentReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -122,7 +122,7 @@ impl EngineService for GrpcEngineService {
     async fn delete_segment(
         &self,
         request: Request<DeleteSegmentRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteSegmentReply>, Status> {
         let req = request.into_inner();
 
         // Raft state machine is used to store Node data
@@ -132,7 +132,7 @@ impl EngineService for GrpcEngineService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteSegmentReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }

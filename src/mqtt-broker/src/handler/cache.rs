@@ -26,7 +26,7 @@ use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::session::MqttSession;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::broker_server::generate::placement::{
+use protocol::broker_mqtt::broker_mqtt_placement::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
 use protocol::mqtt::common::{MQTTProtocol, PublishProperties, Subscribe, SubscribeProperties};

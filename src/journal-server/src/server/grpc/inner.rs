@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::generate::protocol::inner::journal_server_inner_service_server::JournalServerInnerService;
+use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
 
 pub struct GrpcJournalServerInnerService {}
 

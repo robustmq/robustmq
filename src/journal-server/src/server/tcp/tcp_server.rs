@@ -102,8 +102,8 @@ fn read_frame_process(
     connection: NetworkConnection,
     request_queue_sx: Sender<RequestPackage>,
     mut connection_stop_rx: Receiver<bool>,
-    network_type: NetworkConnectionType,
-    cache_manager: Arc<CacheManager>,
+    _network_type: NetworkConnectionType,
+    _cache_manager: Arc<CacheManager>,
 ) {
     tokio::spawn(async move {
         loop {

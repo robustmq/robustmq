@@ -23,7 +23,7 @@ use grpc_clients::placement::mqtt::call::{
 };
 use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::placement_center::generate::mqtt::{
+use protocol::placement_center::placement_center_mqtt::{
     CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, SaveLastWillMessageRequest,
     UpdateSessionRequest,
 };

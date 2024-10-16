@@ -15,6 +15,7 @@
 pub mod cache;
 pub mod cluster;
 pub mod command;
+pub mod group;
 pub mod handler;
 pub mod namespace;
 pub mod record;

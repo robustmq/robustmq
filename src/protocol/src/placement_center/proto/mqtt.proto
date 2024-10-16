@@ -15,8 +15,7 @@
  */
 
 syntax = "proto3";
-package mqtt;
-import "common.proto";
+package placement.center.mqtt;
 
 service MqttService {
 
@@ -38,7 +37,7 @@ service MqttService {
   // - `content: Vec<u8>`: The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateUser(CreateUserRequest) returns(common.CommonReply){}
+  rpc CreateUser(CreateUserRequest) returns(CreateUserReply){}
 
   //Deletes the corresponding user based on the request
   //
@@ -47,7 +46,7 @@ service MqttService {
   // - `user_name: String`: The name of the user.
   //
   //Returns: An empty struct.
-  rpc DeleteUser(DeleteUserRequest) returns(common.CommonReply){}
+  rpc DeleteUser(DeleteUserRequest) returns(DeleteUserReply){}
 
   //Returns a list of sessions based on the parameters of the request
   //
@@ -67,7 +66,7 @@ service MqttService {
   // - `session: Vec<u8>`: The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateSession(CreateSessionRequest) returns(common.CommonReply){}
+  rpc CreateSession(CreateSessionRequest) returns(CreateSessionReply){}
 
   //Updates the corresponding session based on the request
   //
@@ -80,7 +79,7 @@ service MqttService {
   // - `distinct_time: u64` (Option): The parameter is the time when session disconnects. The unit is seconds.
   //
   //Returns: An empty struct.
-  rpc UpdateSession(UpdateSessionRequest) returns(common.CommonReply){}
+  rpc UpdateSession(UpdateSessionRequest) returns(UpdateSessionReply){}
 
   //Deletes the corresponding session based on the request
   //
@@ -89,7 +88,7 @@ service MqttService {
   // - `client_id: String`: The id of the client.
   //
   //Returns: An empty struct.
-  rpc DeleteSession(DeleteSessionRequest) returns(common.CommonReply){}
+  rpc DeleteSession(DeleteSessionRequest) returns(DeleteSessionReply){}
 
   //Returns a list of topics based on the parameters of the request
   //
@@ -109,7 +108,7 @@ service MqttService {
   // - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateTopic(CreateTopicRequest) returns(common.CommonReply){}
+  rpc CreateTopic(CreateTopicRequest) returns(CreateTopicReply){}
 
   //Deletes the corresponding topic based on the request
   //
@@ -118,7 +117,7 @@ service MqttService {
   // - `topic_name: String`: The name of the topic.
   //
   //Returns: An empty struct.
-  rpc DeleteTopic(DeleteTopicRequest) returns(common.CommonReply){}
+  rpc DeleteTopic(DeleteTopicRequest) returns(DeleteTopicReply){}
 
   //Sets the retain message for the corresponding topic based on the request
   //
@@ -129,7 +128,7 @@ service MqttService {
   // - `retain_message_expired_at: u64`: The parameter is the expiration time of the retain message. The unit is seconds.
   //
   //Returns: An empty struct.
-  rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(common.CommonReply){}
+  rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(SetTopicRetainMessageReply){}
 
   //Gets the share sub leader based on the request
   //
@@ -151,7 +150,7 @@ service MqttService {
   // - `last_will_message: Vec<u8>`: The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns(common.CommonReply){}
+  rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns(SaveLastWillMessageReply){}
 
   //Returns a list of ACLs based on the parameters of the request
   //
@@ -169,7 +168,7 @@ service MqttService {
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc DeleteAcl(DeleteAclRequest) returns(common.CommonReply) {}
+  rpc DeleteAcl(DeleteAclRequest) returns(DeleteAclRequestReply) {}
 
   //Creates the corresponding ACL based on the request
   //
@@ -178,7 +177,7 @@ service MqttService {
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateAcl(CreateAclRequest) returns(common.CommonReply) {}
+  rpc CreateAcl(CreateAclRequest) returns(CreateAclReply) {}
 
   //Returns a list of blacklist based on the parameters of the request
   //
@@ -197,7 +196,7 @@ service MqttService {
   // - `resource_name: String`: The name of the resource.
   //
   //Returns: An empty struct.
-  rpc DeleteBlacklist(DeleteBlacklistRequest) returns(common.CommonReply) {}
+  rpc DeleteBlacklist(DeleteBlacklistRequest) returns(DeleteBlacklistReply) {}
 
   //Creates the corresponding blacklist based on the request
   //
@@ -206,7 +205,7 @@ service MqttService {
   // - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateBlacklist(CreateBlacklistRequest) returns(common.CommonReply) {}
+  rpc CreateBlacklist(CreateBlacklistRequest) returns(CreateBlacklistReply) {}
 }
 
 message GetShareSubLeaderRequest{
@@ -252,12 +251,20 @@ message CreateUserRequest{
     bytes content = 3;
 }
 
+message CreateUserReply{
+
+}
+
 message DeleteUserRequest{
     //The name of the cluster.
     string cluster_name = 1;
 
     //The name of the user.
     string user_name = 2;
+}
+
+message DeleteUserReply{
+
 }
 
 message ListTopicRequest{
@@ -284,6 +291,10 @@ message CreateTopicRequest{
     bytes content = 3;
 }
 
+message CreateTopicReply{
+
+}
+
 
 message DeleteTopicRequest{
     //The name of the cluster.
@@ -291,6 +302,10 @@ message DeleteTopicRequest{
 
     //The name of the topic.
     string topic_name = 2;
+}
+
+message DeleteTopicReply{
+
 }
 
 message SetTopicRetainMessageRequest{
@@ -305,6 +320,10 @@ message SetTopicRetainMessageRequest{
 
     //The parameter is the expiration time of the retain message. The unit is seconds.
     uint64 retain_message_expired_at = 4;
+}
+
+message SetTopicRetainMessageReply{
+
 }
 
 message ListSessionRequest{
@@ -331,6 +350,10 @@ message CreateSessionRequest{
     bytes session = 3;
 }
 
+message CreateSessionReply{
+
+}
+
 message UpdateSessionRequest{
     //The name of the cluster.
     string cluster_name = 1;
@@ -351,12 +374,20 @@ message UpdateSessionRequest{
     uint64 distinct_time = 6;
 }
 
+message UpdateSessionReply{
+
+}
+
 message DeleteSessionRequest{
     //The name of the cluster.
     string cluster_name = 1;
 
     //The id of the client.
     string client_id = 2;
+}
+
+message DeleteSessionReply{
+
 }
 
 message SaveLastWillMessageRequest{
@@ -369,6 +400,12 @@ message SaveLastWillMessageRequest{
     //The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
     bytes  last_will_message = 3;
 }
+
+message SaveLastWillMessageReply{
+
+}
+
+
 message ListAclRequest{
     //The name of the cluster.
     string cluster_name = 1;
@@ -387,6 +424,10 @@ message DeleteAclRequest{
     bytes acl = 2;
 }
 
+message DeleteAclRequestReply{
+
+}
+
 message CreateAclRequest{
     //The name of the cluster.
     string cluster_name = 1;
@@ -394,6 +435,12 @@ message CreateAclRequest{
     //The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
     bytes acl = 2;
 }
+
+message CreateAclReply{
+
+}
+
+
 message ListBlacklistRequest{
     //The name of the cluster.
     string cluster_name = 1;
@@ -412,6 +459,10 @@ message CreateBlacklistRequest{
     bytes blacklist = 2;
 }
 
+message CreateBlacklistReply{
+    
+}
+
 message DeleteBlacklistRequest{
     //The name of the cluster.
     string cluster_name = 1;
@@ -421,4 +472,8 @@ message DeleteBlacklistRequest{
 
     //The name of the resource.
     string resource_name = 3;
+}
+
+message DeleteBlacklistReply{
+
 }

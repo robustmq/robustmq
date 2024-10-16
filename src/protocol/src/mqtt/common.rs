@@ -35,14 +35,6 @@ use std::{fmt, io};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 
-/// This module is the place where all the protocal specifics gets abstracted
-/// out and creates structures which are common across protocols. Since, MQTT
-/// is the core protocol that this broker supports, a lot of structs closely
-/// map to what MQTT specifies in its protocol
-
-// TODO: Handle the cases when there are no properties using Inner struct, so
-// handling of properties can be made simplier internally
-
 #[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
 pub enum MQTTProtocol {
     #[default]
@@ -261,11 +253,6 @@ pub fn length(stream: Iter<u8>) -> Result<(usize, usize), Error> {
     Ok((len_len, len))
 }
 
-/// Checks if the stream has enough bytes to frame a packet and returns fixed header
-/// only if a packet can be framed with existing bytes in the `stream`.
-/// The passed stream doesn't modify parent stream's cursor. If this function
-/// returned an error, next `check` on the same parent stream is forced start
-/// with cursor at 0 again (Iter is owned. Only Iter's cursor is changed internally)
 pub fn check(stream: Iter<u8>, max_packet_size: usize) -> Result<FixedHeader, Error> {
     // Create fixed header if there are enough bytes in the stream to frame full packet
     let stream_len = stream.len();
@@ -309,10 +296,6 @@ pub fn read_mqtt_string(stream: &mut Bytes) -> Result<String, Error> {
     }
 }
 
-/// After collecting enough bytes to frame a packet (packet's frame()),
-/// it's possible thatcontent itself in the stream is wrong. Like expected packet id or qos not being present.
-/// In cases where 'read_mqtt_string' or 'read_mqtt_bytes' exhausted remaining length but
-/// packet framing expects to parse qos next, these pre checks will prevent 'bytes' crashes.
 pub fn read_u16(stream: &mut Bytes) -> Result<u16, Error> {
     if stream.len() < 2 {
         return Err(Error::MalformedPacket);

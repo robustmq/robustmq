@@ -14,8 +14,8 @@
 
 use bincode::{deserialize, serialize};
 use openraft::Raft;
-use protocol::placement_center::generate::openraft::open_raft_service_server::OpenRaftService;
-use protocol::placement_center::generate::openraft::{
+use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftService;
+use protocol::placement_center::placement_center_openraft::{
     AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::{Request, Response, Status};

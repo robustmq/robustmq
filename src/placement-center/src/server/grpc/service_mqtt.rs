@@ -15,15 +15,18 @@
 use std::sync::Arc;
 
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::mqtt::mqtt_service_server::MqttService;
-use protocol::placement_center::generate::mqtt::{
-    CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
-    CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
-    DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
+use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttService;
+use protocol::placement_center::placement_center_mqtt::{
+    CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
+    CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest,
+    DeleteTopicReply, DeleteTopicRequest, DeleteUserReply, DeleteUserRequest,
+    GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -132,7 +135,7 @@ impl MqttService for GrpcMqttService {
     async fn create_user(
         &self,
         request: Request<CreateUserRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<CreateUserReply>, Status> {
         let req = request.into_inner();
 
         let data = StorageData::new(
@@ -141,7 +144,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(CreateUserReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -151,7 +154,7 @@ impl MqttService for GrpcMqttService {
     async fn delete_user(
         &self,
         request: Request<DeleteUserRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteUserReply>, Status> {
         let req = request.into_inner();
 
         let data = StorageData::new(
@@ -160,7 +163,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteUserReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -170,7 +173,7 @@ impl MqttService for GrpcMqttService {
     async fn create_topic(
         &self,
         request: Request<CreateTopicRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<CreateTopicReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTCreateTopic,
@@ -178,7 +181,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(CreateTopicReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -188,7 +191,7 @@ impl MqttService for GrpcMqttService {
     async fn delete_topic(
         &self,
         request: Request<DeleteTopicRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteTopicReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTDeleteTopic,
@@ -196,7 +199,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteTopicReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -280,15 +283,15 @@ impl MqttService for GrpcMqttService {
     async fn create_session(
         &self,
         request: Request<CreateSessionRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
-        let req = request.into_inner();
+    ) -> Result<Response<CreateSessionReply>, Status> {
+        let req: CreateSessionRequest = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTCreateSession,
             CreateSessionRequest::encode_to_vec(&req),
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(CreateSessionReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -298,7 +301,7 @@ impl MqttService for GrpcMqttService {
     async fn delete_session(
         &self,
         request: Request<DeleteSessionRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteSessionReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTDeleteSession,
@@ -306,7 +309,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteSessionReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -316,7 +319,7 @@ impl MqttService for GrpcMqttService {
     async fn set_topic_retain_message(
         &self,
         request: Request<SetTopicRetainMessageRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<SetTopicRetainMessageReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTSetTopicRetainMessage,
@@ -324,7 +327,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(SetTopicRetainMessageReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -334,7 +337,7 @@ impl MqttService for GrpcMqttService {
     async fn update_session(
         &self,
         request: Request<UpdateSessionRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<UpdateSessionReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTUpdateSession,
@@ -342,7 +345,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(UpdateSessionReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -352,7 +355,7 @@ impl MqttService for GrpcMqttService {
     async fn save_last_will_message(
         &self,
         request: Request<SaveLastWillMessageRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<SaveLastWillMessageReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTSaveLastWillMessage,
@@ -360,7 +363,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(SaveLastWillMessageReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -397,7 +400,7 @@ impl MqttService for GrpcMqttService {
     async fn create_acl(
         &self,
         request: Request<CreateAclRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<CreateAclReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTCreateAcl,
@@ -405,7 +408,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(CreateAclReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -415,7 +418,7 @@ impl MqttService for GrpcMqttService {
     async fn delete_acl(
         &self,
         request: Request<DeleteAclRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteAclRequestReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTDeleteAcl,
@@ -423,7 +426,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteAclRequestReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -461,7 +464,7 @@ impl MqttService for GrpcMqttService {
     async fn create_blacklist(
         &self,
         request: Request<CreateBlacklistRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<CreateBlacklistReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTCreateBlacklist,
@@ -469,7 +472,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(CreateBlacklistReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -479,7 +482,7 @@ impl MqttService for GrpcMqttService {
     async fn delete_blacklist(
         &self,
         request: Request<DeleteBlacklistRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteBlacklistReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::MQTTDeleteBlacklist,
@@ -487,7 +490,7 @@ impl MqttService for GrpcMqttService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteBlacklistReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }

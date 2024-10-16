@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::placement::mqtt::call::list_acl;
 use grpc_clients::poll::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
-use protocol::placement_center::generate::mqtt::ListAclRequest;
+use protocol::placement_center::placement_center_mqtt::ListAclRequest;
 
 pub struct AclStorage {
     client_poll: Arc<ClientPool>,

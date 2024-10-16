@@ -25,10 +25,9 @@ use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::broker_node::BrokerNode;
-use protocol::placement_center::generate::common::ClusterType;
-use protocol::placement_center::generate::placement::{
-    DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest, NodeListRequest,
-    RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+use protocol::placement_center::placement_center_inner::{
+    ClusterType, DeleteResourceConfigRequest, GetResourceConfigRequest, HeartbeatRequest,
+    NodeListRequest, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 
 pub struct ClusterStorage {

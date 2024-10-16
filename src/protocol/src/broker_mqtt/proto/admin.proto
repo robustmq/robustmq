@@ -1,5 +1,5 @@
 syntax = "proto3";
-package admin;
+package broker.mqtt.admin;
 service MQTTBrokerAdminService {
     rpc cluster_status(ClusterStatusRequest) returns(ClusterStatusReply){}
 }

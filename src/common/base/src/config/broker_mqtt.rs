@@ -213,7 +213,7 @@ mod tests {
         );
         assert_eq!(config.log.log_config, "./config/log4rs.yaml");
 
-        assert_eq!(config.auth.storage_type, "memory".to_string());
+        assert_eq!(config.auth.storage_type, "placement".to_string());
         assert_eq!(config.auth.journal_addr, "".to_string());
         assert_eq!(config.auth.mysql_addr, "".to_string());
     }
@@ -264,7 +264,7 @@ mod tests {
         );
         assert_eq!(config.log.log_config, "./config/log4rs.yaml");
 
-        assert_eq!(config.auth.storage_type, "memory".to_string());
+        assert_eq!(config.auth.storage_type, "placement".to_string());
         assert_eq!(config.auth.journal_addr, "".to_string());
         assert_eq!(config.auth.mysql_addr, "".to_string());
     }

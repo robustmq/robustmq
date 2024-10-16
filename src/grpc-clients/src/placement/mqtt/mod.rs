@@ -17,15 +17,18 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::mqtt::mqtt_service_client::MqttServiceClient;
-use protocol::placement_center::generate::mqtt::{
-    CreateAclRequest, CreateBlacklistRequest, CreateSessionRequest, CreateTopicRequest,
-    CreateUserRequest, DeleteAclRequest, DeleteBlacklistRequest, DeleteSessionRequest,
-    DeleteTopicRequest, DeleteUserRequest, GetShareSubLeaderReply, GetShareSubLeaderRequest,
-    ListAclReply, ListAclRequest, ListBlacklistReply, ListBlacklistRequest, ListSessionReply,
-    ListSessionRequest, ListTopicReply, ListTopicRequest, ListUserReply, ListUserRequest,
-    SaveLastWillMessageRequest, SetTopicRetainMessageRequest, UpdateSessionRequest,
+use protocol::placement_center::placement_center_mqtt::mqtt_service_client::MqttServiceClient;
+use protocol::placement_center::placement_center_mqtt::{
+    CreateAclReply, CreateAclRequest, CreateBlacklistReply, CreateBlacklistRequest,
+    CreateSessionReply, CreateSessionRequest, CreateTopicReply, CreateTopicRequest,
+    CreateUserReply, CreateUserRequest, DeleteAclRequest, DeleteAclRequestReply,
+    DeleteBlacklistReply, DeleteBlacklistRequest, DeleteSessionReply, DeleteSessionRequest,
+    DeleteTopicReply, DeleteTopicRequest, DeleteUserReply, DeleteUserRequest,
+    GetShareSubLeaderReply, GetShareSubLeaderRequest, ListAclReply, ListAclRequest,
+    ListBlacklistReply, ListBlacklistRequest, ListSessionReply, ListSessionRequest, ListTopicReply,
+    ListTopicRequest, ListUserReply, ListUserRequest, SaveLastWillMessageReply,
+    SaveLastWillMessageRequest, SetTopicRetainMessageReply, SetTopicRetainMessageRequest,
+    UpdateSessionReply, UpdateSessionRequest,
 };
 use tonic::transport::Channel;
 
@@ -85,7 +88,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| CreateUserRequest::decode(data),
                             |mut client, request| async move { client.create_user(request).await },
-                            CommonReply::encode_to_vec,
+                            CreateUserReply::encode_to_vec,
                         )
                         .await
                     }
@@ -95,7 +98,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| DeleteUserRequest::decode(data),
                             |mut client, request| async move { client.delete_user(request).await },
-                            CommonReply::encode_to_vec,
+                            DeleteUserReply::encode_to_vec,
                         )
                         .await
                     }
@@ -115,7 +118,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| CreateTopicRequest::decode(data),
                             |mut client, request| async move { client.create_topic(request).await },
-                            CommonReply::encode_to_vec,
+                            CreateTopicReply::encode_to_vec,
                         )
                         .await
                     }
@@ -127,7 +130,7 @@ pub(crate) async fn mqtt_interface_call(
                             |mut client: Connection<MqttServiceManager>, request| async move {
                                 client.delete_topic(request).await
                             },
-                            CommonReply::encode_to_vec,
+                            DeleteTopicReply::encode_to_vec,
                         )
                         .await
                     }
@@ -139,7 +142,7 @@ pub(crate) async fn mqtt_interface_call(
                             |mut client, request| async move {
                                 client.set_topic_retain_message(request).await
                             },
-                            CommonReply::encode_to_vec,
+                            SetTopicRetainMessageReply::encode_to_vec,
                         )
                         .await
                     }
@@ -158,7 +161,7 @@ pub(crate) async fn mqtt_interface_call(
                         request.clone(),
                         |data| CreateSessionRequest::decode(data),
                         |mut client, request| async move { client.create_session(request).await },
-                        CommonReply::encode_to_vec,
+                        CreateSessionReply::encode_to_vec,
                     )
                     .await,
                     PlacementCenterInterface::DeleteSession => client_call(
@@ -166,7 +169,7 @@ pub(crate) async fn mqtt_interface_call(
                         request.clone(),
                         |data| DeleteSessionRequest::decode(data),
                         |mut client, request| async move { client.delete_session(request).await },
-                        CommonReply::encode_to_vec,
+                        DeleteSessionReply::encode_to_vec,
                     )
                     .await,
                     PlacementCenterInterface::UpdateSession => client_call(
@@ -174,7 +177,7 @@ pub(crate) async fn mqtt_interface_call(
                         request.clone(),
                         |data| UpdateSessionRequest::decode(data),
                         |mut client, request| async move { client.update_session(request).await },
-                        CommonReply::encode_to_vec,
+                        UpdateSessionReply::encode_to_vec,
                     )
                     .await,
                     PlacementCenterInterface::SaveLastWillMessage => {
@@ -185,7 +188,7 @@ pub(crate) async fn mqtt_interface_call(
                             |mut client, request| async move {
                                 client.save_last_will_message(request).await
                             },
-                            CommonReply::encode_to_vec,
+                            SaveLastWillMessageReply::encode_to_vec,
                         )
                         .await
                     }
@@ -205,7 +208,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| CreateAclRequest::decode(data),
                             |mut client, request| async move { client.create_acl(request).await },
-                            CommonReply::encode_to_vec,
+                            CreateAclReply::encode_to_vec,
                         )
                         .await
                     }
@@ -215,7 +218,7 @@ pub(crate) async fn mqtt_interface_call(
                             request.clone(),
                             |data| DeleteAclRequest::decode(data),
                             |mut client, request| async move { client.delete_acl(request).await },
-                            CommonReply::encode_to_vec,
+                            DeleteAclRequestReply::encode_to_vec,
                         )
                         .await
                     }
@@ -232,7 +235,7 @@ pub(crate) async fn mqtt_interface_call(
                         request.clone(),
                         |data| CreateBlacklistRequest::decode(data),
                         |mut client, request| async move { client.create_blacklist(request).await },
-                        CommonReply::encode_to_vec,
+                        CreateBlacklistReply::encode_to_vec,
                     )
                     .await,
                     PlacementCenterInterface::DeleteBlackList => client_call(
@@ -240,7 +243,7 @@ pub(crate) async fn mqtt_interface_call(
                         request.clone(),
                         |data| DeleteBlacklistRequest::decode(data),
                         |mut client, request| async move { client.delete_blacklist(request).await },
-                        CommonReply::encode_to_vec,
+                        DeleteBlacklistReply::encode_to_vec,
                     )
                     .await,
                     _ => {

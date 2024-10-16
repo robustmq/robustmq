@@ -17,15 +17,15 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
-use protocol::placement_center::generate::placement::{
-    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest,
-    DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
-    NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-    SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
-    SetResourceConfigRequest, UnRegisterNodeRequest,
+use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
+use protocol::placement_center::placement_center_inner::{
+    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
+    DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
+    RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+    SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use tonic::transport::Channel;
 
@@ -67,7 +67,7 @@ pub(crate) async fn placement_interface_call(
                             request.clone(),
                             |data| RegisterNodeRequest::decode(data),
                             |mut client: Connection<PlacementServiceManager>, request| async move { client.register_node(request).await },
-                            CommonReply::encode_to_vec,
+                            RegisterNodeReply::encode_to_vec,
                         ).await
                     }
                     PlacementCenterInterface::UnRegisterNode => {
@@ -76,7 +76,7 @@ pub(crate) async fn placement_interface_call(
                             request.clone(),
                             |data| UnRegisterNodeRequest::decode(data),
                             |mut client, request| async move { client.un_register_node(request).await },
-                            CommonReply::encode_to_vec,
+                            UnRegisterNodeReply::encode_to_vec,
                         ).await
                     }
                     PlacementCenterInterface::Heartbeat => {
@@ -85,7 +85,7 @@ pub(crate) async fn placement_interface_call(
                             request.clone(),
                             |data| HeartbeatRequest::decode(data),
                             |mut client, request| async move { client.heartbeat(request).await },
-                            CommonReply::encode_to_vec,
+                            HeartbeatReply::encode_to_vec,
                         ).await
                     }
                     PlacementCenterInterface::SendRaftMessage => {
@@ -112,7 +112,7 @@ pub(crate) async fn placement_interface_call(
                             request.clone(),
                             |data| SetResourceConfigRequest::decode(data),
                             |mut client, request| async move { client.set_resource_config(request).await },
-                            CommonReply::encode_to_vec,
+                            SetResourceConfigReply::encode_to_vec,
                         ).await
                     }
                     PlacementCenterInterface::GetReourceConfig => {
@@ -130,7 +130,7 @@ pub(crate) async fn placement_interface_call(
                             request.clone(),
                             |data| DeleteResourceConfigRequest::decode(data),
                             |mut client, request| async move { client.delete_resource_config(request).await },
-                            CommonReply::encode_to_vec,
+                            DeleteResourceConfigReply::encode_to_vec,
                         ).await
                     }
                     PlacementCenterInterface::SetIdempotentData => {
@@ -139,7 +139,7 @@ pub(crate) async fn placement_interface_call(
                             request.clone(),
                             |data| SetIdempotentDataRequest::decode(data),
                             |mut client, request| async move { client.set_idempotent_data(request).await },
-                            CommonReply::encode_to_vec,
+                            SetIdempotentDataReply::encode_to_vec,
                         ).await
                     }
                     PlacementCenterInterface::ExistsIdempotentData => {
@@ -157,7 +157,7 @@ pub(crate) async fn placement_interface_call(
                             request.clone(),
                             |data| DeleteIdempotentDataRequest::decode(data),
                             |mut client, request| async move { client.delete_idempotent_data(request).await },
-                            CommonReply::encode_to_vec,
+                            DeleteIdempotentDataReply::encode_to_vec,
                         ).await
                     }
                     _ => {

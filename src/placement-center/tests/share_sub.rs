@@ -25,9 +25,8 @@ mod tests {
     use grpc_clients::placement::placement::call::register_node;
     use grpc_clients::poll::ClientPool;
     use log::info;
-    use protocol::placement_center::generate::common::ClusterType;
-    use protocol::placement_center::generate::mqtt::GetShareSubLeaderRequest;
-    use protocol::placement_center::generate::placement::RegisterNodeRequest;
+    use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
+    use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
 
     #[tokio::test]
     async fn test_share_sub() {

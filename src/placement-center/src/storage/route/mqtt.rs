@@ -18,7 +18,7 @@ use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MQTTBrokerError;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message as _;
-use protocol::placement_center::generate::mqtt::{
+use protocol::placement_center::placement_center_mqtt::{
     CreateSessionRequest, CreateTopicRequest, CreateUserRequest, DeleteSessionRequest,
     DeleteTopicRequest, DeleteUserRequest, SaveLastWillMessageRequest,
     SetTopicRetainMessageRequest, UpdateSessionRequest,
