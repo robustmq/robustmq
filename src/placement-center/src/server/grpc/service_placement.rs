@@ -44,18 +44,16 @@ use protocol::placement_center::placement_center_inner::{
     SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
-
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tonic::{Request, Response, Status};
 
+use super::validate::ValidateExt;
 use crate::cache::placement::PlacementCacheManager;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::route::apply::RaftMachineApply;
 use crate::storage::route::data::{StorageData, StorageDataType};
-
-use super::validate::ValidateExt;
 
 pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
