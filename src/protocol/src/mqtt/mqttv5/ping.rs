@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::*;
 
 /// pingreq and pingresp in MQTT v5 are as same as that in MQTT v4

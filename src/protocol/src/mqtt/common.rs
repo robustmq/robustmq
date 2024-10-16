@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use std::slice::Iter;
 use std::str::Utf8Error;
 use std::{fmt, io};

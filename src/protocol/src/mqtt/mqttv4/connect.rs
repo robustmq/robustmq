@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 use super::*;
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
