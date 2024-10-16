@@ -32,6 +32,7 @@ tokio.workspace = true
 futures.workspace = true
 common-base.workspace =true
 serde.workspace =true
+validator.workspace = true
 
 [build-dependencies]
 tonic-build.workspace = true

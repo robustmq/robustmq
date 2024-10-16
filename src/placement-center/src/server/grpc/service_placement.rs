@@ -47,6 +47,7 @@ use protocol::placement_center::placement_center_inner::{
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tonic::{Request, Response, Status};
 
+use super::validate::ValidateExt;
 use crate::cache::placement::PlacementCacheManager;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
@@ -118,13 +119,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<RegisterNodeRequest>,
     ) -> Result<Response<RegisterNodeReply>, Status> {
         let req = request.into_inner();
-
-        if req.cluster_name.is_empty() || req.node_ip.is_empty() {
-            return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("cluster name or node ip".to_string())
-                    .to_string(),
-            ));
-        }
+        let _ = req.validate_ext()?;
 
         let data = StorageData::new(
             StorageDataType::ClusterRegisterNode,
