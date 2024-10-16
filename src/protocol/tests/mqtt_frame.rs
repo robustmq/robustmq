@@ -71,10 +71,9 @@ mod tests {
                 Ok(da) => {
                     // assert_eq!(da, resp_packet.packet)
                     println!("{:?}", da);
-                    assert!(true);
                 }
                 Err(e) => {
-                    assert!(false);
+                    panic!("{}", e);
                 }
             }
         }
@@ -89,12 +88,11 @@ mod tests {
         if let Some(data) = stream.next().await {
             match data {
                 Ok(da) => {
-                    // assert_eq!(da, resp_packet.packet)
+                    // assert_eq!(da, resp_packet.packet);
                     println!("{:?}", da);
-                    assert!(true);
                 }
                 Err(e) => {
-                    assert!(false);
+                    panic!("{}", e);
                 }
             }
         }

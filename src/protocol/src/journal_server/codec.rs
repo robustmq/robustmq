@@ -489,8 +489,7 @@ mod tests {
                     assert_eq!(da, resp_pkg);
                 }
                 Err(e) => {
-                    println!("{}", e);
-                    assert!(false);
+                    panic!("{}", e);
                 }
             }
         }

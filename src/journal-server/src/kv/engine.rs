@@ -43,12 +43,7 @@ impl KvEngine {
         }
     }
 
-    pub fn set(
-        &self,
-        fold: &str,
-        key: &str,
-        value: KvRecord,
-    ) -> Result<(), JournalServerError> {
+    pub fn set(&self, fold: &str, key: &str, value: KvRecord) -> Result<(), JournalServerError> {
         if let Some(instance) = self.rocksdb_instances.get(fold) {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.write(cf, key, &value)?);
