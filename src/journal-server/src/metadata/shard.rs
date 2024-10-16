@@ -14,6 +14,4 @@
 
 pub struct Shard {}
 
-impl Shard {
-  
-}
+impl Shard {}
