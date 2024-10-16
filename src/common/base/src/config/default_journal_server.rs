@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{common::Log, journal_server::{Network, Prometheus, Storage, System, TcpThread}};
+use super::common::Log;
+use super::journal_server::{Network, Prometheus, Storage, System, TcpThread};
 
 pub fn default_network() -> Network {
     Network {
@@ -72,8 +73,6 @@ pub fn default_prometheus() -> Prometheus {
         header: "".to_string(),
     }
 }
-
-
 
 pub fn default_log() -> Log {
     Log {

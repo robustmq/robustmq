@@ -34,7 +34,9 @@ use serde::Deserialize;
 
 use super::common::Log;
 use super::default_journal_server::{
-    default_grpc_port, default_network, default_network_tcp_port,default_network_tcps_port, default_system, default_storage, default_tcp_thread, default_log, default_prometheus, default_prometheus_port
+    default_grpc_port, default_log, default_network, default_network_tcp_port,
+    default_network_tcps_port, default_prometheus, default_prometheus_port, default_storage,
+    default_system, default_tcp_thread,
 };
 use crate::tools::{read_file, try_create_fold};
 
