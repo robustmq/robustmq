@@ -44,7 +44,7 @@ use protocol::placement_center::placement_center_inner::{
     SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
     SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
-use protocol::placement_center::generate::validate::ValidateExt;
+
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tonic::{Request, Response, Status};
 
@@ -54,6 +54,8 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::route::apply::RaftMachineApply;
 use crate::storage::route::data::{StorageData, StorageDataType};
+
+use super::validate::ValidateExt;
 
 pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
@@ -138,7 +140,6 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UnRegisterNodeRequest>,
     ) -> Result<Response<UnRegisterNodeReply>, Status> {
         let req = request.into_inner();
-        let _ = req.validate_ext()?;
 
         let data = StorageData::new(
             StorageDataType::ClusterUngisterNode,

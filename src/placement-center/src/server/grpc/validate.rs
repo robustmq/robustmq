@@ -12,17 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
+use protocol::placement_center::placement_center_inner::RegisterNodeRequest;
 use tonic::Status;
-use validator::{Validate, ValidationErrors};
 
 pub trait ValidateExt {
     fn validate_ext(&self) -> Result<(), Status>;
 }
 
-impl<T: Validate> ValidateExt for T {
+
+impl ValidateExt for RegisterNodeRequest {
     fn validate_ext(&self) -> Result<(), Status> {
-        self.validate().map_err(|e: ValidationErrors| {
-            Status::invalid_argument(format!("Validation error: {}", e))
-        })
+        if self.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("cluster name".to_string())
+                .to_string(),
+            ));
+        }
+
+        if self.node_ip.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("node ip".to_string())
+                .to_string(),
+            ));
+        }
+
+        Ok(())
     }
 }
