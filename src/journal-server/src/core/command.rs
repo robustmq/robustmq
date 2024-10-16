@@ -47,10 +47,13 @@ impl Command {
     ) -> Option<JournalEnginePacket> {
         match packet {
             JournalEnginePacket::GetClusterMetadataReq(request) => {
-                let mut resp = GetClusterMetadataResp::default();
-                resp.body = Some(GetClusterMetadataRespBody {
-                    nodes: self.handler.get_cluster_metadata(),
-                });
+                let resp = GetClusterMetadataResp {
+                    header: None,
+                    body: Some(GetClusterMetadataRespBody {
+                        nodes: self.handler.get_cluster_metadata(),
+                    }),
+                };
+
                 return Some(JournalEnginePacket::GetClusterMetadataResp(resp));
             }
 

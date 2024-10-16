@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::journal_server::JournalServerError;
-use metadata_struct::journal::segment::{JournalSegment, JournalSegmentNode};
+use metadata_struct::journal::segment::JournalSegment;
 use protocol::journal_server::journal_engine::{
     GetActiveSegmentReq, GetClusterMetadataNode, RespHeader,
 };
@@ -62,12 +62,12 @@ impl Handler {
             create_active_segement(&req_body.namespace, &req_body.shard).await?
         };
 
-        return Ok(active_segment);
+        Ok(active_segment)
     }
 
     pub async fn offset_commit(&self) {}
 
     fn resp_header(&self) -> Option<RespHeader> {
-        return None;
+        None
     }
 }
