@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::net::SocketAddr;
+
 use protocol::journal_server::codec::JournalEnginePacket;
 
 #[derive(Clone, Debug)]
