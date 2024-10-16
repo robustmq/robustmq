@@ -19,7 +19,7 @@ use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_server::MqttBrokerPlacementService;
 use protocol::broker_mqtt::broker_mqtt_placement::{
-    CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
+    DeleteSessionReply, DeleteSessionRequest, SendLastWillMessageReply, SendLastWillMessageRequest, UpdateCacheReply, UpdateCacheRequest
 };
 use storage_adapter::storage::StorageAdapter;
 use tonic::{Request, Response, Status};
@@ -59,16 +59,16 @@ where
     async fn update_cache(
         &self,
         request: Request<UpdateCacheRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<UpdateCacheReply>, Status> {
         let req = request.into_inner();
         update_cache_metadata(req);
-        return Ok(Response::new(CommonReply::default()));
+        return Ok(Response::new(UpdateCacheReply::default()));
     }
 
     async fn delete_session(
         &self,
         request: Request<DeleteSessionRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteSessionReply>, Status> {
         let req = request.into_inner();
         debug!("Received request from Placement center to delete expired Session. Cluster name :{}, clientId: {:?}",req.cluster_name,req.client_id);
         if self.cache_manager.cluster_name != req.cluster_name {
@@ -83,13 +83,13 @@ where
             self.subscribe_manager.stop_push_by_client_id(&client_id);
         }
 
-        return Ok(Response::new(CommonReply::default()));
+        return Ok(Response::new(DeleteSessionReply::default()));
     }
 
     async fn send_last_will_message(
         &self,
         request: Request<SendLastWillMessageRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<SendLastWillMessageReply>, Status> {
         let req = request.into_inner();
         let data = match serde_json::from_slice::<LastWillData>(&req.last_will_message) {
             Ok(da) => da,
@@ -113,7 +113,7 @@ where
         .await
         {
             Ok(()) => {
-                return Ok(Response::new(CommonReply::default()));
+                return Ok(Response::new(SendLastWillMessageReply::default()));
             }
             Err(e) => {
                 return Err(Status::internal(e.to_string()));
