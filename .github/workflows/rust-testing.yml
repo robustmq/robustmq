@@ -27,26 +27,26 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-    - name: Install cargo-nextest
-      uses: baptiste0928/cargo-install@v1
-      with:
-        crate: cargo-nextest
-        locked: true
-   - if: matrix.os == 'ubuntu-latest'
-      name: Install dependencies (ubuntu-latest)
-      run: |
-        sudo apt-get install protobuf-compiler
-    - if: matrix.os == 'macos-latest'
-      name: Install dependencies (macos-latest)
-      run: |
-        brew install protobuf
-    - if: matrix.os == 'windows-latest'
-      name: Install dependencies (windows-latest)
-      run: |
-        choco install protoc
-    - uses: actions/checkout@v3
-    - name: Run tests
-      run: make test
+      - if: matrix.os == 'ubuntu-latest'
+        name: Install dependencies (ubuntu-latest)
+        run: |
+          sudo apt-get install protobuf-compiler
+      - if: matrix.os == 'macos-latest'
+        name: Install dependencies (macos-latest)
+        run: |
+          brew install protobuf
+      - if: matrix.os == 'windows-latest'
+        name: Install dependencies (windows-latest)
+        run: |
+          choco install protoc
+      - name: Install cargo-nextest
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-nextest
+          locked: true
+      - uses: actions/checkout@v3
+      - name: Run tests
+        run: make test
 
   rustfmt:
     runs-on: ubuntu-latest
@@ -66,6 +66,18 @@ jobs:
   clippy:
     runs-on: ubuntu-latest
     steps:
+      - if: matrix.os == 'ubuntu-latest'
+        name: Install dependencies (ubuntu-latest)
+        run: |
+          sudo apt-get install protobuf-compiler
+      - if: matrix.os == 'macos-latest'
+        name: Install dependencies (macos-latest)
+        run: |
+          brew install protobuf
+      - if: matrix.os == 'windows-latest'
+        name: Install dependencies (windows-latest)
+        run: |
+          choco install protoc
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
