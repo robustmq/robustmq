@@ -1,5 +1,5 @@
 syntax = "proto3";
-package admin;
+package journal.admin;
 service JournalServerAdminService {
 
 }

@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::broker_server::generate::placement::{
+use protocol::broker_mqtt::broker_mqtt_placement::{
     CommonReply, DeleteSessionRequest, SendLastWillMessageRequest, UpdateCacheRequest,
 };
 

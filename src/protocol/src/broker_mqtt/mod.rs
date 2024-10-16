@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Record {}
+#![cfg_attr(any(), rustfmt::skip)]
+#![allow(clippy::all)]
+
+pub mod broker_mqtt_admin {
+    tonic::include_proto!("broker.mqtt.admin");
+}
+
+pub mod broker_mqtt_placement {
+    tonic::include_proto!("broker.mqtt.placement");
+}

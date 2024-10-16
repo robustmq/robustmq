@@ -14,14 +14,4 @@
 
 pub struct Shard {}
 
-impl Shard {
-    pub fn new() -> Self {
-        Shard {}
-    }
-
-    pub fn create(&self) {}
-
-    pub fn delete(&self) {}
-
-    pub fn get(&self) {}
-}
+impl Shard {}

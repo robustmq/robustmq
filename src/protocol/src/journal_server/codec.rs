@@ -16,7 +16,7 @@ use bytes::{BufMut, BytesMut};
 use prost::Message as _;
 use tokio_util::codec;
 
-use super::generate::protocol::engine::{
+use super::journal_engine::{
     ApiKey, GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentResp,
     GetActiveSegmentRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
     OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader,
@@ -432,7 +432,7 @@ mod tests {
     use tokio_util::codec::{Decoder, Encoder, Framed, FramedRead, FramedWrite};
 
     use super::{JournalEnginePacket, JournalServerCodec};
-    use crate::journal_server::generate::protocol::engine::{
+    use crate::journal_server::journal_engine::{
         ApiKey, ApiVersion, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
     };
 

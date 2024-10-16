@@ -20,9 +20,8 @@ mod tests {
 
     use grpc_clients::placement::placement::call::{cluster_status, register_node};
     use grpc_clients::poll::ClientPool;
-    use protocol::placement_center::generate::common::ClusterType;
-    use protocol::placement_center::generate::placement::{
-        ClusterStatusRequest, RegisterNodeRequest,
+    use protocol::placement_center::placement_center_inner::{
+        ClusterStatusRequest, ClusterType, RegisterNodeRequest,
     };
 
     use crate::common::get_placement_addr;

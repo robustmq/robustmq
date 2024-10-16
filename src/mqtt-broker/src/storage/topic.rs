@@ -25,7 +25,7 @@ use grpc_clients::placement::mqtt::call::{
 use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::MqttTopic;
-use protocol::placement_center::generate::mqtt::{
+use protocol::placement_center::placement_center_mqtt::{
     CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
 };
 

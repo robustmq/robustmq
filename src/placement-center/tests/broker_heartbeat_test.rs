@@ -20,8 +20,10 @@ mod tests {
 
     use common_base::tools::now_second;
     use metadata_struct::placement::broker_node::BrokerNode;
-    use protocol::placement_center::generate::placement::placement_center_service_client::PlacementCenterServiceClient;
-    use protocol::placement_center::generate::placement::{NodeListRequest, RegisterNodeRequest};
+    use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
+    use protocol::placement_center::placement_center_inner::{
+        NodeListRequest, RegisterNodeRequest,
+    };
     use tokio::time::sleep;
 
     use crate::common::{cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr};

@@ -21,7 +21,7 @@ use grpc_clients::placement::kv::call::{
 };
 use grpc_clients::poll::ClientPool;
 use metadata_struct::adapter::record::Record;
-use protocol::placement_center::generate::kv::{
+use protocol::placement_center::placement_center_kv::{
     DeleteRequest, ExistsRequest, GetRequest, SetRequest,
 };
 

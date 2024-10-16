@@ -15,26 +15,25 @@
  */
 
 syntax = "proto3";
-package kv;
-import "common.proto";
+package placement.center.kv;
 
 service KvService {
-  //
-  rpc set(SetRequest) returns(common.CommonReply){}
 
-  // 
-  rpc delete(DeleteRequest) returns(common.CommonReply){}
+  rpc set(SetRequest) returns(SetReply){}
 
-  // 
+  rpc delete(DeleteRequest) returns(DeleteReply){}
+
   rpc get(GetRequest) returns(GetReply){}
 
-  // 
   rpc exists(ExistsRequest) returns(ExistsReply){} 
 }
 
 message SetRequest{
     string key = 1;
     string value = 2;
+}
+
+message SetReply{
 }
 
 message GetRequest{
@@ -47,6 +46,9 @@ message GetReply{
 
 message DeleteRequest{
     string key = 1;
+}
+
+message DeleteReply{
 }
 
 message ExistsRequest{

@@ -22,9 +22,8 @@ use grpc_clients::placement::placement::call::{heartbeat, register_node, unregis
 use grpc_clients::poll::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::journal::node_extend::JournalNodeExtend;
-use protocol::placement_center::generate::common::ClusterType;
-use protocol::placement_center::generate::placement::{
-    HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+use protocol::placement_center::placement_center_inner::{
+    ClusterType, HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
 use tokio::select;
 use tokio::sync::broadcast;

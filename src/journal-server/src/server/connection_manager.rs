@@ -224,7 +224,7 @@ impl ConnectionManager {
         Ok(())
     }
 
-    pub fn tcp_connect_num_check(&self) -> bool {
+    pub fn _tcp_connect_num_check(&self) -> bool {
         if self.connections.len() >= 10000 {
             return true;
         }

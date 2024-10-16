@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use inner::inner_cluster_status;
 use mobc::{Connection, Manager};
-use protocol::broker_server::generate::admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
+use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use tonic::transport::Channel;
 
 use super::MQTTBrokerPlacementInterface;

@@ -1,5 +1,5 @@
 syntax = "proto3";
-package engine;
+package journal.engine;
 
 /** Header **/
 enum ApiKey{
@@ -91,7 +91,7 @@ message OffsetCommitShard{
 }
 
 message OffsetCommitRespBody{
-    string namespace = 1;
+    string namespacde = 1;
     string group = 2;
     repeated OffsetCommitShardResp resp = 3;
 }

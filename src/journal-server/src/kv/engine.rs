@@ -25,7 +25,7 @@ pub struct KvEngine {
 }
 
 impl KvEngine {
-    pub fn new(config: &JournalServerConfig) -> Self {
+    pub fn new() -> Self {
         let instances = DashMap::with_capacity(2);
         KvEngine {
             rocksdb_instances: instances,
@@ -43,12 +43,7 @@ impl KvEngine {
         }
     }
 
-    pub fn set(
-        &self,
-        fold: &String,
-        key: &String,
-        value: KvRecord,
-    ) -> Result<(), JournalServerError> {
+    pub fn set(&self, fold: &String, key: &str, value: KvRecord) -> Result<(), JournalServerError> {
         if let Some(instance) = self.rocksdb_instances.get(fold) {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.write(cf, key, &value)?);
@@ -58,7 +53,7 @@ impl KvEngine {
         ))
     }
 
-    pub fn delete(&self, fold: &String, key: &String) -> Result<(), JournalServerError> {
+    pub fn delete(&self, fold: &String, key: &str) -> Result<(), JournalServerError> {
         if let Some(instance) = self.rocksdb_instances.get(fold) {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.delete(cf, key)?);
@@ -68,7 +63,7 @@ impl KvEngine {
         ))
     }
 
-    pub fn exists(&self, fold: &String, key: &String) -> Result<bool, JournalServerError> {
+    pub fn exists(&self, fold: &String, key: &str) -> Result<bool, JournalServerError> {
         if let Some(instance) = self.rocksdb_instances.get(fold) {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.exist(cf, key));
@@ -78,7 +73,7 @@ impl KvEngine {
         ))
     }
 
-    pub fn get(&self, fold: &String, key: &String) -> Result<Option<KvRecord>, JournalServerError> {
+    pub fn get(&self, fold: &String, key: &str) -> Result<Option<KvRecord>, JournalServerError> {
         if let Some(instance) = self.rocksdb_instances.get(fold) {
             let cf = instance.cf_handle(DB_COLUMN_FAMILY_DEFAULT).unwrap();
             return Ok(instance.read::<KvRecord>(cf, key)?);

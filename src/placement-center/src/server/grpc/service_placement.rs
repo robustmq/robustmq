@@ -33,15 +33,16 @@ use common_base::error::common::CommonError;
 use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::placement::placement_center_service_server::PlacementCenterService;
-use protocol::placement_center::generate::placement::{
-    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest,
-    DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
-    NodeListRequest, RegisterNodeRequest, ReportMonitorRequest, SendRaftConfChangeReply,
-    SendRaftConfChangeRequest, SendRaftMessageReply, SendRaftMessageRequest,
-    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
+use protocol::placement_center::placement_center_inner::{
+    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
+    DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
+    RegisterNodeReply, RegisterNodeRequest, ReportMonitorReply, ReportMonitorRequest,
+    SendRaftConfChangeReply, SendRaftConfChangeRequest, SendRaftMessageReply,
+    SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 use protocol::placement_center::generate::validate::ValidateExt;
 use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
@@ -116,7 +117,7 @@ impl PlacementCenterService for GrpcPlacementService {
     async fn register_node(
         &self,
         request: Request<RegisterNodeRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<RegisterNodeReply>, Status> {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
 
@@ -125,7 +126,7 @@ impl PlacementCenterService for GrpcPlacementService {
             RegisterNodeRequest::encode_to_vec(&req),
         );
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(RegisterNodeReply::default())),
             Err(e) => {
                 return Err(Status::internal(e.to_string()));
             }
@@ -135,7 +136,7 @@ impl PlacementCenterService for GrpcPlacementService {
     async fn un_register_node(
         &self,
         request: Request<UnRegisterNodeRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<UnRegisterNodeReply>, Status> {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
 
@@ -144,7 +145,7 @@ impl PlacementCenterService for GrpcPlacementService {
             UnRegisterNodeRequest::encode_to_vec(&req),
         );
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(UnRegisterNodeReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -154,21 +155,21 @@ impl PlacementCenterService for GrpcPlacementService {
     async fn heartbeat(
         &self,
         request: Request<HeartbeatRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<HeartbeatReply>, Status> {
         let req = request.into_inner();
         self.cluster_cache.report_heart_by_broker_node(
             &req.cluster_name,
             req.node_id,
             now_second(),
         );
-        return Ok(Response::new(CommonReply::default()));
+        return Ok(Response::new(HeartbeatReply::default()));
     }
 
     async fn report_monitor(
         &self,
         _: Request<ReportMonitorRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
-        return Ok(Response::new(CommonReply::default()));
+    ) -> Result<Response<ReportMonitorReply>, Status> {
+        return Ok(Response::new(ReportMonitorReply::default()));
     }
 
     async fn send_raft_message(
@@ -216,7 +217,7 @@ impl PlacementCenterService for GrpcPlacementService {
     async fn set_resource_config(
         &self,
         request: Request<SetResourceConfigRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<SetResourceConfigReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::ClusterSetResourceConfig,
@@ -224,7 +225,7 @@ impl PlacementCenterService for GrpcPlacementService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(SetResourceConfigReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -254,7 +255,7 @@ impl PlacementCenterService for GrpcPlacementService {
     async fn delete_resource_config(
         &self,
         request: Request<DeleteResourceConfigRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteResourceConfigReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::ClusterDeleteResourceConfig,
@@ -262,7 +263,7 @@ impl PlacementCenterService for GrpcPlacementService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteResourceConfigReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -272,7 +273,7 @@ impl PlacementCenterService for GrpcPlacementService {
     async fn set_idempotent_data(
         &self,
         request: Request<SetIdempotentDataRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<SetIdempotentDataReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::ClusterSetIdempotentData,
@@ -280,7 +281,7 @@ impl PlacementCenterService for GrpcPlacementService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(SetIdempotentDataReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -306,7 +307,7 @@ impl PlacementCenterService for GrpcPlacementService {
     async fn delete_idempotent_data(
         &self,
         request: Request<DeleteIdempotentDataRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteIdempotentDataReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
             StorageDataType::ClusterDeleteIdempotentData,
@@ -314,7 +315,7 @@ impl PlacementCenterService for GrpcPlacementService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteIdempotentDataReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }

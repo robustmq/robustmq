@@ -12,10 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![cfg_attr(any(), rustfmt::skip)]
+#![allow(clippy::all)]
+
 use std::io;
 
+pub mod journal_admin {
+    tonic::include_proto!("journal.admin");
+}
+
+pub mod journal_engine {
+    tonic::include_proto!("journal.engine");
+}
+
+pub mod journal_inner {
+    tonic::include_proto!("journal.inner");
+}
+
 pub mod codec;
-pub mod generate;
 
 /// Error during serialization and deserialization
 #[derive(Debug, thiserror::Error)]
