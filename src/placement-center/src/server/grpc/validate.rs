@@ -20,23 +20,19 @@ pub trait ValidateExt {
     fn validate_ext(&self) -> Result<(), Status>;
 }
 
-
 impl ValidateExt for RegisterNodeRequest {
     fn validate_ext(&self) -> Result<(), Status> {
         if self.cluster_name.is_empty() {
             return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("cluster name".to_string())
-                .to_string(),
+                CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
             ));
         }
 
         if self.node_ip.is_empty() {
             return Err(Status::cancelled(
-                CommonError::ParameterCannotBeNull("node ip".to_string())
-                .to_string(),
+                CommonError::ParameterCannotBeNull("node ip".to_string()).to_string(),
             ));
         }
-
-        Ok(())
+        Ok(()) 
     }
 }
