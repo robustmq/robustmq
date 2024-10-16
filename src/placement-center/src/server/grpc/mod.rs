@@ -17,3 +17,4 @@ pub mod service_kv;
 pub mod service_mqtt;
 pub mod service_placement;
 pub mod services_openraft;
+pub mod validate;
