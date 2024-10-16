@@ -16,8 +16,8 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::poll::ClientPool;
-use protocol::broker_mqtt::generate::admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
-use protocol::broker_mqtt::generate::admin::{ClusterStatusReply, ClusterStatusRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest};
 use tonic::{Request, Response, Status};
 
 use crate::storage::cluster::ClusterStorage;

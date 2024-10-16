@@ -16,29 +16,27 @@
 
 syntax = "proto3";
 package placement.center.journal;
-import "common.proto";
 
 service EngineService {
-  //
-  rpc CreateShard(CreateShardRequest) returns(common.CommonReply){}
+  rpc CreateShard(CreateShardRequest) returns(CreateShardReply){}
  
-  //
   rpc GetShard(GetShardRequest) returns(GetShardReply){}
 
-  //
-  rpc DeleteShard(DeleteShardRequest) returns(common.CommonReply){}
+  rpc DeleteShard(DeleteShardRequest) returns(DeleteShardReply){}
 
-  //
-  rpc CreateSegment(CreateSegmentRequest) returns(common.CommonReply){}
+  rpc CreateSegment(CreateSegmentRequest) returns(CreateSegmentReply){}
 
-  // 
-  rpc DeleteSegment(DeleteSegmentRequest) returns(common.CommonReply){}
+  rpc DeleteSegment(DeleteSegmentRequest) returns(DeleteSegmentReply){}
 }
 
 message CreateShardRequest{
     string cluster_name = 1;
     string shard_name = 2;
     uint32 replica = 3;
+}
+
+message CreateShardReply{
+
 }
 
 message GetShardRequest{
@@ -60,13 +58,25 @@ message DeleteShardRequest{
     string shard_name = 2;
 }
 
+message DeleteShardReply{
+
+}
+
 message CreateSegmentRequest{
     string cluster_name = 1;
     string shard_name = 2;
+}
+
+message CreateSegmentReply{
+
 }
 
 message DeleteSegmentRequest{
     string cluster_name = 1;
     string shard_name = 2;
     uint64 segment_seq = 3;
+}
+
+message DeleteSegmentReply{
+
 }

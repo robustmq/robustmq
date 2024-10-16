@@ -25,7 +25,7 @@ mod tests {
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{qos, Publish};
-    use protocol::placement_center::generate::mqtt::{
+    use protocol::placement_center::placement_center_mqtt::{
         CreateTopicRequest, DeleteTopicRequest, ListTopicRequest, SetTopicRetainMessageRequest,
     };
 

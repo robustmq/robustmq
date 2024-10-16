@@ -17,10 +17,9 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::kv::kv_service_client::KvServiceClient;
-use protocol::placement_center::generate::kv::{
-    DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest,
+use protocol::placement_center::placement_center_kv::kv_service_client::KvServiceClient;
+use protocol::placement_center::placement_center_kv::{
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply, SetRequest
 };
 use tonic::transport::Channel;
 
@@ -54,7 +53,7 @@ pub(crate) async fn kv_interface_call(
                         request.clone(),
                         |data| SetRequest::decode(data),
                         |mut client, request| async move { client.set(request).await },
-                        CommonReply::encode_to_vec,
+                        SetReply::encode_to_vec,
                     )
                     .await
                 }
@@ -64,7 +63,7 @@ pub(crate) async fn kv_interface_call(
                         request.clone(),
                         |data| DeleteRequest::decode(data),
                         |mut client, request| async move { client.delete(request).await },
-                        CommonReply::encode_to_vec,
+                        DeleteReply::encode_to_vec,
                     )
                     .await
                 }

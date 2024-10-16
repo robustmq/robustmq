@@ -17,10 +17,10 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::journal::engine_service_client::EngineServiceClient;
-use protocol::placement_center::generate::journal::{
-    CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
+use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
+use protocol::placement_center::placement_center_journal::{
+    CreateSegmentReply, CreateSegmentRequest, CreateShardReply, CreateShardRequest,
+    DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
 };
 use tonic::transport::Channel;
 
@@ -45,7 +45,7 @@ pub async fn journal_interface_call(
                             request.clone(),
                             |data| CreateShardRequest::decode(data),
                             |mut client, request| async move { client.create_shard(request).await },
-                            CommonReply::encode_to_vec,
+                            CreateShardReply::encode_to_vec,
                         )
                         .await
                     }
@@ -55,7 +55,7 @@ pub async fn journal_interface_call(
                             request.clone(),
                             |data| DeleteShardRequest::decode(data),
                             |mut client, request| async move { client.delete_shard(request).await },
-                            CommonReply::encode_to_vec,
+                            DeleteShardReply::encode_to_vec,
                         )
                         .await
                     }
@@ -64,7 +64,7 @@ pub async fn journal_interface_call(
                         request.clone(),
                         |data| CreateSegmentRequest::decode(data),
                         |mut client, request| async move { client.create_segment(request).await },
-                        CommonReply::encode_to_vec,
+                        CreateSegmentReply::encode_to_vec,
                     )
                     .await,
                     PlacementCenterInterface::DeleteSegment => client_call(
@@ -72,7 +72,7 @@ pub async fn journal_interface_call(
                         request.clone(),
                         |data| DeleteSegmentRequest::decode(data),
                         |mut client, request| async move { client.delete_segment(request).await },
-                        CommonReply::encode_to_vec,
+                        DeleteSegmentReply::encode_to_vec,
                     )
                     .await,
                     _ => {

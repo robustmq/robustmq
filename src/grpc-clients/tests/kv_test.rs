@@ -22,7 +22,7 @@ mod tests {
         placement_delete, placement_exists, placement_get, placement_set,
     };
     use grpc_clients::poll::ClientPool;
-    use protocol::placement_center::generate::kv::{
+    use protocol::placement_center::placement_center_kv::{
         DeleteRequest, ExistsRequest, GetRequest, SetRequest,
     };
 

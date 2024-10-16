@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use common_base::tools::unique_id;
-use protocol::placement_center::generate::common::ClusterType;
+use protocol::placement_center::placement_center_inner::ClusterType;
+
 
 #[allow(dead_code)]
 pub fn pc_addr() -> String {

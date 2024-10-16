@@ -19,8 +19,8 @@ use std::time::Duration;
 use common_base::tools::now_second;
 use log::{error, info};
 use prost::Message;
-use protocol::placement_center::generate::common::ClusterType;
-use protocol::placement_center::generate::placement::UnRegisterNodeRequest;
+
+use protocol::placement_center::placement_center_inner::{ClusterType, UnRegisterNodeRequest};
 
 use crate::cache::placement::PlacementCacheManager;
 use crate::storage::route::apply::RaftMachineApply;

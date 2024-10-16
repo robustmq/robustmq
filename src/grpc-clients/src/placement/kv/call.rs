@@ -16,9 +16,8 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::kv::{
-    DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest,
+use protocol::placement_center::placement_center_kv::{
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply, SetRequest
 };
 
 use super::PlacementCenterInterface;
@@ -29,7 +28,7 @@ pub async fn placement_set(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<SetReply, CommonError> {
     let request_data = SetRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Kv,
@@ -40,7 +39,7 @@ pub async fn placement_set(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match SetReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
@@ -75,7 +74,7 @@ pub async fn placement_delete(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<DeleteReply, CommonError> {
     let request_data = DeleteRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Kv,
@@ -86,7 +85,7 @@ pub async fn placement_delete(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match DeleteReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },

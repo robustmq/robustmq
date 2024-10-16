@@ -17,7 +17,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
-use protocol::placement_center::generate::common::ClusterType;
+use protocol::placement_center::placement_center_inner::ClusterType;
+
 
 use super::placement::PlacementCacheManager;
 use crate::controller::mqtt::session_expire::ExpireLastWill;

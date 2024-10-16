@@ -20,7 +20,7 @@ mod tests {
     use grpc_clients::placement::mqtt::call::placement_save_last_will_message;
     use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::lastwill::LastWillData;
-    use protocol::placement_center::generate::mqtt::SaveLastWillMessageRequest;
+    use protocol::placement_center::placement_center_mqtt::SaveLastWillMessageRequest;
 
     use crate::common::get_placement_addr;
 

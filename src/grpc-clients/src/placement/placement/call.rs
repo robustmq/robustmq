@@ -16,14 +16,14 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::placement::{
-    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataRequest,
-    DeleteResourceConfigRequest, ExistsIdempotentDataReply, ExistsIdempotentDataRequest,
-    GetResourceConfigReply, GetResourceConfigRequest, HeartbeatRequest, NodeListReply,
-    NodeListRequest, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
-    SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataRequest,
-    SetResourceConfigRequest, UnRegisterNodeRequest,
+use protocol::placement_center::placement_center_inner::{
+    ClusterStatusReply, ClusterStatusRequest, DeleteIdempotentDataReply,
+    DeleteIdempotentDataRequest, DeleteResourceConfigReply, DeleteResourceConfigRequest,
+    ExistsIdempotentDataReply, ExistsIdempotentDataRequest, GetResourceConfigReply,
+    GetResourceConfigRequest, HeartbeatReply, HeartbeatRequest, NodeListReply, NodeListRequest,
+    RegisterNodeReply, RegisterNodeRequest, SendRaftConfChangeReply, SendRaftConfChangeRequest,
+    SendRaftMessageReply, SendRaftMessageRequest, SetIdempotentDataReply, SetIdempotentDataRequest,
+    SetResourceConfigReply, SetResourceConfigRequest, UnRegisterNodeReply, UnRegisterNodeRequest,
 };
 
 use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
@@ -79,7 +79,7 @@ pub async fn register_node(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: RegisterNodeRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<RegisterNodeReply, CommonError> {
     let request_data = RegisterNodeRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
@@ -90,7 +90,7 @@ pub async fn register_node(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match RegisterNodeReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
@@ -102,7 +102,7 @@ pub async fn unregister_node(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UnRegisterNodeRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<UnRegisterNodeReply, CommonError> {
     let request_data = UnRegisterNodeRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
@@ -113,7 +113,7 @@ pub async fn unregister_node(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match UnRegisterNodeReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
@@ -125,7 +125,7 @@ pub async fn heartbeat(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: HeartbeatRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<HeartbeatReply, CommonError> {
     let request_data = HeartbeatRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
@@ -136,7 +136,7 @@ pub async fn heartbeat(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match HeartbeatReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
@@ -194,7 +194,7 @@ pub async fn set_resource_config(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetResourceConfigRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<SetResourceConfigReply, CommonError> {
     let request_data = SetResourceConfigRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
@@ -205,7 +205,7 @@ pub async fn set_resource_config(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match SetResourceConfigReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
@@ -217,7 +217,7 @@ pub async fn delete_resource_config(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteResourceConfigRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<DeleteResourceConfigReply, CommonError> {
     let request_data = DeleteResourceConfigRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
@@ -228,7 +228,7 @@ pub async fn delete_resource_config(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match DeleteResourceConfigReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
@@ -263,7 +263,7 @@ pub async fn set_idempotent_data(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetIdempotentDataRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<SetIdempotentDataReply, CommonError> {
     let request_data = SetIdempotentDataRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
@@ -274,7 +274,7 @@ pub async fn set_idempotent_data(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match SetIdempotentDataReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
@@ -286,7 +286,7 @@ pub async fn delete_idempotent_data(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteIdempotentDataRequest,
-) -> Result<CommonReply, CommonError> {
+) -> Result<DeleteIdempotentDataReply, CommonError> {
     let request_data = DeleteIdempotentDataRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Placement,
@@ -297,7 +297,7 @@ pub async fn delete_idempotent_data(
     )
     .await
     {
-        Ok(data) => match CommonReply::decode(data.as_ref()) {
+        Ok(data) => match DeleteIdempotentDataReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },

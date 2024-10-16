@@ -31,10 +31,10 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message;
-use protocol::placement_center::generate::common::CommonReply;
-use protocol::placement_center::generate::kv::kv_service_server::KvService;
-use protocol::placement_center::generate::kv::{
-    DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetRequest,
+use protocol::placement_center::placement_center_kv::kv_service_server::KvService;
+use protocol::placement_center::placement_center_kv::{
+    DeleteReply, DeleteRequest, ExistsReply, ExistsRequest, GetReply, GetRequest, SetReply,
+    SetRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -62,7 +62,7 @@ impl GrpcKvService {
 
 #[tonic::async_trait]
 impl KvService for GrpcKvService {
-    async fn set(&self, request: Request<SetRequest>) -> Result<Response<CommonReply>, Status> {
+    async fn set(&self, request: Request<SetRequest>) -> Result<Response<SetReply>, Status> {
         let req = request.into_inner();
 
         if req.key.is_empty() || req.value.is_empty() {
@@ -74,7 +74,7 @@ impl KvService for GrpcKvService {
         // Raft state machine is used to store Node data
         let data = StorageData::new(StorageDataType::KvSet, SetRequest::encode_to_vec(&req));
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(SetReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -107,7 +107,7 @@ impl KvService for GrpcKvService {
     async fn delete(
         &self,
         request: Request<DeleteRequest>,
-    ) -> Result<Response<CommonReply>, Status> {
+    ) -> Result<Response<DeleteReply>, Status> {
         let req = request.into_inner();
 
         if req.key.is_empty() {
@@ -122,7 +122,7 @@ impl KvService for GrpcKvService {
             DeleteRequest::encode_to_vec(&req),
         );
         match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(CommonReply::default())),
+            Ok(_) => return Ok(Response::new(DeleteReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
