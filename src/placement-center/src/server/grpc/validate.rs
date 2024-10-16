@@ -33,6 +33,6 @@ impl ValidateExt for RegisterNodeRequest {
                 CommonError::ParameterCannotBeNull("node ip".to_string()).to_string(),
             ));
         }
-        Ok(()) 
+        Ok(())
     }
 }
