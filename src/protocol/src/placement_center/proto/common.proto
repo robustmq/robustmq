@@ -1,9 +1,0 @@
-syntax = "proto3";
-package common;
-
-
-
-// The common reply of all request.
-message CommonReply{
-    
-}

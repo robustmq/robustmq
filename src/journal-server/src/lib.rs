@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(dead_code, unused_variables)]
+
 use core::cache::CacheManager;
 use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use std::sync::Arc;

@@ -22,7 +22,6 @@ use tokio::sync::broadcast;
 #[derive(Parser, Debug)]
 #[command(author="robustmq", version="0.0.1", about=" RobustMQ: Next generation cloud-native converged high-performance message queue.", long_about = None)]
 #[command(next_line_help = true)]
-
 struct ArgsParams {
     #[arg(short, long, default_value_t=String::from(DEFAULT_JOURNAL_SERVER_CONFIG))]
     conf: String,
