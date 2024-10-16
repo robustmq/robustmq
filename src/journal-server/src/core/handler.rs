@@ -12,19 +12,62 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
+use common_base::error::journal_server::JournalServerError;
+use metadata_struct::journal::segment::JournalSegment;
+use protocol::journal_server::journal_engine::{
+    GetActiveSegmentReq, GetClusterMetadataNode, RespHeader,
+};
+
+use super::cache::CacheManager;
+use super::shard::create_active_segement;
+
 #[derive(Debug, Clone)]
-pub struct Handler {}
+pub struct Handler {
+    cache_manager: Arc<CacheManager>,
+}
 
 impl Handler {
-    pub fn new() -> Handler {
-        Handler {}
+    pub fn new(cache_manager: Arc<CacheManager>) -> Handler {
+        Handler { cache_manager }
+    }
+
+    pub fn get_cluster_metadata(&self) -> Vec<GetClusterMetadataNode> {
+        Vec::new()
     }
 
     pub async fn write(&self) {}
 
     pub async fn read(&self) {}
 
-    pub async fn active_segment(&self) {}
+    pub async fn active_segment(
+        &self,
+        request: GetActiveSegmentReq,
+    ) -> Result<JournalSegment, JournalServerError> {
+        if request.body.is_none() {
+            return Err(JournalServerError::RequestBodyNotEmpty(
+                "active_segment".to_string(),
+            ));
+        }
+
+        let req_body = request.body.unwrap();
+
+        let active_segment = if let Some(segment) = self
+            .cache_manager
+            .get_active_segment(&req_body.namespace, &req_body.shard)
+        {
+            segment
+        } else {
+            create_active_segement(&req_body.namespace, &req_body.shard).await?
+        };
+
+        Ok(active_segment)
+    }
 
     pub async fn offset_commit(&self) {}
+
+    fn resp_header(&self) -> Option<RespHeader> {
+        None
+    }
 }

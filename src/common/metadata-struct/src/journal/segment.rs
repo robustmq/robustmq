@@ -14,23 +14,23 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JournalSegment {
-    shard_name: String,
-    segment_seq: u32,
-    start_offset: u64,
-    end_offset: u64,
-    replica: Vec<JournalSegmentNode>,
-    status: JournalSegmentStatus,
+    pub shard_name: String,
+    pub segment_seq: u32,
+    pub start_offset: Option<u64>,
+    pub end_offset: Option<u64>,
+    pub replica: Vec<JournalSegmentNode>,
+    pub status: JournalSegmentStatus,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JournalSegmentNode {
-    node_id: u32,
-    data_fold: String,
+    pub node_id: u32,
+    pub data_fold: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum JournalSegmentStatus {
     CREATE,
     AVTIVE,

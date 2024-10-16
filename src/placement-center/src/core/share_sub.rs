@@ -217,7 +217,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_mills, unique_id};
-    use metadata_struct::placement::broker_node::BrokerNode;
+    use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
 
     use super::ShareSubLeader;

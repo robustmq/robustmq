@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &["src/journal_server/proto/"], // specify the root location to search proto dependencies
     )?;
 
-    // // MQTT Broker
+    // MQTT Broker
     tonic_build::configure().build_server(true).compile(
         &[
             "src/broker_mqtt/proto/admin.proto",
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &["src/broker_mqtt/proto"], // specify the root location to search proto dependencies
     )?;
 
-    // // Placement Center
+    // Placement Center
     tonic_build::configure().build_server(true).compile(
         &[
             "src/placement_center/proto/journal.proto",

@@ -18,7 +18,8 @@ use tokio_util::codec;
 
 use super::journal_engine::{
     ApiKey, GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentResp,
-    GetActiveSegmentRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
+    GetActiveSegmentRespBody, GetClusterMetadataReq, GetClusterMetadataResp,
+    GetClusterMetadataRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
     OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader,
     WriteReq, WriteReqBody, WriteResp, WriteRespBody,
 };
@@ -36,6 +37,10 @@ pub enum JournalEnginePacket {
     // Read
     ReadReq(ReadReq),
     ReadResp(ReadResp),
+
+    // GetClusterMetadata
+    GetClusterMetadataReq(GetClusterMetadataReq),
+    GetClusterMetadataResp(GetClusterMetadataResp),
 
     // GetActiveSegment
     GetActiveSegmentReq(GetActiveSegmentReq),
@@ -100,6 +105,20 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
                 let body = data.body.unwrap();
                 header_byte = RespHeader::encode_to_vec(&header);
                 body_byte = ReadRespBody::encode_to_vec(&body);
+            }
+
+            // GetClusterMetadata
+            JournalEnginePacket::GetClusterMetadataReq(data) => {
+                let header = data.header.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = Vec::new();
+                req_type = 1;
+            }
+            JournalEnginePacket::GetClusterMetadataResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = GetClusterMetadataRespBody::encode_to_vec(&body);
             }
 
             // GetActiveSegment
@@ -247,6 +266,8 @@ impl codec::Decoder for JournalServerCodec {
 
                         ApiKey::Read => read_req(body_bytes, header),
 
+                        ApiKey::GetClusterMetadata => Ok(None),
+
                         ApiKey::GetActiveSegment => get_active_segment_req(body_bytes, header),
 
                         ApiKey::OffsetCommit => offset_commit_req(body_bytes, header),
@@ -260,6 +281,8 @@ impl codec::Decoder for JournalServerCodec {
                     ApiKey::Write => write_resp(body_bytes, header),
 
                     ApiKey::Read => read_resp(body_bytes, header),
+
+                    ApiKey::GetClusterMetadata => get_cluster_metadata_resp(body_bytes, header),
 
                     ApiKey::GetActiveSegment => get_active_segment_resp(body_bytes, header),
 
@@ -340,6 +363,25 @@ fn read_resp(
         }
         Err(e) => Err(Error::DecodeBodyError(
             "read_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn get_cluster_metadata_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match GetClusterMetadataRespBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::GetClusterMetadataResp(GetClusterMetadataResp {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "get_cluster_metadata_resp".to_string(),
             e.to_string(),
         )),
     }

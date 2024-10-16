@@ -19,7 +19,7 @@ mod tests {
     use std::time::Duration;
 
     use common_base::tools::now_second;
-    use metadata_struct::placement::broker_node::BrokerNode;
+    use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::placement_center_inner::{
         NodeListRequest, RegisterNodeRequest,
