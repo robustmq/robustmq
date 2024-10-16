@@ -12,6 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod admin;
-pub mod engine;
-pub mod inner;
+#![allow(clippy::all)]
+
+pub mod admin {
+    tonic::include_proto!("robustmq.protocol.broker_server.admin");
+}
+
+pub mod placement {
+    tonic::include_proto!("robustmq.protocol.broker_server.placement");
+}

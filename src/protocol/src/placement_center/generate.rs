@@ -12,6 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Record {}
+#![allow(clippy::all)]
+
+pub mod common {
+    tonic::include_proto!("robustmq.protocol.placement_center.common");
+}
+
+pub mod journal {
+    tonic::include_proto!("robustmq.protocol.placement_center.journal");
+}
+
+pub mod kv {
+    tonic::include_proto!("robustmq.protocol.placement_center.kv");
+}
+
+pub mod mqtt {
+    tonic::include_proto!("robustmq.protocol.placement_center.mqtt");
+}
+
+pub mod openraft {
+    tonic::include_proto!("robustmq.protocol.placement_center.openraft");
+}
+
+pub mod placement {
+    tonic::include_proto!("robustmq.protocol.placement_center.placement");
+}

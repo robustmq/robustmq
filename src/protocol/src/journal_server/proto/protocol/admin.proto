@@ -1,5 +1,5 @@
 syntax = "proto3";
-package admin;
+package robustmq.protocol.journal_server.admin;
 service JournalServerAdminService {
 
 }

@@ -15,15 +15,15 @@
  */
 
 syntax = "proto3";
-package kv;
+package robustmq.protocol.placement_center.kv;
 import "common.proto";
 
 service KvService {
   //
-  rpc set(SetRequest) returns(common.CommonReply){}
+  rpc set(SetRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   // 
-  rpc delete(DeleteRequest) returns(common.CommonReply){}
+  rpc delete(DeleteRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   // 
   rpc get(GetRequest) returns(GetReply){}

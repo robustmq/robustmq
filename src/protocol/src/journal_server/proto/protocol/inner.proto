@@ -1,5 +1,5 @@
 syntax = "proto3";
-package inner;
+package robustmq.protocol.journal_server.inner;
 
 service JournalServerInnerService {
 }

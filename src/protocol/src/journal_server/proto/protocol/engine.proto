@@ -1,5 +1,5 @@
 syntax = "proto3";
-package engine;
+package robustmq.protocol.journal_server.engine;
 
 /** Header **/
 enum ApiKey{

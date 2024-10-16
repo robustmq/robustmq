@@ -1,5 +1,5 @@
 syntax = "proto3";
-package common;
+package robustmq.protocol.placement_center.common;
 
 // The type of the cluster.
 enum ClusterType{

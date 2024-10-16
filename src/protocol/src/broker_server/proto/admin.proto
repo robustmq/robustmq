@@ -1,5 +1,5 @@
 syntax = "proto3";
-package admin;
+package robustmq.protocol.broker_server.admin;
 service MQTTBrokerAdminService {
     rpc cluster_status(ClusterStatusRequest) returns(ClusterStatusReply){}
 }

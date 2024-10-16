@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(any(), rustfmt::skip)]
-#![allow(clippy::all)]
-
-pub mod common;
-pub mod journal;
-pub mod kv;
-pub mod mqtt;
-pub mod openraft;
-pub mod placement;
+pub mod record {
+    tonic::include_proto!("robustmq.protocol.journal_server.record");
+}

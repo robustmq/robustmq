@@ -15,7 +15,7 @@
  */
 
 syntax = "proto3";
-package mqtt;
+package robustmq.protocol.placement_center.mqtt;
 import "common.proto";
 
 service MqttService {
@@ -38,7 +38,7 @@ service MqttService {
   // - `content: Vec<u8>`: The parameter contains user information, encoded from a `MQTTUser` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateUser(CreateUserRequest) returns(common.CommonReply){}
+  rpc CreateUser(CreateUserRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Deletes the corresponding user based on the request
   //
@@ -47,7 +47,7 @@ service MqttService {
   // - `user_name: String`: The name of the user.
   //
   //Returns: An empty struct.
-  rpc DeleteUser(DeleteUserRequest) returns(common.CommonReply){}
+  rpc DeleteUser(DeleteUserRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Returns a list of sessions based on the parameters of the request
   //
@@ -67,7 +67,7 @@ service MqttService {
   // - `session: Vec<u8>`: The parameter contains session information, encoded from a `MQTTSession` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateSession(CreateSessionRequest) returns(common.CommonReply){}
+  rpc CreateSession(CreateSessionRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Updates the corresponding session based on the request
   //
@@ -80,7 +80,7 @@ service MqttService {
   // - `distinct_time: u64` (Option): The parameter is the time when session disconnects. The unit is seconds.
   //
   //Returns: An empty struct.
-  rpc UpdateSession(UpdateSessionRequest) returns(common.CommonReply){}
+  rpc UpdateSession(UpdateSessionRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Deletes the corresponding session based on the request
   //
@@ -89,7 +89,7 @@ service MqttService {
   // - `client_id: String`: The id of the client.
   //
   //Returns: An empty struct.
-  rpc DeleteSession(DeleteSessionRequest) returns(common.CommonReply){}
+  rpc DeleteSession(DeleteSessionRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Returns a list of topics based on the parameters of the request
   //
@@ -109,7 +109,7 @@ service MqttService {
   // - `content: Vec<u8>`: The parameter contains topic information, encoded from a `MQTTTopic` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateTopic(CreateTopicRequest) returns(common.CommonReply){}
+  rpc CreateTopic(CreateTopicRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Deletes the corresponding topic based on the request
   //
@@ -118,7 +118,7 @@ service MqttService {
   // - `topic_name: String`: The name of the topic.
   //
   //Returns: An empty struct.
-  rpc DeleteTopic(DeleteTopicRequest) returns(common.CommonReply){}
+  rpc DeleteTopic(DeleteTopicRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Sets the retain message for the corresponding topic based on the request
   //
@@ -129,7 +129,7 @@ service MqttService {
   // - `retain_message_expired_at: u64`: The parameter is the expiration time of the retain message. The unit is seconds.
   //
   //Returns: An empty struct.
-  rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(common.CommonReply){}
+  rpc SetTopicRetainMessage(SetTopicRetainMessageRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Gets the share sub leader based on the request
   //
@@ -151,7 +151,7 @@ service MqttService {
   // - `last_will_message: Vec<u8>`: The parameter contains last will message, encoded from a `LastWillData` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns(common.CommonReply){}
+  rpc SaveLastWillMessage(SaveLastWillMessageRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   //Returns a list of ACLs based on the parameters of the request
   //
@@ -169,7 +169,7 @@ service MqttService {
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc DeleteAcl(DeleteAclRequest) returns(common.CommonReply) {}
+  rpc DeleteAcl(DeleteAclRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 
   //Creates the corresponding ACL based on the request
   //
@@ -178,7 +178,7 @@ service MqttService {
   // - `acl: Vec<u8>`: The parameter contains acl information, encoded from a `MQTTAcl` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateAcl(CreateAclRequest) returns(common.CommonReply) {}
+  rpc CreateAcl(CreateAclRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 
   //Returns a list of blacklist based on the parameters of the request
   //
@@ -197,7 +197,7 @@ service MqttService {
   // - `resource_name: String`: The name of the resource.
   //
   //Returns: An empty struct.
-  rpc DeleteBlacklist(DeleteBlacklistRequest) returns(common.CommonReply) {}
+  rpc DeleteBlacklist(DeleteBlacklistRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 
   //Creates the corresponding blacklist based on the request
   //
@@ -206,7 +206,7 @@ service MqttService {
   // - `blacklist: Vec<u8>`: The parameter contains blacklist information, encoded from a `MQTTAclBlackList` object into a binary format.
   //
   //Returns: An empty struct.
-  rpc CreateBlacklist(CreateBlacklistRequest) returns(common.CommonReply) {}
+  rpc CreateBlacklist(CreateBlacklistRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 }
 
 message GetShareSubLeaderRequest{

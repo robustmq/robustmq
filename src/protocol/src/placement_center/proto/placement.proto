@@ -15,7 +15,7 @@
  */
 
 syntax = "proto3";
-package placement;
+package robustmq.protocol.placement_center.placement;
 import "common.proto";
 
 service PlacementCenterService {
@@ -24,29 +24,29 @@ service PlacementCenterService {
 
   rpc NodeList(NodeListRequest) returns(NodeListReply){}
 
-  rpc RegisterNode(RegisterNodeRequest) returns(common.CommonReply){}
+  rpc RegisterNode(RegisterNodeRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
-  rpc UnRegisterNode(UnRegisterNodeRequest) returns(common.CommonReply){}
+  rpc UnRegisterNode(UnRegisterNodeRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
-  rpc Heartbeat(HeartbeatRequest) returns(common.CommonReply){}
+  rpc Heartbeat(HeartbeatRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
-  rpc ReportMonitor(ReportMonitorRequest) returns(common.CommonReply){}
+  rpc ReportMonitor(ReportMonitorRequest) returns(robustmq.protocol.placement_center.common.CommonReply){}
 
   rpc SendRaftMessage(SendRaftMessageRequest) returns(SendRaftMessageReply) {}
 
   rpc SendRaftConfChange(SendRaftConfChangeRequest) returns(SendRaftConfChangeReply){}
 
-  rpc SetResourceConfig(SetResourceConfigRequest) returns(common.CommonReply) {}
+  rpc SetResourceConfig(SetResourceConfigRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 
   rpc GetResourceConfig(GetResourceConfigRequest) returns(GetResourceConfigReply) {}
 
-  rpc DeleteResourceConfig(DeleteResourceConfigRequest) returns(common.CommonReply) {}
+  rpc DeleteResourceConfig(DeleteResourceConfigRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 
-  rpc SetIdempotentData(SetIdempotentDataRequest) returns(common.CommonReply) {}
+  rpc SetIdempotentData(SetIdempotentDataRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 
   rpc ExistsIdempotentData(ExistsIdempotentDataRequest) returns(ExistsIdempotentDataReply) {}
 
-  rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(common.CommonReply) {}
+  rpc DeleteIdempotentData(DeleteIdempotentDataRequest) returns(robustmq.protocol.placement_center.common.CommonReply) {}
 }
 
 message ClusterStatusRequest{

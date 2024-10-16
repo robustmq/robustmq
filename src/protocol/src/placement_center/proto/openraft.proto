@@ -1,5 +1,5 @@
 syntax = "proto3";
-package openraft;
+package robustmq.protocol.placement_center.openraft;
 
 service OpenRaftService {
   rpc vote(VoteRequest) returns(VoteReply){}

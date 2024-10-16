@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![cfg_attr(any(), rustfmt::skip)]
-#![allow(clippy::all)]
+pub mod admin {
+    tonic::include_proto!("robustmq.protocol.journal_server.admin");
+}
 
-pub mod admin;
-pub mod placement;
+pub mod engine {
+    tonic::include_proto!("robustmq.protocol.journal_server.engine");
+}
+
+pub mod inner {
+    tonic::include_proto!("robustmq.protocol.journal_server.inner");
+}
