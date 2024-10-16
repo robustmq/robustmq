@@ -130,7 +130,7 @@ pub(crate) async fn acceptor_tls_process(
 
                                 let (connection_stop_sx, connection_stop_rx) = mpsc::channel::<bool>(1);
                                 let connection = NetworkConnection::new(
-                                    crate::server::connection::NetworkConnectionType::Tcps,
+                                    crate::server::connection::NetworkConnectionType::Tls,
                                     addr,
                                     Some(connection_stop_sx.clone())
                                 );

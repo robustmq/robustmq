@@ -222,7 +222,7 @@ where
             self.stop_sx.clone(),
         )
         .await;
-        self.network_connection_type = NetworkConnectionType::Tcps;
+        self.network_connection_type = NetworkConnectionType::Tls;
         info!("MQTT TCP TLS Server started successfully, listening port: {port}");
     }
 }
