@@ -17,6 +17,7 @@
 use core::cache::CacheManager;
 use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use std::sync::Arc;
+
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
@@ -101,13 +102,7 @@ impl JournalServer {
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
         self.server_runtime.spawn(async {
-            start_tcp_server(
-                client_poll,
-                connection_manager,
-                cache_manager,
-                stop_sx,
-            )
-            .await;
+            start_tcp_server(client_poll, connection_manager, cache_manager, stop_sx).await;
         });
     }
 

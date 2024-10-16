@@ -36,7 +36,3 @@ pub enum JournalSegmentStatus {
     AVTIVE,
     BLOCKED,
 }
-
-impl JournalSegment {
-
-}

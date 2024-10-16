@@ -17,8 +17,8 @@ use std::sync::Arc;
 use common_base::tools::now_second;
 use dashmap::DashMap;
 use log::error;
-use metadata_struct::placement::node::BrokerNode;
 use metadata_struct::placement::cluster::ClusterInfo;
+use metadata_struct::placement::node::BrokerNode;
 use raft::StateRole;
 use serde::{Deserialize, Serialize};
 
