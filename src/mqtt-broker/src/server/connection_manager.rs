@@ -196,7 +196,7 @@ impl ConnectionManager {
 
         // write tls stream
         if let Some(connection) = self.get_connect(connection_id) {
-            if connection.connection_type == NetworkConnectionType::Tcps {
+            if connection.connection_type == NetworkConnectionType::Tls {
                 return self.write_tcp_tls_frame(connection_id, resp).await;
             }
         }
