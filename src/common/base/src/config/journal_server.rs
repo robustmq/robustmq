@@ -33,58 +33,89 @@ use std::sync::OnceLock;
 use serde::Deserialize;
 
 use super::common::Log;
+use super::default_journal_server::{
+    default_grpc_port, default_log, default_network, default_network_tcp_port,
+    default_network_tcps_port, default_prometheus, default_prometheus_port, default_storage,
+    default_system, default_tcp_thread,
+};
 use crate::tools::{read_file, try_create_fold};
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct JournalServerConfig {
     pub cluster_name: String,
     pub node_id: u64,
+    #[serde(default)]
     pub placement_center: Vec<String>,
+    #[serde(default = "default_network")]
     pub network: Network,
+    #[serde(default = "default_system")]
     pub system: System,
+    #[serde(default = "default_storage")]
     pub storage: Storage,
+    #[serde(default = "default_tcp_thread")]
     pub tcp_thread: TcpThread,
+    #[serde(default = "default_prometheus")]
     pub prometheus: Prometheus,
+    #[serde(default = "default_log")]
     pub log: Log,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Network {
+    #[serde(default = "default_grpc_port")]
     pub grpc_port: u32,
+    #[serde(default = "default_network_tcp_port")]
     pub tcp_port: u32,
+    #[serde(default = "default_network_tcps_port")]
     pub tcps_port: u32,
+    #[serde(default)]
     pub tls_cert: String,
+    #[serde(default)]
     pub tls_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct System {
+    #[serde(default)]
     pub runtime_work_threads: usize,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Storage {
+    #[serde(default)]
     pub data_path: Vec<String>,
     pub rocksdb_max_open_files: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct TcpThread {
+    #[serde(default)]
     pub accept_thread_num: usize,
+    #[serde(default)]
     pub handler_thread_num: usize,
+    #[serde(default)]
     pub response_thread_num: usize,
+    #[serde(default)]
     pub max_connection_num: usize,
+    #[serde(default)]
     pub request_queue_size: usize,
+    #[serde(default)]
     pub response_queue_size: usize,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Prometheus {
+    #[serde(default)]
     pub enable: bool,
+    #[serde(default)]
     pub model: String,
+    #[serde(default = "default_prometheus_port")]
     pub port: u32,
+    #[serde(default)]
     pub push_gateway_server: String,
+    #[serde(default)]
     pub interval: u32,
+    #[serde(default)]
     pub header: String,
 }
 
@@ -151,6 +182,25 @@ mod tests {
         init_journal_server_conf_by_path(&path);
 
         let conf = journal_server_conf();
+        assert_eq!(conf.cluster_name, "JournalCluster1".to_string());
+        assert_eq!(conf.node_id, 1);
+        assert_eq!(conf.placement_center, vec![String::from("127.0.0.1:1228")]);
         assert_eq!(conf.network.grpc_port, 2228);
+        assert_eq!(conf.network.tcp_port, 3110);
+        assert_eq!(conf.network.tcps_port, 3111);
+
+        assert_eq!(conf.system.runtime_work_threads, 100);
+
+        assert_eq!(conf.tcp_thread.accept_thread_num, 1);
+        assert_eq!(conf.tcp_thread.handler_thread_num, 20);
+        assert_eq!(conf.tcp_thread.response_thread_num, 2);
+        assert_eq!(conf.tcp_thread.max_connection_num, 1000);
+        assert_eq!(conf.tcp_thread.request_queue_size, 2000);
+        assert_eq!(conf.tcp_thread.response_queue_size, 2000);
+
+        assert_eq!(conf.prometheus.enable, false);
+        assert_eq!(conf.prometheus.model, "pull".to_string());
+        assert_eq!(conf.prometheus.port, 9090);
+        assert_eq!(conf.prometheus.interval, 10);
     }
 }
