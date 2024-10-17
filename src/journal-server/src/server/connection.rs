@@ -23,7 +23,7 @@ static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum NetworkConnectionType {
     Tcp,
-    Tcps,
+    Tls,
 }
 
 impl fmt::Display for NetworkConnectionType {
@@ -33,7 +33,7 @@ impl fmt::Display for NetworkConnectionType {
             "{}",
             match self {
                 NetworkConnectionType::Tcp => "tcp",
-                NetworkConnectionType::Tcps => "tcps",
+                NetworkConnectionType::Tls => "tls",
             }
         )
     }

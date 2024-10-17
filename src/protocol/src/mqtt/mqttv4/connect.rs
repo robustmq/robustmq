@@ -298,7 +298,7 @@ mod tests {
         assert_eq!(fixheader.fixed_header_len, 2);
         assert!(fixheader.remaining_len == 26);
         // test read function, x gets connect, y gets login and z gets will
-        let (l, x, _, _) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
+        let (_, x, _, _) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
         // only check connect value in this case as login and will being none
         assert_eq!(x.client_id, "test_client_id");
         assert_eq!(x.keep_alive, 30);
