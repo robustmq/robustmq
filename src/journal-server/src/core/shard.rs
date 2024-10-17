@@ -13,31 +13,27 @@
 // limitations under the License.
 
 use common_base::error::journal_server::JournalServerError;
-use dashmap::DashMap;
-use metadata_struct::journal::shard::JournalShard;
+use metadata_struct::journal::segment::{JournalSegment, JournalSegmentStatus};
 
-pub struct ShardManager {
-    shards: DashMap<String, JournalShard>,
+pub fn create_shard(namespace: &str, shard_name: &str) -> Result<(), JournalServerError> {
+    Ok(())
 }
 
-impl ShardManager {
-    pub fn new() -> Self {
-        let shards = DashMap::with_capacity(8);
-        ShardManager { shards }
-    }
+pub fn delete_shard() -> Result<(), JournalServerError> {
+    Ok(())
+}
 
-    pub fn get_shard(&self, shar_name: &str) -> Option<JournalShard> {
-        if let Some(shard) = self.shards.get(shar_name) {
-            return Some(shard.clone());
-        }
-        None
-    }
-
-    pub fn create_shard(&self) -> Result<(), JournalServerError> {
-        Ok(())
-    }
-
-    pub fn delete_shard(&self) -> Result<(), JournalServerError> {
-        Ok(())
-    }
+pub async fn create_active_segement(
+    namespace: &str,
+    shard_name: &str,
+) -> Result<JournalSegment, JournalServerError> {
+    let segment = JournalSegment {
+        shard_name: shard_name.to_string(),
+        segment_seq: 0,
+        start_offset: None,
+        end_offset: None,
+        replica: Vec::new(),
+        status: JournalSegmentStatus::CREATE,
+    };
+    Ok(segment)
 }

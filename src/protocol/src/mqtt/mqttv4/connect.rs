@@ -12,22 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
- * Copyright (c) 2023 RobustMQ Team
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 use super::*;
 
 fn len(connect: &Connect, login: &Option<Login>, will: &Option<LastWill>) -> usize {
@@ -314,7 +298,7 @@ mod tests {
         assert_eq!(fixheader.fixed_header_len, 2);
         assert!(fixheader.remaining_len == 26);
         // test read function, x gets connect, y gets login and z gets will
-        let (l, x, _, _) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
+        let (_, x, _, _) = read(fixheader, buff_write.copy_to_bytes(buff_write.len())).unwrap();
         // only check connect value in this case as login and will being none
         assert_eq!(x.client_id, "test_client_id");
         assert_eq!(x.keep_alive, 30);

@@ -1,12 +1,20 @@
 syntax = "proto3";
 package journal.engine;
 
+/** Error **/
+
+message JournalEngineError{
+    ErrorCode code = 1;
+    string error = 2;
+}
+
 /** Header **/
 enum ApiKey{
     Read = 0;
     Write = 1;
     GetActiveSegment = 2;
     OffsetCommit = 3;
+    GetClusterMetadata = 4;
 }
 
 enum ApiVersion{
@@ -61,11 +69,35 @@ message WriteResp{
     WriteRespBody body = 2;
 }
 
-/** Get the Segment where the Shard is active **/
+/** Get Cluster Metadata **/
+
+message GetClusterMetadataReq{
+    ReqHeader header = 1;
+}
+
+message GetClusterMetadataRespBody{
+    repeated GetClusterMetadataNode nodes = 1;
+}
+
+message GetClusterMetadataNode{
+    uint32 replica_id = 1;
+    string replica_addr = 2;
+}
+
+message GetClusterMetadataResp{
+    RespHeader header = 1;
+    GetClusterMetadataRespBody body = 2;
+}
+
+/** Get Active Segment **/
 message GetActiveSegmentReqBody{
+    string namespace = 1;
+    string shard = 2;
 }
 
 message GetActiveSegmentRespBody{
+    repeated uint32 replica_id = 1;
+    JournalEngineError error = 2;
 }
 
 message GetActiveSegmentReq{
@@ -78,7 +110,7 @@ message GetActiveSegmentResp{
     GetActiveSegmentRespBody body = 2;
 }
 
-/** Get the Segment where the Shard is active **/
+/** Offset Commit **/
 message OffsetCommitReqBody{
     string namespace = 1;
     string group = 2;

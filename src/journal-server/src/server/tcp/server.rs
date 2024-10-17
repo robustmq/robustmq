@@ -37,7 +37,7 @@ pub async fn start_tcp_server(
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
-    let command = Command::new();
+    let command = Command::new(cache_manager.clone());
 
     let proc_config = ProcessorConfig {
         accept_thread_num: conf.tcp_thread.accept_thread_num,
@@ -195,7 +195,7 @@ impl TcpServer {
             self.stop_sx.clone(),
         )
         .await;
-        self.network_connection_type = NetworkConnectionType::Tcps;
+        self.network_connection_type = NetworkConnectionType::Tls;
         info!("MQTT TCP TLS Server started successfully, listening port: {port}");
     }
 }
