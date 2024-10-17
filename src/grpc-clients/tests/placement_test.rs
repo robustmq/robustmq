@@ -18,7 +18,9 @@ mod common;
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::placement::placement::call::{cluster_status, register_node, unregister_node};
+    use grpc_clients::placement::placement::call::{
+        cluster_status, register_node, unregister_node,
+    };
     use grpc_clients::poll::ClientPool;
     use protocol::placement_center::placement_center_inner::{
         ClusterStatusRequest, ClusterType, RegisterNodeRequest, UnRegisterNodeRequest,
@@ -105,7 +107,9 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_poll.clone(), addrs.clone(), request).await.is_ok());
+        assert!(cluster_status(client_poll.clone(), addrs.clone(), request)
+            .await
+            .is_ok());
 
         let cluster_type = ClusterType::PlacementCenter as i32;
         let cluster_name = "test-cluster-name".to_string();
@@ -116,13 +120,21 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
         };
-        assert!(unregister_node(client_poll.clone(), addrs.clone(), request).await.is_ok());
+        assert!(unregister_node(client_poll.clone(), addrs.clone(), request)
+            .await
+            .is_ok());
 
-        let request_cluster_name_empty =  UnRegisterNodeRequest {
+        let request_cluster_name_empty = UnRegisterNodeRequest {
             cluster_type,
             cluster_name: "".to_string(),
             node_id,
         };
-        assert!(unregister_node(client_poll.clone(), addrs.clone(), request_cluster_name_empty).await.is_err());
+        assert!(unregister_node(
+            client_poll.clone(),
+            addrs.clone(),
+            request_cluster_name_empty
+        )
+        .await
+        .is_err());
     }
 }

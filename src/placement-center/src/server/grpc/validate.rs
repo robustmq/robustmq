@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use common_base::error::common::CommonError;
-use protocol::placement_center::placement_center_inner::{RegisterNodeRequest, UnRegisterNodeRequest};
+use protocol::placement_center::placement_center_inner::{
+    RegisterNodeRequest, UnRegisterNodeRequest,
+};
 use tonic::Status;
 
 pub trait ValidateExt {
