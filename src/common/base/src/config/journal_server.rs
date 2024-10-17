@@ -200,7 +200,7 @@ mod tests {
 
         assert_eq!(conf.prometheus.enable, false);
         assert_eq!(conf.prometheus.model, "pull".to_string());
-        assert_eq!(conf.prometheus.port, 3306);
+        assert_eq!(conf.prometheus.port, 9090);
         assert_eq!(conf.prometheus.interval, 10);
     }
 }

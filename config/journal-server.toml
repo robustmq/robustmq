@@ -44,7 +44,7 @@ response_queue_size = 2000
 [prometheus]
 enable = false
 model = "pull"
-port = 3306
+port = 9090
 push_gateway_server = "127.0.0.1:8081"
 interval = 10
 header = ""
