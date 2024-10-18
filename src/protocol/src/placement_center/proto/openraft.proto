@@ -10,7 +10,7 @@ service OpenRaftService {
 
   rpc add_learner(AddLearnerRequest) returns(AddLearnerReply){}
 
-  rpc change_membership(impl Into<ChangeMembers>) returns(ChangeMembershipReply){}
+  rpc change_membership(ChangeMembershipRequest) returns(ChangeMembershipReply){}
 }
 
 message VoteRequest{
@@ -38,7 +38,14 @@ message SnapshotReply{
 }
 
 message AddLearnerRequest{
-    bytes value = 1;
+    uint64 node_id = 1;
+    Node node = 2;
+    bool blocking = 3;
+}
+
+message Node{
+    string rpc_addr = 1;
+    uint64 node_id = 2;
 }
 
 message AddLearnerReply{
@@ -46,7 +53,8 @@ message AddLearnerReply{
 }
 
 message ChangeMembershipRequest{
-    bytes value = 1;
+    repeated uint64 ids = 1;
+    bool retain = 2;
 }
 
 message ChangeMembershipReply{

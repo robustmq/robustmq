@@ -16,11 +16,12 @@ use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftService;
 use protocol::placement_center::placement_center_openraft::{
-    AddLearnRequest, AddLearnerReply, AppendReply, AppendRequest, ChangeMembershipReply,
+    AddLearnerRequest, AddLearnerReply, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::{Request, Response, Status};
 
+use crate::raftv2::raft_node::Node;
 use crate::raftv2::typeconfig::TypeConfig;
 
 pub struct GrpcOpenRaftServices {
@@ -87,13 +88,21 @@ impl OpenRaftService for GrpcOpenRaftServices {
 
     async fn add_learner(
         &self,
-        request: Request<AddLearnRequest>,
+        request: Request<AddLearnerRequest>,
     ) -> Result<Response<AddLearnerReply>, Status> {
         let req = request.into_inner();
         let node_id = req.node_id;
+
         let node = req.node;
 
-        let res = match self.raft_node.add_learner(node_id, node, true).await {
+        let raft_node = Node {
+            rpc_addr: node.clone().unwrap().rpc_addr,
+            node_id:  node.clone().unwrap().node_id,
+        };
+
+        let blocking = req.blocking;
+
+        let res = match self.raft_node.add_learner(node_id, raft_node, blocking).await {
             Ok(data) => data,
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -109,9 +118,10 @@ impl OpenRaftService for GrpcOpenRaftServices {
         request: Request<ChangeMembershipRequest>,
     ) -> Result<Response<ChangeMembershipReply>, Status> {
         let req = request.into_inner();
-        let body = req.members;
+        let body = req.ids;
+        let retain = req.retain;
 
-        let res = match self.raft_node.change_membership(body, true).await {
+        let res = match self.raft_node.change_membership(body, retain).await {
             Ok(data) => data,
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

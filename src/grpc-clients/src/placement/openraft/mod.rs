@@ -19,7 +19,8 @@ use mobc::{Connection, Manager};
 use prost::Message;
 use protocol::placement_center::placement_center_openraft::open_raft_service_client::OpenRaftServiceClient;
 use protocol::placement_center::placement_center_openraft::{
-    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
+    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
+    ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::transport::Channel;
 
