@@ -33,10 +33,10 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let node_id = 2;
+        let node_id = 4;
         let node = Some(Node {
             rpc_addr: "127.0.0.0:7654".to_string(),
-            node_id: 2,
+            node_id: 4,
         });
         let blocking = true;
 
@@ -58,7 +58,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let members = vec![3];
+        let members = vec![4];
         let retain = false;
 
         let request = ChangeMembershipRequest { members, retain };
