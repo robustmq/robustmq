@@ -53,7 +53,7 @@ message AddLearnerReply{
 }
 
 message ChangeMembershipRequest{
-    repeated uint64 ids = 1;
+    repeated uint64 members = 1;
     bool retain = 2;
 }
 

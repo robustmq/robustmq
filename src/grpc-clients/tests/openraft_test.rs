@@ -16,11 +16,17 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-    use grpc_clients::{placement::openraft::call::placement_openraft_add_learner, poll::ClientPool};
-    use protocol::placement_center::placement_center_openraft::{AddLearnerRequest, Node};
-
     use crate::common::get_placement_addr;
+    use grpc_clients::{
+        placement::openraft::call::{
+            placement_openraft_add_learner, placement_openraft_change_membership,
+        },
+        poll::ClientPool,
+    };
+    use protocol::placement_center::placement_center_openraft::{
+        AddLearnerRequest, ChangeMembershipRequest, Node,
+    };
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn placement_openraft_add_learner_test() {
@@ -40,6 +46,25 @@ mod tests {
             blocking,
         };
         match placement_openraft_add_learner(client_poll.clone(), addrs.clone(), request).await {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        };
+    }
+
+    #[tokio::test]
+    async fn placement_openraft_change_membership_test() {
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let members = vec![3];
+        let retain = true;
+
+        let request = ChangeMembershipRequest { members, retain };
+        match placement_openraft_change_membership(client_poll.clone(), addrs.clone(), request)
+            .await
+        {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);

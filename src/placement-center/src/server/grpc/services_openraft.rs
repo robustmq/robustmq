@@ -122,10 +122,10 @@ impl OpenRaftService for GrpcOpenRaftServices {
         request: Request<ChangeMembershipRequest>,
     ) -> Result<Response<ChangeMembershipReply>, Status> {
         let req = request.into_inner();
-        let body = req.ids;
+        let members = req.members;
         let retain = req.retain;
 
-        let res = match self.raft_node.change_membership(body, retain).await {
+        let res = match self.raft_node.change_membership(members, retain).await {
             Ok(data) => data,
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
