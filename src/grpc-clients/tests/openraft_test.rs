@@ -58,8 +58,8 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let members = vec![4];
-        let retain = true;
+        let members = vec![3];
+        let retain = false;
 
         let request = ChangeMembershipRequest { members, retain };
         match placement_openraft_change_membership(client_poll.clone(), addrs.clone(), request)
