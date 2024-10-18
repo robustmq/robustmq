@@ -17,7 +17,8 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::placement_center_openraft::{
-    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest, AddLearnerRequest, AddLearnerReply, ChangeMembershipRequest, ChangeMembershipReply
+    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
+    ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 
 use super::PlacementCenterInterface;
@@ -119,7 +120,7 @@ pub async fn placement_openraft_add_learner(
 pub async fn placement_openraft_change_membership(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
-    request: ChangeMembershipRequest
+    request: ChangeMembershipRequest,
 ) -> Result<ChangeMembershipReply, CommonError> {
     let request_data = ChangeMembershipRequest::encode_to_vec(&request);
     match retry_call(

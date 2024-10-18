@@ -16,7 +16,8 @@ use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftService;
 use protocol::placement_center::placement_center_openraft::{
-    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest, AddLearnRequest, AddLearnerReply, ChangeMembershipRequest, ChangeMembershipReply
+    AddLearnRequest, AddLearnerReply, AppendReply, AppendRequest, ChangeMembershipReply,
+    ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::{Request, Response, Status};
 
@@ -85,10 +86,9 @@ impl OpenRaftService for GrpcOpenRaftServices {
     }
 
     async fn add_learner(
-        &self, 
+        &self,
         request: Request<AddLearnRequest>,
     ) -> Result<Response<AddLearnerReply>, Status> {
-
         let req = request.into_inner();
         let node_id = req.node_id;
         let node = req.node;
@@ -107,9 +107,8 @@ impl OpenRaftService for GrpcOpenRaftServices {
     async fn change_membership(
         &self,
         request: Request<ChangeMembershipRequest>,
-    ) -> Result<Response<ChangeMembershipReply>,Status> {
+    ) -> Result<Response<ChangeMembershipReply>, Status> {
         let req = request.into_inner();
-         
         let body = req.members;
 
         let res = match self.raft_node.change_membership(body, true).await {
@@ -123,5 +122,4 @@ impl OpenRaftService for GrpcOpenRaftServices {
         let reply = ChangeMembershipReply { value };
         return Ok(Response::new(reply));
     }
-
 }
