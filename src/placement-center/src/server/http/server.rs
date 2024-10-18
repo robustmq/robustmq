@@ -27,10 +27,6 @@ use crate::raftv1::rocksdb::RaftMachineStorage;
 use crate::storage::route::apply::RaftMachineApply;
 
 pub const ROUTE_METRICS: &str = "/metrics";
-pub const ROUTE_CLUSTER_ADD_LEARNER: &str = "/cluster/add-learner";
-pub const ROUTE_CLUSTER_CHANGE_MEMBERSHIP: &str = "/cluster/change-membership";
-pub const ROUTE_CLUSTER_INIT: &str = "/cluster/init";
-pub const ROUTE_CLUSTER_STATUS: &str = "/cluster/status";
 
 #[derive(Clone)]
 #[allow(dead_code)]
