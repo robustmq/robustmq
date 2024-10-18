@@ -58,7 +58,7 @@ mod tests {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
-        let members = vec![3];
+        let members = vec![4];
         let retain = true;
 
         let request = ChangeMembershipRequest { members, retain };
