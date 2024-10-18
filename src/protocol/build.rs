@@ -13,6 +13,7 @@
 // limitations under the License.
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("cargo:rerun-if-changed=src/*");
     // Journal Engine
     tonic_build::configure().build_server(true).compile(
         &[

@@ -14,37 +14,65 @@
 
 use std::sync::Arc;
 
-use common_base::error::journal_server::JournalServerError;
-use metadata_struct::journal::segment::JournalSegment;
+use grpc_clients::poll::ClientPool;
 use protocol::journal_server::journal_engine::{
-    GetActiveSegmentReq, GetClusterMetadataNode, RespHeader,
+    GetActiveSegmentReq, GetActiveSegmentRespShard, GetClusterMetadataNode, RespHeader, WriteReq,
+    WriteRespMessage,
 };
 
 use super::cache::CacheManager;
-use super::shard::create_active_segement;
+use super::error::JournalServerError;
+use super::shard::{create_active_segement, create_shard};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Handler {
     cache_manager: Arc<CacheManager>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl Handler {
-    pub fn new(cache_manager: Arc<CacheManager>) -> Handler {
-        Handler { cache_manager }
+    pub fn new(cache_manager: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> Handler {
+        Handler {
+            cache_manager,
+            client_poll,
+        }
     }
 
     pub fn get_cluster_metadata(&self) -> Vec<GetClusterMetadataNode> {
-        Vec::new()
+        let mut result = Vec::new();
+        for (node_id, node) in self.cache_manager.node_list.clone() {
+            result.push(GetClusterMetadataNode {
+                replica_id: node_id as u32,
+                replica_addr: node.node_inner_addr,
+            });
+        }
+        result
     }
 
-    pub async fn write(&self) {}
+    pub async fn write(
+        &self,
+        request: WriteReq,
+    ) -> Result<Vec<WriteRespMessage>, JournalServerError> {
+        if request.body.is_none() {
+            return Err(JournalServerError::RequestBodyNotEmpty("write".to_string()));
+        }
+
+        let req_body = request.body.unwrap();
+
+        // validator
+
+        // write
+        for message in req_body.messages {}
+
+        Ok(Vec::new())
+    }
 
     pub async fn read(&self) {}
 
     pub async fn active_segment(
         &self,
         request: GetActiveSegmentReq,
-    ) -> Result<JournalSegment, JournalServerError> {
+    ) -> Result<Vec<GetActiveSegmentRespShard>, JournalServerError> {
         if request.body.is_none() {
             return Err(JournalServerError::RequestBodyNotEmpty(
                 "active_segment".to_string(),
@@ -52,17 +80,40 @@ impl Handler {
         }
 
         let req_body = request.body.unwrap();
+        let mut results = Vec::new();
 
-        let active_segment = if let Some(segment) = self
-            .cache_manager
-            .get_active_segment(&req_body.namespace, &req_body.shard)
-        {
-            segment
-        } else {
-            create_active_segement(&req_body.namespace, &req_body.shard).await?
-        };
+        let cluster = self.cache_manager.get_cluster();
 
-        Ok(active_segment)
+        for raw in req_body.shards {
+            let shard = if let Some(shard) = self
+                .cache_manager
+                .get_shard(&raw.namespace, &raw.shard_name)
+            {
+                shard
+            } else {
+                create_shard(self.client_poll.clone(), &raw.namespace, &raw.shard_name).await?
+            };
+
+            let active_segment = if let Some(segment) = self
+                .cache_manager
+                .get_active_segment(&raw.namespace, &raw.shard_name)
+            {
+                segment
+            } else {
+                create_active_segement(&raw.namespace, &raw.shard_name).await?
+            };
+            results.push(GetActiveSegmentRespShard {
+                namespace: raw.namespace.clone(),
+                shard: raw.namespace.clone(),
+                replica_id: active_segment
+                    .replica
+                    .iter()
+                    .map(|rep| rep.node_id)
+                    .collect(),
+            });
+        }
+
+        Ok(results)
     }
 
     pub async fn offset_commit(&self) {}

@@ -2,4 +2,25 @@ syntax = "proto3";
 package journal.inner;
 
 service JournalServerInnerService {
+    rpc updateCache(UpdateJournalCacheRequest) returns(UpdateJournalCacheReply){}
+}
+
+message UpdateJournalCacheRequest{
+    string cluster_name = 1;
+    JournalUpdateCacheActionType action_type = 2;
+    JournalUpdateCacheResourceType resource_type = 3;
+    bytes data =4 ;
+}
+
+message UpdateJournalCacheReply{}
+
+enum JournalUpdateCacheActionType{
+    Add = 0;
+    Delete = 1;
+}
+
+enum JournalUpdateCacheResourceType{
+    JournalNode = 0;
+    Shard = 1;
+    Segment = 2;
 }

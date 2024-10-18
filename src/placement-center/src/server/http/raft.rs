@@ -24,7 +24,7 @@ use crate::raftv2::raft_node::Node;
 use crate::raftv2::typeconfig::TypeConfig;
 
 pub async fn add_learner(State(state): State<HttpServerState>) -> String {
-    let node_id = 3;
+    let node_id = 2;
     let node = Node {
         rpc_addr: "127.0.0.0:7654".to_string(),
         node_id: 2,

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod call_node;
 pub mod controller;
 pub mod preferred_election;
 pub mod segment_replica;

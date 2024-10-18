@@ -12,5 +12,85 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+use std::time::Duration;
+
+use admin::admin_interface_call;
+use common_base::error::common::CommonError;
+use inner::inner_interface_call;
+use log::error;
+use tokio::time::sleep;
+
+use crate::poll::ClientPool;
+use crate::{retry_sleep_time, retry_times};
+
 pub mod admin;
 pub mod inner;
+
+#[derive(Clone)]
+pub enum JournalEngineService {
+    Admin,
+    Inner,
+}
+
+#[derive(Clone, Debug)]
+pub enum JournalEngineInterface {
+    // inner
+    UpdateCache,
+
+    // admin
+    GetShardList,
+}
+
+async fn retry_call(
+    service: JournalEngineService,
+    interface: JournalEngineInterface,
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    if addrs.is_empty() {
+        return Err(CommonError::CommmonError(
+            "Call address list cannot be empty".to_string(),
+        ));
+    }
+    let mut times = 1;
+    loop {
+        let index = times % addrs.len();
+        let addr = addrs.get(index).unwrap().clone();
+        let result = match service {
+            JournalEngineService::Inner => {
+                inner_interface_call(
+                    interface.clone(),
+                    client_poll.clone(),
+                    addr,
+                    request.clone(),
+                )
+                .await
+            }
+            JournalEngineService::Admin => {
+                admin_interface_call(
+                    interface.clone(),
+                    client_poll.clone(),
+                    addr,
+                    request.clone(),
+                )
+                .await
+            }
+        };
+
+        match result {
+            Ok(data) => {
+                return Ok(data);
+            }
+            Err(e) => {
+                error!("{}", e);
+                if times > retry_times() {
+                    return Err(e);
+                }
+                times += 1;
+            }
+        }
+        sleep(Duration::from_secs(retry_sleep_time(times))).await;
+    }
+}
