@@ -16,7 +16,7 @@ use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftService;
 use protocol::placement_center::placement_center_openraft::{
-    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
+    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest, AddLearnRequest, AddLearnerReply, ChangeMembershipRequest, ChangeMembershipReply
 };
 use tonic::{Request, Response, Status};
 
@@ -83,4 +83,45 @@ impl OpenRaftService for GrpcOpenRaftServices {
         let reply = SnapshotReply { value };
         return Ok(Response::new(reply));
     }
+
+    async fn add_learner(
+        &self, 
+        request: Request<AddLearnRequest>,
+    ) -> Result<Response<AddLearnerReply>, Status> {
+
+        let req = request.into_inner();
+        let node_id = req.node_id;
+        let node = req.node;
+
+        let res = match self.raft_node.add_learner(node_id, node, true).await {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        };
+        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
+        let reply = AddLearnerReply { value };
+        return Ok(Response::new(reply));
+    }
+
+    async fn change_membership(
+        &self,
+        request: Request<ChangeMembershipRequest>,
+    ) -> Result<Response<ChangeMembershipReply>,Status> {
+        let req = request.into_inner();
+         
+        let body = req.members;
+
+        let res = match self.raft_node.change_membership(body, true).await {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        };
+
+        let value = serialize(&res).map_err(|e| Status::cancelled(e.to_string()))?;
+        let reply = ChangeMembershipReply { value };
+        return Ok(Response::new(reply));
+    }
+
 }

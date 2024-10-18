@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::placement_center_openraft::{
-    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
+    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest, AddLearnerRequest, AddLearnerReply, ChangeMembershipRequest, ChangeMembershipReply
 };
 
 use super::PlacementCenterInterface;
@@ -86,6 +86,52 @@ pub async fn placement_openraft_snapshot(
     .await
     {
         Ok(data) => match SnapshotReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn placement_openraft_add_learner(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: AddLearnerRequest,
+) -> Result<AddLearnerReply, CommonError> {
+    let request_data = AddLearnerRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::OpenRaft,
+        PlacementCenterInterface::AddLearner,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match AddLearnerReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn placement_openraft_change_membership(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ChangeMembershipRequest
+) -> Result<ChangeMembershipReply, CommonError> {
+    let request_data = ChangeMembershipRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::OpenRaft,
+        PlacementCenterInterface::ChangeMembership,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ChangeMembershipReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },

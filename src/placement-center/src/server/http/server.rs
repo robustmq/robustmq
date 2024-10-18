@@ -21,7 +21,7 @@ use common_base::config::placement_center::placement_center_conf;
 use log::info;
 
 use super::index::metrics;
-use super::raft::{add_leadrner, change_membership, init, raft_status};
+use super::raft::{add_learner, change_membership, init, raft_status};
 use super::v1_path;
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
@@ -79,7 +79,7 @@ pub async fn start_http_server(state: HttpServerState) {
 fn routes(state: HttpServerState) -> Router {
     let common = Router::new()
         .route(ROUTE_METRICS, get(metrics))
-        .route(&v1_path(ROUTE_CLUSTER_ADD_LEARNER), post(add_leadrner))
+        .route(&v1_path(ROUTE_CLUSTER_ADD_LEARNER), post(add_learner))
         .route(
             &v1_path(ROUTE_CLUSTER_CHANGE_MEMBERSHIP),
             post(change_membership),

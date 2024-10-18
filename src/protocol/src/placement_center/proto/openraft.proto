@@ -7,6 +7,10 @@ service OpenRaftService {
   rpc append(AppendRequest) returns(AppendReply){}
 
   rpc snapshot(SnapshotRequest) returns(SnapshotReply){} 
+
+  rpc add_learner(AddLearnerRequest) returns(AddLearnerReply){}
+
+  rpc change_membership(impl Into<ChangeMembers>) returns(ChangeMembershipReply){}
 }
 
 message VoteRequest{
@@ -30,5 +34,21 @@ message SnapshotRequest{
 }
 
 message SnapshotReply{
+    bytes value = 1;
+}
+
+message AddLearnerRequest{
+    bytes value = 1;
+}
+
+message AddLearnerReply{
+    bytes value = 1;
+}
+
+message ChangeMembershipRequest{
+    bytes value = 1;
+}
+
+message ChangeMembershipReply{
     bytes value = 1;
 }
