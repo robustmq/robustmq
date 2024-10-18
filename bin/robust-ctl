@@ -13,4 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 workdir=$(cd $(dirname $0); pwd)
-${workdir}/../libs/cli-command-placement $@
+${workdir}/../libs/cli-command $@

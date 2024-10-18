@@ -32,12 +32,8 @@ name = "placement-center"
 path = "src/placement-center/server.rs"
 
 [[bin]]
-name = "cli-command-mqtt"
-path = "src/cli-command/mqtt-server/command.rs"
-
-[[bin]]
-name = "cli-command-placement"
-path = "src/cli-command/placement-center/command.rs"
+name = "cli-command"
+path = "src/cli-command/command.rs"
 
 [dependencies]
 clap = { version = "4.4.7", features = ["derive"] }
@@ -48,3 +44,4 @@ mqtt-broker.workspace = true
 placement-center.workspace = true
 journal-server.workspace = true
 cli-command.workspace = true
+clap-cargo = "0.14.1"
