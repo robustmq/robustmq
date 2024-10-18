@@ -54,9 +54,31 @@ message ReadResp{
 
 /** Write Request **/
 message WriteReqBody{
+    repeated  WriteReqMessage messages = 1;
+}
+
+message WriteReqMessage{
+    string namespace = 1;
+    string shard_name = 2;
+    uint64 segment = 3;
+    repeated string content = 4;
 }
 
 message WriteRespBody{
+    repeated WriteRespMessage status = 1;
+    JournalEngineError error = 2;
+}
+
+message WriteRespMessage{
+    string namespace = 1;
+    string shard_name = 2;
+    uint64 segment = 3;
+    repeated WriteRespMessageStatus message_status = 4;
+}
+
+message WriteRespMessageStatus{
+    repeated uint64 offset = 1;
+    JournalEngineError error = 2;
 }
 
 message WriteReq{
@@ -70,7 +92,6 @@ message WriteResp{
 }
 
 /** Get Cluster Metadata **/
-
 message GetClusterMetadataReq{
     ReqHeader header = 1;
 }
@@ -91,18 +112,29 @@ message GetClusterMetadataResp{
 
 /** Get Active Segment **/
 message GetActiveSegmentReqBody{
-    string namespace = 1;
-    string shard = 2;
+    repeated GetActiveSegmentReqShard shards = 1;
 }
 
-message GetActiveSegmentRespBody{
-    repeated uint32 replica_id = 1;
-    JournalEngineError error = 2;
+message GetActiveSegmentReqShard{
+    string namespace = 1;
+    string shard_name = 2;
 }
 
 message GetActiveSegmentReq{
     ReqHeader header = 1;
     GetActiveSegmentReqBody body = 2;
+}
+
+
+message GetActiveSegmentRespBody{
+    repeated GetActiveSegmentRespShard segments = 1;
+    JournalEngineError error = 2;
+}
+
+message GetActiveSegmentRespShard{
+    string namespace = 1;
+    string shard = 2;
+    repeated uint32 replica_id = 3;
 }
 
 message GetActiveSegmentResp{
@@ -130,8 +162,7 @@ message OffsetCommitRespBody{
 
 message OffsetCommitShardResp{
     string shard_name = 1;
-    ErrorCode err_code = 2;
-    string error = 3;
+    JournalEngineError error = 2;
 }
 
 message OffsetCommitReq{

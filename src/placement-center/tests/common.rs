@@ -41,6 +41,11 @@ pub fn cluster_name() -> String {
 }
 
 #[allow(dead_code)]
+pub fn namespace() -> String {
+    unique_id()
+}
+
+#[allow(dead_code)]
 pub fn node_id() -> u64 {
     4
 }

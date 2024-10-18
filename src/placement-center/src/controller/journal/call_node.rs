@@ -1,0 +1,71 @@
+// Copyright 2023 RobustMQ Team
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use std::sync::Arc;
+
+use grpc_clients::journal::inner::call::journal_inner_update_cache;
+use grpc_clients::poll::ClientPool;
+use log::{debug, error};
+use protocol::journal_server::journal_inner::{
+    JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
+};
+
+use crate::cache::placement::PlacementCacheManager;
+use crate::storage::journal::shard::ShardInfo;
+
+pub fn update_cache_by_add_shard(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    client_poll: Arc<ClientPool>,
+    _shard_info: ShardInfo,
+) {
+    tokio::spawn(async move {
+        let data = Vec::new();
+        call_journal_update_cache(
+            &cluster_name,
+            &placement_cache_manager,
+            &client_poll,
+            JournalUpdateCacheActionType::Add,
+            JournalUpdateCacheResourceType::Shard,
+            data,
+        )
+        .await;
+    });
+}
+
+pub async fn call_journal_update_cache(
+    cluster_name: &str,
+    placement_cache_manager: &Arc<PlacementCacheManager>,
+    client_poll: &Arc<ClientPool>,
+    action_type: JournalUpdateCacheActionType,
+    resource_type: JournalUpdateCacheResourceType,
+    data: Vec<u8>,
+) {
+    for addr in placement_cache_manager.get_broker_node_addr_by_cluster(cluster_name) {
+        let request = UpdateJournalCacheRequest {
+            cluster_name: cluster_name.to_string(),
+            action_type: action_type.into(),
+            resource_type: resource_type.into(),
+            data: data.clone(),
+        };
+        match journal_inner_update_cache(client_poll.clone(), vec![addr], request).await {
+            Ok(resp) => {
+                debug!("Calling Journal Engine returns information:{:?}", resp);
+            }
+            Err(e) => {
+                error!("Calling Journal Engine to update cache failed,{}", e);
+            }
+        };
+    }
+}

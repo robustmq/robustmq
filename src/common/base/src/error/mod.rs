@@ -13,6 +13,5 @@
 // limitations under the License.
 
 pub mod common;
-pub mod journal_server;
 pub mod mqtt_broker;
 pub mod placement_center;

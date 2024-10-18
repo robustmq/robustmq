@@ -21,19 +21,22 @@ use protocol::journal_server::journal_admin::journal_server_admin_service_server
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
 use tonic::transport::Server;
 
+use crate::core::cache::CacheManager;
 use crate::server::grpc::admin::GrpcJournalServerAdminService;
 use crate::server::grpc::inner::GrpcJournalServerInnerService;
 
 pub struct GrpcServer {
     port: u32,
-    _client_poll: Arc<ClientPool>,
+    client_poll: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl GrpcServer {
-    pub fn new(port: u32, client_poll: Arc<ClientPool>) -> Self {
+    pub fn new(port: u32, client_poll: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
         Self {
             port,
-            _client_poll: client_poll,
+            client_poll,
+            cache_manager,
         }
     }
     pub async fn start(&self) -> Result<(), CommonError> {
@@ -43,7 +46,7 @@ impl GrpcServer {
             self.port
         );
         let admin_handler = GrpcJournalServerAdminService::new();
-        let inner_handler = GrpcJournalServerInnerService::new();
+        let inner_handler = GrpcJournalServerInnerService::new(self.cache_manager.clone());
 
         Server::builder()
             .add_service(JournalServerAdminServiceServer::new(admin_handler))

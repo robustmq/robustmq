@@ -32,33 +32,24 @@ impl JournalCacheManager {
         }
     }
 
-    pub fn add_shard(&self, shard: ShardInfo) {
+    pub fn add_shard(&self, shard: &ShardInfo) {
         self.shard_list.insert(
-            self.shard_key(shard.cluster_name.clone(), shard.shard_name.clone()),
-            shard,
+            self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
+            shard.clone(),
         );
     }
 
-    pub fn remove_shard(&self, cluster_name: String, shard_name: String) {
+    pub fn remove_shard(&self, cluster_name: &str, namespace: &str, shard_name: &str) {
         self.shard_list
-            .remove(&self.shard_key(cluster_name, shard_name));
+            .remove(&self.shard_key(cluster_name, namespace, shard_name));
     }
 
-    pub fn next_segment_seq(&self, cluster_name: &str, shard_name: &str) -> u64 {
-        let key = self.shard_key(cluster_name.to_owned(), shard_name.to_owned());
+    pub fn next_segment_seq(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> u64 {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
         if let Some(shard) = self.shard_list.get(&key) {
             return shard.last_segment_seq + 1;
         }
-        1
-    }
-
-    #[allow(dead_code)]
-    pub fn get_shard(&self, cluster_name: String, shard_name: String) -> Option<ShardInfo> {
-        let key = self.shard_key(cluster_name, shard_name);
-        if let Some(shard) = self.shard_list.get(&key) {
-            return Some(shard.clone());
-        }
-        None
+        0
     }
 
     pub fn add_segment(&self, segment: SegmentInfo) {
@@ -76,8 +67,8 @@ impl JournalCacheManager {
         self.segment_list.remove(&key);
     }
 
-    fn shard_key(&self, cluster_name: String, shard_name: String) -> String {
-        format!("{}_{}", cluster_name, shard_name)
+    fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
+        format!("{}_{}_{}", cluster_name, namespace, shard_name)
     }
 
     fn segment_key(&self, cluster_name: String, shard_name: String, segment_num: u64) -> String {

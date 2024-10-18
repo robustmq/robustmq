@@ -544,7 +544,7 @@ mod tests {
             api_version: ApiVersion::V0.into(),
         };
 
-        let body = WriteRespBody {};
+        let body = WriteRespBody::default();
         let req = WriteResp {
             header: Some(header),
             body: Some(body),
@@ -558,7 +558,7 @@ mod tests {
             api_version: ApiVersion::V0.into(),
         };
 
-        let body: WriteReqBody = WriteReqBody {};
+        let body: WriteReqBody = WriteReqBody::default();
         let req = WriteReq {
             header: Some(header),
             body: Some(body),

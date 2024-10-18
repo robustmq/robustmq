@@ -28,6 +28,7 @@ use crate::storage::rocksdb::RocksDBEngine;
 pub struct ShardInfo {
     pub shard_uid: String,
     pub cluster_name: String,
+    pub namespace: String,
     pub shard_name: String,
     pub replica: u32,
     pub last_segment_seq: u64,
@@ -45,17 +46,22 @@ impl ShardStorage {
         }
     }
 
-    pub fn save(&self, shard_info: ShardInfo) -> Result<(), CommonError> {
-        let shard_key = key_shard(&shard_info.cluster_name, &shard_info.shard_name);
+    pub fn save(&self, shard_info: &ShardInfo) -> Result<(), CommonError> {
+        let shard_key = key_shard(
+            &shard_info.cluster_name,
+            &shard_info.namespace,
+            &shard_info.shard_name,
+        );
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, shard_info)
     }
-    #[allow(dead_code)]
-    pub fn get(
+
+    pub fn _get(
         &self,
         cluster_name: &str,
+        namespace: &str,
         shard_name: &str,
     ) -> Result<Option<ShardInfo>, CommonError> {
-        let shard_key: String = key_shard(cluster_name, shard_name);
+        let shard_key: String = key_shard(cluster_name, namespace, shard_name);
         match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), shard_key) {
             Ok(Some(data)) => match serde_json::from_slice::<ShardInfo>(&data.data) {
                 Ok(shard) => Ok(Some(shard)),
@@ -66,12 +72,17 @@ impl ShardStorage {
         }
     }
 
-    pub fn delete(&self, cluster_name: &str, shard_name: &str) -> Result<(), CommonError> {
-        let shard_key = key_shard(cluster_name, shard_name);
+    pub fn delete(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Result<(), CommonError> {
+        let shard_key = key_shard(cluster_name, namespace, shard_name);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)
     }
-    #[allow(dead_code)]
-    pub fn list_by_shard(&self, cluster_name: &str) -> Result<Vec<ShardInfo>, CommonError> {
+
+    pub fn _list_by_shard(&self, cluster_name: &str) -> Result<Vec<ShardInfo>, CommonError> {
         let prefix_key = key_shard_prefix(cluster_name);
         match engine_prefix_list_by_cluster(self.rocksdb_engine_handler.clone(), prefix_key) {
             Ok(data) => {

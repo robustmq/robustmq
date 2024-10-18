@@ -119,6 +119,7 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
+            self.client_poll.clone(),
         ));
 
         let openraft_node = create_raft_node(self.client_poll.clone(), data_route).await;
@@ -269,6 +270,7 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
+            self.client_poll.clone(),
         ));
 
         let stop_recv = stop_send.subscribe();

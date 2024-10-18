@@ -14,10 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 
 pub struct JournalShard {
     namespace: String,
     shard_name: String,
+    last_segment: u32,
     active_segmant: u32,
 }

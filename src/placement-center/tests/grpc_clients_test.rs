@@ -25,7 +25,7 @@ mod tests {
     };
 
     use crate::common::{
-        cluster_name, cluster_type, extend_info, node_id, node_ip, pc_addr, shard_name,
+        cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, shard_name,
         shard_replica,
     };
 
@@ -89,6 +89,7 @@ mod tests {
 
         let request = CreateShardRequest {
             cluster_name: cluster_name(),
+            namespace: namespace(),
             shard_name: shard_name(),
             replica: shard_replica(),
         };
@@ -104,6 +105,7 @@ mod tests {
 
         let request = DeleteShardRequest {
             cluster_name: cluster_name(),
+            namespace: namespace(),
             shard_name: shard_name(),
         };
         client
@@ -118,6 +120,7 @@ mod tests {
 
         let request = CreateSegmentRequest {
             cluster_name: cluster_name(),
+            namespace: namespace(),
             shard_name: shard_name(),
         };
         client
