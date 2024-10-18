@@ -123,6 +123,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<UnRegisterNodeRequest>,
     ) -> Result<Response<UnRegisterNodeReply>, Status> {
         let req = request.into_inner();
+        let _ = req.validate_ext()?;
 
         let data = StorageData::new(
             StorageDataType::ClusterUngisterNode,
