@@ -16,7 +16,7 @@ use bincode::{deserialize, serialize};
 use openraft::Raft;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftService;
 use protocol::placement_center::placement_center_openraft::{
-    AddLearnerRequest, AddLearnerReply, AppendReply, AppendRequest, ChangeMembershipReply,
+    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
     ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::{Request, Response, Status};
@@ -97,12 +97,16 @@ impl OpenRaftService for GrpcOpenRaftServices {
 
         let raft_node = Node {
             rpc_addr: node.clone().unwrap().rpc_addr,
-            node_id:  node.clone().unwrap().node_id,
+            node_id: node.clone().unwrap().node_id,
         };
 
         let blocking = req.blocking;
 
-        let res = match self.raft_node.add_learner(node_id, raft_node, blocking).await {
+        let res = match self
+            .raft_node
+            .add_learner(node_id, raft_node, blocking)
+            .await
+        {
             Ok(data) => data,
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

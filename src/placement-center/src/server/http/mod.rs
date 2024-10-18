@@ -13,7 +13,6 @@
 // limitations under the License.
 
 pub mod index;
-pub mod raft;
 pub mod server;
 
 pub(crate) fn v1_path(path: &str) -> String {
