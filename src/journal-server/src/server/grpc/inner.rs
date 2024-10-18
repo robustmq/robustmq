@@ -12,15 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
+use std::sync::Arc;
 
-pub struct GrpcJournalServerInnerService {}
+use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
+use protocol::journal_server::journal_inner::{UpdateJournalCacheReply, UpdateJournalCacheRequest};
+use tonic::{Request, Response, Status};
+
+use crate::core::cache::CacheManager;
+
+pub struct GrpcJournalServerInnerService {
+    cache_manager: Arc<CacheManager>,
+}
 
 impl GrpcJournalServerInnerService {
-    pub fn new() -> Self {
-        GrpcJournalServerInnerService {}
+    pub fn new(cache_manager: Arc<CacheManager>) -> Self {
+        GrpcJournalServerInnerService { cache_manager }
     }
 }
 
 #[tonic::async_trait]
-impl JournalServerInnerService for GrpcJournalServerInnerService {}
+impl JournalServerInnerService for GrpcJournalServerInnerService {
+    async fn update_cache(
+        &self,
+        request: Request<UpdateJournalCacheRequest>,
+    ) -> Result<Response<UpdateJournalCacheReply>, Status> {
+        let req = request.into_inner();
+        self.cache_manager
+            .update_cache(req.action_type(), req.resource_type(), req.data);
+        return Ok(Response::new(UpdateJournalCacheReply::default()));
+    }
+}

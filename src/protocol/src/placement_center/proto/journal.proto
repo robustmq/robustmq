@@ -31,12 +31,14 @@ service EngineService {
 
 message CreateShardRequest{
     string cluster_name = 1;
-    string shard_name = 2;
-    uint32 replica = 3;
+    string namespace = 2;
+    string shard_name = 3;
+    uint32 replica = 4;
 }
 
 message CreateShardReply{
-
+    uint32 segment_no = 1;
+    repeated uint32 replica = 2;
 }
 
 message GetShardRequest{
@@ -50,12 +52,13 @@ message GetShardReply{
     string shard_name = 3;
     uint32 replica = 4;
     bytes replicas = 5;
-    string status=6;
+    string status = 6;
 }
 
 message DeleteShardRequest{
     string cluster_name = 1;
-    string shard_name = 2;
+    string namespace = 2;
+    string shard_name = 3;
 }
 
 message DeleteShardReply{
@@ -64,11 +67,12 @@ message DeleteShardReply{
 
 message CreateSegmentRequest{
     string cluster_name = 1;
-    string shard_name = 2;
+    string namespace = 2;
+    string shard_name = 3;
 }
 
 message CreateSegmentReply{
-
+    repeated uint32 replica=1;
 }
 
 message DeleteSegmentRequest{

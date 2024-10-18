@@ -85,7 +85,11 @@ impl JournalServer {
     }
 
     fn start_grpc_server(&self) {
-        let server = GrpcServer::new(self.config.network.grpc_port, self.client_poll.clone());
+        let server = GrpcServer::new(
+            self.config.network.grpc_port,
+            self.client_poll.clone(),
+            self.cache_manager.clone(),
+        );
         self.server_runtime.spawn(async move {
             match server.start().await {
                 Ok(()) => {}

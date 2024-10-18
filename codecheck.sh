@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+hawkeye format
+cargo fmt --all -- --check
 cargo clippy --all -- --deny warnings
-cargo clippy --fix --allow-dirty
-cargo fix --allow-dirty
-cargo +nightly fmt --all

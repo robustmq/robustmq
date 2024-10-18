@@ -37,7 +37,7 @@ pub async fn start_tcp_server(
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
-    let command = Command::new(cache_manager.clone());
+    let command = Command::new(client_poll.clone(), cache_manager.clone());
 
     let proc_config = ProcessorConfig {
         accept_thread_num: conf.tcp_thread.accept_thread_num,

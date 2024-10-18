@@ -29,7 +29,7 @@ use crate::raftv2::route::AppResponseData;
 use crate::raftv2::typeconfig::{SnapshotData, TypeConfig};
 use crate::storage::route::DataRoute;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct StateMachineStore {
     pub data: StateMachineData,
 
@@ -43,7 +43,7 @@ pub struct StateMachineStore {
     db: Arc<DB>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct StateMachineData {
     pub last_applied_log_id: Option<LogId<NodeId>>,
 

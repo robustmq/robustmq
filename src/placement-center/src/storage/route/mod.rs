@@ -25,6 +25,7 @@ use std::time::Instant;
 use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
 use data::{StorageData, StorageDataType};
+use grpc_clients::poll::ClientPool;
 use log::{error, info};
 
 use super::rocksdb::DB_COLUMN_FAMILY_CLUSTER;
@@ -36,7 +37,7 @@ use crate::storage::route::journal::DataRouteJournal;
 use crate::storage::route::kv::DataRouteKv;
 use crate::storage::route::mqtt::DataRouteMQTT;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DataRoute {
     route_kv: DataRouteKv,
     route_mqtt: DataRouteMQTT,
@@ -50,6 +51,7 @@ impl DataRoute {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
+        client_poll: Arc<ClientPool>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
         let route_mqtt = DataRouteMQTT::new(rocksdb_engine_handler.clone());
@@ -59,6 +61,7 @@ impl DataRoute {
             rocksdb_engine_handler.clone(),
             engine_cache.clone(),
             cluster_cache.clone(),
+            client_poll.clone(),
         );
         DataRoute {
             route_kv,

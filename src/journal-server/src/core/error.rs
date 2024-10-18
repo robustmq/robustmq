@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use common_base::error::common::CommonError;
 use thiserror::Error;
-
-use super::common::CommonError;
 
 #[derive(Error, Debug)]
 pub enum JournalServerError {
@@ -27,3 +26,5 @@ pub enum JournalServerError {
     #[error("{0} request body cannot be empty")]
     RequestBodyNotEmpty(String),
 }
+
+pub enum JournalServerErrorCode {}
