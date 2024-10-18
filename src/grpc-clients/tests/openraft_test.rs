@@ -16,17 +16,17 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use crate::common::get_placement_addr;
-    use grpc_clients::{
-        placement::openraft::call::{
-            placement_openraft_add_learner, placement_openraft_change_membership,
-        },
-        poll::ClientPool,
+    use std::sync::Arc;
+
+    use grpc_clients::placement::openraft::call::{
+        placement_openraft_add_learner, placement_openraft_change_membership,
     };
+    use grpc_clients::poll::ClientPool;
     use protocol::placement_center::placement_center_openraft::{
         AddLearnerRequest, ChangeMembershipRequest, Node,
     };
-    use std::sync::Arc;
+
+    use crate::common::get_placement_addr;
 
     #[tokio::test]
     async fn placement_openraft_add_learner_test() {
