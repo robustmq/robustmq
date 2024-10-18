@@ -15,24 +15,18 @@
 use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::Router;
 use common_base::config::placement_center::placement_center_conf;
 use log::info;
 
 use super::index::metrics;
-use super::raft::{add_leadrner, change_membership, init, raft_status};
-use super::v1_path;
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
 use crate::raftv1::rocksdb::RaftMachineStorage;
 use crate::storage::route::apply::RaftMachineApply;
 
 pub const ROUTE_METRICS: &str = "/metrics";
-pub const ROUTE_CLUSTER_ADD_LEARNER: &str = "/cluster/add-learner";
-pub const ROUTE_CLUSTER_CHANGE_MEMBERSHIP: &str = "/cluster/change-membership";
-pub const ROUTE_CLUSTER_INIT: &str = "/cluster/init";
-pub const ROUTE_CLUSTER_STATUS: &str = "/cluster/status";
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -77,15 +71,7 @@ pub async fn start_http_server(state: HttpServerState) {
 }
 
 fn routes(state: HttpServerState) -> Router {
-    let common = Router::new()
-        .route(ROUTE_METRICS, get(metrics))
-        .route(&v1_path(ROUTE_CLUSTER_ADD_LEARNER), post(add_leadrner))
-        .route(
-            &v1_path(ROUTE_CLUSTER_CHANGE_MEMBERSHIP),
-            post(change_membership),
-        )
-        .route(&v1_path(ROUTE_CLUSTER_INIT), post(init))
-        .route(&v1_path(ROUTE_CLUSTER_STATUS), get(raft_status));
+    let common = Router::new().route(ROUTE_METRICS, get(metrics));
 
     let app = Router::new().merge(common);
     app.with_state(state)

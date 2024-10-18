@@ -93,6 +93,8 @@ pub enum PlacementCenterInterface {
     Vote,
     Append,
     Snapshot,
+    AddLearner,
+    ChangeMembership,
 }
 
 impl PlacementCenterInterface {

@@ -19,7 +19,8 @@ use mobc::{Connection, Manager};
 use prost::Message;
 use protocol::placement_center::placement_center_openraft::open_raft_service_client::OpenRaftServiceClient;
 use protocol::placement_center::placement_center_openraft::{
-    AppendReply, AppendRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
+    AddLearnerReply, AddLearnerRequest, AppendReply, AppendRequest, ChangeMembershipReply,
+    ChangeMembershipRequest, SnapshotReply, SnapshotRequest, VoteReply, VoteRequest,
 };
 use tonic::transport::Channel;
 
@@ -67,6 +68,24 @@ pub(crate) async fn openraft_interface_call(
                     )
                     .await
                 }
+                PlacementCenterInterface::AddLearner => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| AddLearnerRequest::decode(data),
+                        |mut client, request| async move { client.add_learner(request).await },
+                        AddLearnerReply::encode_to_vec,
+                    )
+                    .await
+                }
+                PlacementCenterInterface::ChangeMembership => client_call(
+                    client,
+                    request.clone(),
+                    |data| ChangeMembershipRequest::decode(data),
+                    |mut client, request| async move { client.change_membership(request).await },
+                    ChangeMembershipReply::encode_to_vec,
+                )
+                .await,
                 _ => {
                     return Err(CommonError::CommmonError(format!(
                         "openraft service does not support service interfaces [{:?}]",
