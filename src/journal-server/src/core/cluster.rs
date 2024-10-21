@@ -31,7 +31,7 @@ use tokio::time::sleep;
 
 #[derive(Clone)]
 pub struct JournalEngineClusterConfig {
-    enable_auto_create_shard: bool,
+    pub enable_auto_create_shard: bool,
 }
 
 pub async fn register_journal_node(

@@ -15,6 +15,8 @@ enum ApiKey{
     GetActiveSegment = 2;
     OffsetCommit = 3;
     GetClusterMetadata = 4;
+    CreateShard = 5;
+    DeleteShard = 6;
 }
 
 enum ApiVersion{
@@ -25,17 +27,84 @@ enum ErrorCode{
     Success = 0;
 }
 
+enum ShardStorageModel{
+    Kv = 0;
+    Sequential = 1;
+}
+
 message ReqHeader{
     ApiKey api_key = 1;
     ApiVersion api_version = 2;
 }
 
-/**  Read Request **/
 message RespHeader{
     ApiKey api_key = 1;
     ApiVersion api_version = 2;
+    JournalEngineError error = 3;
 }
 
+/** Get Cluster Metadata **/
+message GetClusterMetadataReq{
+    ReqHeader header = 1;
+}
+
+message GetClusterMetadataRespBody{
+    repeated GetClusterMetadataNode nodes = 1;
+}
+
+message GetClusterMetadataNode{
+    uint32 replica_id = 1;
+    string replica_addr = 2;
+}
+
+message GetClusterMetadataResp{
+    RespHeader header = 1;
+    GetClusterMetadataRespBody body = 2;
+}
+
+/**  Create Shard **/
+message CreateShardReqBody{
+    string namespace = 1;
+    string shard_name = 2;
+    uint32 replica_num = 3;
+    ShardStorageModel storage_model = 4;
+}
+
+message CreateShardRespBody{
+    repeated uint32 replica_id = 3;
+}
+
+message CreateShardReq{
+    ReqHeader header = 1;
+    CreateShardReqBody body = 2;
+}
+
+message CreateShardResp{
+    RespHeader header = 1;
+    CreateShardRespBody body = 2;
+}
+
+
+/**  Delete Shard **/
+message DeleteShardReqBody{
+    string namespace = 1;
+    string shard_name = 2;
+}
+
+message DeleteShardRespBody{
+}
+
+message DeleteShardReq{
+    ReqHeader header = 1;
+    DeleteShardReqBody body = 2;
+}
+
+message DeleteShardResp{
+    RespHeader header = 1;
+    DeleteShardRespBody body = 2;
+}
+
+/**  Read Request **/
 message ReadReqBody{
 }
 
@@ -89,25 +158,6 @@ message WriteReq{
 message WriteResp{
     RespHeader header = 1;
     WriteRespBody body = 2;
-}
-
-/** Get Cluster Metadata **/
-message GetClusterMetadataReq{
-    ReqHeader header = 1;
-}
-
-message GetClusterMetadataRespBody{
-    repeated GetClusterMetadataNode nodes = 1;
-}
-
-message GetClusterMetadataNode{
-    uint32 replica_id = 1;
-    string replica_addr = 2;
-}
-
-message GetClusterMetadataResp{
-    RespHeader header = 1;
-    GetClusterMetadataRespBody body = 2;
 }
 
 /** Get Active Segment **/

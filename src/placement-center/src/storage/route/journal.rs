@@ -19,7 +19,7 @@ use common_base::tools::{now_mills, unique_id};
 use grpc_clients::poll::ClientPool;
 use prost::Message as _;
 use protocol::placement_center::placement_center_journal::{
-    CreateSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
+    CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest,
 };
 
 use crate::cache::journal::JournalCacheManager;
@@ -61,21 +61,22 @@ impl DataRouteJournal {
             namespace: req.namespace.clone(),
             shard_name: req.shard_name.clone(),
             replica: req.replica,
+            storage_mode: req.storage_model,
+            active_segment_seq: 0,
             last_segment_seq: 0,
             create_time: now_mills(),
         };
 
+        // Save Shard && Update Cache
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
         shard_storage.save(&shard_info)?;
-
-        // upate cache
         self.engine_cache.add_shard(&shard_info);
 
         // Create segments according to the built-in pre-created segment strategy.
         // Between 0 and N segments may be created.
         self.pre_create_segment()?;
 
-        // maybe update storage engine node cache
+        // update storage engine node cache
         update_cache_by_add_shard(
             req.cluster_name,
             self.cluster_cache.clone(),
@@ -105,7 +106,7 @@ impl DataRouteJournal {
     }
 
     pub fn create_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
-        let req: CreateSegmentRequest = CreateSegmentRequest::decode(value.as_ref())?;
+        let req = CreateNextSegmentRequest::decode(value.as_ref())?;
 
         let cluster_name = req.cluster_name;
         let shard_name = req.shard_name;
@@ -119,6 +120,7 @@ impl DataRouteJournal {
             SegmentReplicaAlgorithm::new(self.cluster_cache.clone(), self.engine_cache.clone());
         let segment_info = SegmentInfo {
             cluster_name: cluster_name.clone(),
+            namespace: namespace.clone(),
             shard_name: shard_name.clone(),
             replicas: repcli_algo.calc_replica_distribution(segment_seq),
             replica_leader: 0,
@@ -134,13 +136,18 @@ impl DataRouteJournal {
     pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
         let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
+        let namespace = req.namespace;
         let shard_name = req.shard_name;
         let segment_seq = req.segment_seq;
 
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.delete(&cluster_name, &shard_name, segment_seq)?;
-        self.engine_cache
-            .remove_segment(cluster_name.clone(), shard_name.clone(), segment_seq);
+        segment_storage.delete(&cluster_name, &shard_name, segment_seq as u32)?;
+        self.engine_cache.remove_segment(
+            &cluster_name,
+            &namespace,
+            &shard_name,
+            segment_seq as u32,
+        );
         Ok(())
     }
 

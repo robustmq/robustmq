@@ -16,13 +16,14 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::tools::{now_mills, unique_id};
+use grpc_clients::poll::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use prost::Message as _;
 use protocol::placement_center::placement_center_inner::{
-    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
+    ClusterType, DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
     SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use protocol::placement_center::placement_center_mqtt::{
@@ -30,6 +31,9 @@ use protocol::placement_center::placement_center_mqtt::{
 };
 
 use crate::cache::placement::PlacementCacheManager;
+use crate::controller::journal::call_node::{
+    update_cache_by_add_journal_node, update_cache_by_delete_journal_node,
+};
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::placement::cluster::ClusterStorage;
@@ -38,20 +42,23 @@ use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::placement::node::NodeStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cluster_cache: Arc<PlacementCacheManager>,
+    client_poll: Arc<ClientPool>,
 }
 
 impl DataRouteCluster {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
+        client_poll: Arc<ClientPool>,
     ) -> Self {
         DataRouteCluster {
             rocksdb_engine_handler,
             cluster_cache,
+            client_poll,
         }
     }
 
@@ -86,7 +93,12 @@ impl DataRouteCluster {
 
         // update node
         self.cluster_cache.add_broker_node(node.clone());
-        node_storage.save(&node)
+        node_storage.save(&node)?;
+
+        // Call Broker/Journal to refresh the cluster cache
+        self.call_add_node_cache(&node);
+
+        Ok(())
     }
 
     pub fn unregister_node(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -94,10 +106,18 @@ impl DataRouteCluster {
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
 
-        self.cluster_cache
-            .remove_broker_node(&cluster_name, node_id);
-        let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
-        node_storage.delete(&cluster_name, node_id)
+        if let Some((_, node)) = self
+            .cluster_cache
+            .remove_broker_node(&cluster_name, node_id)
+        {
+            let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
+            node_storage.delete(&cluster_name, node_id)?;
+
+            // Call Broker/Journal to refresh the cluster cache
+            self.call_delete_node_cache(&node);
+        }
+
+        Ok(())
     }
 
     pub fn set_resource_config(&self, value: Vec<u8>) -> Result<(), CommonError> {
@@ -150,6 +170,28 @@ impl DataRouteCluster {
         let blacklist_storage = MqttBlackListStorage::new(self.rocksdb_engine_handler.clone());
         blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)
     }
+
+    fn call_add_node_cache(&self, node: &BrokerNode) {
+        if node.cluster_type == *ClusterType::JournalServer.as_str_name() {
+            update_cache_by_add_journal_node(
+                node.cluster_name.clone(),
+                self.cluster_cache.clone(),
+                self.client_poll.clone(),
+                node.clone(),
+            );
+        }
+    }
+
+    fn call_delete_node_cache(&self, node: &BrokerNode) {
+        if node.cluster_type == *ClusterType::JournalServer.as_str_name() {
+            update_cache_by_delete_journal_node(
+                node.cluster_name.clone(),
+                self.cluster_cache.clone(),
+                self.client_poll.clone(),
+                node.clone(),
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -158,6 +200,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
+    use grpc_clients::poll::ClientPool;
     use prost::Message as _;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
 
@@ -183,6 +226,7 @@ mod tests {
             extend_info: "{}".to_string(),
             ..Default::default()
         };
+        let client_poll = Arc::new(ClientPool::new(1));
         let data = RegisterNodeRequest::encode_to_vec(&req);
         let rocksdb_engine = Arc::new(RocksDBEngine::new(
             &config.rocksdb.data_path,
@@ -191,7 +235,7 @@ mod tests {
         ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
 
-        let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
+        let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache, client_poll);
         let _ = route.register_node(data);
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());

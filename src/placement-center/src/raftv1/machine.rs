@@ -239,7 +239,8 @@ impl RaftMachine {
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
-                        self.data_route.route_vec(entry.get_data().to_vec())?
+                        let _ = self.data_route.route_vec(entry.get_data().to_vec())?;
+                        return Ok(());
                     }
                     EntryType::EntryConfChange => {
                         let change = ConfChange::decode(entry.get_data())?;

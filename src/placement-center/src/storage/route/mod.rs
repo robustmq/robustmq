@@ -55,8 +55,11 @@ impl DataRoute {
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
         let route_mqtt = DataRouteMQTT::new(rocksdb_engine_handler.clone());
-        let route_cluster =
-            DataRouteCluster::new(rocksdb_engine_handler.clone(), cluster_cache.clone());
+        let route_cluster = DataRouteCluster::new(
+            rocksdb_engine_handler.clone(),
+            cluster_cache.clone(),
+            client_poll.clone(),
+        );
         let route_journal = DataRouteJournal::new(
             rocksdb_engine_handler.clone(),
             engine_cache.clone(),
@@ -72,74 +75,118 @@ impl DataRoute {
         }
     }
 
-    pub fn route_vec(&self, data: Vec<u8>) -> Result<(), CommonError> {
+    pub fn route_vec(&self, data: Vec<u8>) -> Result<Option<Vec<u8>>, CommonError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         self.route(storage_data)
     }
 
     //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
-    pub fn route(&self, storage_data: StorageData) -> Result<(), CommonError> {
+    pub fn route(&self, storage_data: StorageData) -> Result<Option<Vec<u8>>, CommonError> {
         match storage_data.data_type {
             StorageDataType::ClusterRegisterNode => {
-                self.route_cluster.register_node(storage_data.value)
+                self.route_cluster.register_node(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::ClusterUngisterNode => {
-                self.route_cluster.unregister_node(storage_data.value)
+                self.route_cluster.unregister_node(storage_data.value)?;
+                Ok(None)
             }
 
             StorageDataType::ClusterSetResourceConfig => {
-                self.route_cluster.set_resource_config(storage_data.value)
+                self.route_cluster.set_resource_config(storage_data.value)?;
+                Ok(None)
             }
-            StorageDataType::ClusterDeleteResourceConfig => self
-                .route_cluster
-                .delete_resource_config(storage_data.value),
+            StorageDataType::ClusterDeleteResourceConfig => {
+                self.route_cluster
+                    .delete_resource_config(storage_data.value)?;
+                Ok(None)
+            }
             StorageDataType::ClusterSetIdempotentData => {
-                self.route_cluster.set_idempotent_data(storage_data.value)
+                self.route_cluster.set_idempotent_data(storage_data.value)?;
+                Ok(None)
             }
-            StorageDataType::ClusterDeleteIdempotentData => self
-                .route_cluster
-                .delete_idempotent_data(storage_data.value),
-            StorageDataType::MQTTCreateAcl => self.route_cluster.create_acl(storage_data.value),
-            StorageDataType::MQTTDeleteAcl => self.route_cluster.delete_acl(storage_data.value),
+            StorageDataType::ClusterDeleteIdempotentData => {
+                self.route_cluster
+                    .delete_idempotent_data(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MQTTCreateAcl => {
+                self.route_cluster.create_acl(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MQTTDeleteAcl => {
+                self.route_cluster.delete_acl(storage_data.value)?;
+                Ok(None)
+            }
             StorageDataType::MQTTCreateBlacklist => {
-                self.route_cluster.create_blacklist(storage_data.value)
+                self.route_cluster.create_blacklist(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::MQTTDeleteBlacklist => {
-                self.route_cluster.delete_blacklist(storage_data.value)
+                self.route_cluster.delete_blacklist(storage_data.value)?;
+                Ok(None)
             }
 
             StorageDataType::JournalCreateShard => {
-                self.route_journal.create_shard(storage_data.value)
+                self.route_journal.create_shard(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::JournalDeleteShard => {
-                self.route_journal.delete_shard(storage_data.value)
+                self.route_journal.delete_shard(storage_data.value)?;
+                Ok(None)
             }
-            StorageDataType::JournalCreateSegment => {
-                self.route_journal.create_segment(storage_data.value)
+            StorageDataType::JournalCreateNextSegment => {
+                self.route_journal.create_segment(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::JournalDeleteSegment => {
-                self.route_journal.delete_segment(storage_data.value)
+                self.route_journal.delete_segment(storage_data.value)?;
+                Ok(None)
             }
-            StorageDataType::KvSet => self.route_kv.set(storage_data.value),
-            StorageDataType::KvDelete => self.route_kv.delete(storage_data.value),
-            StorageDataType::MQTTCreateUser => self.route_mqtt.create_user(storage_data.value),
-            StorageDataType::MQTTDeleteUser => self.route_mqtt.delete_user(storage_data.value),
-            StorageDataType::MQTTCreateTopic => self.route_mqtt.create_topic(storage_data.value),
-            StorageDataType::MQTTDeleteTopic => self.route_mqtt.delete_topic(storage_data.value),
+            StorageDataType::KvSet => {
+                self.route_kv.set(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::KvDelete => {
+                self.route_kv.delete(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MQTTCreateUser => {
+                self.route_mqtt.create_user(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MQTTDeleteUser => {
+                self.route_mqtt.delete_user(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MQTTCreateTopic => {
+                self.route_mqtt.create_topic(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::MQTTDeleteTopic => {
+                self.route_mqtt.delete_topic(storage_data.value)?;
+                Ok(None)
+            }
             StorageDataType::MQTTCreateSession => {
-                self.route_mqtt.create_session(storage_data.value)
+                self.route_mqtt.create_session(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::MQTTDeleteSession => {
-                self.route_mqtt.delete_session(storage_data.value)
+                self.route_mqtt.delete_session(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::MQTTUpdateSession => {
-                self.route_mqtt.update_session(storage_data.value)
+                self.route_mqtt.update_session(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::MQTTSetTopicRetainMessage => {
-                self.route_mqtt.set_topic_retain_message(storage_data.value)
+                self.route_mqtt
+                    .set_topic_retain_message(storage_data.value)?;
+                Ok(None)
             }
             StorageDataType::MQTTSaveLastWillMessage => {
-                self.route_mqtt.save_last_will_message(storage_data.value)
+                self.route_mqtt.save_last_will_message(storage_data.value)?;
+                Ok(None)
             }
         }
     }

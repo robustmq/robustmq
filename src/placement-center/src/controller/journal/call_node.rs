@@ -17,12 +17,65 @@ use std::sync::Arc;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::poll::ClientPool;
 use log::{debug, error};
+use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
 };
 
 use crate::cache::placement::PlacementCacheManager;
 use crate::storage::journal::shard::ShardInfo;
+
+pub fn update_cache_by_add_journal_node(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    client_poll: Arc<ClientPool>,
+    node: BrokerNode,
+) {
+    tokio::spawn(async move {
+        let data = match serde_json::to_vec(&node) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
+        call_journal_update_cache(
+            &cluster_name,
+            &placement_cache_manager,
+            &client_poll,
+            JournalUpdateCacheActionType::Add,
+            JournalUpdateCacheResourceType::JournalNode,
+            data,
+        )
+        .await;
+    });
+}
+
+pub fn update_cache_by_delete_journal_node(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    client_poll: Arc<ClientPool>,
+    node: BrokerNode,
+) {
+    tokio::spawn(async move {
+        let data = match serde_json::to_vec(&node) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
+        call_journal_update_cache(
+            &cluster_name,
+            &placement_cache_manager,
+            &client_poll,
+            JournalUpdateCacheActionType::Delete,
+            JournalUpdateCacheResourceType::JournalNode,
+            data,
+        )
+        .await;
+    });
+}
 
 pub fn update_cache_by_add_shard(
     cluster_name: String,

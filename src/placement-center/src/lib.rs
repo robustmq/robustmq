@@ -179,7 +179,11 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
         );
 
-        let engine_handler = GrpcEngineService::new(raft_machine_apply.clone());
+        let engine_handler = GrpcEngineService::new(
+            raft_machine_apply.clone(),
+            self.engine_cache.clone(),
+            self.cluster_cache.clone(),
+        );
 
         let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.openraft_node.clone());
 

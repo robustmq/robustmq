@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use common_base::error::placement_center::PlacementCenterError;
 use common_base::tools::now_second;
 use prost::Message;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
@@ -34,6 +33,7 @@ use tonic::{Request, Response, Status};
 
 use super::validate::ValidateExt;
 use crate::cache::placement::PlacementCacheManager;
+use crate::core::error::PlacementCenterError;
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;

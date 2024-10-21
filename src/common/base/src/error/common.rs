@@ -36,7 +36,6 @@ use thiserror::Error;
 use tonic::Status;
 
 use crate::error::mqtt_broker::MQTTBrokerError;
-use crate::error::placement_center::PlacementCenterError;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
@@ -60,9 +59,6 @@ pub enum CommonError {
 
     #[error("{0}")]
     MQTTBrokerError(#[from] MQTTBrokerError),
-
-    #[error("{0}")]
-    PlacementCenterError(#[from] PlacementCenterError),
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),

@@ -12,13 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[derive(Error, Debug)]
+pub enum PlacementCenterError {
+    #[error("Description The interface {0} submitted logs to the commit log")]
+    RaftLogCommitTimeout(String),
 
-pub struct JournalShard {
-    pub namespace: String,
-    pub shard_name: String,
-    pub last_segment: u32,
-    pub active_segmant: u32,
+    #[error("{0}")]
+    CommmonError(String),
+
+    #[error("Cluster {0} does not exist")]
+    ClusterDoesNotExist(String),
+
+    #[error(
+        "There are not enough nodes available in the cluster, {0} is needed, and currently {1}."
+    )]
+    NotEnoughNodes(u32, u32),
 }

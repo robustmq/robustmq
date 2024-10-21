@@ -39,6 +39,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         let req = request.into_inner();
         self.cache_manager
             .update_cache(req.action_type(), req.resource_type(), req.data);
+
         return Ok(Response::new(UpdateJournalCacheReply::default()));
     }
 }
