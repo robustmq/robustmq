@@ -294,6 +294,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<DeleteIdempotentDataRequest>,
     ) -> Result<Response<DeleteIdempotentDataReply>, Status> {
         let req = request.into_inner();
+        let _ = req.validate_ext()?;
         let data = StorageData::new(
             StorageDataType::ClusterDeleteIdempotentData,
             DeleteIdempotentDataRequest::encode_to_vec(&req),
