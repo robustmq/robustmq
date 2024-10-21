@@ -153,16 +153,22 @@ mod tests {
             cluster_name: "test-cluster-name".to_string(),
             producer_id: "2".to_string(),
             seq_num: 1235u64,
-
         };
-        assert!(delete_idempotent_data(client_poll.clone(), addrs.clone(), request).await.is_ok());
+        assert!(
+            delete_idempotent_data(client_poll.clone(), addrs.clone(), request)
+                .await
+                .is_ok()
+        );
 
         let request = DeleteIdempotentDataRequest {
             cluster_name: "".to_string(),
             producer_id: "2".to_string(),
             seq_num: 1235u64,
-
         };
-        assert!(delete_idempotent_data(client_poll.clone(), addrs.clone(), request).await.is_err());
+        assert!(
+            delete_idempotent_data(client_poll.clone(), addrs.clone(), request)
+                .await
+                .is_err()
+        );
     }
 }
