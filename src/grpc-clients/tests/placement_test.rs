@@ -19,11 +19,12 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::placement::placement::call::{
-        cluster_status, register_node, unregister_node,
+        cluster_status, register_node, unregister_node, delete_idempotent_data
     };
     use grpc_clients::poll::ClientPool;
     use protocol::placement_center::placement_center_inner::{
         ClusterStatusRequest, ClusterType, RegisterNodeRequest, UnRegisterNodeRequest,
+        DeleteIdempotentDataRequest,
     };
 
     use crate::common::get_placement_addr;
@@ -136,5 +137,32 @@ mod tests {
         )
         .await
         .is_err());
+    }
+
+    #[tokio::test]
+    async fn delete_idempotent_data_test() {
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let request = ClusterStatusRequest::default();
+        assert!(cluster_status(client_poll.clone(), addrs.clone(), request)
+            .await
+            .is_ok());
+
+        let request = DeleteIdempotentDataRequest {
+            cluster_name: "test-cluster-name".to_string(),
+            producer_id: "2".to_string(),
+            seq_num: 1235u64,
+
+        };
+        assert!(delete_idempotent_data(client_poll.clone(), addrs.clone(), request).await.is_ok());
+
+        let request = DeleteIdempotentDataRequest {
+            cluster_name: "".to_string(),
+            producer_id: "2".to_string(),
+            seq_num: 1235u64,
+
+        };
+        assert!(delete_idempotent_data(client_poll.clone(), addrs.clone(), request).await.is_err());
     }
 }
