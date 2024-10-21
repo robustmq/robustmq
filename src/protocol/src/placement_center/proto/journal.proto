@@ -24,7 +24,7 @@ service EngineService {
 
   rpc DeleteShard(DeleteShardRequest) returns(DeleteShardReply){}
 
-  rpc CreateSegment(CreateSegmentRequest) returns(CreateSegmentReply){}
+  rpc CreateNextSegment(CreateNextSegmentRequest) returns(CreateNextSegmentReply){}
 
   rpc DeleteSegment(DeleteSegmentRequest) returns(DeleteSegmentReply){}
 }
@@ -34,6 +34,7 @@ message CreateShardRequest{
     string namespace = 2;
     string shard_name = 3;
     uint32 replica = 4;
+    string storage_model = 5;
 }
 
 message CreateShardReply{
@@ -65,20 +66,22 @@ message DeleteShardReply{
 
 }
 
-message CreateSegmentRequest{
+message CreateNextSegmentRequest{
     string cluster_name = 1;
     string namespace = 2;
     string shard_name = 3;
+    uint32 active_segment_next_num = 4;
 }
 
-message CreateSegmentReply{
+message CreateNextSegmentReply{
     repeated uint32 replica=1;
 }
 
 message DeleteSegmentRequest{
     string cluster_name = 1;
-    string shard_name = 2;
-    uint64 segment_seq = 3;
+    string namespace = 2;
+    string shard_name = 3;
+    uint64 segment_seq = 4;
 }
 
 message DeleteSegmentReply{

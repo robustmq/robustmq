@@ -87,7 +87,7 @@ start_mqtt_cluster(){
 
     echo "\n-------------------------------------\n"
     
-    cargo run --package cmd --bin cli-command-mqtt
+    cargo run --package cmd --bin cli-command mqtt
 }
 
 start_pc_cluster

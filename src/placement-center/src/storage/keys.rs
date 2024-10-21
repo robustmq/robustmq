@@ -87,7 +87,7 @@ pub fn key_shard_prefix(cluster_name: &str) -> String {
     format!("/journal/shard/{}", cluster_name)
 }
 
-pub fn key_segment(cluster_name: &str, shard_name: &str, segement_seq: u64) -> String {
+pub fn key_segment(cluster_name: &str, shard_name: &str, segement_seq: u32) -> String {
     format!(
         "/journal/segment/{}/{}/{}",
         cluster_name, shard_name, segement_seq

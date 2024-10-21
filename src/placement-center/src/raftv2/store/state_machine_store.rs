@@ -194,9 +194,8 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
             match ent.payload {
                 EntryPayload::Blank => {}
                 EntryPayload::Normal(req) => match self.data.route.route(req) {
-                    Ok(_) => {
-                        //todo
-                        resp_value = Some("".to_string());
+                    Ok(data) => {
+                        resp_value = data;
                     }
                     Err(e) => {
                         error!(

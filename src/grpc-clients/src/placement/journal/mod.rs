@@ -19,7 +19,7 @@ use mobc::{Connection, Manager};
 use prost::Message;
 use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
 use protocol::placement_center::placement_center_journal::{
-    CreateSegmentReply, CreateSegmentRequest, CreateShardReply, CreateShardRequest,
+    CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
 };
 use tonic::transport::Channel;
@@ -37,51 +37,52 @@ pub async fn journal_interface_call(
 ) -> Result<Vec<u8>, CommonError> {
     match journal_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
-            let result =
-                match interface {
-                    PlacementCenterInterface::CreateShard => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| CreateShardRequest::decode(data),
-                            |mut client, request| async move { client.create_shard(request).await },
-                            CreateShardReply::encode_to_vec,
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::DeleteShard => {
-                        client_call(
-                            client,
-                            request.clone(),
-                            |data| DeleteShardRequest::decode(data),
-                            |mut client, request| async move { client.delete_shard(request).await },
-                            DeleteShardReply::encode_to_vec,
-                        )
-                        .await
-                    }
-                    PlacementCenterInterface::CreateSegment => client_call(
+            let result = match interface {
+                PlacementCenterInterface::CreateShard => {
+                    client_call(
                         client,
                         request.clone(),
-                        |data| CreateSegmentRequest::decode(data),
-                        |mut client, request| async move { client.create_segment(request).await },
-                        CreateSegmentReply::encode_to_vec,
+                        |data| CreateShardRequest::decode(data),
+                        |mut client, request| async move { client.create_shard(request).await },
+                        CreateShardReply::encode_to_vec,
                     )
-                    .await,
-                    PlacementCenterInterface::DeleteSegment => client_call(
+                    .await
+                }
+                PlacementCenterInterface::DeleteShard => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| DeleteShardRequest::decode(data),
+                        |mut client, request| async move { client.delete_shard(request).await },
+                        DeleteShardReply::encode_to_vec,
+                    )
+                    .await
+                }
+                PlacementCenterInterface::CreateSegment => client_call(
+                    client,
+                    request.clone(),
+                    |data| CreateNextSegmentRequest::decode(data),
+                    |mut client, request| async move { client.create_next_segment(request).await },
+                    CreateNextSegmentReply::encode_to_vec,
+                )
+                .await,
+                PlacementCenterInterface::DeleteSegment => {
+                    client_call(
                         client,
                         request.clone(),
                         |data| DeleteSegmentRequest::decode(data),
                         |mut client, request| async move { client.delete_segment(request).await },
                         DeleteSegmentReply::encode_to_vec,
                     )
-                    .await,
-                    _ => {
-                        return Err(CommonError::CommmonError(format!(
-                            "journal service does not support service interfaces [{:?}]",
-                            interface
-                        )))
-                    }
-                };
+                    .await
+                }
+                _ => {
+                    return Err(CommonError::CommmonError(format!(
+                        "journal service does not support service interfaces [{:?}]",
+                        interface
+                    )))
+                }
+            };
             match result {
                 Ok(data) => Ok(data),
                 Err(e) => Err(e),

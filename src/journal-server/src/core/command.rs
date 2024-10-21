@@ -19,8 +19,9 @@ use grpc_clients::poll::ClientPool;
 use log::error;
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
-    GetActiveSegmentResp, GetActiveSegmentRespBody, GetClusterMetadataResp,
-    GetClusterMetadataRespBody, JournalEngineError, WriteResp, WriteRespBody,
+    ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, GetActiveSegmentResp,
+    GetActiveSegmentRespBody, GetClusterMetadataResp, GetClusterMetadataRespBody,
+    JournalEngineError, RespHeader, WriteResp, WriteRespBody,
 };
 
 use super::cache::CacheManager;
@@ -48,14 +49,43 @@ impl Command {
     ) -> Option<JournalEnginePacket> {
         match packet {
             JournalEnginePacket::GetClusterMetadataReq(request) => {
+                let header = RespHeader {
+                    api_key: ApiKey::GetClusterMetadata.into(),
+                    api_version: ApiVersion::V0.into(),
+                    ..Default::default()
+                };
                 let resp = GetClusterMetadataResp {
-                    header: None,
+                    header: Some(header),
                     body: Some(GetClusterMetadataRespBody {
                         nodes: self.handler.get_cluster_metadata(),
                     }),
                 };
 
                 return Some(JournalEnginePacket::GetClusterMetadataResp(resp));
+            }
+
+            JournalEnginePacket::CreateShardReq(request) => {
+                let mut resp = CreateShardResp::default();
+                let mut header = RespHeader {
+                    api_key: ApiKey::CreateShard.into(),
+                    api_version: ApiVersion::V0.into(),
+                    ..Default::default()
+                };
+                match self.handler.create_shard(request).await {
+                    Ok(replicas) => {
+                        resp.body = Some(CreateShardRespBody {
+                            replica_id: replicas,
+                        });
+                    }
+                    Err(e) => {
+                        header.error = Some(JournalEngineError {
+                            code: 1,
+                            error: e.to_string(),
+                        })
+                    }
+                }
+                resp.header = Some(header);
+                return Some(JournalEnginePacket::CreateShardResp(resp));
             }
 
             JournalEnginePacket::GetActiveSegmentReq(request) => {
