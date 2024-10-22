@@ -18,9 +18,13 @@ mod common;
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::placement::placement::call::{cluster_status, register_node, set_resource_config, unregister_node};
+    use grpc_clients::placement::placement::call::{
+        cluster_status, register_node, set_resource_config, unregister_node
+    };
     use grpc_clients::poll::ClientPool;
-    use protocol::placement_center::placement_center_inner::{ClusterStatusRequest, ClusterType, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest};
+    use protocol::placement_center::placement_center_inner::{
+        ClusterStatusRequest, ClusterType, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest
+    };
 
     use crate::common::get_placement_addr;
 
