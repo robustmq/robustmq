@@ -14,7 +14,7 @@
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
-    RegisterNodeRequest, UnRegisterNodeRequest, DeleteIdempotentDataRequest
+    DeleteIdempotentDataRequest, RegisterNodeRequest, UnRegisterNodeRequest,
 };
 use tonic::Status;
 
