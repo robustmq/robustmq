@@ -14,7 +14,7 @@
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
-    RegisterNodeRequest, UnRegisterNodeRequest,
+    RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use tonic::Status;
 
@@ -40,6 +40,17 @@ impl ValidateExt for RegisterNodeRequest {
 }
 
 impl ValidateExt for UnRegisterNodeRequest {
+    fn validate_ext(&self) -> Result<(), Status> {
+        if self.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ValidateExt for SetResourceConfigRequest {
     fn validate_ext(&self) -> Result<(), Status> {
         if self.cluster_name.is_empty() {
             return Err(Status::cancelled(
