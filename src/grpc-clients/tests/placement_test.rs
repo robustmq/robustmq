@@ -141,7 +141,9 @@ mod tests {
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_poll.clone(), addrs.clone(), request).await.is_ok());
+        assert!(cluster_status(client_poll.clone(), addrs.clone(), request)
+            .await
+            .is_ok());
 
         let cluster_name = "test-cluster-name".to_string();
         let config = vec![1, 2, 3];
@@ -152,13 +154,17 @@ mod tests {
             resources: resources.clone(),
             config: config.clone()
         };
-        assert!(set_resource_config(client_poll.clone(), addrs.clone(), request).await.is_ok());
+        assert!(set_resource_config(client_poll.clone(), addrs.clone(), request)
+            .await
+            .is_ok());
 
         let request_cluster_name_empty =  SetResourceConfigRequest {
             cluster_name: "".to_string(),
             resources,
             config
         };
-        assert!(set_resource_config(client_poll.clone(), addrs.clone(), request_cluster_name_empty).await.is_err());
+        assert!(set_resource_config(client_poll.clone(), addrs.clone(), request_cluster_name_empty)
+            .await
+            .is_err());
     }
 }
