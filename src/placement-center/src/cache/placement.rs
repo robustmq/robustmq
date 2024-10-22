@@ -68,13 +68,25 @@ impl PlacementCacheManager {
         }
     }
 
-    pub fn remove_broker_node(&self, cluster_name: &str, node_id: u64) {
+    pub fn remove_broker_node(
+        &self,
+        cluster_name: &str,
+        node_id: u64,
+    ) -> Option<(u64, BrokerNode)> {
         if let Some(data) = self.node_list.get_mut(cluster_name) {
-            data.remove(&node_id);
+            if let Some(data) = self.node_heartbeat.get_mut(cluster_name) {
+                data.remove(&node_id);
+            }
+            return data.remove(&node_id);
         }
-        if let Some(data) = self.node_heartbeat.get_mut(cluster_name) {
-            data.remove(&node_id);
+        None
+    }
+
+    pub fn get_broker_num(&self, cluster_name: &str) -> usize {
+        if let Some(data) = self.node_list.get_mut(cluster_name) {
+            return data.len();
         }
+        0
     }
 
     pub fn get_broker_node(&self, cluster_name: &str, node_id: u64) -> Option<BrokerNode> {

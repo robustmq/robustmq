@@ -36,7 +36,7 @@ impl SegmentReplicaAlgorithm {
         }
     }
 
-    pub fn calc_replica_distribution(&self, replica_seq: u64) -> Vec<Replica> {
+    pub fn calc_replica_distribution(&self, replica_seq: u32) -> Vec<Replica> {
         let node_id = 1;
         let fold = "/data/robustmq".to_string();
         let rep = Replica {

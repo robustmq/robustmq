@@ -18,8 +18,6 @@ use serde::{Deserialize, Serialize};
 pub struct JournalSegment {
     pub shard_name: String,
     pub segment_seq: u32,
-    pub start_offset: Option<u64>,
-    pub end_offset: Option<u64>,
     pub replica: Vec<JournalSegmentNode>,
     pub status: JournalSegmentStatus,
 }
@@ -30,7 +28,7 @@ pub struct JournalSegmentNode {
     pub data_fold: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum JournalSegmentStatus {
     CREATE,
     AVTIVE,

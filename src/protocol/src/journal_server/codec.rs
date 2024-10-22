@@ -17,11 +17,12 @@ use prost::Message as _;
 use tokio_util::codec;
 
 use super::journal_engine::{
-    ApiKey, GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentResp,
-    GetActiveSegmentRespBody, GetClusterMetadataReq, GetClusterMetadataResp,
-    GetClusterMetadataRespBody, OffsetCommitReq, OffsetCommitReqBody, OffsetCommitResp,
-    OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody, ReqHeader, RespHeader,
-    WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+    ApiKey, CreateShardReq, CreateShardReqBody, CreateShardResp, CreateShardRespBody,
+    DeleteShardReq, DeleteShardReqBody, DeleteShardResp, DeleteShardRespBody, GetActiveSegmentReq,
+    GetActiveSegmentReqBody, GetActiveSegmentResp, GetActiveSegmentRespBody, GetClusterMetadataReq,
+    GetClusterMetadataResp, GetClusterMetadataRespBody, OffsetCommitReq, OffsetCommitReqBody,
+    OffsetCommitResp, OffsetCommitRespBody, ReadReq, ReadReqBody, ReadResp, ReadRespBody,
+    ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
 };
 use super::Error;
 
@@ -49,6 +50,14 @@ pub enum JournalEnginePacket {
     // OffsetCommit
     OffsetCommitReq(OffsetCommitReq),
     OffsetCommitResp(OffsetCommitResp),
+
+    // CreateShard
+    CreateShardReq(CreateShardReq),
+    CreateShardResp(CreateShardResp),
+
+    // DeleteShard
+    DeleteShardReq(DeleteShardReq),
+    DeleteShardResp(DeleteShardResp),
 }
 
 impl Default for JournalServerCodec {
@@ -149,6 +158,36 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
                 let body = data.body.unwrap();
                 header_byte = RespHeader::encode_to_vec(&header);
                 body_byte = OffsetCommitRespBody::encode_to_vec(&body);
+            }
+
+            // CreateShard
+            JournalEnginePacket::CreateShardReq(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = CreateShardReqBody::encode_to_vec(&body);
+                req_type = 1;
+            }
+            JournalEnginePacket::CreateShardResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = CreateShardRespBody::encode_to_vec(&body);
+            }
+
+            // DeleteShard
+            JournalEnginePacket::DeleteShardReq(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = ReqHeader::encode_to_vec(&header);
+                body_byte = DeleteShardReqBody::encode_to_vec(&body);
+                req_type = 1;
+            }
+            JournalEnginePacket::DeleteShardResp(data) => {
+                let header = data.header.unwrap();
+                let body = data.body.unwrap();
+                header_byte = RespHeader::encode_to_vec(&header);
+                body_byte = DeleteShardRespBody::encode_to_vec(&body);
             }
         }
 
@@ -271,6 +310,10 @@ impl codec::Decoder for JournalServerCodec {
                         ApiKey::GetActiveSegment => get_active_segment_req(body_bytes, header),
 
                         ApiKey::OffsetCommit => offset_commit_req(body_bytes, header),
+
+                        ApiKey::CreateShard => create_shard_req(body_bytes, header),
+
+                        ApiKey::DeleteShard => delete_shard_req(body_bytes, header),
                     },
                     Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
                 }
@@ -287,11 +330,91 @@ impl codec::Decoder for JournalServerCodec {
                     ApiKey::GetActiveSegment => get_active_segment_resp(body_bytes, header),
 
                     ApiKey::OffsetCommit => offset_commit_resp(body_bytes, header),
+
+                    ApiKey::CreateShard => create_shard_resp(body_bytes, header),
+
+                    ApiKey::DeleteShard => delete_shard_resp(body_bytes, header),
                 },
                 Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
             },
             _ => Err(Error::NotAvailableRequestType(req_type)),
         }
+    }
+}
+
+fn create_shard_req(
+    body_bytes: BytesMut,
+    header: ReqHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match CreateShardReqBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::CreateShardReq(CreateShardReq {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "write_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn create_shard_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match CreateShardRespBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::CreateShardResp(CreateShardResp {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "write_resp".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn delete_shard_req(
+    body_bytes: BytesMut,
+    header: ReqHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match DeleteShardReqBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::DeleteShardReq(DeleteShardReq {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "write_req".to_string(),
+            e.to_string(),
+        )),
+    }
+}
+
+fn delete_shard_resp(
+    body_bytes: BytesMut,
+    header: RespHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    match DeleteShardRespBody::decode(body_bytes.as_ref()) {
+        Ok(body) => {
+            let item = JournalEnginePacket::DeleteShardResp(DeleteShardResp {
+                header: Some(header),
+                body: Some(body),
+            });
+            Ok(Some(item))
+        }
+        Err(e) => Err(Error::DecodeBodyError(
+            "write_resp".to_string(),
+            e.to_string(),
+        )),
     }
 }
 
@@ -479,12 +602,22 @@ mod tests {
     };
 
     #[test]
-    fn write_codec_test() {
+    fn write_req_codec_test() {
+        let header = ReqHeader {
+            api_key: ApiKey::Write.into(),
+            api_version: ApiVersion::V0.into(),
+        };
+
+        let body: WriteReqBody = WriteReqBody::default();
+        let req = WriteReq {
+            header: Some(header),
+            body: Some(body),
+        };
+        let source = JournalEnginePacket::WriteReq(req);
+
         let mut codec = JournalServerCodec::new();
-        let source = build_write_req();
         let mut dst = bytes::BytesMut::new();
         codec.encode(source.clone(), &mut dst).unwrap();
-
         let target = codec.decode(&mut dst).unwrap().unwrap();
         assert_eq!(source, target);
     }
@@ -542,6 +675,7 @@ mod tests {
         let header = RespHeader {
             api_key: ApiKey::Write.into(),
             api_version: ApiVersion::V0.into(),
+            error: None,
         };
 
         let body = WriteRespBody::default();

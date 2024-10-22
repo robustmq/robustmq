@@ -24,5 +24,5 @@ use serde::{Deserialize, Serialize};
  */
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppResponseData {
-    pub value: Option<String>,
+    pub value: Option<Vec<u8>>,
 }

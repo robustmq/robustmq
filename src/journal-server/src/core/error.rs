@@ -25,6 +25,9 @@ pub enum JournalServerError {
 
     #[error("{0} request body cannot be empty")]
     RequestBodyNotEmpty(String),
+
+    #[error("Shard {0} does not exist")]
+    ShardNotExist(String),
 }
 
 pub enum JournalServerErrorCode {}

@@ -31,7 +31,9 @@ pub struct ShardInfo {
     pub namespace: String,
     pub shard_name: String,
     pub replica: u32,
-    pub last_segment_seq: u64,
+    pub active_segment_seq: u32,
+    pub last_segment_seq: u32,
+    pub storage_mode: String,
     pub create_time: u128,
 }
 

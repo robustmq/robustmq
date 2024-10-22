@@ -14,4 +14,3 @@
 
 pub mod common;
 pub mod mqtt_broker;
-pub mod placement_center;

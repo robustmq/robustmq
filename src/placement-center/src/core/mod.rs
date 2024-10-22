@@ -13,5 +13,7 @@
 // limitations under the License.
 
 pub mod cluster;
+pub mod error;
+pub mod journal;
 pub mod raft_node;
 pub mod share_sub;

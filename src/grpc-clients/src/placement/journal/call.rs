@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::error::common::CommonError;
 use prost::Message;
 use protocol::placement_center::placement_center_journal::{
-    CreateSegmentReply, CreateSegmentRequest, CreateShardReply, CreateShardRequest,
+    CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
 };
 
@@ -70,12 +70,12 @@ pub async fn delete_shard(
     }
 }
 
-pub async fn create_segment(
+pub async fn create_next_segment(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
-    request: CreateSegmentRequest,
-) -> Result<CreateSegmentReply, CommonError> {
-    let request_data = CreateSegmentRequest::encode_to_vec(&request);
+    request: CreateNextSegmentRequest,
+) -> Result<CreateNextSegmentReply, CommonError> {
+    let request_data = CreateNextSegmentRequest::encode_to_vec(&request);
     match retry_call(
         PlacementCenterService::Journal,
         PlacementCenterInterface::CreateSegment,
@@ -85,7 +85,7 @@ pub async fn create_segment(
     )
     .await
     {
-        Ok(data) => match CreateSegmentReply::decode(data.as_ref()) {
+        Ok(data) => match CreateNextSegmentReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },

@@ -14,15 +14,18 @@
 
 use std::sync::Arc;
 
+use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::poll::ClientPool;
 use protocol::journal_server::journal_engine::{
-    GetActiveSegmentReq, GetActiveSegmentRespShard, GetClusterMetadataNode, RespHeader, WriteReq,
-    WriteRespMessage,
+    CreateShardReq, GetActiveSegmentReq, GetActiveSegmentRespShard, GetClusterMetadataNode,
+    RespHeader, WriteReq, WriteRespMessage,
+};
+use protocol::placement_center::placement_center_journal::{
+    CreateNextSegmentRequest, CreateShardRequest,
 };
 
 use super::cache::CacheManager;
 use super::error::JournalServerError;
-use super::shard::{create_active_segement, create_shard};
 
 #[derive(Clone)]
 pub struct Handler {
@@ -47,6 +50,73 @@ impl Handler {
             });
         }
         result
+    }
+
+    pub async fn create_shard(
+        &self,
+        request: CreateShardReq,
+    ) -> Result<Vec<u32>, JournalServerError> {
+        if request.body.is_none() {
+            return Err(JournalServerError::RequestBodyNotEmpty(
+                "create_shard".to_string(),
+            ));
+        }
+        let req_body = request.body.unwrap();
+
+        let shard = if let Some(shard) = self
+            .cache_manager
+            .get_shard(&req_body.namespace, &req_body.shard_name)
+        {
+            shard
+        } else {
+            let cluster = self.cache_manager.get_cluster();
+            if cluster.enable_auto_create_shard {
+                let conf = journal_server_conf();
+                let request = CreateShardRequest {
+                    cluster_name: conf.cluster_name.to_string(),
+                    namespace: req_body.namespace.to_string(),
+                    shard_name: req_body.shard_name.to_string(),
+                    replica: req_body.replica_num,
+                    storage_model: req_body.storage_model().as_str_name().to_string(),
+                };
+                let reply = grpc_clients::placement::journal::call::create_shard(
+                    self.client_poll.clone(),
+                    conf.placement_center.clone(),
+                    request,
+                )
+                .await?;
+                return Ok(reply.replica);
+            }
+            return Err(JournalServerError::ShardNotExist(req_body.shard_name));
+        };
+
+        let segment = if let Some(segment) = self
+            .cache_manager
+            .get_active_segment(&req_body.namespace, &req_body.shard_name)
+        {
+            segment
+        } else {
+            let conf = journal_server_conf();
+            let request = CreateNextSegmentRequest {
+                cluster_name: conf.cluster_name.to_string(),
+                namespace: req_body.namespace.to_string(),
+                shard_name: req_body.shard_name.to_string(),
+                active_segment_next_num: 1,
+            };
+            let reply = grpc_clients::placement::journal::call::create_next_segment(
+                self.client_poll.clone(),
+                conf.placement_center.clone(),
+                request,
+            )
+            .await?;
+            return Ok(reply.replica);
+        };
+        let replica_ids = segment
+            .replica
+            .iter()
+            .map(|replica| replica.node_id)
+            .collect();
+        Ok(replica_ids)
     }
 
     pub async fn write(
@@ -80,37 +150,43 @@ impl Handler {
         }
 
         let req_body = request.body.unwrap();
-        let mut results = Vec::new();
+        let results = Vec::new();
 
         let cluster = self.cache_manager.get_cluster();
 
         for raw in req_body.shards {
-            let shard = if let Some(shard) = self
-                .cache_manager
-                .get_shard(&raw.namespace, &raw.shard_name)
-            {
-                shard
-            } else {
-                create_shard(self.client_poll.clone(), &raw.namespace, &raw.shard_name).await?
-            };
+            // let shard = if let Some(shard) = self
+            //     .cache_manager
+            //     .get_shard(&raw.namespace, &raw.shard_name)
+            // {
+            //     shard
+            // } else {
+            //     try_get_or_create_shard(
+            //         &self.cache_manager,
+            //         self.client_poll,
+            //         &raw.namespace,
+            //         &raw.shard_name,
+            //     )
+            //     .await?
+            // };
 
-            let active_segment = if let Some(segment) = self
-                .cache_manager
-                .get_active_segment(&raw.namespace, &raw.shard_name)
-            {
-                segment
-            } else {
-                create_active_segement(&raw.namespace, &raw.shard_name).await?
-            };
-            results.push(GetActiveSegmentRespShard {
-                namespace: raw.namespace.clone(),
-                shard: raw.namespace.clone(),
-                replica_id: active_segment
-                    .replica
-                    .iter()
-                    .map(|rep| rep.node_id)
-                    .collect(),
-            });
+            // let active_segment = if let Some(segment) = self
+            //     .cache_manager
+            //     .get_active_segment(&raw.namespace, &raw.shard_name)
+            // {
+            //     segment
+            // } else {
+            //     create_active_segement(&raw.namespace, &raw.shard_name).await?
+            // };
+            // results.push(GetActiveSegmentRespShard {
+            //     namespace: raw.namespace.clone(),
+            //     shard: raw.namespace.clone(),
+            //     replica_id: active_segment
+            //         .replica
+            //         .iter()
+            //         .map(|rep| rep.node_id)
+            //         .collect(),
+            // });
         }
 
         Ok(results)

@@ -27,8 +27,9 @@ use crate::storage::rocksdb::RocksDBEngine;
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct SegmentInfo {
     pub cluster_name: String,
+    pub namespace: String,
     pub shard_name: String,
-    pub segment_seq: u64,
+    pub segment_seq: u32,
     pub replicas: Vec<Replica>,
     pub replica_leader: u32,
     pub status: SegmentStatus,
@@ -36,18 +37,22 @@ pub struct SegmentInfo {
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Replica {
-    pub replica_seq: u64,
-    pub node_id: u64,
+    pub replica_seq: u32,
+    pub node_id: u32,
     pub fold: String,
 }
 
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SegmentStatus {
     #[default]
     Idle,
     Write,
     PrepareSealUp,
     SealUp,
+}
+
+pub fn is_seal_up_segment(status: SegmentStatus) -> bool {
+    status == SegmentStatus::PrepareSealUp || status == SegmentStatus::SealUp
 }
 
 pub struct SegmentStorage {
@@ -75,7 +80,7 @@ impl SegmentStorage {
         &self,
         cluster_name: &str,
         shard_name: &str,
-        segment_seq: u64,
+        segment_seq: u32,
     ) -> Result<Option<SegmentInfo>, CommonError> {
         let shard_key: String = key_segment(cluster_name, shard_name, segment_seq);
 
@@ -141,7 +146,7 @@ impl SegmentStorage {
         &self,
         cluster_name: &str,
         shard_name: &str,
-        segment_seq: u64,
+        segment_seq: u32,
     ) -> Result<(), CommonError> {
         let shard_key = key_segment(cluster_name, shard_name, segment_seq);
         engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), shard_key)
