@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+use axum::extract::path;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
@@ -114,6 +115,9 @@ pub struct CacheManager {
     // (client_id, <path,SubscribeData>)
     pub subscribe_filter: DashMap<String, DashMap<String, SubscribeData>>,
 
+    // (client_id, <path,bool>)
+    pub subscribe_is_new: DashMap<String, DashMap<String, bool>>,
+
     // (client_id, vec<pkid>)
     pub publish_pkid_info: DashMap<String, Vec<u16>>,
 
@@ -151,6 +155,7 @@ impl CacheManager {
             topic_id_name: DashMap::with_capacity(8),
             connection_info: DashMap::with_capacity(8),
             subscribe_filter: DashMap::with_capacity(8),
+            subscribe_is_new: DashMap::with_capacity(8),
             publish_pkid_info: DashMap::with_capacity(8),
             heartbeat_data: DashMap::with_capacity(8),
             qos_ack_packet: DashMap::with_capacity(8),
@@ -167,9 +172,11 @@ impl CacheManager {
         subscribe_properties: Option<SubscribeProperties>,
     ) {
         for filter in subscribe.filters {
+            let mut is_new = false;
+            let path = filter.path.clone();
             if let Some(data) = self.subscribe_filter.get_mut(&client_id) {
                 data.insert(
-                    filter.path.clone(),
+                    path.clone(),
                     SubscribeData {
                         protocol: protocol.clone(),
                         filter,
@@ -177,9 +184,10 @@ impl CacheManager {
                     },
                 );
             } else {
+                is_new = true;
                 let data = DashMap::with_capacity(8);
                 data.insert(
-                    filter.path.clone(),
+                    path.clone(),
                     SubscribeData {
                         protocol: protocol.clone(),
                         filter,
@@ -188,6 +196,14 @@ impl CacheManager {
                 );
                 self.subscribe_filter.insert(client_id.clone(), data);
             };
+
+            if let Some(data) = self.subscribe_is_new.get_mut(&client_id) {
+                data.insert(path.clone(), is_new);
+            } else {
+                let data = DashMap::with_capacity(8);
+                data.insert(path.clone(), is_new);
+                self.subscribe_is_new.insert(client_id.clone(), data);
+            }
         }
     }
 
@@ -203,6 +219,7 @@ impl CacheManager {
 
     pub fn remove_filter_by_client_id(&self, client_id: String) {
         self.subscribe_filter.remove(&client_id);
+        self.subscribe_is_new.remove(&client_id);
     }
 
     pub fn get_session_info(&self, client_id: &str) -> Option<MqttSession> {
@@ -319,6 +336,7 @@ impl CacheManager {
     pub fn remove_session(&self, client_id: &str) {
         self.session_info.remove(client_id);
         self.subscribe_filter.remove(client_id);
+        self.subscribe_is_new.remove(client_id);
         self.publish_pkid_info.remove(client_id);
         self.heartbeat_data.remove(client_id);
 
@@ -424,8 +442,11 @@ impl CacheManager {
     }
 
     pub fn is_new_sub(&self, client_id: &str, path: &str) -> bool {
-        if let Some(sub) = self.subscribe_filter.get(client_id) {
-            return !sub.contains_key(path);
+        if let Some(sub) = self.subscribe_is_new.get(client_id) {
+            return match sub.get(path) {
+                Some(ref_item) => *ref_item.value(),
+                None => true,
+            };
         }
         true
     }
