@@ -14,7 +14,8 @@
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
-    DeleteIdempotentDataRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+    DeleteIdempotentDataRequest, RegisterNodeRequest, SetResourceConfigRequest,
+    UnRegisterNodeRequest,
 };
 use tonic::Status;
 
@@ -51,6 +52,17 @@ impl ValidateExt for UnRegisterNodeRequest {
 }
 
 impl ValidateExt for DeleteIdempotentDataRequest {
+    fn validate_ext(&self) -> Result<(), Status> {
+        if self.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ValidateExt for SetResourceConfigRequest {
     fn validate_ext(&self) -> Result<(), Status> {
         if self.cluster_name.is_empty() {
             return Err(Status::cancelled(
