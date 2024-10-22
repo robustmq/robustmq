@@ -110,6 +110,18 @@ impl PlacementCacheManager {
         results
     }
 
+    pub fn get_broker_node_id_by_cluster(&self, cluster_name: &str) -> Vec<u64> {
+        let mut results = Vec::new();
+        if let Some(data) = self.node_list.get_mut(cluster_name) {
+            for (_, node) in data.clone() {
+                if node.cluster_name.eq(cluster_name) {
+                    results.push(node.node_id);
+                }
+            }
+        }
+        results
+    }
+
     pub fn report_heart_by_broker_node(&self, cluster_name: &str, node_id: u64, time: u64) {
         if let Some(data) = self.node_heartbeat.get_mut(cluster_name) {
             data.insert(node_id, time);

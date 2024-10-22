@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
 use common_base::tools::{now_mills, unique_id};
 use grpc_clients::poll::ClientPool;
 use prost::Message as _;
@@ -24,9 +23,13 @@ use protocol::placement_center::placement_center_journal::{
 
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
-use crate::controller::journal::call_node::update_cache_by_add_shard;
-use crate::controller::journal::segment_replica::SegmentReplicaAlgorithm;
-use crate::storage::journal::segment::{SegmentInfo, SegmentStatus, SegmentStorage};
+use crate::controller::journal::call_node::{
+    update_cache_by_add_segment, update_cache_by_add_shard, update_cache_by_delete_segment,
+    update_cache_by_delete_shard,
+};
+use crate::core::error::PlacementCenterError;
+use crate::core::journal::segmet::{create_first_segment, create_next_segment};
+use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::shard::{ShardInfo, ShardStorage};
 use crate::storage::rocksdb::RocksDBEngine;
 
@@ -52,7 +55,7 @@ impl DataRouteJournal {
             client_poll,
         }
     }
-    pub fn create_shard(&self, value: Vec<u8>) -> Result<(), CommonError> {
+    pub fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
 
         let shard_info = ShardInfo {
@@ -72,86 +75,153 @@ impl DataRouteJournal {
         shard_storage.save(&shard_info)?;
         self.engine_cache.add_shard(&shard_info);
 
-        // Create segments according to the built-in pre-created segment strategy.
-        // Between 0 and N segments may be created.
-        self.pre_create_segment()?;
+        // Create your first Segment
+        let segment = create_first_segment(
+            &shard_info,
+            &self.engine_cache,
+            &self.cluster_cache,
+            &self.rocksdb_engine_handler,
+        )?;
 
-        // update storage engine node cache
+        // Update storage engine node cache
         update_cache_by_add_shard(
-            req.cluster_name,
+            req.cluster_name.clone(),
             self.cluster_cache.clone(),
             self.client_poll.clone(),
             shard_info,
         );
-        Ok(())
+
+        update_cache_by_add_segment(
+            req.cluster_name.clone(),
+            self.cluster_cache.clone(),
+            self.client_poll.clone(),
+            segment.clone(),
+        );
+
+        Ok(serde_json::to_vec(&segment)?)
     }
 
-    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), CommonError> {
+    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let namespace = req.namespace;
         let shard_name = req.shard_name;
-        // todo delete all segment
 
-        // delete shard info
+        let res = self
+            .engine_cache
+            .get_shard(&cluster_name, &namespace, &shard_name);
+        if res.is_none() {
+            return Err(PlacementCenterError::ShardDoesNotExist(shard_name));
+        }
+
+        let shard = res.unwrap();
+
+        // Delete all segment
+        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
+        let segment_list = segment_storage.list_by_shard(&cluster_name, &shard_name)?;
+        for segment in segment_list {
+            segment_storage.delete(&cluster_name, &shard_name, segment.segment_seq)?;
+        }
+
+        // Delete shard info
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
         shard_storage.delete(&cluster_name, &namespace, &shard_name)?;
 
         self.engine_cache
             .remove_shard(&cluster_name, &namespace, &shard_name);
 
-        // update storage engine node cache
+        // Update storage engine node cache
+        update_cache_by_delete_shard(
+            cluster_name,
+            self.cluster_cache.clone(),
+            self.client_poll.clone(),
+            shard,
+        );
 
         Ok(())
     }
 
-    pub fn create_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
+    pub fn create_next_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
         let req = CreateNextSegmentRequest::decode(value.as_ref())?;
 
         let cluster_name = req.cluster_name;
         let shard_name = req.shard_name;
         let namespace = req.namespace;
 
-        let segment_seq =
-            self.engine_cache
-                .next_segment_seq(&cluster_name, &namespace, &shard_name);
+        let res = self
+            .engine_cache
+            .get_shard(&cluster_name, &namespace, &shard_name);
+        if res.is_none() {
+            return Err(PlacementCenterError::ShardDoesNotExist(shard_name));
+        }
 
-        let repcli_algo =
-            SegmentReplicaAlgorithm::new(self.cluster_cache.clone(), self.engine_cache.clone());
-        let segment_info = SegmentInfo {
-            cluster_name: cluster_name.clone(),
-            namespace: namespace.clone(),
-            shard_name: shard_name.clone(),
-            replicas: repcli_algo.calc_replica_distribution(segment_seq),
-            replica_leader: 0,
-            segment_seq,
-            status: SegmentStatus::Idle,
-        };
-        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.save(segment_info.clone())?;
-        self.engine_cache.add_segment(segment_info);
-        Ok(())
+        let shard = res.unwrap();
+
+        if (shard.last_segment_seq - shard.active_segment_seq) >= req.active_segment_next_num {
+            return Err(PlacementCenterError::ShardHasEnoughSegment(shard_name));
+        }
+
+        let segment = create_next_segment(
+            &shard,
+            &self.engine_cache,
+            &self.cluster_cache,
+            &self.rocksdb_engine_handler,
+        )?;
+
+        update_cache_by_add_segment(
+            cluster_name,
+            self.cluster_cache.clone(),
+            self.client_poll.clone(),
+            segment.clone(),
+        );
+
+        Ok(serde_json::to_vec(&segment)?)
     }
 
-    pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), CommonError> {
+    pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let namespace = req.namespace;
         let shard_name = req.shard_name;
         let segment_seq = req.segment_seq;
 
+        let shard_res = self
+            .engine_cache
+            .get_shard(&cluster_name, &namespace, &shard_name);
+        if shard_res.is_none() {
+            return Err(PlacementCenterError::ShardDoesNotExist(shard_name));
+        }
+
+        let segment_res =
+            self.engine_cache
+                .get_segment(&cluster_name, &namespace, &shard_name, segment_seq);
+
+        if segment_res.is_none() {
+            return Err(PlacementCenterError::SegmentDoesNotExist(shard_name));
+        }
+
+        let segment = segment_res.unwrap();
+
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
-        segment_storage.delete(&cluster_name, &shard_name, segment_seq as u32)?;
-        self.engine_cache.remove_segment(
-            &cluster_name,
-            &namespace,
-            &shard_name,
-            segment_seq as u32,
+        segment_storage.delete(&cluster_name, &shard_name, segment_seq)?;
+        self.engine_cache
+            .remove_segment(&cluster_name, &namespace, &shard_name, segment_seq);
+
+        update_cache_by_delete_segment(
+            cluster_name,
+            self.cluster_cache.clone(),
+            self.client_poll.clone(),
+            segment.clone(),
         );
+
         Ok(())
     }
+}
 
-    pub fn pre_create_segment(&self) -> Result<(), CommonError> {
-        Ok(())
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn create_shard_test() {
+        // todo
     }
 }

@@ -51,16 +51,22 @@ impl JournalCacheManager {
     }
 
     pub fn remove_shard(&self, cluster_name: &str, namespace: &str, shard_name: &str) {
-        self.shard_list
-            .remove(&self.shard_key(cluster_name, namespace, shard_name));
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        self.shard_list.remove(&key);
+        self.segment_list.remove(&key);
     }
 
-    pub fn next_segment_seq(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> u32 {
+    pub fn next_segment_seq(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+    ) -> Option<u32> {
         let key = self.shard_key(cluster_name, namespace, shard_name);
         if let Some(shard) = self.shard_list.get(&key) {
-            return shard.last_segment_seq + 1;
+            return Some(shard.last_segment_seq + 1);
         }
-        0
+        None
     }
 
     pub fn add_segment(&self, segment: SegmentInfo) {

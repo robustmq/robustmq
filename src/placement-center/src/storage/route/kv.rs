@@ -14,10 +14,10 @@
 
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
 use prost::Message as _;
 use protocol::placement_center::placement_center_kv::{DeleteRequest, SetRequest};
 
+use crate::core::error::PlacementCenterError;
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
@@ -31,13 +31,13 @@ impl DataRouteKv {
         let kv_storage = KvStorage::new(rocksdb_engine_handler.clone());
         DataRouteKv { kv_storage }
     }
-    pub fn set(&self, value: Vec<u8>) -> Result<(), CommonError> {
+    pub fn set(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: SetRequest = SetRequest::decode(value.as_ref())?;
-        self.kv_storage.set(req.key, req.value)
+        Ok(self.kv_storage.set(req.key, req.value)?)
     }
 
-    pub fn delete(&self, value: Vec<u8>) -> Result<(), CommonError> {
+    pub fn delete(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: DeleteRequest = DeleteRequest::decode(value.as_ref())?;
-        self.kv_storage.delete(req.key)
+        Ok(self.kv_storage.delete(req.key)?)
     }
 }

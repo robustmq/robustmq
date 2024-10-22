@@ -45,7 +45,7 @@ impl Handler {
         let mut result = Vec::new();
         for (node_id, node) in self.cache_manager.node_list.clone() {
             result.push(GetClusterMetadataNode {
-                replica_id: node_id as u32,
+                replica_id: node_id,
                 replica_addr: node.node_inner_addr,
             });
         }
@@ -55,7 +55,7 @@ impl Handler {
     pub async fn create_shard(
         &self,
         request: CreateShardReq,
-    ) -> Result<Vec<u32>, JournalServerError> {
+    ) -> Result<Vec<u64>, JournalServerError> {
         if request.body.is_none() {
             return Err(JournalServerError::RequestBodyNotEmpty(
                 "create_shard".to_string(),

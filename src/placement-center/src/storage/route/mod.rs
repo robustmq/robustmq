@@ -23,7 +23,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use bincode::{deserialize, serialize};
-use common_base::error::common::CommonError;
 use data::{StorageData, StorageDataType};
 use grpc_clients::poll::ClientPool;
 use log::{error, info};
@@ -31,6 +30,7 @@ use log::{error, info};
 use super::rocksdb::DB_COLUMN_FAMILY_CLUSTER;
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
+use crate::core::error::PlacementCenterError;
 use crate::storage::rocksdb::RocksDBEngine;
 use crate::storage::route::cluster::DataRouteCluster;
 use crate::storage::route::journal::DataRouteJournal;
@@ -75,14 +75,26 @@ impl DataRoute {
         }
     }
 
-    pub fn route_vec(&self, data: Vec<u8>) -> Result<Option<Vec<u8>>, CommonError> {
+    pub fn route_vec(&self, data: Vec<u8>) -> Result<Option<Vec<u8>>, PlacementCenterError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
         self.route(storage_data)
     }
 
     //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
-    pub fn route(&self, storage_data: StorageData) -> Result<Option<Vec<u8>>, CommonError> {
+    pub fn route(
+        &self,
+        storage_data: StorageData,
+    ) -> Result<Option<Vec<u8>>, PlacementCenterError> {
         match storage_data.data_type {
+            // Placement Center
+            StorageDataType::KvSet => {
+                self.route_kv.set(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::KvDelete => {
+                self.route_kv.delete(storage_data.value)?;
+                Ok(None)
+            }
             StorageDataType::ClusterRegisterNode => {
                 self.route_cluster.register_node(storage_data.value)?;
                 Ok(None)
@@ -110,6 +122,25 @@ impl DataRoute {
                     .delete_idempotent_data(storage_data.value)?;
                 Ok(None)
             }
+
+            // Journal Engine
+            StorageDataType::JournalCreateShard => {
+                Ok(Some(self.route_journal.create_shard(storage_data.value)?))
+            }
+            StorageDataType::JournalDeleteShard => {
+                self.route_journal.delete_shard(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::JournalCreateNextSegment => {
+                self.route_journal.create_next_segment(storage_data.value)?;
+                Ok(None)
+            }
+            StorageDataType::JournalDeleteSegment => {
+                self.route_journal.delete_segment(storage_data.value)?;
+                Ok(None)
+            }
+
+            // MQTT Broker
             StorageDataType::MQTTCreateAcl => {
                 self.route_cluster.create_acl(storage_data.value)?;
                 Ok(None)
@@ -124,31 +155,6 @@ impl DataRoute {
             }
             StorageDataType::MQTTDeleteBlacklist => {
                 self.route_cluster.delete_blacklist(storage_data.value)?;
-                Ok(None)
-            }
-
-            StorageDataType::JournalCreateShard => {
-                self.route_journal.create_shard(storage_data.value)?;
-                Ok(None)
-            }
-            StorageDataType::JournalDeleteShard => {
-                self.route_journal.delete_shard(storage_data.value)?;
-                Ok(None)
-            }
-            StorageDataType::JournalCreateNextSegment => {
-                self.route_journal.create_segment(storage_data.value)?;
-                Ok(None)
-            }
-            StorageDataType::JournalDeleteSegment => {
-                self.route_journal.delete_segment(storage_data.value)?;
-                Ok(None)
-            }
-            StorageDataType::KvSet => {
-                self.route_kv.set(storage_data.value)?;
-                Ok(None)
-            }
-            StorageDataType::KvDelete => {
-                self.route_kv.delete(storage_data.value)?;
                 Ok(None)
             }
             StorageDataType::MQTTCreateUser => {
@@ -201,7 +207,9 @@ impl DataRoute {
         } else {
             error!(
                 "{}",
-                CommonError::RocksDBFamilyNotAvailable(DB_COLUMN_FAMILY_CLUSTER.to_string(),)
+                PlacementCenterError::RocksDBFamilyNotAvailable(
+                    DB_COLUMN_FAMILY_CLUSTER.to_string(),
+                )
             );
             return Vec::new();
         };
@@ -225,13 +233,13 @@ impl DataRoute {
         res
     }
 
-    pub fn recover_snapshot(&self, data: Vec<u8>) -> Result<(), CommonError> {
+    pub fn recover_snapshot(&self, data: Vec<u8>) -> Result<(), PlacementCenterError> {
         info!("Start restoring snapshot, snapshot length :{}", data.len());
         let now = Instant::now();
         let records = match deserialize::<Vec<(String, Vec<u8>)>>(&data) {
             Ok(data) => data,
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(PlacementCenterError::CommmonError(e.to_string()));
             }
         };
 
@@ -241,7 +249,7 @@ impl DataRoute {
         {
             cf
         } else {
-            return Err(CommonError::RocksDBFamilyNotAvailable(
+            return Err(PlacementCenterError::RocksDBFamilyNotAvailable(
                 DB_COLUMN_FAMILY_CLUSTER.to_string(),
             ));
         };
