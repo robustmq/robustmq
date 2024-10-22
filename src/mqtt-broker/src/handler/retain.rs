@@ -100,7 +100,7 @@ pub async fn try_send_retain_message(
 
     let is_new_sub = cache_manager.is_new_sub(&client_id, &subscriber.sub_path);
 
-    if subscriber.retain_forward_rule == RetainForwardRule::OnNewSubscribe && is_new_sub {
+    if subscriber.retain_forward_rule == RetainForwardRule::OnNewSubscribe && !is_new_sub {
         return;
     }
 
