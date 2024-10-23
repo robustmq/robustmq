@@ -42,35 +42,9 @@ start_pc_cluster(){
 
     sleep 5
 
-    echo "\nNode 1:"
-    resp1=$(curl -s http://127.0.0.1:1227/v1/cluster/status)
-    role=$(echo $resp1 | jq -r '.data.Ok.state')
-    echo "Role:"${role}
-    echo ${resp1}
-
-    echo "\n-------------------------------------\n"
-
-    echo "\nNode 2:"
-    resp2=$(curl -s http://127.0.0.1:2227/v1/cluster/status)
-    role=$(echo $resp2 | jq -r '.data.Ok.state')
-    echo "Role:"${role}
-    echo ${resp2}
-
-    echo "\n-------------------------------------\n"
-    echo "\nNode 3:"
-    resp3=$(curl -s http://127.0.0.1:3227/v1/cluster/status)
-    role=$(echo $resp3 | jq -r '.data.Ok.state')
-    echo "Role:"${role}
-    echo ${resp3}
-
-    echo "\n-------------------------------------\n"
-
-    membership=$(echo $resp3 | jq -r '.data.Ok.membership_config.membership.configs[0]')
-    nodes=$(echo $resp3 | jq -r '.data.Ok.membership_config.membership.nodes')
-    current_leader=$(echo $resp3 | jq -r '.data.Ok.current_leader')
-    echo "Placement Center cluster Leader: "${current_leader}
-    echo "Placement Center cluster Members: "${membership}
-    echo "Placement Center cluster Nodes: "${nodes}
+    cargo run --package cmd --bin cli-command place -s 127.0.0.1:1228 -a status
+    cargo run --package cmd --bin cli-command place -s 127.0.0.1:2228 -a status
+    cargo run --package cmd --bin cli-command place -s 127.0.0.1:3228 -a status
 }
 
 start_mqtt_cluster(){

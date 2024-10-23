@@ -148,7 +148,7 @@ mod tests {
         // subscribe
         let consumer_client_id = unique_id();
         let consumer_cli = connect_server5(&consumer_client_id, &addr, false, false);
-        let mut rx = consumer_cli.start_consuming();
+        let rx = consumer_cli.start_consuming();
         assert!(consumer_cli
             .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
             .is_ok());
