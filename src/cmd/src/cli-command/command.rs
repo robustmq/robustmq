@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
-use cli_command::placement::{PlacementCenterCommand, PlacementCliCommandParam};
+use cli_command::placement::{
+    AddLearnerCliRequset, ChangeMembershipCliRequest, PlacementActionType, PlacementCenterCommand,
+    PlacementCliCommandParam,
+};
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "robust-ctl")]
@@ -52,11 +55,43 @@ struct MQTTArgs {
 #[command(author="RobustMQ",  about="Command line tool for placement center", long_about = None)]
 #[command(next_line_help = true)]
 struct PlacementArgs {
-    #[arg(short, long,default_value_t =String::from("127.0.0.1:1228"))]
+    #[arg(short, long, default_value_t =String::from("127.0.0.1:1228"))]
     server: String,
 
-    #[arg(short, long,default_value_t =String::from("status"))]
-    action: String,
+    #[clap(subcommand)]
+    action: PlacementAction,
+}
+
+#[derive(Debug, Subcommand)]
+enum PlacementAction {
+    Status,
+    AddLearner(AddLearnerArgs),
+    ChangeMembership(ChangeMembershipArgs),
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: add learner", long_about = None)]
+#[command(next_line_help = true)]
+struct AddLearnerArgs {
+    #[arg(short, long, required = true)]
+    node_id: u64,
+
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:1228"))]
+    rpc_addr: String,
+
+    #[arg(short, long, default_value_t = true)]
+    blocking: bool,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ",  about="action: change membership", long_about = None)]
+#[command(next_line_help = true)]
+struct ChangeMembershipArgs {
+    #[arg(short, long, num_args = 1.., required = true)]
+    members: Vec<u64>,
+
+    #[arg(short, long, default_value_t = true)]
+    retain: bool,
 }
 
 #[derive(clap::Args, Debug)]
@@ -86,7 +121,18 @@ async fn main() {
             let cmd = PlacementCenterCommand::new();
             let params = PlacementCliCommandParam {
                 server: args.server,
-                action: args.action,
+                action: match args.action {
+                    PlacementAction::Status => PlacementActionType::Status,
+                    PlacementAction::AddLearner(arg) => PlacementActionType::AddLearner(
+                        AddLearnerCliRequset::new(arg.node_id, arg.rpc_addr, arg.blocking),
+                    ),
+                    PlacementAction::ChangeMembership(arg) => {
+                        PlacementActionType::ChangeMembership(ChangeMembershipCliRequest::new(
+                            arg.members,
+                            arg.retain,
+                        ))
+                    }
+                },
             };
             cmd.start(params).await;
         }
