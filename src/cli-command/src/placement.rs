@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{error_info, grpc_addr};
+use std::sync::Arc;
+
 use grpc_clients::placement::openraft::call::{
     placement_openraft_add_learner, placement_openraft_change_membership,
 };
-use std::sync::Arc;
 
 use grpc_clients::placement::placement::call::cluster_status;
 use grpc_clients::poll::ClientPool;
@@ -24,6 +24,8 @@ use protocol::placement_center::placement_center_inner::ClusterStatusRequest;
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
 };
+
+use crate::{error_info, grpc_addr};
 
 #[derive(Clone)]
 pub struct PlacementCliCommandParam {
