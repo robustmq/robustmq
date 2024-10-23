@@ -1771,7 +1771,11 @@ version = "0.1.0-beta"
 dependencies = [
  "axum 0.7.4",
  "bytes",
+ "futures",
+ "protocol",
  "thiserror",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]

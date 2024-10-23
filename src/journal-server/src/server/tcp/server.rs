@@ -21,7 +21,8 @@ use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::core::cache::CacheManager;
-use crate::core::command::Command;
+use crate::core::offset::OffsetManager;
+use crate::handler::command::Command;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
@@ -34,10 +35,11 @@ pub async fn start_tcp_server(
     client_poll: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
+    offset_manager: Arc<OffsetManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
-    let command = Command::new(client_poll.clone(), cache_manager.clone());
+    let command = Command::new(client_poll.clone(), cache_manager.clone(), offset_manager);
 
     let proc_config = ProcessorConfig {
         accept_thread_num: conf.tcp_thread.accept_thread_num,

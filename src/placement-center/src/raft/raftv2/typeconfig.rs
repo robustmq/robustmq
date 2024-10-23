@@ -12,12 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub const DB_COLUMN_FAMILY_DEFAULT: &str = "default";
+use std::io::Cursor;
 
-pub fn column_family_list() -> Vec<String> {
-    vec![DB_COLUMN_FAMILY_DEFAULT.to_string()]
-}
+use crate::raft::raftv2::raft_node::Node;
+use crate::raft::raftv2::route::AppResponseData;
+use crate::route::data::StorageData;
 
-pub fn kv_storage_data_fold(path: &str) -> String {
-    format!("{}/_kv_data", path)
-}
+pub type SnapshotData = Cursor<Vec<u8>>;
+
+openraft::declare_raft_types!(
+    pub TypeConfig:
+        D = StorageData,
+        R = AppResponseData,
+        Node = Node,
+);

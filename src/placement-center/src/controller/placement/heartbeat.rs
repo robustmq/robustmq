@@ -22,8 +22,8 @@ use prost::Message;
 use protocol::placement_center::placement_center_inner::{ClusterType, UnRegisterNodeRequest};
 
 use crate::cache::placement::PlacementCacheManager;
-use crate::storage::route::apply::RaftMachineApply;
-use crate::storage::route::data::{StorageData, StorageDataType};
+use crate::route::apply::RaftMachineApply;
+use crate::route::data::{StorageData, StorageDataType};
 
 pub struct BrokerHeartbeat {
     timeout_ms: u64,

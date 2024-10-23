@@ -23,6 +23,9 @@ pub enum JournalServerError {
     #[error("{0}")]
     CommonError(#[from] CommonError),
 
+    #[error("{0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
     #[error("{0} request body cannot be empty")]
     RequestBodyNotEmpty(String),
 

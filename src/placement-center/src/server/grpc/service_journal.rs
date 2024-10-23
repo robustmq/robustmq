@@ -27,10 +27,10 @@ use tonic::{Request, Response, Status};
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::raftv2::typeconfig::TypeConfig;
+use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::route::apply::RaftMachineApply;
+use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::{is_seal_up_segment, SegmentInfo};
-use crate::storage::route::apply::RaftMachineApply;
-use crate::storage::route::data::{StorageData, StorageDataType};
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,

@@ -23,10 +23,10 @@ use protocol::placement_center::placement_center_kv::{
 };
 use tonic::{Request, Response, Status};
 
+use crate::route::apply::RaftMachineApply;
+use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
-use crate::storage::route::apply::RaftMachineApply;
-use crate::storage::route::data::{StorageData, StorageDataType};
 
 pub struct GrpcKvService {
     raft_machine_apply: Arc<RaftMachineApply>,

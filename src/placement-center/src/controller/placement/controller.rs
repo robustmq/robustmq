@@ -20,7 +20,7 @@ use tokio::sync::broadcast;
 
 use super::heartbeat::BrokerHeartbeat;
 use crate::cache::placement::PlacementCacheManager;
-use crate::storage::route::apply::RaftMachineApply;
+use crate::route::apply::RaftMachineApply;
 
 pub struct ClusterController {
     cluster_cache: Arc<PlacementCacheManager>,
