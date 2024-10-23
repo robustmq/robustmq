@@ -20,7 +20,6 @@ use std::time::{Duration, Instant};
 
 use bincode::{deserialize, serialize};
 use common_base::config::placement_center::placement_center_conf;
-use common_base::error::common::CommonError;
 use log::{debug, error, info};
 use prost::Message as _;
 use raft::eraftpb::{
@@ -35,6 +34,7 @@ use tokio::time::timeout;
 use super::rocksdb::RaftMachineStorage;
 use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCacheManager;
+use crate::core::error::PlacementCenterError;
 use crate::core::raft_node::RaftNode;
 use crate::raftv1::peer::PeerMessage;
 use crate::storage::route::apply::{RaftMessage, RaftResponseMesage};
@@ -77,7 +77,7 @@ impl RaftMachine {
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), CommonError> {
+    pub async fn run(&mut self) -> Result<(), PlacementCenterError> {
         let mut raft_node = match self.new_node() {
             Ok(data) => data,
             Err(e) => {
@@ -170,7 +170,7 @@ impl RaftMachine {
     async fn on_ready(
         &mut self,
         raft_node: &mut RawNode<RaftRocksDBStorage>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), PlacementCenterError> {
         if !raft_node.has_ready() {
             return Ok(());
         }
@@ -232,7 +232,7 @@ impl RaftMachine {
         &mut self,
         raft_node: &mut RawNode<RaftRocksDBStorage>,
         entrys: Vec<Entry>,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), PlacementCenterError> {
         for entry in entrys {
             if !entry.data.is_empty() {
                 debug!("ready entrys entry type:{:?}", entry.get_entry_type());
@@ -275,7 +275,7 @@ impl RaftMachine {
                     match chan.send(RaftResponseMesage::Success) {
                         Ok(_) => {}
                         Err(_) => {
-                            return Err(CommonError::CommmonError(
+                            return Err(PlacementCenterError::CommmonError(
                                 "commit entry Fails to return data to chan. chan may have been closed"
                                     .to_string(),
                             ));
@@ -287,7 +287,10 @@ impl RaftMachine {
         Ok(())
     }
 
-    async fn send_message(&self, messages: Vec<raftPreludeMessage>) -> Result<(), CommonError> {
+    async fn send_message(
+        &self,
+        messages: Vec<raftPreludeMessage>,
+    ) -> Result<(), PlacementCenterError> {
         for msg in messages {
             let to = msg.get_to();
             if to == self.local_node_id {
@@ -306,20 +309,20 @@ impl RaftMachine {
                 {
                     Ok(_) => {}
                     Err(e) => {
-                        return Err(CommonError::CommmonError(format!(
+                        return Err(PlacementCenterError::CommmonError(format!(
                             "Failed to write Raft Message to send queue with error message: {:?}",
                             e.to_string()
                         )))
                     }
                 }
             } else {
-                return Err(CommonError::CommmonError(format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to)));
+                return Err(PlacementCenterError::CommmonError(format!("raft message was sent to node {}, but the node information could not be found. It may be that the node is not online yet.",to)));
             }
         }
         Ok(())
     }
 
-    fn new_node(&self) -> Result<RawNode<RaftRocksDBStorage>, CommonError> {
+    fn new_node(&self) -> Result<RawNode<RaftRocksDBStorage>, PlacementCenterError> {
         let storage = RaftRocksDBStorage::new(self.raft_storage.clone());
         let core = storage.read_lock()?;
 
@@ -345,7 +348,7 @@ impl RaftMachine {
         let node = match RawNode::new(&conf, storage, &logger) {
             Ok(data) => data,
             Err(e) => {
-                return Err(CommonError::CommmonError(e.to_string()));
+                return Err(PlacementCenterError::CommmonError(e.to_string()));
             }
         };
         Ok(node)

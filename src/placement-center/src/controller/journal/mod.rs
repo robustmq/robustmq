@@ -15,4 +15,3 @@
 pub mod call_node;
 pub mod controller;
 pub mod preferred_election;
-pub mod segment_replica;
