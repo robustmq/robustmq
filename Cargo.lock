@@ -2635,6 +2635,7 @@ dependencies = [
  "prost 0.12.3",
  "protocol",
  "raft",
+ "rand",
  "rocksdb",
  "rocksdb-engine",
  "serde",

@@ -15,7 +15,6 @@
 
 sh example/mqtt-cluster/start.sh
 
-sleep 20
 # Run Cargo Test
 cargo nextest run
 

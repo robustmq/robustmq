@@ -23,6 +23,7 @@ use protocol::journal_server::journal_inner::{
 };
 
 use crate::cache::placement::PlacementCacheManager;
+use crate::storage::journal::segment::SegmentInfo;
 use crate::storage::journal::shard::ShardInfo;
 
 pub fn update_cache_by_add_journal_node(
@@ -81,16 +82,100 @@ pub fn update_cache_by_add_shard(
     cluster_name: String,
     placement_cache_manager: Arc<PlacementCacheManager>,
     client_poll: Arc<ClientPool>,
-    _shard_info: ShardInfo,
+    shard_info: ShardInfo,
 ) {
     tokio::spawn(async move {
-        let data = Vec::new();
+        let data = match serde_json::to_vec(&shard_info) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
         call_journal_update_cache(
             &cluster_name,
             &placement_cache_manager,
             &client_poll,
             JournalUpdateCacheActionType::Add,
             JournalUpdateCacheResourceType::Shard,
+            data,
+        )
+        .await;
+    });
+}
+
+pub fn update_cache_by_delete_shard(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    client_poll: Arc<ClientPool>,
+    shard_info: ShardInfo,
+) {
+    tokio::spawn(async move {
+        let data = match serde_json::to_vec(&shard_info) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
+        call_journal_update_cache(
+            &cluster_name,
+            &placement_cache_manager,
+            &client_poll,
+            JournalUpdateCacheActionType::Delete,
+            JournalUpdateCacheResourceType::Shard,
+            data,
+        )
+        .await;
+    });
+}
+
+pub fn update_cache_by_add_segment(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    client_poll: Arc<ClientPool>,
+    segment_info: SegmentInfo,
+) {
+    tokio::spawn(async move {
+        let data = match serde_json::to_vec(&segment_info) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
+        call_journal_update_cache(
+            &cluster_name,
+            &placement_cache_manager,
+            &client_poll,
+            JournalUpdateCacheActionType::Add,
+            JournalUpdateCacheResourceType::Segment,
+            data,
+        )
+        .await;
+    });
+}
+
+pub fn update_cache_by_delete_segment(
+    cluster_name: String,
+    placement_cache_manager: Arc<PlacementCacheManager>,
+    client_poll: Arc<ClientPool>,
+    segment_info: SegmentInfo,
+) {
+    tokio::spawn(async move {
+        let data = match serde_json::to_vec(&segment_info) {
+            Ok(data) => data,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
+        call_journal_update_cache(
+            &cluster_name,
+            &placement_cache_manager,
+            &client_poll,
+            JournalUpdateCacheActionType::Delete,
+            JournalUpdateCacheResourceType::Segment,
             data,
         )
         .await;

@@ -24,7 +24,7 @@ pub struct JournalSegment {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JournalSegmentNode {
-    pub node_id: u32,
+    pub node_id: u64,
     pub data_fold: String,
 }
 

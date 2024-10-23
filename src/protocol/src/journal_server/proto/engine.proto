@@ -53,7 +53,7 @@ message GetClusterMetadataRespBody{
 }
 
 message GetClusterMetadataNode{
-    uint32 replica_id = 1;
+    uint64 replica_id = 1;
     string replica_addr = 2;
 }
 
@@ -71,7 +71,7 @@ message CreateShardReqBody{
 }
 
 message CreateShardRespBody{
-    repeated uint32 replica_id = 3;
+    repeated uint64 replica_id = 3;
 }
 
 message CreateShardReq{
@@ -184,7 +184,7 @@ message GetActiveSegmentRespBody{
 message GetActiveSegmentRespShard{
     string namespace = 1;
     string shard = 2;
-    repeated uint32 replica_id = 3;
+    repeated uint64 replica_id = 3;
 }
 
 message GetActiveSegmentResp{

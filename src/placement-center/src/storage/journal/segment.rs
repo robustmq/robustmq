@@ -31,14 +31,13 @@ pub struct SegmentInfo {
     pub shard_name: String,
     pub segment_seq: u32,
     pub replicas: Vec<Replica>,
-    pub replica_leader: u32,
     pub status: SegmentStatus,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct Replica {
-    pub replica_seq: u32,
-    pub node_id: u32,
+    pub replica_seq: u64,
+    pub node_id: u64,
     pub fold: String,
 }
 
@@ -116,7 +115,6 @@ impl SegmentStorage {
         }
     }
 
-    #[allow(dead_code)]
     pub fn list_by_shard(
         &self,
         cluster_name: &str,
