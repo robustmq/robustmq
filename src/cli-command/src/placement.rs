@@ -17,7 +17,6 @@ use std::sync::Arc;
 use grpc_clients::placement::openraft::call::{
     placement_openraft_add_learner, placement_openraft_change_membership,
 };
-
 use grpc_clients::placement::placement::call::cluster_status;
 use grpc_clients::poll::ClientPool;
 use protocol::placement_center::placement_center_inner::ClusterStatusRequest;
