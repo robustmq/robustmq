@@ -24,10 +24,10 @@ use openraft::{
 use rocksdb::{ColumnFamily, DB};
 
 use super::{cf_raft_store, StorageResult, StoredSnapshot};
-use crate::raftv2::raft_node::{typ, NodeId};
-use crate::raftv2::route::AppResponseData;
-use crate::raftv2::typeconfig::{SnapshotData, TypeConfig};
-use crate::storage::route::DataRoute;
+use crate::raft::raftv2::raft_node::{typ, NodeId};
+use crate::raft::raftv2::route::AppResponseData;
+use crate::raft::raftv2::typeconfig::{SnapshotData, TypeConfig};
+use crate::route::DataRoute;
 
 #[derive(Clone)]
 pub struct StateMachineStore {

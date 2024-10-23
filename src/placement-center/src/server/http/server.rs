@@ -23,8 +23,8 @@ use log::info;
 use super::index::metrics;
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
-use crate::raftv1::rocksdb::RaftMachineStorage;
-use crate::storage::route::apply::RaftMachineApply;
+use crate::raft::raftv1::rocksdb::RaftMachineStorage;
+use crate::route::apply::RaftMachineApply;
 
 pub const ROUTE_METRICS: &str = "/metrics";
 

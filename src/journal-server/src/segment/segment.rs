@@ -11,18 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use std::io::Cursor;
-
-use crate::raftv2::raft_node::Node;
-use crate::raftv2::route::AppResponseData;
-use crate::storage::route::data::StorageData;
-
-pub type SnapshotData = Cursor<Vec<u8>>;
-
-openraft::declare_raft_types!(
-    pub TypeConfig:
-        D = StorageData,
-        R = AppResponseData,
-        Node = Node,
-);

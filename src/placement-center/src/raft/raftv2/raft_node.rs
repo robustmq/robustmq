@@ -25,8 +25,8 @@ use openraft::{Config, Raft};
 use super::network::network::Network;
 use super::store::new_storage;
 use super::typeconfig::TypeConfig;
+use crate::route::DataRoute;
 use crate::storage::rocksdb::storage_raft_fold;
-use crate::storage::route::DataRoute;
 pub type NodeId = u64;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
@@ -48,7 +48,7 @@ impl Display for Node {
 pub mod typ {
     // use openraft::error::Infallible;
 
-    use crate::raftv2::typeconfig::TypeConfig;
+    use crate::raft::raftv2::typeconfig::TypeConfig;
 
     pub type Entry = openraft::Entry<TypeConfig>;
 

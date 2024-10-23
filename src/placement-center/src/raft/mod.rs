@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub struct Shard {}
-
-impl Shard {}
+pub mod raftv1;
+pub mod raftv2;

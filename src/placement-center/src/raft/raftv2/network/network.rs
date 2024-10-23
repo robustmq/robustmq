@@ -18,8 +18,8 @@ use grpc_clients::poll::ClientPool;
 use openraft::RaftNetworkFactory;
 
 use super::connection::NetworkConnection;
-use crate::raftv2::raft_node::{Node, NodeId};
-use crate::raftv2::typeconfig::TypeConfig;
+use crate::raft::raftv2::raft_node::{Node, NodeId};
+use crate::raft::raftv2::typeconfig::TypeConfig;
 
 pub struct Network {
     client_poll: Arc<ClientPool>,

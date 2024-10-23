@@ -224,4 +224,19 @@ mod tests {
     async fn create_shard_test() {
         // todo
     }
+
+    #[tokio::test]
+    async fn delete_shard_test() {
+        // todo
+    }
+
+    #[tokio::test]
+    async fn create_next_segment_test() {
+        // todo
+    }
+
+    #[tokio::test]
+    async fn delete_segment_test() {
+        // todo
+    }
 }
