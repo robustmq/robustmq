@@ -19,11 +19,12 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::placement::placement::call::{
-        cluster_status, register_node, set_resource_config, unregister_node,
+        cluster_status, delete_idempotent_data, register_node, set_resource_config, unregister_node,
     };
     use grpc_clients::poll::ClientPool;
     use protocol::placement_center::placement_center_inner::{
-        ClusterStatusRequest, ClusterType, RegisterNodeRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+        ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest,
+        SetResourceConfigRequest, UnRegisterNodeRequest,
     };
 
     use crate::common::get_placement_addr;
@@ -138,6 +139,38 @@ mod tests {
         .is_err());
     }
 
+    #[tokio::test]
+    async fn delete_idempotent_data_test() {
+        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let addrs = vec![get_placement_addr()];
+
+        let request = ClusterStatusRequest::default();
+        assert!(cluster_status(client_poll.clone(), addrs.clone(), request)
+            .await
+            .is_ok());
+
+        let request = DeleteIdempotentDataRequest {
+            cluster_name: "test-cluster-name".to_string(),
+            producer_id: "2".to_string(),
+            seq_num: 1235u64,
+        };
+        assert!(
+            delete_idempotent_data(client_poll.clone(), addrs.clone(), request)
+                .await
+                .is_ok()
+        );
+
+        let request = DeleteIdempotentDataRequest {
+            cluster_name: "".to_string(),
+            producer_id: "2".to_string(),
+            seq_num: 1235u64,
+        };
+        assert!(
+            delete_idempotent_data(client_poll.clone(), addrs.clone(), request)
+                .await
+                .is_err()
+        );
+    }
 
     #[tokio::test]
     async fn set_resource_config_test() {
@@ -151,24 +184,30 @@ mod tests {
 
         let cluster_name = "test-cluster-name".to_string();
         let config = vec![1, 2, 3];
-        let resources =  vec!["1".to_string(), "2".to_string(), "3".to_string()];
+        let resources = vec!["1".to_string(), "2".to_string(), "3".to_string()];
 
         let request = SetResourceConfigRequest {
             cluster_name: cluster_name.clone(),
             resources: resources.clone(),
-            config: config.clone()
+            config: config.clone(),
         };
-        assert!(set_resource_config(client_poll.clone(), addrs.clone(), request)
-            .await
-            .is_ok());
+        assert!(
+            set_resource_config(client_poll.clone(), addrs.clone(), request)
+                .await
+                .is_ok()
+        );
 
-        let request_cluster_name_empty =  SetResourceConfigRequest {
+        let request_cluster_name_empty = SetResourceConfigRequest {
             cluster_name: "".to_string(),
             resources,
-            config
+            config,
         };
-        assert!(set_resource_config(client_poll.clone(), addrs.clone(), request_cluster_name_empty)
-            .await
-            .is_err());
+        assert!(set_resource_config(
+            client_poll.clone(),
+            addrs.clone(),
+            request_cluster_name_empty
+        )
+        .await
+        .is_err());
     }
 }
