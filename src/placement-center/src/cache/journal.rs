@@ -76,11 +76,15 @@ impl JournalCacheManager {
             &segment.shard_name,
         );
         if let Some(shard_list) = self.segment_list.get(&key) {
-            shard_list.insert(segment.segment_seq, segment);
+            shard_list.insert(segment.segment_seq, segment.clone());
         } else {
             let data = DashMap::with_capacity(8);
-            data.insert(segment.segment_seq, segment);
-            self.segment_list.insert(key, data);
+            data.insert(segment.segment_seq, segment.clone());
+            self.segment_list.insert(key.clone(), data);
+        }
+
+        if let Some(mut shard) = self.shard_list.get_mut(&key) {
+            shard.last_segment_seq = segment.segment_seq;
         }
     }
 
@@ -108,6 +112,9 @@ impl JournalCacheManager {
     ) {
         let key = self.shard_key(cluster_name, namespace, shard_name);
         if let Some(segment_list) = self.segment_list.get(&key) {
+            if let Some(mut shard) = self.shard_list.get_mut(&key) {
+                shard.start_segment_seq = segment_seq + 1;
+            }
             segment_list.remove(&segment_seq);
         }
     }

@@ -31,6 +31,7 @@ pub struct ShardInfo {
     pub namespace: String,
     pub shard_name: String,
     pub replica: u32,
+    pub start_segment_seq: u32,
     pub active_segment_seq: u32,
     pub last_segment_seq: u32,
     pub storage_mode: String,
@@ -57,7 +58,7 @@ impl ShardStorage {
         engine_save_by_cluster(self.rocksdb_engine_handler.clone(), shard_key, shard_info)
     }
 
-    pub fn _get(
+    pub fn get(
         &self,
         cluster_name: &str,
         namespace: &str,

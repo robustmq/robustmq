@@ -21,3 +21,4 @@ pub mod namespace;
 pub mod offset;
 pub mod record;
 pub mod shard;
+pub mod report;
