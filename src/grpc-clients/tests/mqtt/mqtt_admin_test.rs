@@ -17,7 +17,7 @@ mod tests {
     use std::sync::Arc;
 
     use grpc_clients::{
-        mqtt::admin::call::{cluster_status, create_user, delete_user, list_user},
+        mqtt::admin::call::{cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user},
         poll::ClientPool,
     };
     use metadata_struct::mqtt::user::MqttUser;
@@ -54,14 +54,14 @@ mod tests {
             is_superuser: false,
         };
 
-        match create_user(client_poll.clone(), addrs.clone(), user.clone()).await {
+        match mqtt_broker_create_user(client_poll.clone(), addrs.clone(), user.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
             }
         }
 
-        match list_user(client_poll.clone(), addrs.clone(), ListUserRequest {}).await {
+        match mqtt_broker_list_user(client_poll.clone(), addrs.clone(), ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.users {
@@ -77,7 +77,7 @@ mod tests {
             }
         };
 
-        match delete_user(
+        match mqtt_broker_delete_user(
             client_poll.clone(),
             addrs.clone(),
             DeleteUserRequest {
@@ -92,7 +92,7 @@ mod tests {
             }
         }
 
-        match list_user(client_poll.clone(), addrs.clone(), ListUserRequest {}).await {
+        match mqtt_broker_list_user(client_poll.clone(), addrs.clone(), ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = true;
                 for raw in data.users {

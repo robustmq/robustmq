@@ -47,7 +47,7 @@ pub async fn cluster_status(
     }
 }
 
-pub async fn list_user(
+pub async fn mqtt_broker_list_user(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListUserRequest,
@@ -70,7 +70,7 @@ pub async fn list_user(
     }
 }
 
-pub async fn create_user(
+pub async fn mqtt_broker_create_user(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateUserRequest,
@@ -93,7 +93,7 @@ pub async fn create_user(
     }
 }
 
-pub async fn delete_user(
+pub async fn mqtt_broker_delete_user(
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteUserRequest,
