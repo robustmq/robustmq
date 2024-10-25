@@ -48,9 +48,7 @@ pub(crate) async fn admin_interface_call(
                 MQTTBrokerPlacementInterface::ClusterStatus => {
                     inner_cluster_status(client, request).await
                 }
-                MQTTBrokerPlacementInterface::ListUser => {
-                    inner_list_user(client, request).await
-                }
+                MQTTBrokerPlacementInterface::ListUser => inner_list_user(client, request).await,
                 MQTTBrokerPlacementInterface::CreateUser => {
                     inner_create_user(client, request).await
                 }
