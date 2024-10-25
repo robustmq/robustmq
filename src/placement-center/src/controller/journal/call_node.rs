@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::poll::ClientPool;
-use log::{debug, error, info};
+use log::{debug, error};
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
