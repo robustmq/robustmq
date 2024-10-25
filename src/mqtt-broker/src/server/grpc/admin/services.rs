@@ -18,7 +18,10 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_server::MqttBrokerAdminService;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply, ListUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, ListUserReply, ListUserRequest,
+};
 use tonic::{Request, Response, Status};
 
 use crate::storage::cluster::ClusterStorage;
@@ -69,7 +72,8 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let user_storage = UserStorage::new(self.client_poll.clone());
         match user_storage.user_list().await {
             Ok(date) => {
-                date.iter().for_each(|user| user_list.push(user.value().encode()));
+                date.iter()
+                    .for_each(|user| user_list.push(user.value().encode()));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));

@@ -16,7 +16,10 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply, ListUserRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, ListUserReply, ListUserRequest,
+};
 
 use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
 use crate::poll::ClientPool;
@@ -51,7 +54,7 @@ pub async fn list_user(
 ) -> Result<ListUserReply, CommonError> {
     let request_date = ListUserRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Admin, 
+        MQTTBrokerService::Admin,
         MQTTBrokerPlacementInterface::ListUser,
         client_poll,
         addrs,
@@ -74,7 +77,7 @@ pub async fn create_user(
 ) -> Result<CreateUserReply, CommonError> {
     let request_date = CreateUserRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Admin, 
+        MQTTBrokerService::Admin,
         MQTTBrokerPlacementInterface::ListUser,
         client_poll,
         addrs,
@@ -97,7 +100,7 @@ pub async fn delete_user(
 ) -> Result<DeleteUserReply, CommonError> {
     let request_date = DeleteUserRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Admin, 
+        MQTTBrokerService::Admin,
         MQTTBrokerPlacementInterface::ListUser,
         client_poll,
         addrs,
