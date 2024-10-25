@@ -16,6 +16,7 @@
 
 use core::cache::CacheManager;
 use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
+use core::offset::OffsetManager;
 use std::sync::Arc;
 
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
@@ -31,9 +32,7 @@ use tokio::signal;
 use tokio::sync::broadcast;
 
 mod core;
-mod index;
-mod kv;
-mod metadata;
+mod handler;
 mod segment;
 mod server;
 
@@ -45,6 +44,7 @@ pub struct JournalServer {
     client_poll: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
+    offset_manager: Arc<OffsetManager>,
 }
 
 impl JournalServer {
@@ -56,9 +56,10 @@ impl JournalServer {
         );
         let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let connection_manager: Arc<ConnectionManager> = Arc::new(ConnectionManager::new());
-        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new());
+        let client_poll = Arc::new(ClientPool::new(3));
+        let connection_manager = Arc::new(ConnectionManager::new());
+        let cache_manager = Arc::new(CacheManager::new());
+        let offset_manager = Arc::new(OffsetManager::new(client_poll.clone()));
         JournalServer {
             config,
             stop_send,
@@ -67,6 +68,7 @@ impl JournalServer {
             client_poll,
             connection_manager,
             cache_manager,
+            offset_manager,
         }
     }
 
@@ -105,8 +107,16 @@ impl JournalServer {
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
+        let offet_manager = self.offset_manager.clone();
         self.server_runtime.spawn(async {
-            start_tcp_server(client_poll, connection_manager, cache_manager, stop_sx).await;
+            start_tcp_server(
+                client_poll,
+                connection_manager,
+                cache_manager,
+                offet_manager,
+                stop_sx,
+            )
+            .await;
         });
     }
 

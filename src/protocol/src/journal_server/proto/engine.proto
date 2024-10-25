@@ -12,11 +12,13 @@ message JournalEngineError{
 enum ApiKey{
     Read = 0;
     Write = 1;
-    GetActiveSegment = 2;
     OffsetCommit = 3;
+
     GetClusterMetadata = 4;
     CreateShard = 5;
     DeleteShard = 6;
+    
+    GetActiveSegment = 2;
 }
 
 enum ApiVersion{
@@ -135,7 +137,6 @@ message WriteReqMessage{
 
 message WriteRespBody{
     repeated WriteRespMessage status = 1;
-    JournalEngineError error = 2;
 }
 
 message WriteRespMessage{
@@ -178,7 +179,6 @@ message GetActiveSegmentReq{
 
 message GetActiveSegmentRespBody{
     repeated GetActiveSegmentRespShard segments = 1;
-    JournalEngineError error = 2;
 }
 
 message GetActiveSegmentRespShard{
@@ -201,13 +201,11 @@ message OffsetCommitReqBody{
 
 message OffsetCommitShard{
     string shard_name = 1;
-    string offset =2;
+    uint64 offset =2;
 }
 
 message OffsetCommitRespBody{
-    string namespacde = 1;
-    string group = 2;
-    repeated OffsetCommitShardResp resp = 3;
+    repeated OffsetCommitShardResp resp = 1;
 }
 
 message OffsetCommitShardResp{

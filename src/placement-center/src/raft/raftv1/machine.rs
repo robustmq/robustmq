@@ -36,9 +36,9 @@ use super::storage::RaftRocksDBStorage;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::core::raft_node::RaftNode;
-use crate::raftv1::peer::PeerMessage;
-use crate::storage::route::apply::{RaftMessage, RaftResponseMesage};
-use crate::storage::route::DataRoute;
+use crate::raft::raftv1::peer::PeerMessage;
+use crate::route::apply::{RaftMessage, RaftResponseMesage};
+use crate::route::DataRoute;
 
 pub struct RaftMachine {
     cache_placement: Arc<PlacementCacheManager>,

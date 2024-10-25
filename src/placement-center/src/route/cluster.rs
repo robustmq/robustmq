@@ -205,10 +205,10 @@ mod tests {
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
 
     use crate::cache::placement::PlacementCacheManager;
+    use crate::route::cluster::DataRouteCluster;
     use crate::storage::placement::cluster::ClusterStorage;
     use crate::storage::placement::node::NodeStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
-    use crate::storage::route::cluster::DataRouteCluster;
 
     #[test]
     fn register_unregister_node() {

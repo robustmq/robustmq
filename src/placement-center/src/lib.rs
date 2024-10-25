@@ -30,32 +30,32 @@ use protocol::placement_center::placement_center_journal::engine_service_server:
 use protocol::placement_center::placement_center_kv::kv_service_server::KvServiceServer;
 use protocol::placement_center::placement_center_mqtt::mqtt_service_server::MqttServiceServer;
 use protocol::placement_center::placement_center_openraft::open_raft_service_server::OpenRaftServiceServer;
-use raftv1::machine::RaftMachine;
-use raftv1::peer::RaftPeersManager;
-use raftv1::rocksdb::RaftMachineStorage;
-use raftv2::raft_node::{create_raft_node, start_openraft_node};
-use raftv2::typeconfig::TypeConfig;
 use server::grpc::service_journal::GrpcEngineService;
 use server::grpc::service_kv::GrpcKvService;
 use server::grpc::service_mqtt::GrpcMqttService;
 use server::grpc::service_placement::GrpcPlacementService;
 use server::grpc::services_openraft::GrpcOpenRaftServices;
 use storage::rocksdb::{column_family_list, storage_data_fold, RocksDBEngine};
-use storage::route::apply::{ClusterRaftModel, RaftMachineApply, RaftMessage};
-use storage::route::DataRoute;
 use tokio::signal;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::sleep;
 use tonic::transport::Server;
 
-use self::raftv1::peer::PeerMessage;
+use self::raft::raftv1::peer::PeerMessage;
+use crate::raft::raftv1::machine::RaftMachine;
+use crate::raft::raftv1::peer::RaftPeersManager;
+use crate::raft::raftv1::rocksdb::RaftMachineStorage;
+use crate::raft::raftv2::raft_node::{create_raft_node, start_openraft_node};
+use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::route::apply::{ClusterRaftModel, RaftMachineApply, RaftMessage};
+use crate::route::DataRoute;
 use crate::server::http::server::{start_http_server, HttpServerState};
 mod cache;
 mod controller;
 mod core;
-mod raftv1;
-mod raftv2;
+mod raft;
+mod route;
 mod server;
 mod storage;
 
@@ -127,7 +127,7 @@ impl PlacementCenter {
         let placement_center_storage = Arc::new(RaftMachineApply::new(
             raft_message_send,
             openraft_node.clone(),
-            storage::route::apply::ClusterRaftModel::V2,
+            crate::route::apply::ClusterRaftModel::V2,
         ));
 
         self.start_controller(placement_center_storage.clone(), stop_send.clone());

@@ -15,5 +15,5 @@
 pub mod cluster;
 pub mod error;
 pub mod journal;
+pub mod mqtt;
 pub mod raft_node;
-pub mod share_sub;

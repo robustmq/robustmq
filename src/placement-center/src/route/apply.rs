@@ -23,8 +23,8 @@ use tokio::sync::oneshot::{Receiver, Sender};
 use tokio::time::timeout;
 
 use crate::core::error::PlacementCenterError;
-use crate::raftv2::typeconfig::TypeConfig;
-use crate::storage::route::data::StorageData;
+use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::route::data::StorageData;
 
 pub enum RaftResponseMesage {
     Success,

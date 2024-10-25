@@ -34,11 +34,11 @@ use tonic::{Request, Response, Status};
 use super::validate::ValidateExt;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
+use crate::route::apply::RaftMachineApply;
+use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
 use crate::storage::placement::idempotent::IdempotentStorage;
 use crate::storage::rocksdb::RocksDBEngine;
-use crate::storage::route::apply::RaftMachineApply;
-use crate::storage::route::data::{StorageData, StorageDataType};
 
 pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
