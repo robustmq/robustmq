@@ -15,3 +15,7 @@
 pub fn get_placement_addr() -> String {
     "127.0.0.1:1228".to_string()
 }
+
+pub fn get_mqtt_broker_addr() -> String {
+    "127.0.0.1:9981".to_string()
+}

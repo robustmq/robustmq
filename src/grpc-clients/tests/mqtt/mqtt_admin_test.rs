@@ -27,12 +27,12 @@ mod tests {
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
     };
 
-    use crate::common::get_placement_addr;
+    use crate::common::get_mqtt_broker_addr;
 
     #[tokio::test]
     async fn cluster_status_test() {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = vec![get_mqtt_broker_addr()];
 
         let request = ClusterStatusRequest {};
         match cluster_status(client_poll.clone(), addrs.clone(), request).await {
@@ -46,7 +46,7 @@ mod tests {
     #[tokio::test]
     async fn user_test() {
         let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let addrs = vec![get_placement_addr()];
+        let addrs = vec![get_mqtt_broker_addr()];
         let user_name: String = "user1".to_string();
         let password: String = "123456".to_string();
 
