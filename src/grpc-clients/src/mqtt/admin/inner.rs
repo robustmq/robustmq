@@ -15,7 +15,7 @@
 use common_base::error::common::CommonError;
 use mobc::Connection;
 use prost::Message;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply, DeleteUserRequest, ListUserReply, ListUserRequest};
 
 use super::MqttBrokerAdminServiceManager;
 
@@ -26,6 +26,45 @@ pub(crate) async fn inner_cluster_status(
     match ClusterStatusRequest::decode(request.as_ref()) {
         Ok(request) => match client.cluster_status(request).await {
             Ok(result) => Ok(ClusterStatusReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+    }
+}
+
+pub(crate) async fn inner_list_user(
+    mut client: Connection<MqttBrokerAdminServiceManager>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match ListUserRequest::decode(request.as_ref()) {
+        Ok(request) => match client.list_user(request).await {
+            Ok(result) => Ok(ListUserReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+    }
+}
+
+pub(crate) async fn inner_create_user(
+    mut client: Connection<MqttBrokerAdminServiceManager>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match CreateUserRequest::decode(request.as_ref()) {
+        Ok(request) => match client.create_user(request).await {
+            Ok(result) => Ok(CreateUserReply::encode_to_vec(&result.into_inner())),
+            Err(e) => Err(CommonError::GrpcServerStatus(e)),
+        },
+        Err(e) => Err(CommonError::CommmonError(e.to_string())),
+    }
+}
+
+pub(crate) async fn inner_delete_user(
+    mut client: Connection<MqttBrokerAdminServiceManager>,
+    request: Vec<u8>,
+) -> Result<Vec<u8>, CommonError> {
+    match DeleteUserRequest::decode(request.as_ref()) {
+        Ok(request) => match client.delete_user(request).await {
+            Ok(result) => Ok(DeleteUserReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
         Err(e) => Err(CommonError::CommmonError(e.to_string())),

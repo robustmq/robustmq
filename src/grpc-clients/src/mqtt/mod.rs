@@ -39,6 +39,9 @@ pub enum MQTTBrokerPlacementInterface {
 
     // admin
     ClusterStatus,
+    ListUser,
+    CreateUser,
+    DeleteUser,
 }
 
 pub mod admin;
