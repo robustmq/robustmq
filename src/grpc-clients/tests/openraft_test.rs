@@ -35,7 +35,7 @@ mod tests {
 
         let node_id = 4;
         let node = Some(Node {
-            rpc_addr: "127.0.0.1:7654".to_string(),
+            rpc_addr: "127.0.0.1:2228".to_string(),
             node_id: 4,
         });
         let blocking = true;

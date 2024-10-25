@@ -40,7 +40,7 @@ pub(crate) async fn inner_list_user(
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match ListUserRequest::decode(request.as_ref()) {
-        Ok(request) => match client.list_user(request).await {
+        Ok(request) => match client.mqtt_broker_list_user(request).await {
             Ok(result) => Ok(ListUserReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
@@ -53,7 +53,7 @@ pub(crate) async fn inner_create_user(
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match CreateUserRequest::decode(request.as_ref()) {
-        Ok(request) => match client.create_user(request).await {
+        Ok(request) => match client.mqtt_broker_create_user(request).await {
             Ok(result) => Ok(CreateUserReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },
@@ -66,7 +66,7 @@ pub(crate) async fn inner_delete_user(
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     match DeleteUserRequest::decode(request.as_ref()) {
-        Ok(request) => match client.delete_user(request).await {
+        Ok(request) => match client.mqtt_broker_delete_user(request).await {
             Ok(result) => Ok(DeleteUserReply::encode_to_vec(&result.into_inner())),
             Err(e) => Err(CommonError::GrpcServerStatus(e)),
         },

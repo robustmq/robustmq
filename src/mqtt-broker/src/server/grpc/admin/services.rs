@@ -62,7 +62,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         return Ok(Response::new(reply));
     }
 
-    async fn list_user(
+    async fn mqtt_broker_list_user(
         &self,
         _: Request<ListUserRequest>,
     ) -> Result<Response<ListUserReply>, Status> {
@@ -83,7 +83,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         return Ok(Response::new(reply));
     }
 
-    async fn create_user(
+    async fn mqtt_broker_create_user(
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
@@ -97,9 +97,6 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let user_storage = UserStorage::new(self.client_poll.clone());
 
-        // TODO: 参数校验
-        // TODO：重复校验
-
         match user_storage.save_user(mqtt_user).await {
             Ok(_) => return Ok(Response::new(CreateUserReply::default())),
             Err(e) => {
@@ -108,15 +105,13 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         }
     }
 
-    async fn delete_user(
+    async fn mqtt_broker_delete_user(
         &self,
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserReply>, Status> {
         let req = request.into_inner();
 
         let user_storage = UserStorage::new(self.client_poll.clone());
-
-        // TODO: 验证username是否存在
 
         match user_storage.delete_user(req.username).await {
             Ok(_) => return Ok(Response::new(DeleteUserReply::default())),

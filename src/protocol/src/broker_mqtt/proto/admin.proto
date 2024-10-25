@@ -3,11 +3,11 @@ package broker.mqtt.admin;
 service MQTTBrokerAdminService {
     rpc cluster_status(ClusterStatusRequest) returns(ClusterStatusReply){}
 
-    rpc create_user(CreateUserRequest) returns(CreateUserReply){}
+    rpc mqtt_broker_create_user(CreateUserRequest) returns(CreateUserReply){}
 
-    rpc delete_user(DeleteUserRequest) returns(DeleteUserReply){}
+    rpc mqtt_broker_delete_user(DeleteUserRequest) returns(DeleteUserReply){}
 
-    rpc list_user(ListUserRequest) returns(ListUserReply){}
+    rpc mqtt_broker_list_user(ListUserRequest) returns(ListUserReply){}
     
 }
 
