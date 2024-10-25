@@ -190,7 +190,6 @@ pub async fn call_journal_update_cache(
     resource_type: JournalUpdateCacheResourceType,
     data: Vec<u8>,
 ) {
-    info!("{:?},{:?}", action_type, resource_type);
     for addr in placement_cache_manager.get_broker_node_addr_by_cluster(cluster_name) {
         let request = UpdateJournalCacheRequest {
             cluster_name: cluster_name.to_string(),
