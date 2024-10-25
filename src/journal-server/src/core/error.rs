@@ -31,6 +31,9 @@ pub enum JournalServerError {
 
     #[error("Shard {0} does not exist")]
     ShardNotExist(String),
+
+    #[error("Connection ID [0] information not found in cache.")]
+    NotFoundConnectionInCache(u64),
 }
 
 pub enum JournalServerErrorCode {}

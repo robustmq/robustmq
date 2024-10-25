@@ -57,8 +57,10 @@ pub enum PlacementCenterInterface {
     SendRaftConfChange,
 
     // journal service interface
+    ListShard,
     CreateShard,
     DeleteShard,
+    ListSegment,
     CreateSegment,
     DeleteSegment,
 

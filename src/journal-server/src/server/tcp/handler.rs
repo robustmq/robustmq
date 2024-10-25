@@ -15,12 +15,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_base::error::mqtt_broker::MQTTBrokerError;
 use log::{debug, error, info};
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
+use crate::core::error::JournalServerError;
 use crate::handler::command::Command;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
@@ -145,7 +145,7 @@ fn handler_child_process(
                                     info!("{}","No backpacking is required for this request");
                                 }
                             } else {
-                                error!("{}", MQTTBrokerError::NotFoundConnectionInCache(packet.connection_id));
+                                error!("{}", JournalServerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

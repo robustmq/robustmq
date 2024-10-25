@@ -15,6 +15,8 @@
 use std::sync::Arc;
 
 use metadata_struct::journal::node_extend::JournalNodeExtend;
+use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentStatus};
+use metadata_struct::journal::shard::JournalShard;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use rocksdb_engine::RocksDBEngine;
@@ -22,15 +24,14 @@ use rocksdb_engine::RocksDBEngine;
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::storage::journal::segment::{Replica, SegmentInfo, SegmentStatus, SegmentStorage};
-use crate::storage::journal::shard::ShardInfo;
+use crate::storage::journal::segment::SegmentStorage;
 
 pub fn create_first_segment(
-    shard_info: &ShardInfo,
+    shard_info: &JournalShard,
     engine_cache: &Arc<JournalCacheManager>,
     cluster_cache: &Arc<PlacementCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-) -> Result<SegmentInfo, PlacementCenterError> {
+) -> Result<JournalSegment, PlacementCenterError> {
     let segment_no = 0;
     if let Some(segment) = engine_cache.get_segment(
         &shard_info.cluster_name,
@@ -53,11 +54,11 @@ pub fn create_first_segment(
 }
 
 pub fn create_next_segment(
-    shard_info: &ShardInfo,
+    shard_info: &JournalShard,
     engine_cache: &Arc<JournalCacheManager>,
     cluster_cache: &Arc<PlacementCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
-) -> Result<SegmentInfo, PlacementCenterError> {
+) -> Result<JournalSegment, PlacementCenterError> {
     let segment_no_res = engine_cache.next_segment_seq(
         &shard_info.cluster_name,
         &shard_info.namespace,
@@ -91,12 +92,12 @@ pub fn create_next_segment(
 }
 
 fn create_segment(
-    shard_info: &ShardInfo,
+    shard_info: &JournalShard,
     engine_cache: &Arc<JournalCacheManager>,
     cluster_cache: &Arc<PlacementCacheManager>,
     rocksdb_engine_handler: &Arc<RocksDBEngine>,
     segment_no: u32,
-) -> Result<SegmentInfo, PlacementCenterError> {
+) -> Result<JournalSegment, PlacementCenterError> {
     // build segement
     let node_list = cluster_cache.get_broker_node_id_by_cluster(&shard_info.cluster_name);
     if node_list.len() < shard_info.replica as usize {
@@ -106,7 +107,7 @@ fn create_segment(
         ));
     }
 
-    let mut segment = SegmentInfo {
+    let mut segment = JournalSegment {
         cluster_name: shard_info.cluster_name.clone(),
         namespace: shard_info.namespace.clone(),
         shard_name: shard_info.shard_name.clone(),
@@ -171,6 +172,8 @@ mod tests {
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_mills, unique_id};
     use metadata_struct::journal::node_extend::JournalNodeExtend;
+    use metadata_struct::journal::segment::SegmentStatus;
+    use metadata_struct::journal::shard::JournalShard;
     use metadata_struct::placement::node::BrokerNode;
     use protocol::placement_center::placement_center_inner::ClusterType;
     use rocksdb_engine::RocksDBEngine;
@@ -178,8 +181,6 @@ mod tests {
     use super::{calc_node_fold, create_first_segment, create_next_segment, create_segment};
     use crate::cache::journal::JournalCacheManager;
     use crate::cache::placement::PlacementCacheManager;
-    use crate::storage::journal::segment::SegmentStatus;
-    use crate::storage::journal::shard::ShardInfo;
     use crate::storage::rocksdb::{column_family_list, storage_data_fold};
 
     #[tokio::test]
@@ -220,7 +221,7 @@ mod tests {
         ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let engine_cache = Arc::new(JournalCacheManager::new());
-        let shard_info = ShardInfo {
+        let shard_info = JournalShard {
             shard_uid: unique_id(),
             cluster_name: config.cluster_name.clone(),
             namespace: "n1".to_string(),
@@ -229,7 +230,6 @@ mod tests {
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
-            storage_mode: "m1".to_string(),
             create_time: now_mills(),
         };
         let segment_no = 1;
@@ -314,7 +314,7 @@ mod tests {
         ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let engine_cache = Arc::new(JournalCacheManager::new());
-        let shard_info = ShardInfo {
+        let shard_info = JournalShard {
             shard_uid: unique_id(),
             cluster_name: config.cluster_name.clone(),
             namespace: "n1".to_string(),
@@ -323,7 +323,6 @@ mod tests {
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
-            storage_mode: "m1".to_string(),
             create_time: now_mills(),
         };
 
@@ -390,7 +389,7 @@ mod tests {
         ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let engine_cache = Arc::new(JournalCacheManager::new());
-        let shard_info = ShardInfo {
+        let shard_info = JournalShard {
             shard_uid: unique_id(),
             cluster_name: config.cluster_name.clone(),
             namespace: "n1".to_string(),
@@ -399,7 +398,6 @@ mod tests {
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
-            storage_mode: "m1".to_string(),
             create_time: now_mills(),
         };
 

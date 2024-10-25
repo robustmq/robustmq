@@ -14,17 +14,20 @@
 
 use std::sync::Arc;
 
+use common_base::config::journal_server::journal_server_conf;
 use dashmap::DashMap;
+use grpc_clients::placement::journal::call::{list_segment, list_shard};
 use grpc_clients::placement::placement::call::node_list;
 use grpc_clients::poll::ClientPool;
 use log::{error, info};
-use metadata_struct::journal::segment::{JournalSegment, JournalSegmentStatus};
+use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType,
 };
 use protocol::placement_center::placement_center_inner::NodeListRequest;
+use protocol::placement_center::placement_center_journal::{ListSegmentRequest, ListShardRequest};
 
 use super::cluster::JournalEngineClusterConfig;
 use super::shard::delete_shard;
@@ -51,37 +54,8 @@ impl CacheManager {
         }
     }
 
-    pub async fn load_cache(
-        &self,
-        client_poll: Arc<ClientPool>,
-        addrs: Vec<String>,
-        cluster_name: String,
-    ) {
-        // load node
-        let request = NodeListRequest { cluster_name };
-
-        match node_list(client_poll, addrs, request).await {
-            Ok(list) => {
-                for raw in list.nodes {
-                    let node = match serde_json::from_slice::<BrokerNode>(&raw) {
-                        Ok(data) => data,
-                        Err(e) => {
-                            panic!("Failed to decode the BrokerNode information, {}", e);
-                        }
-                    };
-                    self.node_list.insert(node.node_id, node);
-                }
-            }
-            Err(e) => {
-                panic!("Loading the cache from the Placement Center failed, {}", e);
-            }
-        }
-
-        // load shard
-
-        // load segment
-
-        // load group
+    pub fn add_node(&self, node: BrokerNode) {
+        self.node_list.insert(node.node_id, node);
     }
 
     pub fn get_cluster(&self) -> JournalEngineClusterConfig {
@@ -110,16 +84,22 @@ impl CacheManager {
     pub fn get_active_segment(&self, namespace: &str, shard_name: &str) -> Option<JournalSegment> {
         let key = self.shard_key(namespace, shard_name);
         if let Some(shard) = self.shards.get(&key) {
-            if let Some(segment) = self.get_segment(namespace, shard_name, shard.active_segmant) {
-                if segment.status == JournalSegmentStatus::AVTIVE
-                    || segment.status == JournalSegmentStatus::CREATE
-                {
+            if let Some(segment) = self.get_segment(namespace, shard_name, shard.active_segment_seq)
+            {
+                if segment.status == SegmentStatus::Idle || segment.status == SegmentStatus::Write {
                     return Some(segment);
                 }
             }
         }
 
         None
+    }
+
+    pub fn add_segment(&self, segment: JournalSegment) {
+        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+        if let Some(segment_list) = self.segments.get(&key) {
+            segment_list.insert(segment.segment_seq, segment);
+        }
     }
 
     pub fn get_segment(
@@ -247,4 +227,92 @@ impl CacheManager {
             }
         }
     }
+}
+
+pub async fn load_cache(client_poll: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>) {
+    let conf = journal_server_conf();
+    // load node
+    let request = NodeListRequest {
+        cluster_name: conf.cluster_name.clone(),
+    };
+    match node_list(client_poll.clone(), conf.placement_center.clone(), request).await {
+        Ok(list) => {
+            info!(
+                "Load the node cache, the number of nodes is {}",
+                list.nodes.len()
+            );
+            for raw in list.nodes {
+                let node = match serde_json::from_slice::<BrokerNode>(&raw) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        panic!("Failed to decode the BrokerNode information, {}", e);
+                    }
+                };
+                cache_manager.add_node(node);
+            }
+        }
+        Err(e) => {
+            panic!(
+                "Loading the node cache from the Placement Center failed, {}",
+                e
+            );
+        }
+    }
+
+    // load shard
+    let request = ListShardRequest {
+        cluster_name: conf.cluster_name.clone(),
+        ..Default::default()
+    };
+    match list_shard(client_poll.clone(), conf.placement_center.clone(), request).await {
+        Ok(list) => match serde_json::from_slice::<Vec<JournalShard>>(&list.shards) {
+            Ok(data) => {
+                info!(
+                    "Load the shard cache, the number of shards is {}",
+                    data.len()
+                );
+                for shard in data {
+                    cache_manager.add_shard(shard);
+                }
+            }
+            Err(e) => {
+                panic!("Failed to decode the JournalShard information, {}", e);
+            }
+        },
+        Err(e) => {
+            panic!(
+                "Loading the shardcache from the Placement Center failed, {}",
+                e
+            );
+        }
+    }
+
+    // load segment
+    let request = ListSegmentRequest {
+        cluster_name: conf.cluster_name.clone(),
+        ..Default::default()
+    };
+    match list_segment(client_poll.clone(), conf.placement_center.clone(), request).await {
+        Ok(list) => match serde_json::from_slice::<Vec<JournalSegment>>(&list.segments) {
+            Ok(data) => {
+                info!(
+                    "Load the segment cache, the number of segments is {}",
+                    data.len()
+                );
+                for shard in data {
+                    cache_manager.add_segment(shard);
+                }
+            }
+            Err(e) => {
+                panic!("Failed to decode the JournalShard information, {}", e);
+            }
+        },
+        Err(e) => {
+            panic!(
+                "Loading the shardcache from the Placement Center failed, {}",
+                e
+            );
+        }
+    }
+    // load group
 }

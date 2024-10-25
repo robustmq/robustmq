@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use dashmap::DashMap;
+use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::shard::JournalShard;
+use rocksdb_engine::RocksDBEngine;
 use serde::{Deserialize, Serialize};
 
-use crate::storage::journal::segment::SegmentInfo;
-use crate::storage::journal::shard::ShardInfo;
+use crate::core::error::PlacementCenterError;
+use crate::storage::journal::segment::SegmentStorage;
+use crate::storage::journal::shard::ShardStorage;
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct JournalCacheManager {
-    pub shard_list: DashMap<String, ShardInfo>,
-    pub segment_list: DashMap<String, DashMap<u32, SegmentInfo>>,
+    pub shard_list: DashMap<String, JournalShard>,
+    pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
 }
 
 impl JournalCacheManager {
@@ -37,13 +43,13 @@ impl JournalCacheManager {
         cluster_name: &str,
         namespace: &str,
         shard_name: &str,
-    ) -> Option<ShardInfo> {
+    ) -> Option<JournalShard> {
         let key = self.shard_key(cluster_name, namespace, shard_name);
         let res = self.shard_list.get(&key)?;
         Some(res.clone())
     }
 
-    pub fn add_shard(&self, shard: &ShardInfo) {
+    pub fn add_shard(&self, shard: &JournalShard) {
         self.shard_list.insert(
             self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
             shard.clone(),
@@ -69,7 +75,7 @@ impl JournalCacheManager {
         None
     }
 
-    pub fn add_segment(&self, segment: SegmentInfo) {
+    pub fn add_segment(&self, segment: JournalSegment) {
         let key = self.shard_key(
             &segment.cluster_name,
             &segment.namespace,
@@ -94,7 +100,7 @@ impl JournalCacheManager {
         namespace: &str,
         shard_name: &str,
         segment_seq: u32,
-    ) -> Option<SegmentInfo> {
+    ) -> Option<JournalSegment> {
         let key = self.shard_key(cluster_name, namespace, shard_name);
         if let Some(segment_list) = self.segment_list.get(&key) {
             let res = segment_list.get(&segment_seq)?;
@@ -122,4 +128,22 @@ impl JournalCacheManager {
     fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}_{}", cluster_name, namespace, shard_name)
     }
+}
+
+pub fn load_journal_cache(
+    engine_cache: &Arc<JournalCacheManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+) -> Result<(), PlacementCenterError> {
+    let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
+    let res = shard_storage.all_shard()?;
+    for shard in res {
+        engine_cache.add_shard(&shard);
+    }
+
+    let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
+    let res = segment_storage.all_segment()?;
+    for segment in res {
+        engine_cache.add_segment(segment);
+    }
+    Ok(())
 }

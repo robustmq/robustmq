@@ -85,4 +85,7 @@ pub enum PlacementCenterError {
 
     #[error("Invalid Segment, Segment {0} is less than Start Segment {1}")]
     InvalidSegmentLessThan(u32, u32),
+
+    #[error("Request parameters [{0}] cannot be null")]
+    RequestParamsNotEmpty(String),
 }

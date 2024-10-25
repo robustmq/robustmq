@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::tools::{now_mills, unique_id};
 use grpc_clients::poll::ClientPool;
+use metadata_struct::journal::shard::JournalShard;
 use prost::Message as _;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
@@ -29,9 +30,8 @@ use crate::controller::journal::call_node::{
 };
 use crate::core::error::PlacementCenterError;
 use crate::core::journal::segmet::{create_first_segment, create_next_segment};
-use crate::storage::engine;
 use crate::storage::journal::segment::SegmentStorage;
-use crate::storage::journal::shard::{ShardInfo, ShardStorage};
+use crate::storage::journal::shard::ShardStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Clone)]
@@ -59,13 +59,12 @@ impl DataRouteJournal {
     pub fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
 
-        let shard_info = ShardInfo {
+        let shard_info = JournalShard {
             shard_uid: unique_id(),
             cluster_name: req.cluster_name.clone(),
             namespace: req.namespace.clone(),
             shard_name: req.shard_name.clone(),
             replica: req.replica,
-            storage_mode: req.storage_model,
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
@@ -249,9 +248,10 @@ mod tests {
     use common_base::tools::{now_mills, unique_id};
     use grpc_clients::poll::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
+    use metadata_struct::journal::segment::JournalSegment;
+    use metadata_struct::journal::shard::JournalShard;
     use metadata_struct::placement::node::BrokerNode;
     use prost::Message;
-    use protocol::journal_server::journal_engine::ShardStorageModel;
     use protocol::placement_center::placement_center_inner::ClusterType;
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest, DeleteSegmentRequest, DeleteShardRequest,
@@ -261,8 +261,8 @@ mod tests {
     use super::DataRouteJournal;
     use crate::cache::journal::JournalCacheManager;
     use crate::cache::placement::PlacementCacheManager;
-    use crate::storage::journal::segment::{SegmentInfo, SegmentStorage};
-    use crate::storage::journal::shard::{ShardInfo, ShardStorage};
+    use crate::storage::journal::segment::SegmentStorage;
+    use crate::storage::journal::shard::ShardStorage;
     use crate::storage::rocksdb::{column_family_list, storage_data_fold};
 
     #[tokio::test]
@@ -286,12 +286,11 @@ mod tests {
             namespace: namespace.clone(),
             shard_name: shard_name.clone(),
             replica: 2,
-            storage_model: ShardStorageModel::Sequential.as_str_name().to_string(),
         };
 
         let value = CreateShardRequest::encode_to_vec(&request);
         let data = route.create_shard(value).unwrap();
-        let segment = serde_json::from_slice::<SegmentInfo>(&data).unwrap();
+        let segment = serde_json::from_slice::<JournalSegment>(&data).unwrap();
         assert_eq!(segment.replicas.len(), 2);
         assert_eq!(segment.segment_seq, 0);
 
@@ -329,7 +328,7 @@ mod tests {
         };
         let value = CreateNextSegmentRequest::encode_to_vec(&request);
         let segment_res = route.create_next_segment(value.clone()).unwrap();
-        let segment = serde_json::from_slice::<SegmentInfo>(&segment_res).unwrap();
+        let segment = serde_json::from_slice::<JournalSegment>(&segment_res).unwrap();
         assert_eq!(segment.segment_seq, 1);
         assert_eq!(segment.replicas.len(), 2);
 
@@ -422,7 +421,7 @@ mod tests {
         let engine_cache = Arc::new(JournalCacheManager::new());
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
 
-        let shard_info = ShardInfo {
+        let shard_info = JournalShard {
             shard_uid: unique_id(),
             cluster_name: config.cluster_name.clone(),
             namespace: "n1".to_string(),
@@ -431,7 +430,6 @@ mod tests {
             start_segment_seq: 0,
             active_segment_seq: 0,
             last_segment_seq: 0,
-            storage_mode: "m1".to_string(),
             create_time: now_mills(),
         };
 
