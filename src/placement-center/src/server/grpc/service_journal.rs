@@ -14,14 +14,16 @@
 
 use std::sync::Arc;
 
+use metadata_struct::journal::segment::JournalSegment;
 use openraft::raft::ClientWriteResponse;
 use prost::Message;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineService;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
-    DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest, GetShardReply,
-    GetShardRequest,
+    DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
+    ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
+use rocksdb_engine::RocksDBEngine;
 use tonic::{Request, Response, Status};
 
 use crate::cache::journal::JournalCacheManager;
@@ -30,12 +32,14 @@ use crate::core::error::PlacementCenterError;
 use crate::raft::raftv2::typeconfig::TypeConfig;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
-use crate::storage::journal::segment::{is_seal_up_segment, SegmentInfo};
+use crate::storage::journal::segment::{is_seal_up_segment, SegmentStorage};
+use crate::storage::journal::shard::ShardStorage;
 
 pub struct GrpcEngineService {
     raft_machine_apply: Arc<RaftMachineApply>,
     engine_cache: Arc<JournalCacheManager>,
     cluster_cache: Arc<PlacementCacheManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl GrpcEngineService {
@@ -43,11 +47,13 @@ impl GrpcEngineService {
         raft_machine_apply: Arc<RaftMachineApply>,
         engine_cache: Arc<JournalCacheManager>,
         cluster_cache: Arc<PlacementCacheManager>,
+        rocksdb_engine_handler: Arc<RocksDBEngine>,
     ) -> Self {
         GrpcEngineService {
             raft_machine_apply,
             engine_cache,
             cluster_cache,
+            rocksdb_engine_handler,
         }
     }
 }
@@ -55,9 +61,9 @@ impl GrpcEngineService {
     fn parse_replicas_vec(
         &self,
         resp: ClientWriteResponse<TypeConfig>,
-    ) -> Result<SegmentInfo, PlacementCenterError> {
+    ) -> Result<JournalSegment, PlacementCenterError> {
         if let Some(value) = resp.data.value {
-            let data = serde_json::from_slice::<SegmentInfo>(&value)?;
+            let data = serde_json::from_slice::<JournalSegment>(&value)?;
             return Ok(data);
         }
         Err(PlacementCenterError::ExecutionResultIsEmpty)
@@ -66,6 +72,51 @@ impl GrpcEngineService {
 
 #[tonic::async_trait]
 impl EngineService for GrpcEngineService {
+    async fn list_shard(
+        &self,
+        request: Request<ListShardRequest>,
+    ) -> Result<Response<ListShardReply>, Status> {
+        let req = request.into_inner();
+        if req.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
+            ));
+        }
+
+        let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
+        let res = if req.namespace.is_empty() && req.shard_name.is_empty() {
+            match shard_storage.list_by_cluster(&req.cluster_name) {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else if !req.namespace.is_empty() && req.shard_name.is_empty() {
+            match shard_storage.list_by_cluster_namespace(&req.cluster_name, &req.namespace) {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else {
+            match shard_storage.get(&req.cluster_name, &req.namespace, &req.shard_name) {
+                Ok(Some(shard)) => vec![shard],
+                Ok(None) => Vec::new(),
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        };
+
+        let body = match serde_json::to_vec(&res) {
+            Ok(data) => data,
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        };
+        return Ok(Response::new(ListShardReply { shards: body }));
+    }
+
     async fn create_shard(
         &self,
         request: Request<CreateShardRequest>,
@@ -222,39 +273,62 @@ impl EngineService for GrpcEngineService {
         }
     }
 
-    async fn get_shard(
+    async fn list_segment(
         &self,
-        request: Request<GetShardRequest>,
-    ) -> Result<Response<GetShardReply>, Status> {
+        request: Request<ListSegmentRequest>,
+    ) -> Result<Response<ListSegmentReply>, Status> {
         let req = request.into_inner();
-        if !self
-            .cluster_cache
-            .cluster_list
-            .contains_key(&req.cluster_name)
-        {
+        if req.cluster_name.is_empty() {
             return Err(Status::cancelled(
-                PlacementCenterError::ClusterDoesNotExist(req.cluster_name).to_string(),
+                PlacementCenterError::RequestParamsNotEmpty(req.cluster_name).to_string(),
             ));
         }
 
-        let shard = self
-            .engine_cache
-            .get_shard(&req.cluster_name, &req.namespace, &req.shard_name);
+        let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
+        let res = if req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+            match segment_storage.list_by_cluster(&req.cluster_name) {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else if !req.namespace.is_empty() && req.shard_name.is_empty() && req.segment_no == 0 {
+            match segment_storage.list_by_namespace(&req.cluster_name, &req.namespace) {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else if !req.namespace.is_empty() && !req.shard_name.is_empty() && req.segment_no == 0 {
+            match segment_storage.list_by_shard(&req.cluster_name, &req.namespace, &req.shard_name)
+            {
+                Ok(list) => list,
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        } else {
+            match segment_storage.get(
+                &req.cluster_name,
+                &req.namespace,
+                &req.shard_name,
+                req.segment_no,
+            ) {
+                Ok(Some(shard)) => vec![shard],
+                Ok(None) => Vec::new(),
+                Err(e) => {
+                    return Err(Status::cancelled(e.to_string()));
+                }
+            }
+        };
 
-        if shard.is_none() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ShardDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
-
-        let body = match serde_json::to_vec(&shard.unwrap()) {
+        let body = match serde_json::to_vec(&res) {
             Ok(data) => data,
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         };
-
-        return Ok(Response::new(GetShardReply { shard: body }));
+        return Ok(Response::new(ListSegmentReply { segments: body }));
     }
 
     async fn create_next_segment(

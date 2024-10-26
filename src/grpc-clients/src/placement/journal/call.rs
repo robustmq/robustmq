@@ -19,10 +19,34 @@ use prost::Message;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
+    ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 
 use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
 use crate::poll::ClientPool;
+
+pub async fn list_shard(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListShardRequest,
+) -> Result<ListShardReply, CommonError> {
+    let request_data = ListShardRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Journal,
+        PlacementCenterInterface::ListShard,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListShardReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
 
 pub async fn create_shard(
     client_poll: Arc<ClientPool>,
@@ -63,6 +87,29 @@ pub async fn delete_shard(
     .await
     {
         Ok(data) => match DeleteShardReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn list_segment(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListSegmentRequest,
+) -> Result<ListSegmentReply, CommonError> {
+    let request_data = ListSegmentRequest::encode_to_vec(&request);
+    match retry_call(
+        PlacementCenterService::Journal,
+        PlacementCenterInterface::ListSegment,
+        client_poll,
+        addrs,
+        request_data,
+    )
+    .await
+    {
+        Ok(data) => match ListSegmentReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },

@@ -51,6 +51,17 @@ stop_mqtt_cluster(){
     fi
 }
 
+stop_journal_server(){
+    no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
+    if [[ -n $no1 ]]
+    then
+        echo "kill journal-server $no1"
+        kill $no1
+    fi
+}
+
 stop_pc_cluster
+
+stop_journal_server
 
 stop_mqtt_cluster

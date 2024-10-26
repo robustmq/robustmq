@@ -12,18 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-
-pub struct JournalShard {
-    pub shard_uid: String,
-    pub cluster_name: String,
-    pub namespace: String,
-    pub shard_name: String,
-    pub replica: u32,
-    pub start_segment_seq: u32,
-    pub active_segment_seq: u32,
-    pub last_segment_seq: u32,
-    pub create_time: u128,
-}
+pub mod fetch;

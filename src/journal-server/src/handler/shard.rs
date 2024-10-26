@@ -63,7 +63,6 @@ impl ShardHandler {
                 namespace: req_body.namespace.to_string(),
                 shard_name: req_body.shard_name.to_string(),
                 replica: req_body.replica_num,
-                storage_model: req_body.storage_model().as_str_name().to_string(),
             };
             let reply = grpc_clients::placement::journal::call::create_shard(
                 self.client_poll.clone(),
@@ -97,7 +96,7 @@ impl ShardHandler {
         };
 
         let replica_ids = segment
-            .replica
+            .replicas
             .iter()
             .map(|replica| replica.node_id)
             .collect();
@@ -168,7 +167,7 @@ impl ShardHandler {
                 GetActiveSegmentRespShard {
                     namespace: raw.namespace.clone(),
                     shard: raw.namespace.clone(),
-                    replica_id: segment.replica.iter().map(|rep| rep.node_id).collect(),
+                    replica_id: segment.replicas.iter().map(|rep| rep.node_id).collect(),
                 }
             } else {
                 let conf = journal_server_conf();

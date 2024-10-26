@@ -21,6 +21,7 @@ use protocol::placement_center::placement_center_journal::engine_service_client:
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
     DeleteSegmentReply, DeleteSegmentRequest, DeleteShardReply, DeleteShardRequest,
+    ListSegmentReply, ListSegmentRequest, ListShardReply, ListShardRequest,
 };
 use tonic::transport::Channel;
 
@@ -38,6 +39,16 @@ pub async fn journal_interface_call(
     match journal_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
+                PlacementCenterInterface::ListShard => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| ListShardRequest::decode(data),
+                        |mut client, request| async move { client.list_shard(request).await },
+                        ListShardReply::encode_to_vec,
+                    )
+                    .await
+                }
                 PlacementCenterInterface::CreateShard => {
                     client_call(
                         client,
@@ -58,6 +69,18 @@ pub async fn journal_interface_call(
                     )
                     .await
                 }
+
+                PlacementCenterInterface::ListSegment => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| ListSegmentRequest::decode(data),
+                        |mut client, request| async move { client.list_segment(request).await },
+                        ListSegmentReply::encode_to_vec,
+                    )
+                    .await
+                }
+
                 PlacementCenterInterface::CreateSegment => client_call(
                     client,
                     request.clone(),

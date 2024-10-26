@@ -27,3 +27,4 @@ tokio.workspace = true
 tokio-util.workspace = true
 protocol.workspace = true
 futures.workspace = true
+common-base.workspace = true

@@ -42,9 +42,9 @@ start_pc_cluster(){
 
     sleep 5
 
-    cargo run --package cmd --bin cli-command place -s 127.0.0.1:1228 -a status
-    cargo run --package cmd --bin cli-command place -s 127.0.0.1:2228 -a status
-    cargo run --package cmd --bin cli-command place -s 127.0.0.1:3228 -a status
+    cargo run --package cmd --bin cli-command place -s 127.0.0.1:1228 status
+    cargo run --package cmd --bin cli-command place -s 127.0.0.1:2228 status
+    cargo run --package cmd --bin cli-command place -s 127.0.0.1:3228 status
 }
 
 start_mqtt_cluster(){
@@ -53,15 +53,31 @@ start_mqtt_cluster(){
     no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
     if [[ -n $no1 ]]
     then
-        echo "placement-center node 1 started successfully. process no: $no1"
+        echo "mqtt cluster node 1 started successfully. process no: $no1"
     fi
 
     echo "\n-------------------------------------\n"
     
-    cargo run --package cmd --bin cli-command mqtt
+    cargo run --package cmd --bin cli-command mqtt -s 127.0.0.1:9981 status
+}
+
+start_journal_cluster(){
+    nohup cargo run --package cmd --bin journal-server -- --conf=example/mqtt-cluster/journal-server/node-1.toml 2>/tmp/7.log &
+    
+    no1=`ps -ef | grep journal-server | grep node-1 | grep -v grep | awk '{print $2}'`
+    if [[ -n $no1 ]]
+    then
+        echo "journal-server node 1 started successfully. process no: $no1"
+    fi
+
+    echo "\n-------------------------------------\n"
 }
 
 start_pc_cluster
+
+sleep 3
+
+start_journal_cluster
 
 sleep 3
 

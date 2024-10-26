@@ -12,18 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn upate_add_node_cache_test() {}
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+    #[tokio::test]
+    async fn upate_delete_node_cache_test() {}
 
-pub struct JournalShard {
-    pub shard_uid: String,
-    pub cluster_name: String,
-    pub namespace: String,
-    pub shard_name: String,
-    pub replica: u32,
-    pub start_segment_seq: u32,
-    pub active_segment_seq: u32,
-    pub last_segment_seq: u32,
-    pub create_time: u128,
+    #[tokio::test]
+    async fn upate_add_shard_cache_test() {}
+
+    #[tokio::test]
+    async fn upate_delete_shard_cache_test() {}
+
+    #[tokio::test]
+    async fn upate_add_segment_cache_test() {}
+
+    #[tokio::test]
+    async fn upate_delete_segment_cache_test() {}
 }
