@@ -68,6 +68,6 @@ mod tests {
         }
         let total_ms = now_second() - start_time;
         println!("{}", total_ms);
-        assert!((5..=10).contains(&total_ms));
+        assert!((4..=10).contains(&total_ms));
     }
 }

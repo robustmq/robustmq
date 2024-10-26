@@ -32,8 +32,8 @@ impl ClusterHandler {
         let mut result = Vec::new();
         for (node_id, node) in self.cache_manager.node_list.clone() {
             result.push(GetClusterMetadataNode {
-                replica_id: node_id,
-                replica_addr: node.node_inner_addr,
+                node_id,
+                node_addr: node.node_inner_addr,
             });
         }
         result

@@ -40,6 +40,11 @@ message RespHeader{
     JournalEngineError error = 3;
 }
 
+message ClientSegmentMetadata{
+    uint32 segment_no = 1;
+    repeated uint64 replicas = 2;
+}
+
 /** Get Cluster Metadata **/
 message GetClusterMetadataReq{
     ReqHeader header = 1;
@@ -50,8 +55,8 @@ message GetClusterMetadataRespBody{
 }
 
 message GetClusterMetadataNode{
-    uint64 replica_id = 1;
-    string replica_addr = 2;
+    uint64 node_id = 1;
+    string node_addr = 2;
 }
 
 message GetClusterMetadataResp{
@@ -67,7 +72,7 @@ message CreateShardReqBody{
 }
 
 message CreateShardRespBody{
-    repeated uint64 replica_id = 3;
+    ClientSegmentMetadata active_segment = 1;
 }
 
 message CreateShardReq{
@@ -178,7 +183,7 @@ message GetActiveSegmentRespBody{
 message GetActiveSegmentRespShard{
     string namespace = 1;
     string shard = 2;
-    repeated uint64 replica_id = 3;
+    ClientSegmentMetadata active_segment = 3;
 }
 
 message GetActiveSegmentResp{
