@@ -78,7 +78,7 @@ pub async fn mqtt_broker_create_user(
     let request_date = CreateUserRequest::encode_to_vec(&request);
     match retry_call(
         MQTTBrokerService::Admin,
-        MQTTBrokerPlacementInterface::ListUser,
+        MQTTBrokerPlacementInterface::CreateUser,
         client_poll,
         addrs,
         request_date,
@@ -101,7 +101,7 @@ pub async fn mqtt_broker_delete_user(
     let request_date = DeleteUserRequest::encode_to_vec(&request);
     match retry_call(
         MQTTBrokerService::Admin,
-        MQTTBrokerPlacementInterface::ListUser,
+        MQTTBrokerPlacementInterface::DeleteUser,
         client_poll,
         addrs,
         request_date,
