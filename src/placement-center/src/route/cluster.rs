@@ -215,6 +215,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::placement_center::placement_center_test_conf;
+    use common_base::tools::unique_id;
     use grpc_clients::poll::ClientPool;
     use prost::Message as _;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
@@ -226,12 +227,12 @@ mod tests {
     use crate::storage::placement::node::NodeStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
-    #[test]
-    fn register_unregister_node() {
+    #[tokio::test]
+    async fn register_unregister_node() {
         let config = placement_center_test_conf();
 
-        let cluster_name = "test-cluster".to_string();
-        let node_id = 1;
+        let cluster_name = unique_id();
+        let node_id = 999;
         let node_ip = "127.0.0.1".to_string();
 
         let req = RegisterNodeRequest {
@@ -257,13 +258,16 @@ mod tests {
             call_manager,
             client_poll,
         );
-        let _ = route.register_node(data);
+        route.register_node(data).await.unwrap();
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
 
         let cluster = cluster_storage
-            .get(ClusterType::MqttBrokerServer.as_str_name(), &cluster_name)
+            .get(
+                &ClusterType::MqttBrokerServer.as_str_name().to_string(),
+                &cluster_name,
+            )
             .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
