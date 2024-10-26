@@ -14,10 +14,11 @@
 
 #[cfg(test)]
 mod tests {
+    use common_base::tools::unique_id;
     use futures::{SinkExt, StreamExt};
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
-        ApiKey, ApiVersion, GetClusterMetadataReq, ReqHeader,
+        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetClusterMetadataReq, ReqHeader,
     };
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
@@ -39,26 +40,45 @@ mod tests {
         let _ = stream.send(req_packet.clone()).await;
 
         if let Some(data) = stream.next().await {
-            match data {
-                Ok(da) => {
-                    // assert_eq!(da, resp_packet.packet)
-                    println!("{:?}", da);
-                }
-                Err(e) => {
-                    panic!("error: {:?}", e);
-                }
-            }
+            let resp = data.unwrap();
+            println!("{:?}", resp);
         }
     }
 
     #[tokio::test]
-    async fn create_shard_test() {}
+    async fn create_shard_test() {
+        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::CreateShardReq(CreateShardReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::CreateShard.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(CreateShardReqBody {
+                namespace: unique_id(),
+                shard_name: unique_id(),
+                replica_num: 1,
+            }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
+    }
 
     #[tokio::test]
     async fn delete_shard_test() {}
 
     #[tokio::test]
-    async fn get_active_segment_test() {}
+    async fn get_active_segment_test() {
+        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+    }
 
     #[tokio::test]
     async fn write_base_test() {}

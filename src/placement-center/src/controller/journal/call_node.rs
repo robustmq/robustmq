@@ -17,14 +17,14 @@ use std::sync::Arc;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
 use grpc_clients::poll::ClientPool;
 use log::{debug, error};
+use metadata_struct::journal::segment::JournalSegment;
+use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
     JournalUpdateCacheActionType, JournalUpdateCacheResourceType, UpdateJournalCacheRequest,
 };
 
 use crate::cache::placement::PlacementCacheManager;
-use crate::storage::journal::segment::SegmentInfo;
-use crate::storage::journal::shard::ShardInfo;
 
 pub fn update_cache_by_add_journal_node(
     cluster_name: String,
@@ -82,7 +82,7 @@ pub fn update_cache_by_add_shard(
     cluster_name: String,
     placement_cache_manager: Arc<PlacementCacheManager>,
     client_poll: Arc<ClientPool>,
-    shard_info: ShardInfo,
+    shard_info: JournalShard,
 ) {
     tokio::spawn(async move {
         let data = match serde_json::to_vec(&shard_info) {
@@ -108,7 +108,7 @@ pub fn update_cache_by_delete_shard(
     cluster_name: String,
     placement_cache_manager: Arc<PlacementCacheManager>,
     client_poll: Arc<ClientPool>,
-    shard_info: ShardInfo,
+    shard_info: JournalShard,
 ) {
     tokio::spawn(async move {
         let data = match serde_json::to_vec(&shard_info) {
@@ -134,7 +134,7 @@ pub fn update_cache_by_add_segment(
     cluster_name: String,
     placement_cache_manager: Arc<PlacementCacheManager>,
     client_poll: Arc<ClientPool>,
-    segment_info: SegmentInfo,
+    segment_info: JournalSegment,
 ) {
     tokio::spawn(async move {
         let data = match serde_json::to_vec(&segment_info) {
@@ -160,7 +160,7 @@ pub fn update_cache_by_delete_segment(
     cluster_name: String,
     placement_cache_manager: Arc<PlacementCacheManager>,
     client_poll: Arc<ClientPool>,
-    segment_info: SegmentInfo,
+    segment_info: JournalSegment,
 ) {
     tokio::spawn(async move {
         let data = match serde_json::to_vec(&segment_info) {

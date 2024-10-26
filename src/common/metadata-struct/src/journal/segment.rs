@@ -14,23 +14,30 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct JournalSegment {
+    pub cluster_name: String,
+    pub namespace: String,
     pub shard_name: String,
     pub segment_seq: u32,
-    pub replica: Vec<JournalSegmentNode>,
-    pub status: JournalSegmentStatus,
+    pub replicas: Vec<Replica>,
+    pub leader_epoch: u32,
+    pub isr: Vec<Replica>,
+    pub status: SegmentStatus,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct JournalSegmentNode {
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+pub struct Replica {
+    pub replica_seq: u64,
     pub node_id: u64,
-    pub data_fold: String,
+    pub fold: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
-pub enum JournalSegmentStatus {
-    CREATE,
-    AVTIVE,
-    BLOCKED,
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SegmentStatus {
+    #[default]
+    Idle,
+    Write,
+    PrepareSealUp,
+    SealUp,
 }

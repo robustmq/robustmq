@@ -79,4 +79,13 @@ pub enum PlacementCenterError {
 
     #[error("RocksDB Family {0} not available")]
     RocksDBFamilyNotAvailable(String),
+
+    #[error("Invalid Segment, Segment {0} is greater than Start Segment {1}")]
+    InvalidSegmentGreaterThan(u32, u32),
+
+    #[error("Invalid Segment, Segment {0} is less than Start Segment {1}")]
+    InvalidSegmentLessThan(u32, u32),
+
+    #[error("Request parameters [{0}] cannot be null")]
+    RequestParamsNotEmpty(String),
 }

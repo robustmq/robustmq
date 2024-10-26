@@ -18,15 +18,27 @@ syntax = "proto3";
 package placement.center.journal;
 
 service EngineService {
+  rpc ListShard(ListShardRequest) returns(ListShardReply){}
+
   rpc CreateShard(CreateShardRequest) returns(CreateShardReply){}
- 
-  rpc GetShard(GetShardRequest) returns(GetShardReply){}
 
   rpc DeleteShard(DeleteShardRequest) returns(DeleteShardReply){}
+
+  rpc ListSegment(ListSegmentRequest) returns(ListSegmentReply){}
 
   rpc CreateNextSegment(CreateNextSegmentRequest) returns(CreateNextSegmentReply){}
 
   rpc DeleteSegment(DeleteSegmentRequest) returns(DeleteSegmentReply){}
+}
+
+message ListShardRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+}
+
+message ListShardReply{
+    bytes shards = 1;
 }
 
 message CreateShardRequest{
@@ -34,22 +46,11 @@ message CreateShardRequest{
     string namespace = 2;
     string shard_name = 3;
     uint32 replica = 4;
-    string storage_model = 5;
 }
 
 message CreateShardReply{
     uint32 segment_no = 1;
     repeated uint64 replica = 2;
-}
-
-message GetShardRequest{
-    string cluster_name = 1;
-    string namespace = 2;
-    string shard_name = 3;
-}
-
-message GetShardReply{
-    bytes shard = 1;
 }
 
 message DeleteShardRequest{
@@ -60,6 +61,17 @@ message DeleteShardRequest{
 
 message DeleteShardReply{
 
+}
+
+message ListSegmentRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+    uint32 segment_no = 4;
+}
+
+message ListSegmentReply{
+    bytes segments = 1;
 }
 
 message CreateNextSegmentRequest{

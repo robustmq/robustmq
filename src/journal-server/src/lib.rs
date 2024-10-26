@@ -14,7 +14,7 @@
 
 #![allow(dead_code, unused_variables)]
 
-use core::cache::CacheManager;
+use core::cache::{load_cache, CacheManager};
 use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use core::offset::OffsetManager;
 use std::sync::Arc;
@@ -33,6 +33,7 @@ use tokio::sync::broadcast;
 
 mod core;
 mod handler;
+mod isr;
 mod segment;
 mod server;
 
@@ -160,6 +161,7 @@ impl JournalServer {
                     panic!("{}", e);
                 }
             }
+            load_cache(&self.client_poll, &self.cache_manager).await;
         });
     }
 

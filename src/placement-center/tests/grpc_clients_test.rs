@@ -92,7 +92,6 @@ mod tests {
             namespace: namespace(),
             shard_name: shard_name(),
             replica: shard_replica(),
-            storage_model: "".to_string(),
         };
         match client.create_shard(tonic::Request::new(request)).await {
             Ok(_) => {}

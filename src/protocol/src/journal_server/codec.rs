@@ -305,7 +305,7 @@ impl codec::Decoder for JournalServerCodec {
 
                         ApiKey::Read => read_req(body_bytes, header),
 
-                        ApiKey::GetClusterMetadata => Ok(None),
+                        ApiKey::GetClusterMetadata => get_cluster_metadata_req(body_bytes, header),
 
                         ApiKey::GetActiveSegment => get_active_segment_req(body_bytes, header),
 
@@ -491,6 +491,16 @@ fn read_resp(
     }
 }
 
+fn get_cluster_metadata_req(
+    _: BytesMut,
+    header: ReqHeader,
+) -> Result<Option<JournalEnginePacket>, Error> {
+    Ok(Some(JournalEnginePacket::GetClusterMetadataReq(
+        GetClusterMetadataReq {
+            header: Some(header),
+        },
+    )))
+}
 fn get_cluster_metadata_resp(
     body_bytes: BytesMut,
     header: RespHeader,
@@ -598,7 +608,8 @@ mod tests {
 
     use super::{JournalEnginePacket, JournalServerCodec};
     use crate::journal_server::journal_engine::{
-        ApiKey, ApiVersion, ReqHeader, RespHeader, WriteReq, WriteReqBody, WriteResp, WriteRespBody,
+        ApiKey, ApiVersion, GetClusterMetadataReq, ReqHeader, RespHeader, WriteReq, WriteReqBody,
+        WriteResp, WriteRespBody,
     };
 
     #[test]
@@ -614,6 +625,25 @@ mod tests {
             body: Some(body),
         };
         let source = JournalEnginePacket::WriteReq(req);
+
+        let mut codec = JournalServerCodec::new();
+        let mut dst = bytes::BytesMut::new();
+        codec.encode(source.clone(), &mut dst).unwrap();
+        let target = codec.decode(&mut dst).unwrap().unwrap();
+        assert_eq!(source, target);
+    }
+
+    #[test]
+    fn get_cluster_metadata_codec_test() {
+        let header = ReqHeader {
+            api_key: ApiKey::GetClusterMetadata.into(),
+            api_version: ApiVersion::V0.into(),
+        };
+
+        let req = GetClusterMetadataReq {
+            header: Some(header),
+        };
+        let source = JournalEnginePacket::GetClusterMetadataReq(req);
 
         let mut codec = JournalServerCodec::new();
         let mut dst = bytes::BytesMut::new();

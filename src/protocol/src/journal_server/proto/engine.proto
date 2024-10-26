@@ -29,11 +29,6 @@ enum ErrorCode{
     Success = 0;
 }
 
-enum ShardStorageModel{
-    Kv = 0;
-    Sequential = 1;
-}
-
 message ReqHeader{
     ApiKey api_key = 1;
     ApiVersion api_version = 2;
@@ -69,7 +64,6 @@ message CreateShardReqBody{
     string namespace = 1;
     string shard_name = 2;
     uint32 replica_num = 3;
-    ShardStorageModel storage_model = 4;
 }
 
 message CreateShardRespBody{

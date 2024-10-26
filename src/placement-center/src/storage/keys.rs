@@ -77,29 +77,52 @@ pub fn key_resource_idempotent(cluster_name: &str, produce_id: &str, seq_num: u6
 /** ===========Journal========== */
 pub fn key_shard(cluster_name: &str, namespace: &str, shard_name: &str) -> String {
     format!(
-        "/journal//shard/{}/{}/{}",
+        "/journal/shard/{}/{}/{}",
         cluster_name, namespace, shard_name
     )
 }
 
-#[allow(dead_code)]
-pub fn key_shard_prefix(cluster_name: &str) -> String {
+pub fn key_shard_cluster_prefix(cluster_name: &str) -> String {
     format!("/journal/shard/{}", cluster_name)
 }
 
-pub fn key_segment(cluster_name: &str, shard_name: &str, segement_seq: u32) -> String {
+pub fn key_shard_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
+    format!("/journal/shard/{}/{}", cluster_name, namespace)
+}
+
+pub fn key_all_shard() -> String {
+    "/journal/shard".to_string()
+}
+
+pub fn key_segment(
+    cluster_name: &str,
+    namespace: &str,
+    shard_name: &str,
+    segement_seq: u32,
+) -> String {
     format!(
-        "/journal/segment/{}/{}/{}",
-        cluster_name, shard_name, segement_seq
+        "/journal/segment/{}/{}/{}/{}",
+        cluster_name, namespace, shard_name, segement_seq
     )
+}
+
+pub fn key_all_segment() -> String {
+    "/journal/segment".to_string()
 }
 
 pub fn key_segment_cluster_prefix(cluster_name: &str) -> String {
     format!("/journal/segment/{}", cluster_name)
 }
 
-pub fn key_segment_shard_prefix(cluster_name: &str, shard_name: &str) -> String {
-    format!("/journal/segment/{}/{}", cluster_name, shard_name)
+pub fn key_segment_namespace_prefix(cluster_name: &str, namespace: &str) -> String {
+    format!("/journal/segment/{}/{}", cluster_name, namespace)
+}
+
+pub fn key_segment_shard_prefix(cluster_name: &str, namespace: &str, shard_name: &str) -> String {
+    format!(
+        "/journal/segment/{}/{}/{}",
+        cluster_name, namespace, shard_name
+    )
 }
 
 /** ===========MQTT========== */

@@ -15,7 +15,7 @@
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use cache::journal::JournalCacheManager;
+use cache::journal::{load_journal_cache, JournalCacheManager};
 use cache::mqtt::MqttCacheManager;
 use cache::placement::PlacementCacheManager;
 use common_base::config::placement_center::placement_center_conf;
@@ -90,6 +90,7 @@ impl PlacementCenter {
         ));
 
         let engine_cache = Arc::new(JournalCacheManager::new());
+
         let cluster_cache: Arc<PlacementCacheManager> =
             Arc::new(PlacementCacheManager::new(rocksdb_engine_handler.clone()));
         let mqtt_cache: Arc<MqttCacheManager> = Arc::new(MqttCacheManager::new(
@@ -112,6 +113,7 @@ impl PlacementCenter {
     }
 
     pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
+        self.init_cache();
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
 
@@ -183,6 +185,7 @@ impl PlacementCenter {
             raft_machine_apply.clone(),
             self.engine_cache.clone(),
             self.cluster_cache.clone(),
+            self.rocksdb_engine_handler.clone(),
         );
 
         let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.openraft_node.clone());
@@ -322,6 +325,13 @@ impl PlacementCenter {
         signal::ctrl_c().await.expect("failed to listen for event");
         if stop_send.send(true).is_ok() {
             info!("When ctrl + c is received, the service starts to stop");
+        }
+    }
+
+    pub fn init_cache(&self) {
+        match load_journal_cache(&self.engine_cache, &self.rocksdb_engine_handler) {
+            Ok(()) => {}
+            Err(e) => panic!("Failed to load Journal Cache,{}", e),
         }
     }
 }
