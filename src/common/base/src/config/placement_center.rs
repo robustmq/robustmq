@@ -219,7 +219,7 @@ mod tests {
             toml::Value::String(format!("{}:{}", "127.0.0.1", "1228")),
         );
         assert_eq!(config.rocksdb.max_open_files, Some(10000_i32));
-        assert_eq!(config.heartbeat.heartbeat_timeout_ms, 500000);
+        assert_eq!(config.heartbeat.heartbeat_timeout_ms, 5000);
         assert_eq!(config.heartbeat.heartbeat_check_time_ms, 1000);
     }
 }

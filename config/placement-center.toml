@@ -26,7 +26,7 @@ http_port = 1227
 runtime_work_threads = 100
 
 [heartbeat]
-heartbeat_timeout_ms = 500000
+heartbeat_timeout_ms = 5000
 heartbeat_check_time_ms = 1000
 
 [prometheus]

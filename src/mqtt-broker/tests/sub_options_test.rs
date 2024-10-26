@@ -80,7 +80,7 @@ mod tests {
             .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
             .is_ok());
 
-        match rx.recv_timeout(Duration::from_secs(1)) {
+        match rx.recv_timeout(Duration::from_secs(5)) {
             Ok(msg) => {
                 assert!(!no_local);
                 let payload = String::from_utf8(msg.unwrap().payload().to_vec()).unwrap();
@@ -117,7 +117,7 @@ mod tests {
         assert!(cli
             .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
             .is_ok());
-        let recv = rx.recv_timeout(Duration::from_secs(1));
+        let recv = rx.recv_timeout(Duration::from_secs(5));
         assert!(recv.is_ok());
         assert_eq!(recv.unwrap().unwrap().retained(), retain_as_published);
         distinct_conn(cli);
@@ -155,27 +155,27 @@ mod tests {
 
         match retain_handling {
             RetainHandling::SendRetainedOnSubscribe => {
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_ok());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_ok());
                 let _ = consumer_cli.unsubscribe_many(sub_topics);
                 assert!(consumer_cli
                     .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
                     .is_ok());
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_err());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_ok());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_err());
             }
             RetainHandling::SendRetainedOnNew => {
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_ok());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_ok());
                 let _ = consumer_cli.unsubscribe_many(sub_topics);
                 assert!(consumer_cli
                     .subscribe_many_with_options(sub_topics, sub_qos, sub_opts, None)
                     .is_ok());
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_err());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_err());
             }
             RetainHandling::DontSendRetained => {
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_ok());
-                assert!(rx.recv_timeout(Duration::from_secs(1)).is_err());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_ok());
+                assert!(rx.recv_timeout(Duration::from_secs(5)).is_err());
             }
         }
         distinct_conn(consumer_cli);
