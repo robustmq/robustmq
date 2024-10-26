@@ -16,12 +16,10 @@
 mod tests {
     use std::sync::Arc;
 
-    use grpc_clients::{
-        mqtt::admin::call::{
-            cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
-        },
-        poll::ClientPool,
+    use grpc_clients::mqtt::admin::call::{
+        cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
     };
+    use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
