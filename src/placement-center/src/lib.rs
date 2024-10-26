@@ -118,6 +118,7 @@ impl PlacementCenter {
     }
 
     pub async fn start(&mut self, stop_send: broadcast::Sender<bool>) {
+        self.init_cache();
         let (raft_message_send, raft_message_recv) = mpsc::channel::<RaftMessage>(1000);
         let (peer_message_send, peer_message_recv) = mpsc::channel::<PeerMessage>(1000);
 
