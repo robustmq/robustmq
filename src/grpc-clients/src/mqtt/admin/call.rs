@@ -16,7 +16,10 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use prost::Message as _;
-use protocol::broker_mqtt::broker_mqtt_admin::{ClusterStatusReply, ClusterStatusRequest};
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusReply, ClusterStatusRequest, CreateUserReply, CreateUserRequest, DeleteUserReply,
+    DeleteUserRequest, ListUserReply, ListUserRequest,
+};
 
 use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
 use crate::poll::ClientPool;
@@ -37,6 +40,75 @@ pub async fn cluster_status(
     .await
     {
         Ok(data) => match ClusterStatusReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn mqtt_broker_list_user(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: ListUserRequest,
+) -> Result<ListUserReply, CommonError> {
+    let request_date = ListUserRequest::encode_to_vec(&request);
+    match retry_call(
+        MQTTBrokerService::Admin,
+        MQTTBrokerPlacementInterface::ListUser,
+        client_poll,
+        addrs,
+        request_date,
+    )
+    .await
+    {
+        Ok(data) => match ListUserReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn mqtt_broker_create_user(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: CreateUserRequest,
+) -> Result<CreateUserReply, CommonError> {
+    let request_date = CreateUserRequest::encode_to_vec(&request);
+    match retry_call(
+        MQTTBrokerService::Admin,
+        MQTTBrokerPlacementInterface::CreateUser,
+        client_poll,
+        addrs,
+        request_date,
+    )
+    .await
+    {
+        Ok(data) => match CreateUserReply::decode(data.as_ref()) {
+            Ok(da) => Ok(da),
+            Err(e) => Err(CommonError::CommmonError(e.to_string())),
+        },
+        Err(e) => Err(e),
+    }
+}
+
+pub async fn mqtt_broker_delete_user(
+    client_poll: Arc<ClientPool>,
+    addrs: Vec<String>,
+    request: DeleteUserRequest,
+) -> Result<DeleteUserReply, CommonError> {
+    let request_date = DeleteUserRequest::encode_to_vec(&request);
+    match retry_call(
+        MQTTBrokerService::Admin,
+        MQTTBrokerPlacementInterface::DeleteUser,
+        client_poll,
+        addrs,
+        request_date,
+    )
+    .await
+    {
+        Ok(data) => match DeleteUserReply::decode(data.as_ref()) {
             Ok(da) => Ok(da),
             Err(e) => Err(CommonError::CommmonError(e.to_string())),
         },
