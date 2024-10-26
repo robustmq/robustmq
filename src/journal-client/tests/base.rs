@@ -14,17 +14,16 @@
 
 #[cfg(test)]
 mod tests {
-    use common_base::tools::unique_id;
     use futures::{SinkExt, StreamExt};
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
-        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetClusterMetadataReq, ReqHeader,
+        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetActiveSegmentReq,
+        GetActiveSegmentReqBody, GetActiveSegmentReqShard, GetClusterMetadataReq, ReqHeader,
     };
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
 
     #[tokio::test]
-    #[ignore]
     async fn get_cluster_metadata_base_test() {
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
 
@@ -57,8 +56,8 @@ mod tests {
                 api_version: ApiVersion::V0.into(),
             }),
             body: Some(CreateShardReqBody {
-                namespace: unique_id(),
-                shard_name: unique_id(),
+                namespace: "n1".to_string(),
+                shard_name: "s1".to_string(),
                 replica_num: 1,
             }),
         });
@@ -78,6 +77,27 @@ mod tests {
     async fn get_active_segment_test() {
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let mut shards = Vec::new();
+        shards.push(GetActiveSegmentReqShard {
+            namespace: "n1".to_string(),
+            shard_name: "s1".to_string(),
+        });
+
+        let req_packet = JournalEnginePacket::GetActiveSegmentReq(GetActiveSegmentReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::GetActiveSegment.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(GetActiveSegmentReqBody { shards }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
     }
 
     #[tokio::test]

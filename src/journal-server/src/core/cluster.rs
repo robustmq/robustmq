@@ -29,7 +29,7 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct JournalEngineClusterConfig {
     pub enable_auto_create_shard: bool,
 }

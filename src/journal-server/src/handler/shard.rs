@@ -17,7 +17,8 @@ use std::sync::Arc;
 use common_base::config::journal_server::journal_server_conf;
 use grpc_clients::poll::ClientPool;
 use protocol::journal_server::journal_engine::{
-    CreateShardReq, DeleteShardReq, GetActiveSegmentReq, GetActiveSegmentRespShard,
+    ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetActiveSegmentReq,
+    GetActiveSegmentRespShard,
 };
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentRequest, CreateShardRequest, DeleteShardRequest,
@@ -43,7 +44,7 @@ impl ShardHandler {
     pub async fn create_shard(
         &self,
         request: CreateShardReq,
-    ) -> Result<Vec<u64>, JournalServerError> {
+    ) -> Result<ClientSegmentMetadata, JournalServerError> {
         if request.body.is_none() {
             return Err(JournalServerError::RequestBodyNotEmpty(
                 "create_shard".to_string(),
@@ -70,7 +71,10 @@ impl ShardHandler {
                 request,
             )
             .await?;
-            return Ok(reply.replica);
+            return Ok(ClientSegmentMetadata {
+                segment_no: reply.segment_no,
+                replicas: reply.replica,
+            });
         };
 
         let segment = if let Some(segment) = self
@@ -92,7 +96,10 @@ impl ShardHandler {
                 request,
             )
             .await?;
-            return Ok(reply.replica);
+            return Ok(ClientSegmentMetadata {
+                segment_no: reply.segment_no,
+                replicas: reply.replica,
+            });
         };
 
         let replica_ids = segment
@@ -100,7 +107,10 @@ impl ShardHandler {
             .iter()
             .map(|replica| replica.node_id)
             .collect();
-        Ok(replica_ids)
+        Ok(ClientSegmentMetadata {
+            segment_no: segment.segment_seq,
+            replicas: replica_ids,
+        })
     }
 
     pub async fn delete_shard(&self, request: DeleteShardReq) -> Result<(), JournalServerError> {
@@ -148,8 +158,6 @@ impl ShardHandler {
         let req_body = request.body.unwrap();
         let mut results = Vec::new();
 
-        let cluster = self.cache_manager.get_cluster();
-
         for raw in req_body.shards {
             let shard = if let Some(shard) = self
                 .cache_manager
@@ -167,7 +175,10 @@ impl ShardHandler {
                 GetActiveSegmentRespShard {
                     namespace: raw.namespace.clone(),
                     shard: raw.namespace.clone(),
-                    replica_id: segment.replicas.iter().map(|rep| rep.node_id).collect(),
+                    active_segment: Some(ClientSegmentMetadata {
+                        segment_no: segment.segment_seq,
+                        replicas: segment.replicas.iter().map(|rep| rep.node_id).collect(),
+                    }),
                 }
             } else {
                 let conf = journal_server_conf();
@@ -186,7 +197,10 @@ impl ShardHandler {
                 GetActiveSegmentRespShard {
                     namespace: raw.namespace.clone(),
                     shard: raw.namespace.clone(),
-                    replica_id: reply.replica,
+                    active_segment: Some(ClientSegmentMetadata {
+                        segment_no: reply.segment_no,
+                        replicas: reply.replica,
+                    }),
                 }
             };
             results.push(resp_segment);

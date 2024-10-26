@@ -198,7 +198,8 @@ impl RaftMachine {
         }
 
         // The committed raft log can be applied to the State Machine.
-        self.handle_committed_entries(raft_node, ready.take_committed_entries())?;
+        self.handle_committed_entries(raft_node, ready.take_committed_entries())
+            .await?;
 
         // If there is a change in HardState, such as a revote,
         // term is increased, the hs will not be empty.Persist non-empty hs.
@@ -222,13 +223,14 @@ impl RaftMachine {
 
         self.send_message(light_rd.take_messages()).await?;
 
-        self.handle_committed_entries(raft_node, light_rd.take_committed_entries())?;
+        self.handle_committed_entries(raft_node, light_rd.take_committed_entries())
+            .await?;
 
         raft_node.advance_apply();
         Ok(())
     }
 
-    fn handle_committed_entries(
+    async fn handle_committed_entries(
         &mut self,
         raft_node: &mut RawNode<RaftRocksDBStorage>,
         entrys: Vec<Entry>,
@@ -239,7 +241,7 @@ impl RaftMachine {
                 match entry.get_entry_type() {
                     EntryType::EntryNormal => {
                         // Saves the service data sent by the client
-                        let _ = self.data_route.route_vec(entry.get_data().to_vec())?;
+                        let _ = self.data_route.route_vec(entry.get_data().to_vec()).await?;
                         return Ok(());
                     }
                     EntryType::EntryConfChange => {

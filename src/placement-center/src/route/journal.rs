@@ -26,7 +26,7 @@ use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
 use crate::controller::journal::call_node::{
     update_cache_by_add_segment, update_cache_by_add_shard, update_cache_by_delete_segment,
-    update_cache_by_delete_shard,
+    update_cache_by_delete_shard, JournalInnerCallManager,
 };
 use crate::core::error::PlacementCenterError;
 use crate::core::journal::segmet::{create_first_segment, create_next_segment};
@@ -39,6 +39,7 @@ pub struct DataRouteJournal {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     engine_cache: Arc<JournalCacheManager>,
     cluster_cache: Arc<PlacementCacheManager>,
+    call_manager: Arc<JournalInnerCallManager>,
     client_poll: Arc<ClientPool>,
 }
 
@@ -47,16 +48,18 @@ impl DataRouteJournal {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         engine_cache: Arc<JournalCacheManager>,
         cluster_cache: Arc<PlacementCacheManager>,
+        call_manager: Arc<JournalInnerCallManager>,
         client_poll: Arc<ClientPool>,
     ) -> Self {
         DataRouteJournal {
             rocksdb_engine_handler,
             engine_cache,
             cluster_cache,
+            call_manager,
             client_poll,
         }
     }
-    pub fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+    pub async fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
         let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
 
         let shard_info = JournalShard {
@@ -86,23 +89,24 @@ impl DataRouteJournal {
 
         // Update storage engine node cache
         update_cache_by_add_shard(
-            req.cluster_name.clone(),
-            self.cluster_cache.clone(),
-            self.client_poll.clone(),
+            &req.cluster_name,
+            &self.call_manager,
+            &self.client_poll,
             shard_info,
-        );
-
+        )
+        .await?;
         update_cache_by_add_segment(
-            req.cluster_name.clone(),
-            self.cluster_cache.clone(),
-            self.client_poll.clone(),
+            &req.cluster_name,
+            &self.call_manager,
+            &self.client_poll,
             segment.clone(),
-        );
+        )
+        .await?;
 
         Ok(serde_json::to_vec(&segment)?)
     }
 
-    pub fn delete_shard(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req = DeleteShardRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let namespace = req.namespace;
@@ -132,17 +136,16 @@ impl DataRouteJournal {
             .remove_shard(&cluster_name, &namespace, &shard_name);
 
         // Update storage engine node cache
-        update_cache_by_delete_shard(
-            cluster_name,
-            self.cluster_cache.clone(),
-            self.client_poll.clone(),
-            shard,
-        );
+        update_cache_by_delete_shard(&cluster_name, &self.call_manager, &self.client_poll, shard)
+            .await?;
 
         Ok(())
     }
 
-    pub fn create_next_segment(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
+    pub async fn create_next_segment(
+        &self,
+        value: Vec<u8>,
+    ) -> Result<Vec<u8>, PlacementCenterError> {
         let req = CreateNextSegmentRequest::decode(value.as_ref())?;
 
         let cluster_name = req.cluster_name;
@@ -170,16 +173,17 @@ impl DataRouteJournal {
         )?;
 
         update_cache_by_add_segment(
-            cluster_name,
-            self.cluster_cache.clone(),
-            self.client_poll.clone(),
+            &cluster_name,
+            &self.call_manager,
+            &self.client_poll,
             segment.clone(),
-        );
+        )
+        .await?;
 
         Ok(serde_json::to_vec(&segment)?)
     }
 
-    pub fn delete_segment(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let namespace = req.namespace;
@@ -228,11 +232,12 @@ impl DataRouteJournal {
         shard_storage.save(&shard)?;
 
         update_cache_by_delete_segment(
-            cluster_name,
-            self.cluster_cache.clone(),
-            self.client_poll.clone(),
+            &cluster_name,
+            &self.call_manager,
+            &self.client_poll,
             segment.clone(),
-        );
+        )
+        .await?;
 
         Ok(())
     }
@@ -261,6 +266,7 @@ mod tests {
     use super::DataRouteJournal;
     use crate::cache::journal::JournalCacheManager;
     use crate::cache::placement::PlacementCacheManager;
+    use crate::controller::journal::call_node::JournalInnerCallManager;
     use crate::storage::journal::segment::SegmentStorage;
     use crate::storage::journal::shard::ShardStorage;
     use crate::storage::rocksdb::{column_family_list, storage_data_fold};
@@ -269,10 +275,13 @@ mod tests {
     async fn shard_test() {
         let (client_poll, config, engine_cache, cluster_cache, rocksdb_engine_handler) =
             build_ins();
+        let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
+
         let route = DataRouteJournal::new(
             rocksdb_engine_handler.clone(),
             engine_cache.clone(),
             cluster_cache,
+            call_manager,
             client_poll,
         );
 
@@ -289,7 +298,7 @@ mod tests {
         };
 
         let value = CreateShardRequest::encode_to_vec(&request);
-        let data = route.create_shard(value).unwrap();
+        let data = route.create_shard(value).await.unwrap();
         let segment = serde_json::from_slice::<JournalSegment>(&data).unwrap();
         assert_eq!(segment.replicas.len(), 2);
         assert_eq!(segment.segment_seq, 0);
@@ -327,7 +336,7 @@ mod tests {
             active_segment_next_num: 1,
         };
         let value = CreateNextSegmentRequest::encode_to_vec(&request);
-        let segment_res = route.create_next_segment(value.clone()).unwrap();
+        let segment_res = route.create_next_segment(value.clone()).await.unwrap();
         let segment = serde_json::from_slice::<JournalSegment>(&segment_res).unwrap();
         assert_eq!(segment.segment_seq, 1);
         assert_eq!(segment.replicas.len(), 2);
@@ -347,7 +356,7 @@ mod tests {
             .is_some());
 
         // create next next segment
-        let res = route.create_next_segment(value);
+        let res = route.create_next_segment(value).await;
         assert!(res.is_err());
 
         // delete min next segment
@@ -359,7 +368,7 @@ mod tests {
         };
 
         let value = DeleteSegmentRequest::encode_to_vec(&request);
-        assert!(route.delete_segment(value).is_err());
+        assert!(route.delete_segment(value).await.is_err());
 
         // delete min segment
         let request = DeleteSegmentRequest {
@@ -370,7 +379,7 @@ mod tests {
         };
 
         let value = DeleteSegmentRequest::encode_to_vec(&request);
-        assert!(route.delete_segment(value).is_ok());
+        assert!(route.delete_segment(value).await.is_ok());
 
         assert!(engine_cache
             .get_segment(&cluster_name, &namespace, &shard_name, 0)
@@ -393,7 +402,7 @@ mod tests {
             shard_name: shard_name.clone(),
         };
         let value = DeleteShardRequest::encode_to_vec(&request);
-        assert!(route.delete_shard(value).is_ok());
+        assert!(route.delete_shard(value).await.is_ok());
 
         assert!(engine_cache
             .get_shard(&cluster_name, &namespace, &shard_name)
