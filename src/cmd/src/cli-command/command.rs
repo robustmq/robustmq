@@ -47,15 +47,45 @@ struct MQTTArgs {
     #[arg(short, long,default_value_t =String::from("127.0.0.1:9981"))]
     server: String,
 
-    #[arg(short, long,default_value_t =String::from("status"))]
-    action: String,
+    #[clap(subcommand)]
+    action: MQTTAction,
+}
+
+#[derive(Debug, Subcommand)]
+enum MQTTAction {
+    Status,
+    CreateUser(CreateUserArgs),
+    DeleteUser(DeleteUserArgs),
+    ListUer,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: create user", long_about = None)]
+#[command(next_line_help = true)]
+struct CreateUserArgs {
+    #[arg(short, long, required = true)]
+    username: String,
+
+    #[arg(short, long, required = true)]
+    password: String,
+
+    #[arg(short, long, default_value_t = false)]
+    is_superuser: bool,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: delete user", long_about = None)]
+#[command(next_line_help = true)]
+struct DeleteUserArgs {
+    #[arg(short, long, required = true)]
+    username: String,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ",  about="Command line tool for placement center", long_about = None)]
 #[command(next_line_help = true)]
 struct PlacementArgs {
-    #[arg(short, long, default_value_t =String::from("127.0.0.1:1228"))]
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:1228"))]
     server: String,
 
     #[clap(subcommand)]
