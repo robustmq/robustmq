@@ -153,7 +153,7 @@ fn create_segment(
     Ok(segment)
 }
 
-fn calc_leader_node(replicas: &Vec<Replica>) -> u64 {
+fn calc_leader_node(replicas: &[Replica]) -> u64 {
     replicas.first().unwrap().node_id
 }
 

@@ -33,11 +33,10 @@ use tokio::sync::broadcast;
 
 mod core;
 mod handler;
+mod index;
 mod isr;
 mod segment;
 mod server;
-mod index;
-
 
 pub struct JournalServer {
     config: JournalServerConfig,

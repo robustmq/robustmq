@@ -23,7 +23,6 @@ use protocol::journal_server::journal_engine::{
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::core::offset::OffsetManager;
-use crate::JournalServer;
 
 #[derive(Clone)]
 pub struct DataHandler {
