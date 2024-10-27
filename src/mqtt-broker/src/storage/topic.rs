@@ -22,7 +22,7 @@ use grpc_clients::placement::mqtt::call::{
     placement_create_topic, placement_delete_topic, placement_list_topic,
     placement_set_topic_retain_message,
 };
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::topic::MqttTopic;
 use protocol::placement_center::placement_center_mqtt::{
@@ -218,7 +218,7 @@ mod tests {
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::logs::init_log;
     use common_base::tools::unique_id;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{Publish, PublishProperties};

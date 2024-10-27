@@ -17,7 +17,7 @@ use std::sync::Arc;
 use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
 use grpc_clients::placement::openraft::OpenRaftServiceManager;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use mobc::Connection;
 use openraft::error::{InstallSnapshotError, RPCError, RaftError};
 use openraft::network::RPCOption;

@@ -20,7 +20,7 @@ mod tests {
         placement_create_session, placement_delete_session, placement_list_session,
         placement_update_session,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::placement_center::placement_center_mqtt::{
         CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, UpdateSessionRequest,

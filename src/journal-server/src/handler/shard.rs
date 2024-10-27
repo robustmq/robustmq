@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use protocol::journal_server::journal_engine::{
     ClientSegmentMetadata, CreateShardReq, DeleteShardReq, GetActiveSegmentReq,
     GetActiveSegmentRespShard,

@@ -27,7 +27,7 @@ use self::journal::journal_interface_call;
 use self::kv::kv_interface_call;
 use self::mqtt::mqtt_interface_call;
 use self::placement::placement_interface_call;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone, Debug)]

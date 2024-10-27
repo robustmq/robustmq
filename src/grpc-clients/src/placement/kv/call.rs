@@ -23,7 +23,7 @@ use protocol::placement_center::placement_center_kv::{
 
 use super::PlacementCenterInterface;
 use crate::placement::{retry_call, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn placement_set(
     client_poll: Arc<ClientPool>,

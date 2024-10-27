@@ -21,7 +21,7 @@ mod tests {
     use grpc_clients::placement::placement::call::{
         cluster_status, delete_idempotent_data, register_node, set_resource_config, unregister_node,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{
         ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest,
         SetResourceConfigRequest, UnRegisterNodeRequest,

@@ -21,7 +21,7 @@ mod tests {
     use grpc_clients::placement::openraft::call::{
         placement_openraft_add_learner, placement_openraft_change_membership,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_openraft::{
         AddLearnerRequest, ChangeMembershipRequest, Node,
     };

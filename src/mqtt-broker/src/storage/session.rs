@@ -21,7 +21,7 @@ use grpc_clients::placement::mqtt::call::{
     placement_create_session, placement_delete_session, placement_list_session,
     placement_save_last_will_message, placement_update_session,
 };
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::placement_center::placement_center_mqtt::{
     CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, SaveLastWillMessageRequest,
@@ -195,7 +195,7 @@ mod tests {
 
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
     use common_base::tools::now_second;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
 
     use crate::storage::session::SessionStorage;

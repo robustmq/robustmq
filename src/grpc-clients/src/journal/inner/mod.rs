@@ -22,7 +22,7 @@ use protocol::journal_server::journal_inner::{UpdateJournalCacheReply, UpdateJou
 use tonic::transport::Channel;
 
 use super::JournalEngineInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 

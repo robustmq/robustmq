@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::tools::{now_mills, unique_id};
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::cluster::ClusterInfo;
@@ -216,7 +216,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::unique_id;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use prost::Message as _;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
 

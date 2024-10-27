@@ -21,7 +21,7 @@ mod tests {
         placement_create_topic, placement_delete_topic, placement_list_topic,
         placement_set_topic_retain_message,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::message::MqttMessage;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::{qos, Publish};

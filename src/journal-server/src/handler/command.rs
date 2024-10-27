@@ -15,7 +15,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{

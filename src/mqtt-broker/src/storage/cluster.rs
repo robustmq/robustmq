@@ -21,7 +21,7 @@ use grpc_clients::placement::placement::call::{
     delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
     set_resource_config, unregister_node,
 };
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::node::BrokerNode;
@@ -211,7 +211,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::broker_mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::cluster::{
         MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
     };

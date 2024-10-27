@@ -209,7 +209,7 @@ mod test {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };

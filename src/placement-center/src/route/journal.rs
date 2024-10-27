@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::tools::{now_mills, unique_id};
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::shard::JournalShard;
 use prost::Message as _;
 use protocol::placement_center::placement_center_journal::{
@@ -251,7 +251,7 @@ mod tests {
         placement_center_test_conf, PlacementCenterConfig,
     };
     use common_base::tools::{now_mills, unique_id};
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::journal::node_extend::JournalNodeExtend;
     use metadata_struct::journal::segment::JournalSegment;
     use metadata_struct::journal::shard::JournalShard;

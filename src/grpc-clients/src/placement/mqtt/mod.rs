@@ -33,7 +33,7 @@ use protocol::placement_center::placement_center_mqtt::{
 use tonic::transport::Channel;
 
 use super::PlacementCenterInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 

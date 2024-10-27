@@ -45,7 +45,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::cluster::{
         MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
     };

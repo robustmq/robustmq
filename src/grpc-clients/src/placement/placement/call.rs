@@ -27,7 +27,7 @@ use protocol::placement_center::placement_center_inner::{
 };
 
 use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn cluster_status(
     client_poll: Arc<ClientPool>,

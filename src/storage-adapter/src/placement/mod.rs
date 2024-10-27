@@ -19,7 +19,7 @@ use common_base::error::common::CommonError;
 use grpc_clients::placement::kv::call::{
     placement_delete, placement_exists, placement_get, placement_set,
 };
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::adapter::record::Record;
 use protocol::placement_center::placement_center_kv::{
     DeleteRequest, ExistsRequest, GetRequest, SetRequest,

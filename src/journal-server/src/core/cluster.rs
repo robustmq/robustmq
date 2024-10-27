@@ -19,7 +19,7 @@ use common_base::config::journal_server::{journal_server_conf, JournalServerConf
 use common_base::error::common::CommonError;
 use common_base::tools::get_local_ip;
 use grpc_clients::placement::placement::call::{heartbeat, register_node, unregister_node};
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use protocol::placement_center::placement_center_inner::{

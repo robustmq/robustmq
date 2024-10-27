@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::shard::JournalShard;

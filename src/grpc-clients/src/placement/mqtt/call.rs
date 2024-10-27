@@ -31,7 +31,7 @@ use protocol::placement_center::placement_center_mqtt::{
 
 use super::PlacementCenterInterface;
 use crate::placement::{retry_call, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn placement_get_share_sub_leader(
     client_poll: Arc<ClientPool>,

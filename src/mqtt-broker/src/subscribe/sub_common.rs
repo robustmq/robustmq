@@ -21,7 +21,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MqttBrokerError;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::error;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishProperties, QoS};
@@ -412,7 +412,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::QoS;
 

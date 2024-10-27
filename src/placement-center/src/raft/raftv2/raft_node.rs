@@ -18,7 +18,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::placement_center::placement_center_conf;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::info;
 use openraft::{Config, Raft};
 

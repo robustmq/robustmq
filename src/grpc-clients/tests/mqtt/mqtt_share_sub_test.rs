@@ -18,7 +18,7 @@ mod tests {
 
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::placement::placement::call::register_node;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
 

@@ -22,7 +22,7 @@ use std::sync::Arc;
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;

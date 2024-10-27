@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use metadata_struct::mqtt::session::MqttSession;
 use tokio::time::sleep;
@@ -232,7 +232,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::{now_second, unique_id};
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use tokio::time::sleep;
 

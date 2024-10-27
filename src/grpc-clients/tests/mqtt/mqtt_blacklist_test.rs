@@ -18,7 +18,7 @@ mod tests {
 
     use common_base::tools::now_second;
     use grpc_clients::placement::mqtt::call::{create_blacklist, delete_blacklist, list_blacklist};
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_blacklist::{MqttAclBlackList, MqttAclBlackListType};
     use protocol::placement_center::placement_center_mqtt::{
         CreateBlacklistRequest, DeleteBlacklistRequest, ListBlacklistRequest,

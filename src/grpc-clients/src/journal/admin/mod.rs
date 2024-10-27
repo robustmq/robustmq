@@ -20,7 +20,7 @@ use protocol::journal_server::journal_admin::journal_server_admin_service_client
 use tonic::transport::Channel;
 
 use super::JournalEngineInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 

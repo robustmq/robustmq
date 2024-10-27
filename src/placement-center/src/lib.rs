@@ -23,7 +23,7 @@ use controller::journal::call_node::{call_thread_manager, JournalInnerCallManage
 use controller::journal::controller::StorageEngineController;
 use controller::mqtt::MqttController;
 use controller::placement::controller::ClusterController;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::info;
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;

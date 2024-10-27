@@ -23,7 +23,7 @@ use protocol::placement_center::placement_center_openraft::{
 
 use super::PlacementCenterInterface;
 use crate::placement::{retry_call, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn placement_openraft_vote(
     client_poll: Arc<ClientPool>,

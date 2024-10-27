@@ -18,7 +18,7 @@ use common_base::config::journal_server::journal_server_conf;
 use dashmap::DashMap;
 use grpc_clients::placement::journal::call::{list_segment, list_shard};
 use grpc_clients::placement::placement::call::node_list;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::shard::JournalShard;

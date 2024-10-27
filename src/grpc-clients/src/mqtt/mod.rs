@@ -21,7 +21,7 @@ use log::error;
 use placement::placement_interface_call;
 use tokio::time::sleep;
 
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone)]

@@ -23,7 +23,7 @@ use protocol::placement_center::placement_center_journal::{
 };
 
 use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn list_shard(
     client_poll: Arc<ClientPool>,

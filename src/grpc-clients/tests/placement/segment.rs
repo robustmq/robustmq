@@ -19,7 +19,7 @@ mod tests {
     use common_base::tools::unique_id;
     use grpc_clients::placement::journal::call::{create_next_segment, create_shard};
     use grpc_clients::placement::placement::call::register_node;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_journal::{
         CreateNextSegmentRequest, CreateShardRequest,

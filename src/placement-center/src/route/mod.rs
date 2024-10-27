@@ -24,7 +24,7 @@ use std::time::Instant;
 
 use bincode::{deserialize, serialize};
 use data::{StorageData, StorageDataType};
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
 
 use crate::cache::journal::JournalCacheManager;
