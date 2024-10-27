@@ -71,7 +71,7 @@ impl ClusterStorage {
             grpc_addr: format!("{}:{}", local_ip, config.grpc_port),
             http_addr: format!("{}:{}", local_ip, config.http_port),
             mqtt_addr: format!("{}:{}", local_ip, config.network.tcp_port),
-            mqtts_addr: format!("{}:{}", local_ip, config.network.tcps_port),
+            mqtts_addr: format!("{}:{}", local_ip, config.network.tls_port),
             websocket_addr: format!("{}:{}", local_ip, config.network.websocket_port),
             websockets_addr: format!("{}:{}", local_ip, config.network.websockets_port),
             quic_addr: format!("{}:{}", local_ip, config.network.quic_port),
