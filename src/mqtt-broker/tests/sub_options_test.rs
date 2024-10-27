@@ -43,9 +43,14 @@ mod tests {
 
     #[tokio::test]
     async fn sub_options_retain_handling_test() {
-        for (i, retain) in [RetainHandling::SendRetainedOnSubscribe,
+        for (i, retain) in [
+            RetainHandling::SendRetainedOnSubscribe,
             RetainHandling::SendRetainedOnNew,
-            RetainHandling::DontSendRetained].into_iter().enumerate() {
+            RetainHandling::DontSendRetained,
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let topic = format!("/tests/{}", unique_id());
             retain_handling_test(topic.clone(), topic.clone(), retain, i.to_string()).await;
         }

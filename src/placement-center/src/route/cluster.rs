@@ -264,10 +264,7 @@ mod tests {
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
 
         let cluster = cluster_storage
-            .get(
-                ClusterType::MqttBrokerServer.as_str_name(),
-                &cluster_name,
-            )
+            .get(ClusterType::MqttBrokerServer.as_str_name(), &cluster_name)
             .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);
