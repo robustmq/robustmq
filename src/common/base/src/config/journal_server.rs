@@ -68,6 +68,11 @@ pub struct Network {
     pub tcp_port: u32,
     #[serde(default = "default_network_tcps_port")]
     pub tls_port: u32,
+
+    /// Whether to enable using TLS for gRPC.
+    #[serde(default)]
+    pub grpc_tls_enable: bool,
+
     #[serde(default)]
     pub tls_cert: String,
     #[serde(default)]
