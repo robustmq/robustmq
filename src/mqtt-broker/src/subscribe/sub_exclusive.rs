@@ -21,7 +21,7 @@ use common_base::tools::now_second;
 use grpc_clients::poll::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
@@ -395,7 +395,7 @@ pub async fn exclusive_publish_message_qos1(
 
         let mut contain_properties = false;
         if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
-            if MQTTProtocol::is_mqtt5(&protocol) {
+            if MqttProtocol::is_mqtt5(&protocol) {
                 contain_properties = true;
             }
         }
@@ -403,12 +403,12 @@ pub async fn exclusive_publish_message_qos1(
         let resp = if contain_properties {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+                packet: MqttPacket::Publish(publish.clone(), Some(publish_properties.clone())),
             }
         } else {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MQTTPacket::Publish(publish.clone(), None),
+                packet: MqttPacket::Publish(publish.clone(), None),
             }
         };
 

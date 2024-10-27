@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_placement::{
     UpdateCacheReply, UpdateCacheRequest,
 };
 
-use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
+use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::poll::ClientPool;
 
 pub async fn broker_mqtt_delete_session(
@@ -31,8 +31,8 @@ pub async fn broker_mqtt_delete_session(
 ) -> Result<DeleteSessionReply, CommonError> {
     let request_data = DeleteSessionRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Placement,
-        MQTTBrokerPlacementInterface::DeleteSession,
+        MqttBrokerService::Placement,
+        MqttBrokerPlacementInterface::DeleteSession,
         client_poll,
         addrs,
         request_data,
@@ -54,8 +54,8 @@ pub async fn broker_mqtt_update_cache(
 ) -> Result<UpdateCacheReply, CommonError> {
     let request_data = UpdateCacheRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Placement,
-        MQTTBrokerPlacementInterface::UpdateCache,
+        MqttBrokerService::Placement,
+        MqttBrokerPlacementInterface::UpdateCache,
         client_poll,
         addrs,
         request_data,
@@ -77,8 +77,8 @@ pub async fn send_last_will_message(
 ) -> Result<SendLastWillMessageReply, CommonError> {
     let request_data = SendLastWillMessageRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Placement,
-        MQTTBrokerPlacementInterface::SendLastWillMessage,
+        MqttBrokerService::Placement,
+        MqttBrokerPlacementInterface::SendLastWillMessage,
         client_poll,
         addrs,
         request_data,

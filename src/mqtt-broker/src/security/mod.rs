@@ -21,7 +21,7 @@ use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::config::common::Auth;
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use dashmap::DashMap;
 use grpc_clients::poll::ClientPool;
 use login::plaintext::Plaintext;
@@ -175,7 +175,7 @@ impl AuthDriver {
             }
             Err(e) => {
                 // If the user does not exist, try to get the user information from the storage layer
-                if e.to_string() == MQTTBrokerError::UserDoesNotExist.to_string() {
+                if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
                     return self.try_get_check_user_by_driver(username).await;
                 }
                 return Err(e.into());

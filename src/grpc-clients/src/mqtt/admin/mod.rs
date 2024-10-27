@@ -20,7 +20,7 @@ use mobc::{Connection, Manager};
 use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::MqttBrokerAdminServiceClient;
 use tonic::transport::Channel;
 
-use super::MQTTBrokerPlacementInterface;
+use super::MqttBrokerPlacementInterface;
 use crate::poll::ClientPool;
 
 pub mod call;
@@ -37,7 +37,7 @@ async fn admin_client(
 }
 
 pub(crate) async fn admin_interface_call(
-    interface: MQTTBrokerPlacementInterface,
+    interface: MqttBrokerPlacementInterface,
     client_poll: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
@@ -45,14 +45,14 @@ pub(crate) async fn admin_interface_call(
     match admin_client(client_poll.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
-                MQTTBrokerPlacementInterface::ClusterStatus => {
+                MqttBrokerPlacementInterface::ClusterStatus => {
                     inner_cluster_status(client, request).await
                 }
-                MQTTBrokerPlacementInterface::ListUser => inner_list_user(client, request).await,
-                MQTTBrokerPlacementInterface::CreateUser => {
+                MqttBrokerPlacementInterface::ListUser => inner_list_user(client, request).await,
+                MqttBrokerPlacementInterface::CreateUser => {
                     inner_create_user(client, request).await
                 }
-                MQTTBrokerPlacementInterface::DeleteUser => {
+                MqttBrokerPlacementInterface::DeleteUser => {
                     inner_delete_user(client, request).await
                 }
                 _ => {

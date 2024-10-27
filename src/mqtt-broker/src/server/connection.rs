@@ -17,7 +17,7 @@ use std::net::SocketAddr;
 use std::sync::atomic::AtomicU64;
 
 use log::error;
-use protocol::mqtt::common::MQTTProtocol;
+use protocol::mqtt::common::MqttProtocol;
 use tokio::sync::mpsc;
 static CONNECTION_ID_BUILD: AtomicU64 = AtomicU64::new(1);
 
@@ -48,7 +48,7 @@ impl fmt::Display for NetworkConnectionType {
 pub struct NetworkConnection {
     pub connection_type: NetworkConnectionType,
     pub connection_id: u64,
-    pub protocol: Option<MQTTProtocol>,
+    pub protocol: Option<MqttProtocol>,
     pub addr: SocketAddr,
     pub connection_stop_sx: Option<mpsc::Sender<bool>>,
 }
@@ -73,27 +73,27 @@ impl NetworkConnection {
         self.connection_id
     }
 
-    pub fn set_protocol(&mut self, protocol: MQTTProtocol) {
+    pub fn set_protocol(&mut self, protocol: MqttProtocol) {
         self.protocol = Some(protocol);
     }
 
     pub fn is_mqtt3(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
-            return protocol == MQTTProtocol::MQTT3;
+            return protocol == MqttProtocol::Mqtt3;
         }
         false
     }
 
     pub fn is_mqtt4(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
-            return protocol == MQTTProtocol::MQTT4;
+            return protocol == MqttProtocol::Mqtt4;
         }
         false
     }
 
     pub fn is_mqtt5(&self) -> bool {
         if let Some(protocol) = self.protocol.clone() {
-            return protocol == MQTTProtocol::MQTT5;
+            return protocol == MqttProtocol::Mqtt5;
         }
         false
     }

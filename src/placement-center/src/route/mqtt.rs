@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use metadata_struct::mqtt::session::MqttSession;
 use prost::Message as _;
 use protocol::placement_center::placement_center_mqtt::{
@@ -98,7 +98,7 @@ impl DataRouteMQTT {
         let storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         let result = storage.get(&req.cluster_name, &req.client_id)?;
         if result.is_none() {
-            return Err(MQTTBrokerError::SessionDoesNotExist.into());
+            return Err(MqttBrokerError::SessionDoesNotExist.into());
         }
 
         let mut session = result.unwrap();

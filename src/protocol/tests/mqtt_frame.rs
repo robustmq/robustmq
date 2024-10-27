@@ -21,7 +21,7 @@ mod tests {
     use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
     use protocol::mqtt::common::{
         ConnAck, ConnAckProperties, Connect, ConnectProperties, ConnectReturnCode, LastWill, Login,
-        MQTTPacket,
+        MqttPacket,
     };
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use protocol::mqtt::mqttv5::codec::Mqtt5Codec;
@@ -99,7 +99,7 @@ mod tests {
     }
 
     /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect() -> MQTTPacket {
+    fn build_mqtt4_pg_connect() -> MqttPacket {
         let client_id = String::from("test_client_id");
         let login = Some(Login {
             username: "lobo".to_string(),
@@ -117,11 +117,11 @@ mod tests {
             client_id,
             clean_session: true,
         };
-        MQTTPacket::Connect(4, connect, None, lastwill, None, login)
+        MqttPacket::Connect(4, connect, None, lastwill, None, login)
     }
 
     /// Build the connect content package for the mqtt5 protocol
-    fn build_mqtt5_pg_connect() -> MQTTPacket {
+    fn build_mqtt5_pg_connect() -> MqttPacket {
         let client_id = String::from("test_client_id");
         let login = Some(Login {
             username: "lobo".to_string(),
@@ -144,7 +144,7 @@ mod tests {
             session_expiry_interval: Some(30),
             ..Default::default()
         };
-        MQTTPacket::Connect(5, connect, Some(properties), lastwill, None, login)
+        MqttPacket::Connect(5, connect, Some(properties), lastwill, None, login)
     }
 
     /// Build the connect content package for the mqtt5 protocol
@@ -159,7 +159,7 @@ mod tests {
         };
         MqttPacketWrapper {
             protocol_version: 5,
-            packet: MQTTPacket::ConnAck(ack, Some(properties)),
+            packet: MqttPacket::ConnAck(ack, Some(properties)),
         }
     }
 }

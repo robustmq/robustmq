@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use metadata_struct::mqtt::lastwill::LastWillData;
 
 use super::session::MqttSessionStorage;
@@ -57,7 +57,7 @@ impl MqttLastWillStorage {
         let session_storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         let results = session_storage.get(cluster_name, client_id)?;
         if results.is_none() {
-            return Err(MQTTBrokerError::SessionDoesNotExist.into());
+            return Err(MqttBrokerError::SessionDoesNotExist.into());
         }
 
         let key = storage_key_mqtt_last_will(cluster_name, client_id);

@@ -135,7 +135,7 @@ fn session_expiry_interval(
 mod test {
     use std::sync::Arc;
 
-    use common_base::config::broker_mqtt::BrokerMQTTConfig;
+    use common_base::config::broker_mqtt::BrokerMqttConfig;
     use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;
@@ -160,7 +160,7 @@ mod test {
 
     #[test]
     pub fn session_expiry_interval_test() {
-        let conf = BrokerMQTTConfig {
+        let conf = BrokerMqttConfig {
             cluster_name: "test".to_string(),
             ..Default::default()
         };
