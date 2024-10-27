@@ -186,8 +186,8 @@ impl Command {
                     ..Default::default()
                 };
                 match self.data_handler.read(request).await {
-                    Ok(status) => {
-                        resp.body = Some(ReadRespBody {});
+                    Ok(messages) => {
+                        resp.body = Some(ReadRespBody { messages });
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {

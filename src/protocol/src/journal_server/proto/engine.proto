@@ -10,15 +10,16 @@ message JournalEngineError{
 
 /** Header **/
 enum ApiKey{
-    Read = 0;
-    Write = 1;
+    Unimplemented = 0;
+    Read = 1;
+    Write = 2;
     OffsetCommit = 3;
 
     GetClusterMetadata = 4;
     CreateShard = 5;
     DeleteShard = 6;
     
-    GetActiveSegment = 2;
+    GetActiveSegment = 7;
 }
 
 enum ApiVersion{
@@ -105,21 +106,36 @@ message DeleteShardResp{
     DeleteShardRespBody body = 2;
 }
 
-/**  Read Request **/
-message ReadReqBody{
+
+/** Get Active Segment **/
+message GetActiveSegmentReqBody{
+    repeated GetActiveSegmentReqShard shards = 1;
 }
 
-message ReadRespBody{
+message GetActiveSegmentReqShard{
+    string namespace = 1;
+    string shard_name = 2;
 }
 
-message ReadReq{
+message GetActiveSegmentReq{
     ReqHeader header = 1;
-    ReadReqBody body = 2;
+    GetActiveSegmentReqBody body = 2;
 }
 
-message ReadResp{
+
+message GetActiveSegmentRespBody{
+    repeated GetActiveSegmentRespShard segments = 1;
+}
+
+message GetActiveSegmentRespShard{
+    string namespace = 1;
+    string shard = 2;
+    ClientSegmentMetadata active_segment = 3;
+}
+
+message GetActiveSegmentResp{
     RespHeader header = 1;
-    ReadRespBody body = 2;
+    GetActiveSegmentRespBody body = 2;
 }
 
 /** Write Request **/
@@ -160,35 +176,37 @@ message WriteResp{
     WriteRespBody body = 2;
 }
 
-/** Get Active Segment **/
-message GetActiveSegmentReqBody{
-    repeated GetActiveSegmentReqShard shards = 1;
+/**  Read Request **/
+message ReadReqBody{
+    repeated ReadReqMessage messages = 1;
 }
 
-message GetActiveSegmentReqShard{
+message ReadReqMessage{
     string namespace = 1;
     string shard_name = 2;
+    repeated uint64 segment = 3;
 }
 
-message GetActiveSegmentReq{
-    ReqHeader header = 1;
-    GetActiveSegmentReqBody body = 2;
+message ReadRespBody{
+    repeated ReadRespMessage messages = 1;
 }
 
-
-message GetActiveSegmentRespBody{
-    repeated GetActiveSegmentRespShard segments = 1;
-}
-
-message GetActiveSegmentRespShard{
+message ReadRespMessage{
     string namespace = 1;
-    string shard = 2;
-    ClientSegmentMetadata active_segment = 3;
+    string shard_name = 2;
+    uint64 segment = 3;
+    uint64 offset = 4;
+    bytes  messages = 5;
 }
 
-message GetActiveSegmentResp{
+message ReadReq{
+    ReqHeader header = 1;
+    ReadReqBody body = 2;
+}
+
+message ReadResp{
     RespHeader header = 1;
-    GetActiveSegmentRespBody body = 2;
+    ReadRespBody body = 2;
 }
 
 /** Offset Commit **/

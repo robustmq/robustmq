@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use protocol::journal_server::journal_engine::{
-    JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, WriteReq, WriteRespMessage,
+    JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, ReadRespMessage, WriteReq, WriteRespMessage
 };
 
 use crate::core::cache::CacheManager;
@@ -58,7 +58,7 @@ impl DataHandler {
     pub async fn read(
         &self,
         request: ReadReq,
-    ) -> Result<Vec<WriteRespMessage>, JournalServerError> {
+    ) -> Result<Vec<ReadRespMessage>, JournalServerError> {
         Ok(Vec::new())
     }
 

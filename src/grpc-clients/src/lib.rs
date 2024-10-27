@@ -36,7 +36,7 @@ pub mod poll;
 // const MAX_RETRY_TIMES: usize = 10;
 
 pub fn retry_times() -> usize {
-    3
+    0
 }
 
 pub fn retry_sleep_time(times: usize) -> u64 {
