@@ -91,7 +91,7 @@ impl CacheManager {
         if let Some(shard) = self.shards.get(&key) {
             if let Some(segment) = self.get_segment(namespace, shard_name, shard.active_segment_seq)
             {
-                if segment.status == SegmentStatus::Idle || segment.status == SegmentStatus::Write {
+                if !segment.is_seal_up() {
                     return Some(segment);
                 }
             }

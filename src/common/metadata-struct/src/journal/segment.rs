@@ -22,8 +22,15 @@ pub struct JournalSegment {
     pub segment_seq: u32,
     pub replicas: Vec<Replica>,
     pub leader_epoch: u32,
+    pub leader: u64,
     pub isr: Vec<Replica>,
     pub status: SegmentStatus,
+}
+
+impl JournalSegment {
+    pub fn is_seal_up(&self) -> bool {
+        self.status == SegmentStatus::PrepareSealUp || self.status == SegmentStatus::SealUp
+    }
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]

@@ -146,7 +146,7 @@ message WriteReqBody{
 message WriteReqMessage{
     string namespace = 1;
     string shard_name = 2;
-    uint64 segment = 3;
+    uint32 segment = 3;
     repeated string content = 4;
 }
 
@@ -157,7 +157,7 @@ message WriteRespBody{
 message WriteRespMessage{
     string namespace = 1;
     string shard_name = 2;
-    uint64 segment = 3;
+    uint32 segment = 3;
     repeated WriteRespMessageStatus message_status = 4;
 }
 
@@ -184,7 +184,7 @@ message ReadReqBody{
 message ReadReqMessage{
     string namespace = 1;
     string shard_name = 2;
-    repeated uint64 segment = 3;
+    repeated uint32 segment = 3;
 }
 
 message ReadRespBody{
@@ -194,7 +194,7 @@ message ReadRespBody{
 message ReadRespMessage{
     string namespace = 1;
     string shard_name = 2;
-    uint64 segment = 3;
+    uint32 segment = 3;
     uint64 offset = 4;
     bytes  messages = 5;
 }

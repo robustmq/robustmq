@@ -36,6 +36,8 @@ mod handler;
 mod isr;
 mod segment;
 mod server;
+mod index;
+
 
 pub struct JournalServer {
     config: JournalServerConfig,

@@ -16,12 +16,14 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use protocol::journal_server::journal_engine::{
-    JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, ReadRespMessage, WriteReq, WriteRespMessage
+    JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, ReadRespMessage, WriteReq,
+    WriteRespMessage,
 };
 
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::core::offset::OffsetManager;
+use crate::JournalServer;
 
 #[derive(Clone)]
 pub struct DataHandler {
@@ -49,16 +51,48 @@ impl DataHandler {
         }
 
         let req_body = request.body.unwrap();
+        let conf = journal_server_conf();
+        for message in req_body.messages {
+            if self
+                .cache_manager
+                .get_shard(&message.namespace, &message.shard_name)
+                .is_none()
+            {
+                return Err(JournalServerError::ShardNotExist(message.shard_name));
+            }
 
-        for message in req_body.messages {}
+            let segment = if let Some(segment) = self.cache_manager.get_segment(
+                &message.namespace,
+                &message.shard_name,
+                message.segment,
+            ) {
+                segment
+            } else {
+                return Err(JournalServerError::SegmentNotExist(
+                    message.shard_name,
+                    message.segment,
+                ));
+            };
+
+            if segment.is_seal_up() {
+                return Err(JournalServerError::SegmentHasBeenSealed(
+                    message.shard_name,
+                    message.segment,
+                ));
+            }
+
+            if segment.leader != conf.node_id {
+                return Err(JournalServerError::NotLeader(
+                    message.shard_name,
+                    message.segment,
+                ));
+            }
+        }
 
         Ok(Vec::new())
     }
 
-    pub async fn read(
-        &self,
-        request: ReadReq,
-    ) -> Result<Vec<ReadRespMessage>, JournalServerError> {
+    pub async fn read(&self, request: ReadReq) -> Result<Vec<ReadRespMessage>, JournalServerError> {
         Ok(Vec::new())
     }
 
