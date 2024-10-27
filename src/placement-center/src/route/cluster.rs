@@ -265,7 +265,7 @@ mod tests {
 
         let cluster = cluster_storage
             .get(
-                &ClusterType::MqttBrokerServer.as_str_name().to_string(),
+                ClusterType::MqttBrokerServer.as_str_name(),
                 &cluster_name,
             )
             .unwrap();

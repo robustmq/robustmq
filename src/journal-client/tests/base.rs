@@ -78,11 +78,10 @@ mod tests {
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
-        let mut shards = Vec::new();
-        shards.push(GetActiveSegmentReqShard {
+        let shards = vec![GetActiveSegmentReqShard {
             namespace: "n1".to_string(),
             shard_name: "s1".to_string(),
-        });
+        }];
 
         let req_packet = JournalEnginePacket::GetActiveSegmentReq(GetActiveSegmentReq {
             header: Some(ReqHeader {
