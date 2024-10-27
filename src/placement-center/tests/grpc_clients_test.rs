@@ -97,7 +97,6 @@ mod tests {
             Ok(_) => {}
             Err(e) => {
                 println!("{}", e);
-                assert!(true);
             }
         }
     }
@@ -115,7 +114,6 @@ mod tests {
             Ok(_) => {}
             Err(e) => {
                 println!("{}", e);
-                assert!(true);
             }
         }
     }
@@ -137,7 +135,6 @@ mod tests {
             Ok(_) => {}
             Err(e) => {
                 println!("{}", e);
-                assert!(true);
             }
         }
     }
@@ -156,7 +153,6 @@ mod tests {
             Ok(_) => {}
             Err(e) => {
                 println!("{}", e);
-                assert!(true);
             }
         }
     }
