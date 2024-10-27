@@ -29,6 +29,7 @@ use log::{error, info};
 
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
+use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::core::error::PlacementCenterError;
 use crate::route::cluster::DataRouteCluster;
 use crate::route::journal::DataRouteJournal;
@@ -50,6 +51,7 @@ impl DataRoute {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
+        call_manager: Arc<JournalInnerCallManager>,
         client_poll: Arc<ClientPool>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
@@ -57,12 +59,14 @@ impl DataRoute {
         let route_cluster = DataRouteCluster::new(
             rocksdb_engine_handler.clone(),
             cluster_cache.clone(),
+            call_manager.clone(),
             client_poll.clone(),
         );
         let route_journal = DataRouteJournal::new(
             rocksdb_engine_handler.clone(),
             engine_cache.clone(),
             cluster_cache.clone(),
+            call_manager.clone(),
             client_poll.clone(),
         );
         DataRoute {
@@ -74,13 +78,13 @@ impl DataRoute {
         }
     }
 
-    pub fn route_vec(&self, data: Vec<u8>) -> Result<Option<Vec<u8>>, PlacementCenterError> {
+    pub async fn route_vec(&self, data: Vec<u8>) -> Result<Option<Vec<u8>>, PlacementCenterError> {
         let storage_data: StorageData = deserialize(data.as_ref()).unwrap();
-        self.route(storage_data)
+        self.route(storage_data).await
     }
 
     //Receive write operations performed by the Raft state machine and write subsequent service data after Raft state machine synchronization is complete.
-    pub fn route(
+    pub async fn route(
         &self,
         storage_data: StorageData,
     ) -> Result<Option<Vec<u8>>, PlacementCenterError> {
@@ -95,11 +99,13 @@ impl DataRoute {
                 Ok(None)
             }
             StorageDataType::ClusterRegisterNode => {
-                self.route_cluster.register_node(storage_data.value)?;
+                self.route_cluster.register_node(storage_data.value).await?;
                 Ok(None)
             }
             StorageDataType::ClusterUngisterNode => {
-                self.route_cluster.unregister_node(storage_data.value)?;
+                self.route_cluster
+                    .unregister_node(storage_data.value)
+                    .await?;
                 Ok(None)
             }
 
@@ -123,19 +129,22 @@ impl DataRoute {
             }
 
             // Journal Engine
-            StorageDataType::JournalCreateShard => {
-                Ok(Some(self.route_journal.create_shard(storage_data.value)?))
-            }
+            StorageDataType::JournalCreateShard => Ok(Some(
+                self.route_journal.create_shard(storage_data.value).await?,
+            )),
             StorageDataType::JournalDeleteShard => {
-                self.route_journal.delete_shard(storage_data.value)?;
+                self.route_journal.delete_shard(storage_data.value).await?;
                 Ok(None)
             }
-            StorageDataType::JournalCreateNextSegment => {
-                self.route_journal.create_next_segment(storage_data.value)?;
-                Ok(None)
-            }
+            StorageDataType::JournalCreateNextSegment => Ok(Some(
+                self.route_journal
+                    .create_next_segment(storage_data.value)
+                    .await?,
+            )),
             StorageDataType::JournalDeleteSegment => {
-                self.route_journal.delete_segment(storage_data.value)?;
+                self.route_journal
+                    .delete_segment(storage_data.value)
+                    .await?;
                 Ok(None)
             }
 

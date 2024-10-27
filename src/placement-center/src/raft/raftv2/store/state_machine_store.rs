@@ -193,7 +193,7 @@ impl RaftStateMachine<TypeConfig> for StateMachineStore {
 
             match ent.payload {
                 EntryPayload::Blank => {}
-                EntryPayload::Normal(req) => match self.data.route.route(req) {
+                EntryPayload::Normal(req) => match self.data.route.route(req).await {
                     Ok(data) => {
                         resp_value = data;
                     }

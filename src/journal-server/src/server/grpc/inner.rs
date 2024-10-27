@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use common_base::config::journal_server::journal_server_conf;
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
 use protocol::journal_server::journal_inner::{UpdateJournalCacheReply, UpdateJournalCacheRequest};
 use tonic::{Request, Response, Status};
@@ -37,8 +38,12 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         request: Request<UpdateJournalCacheRequest>,
     ) -> Result<Response<UpdateJournalCacheReply>, Status> {
         let req = request.into_inner();
+        let conf = journal_server_conf();
+        if req.cluster_name != conf.cluster_name {
+            return Ok(Response::new(UpdateJournalCacheReply::default()));
+        }
         self.cache_manager
-            .update_cache(req.action_type(), req.resource_type(), req.data);
+            .update_cache(req.action_type(), req.resource_type(), &req.data);
 
         return Ok(Response::new(UpdateJournalCacheReply::default()));
     }

@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use grpc_clients::poll::ClientPool;
-use log::error;
+use log::{error, info};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
     ApiKey, ApiVersion, CreateShardResp, CreateShardRespBody, DeleteShardResp, DeleteShardRespBody,
@@ -63,6 +63,7 @@ impl Command {
         addr: SocketAddr,
         packet: JournalEnginePacket,
     ) -> Option<JournalEnginePacket> {
+        info!("recv packet: {:?}", packet);
         match packet {
             /* Cluster Handler */
             JournalEnginePacket::GetClusterMetadataReq(request) => {
@@ -92,14 +93,15 @@ impl Command {
                 match self.shard_handler.create_shard(request).await {
                     Ok(replicas) => {
                         resp.body = Some(CreateShardRespBody {
-                            replica_id: replicas,
+                            active_segment: Some(replicas),
                         });
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {
                             code: 1,
                             error: e.to_string(),
-                        })
+                        });
+                        resp.body = Some(CreateShardRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -121,7 +123,8 @@ impl Command {
                         header.error = Some(JournalEngineError {
                             code: 1,
                             error: e.to_string(),
-                        })
+                        });
+                        resp.body = Some(DeleteShardRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -131,7 +134,7 @@ impl Command {
             JournalEnginePacket::GetActiveSegmentReq(request) => {
                 let mut resp = GetActiveSegmentResp::default();
                 let mut header = RespHeader {
-                    api_key: ApiKey::DeleteShard.into(),
+                    api_key: ApiKey::GetActiveSegment.into(),
                     api_version: ApiVersion::V0.into(),
                     ..Default::default()
                 };
@@ -144,8 +147,10 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(GetActiveSegmentRespBody::default());
                     }
                 }
+                resp.header = Some(header);
                 return Some(JournalEnginePacket::GetActiveSegmentResp(resp));
             }
 
@@ -166,8 +171,10 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(WriteRespBody::default());
                     }
                 }
+                resp.header = Some(header);
                 return Some(JournalEnginePacket::WriteResp(resp));
             }
 
@@ -187,8 +194,10 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(ReadRespBody::default());
                     }
                 }
+                resp.header = Some(header);
                 return Some(JournalEnginePacket::ReadResp(resp));
             }
 
@@ -208,8 +217,10 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(OffsetCommitRespBody::default());
                     }
                 }
+                resp.header = Some(header);
                 return Some(JournalEnginePacket::OffsetCommitResp(resp));
             }
 

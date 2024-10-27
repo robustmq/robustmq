@@ -19,6 +19,7 @@ use cache::journal::{load_journal_cache, JournalCacheManager};
 use cache::mqtt::MqttCacheManager;
 use cache::placement::PlacementCacheManager;
 use common_base::config::placement_center::placement_center_conf;
+use controller::journal::call_node::{call_thread_manager, JournalInnerCallManager};
 use controller::journal::controller::StorageEngineController;
 use controller::mqtt::MqttController;
 use controller::placement::controller::ClusterController;
@@ -71,6 +72,7 @@ pub struct PlacementCenter {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
     client_poll: Arc<ClientPool>,
+    call_manager: Arc<JournalInnerCallManager>,
 }
 
 impl Default for PlacementCenter {
@@ -102,6 +104,8 @@ impl PlacementCenter {
             rocksdb_engine_handler.clone(),
         )));
 
+        let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
+
         PlacementCenter {
             cluster_cache,
             engine_cache,
@@ -109,6 +113,7 @@ impl PlacementCenter {
             raft_machine_storage,
             rocksdb_engine_handler,
             client_poll,
+            call_manager,
         }
     }
 
@@ -121,8 +126,13 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
+            self.call_manager.clone(),
             self.client_poll.clone(),
         ));
+
+        self.init_cache();
+
+        self.start_call_thread();
 
         let openraft_node = create_raft_node(self.client_poll.clone(), data_route).await;
 
@@ -277,6 +287,7 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
+            self.call_manager.clone(),
             self.client_poll.clone(),
         ));
 
@@ -312,6 +323,14 @@ impl PlacementCenter {
     fn start_raftv2_machine(&self, openraft_node: Raft<TypeConfig>) {
         tokio::spawn(async move {
             start_openraft_node(openraft_node).await;
+        });
+    }
+
+    fn start_call_thread(&self) {
+        let client_poll = self.client_poll.clone();
+        let call_manager = self.call_manager.clone();
+        tokio::spawn(async move {
+            call_thread_manager(&call_manager, &client_poll).await;
         });
     }
 

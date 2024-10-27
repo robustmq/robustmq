@@ -62,6 +62,11 @@ impl CacheManager {
         return self.cluster.get("local").unwrap().clone();
     }
 
+    pub fn init_cluster(&self) {
+        let cluster = JournalEngineClusterConfig::default();
+        self.cluster.insert("local".to_string(), cluster);
+    }
+
     pub fn add_shard(&self, shard: JournalShard) {
         let key = self.shard_key(&shard.namespace, &shard.shard_name);
         self.shards.insert(key, shard);
@@ -99,6 +104,17 @@ impl CacheManager {
         let key = self.shard_key(&segment.namespace, &segment.shard_name);
         if let Some(segment_list) = self.segments.get(&key) {
             segment_list.insert(segment.segment_seq, segment);
+        } else {
+            let data = DashMap::with_capacity(2);
+            data.insert(segment.segment_seq, segment);
+            self.segments.insert(key, data);
+        }
+    }
+
+    pub fn delete_segment(&self, segment: JournalSegment) {
+        let key = self.shard_key(&segment.namespace, &segment.shard_name);
+        if let Some(segment_list) = self.segments.get(&key) {
+            segment_list.remove(&segment.segment_seq);
         }
     }
 
@@ -114,7 +130,6 @@ impl CacheManager {
                 return Some(segment.clone());
             }
         }
-
         None
     }
 
@@ -131,7 +146,7 @@ impl CacheManager {
         &self,
         action_type: JournalUpdateCacheActionType,
         resource_type: JournalUpdateCacheResourceType,
-        data: Vec<u8>,
+        data: &str,
     ) {
         match resource_type {
             JournalUpdateCacheResourceType::JournalNode => self.parse_node(action_type, data),
@@ -140,53 +155,64 @@ impl CacheManager {
         }
     }
 
-    fn parse_node(&self, action_type: JournalUpdateCacheActionType, data: Vec<u8>) {
+    fn parse_node(&self, action_type: JournalUpdateCacheActionType, data: &str) {
         match action_type {
-            JournalUpdateCacheActionType::Add => {
-                match serde_json::from_slice::<BrokerNode>(&data) {
-                    Ok(node) => {
-                        info!("Update the cache, add node, node id: {}", node.node_id);
-                        self.node_list.insert(node.node_id, node);
-                    }
-                    Err(e) => {
-                        error!(
-                            "BrokerNode information failed to parse with error message :{}",
-                            e
-                        );
-                    }
-                }
-            }
-
-            JournalUpdateCacheActionType::Delete => match serde_json::from_slice::<u64>(&data) {
-                Ok(node_id) => {
-                    self.node_list.remove(&node_id);
+            JournalUpdateCacheActionType::Add => match serde_json::from_str::<BrokerNode>(data) {
+                Ok(node) => {
+                    info!("Update the cache, add node, node id: {}", node.node_id);
+                    self.node_list.insert(node.node_id, node);
                 }
                 Err(e) => {
                     error!(
-                        "BrokerNode information failed to parse with error message :{}",
-                        e
+                        "Add node information failed to parse with error message :{},body:{}",
+                        e, data,
                     );
                 }
             },
-        }
-    }
 
-    fn parse_shard(&self, action_type: JournalUpdateCacheActionType, data: Vec<u8>) {
-        match action_type {
-            JournalUpdateCacheActionType::Add => {
-                match serde_json::from_slice::<JournalShard>(&data) {
-                    Ok(shard) => {
-                        self.add_shard(shard);
+            JournalUpdateCacheActionType::Delete => {
+                match serde_json::from_str::<BrokerNode>(data) {
+                    Ok(node) => {
+                        info!("Update the cache, remove node, node id: {}", node.node_id);
+                        self.node_list.remove(&node.node_id);
                     }
                     Err(e) => {
-                        error!("{}", e);
+                        error!(
+                        "Remove node information failed to parse with error message :{},body:{}",
+                        e, data,
+                    );
                     }
                 }
             }
+        }
+    }
+
+    fn parse_shard(&self, action_type: JournalUpdateCacheActionType, data: &str) {
+        match action_type {
+            JournalUpdateCacheActionType::Add => match serde_json::from_str::<JournalShard>(data) {
+                Ok(shard) => {
+                    info!(
+                        "Update the cache, add shard, shard name: {}",
+                        shard.shard_name
+                    );
+                    self.add_shard(shard);
+                }
+                Err(e) => {
+                    error!(
+                        "Add shard information failed to parse with error message :{},body:{}",
+                        e, data,
+                    );
+                }
+            },
 
             JournalUpdateCacheActionType::Delete => {
-                match serde_json::from_slice::<JournalShard>(&data) {
+                match serde_json::from_str::<JournalShard>(data) {
                     Ok(shard) => {
+                        info!(
+                            "Update the cache, remove shard, shard name: {}",
+                            shard.shard_name
+                        );
+
                         // Remove the shard and Segment information from the cache
                         self.delete_shard(&shard.namespace, &shard.shard_name);
 
@@ -199,29 +225,50 @@ impl CacheManager {
                         });
                     }
                     Err(e) => {
-                        error!("{}", e);
+                        error!(
+                            "Remove shard information failed to parse with error message :{},body:{}",
+                            e, data,
+                        );
                     }
                 }
             }
         }
     }
 
-    fn parse_segment(&self, action_type: JournalUpdateCacheActionType, data: Vec<u8>) {
+    fn parse_segment(&self, action_type: JournalUpdateCacheActionType, data: &str) {
         match action_type {
             JournalUpdateCacheActionType::Add => {
-                match serde_json::from_slice::<JournalSegment>(&data) {
-                    Ok(shard) => {}
+                match serde_json::from_str::<JournalSegment>(data) {
+                    Ok(segment) => {
+                        info!(
+                            "Update the cache, add segment, shard name: {}, segment no:{}",
+                            segment.shard_name, segment.segment_seq
+                        );
+                        self.add_segment(segment);
+                    }
                     Err(e) => {
-                        error!("{}", e);
+                        error!(
+                            "Add segment information failed to parse with error message :{},body:{}",
+                            e, data,
+                        );
                     }
                 }
             }
 
             JournalUpdateCacheActionType::Delete => {
-                match serde_json::from_slice::<JournalSegment>(&data) {
-                    Ok(shard) => {}
+                match serde_json::from_str::<JournalSegment>(data) {
+                    Ok(segment) => {
+                        info!(
+                            "Update the cache, remove segment, shard name: {}, segment no:{}",
+                            segment.shard_name, segment.segment_seq
+                        );
+                        self.delete_segment(segment);
+                    }
                     Err(e) => {
-                        error!("{}", e);
+                        error!(
+                            "Remove segment information failed to parse with error message :{},body:{}",
+                            e, data,
+                        );
                     }
                 }
             }
