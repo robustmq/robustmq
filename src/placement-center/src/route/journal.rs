@@ -40,7 +40,7 @@ pub struct DataRouteJournal {
     engine_cache: Arc<JournalCacheManager>,
     cluster_cache: Arc<PlacementCacheManager>,
     call_manager: Arc<JournalInnerCallManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl DataRouteJournal {
@@ -49,14 +49,14 @@ impl DataRouteJournal {
         engine_cache: Arc<JournalCacheManager>,
         cluster_cache: Arc<PlacementCacheManager>,
         call_manager: Arc<JournalInnerCallManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         DataRouteJournal {
             rocksdb_engine_handler,
             engine_cache,
             cluster_cache,
             call_manager,
-            client_poll,
+            client_pool,
         }
     }
     pub async fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
@@ -91,14 +91,14 @@ impl DataRouteJournal {
         update_cache_by_add_shard(
             &req.cluster_name,
             &self.call_manager,
-            &self.client_poll,
+            &self.client_pool,
             shard_info,
         )
         .await?;
         update_cache_by_add_segment(
             &req.cluster_name,
             &self.call_manager,
-            &self.client_poll,
+            &self.client_pool,
             segment.clone(),
         )
         .await?;
@@ -136,7 +136,7 @@ impl DataRouteJournal {
             .remove_shard(&cluster_name, &namespace, &shard_name);
 
         // Update storage engine node cache
-        update_cache_by_delete_shard(&cluster_name, &self.call_manager, &self.client_poll, shard)
+        update_cache_by_delete_shard(&cluster_name, &self.call_manager, &self.client_pool, shard)
             .await?;
 
         Ok(())
@@ -175,7 +175,7 @@ impl DataRouteJournal {
         update_cache_by_add_segment(
             &cluster_name,
             &self.call_manager,
-            &self.client_poll,
+            &self.client_pool,
             segment.clone(),
         )
         .await?;
@@ -234,7 +234,7 @@ impl DataRouteJournal {
         update_cache_by_delete_segment(
             &cluster_name,
             &self.call_manager,
-            &self.client_poll,
+            &self.client_pool,
             segment.clone(),
         )
         .await?;
@@ -273,7 +273,7 @@ mod tests {
 
     #[tokio::test]
     async fn shard_test() {
-        let (client_poll, config, engine_cache, cluster_cache, rocksdb_engine_handler) =
+        let (client_pool, config, engine_cache, cluster_cache, rocksdb_engine_handler) =
             build_ins();
         let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
 
@@ -282,7 +282,7 @@ mod tests {
             engine_cache.clone(),
             cluster_cache,
             call_manager,
-            client_poll,
+            client_pool,
         );
 
         let cluster_name = config.cluster_name.clone();
@@ -420,7 +420,7 @@ mod tests {
         Arc<PlacementCacheManager>,
         Arc<RocksDBEngine>,
     ) {
-        let client_poll = Arc::new(ClientPool::new(3));
+        let client_pool = Arc::new(ClientPool::new(3));
         let config = placement_center_test_conf();
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
@@ -446,7 +446,7 @@ mod tests {
 
         add_node(config.clone(), &cluster_cache);
         (
-            client_poll,
+            client_pool,
             config,
             engine_cache,
             cluster_cache,

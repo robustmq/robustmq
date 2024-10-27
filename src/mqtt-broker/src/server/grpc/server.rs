@@ -31,7 +31,7 @@ pub struct GrpcServer<S> {
     port: u32,
     metadata_cache: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
 
@@ -43,14 +43,14 @@ where
         port: u32,
         metadata_cache: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
         Self {
             port,
             metadata_cache,
             subscribe_manager,
-            client_poll,
+            client_pool,
             message_storage_adapter,
         }
     }
@@ -60,10 +60,10 @@ where
         let placement_handler = GrpcPlacementServices::new(
             self.metadata_cache.clone(),
             self.subscribe_manager.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
-        let admin_handler = GrpcAdminServices::new(self.client_poll.clone());
+        let admin_handler = GrpcAdminServices::new(self.client_pool.clone());
         Server::builder()
             .add_service(MqttBrokerPlacementServiceServer::new(placement_handler))
             .add_service(MqttBrokerAdminServiceServer::new(admin_handler))

@@ -51,7 +51,7 @@ pub struct SubscribeShareFollower {
     pub subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl SubscribeShareFollower {
@@ -59,13 +59,13 @@ impl SubscribeShareFollower {
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         SubscribeShareFollower {
             subscribe_manager,
             connection_manager,
             cache_manager,
-            client_poll,
+            client_pool,
         }
     }
 
@@ -84,7 +84,7 @@ impl SubscribeShareFollower {
             let metadata_cache = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
 
-            match get_share_sub_leader(self.client_poll.clone(), share_sub.group_name.clone()).await
+            match get_share_sub_leader(self.client_pool.clone(), share_sub.group_name.clone()).await
             {
                 Ok(reply) => {
                     let conf = broker_mqtt_conf();

@@ -97,7 +97,7 @@ pub struct ClientPkidData {
 
 #[derive(Clone)]
 pub struct CacheManager {
-    pub client_poll: Arc<ClientPool>,
+    pub client_pool: Arc<ClientPool>,
 
     // cluster_name
     pub cluster_name: String,
@@ -143,9 +143,9 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    pub fn new(client_poll: Arc<ClientPool>, cluster_name: String) -> Self {
+    pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
         CacheManager {
-            client_poll,
+            client_pool,
             cluster_name,
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(8),
@@ -453,7 +453,7 @@ impl CacheManager {
     pub async fn load_metadata_cache(&self, auth_driver: Arc<AuthDriver>) {
         let conf = broker_mqtt_conf();
         // load cluster config
-        let cluster_storage = ClusterStorage::new(self.client_poll.clone());
+        let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let cluster = match cluster_storage
             .get_cluster_config(conf.cluster_name.clone())
             .await
@@ -470,7 +470,7 @@ impl CacheManager {
         self.set_cluster_info(cluster);
 
         // load all topic
-        let topic_storage = TopicStorage::new(self.client_poll.clone());
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
         let topic_list = match topic_storage.topic_list().await {
             Ok(list) => list,
             Err(e) => {
@@ -525,7 +525,7 @@ impl CacheManager {
             password: conf.system.default_password.clone(),
             is_superuser: true,
         };
-        let user_storage = UserStorage::new(self.client_poll.clone());
+        let user_storage = UserStorage::new(self.client_pool.clone());
         match user_storage.save_user(system_user_info.clone()).await {
             Ok(_) => {
                 self.add_user(system_user_info);

@@ -38,7 +38,7 @@ pub async fn start_tcp_server<S>(
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     auth_driver: Arc<AuthDriver>,
 ) where
@@ -49,7 +49,7 @@ pub async fn start_tcp_server<S>(
         cache_manager.clone(),
         message_storage_adapter.clone(),
         sucscribe_manager.clone(),
-        client_poll.clone(),
+        client_pool.clone(),
         connection_manager.clone(),
         auth_driver.clone(),
     );
@@ -67,7 +67,7 @@ pub async fn start_tcp_server<S>(
         connection_manager.clone(),
         sucscribe_manager.clone(),
         cache_manager.clone(),
-        client_poll.clone(),
+        client_pool.clone(),
     );
     server.start(conf.network.tcp_port).await;
 
@@ -78,7 +78,7 @@ pub async fn start_tcp_server<S>(
         connection_manager,
         sucscribe_manager.clone(),
         cache_manager,
-        client_poll,
+        client_pool,
     );
     server.start_tls(conf.network.tcps_port).await;
 }
@@ -90,7 +90,7 @@ struct TcpServer<S> {
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
@@ -116,13 +116,13 @@ where
         connection_manager: Arc<ConnectionManager>,
         subscribe_manager: Arc<SubscribeManager>,
         cache_manager: Arc<CacheManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         Self {
             command,
             subscribe_manager,
             cache_manager,
-            client_poll,
+            client_pool,
             connection_manager,
             accept_thread_num: proc_config.accept_thread_num,
             handler_process_num: proc_config.handler_process_num,
@@ -171,7 +171,7 @@ where
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             response_queue_rx,
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.stop_sx.clone(),
         )
         .await;
@@ -218,7 +218,7 @@ where
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             response_queue_rx,
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.stop_sx.clone(),
         )
         .await;

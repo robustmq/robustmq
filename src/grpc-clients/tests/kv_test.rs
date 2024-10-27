@@ -30,7 +30,7 @@ mod tests {
 
     #[tokio::test]
     async fn kv_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
         let key = "test-sub-name".to_string();
         let value = "test-group-name".to_string();
@@ -38,7 +38,7 @@ mod tests {
             key: key.clone(),
             value: value.clone(),
         };
-        match placement_set(client_poll.clone(), addrs.clone(), request).await {
+        match placement_set(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -49,7 +49,7 @@ mod tests {
             key: "".to_string(),
             value: value.clone(),
         };
-        let err = placement_set(client_poll.clone(), addrs.clone(), request_key_empty)
+        let err = placement_set(client_pool.clone(), addrs.clone(), request_key_empty)
             .await
             .unwrap_err();
         assert!(err.to_string().contains("key or value"));
@@ -58,13 +58,13 @@ mod tests {
             key: key.clone(),
             value: "".to_string(),
         };
-        let err = placement_set(client_poll.clone(), addrs.clone(), request_value_empty)
+        let err = placement_set(client_pool.clone(), addrs.clone(), request_value_empty)
             .await
             .unwrap_err();
         assert!(err.to_string().contains("key or value"));
 
         let exist_req = ExistsRequest { key: key.clone() };
-        match placement_exists(client_poll.clone(), addrs.clone(), exist_req).await {
+        match placement_exists(client_pool.clone(), addrs.clone(), exist_req).await {
             Ok(da) => {
                 assert!(da.flag)
             }
@@ -74,7 +74,7 @@ mod tests {
         }
 
         let get_req = GetRequest { key: key.clone() };
-        match placement_get(client_poll.clone(), addrs.clone(), get_req).await {
+        match placement_get(client_pool.clone(), addrs.clone(), get_req).await {
             Ok(da) => {
                 assert_eq!(da.value, value);
             }
@@ -84,7 +84,7 @@ mod tests {
         }
 
         let exist_req = DeleteRequest { key: key.clone() };
-        match placement_delete(client_poll.clone(), addrs.clone(), exist_req).await {
+        match placement_delete(client_pool.clone(), addrs.clone(), exist_req).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -92,7 +92,7 @@ mod tests {
         }
 
         let exist_req = ExistsRequest { key: key.clone() };
-        match placement_exists(client_poll.clone(), addrs.clone(), exist_req).await {
+        match placement_exists(client_pool.clone(), addrs.clone(), exist_req).await {
             Ok(da) => {
                 assert!(!da.flag)
             }

@@ -47,7 +47,7 @@ pub struct SubscribeShareLeader<S> {
     message_storage: Arc<S>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl<S> SubscribeShareLeader<S>
@@ -59,14 +59,14 @@ where
         message_storage: Arc<S>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         SubscribeShareLeader {
             subscribe_manager,
             message_storage,
             connection_manager,
             cache_manager,
-            client_poll,
+            client_pool,
         }
     }
 
@@ -151,7 +151,7 @@ where
             try_send_retain_message(
                 subscriber.client_id.clone(),
                 subscriber.clone(),
-                self.client_poll.clone(),
+                self.client_pool.clone(),
                 self.cache_manager.clone(),
                 self.connection_manager.clone(),
                 sub_thread_stop_sx.clone(),

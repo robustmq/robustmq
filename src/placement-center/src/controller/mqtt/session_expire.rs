@@ -41,7 +41,7 @@ pub struct SessionExpire {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     mqtt_cache_manager: Arc<MqttCacheManager>,
     placement_cache_manager: Arc<PlacementCacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     cluster_name: String,
 }
 
@@ -50,14 +50,14 @@ impl SessionExpire {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         mqtt_cache_manager: Arc<MqttCacheManager>,
         placement_cache_manager: Arc<PlacementCacheManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         cluster_name: String,
     ) -> Self {
         SessionExpire {
             rocksdb_engine_handler,
             mqtt_cache_manager,
             placement_cache_manager,
-            client_poll,
+            client_pool,
             cluster_name,
         }
     }
@@ -152,7 +152,7 @@ impl SessionExpire {
             self.cluster_name.clone(),
             self.placement_cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.mqtt_cache_manager.clone(),
         );
         tokio::spawn(async move {
@@ -182,7 +182,7 @@ impl SessionExpire {
             self.cluster_name.clone(),
             self.placement_cache_manager.clone(),
             self.rocksdb_engine_handler.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.mqtt_cache_manager.clone(),
         );
         for lastwill in last_will_list {
@@ -258,13 +258,13 @@ mod tests {
             rocksdb_engine_handler.clone(),
             placement_cache.clone(),
         ));
-        let client_poll = Arc::new(ClientPool::new(10));
+        let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire = SessionExpire::new(
             rocksdb_engine_handler,
             mqtt_cache_manager,
             placement_cache,
-            client_poll,
+            client_pool,
             cluster_name,
         );
 
@@ -302,13 +302,13 @@ mod tests {
             rocksdb_engine_handler.clone(),
             placement_cache.clone(),
         ));
-        let client_poll = Arc::new(ClientPool::new(10));
+        let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire = SessionExpire::new(
             rocksdb_engine_handler.clone(),
             mqtt_cache_manager,
             placement_cache,
-            client_poll,
+            client_pool,
             cluster_name.clone(),
         );
 
@@ -366,13 +366,13 @@ mod tests {
             rocksdb_engine_handler.clone(),
             placement_cache.clone(),
         ));
-        let client_poll = Arc::new(ClientPool::new(10));
+        let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire = SessionExpire::new(
             rocksdb_engine_handler.clone(),
             mqtt_cache_manager,
             placement_cache,
-            client_poll,
+            client_pool,
             cluster_name.clone(),
         );
 
@@ -409,13 +409,13 @@ mod tests {
             rocksdb_engine_handler.clone(),
             placement_cache.clone(),
         ));
-        let client_poll = Arc::new(ClientPool::new(10));
+        let client_pool = Arc::new(ClientPool::new(10));
 
         let session_expire = SessionExpire::new(
             rocksdb_engine_handler.clone(),
             mqtt_cache_manager.clone(),
             placement_cache,
-            client_poll,
+            client_pool,
             cluster_name.clone(),
         );
 

@@ -25,7 +25,7 @@ use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::poll::ClientPool;
 
 pub async fn broker_mqtt_delete_session(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, CommonError> {
@@ -48,7 +48,7 @@ pub async fn broker_mqtt_delete_session(
 }
 
 pub async fn broker_mqtt_update_cache(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UpdateCacheRequest,
 ) -> Result<UpdateCacheReply, CommonError> {
@@ -71,7 +71,7 @@ pub async fn broker_mqtt_update_cache(
 }
 
 pub async fn send_last_will_message(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, CommonError> {

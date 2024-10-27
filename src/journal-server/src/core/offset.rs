@@ -36,15 +36,15 @@ pub struct Offset {
 }
 
 pub struct OffsetManager {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     offsets: DashMap<String, Offset>,
 }
 
 impl OffsetManager {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
         let offsets = DashMap::new();
         OffsetManager {
-            client_poll,
+            client_pool,
             offsets,
         }
     }
@@ -79,7 +79,7 @@ impl OffsetManager {
         };
 
         match placement_set(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             conf.placement_center.clone(),
             request,
         )

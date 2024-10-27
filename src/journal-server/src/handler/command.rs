@@ -42,12 +42,12 @@ pub struct Command {
 
 impl Command {
     pub fn new(
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
     ) -> Self {
         let cluster_handler = ClusterHandler::new(cache_manager.clone());
-        let shard_handler = ShardHandler::new(cache_manager.clone(), client_poll);
+        let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool);
         let data_handler = DataHandler::new(cache_manager, offset_manager);
         Command {
             cluster_handler,

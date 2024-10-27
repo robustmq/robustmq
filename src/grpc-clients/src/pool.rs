@@ -79,8 +79,8 @@ impl ClientPool {
                 .build(manager);
             self.placement_center_inner_pools.insert(key.clone(), pool);
         }
-        if let Some(poll) = self.placement_center_inner_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.placement_center_inner_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => return Ok(conn),
                 Err(e) => {
                     return Err(CommonError::NoAvailableGrpcConnection(
@@ -113,8 +113,8 @@ impl ClientPool {
             self.placement_center_journal_service_pools
                 .insert(key.clone(), pool);
         }
-        if let Some(poll) = self.placement_center_journal_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.placement_center_journal_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -148,8 +148,8 @@ impl ClientPool {
                 .insert(key.clone(), pool);
         }
 
-        if let Some(poll) = self.placement_center_kv_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.placement_center_kv_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -183,8 +183,8 @@ impl ClientPool {
             self.placement_center_mqtt_service_pools
                 .insert(key.clone(), pool);
         }
-        if let Some(poll) = self.placement_center_mqtt_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.placement_center_mqtt_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -218,8 +218,8 @@ impl ClientPool {
                 .insert(key.clone(), pool);
         }
 
-        if let Some(poll) = self.mqtt_broker_placement_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.mqtt_broker_placement_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -253,8 +253,8 @@ impl ClientPool {
                 .insert(key.clone(), pool);
         }
 
-        if let Some(poll) = self.mqtt_broker_admin_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.mqtt_broker_admin_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -290,8 +290,8 @@ impl ClientPool {
                 .insert(key.clone(), pool);
         }
 
-        if let Some(poll) = self.placement_center_openraft_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.placement_center_openraft_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -324,8 +324,8 @@ impl ClientPool {
             self.journal_inner_service_pools.insert(key.clone(), pool);
         }
 
-        if let Some(poll) = self.journal_inner_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.journal_inner_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }
@@ -358,8 +358,8 @@ impl ClientPool {
             self.journal_admin_service_pools.insert(key.clone(), pool);
         }
 
-        if let Some(poll) = self.journal_admin_service_pools.get(&key) {
-            match poll.get().await {
+        if let Some(pool) = self.journal_admin_service_pools.get(&key) {
+            match pool.get().await {
                 Ok(conn) => {
                     return Ok(conn);
                 }

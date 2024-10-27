@@ -23,7 +23,7 @@ use tokio::time::sleep;
 
 use crate::storage::cluster::ClusterStorage;
 
-pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
+pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
     loop {
         let mut stop_recv = stop_send.subscribe();
         select! {
@@ -35,15 +35,15 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast
                     }
                 }
             }
-            _ = report(client_poll.clone()) => {
+            _ = report(client_pool.clone()) => {
 
             }
         }
     }
 }
 
-async fn report(client_poll: Arc<ClientPool>) {
-    let cluster_storage = ClusterStorage::new(client_poll);
+async fn report(client_pool: Arc<ClientPool>) {
+    let cluster_storage = ClusterStorage::new(client_pool);
     match cluster_storage.heartbeat().await {
         Ok(()) => {}
         Err(e) => {

@@ -30,12 +30,12 @@ use protocol::placement_center::placement_center_mqtt::{
 };
 
 pub struct TopicStorage {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl TopicStorage {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        TopicStorage { client_poll }
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        TopicStorage { client_pool }
     }
 
     pub async fn save_topic(&self, topic: MqttTopic) -> Result<(), CommonError> {
@@ -46,7 +46,7 @@ impl TopicStorage {
             content: topic.encode(),
         };
         match placement_create_topic(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -64,7 +64,7 @@ impl TopicStorage {
             topic_name,
         };
         match placement_delete_topic(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -82,7 +82,7 @@ impl TopicStorage {
             topic_name: "".to_string(),
         };
         match placement_list_topic(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -113,7 +113,7 @@ impl TopicStorage {
             topic_name,
         };
         match placement_list_topic(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -147,7 +147,7 @@ impl TopicStorage {
             retain_message_expired_at,
         };
         match placement_set_topic_retain_message(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -167,7 +167,7 @@ impl TopicStorage {
             retain_message_expired_at: 0,
         };
         match placement_set_topic_retain_message(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -237,8 +237,8 @@ mod tests {
         init_broker_mqtt_conf_by_path(&path);
         init_log(&log_config, &log_path);
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let topic_storage = TopicStorage::new(client_poll);
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let topic_storage = TopicStorage::new(client_pool);
         let topic_name: String = "test_password".to_string();
         let topic = MqttTopic::new(unique_id(), topic_name.clone());
         topic_storage.save_topic(topic).await.unwrap();
@@ -275,8 +275,8 @@ mod tests {
 
         init_broker_mqtt_conf_by_path(&path);
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let topic_storage = TopicStorage::new(client_poll);
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let topic_storage = TopicStorage::new(client_pool);
 
         let topic_name: String = unique_id();
         let client_id = unique_id();

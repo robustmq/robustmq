@@ -65,9 +65,9 @@ mod test {
             cluster_name: "test".to_string(),
             ..Default::default()
         };
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
-            client_poll.clone(),
+            client_pool.clone(),
             conf.cluster_name.clone(),
         ));
         let username = "lobo".to_string();

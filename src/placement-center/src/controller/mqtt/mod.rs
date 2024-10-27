@@ -35,7 +35,7 @@ pub struct MqttController {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     placement_center_cache: Arc<PlacementCacheManager>,
     mqtt_cache_manager: Arc<MqttCacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     thread_running_info: DashMap<String, bool>,
     stop_send: broadcast::Sender<bool>,
 }
@@ -45,14 +45,14 @@ impl MqttController {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         placement_center_cache: Arc<PlacementCacheManager>,
         mqtt_cache_manager: Arc<MqttCacheManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         stop_send: broadcast::Sender<bool>,
     ) -> MqttController {
         MqttController {
             rocksdb_engine_handler,
             placement_center_cache,
             mqtt_cache_manager,
-            client_poll,
+            client_pool,
             thread_running_info: DashMap::with_capacity(2),
             stop_send,
         }
@@ -87,7 +87,7 @@ impl MqttController {
                 self.rocksdb_engine_handler.clone(),
                 self.mqtt_cache_manager.clone(),
                 self.placement_center_cache.clone(),
-                self.client_poll.clone(),
+                self.client_pool.clone(),
                 cluster_name.clone(),
             );
             let mut stop_recv = self.stop_send.subscribe();
@@ -113,7 +113,7 @@ impl MqttController {
                 self.rocksdb_engine_handler.clone(),
                 self.mqtt_cache_manager.clone(),
                 self.placement_center_cache.clone(),
-                self.client_poll.clone(),
+                self.client_pool.clone(),
                 cluster_name.clone(),
             );
             let mut stop_recv = self.stop_send.subscribe();

@@ -26,7 +26,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt_last_will_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = unique_id();
         let client_id: String = unique_id();
@@ -42,7 +42,7 @@ mod tests {
             client_id: client_id.clone(),
             last_will_message: last_will_message.encode(),
         };
-        match placement_save_last_will_message(client_poll.clone(), addrs.clone(), request).await {
+        match placement_save_last_will_message(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);

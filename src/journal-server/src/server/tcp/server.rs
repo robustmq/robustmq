@@ -32,14 +32,14 @@ use crate::server::tcp::tcp_server::acceptor_process;
 use crate::server::tcp::tls_server::acceptor_tls_process;
 
 pub async fn start_tcp_server(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
-    let command = Command::new(client_poll.clone(), cache_manager.clone(), offset_manager);
+    let command = Command::new(client_pool.clone(), cache_manager.clone(), offset_manager);
 
     let proc_config = ProcessorConfig {
         accept_thread_num: conf.tcp_thread.accept_thread_num,
@@ -53,7 +53,7 @@ pub async fn start_tcp_server(
         stop_sx.clone(),
         connection_manager.clone(),
         cache_manager.clone(),
-        client_poll.clone(),
+        client_pool.clone(),
     );
     server.start(conf.network.tcp_port).await;
 
@@ -63,7 +63,7 @@ pub async fn start_tcp_server(
         stop_sx.clone(),
         connection_manager,
         cache_manager,
-        client_poll,
+        client_pool,
     );
     server.start_tls(conf.network.tcps_port).await;
 }
@@ -72,7 +72,7 @@ struct TcpServer {
     command: Command,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     accept_thread_num: usize,
     handler_process_num: usize,
     response_process_num: usize,
@@ -94,12 +94,12 @@ impl TcpServer {
         stop_sx: broadcast::Sender<bool>,
         connection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         Self {
             command,
             cache_manager,
-            client_poll,
+            client_pool,
             connection_manager,
             accept_thread_num: proc_config.accept_thread_num,
             handler_process_num: proc_config.handler_process_num,
@@ -147,7 +147,7 @@ impl TcpServer {
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             response_queue_rx,
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.stop_sx.clone(),
         )
         .await;
@@ -193,7 +193,7 @@ impl TcpServer {
             self.connection_manager.clone(),
             self.cache_manager.clone(),
             response_queue_rx,
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.stop_sx.clone(),
         )
         .await;

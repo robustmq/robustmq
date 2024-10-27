@@ -30,7 +30,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt_acl_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = format!("test_cluster_{}", unique_id());
 
@@ -47,7 +47,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
-        create_acl(client_poll.clone(), addrs.clone(), request)
+        create_acl(client_pool.clone(), addrs.clone(), request)
             .await
             .unwrap();
 
@@ -55,7 +55,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_acl(client_poll.clone(), addrs.clone(), request).await {
+        match list_acl(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.acls {
@@ -81,7 +81,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             acl: acl.encode().unwrap(),
         };
-        match delete_acl(client_poll.clone(), addrs.clone(), request).await {
+        match delete_acl(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -92,7 +92,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
         };
 
-        match list_blacklist(client_poll.clone(), addrs.clone(), request).await {
+        match list_blacklist(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.blacklists {

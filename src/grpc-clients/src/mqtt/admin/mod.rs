@@ -27,10 +27,10 @@ pub mod call;
 pub mod inner;
 
 async fn admin_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<MqttBrokerAdminServiceManager>, CommonError> {
-    match client_poll.mqtt_broker_admin_services_client(addr).await {
+    match client_pool.mqtt_broker_admin_services_client(addr).await {
         Ok(client) => Ok(client),
         Err(e) => Err(e),
     }
@@ -42,7 +42,7 @@ pub(crate) async fn admin_interface_call(
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match admin_client(client_poll.clone(), addr.clone()).await {
+    match admin_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
                 MqttBrokerPlacementInterface::ClusterStatus => {

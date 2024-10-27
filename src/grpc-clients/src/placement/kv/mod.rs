@@ -30,10 +30,10 @@ use crate::pool::ClientPool;
 pub mod call;
 
 async fn kv_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<KvServiceManager>, CommonError> {
-    match client_poll.placement_center_kv_services_client(addr).await {
+    match client_pool.placement_center_kv_services_client(addr).await {
         Ok(client) => Ok(client),
         Err(e) => Err(e),
     }
@@ -41,11 +41,11 @@ async fn kv_client(
 
 pub(crate) async fn kv_interface_call(
     interface: PlacementCenterInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match kv_client(client_poll.clone(), addr.clone()).await {
+    match kv_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
                 PlacementCenterInterface::Set => {

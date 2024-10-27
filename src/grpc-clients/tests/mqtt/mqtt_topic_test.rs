@@ -33,7 +33,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt_topic_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let client_id: String = "test_cient_id".to_string();
         let topic_id: String = "test_topic_ic".to_string();
@@ -54,7 +54,7 @@ mod tests {
             topic_name: mqtt_topic.topic_name.clone(),
             content: mqtt_topic.encode(),
         };
-        match placement_create_topic(client_poll.clone(), addrs.clone(), request).await {
+        match placement_create_topic(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -65,7 +65,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
         };
-        match placement_list_topic(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_topic(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 assert!(!data.topics.is_empty());
                 let mut flag: bool = false;
@@ -104,7 +104,7 @@ mod tests {
             retain_message: mqtt_topic.retain_message.clone().unwrap(),
             retain_message_expired_at: mqtt_topic.retain_message_expired_at.unwrap(),
         };
-        match placement_set_topic_retain_message(client_poll.clone(), addrs.clone(), request).await
+        match placement_set_topic_retain_message(client_pool.clone(), addrs.clone(), request).await
         {
             Ok(_) => {}
             Err(e) => {
@@ -116,7 +116,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
         };
-        match placement_list_topic(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_topic(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 assert!(!data.topics.is_empty());
                 let mut flag: bool = false;
@@ -137,7 +137,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
         };
-        match placement_delete_topic(client_poll.clone(), addrs.clone(), request).await {
+        match placement_delete_topic(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -148,7 +148,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             topic_name: mqtt_topic.topic_name.clone(),
         };
-        match placement_list_topic(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_topic(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 assert!(data.topics.is_empty());
                 let mut flag: bool = false;

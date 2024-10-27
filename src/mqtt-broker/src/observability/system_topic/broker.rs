@@ -31,31 +31,31 @@ use crate::storage::cluster::ClusterStorage;
 use crate::BROKER_START_TIME;
 
 pub(crate) async fn report_broker_info<S>(
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
-    report_cluster_status(client_poll, metadata_cache, message_storage_adapter).await;
-    report_broker_version(client_poll, metadata_cache, message_storage_adapter).await;
-    report_broker_time(client_poll, metadata_cache, message_storage_adapter).await;
-    report_broker_sysdescr(client_poll, metadata_cache, message_storage_adapter).await;
+    report_cluster_status(client_pool, metadata_cache, message_storage_adapter).await;
+    report_broker_version(client_pool, metadata_cache, message_storage_adapter).await;
+    report_broker_time(client_pool, metadata_cache, message_storage_adapter).await;
+    report_broker_sysdescr(client_pool, metadata_cache, message_storage_adapter).await;
 }
 
 async fn report_cluster_status<S>(
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
     S: StorageAdapter + Clone + Send + Sync + 'static,
 {
     let topic_name = replace_topic_name(SYSTEM_TOPIC_BROKERS.to_string());
-    if let Some(record) = build_node_cluster(&topic_name, client_poll).await {
+    if let Some(record) = build_node_cluster(&topic_name, client_pool).await {
         write_topic_data(
             message_storage_adapter,
             metadata_cache,
-            client_poll,
+            client_pool,
             topic_name,
             record,
         )
@@ -64,7 +64,7 @@ async fn report_cluster_status<S>(
 }
 
 async fn report_broker_version<S>(
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
@@ -80,7 +80,7 @@ async fn report_broker_version<S>(
         write_topic_data(
             message_storage_adapter,
             metadata_cache,
-            client_poll,
+            client_pool,
             topic_name,
             record,
         )
@@ -89,7 +89,7 @@ async fn report_broker_version<S>(
 }
 
 async fn report_broker_time<S>(
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
@@ -103,7 +103,7 @@ async fn report_broker_time<S>(
         write_topic_data(
             message_storage_adapter,
             metadata_cache,
-            client_poll,
+            client_pool,
             topic_name,
             record,
         )
@@ -117,7 +117,7 @@ async fn report_broker_time<S>(
         write_topic_data(
             message_storage_adapter,
             metadata_cache,
-            client_poll,
+            client_pool,
             topic_name,
             record,
         )
@@ -126,7 +126,7 @@ async fn report_broker_time<S>(
 }
 
 async fn report_broker_sysdescr<S>(
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
 ) where
@@ -138,7 +138,7 @@ async fn report_broker_sysdescr<S>(
         write_topic_data(
             message_storage_adapter,
             metadata_cache,
-            client_poll,
+            client_pool,
             topic_name,
             record,
         )
@@ -146,8 +146,8 @@ async fn report_broker_sysdescr<S>(
     }
 }
 
-async fn build_node_cluster(topic_name: &str, client_poll: &Arc<ClientPool>) -> Option<Record> {
-    let cluster_storage = ClusterStorage::new(client_poll.clone());
+async fn build_node_cluster(topic_name: &str, client_pool: &Arc<ClientPool>) -> Option<Record> {
+    let cluster_storage = ClusterStorage::new(client_pool.clone());
     let node_list = match cluster_storage.node_list().await {
         Ok(data) => data,
         Err(e) => {

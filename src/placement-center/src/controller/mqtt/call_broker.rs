@@ -34,7 +34,7 @@ pub struct MqttBrokerCall {
     cluster_name: String,
     placement_cache_manager: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     mqtt_cache_manager: Arc<MqttCacheManager>,
 }
 
@@ -43,14 +43,14 @@ impl MqttBrokerCall {
         cluster_name: String,
         placement_cache_manager: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         mqtt_cache_manager: Arc<MqttCacheManager>,
     ) -> Self {
         MqttBrokerCall {
             cluster_name,
             placement_cache_manager,
             rocksdb_engine_handler,
-            client_poll,
+            client_pool,
             mqtt_cache_manager,
         }
     }
@@ -77,7 +77,7 @@ impl MqttBrokerCall {
                     client_id: client_ids.clone(),
                     cluster_name: self.cluster_name.clone(),
                 };
-                match broker_mqtt_delete_session(self.client_poll.clone(), vec![addr], request)
+                match broker_mqtt_delete_session(self.client_pool.clone(), vec![addr], request)
                     .await
                 {
                     Ok(_) => {}
@@ -129,7 +129,7 @@ impl MqttBrokerCall {
             return;
         }
 
-        match send_last_will_message(self.client_poll.clone(), node_addr, request).await {
+        match send_last_will_message(self.client_pool.clone(), node_addr, request).await {
             Ok(_) => self
                 .mqtt_cache_manager
                 .remove_expire_last_will(&self.cluster_name, &client_id),

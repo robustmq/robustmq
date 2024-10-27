@@ -28,12 +28,12 @@ use crate::storage::cluster::ClusterStorage;
 use crate::storage::user::UserStorage;
 
 pub struct GrpcAdminServices {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl GrpcAdminServices {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        GrpcAdminServices { client_poll }
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        GrpcAdminServices { client_pool }
     }
 }
 
@@ -47,7 +47,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let config = broker_mqtt_conf();
         reply.cluster_name = config.cluster_name.clone();
         let mut broker_node_list = Vec::new();
-        let cluster_storage = ClusterStorage::new(self.client_poll.clone());
+        let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         match cluster_storage.node_list().await {
             Ok(data) => {
                 for node in data {
@@ -69,7 +69,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let mut reply = ListUserReply::default();
 
         let mut user_list = Vec::new();
-        let user_storage = UserStorage::new(self.client_poll.clone());
+        let user_storage = UserStorage::new(self.client_pool.clone());
         match user_storage.user_list().await {
             Ok(date) => {
                 date.iter()
@@ -95,7 +95,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             is_superuser: req.is_superuser,
         };
 
-        let user_storage = UserStorage::new(self.client_poll.clone());
+        let user_storage = UserStorage::new(self.client_pool.clone());
 
         match user_storage.save_user(mqtt_user).await {
             Ok(_) => return Ok(Response::new(CreateUserReply::default())),
@@ -111,7 +111,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
     ) -> Result<Response<DeleteUserReply>, Status> {
         let req = request.into_inner();
 
-        let user_storage = UserStorage::new(self.client_poll.clone());
+        let user_storage = UserStorage::new(self.client_pool.clone());
 
         match user_storage.delete_user(req.username).await {
             Ok(_) => return Ok(Response::new(DeleteUserReply::default())),

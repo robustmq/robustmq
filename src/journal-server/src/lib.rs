@@ -43,7 +43,7 @@ pub struct JournalServer {
     stop_send: broadcast::Sender<bool>,
     server_runtime: Runtime,
     daemon_runtime: Runtime,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
@@ -58,16 +58,16 @@ impl JournalServer {
         );
         let daemon_runtime = create_runtime("daemon-runtime", config.system.runtime_work_threads);
 
-        let client_poll = Arc::new(ClientPool::new(3));
+        let client_pool = Arc::new(ClientPool::new(3));
         let connection_manager = Arc::new(ConnectionManager::new());
         let cache_manager = Arc::new(CacheManager::new());
-        let offset_manager = Arc::new(OffsetManager::new(client_poll.clone()));
+        let offset_manager = Arc::new(OffsetManager::new(client_pool.clone()));
         JournalServer {
             config,
             stop_send,
             server_runtime,
             daemon_runtime,
-            client_poll,
+            client_pool,
             connection_manager,
             cache_manager,
             offset_manager,
@@ -91,7 +91,7 @@ impl JournalServer {
     fn start_grpc_server(&self) {
         let server = GrpcServer::new(
             self.config.network.grpc_port,
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.cache_manager.clone(),
         );
         self.server_runtime.spawn(async move {
@@ -105,14 +105,14 @@ impl JournalServer {
     }
 
     fn start_tcp_server(&self) {
-        let client_poll = self.client_poll.clone();
+        let client_pool = self.client_pool.clone();
         let connection_manager = self.connection_manager.clone();
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
         let offet_manager = self.offset_manager.clone();
         self.server_runtime.spawn(async {
             start_tcp_server(
-                client_poll,
+                client_pool,
                 connection_manager,
                 cache_manager,
                 offet_manager,
@@ -132,10 +132,10 @@ impl JournalServer {
     }
 
     fn start_daemon_thread(&self) {
-        let client_poll = self.client_poll.clone();
+        let client_pool = self.client_pool.clone();
         let stop_sx = self.stop_send.clone();
         self.daemon_runtime
-            .spawn(async move { report_heartbeat(client_poll, stop_sx).await });
+            .spawn(async move { report_heartbeat(client_pool, stop_sx).await });
     }
 
     fn waiting_stop(&self) {
@@ -156,18 +156,18 @@ impl JournalServer {
 
     fn register_node(&self) {
         self.daemon_runtime.block_on(async move {
-            match register_journal_node(self.client_poll.clone(), self.config.clone()).await {
+            match register_journal_node(self.client_pool.clone(), self.config.clone()).await {
                 Ok(()) => {}
                 Err(e) => {
                     panic!("{}", e);
                 }
             }
-            load_cache(&self.client_poll, &self.cache_manager).await;
+            load_cache(&self.client_pool, &self.cache_manager).await;
         });
     }
 
     async fn stop_server(&self) {
-        match unregister_journal_node(self.client_poll.clone(), self.config.clone()).await {
+        match unregister_journal_node(self.client_pool.clone(), self.config.clone()).await {
             Ok(()) => {}
             Err(e) => {
                 error!("{}", e);

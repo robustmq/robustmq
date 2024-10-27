@@ -29,7 +29,7 @@ pub mod warn;
 pub async fn start_opservability<S>(
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) where
     S: StorageAdapter + Sync + Send + 'static + Clone,
@@ -37,7 +37,7 @@ pub async fn start_opservability<S>(
     let system_topic = SystemTopic::new(
         cache_manager.clone(),
         message_storage_adapter.clone(),
-        client_poll.clone(),
+        client_pool.clone(),
     );
 
     tokio::spawn(async move {

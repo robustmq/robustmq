@@ -42,7 +42,7 @@ pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     message_storage: Arc<S>,
 }
 
@@ -55,14 +55,14 @@ where
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         SubscribeExclusive {
             message_storage,
             cache_manager,
             subscribe_manager,
             connection_manager,
-            client_poll,
+            client_pool,
         }
     }
 
@@ -110,7 +110,7 @@ where
             let cache_manager = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
-            let client_poll = self.client_poll.clone();
+            let client_pool = self.client_pool.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager
@@ -136,7 +136,7 @@ where
                 try_send_retain_message(
                     client_id.clone(),
                     subscriber.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     cache_manager.clone(),
                     connection_manager.clone(),
                     sub_thread_stop_sx.clone(),

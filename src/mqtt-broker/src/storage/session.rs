@@ -29,12 +29,12 @@ use protocol::placement_center::placement_center_mqtt::{
 };
 
 pub struct SessionStorage {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl SessionStorage {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        SessionStorage { client_poll }
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        SessionStorage { client_pool }
     }
 
     pub async fn set_session(
@@ -49,7 +49,7 @@ impl SessionStorage {
             session: session.encode(),
         };
         match placement_create_session(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -78,7 +78,7 @@ impl SessionStorage {
             distinct_time,
         };
         match placement_update_session(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -96,7 +96,7 @@ impl SessionStorage {
             client_id,
         };
         match placement_delete_session(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -114,7 +114,7 @@ impl SessionStorage {
             client_id,
         };
         match placement_list_session(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -141,7 +141,7 @@ impl SessionStorage {
             client_id: "".to_string(),
         };
         match placement_list_session(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -177,7 +177,7 @@ impl SessionStorage {
             last_will_message,
         };
         match placement_save_last_will_message(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -208,8 +208,8 @@ mod tests {
         );
         init_broker_mqtt_conf_by_path(&path);
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let session_storage = SessionStorage::new(client_poll);
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let session_storage = SessionStorage::new(client_pool);
         let client_id: String = "client_id_11111".to_string();
         let session = MqttSession {
             client_id: client_id.clone(),

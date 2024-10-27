@@ -28,11 +28,11 @@ pub mod call;
 
 pub(crate) async fn inner_interface_call(
     interface: JournalEngineInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match inner_client(client_poll.clone(), addr.clone()).await {
+    match inner_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
                 JournalEngineInterface::UpdateCache => {
@@ -62,10 +62,10 @@ pub(crate) async fn inner_interface_call(
 }
 
 async fn inner_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<JournalInnerServiceManager>, CommonError> {
-    match client_poll.journal_inner_services_client(addr).await {
+    match client_pool.journal_inner_services_client(addr).await {
         Ok(client) => Ok(client),
         Err(e) => Err(e),
     }

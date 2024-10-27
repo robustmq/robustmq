@@ -25,7 +25,7 @@ use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
 use crate::poll::ClientPool;
 
 pub async fn cluster_status(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ClusterStatusRequest,
 ) -> Result<ClusterStatusReply, CommonError> {
@@ -48,7 +48,7 @@ pub async fn cluster_status(
 }
 
 pub async fn mqtt_broker_list_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListUserRequest,
 ) -> Result<ListUserReply, CommonError> {
@@ -71,7 +71,7 @@ pub async fn mqtt_broker_list_user(
 }
 
 pub async fn mqtt_broker_create_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateUserRequest,
 ) -> Result<CreateUserReply, CommonError> {
@@ -94,7 +94,7 @@ pub async fn mqtt_broker_create_user(
 }
 
 pub async fn mqtt_broker_delete_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteUserRequest,
 ) -> Result<DeleteUserReply, CommonError> {

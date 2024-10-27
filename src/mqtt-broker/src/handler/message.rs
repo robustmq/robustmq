@@ -56,9 +56,9 @@ mod tests {
 
     #[test]
     fn build_message_expire_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let cluster = MqttClusterDynamicConfig {
             protocol: MqttClusterDynamicConfigProtocol {
                 max_message_expiry_interval: 10,

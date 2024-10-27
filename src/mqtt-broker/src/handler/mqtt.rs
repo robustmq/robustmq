@@ -70,7 +70,7 @@ pub struct MqttService<S> {
     connnection_manager: Arc<ConnectionManager>,
     message_storage_adapter: Arc<S>,
     sucscribe_manager: Arc<SubscribeManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     auth_driver: Arc<AuthDriver>,
 }
 
@@ -84,7 +84,7 @@ where
         connnection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
         MqttService {
@@ -93,7 +93,7 @@ where
             connnection_manager,
             message_storage_adapter,
             sucscribe_manager,
-            client_poll,
+            client_pool,
             auth_driver,
         }
     }
@@ -168,7 +168,7 @@ where
             &connect_properties,
             &last_will,
             &last_will_properties,
-            &self.client_poll,
+            &self.client_pool,
             &self.cache_manager,
         )
         .await
@@ -189,7 +189,7 @@ where
             session.clone(),
             new_session,
             client_id.clone(),
-            &self.client_poll,
+            &self.client_pool,
         )
         .await
         {
@@ -208,7 +208,7 @@ where
             client_id.clone(),
             &last_will,
             &last_will_properties,
-            &self.client_poll,
+            &self.client_pool,
         )
         .await
         {
@@ -239,7 +239,7 @@ where
         st_report_connected_event(
             &self.message_storage_adapter,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &session,
             &connection,
             connect_id,
@@ -281,7 +281,7 @@ where
         if let Some(pkg) = publish_validator(
             &self.protocol,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &connection,
             &publish,
             &publish_properties,
@@ -347,7 +347,7 @@ where
             &topic_name,
             &self.cache_manager,
             &self.message_storage_adapter,
-            &self.client_poll,
+            &self.client_pool,
         )
         .await
         {
@@ -382,7 +382,7 @@ where
         // Persisting retain message data
         match save_topic_retain_message(
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             topic_name.clone(),
             &client_id,
             &publish,
@@ -484,7 +484,7 @@ where
             QoS::ExactlyOnce => {
                 match pkid_save(
                     &self.cache_manager,
-                    &self.client_poll,
+                    &self.client_pool,
                     &client_id,
                     publish.pkid,
                 )
@@ -637,7 +637,7 @@ where
 
         match pkid_exists(
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &client_id,
             pub_rel.pkid,
         )
@@ -667,7 +667,7 @@ where
 
         match pkid_delete(
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &client_id,
             pub_rel.pkid,
         )
@@ -709,7 +709,7 @@ where
         if let Some(packet) = subscribe_validator(
             &self.protocol,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &connection,
             &subscribe,
         )
@@ -750,7 +750,7 @@ where
 
         match pkid_save(
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &client_id,
             subscribe.packet_identifier,
         )
@@ -788,7 +788,7 @@ where
         st_report_subscribed_event(
             &self.message_storage_adapter,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &connection,
             connect_id,
             &self.connnection_manager,
@@ -836,7 +836,7 @@ where
         if let Some(packet) = un_subscribe_validator(
             &connection.client_id,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &connection,
             &un_subscribe,
         )
@@ -847,7 +847,7 @@ where
 
         match pkid_delete(
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &connection.client_id,
             un_subscribe.pkid,
         )
@@ -873,7 +873,7 @@ where
         st_report_unsubscribed_event(
             &self.message_storage_adapter,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &connection,
             connect_id,
             &self.connnection_manager,
@@ -905,7 +905,7 @@ where
             st_report_disconnected_event(
                 &self.message_storage_adapter,
                 &self.cache_manager,
-                &self.client_poll,
+                &self.client_pool,
                 &session,
                 &connection,
                 connect_id,
@@ -919,7 +919,7 @@ where
             &connection.client_id,
             connect_id,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &self.connnection_manager,
             &self.sucscribe_manager,
         )

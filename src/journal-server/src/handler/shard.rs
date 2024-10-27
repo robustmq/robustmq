@@ -30,14 +30,14 @@ use crate::core::error::JournalServerError;
 #[derive(Clone)]
 pub struct ShardHandler {
     cache_manager: Arc<CacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl ShardHandler {
-    pub fn new(cache_manager: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> ShardHandler {
+    pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> ShardHandler {
         ShardHandler {
             cache_manager,
-            client_poll,
+            client_pool,
         }
     }
 
@@ -66,7 +66,7 @@ impl ShardHandler {
                 replica: req_body.replica_num,
             };
             let reply = grpc_clients::placement::journal::call::create_shard(
-                self.client_poll.clone(),
+                self.client_pool.clone(),
                 conf.placement_center.clone(),
                 request,
             )
@@ -91,7 +91,7 @@ impl ShardHandler {
                 active_segment_next_num: 1,
             };
             let reply = grpc_clients::placement::journal::call::create_next_segment(
-                self.client_poll.clone(),
+                self.client_pool.clone(),
                 conf.placement_center.clone(),
                 request,
             )
@@ -137,7 +137,7 @@ impl ShardHandler {
         };
 
         grpc_clients::placement::journal::call::delete_shard(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             conf.placement_center.clone(),
             request,
         )
@@ -189,7 +189,7 @@ impl ShardHandler {
                     active_segment_next_num: 1,
                 };
                 let reply = grpc_clients::placement::journal::call::create_next_segment(
-                    self.client_poll.clone(),
+                    self.client_pool.clone(),
                     conf.placement_center.clone(),
                     request,
                 )

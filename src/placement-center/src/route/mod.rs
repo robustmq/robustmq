@@ -52,7 +52,7 @@ impl DataRoute {
         cluster_cache: Arc<PlacementCacheManager>,
         engine_cache: Arc<JournalCacheManager>,
         call_manager: Arc<JournalInnerCallManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> DataRoute {
         let route_kv = DataRouteKv::new(rocksdb_engine_handler.clone());
         let route_mqtt = DataRouteMqtt::new(rocksdb_engine_handler.clone());
@@ -60,14 +60,14 @@ impl DataRoute {
             rocksdb_engine_handler.clone(),
             cluster_cache.clone(),
             call_manager.clone(),
-            client_poll.clone(),
+            client_pool.clone(),
         );
         let route_journal = DataRouteJournal::new(
             rocksdb_engine_handler.clone(),
             engine_cache.clone(),
             cluster_cache.clone(),
             call_manager.clone(),
-            client_poll.clone(),
+            client_pool.clone(),
         );
         DataRoute {
             route_kv,

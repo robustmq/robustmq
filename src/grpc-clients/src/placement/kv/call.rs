@@ -26,7 +26,7 @@ use crate::placement::{retry_call, PlacementCenterService};
 use crate::pool::ClientPool;
 
 pub async fn placement_set(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetRequest,
 ) -> Result<SetReply, CommonError> {
@@ -34,7 +34,7 @@ pub async fn placement_set(
     match retry_call(
         PlacementCenterService::Kv,
         PlacementCenterInterface::Set,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -49,7 +49,7 @@ pub async fn placement_set(
 }
 
 pub async fn placement_get(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: GetRequest,
 ) -> Result<GetReply, CommonError> {
@@ -57,7 +57,7 @@ pub async fn placement_get(
     match retry_call(
         PlacementCenterService::Kv,
         PlacementCenterInterface::Get,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -72,7 +72,7 @@ pub async fn placement_get(
 }
 
 pub async fn placement_delete(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteRequest,
 ) -> Result<DeleteReply, CommonError> {
@@ -80,7 +80,7 @@ pub async fn placement_delete(
     match retry_call(
         PlacementCenterService::Kv,
         PlacementCenterInterface::Delete,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -95,7 +95,7 @@ pub async fn placement_delete(
 }
 
 pub async fn placement_exists(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ExistsRequest,
 ) -> Result<ExistsReply, CommonError> {
@@ -103,7 +103,7 @@ pub async fn placement_exists(
     match retry_call(
         PlacementCenterService::Kv,
         PlacementCenterInterface::Exists,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )

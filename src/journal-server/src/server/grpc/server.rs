@@ -27,15 +27,15 @@ use crate::server::grpc::inner::GrpcJournalServerInnerService;
 
 pub struct GrpcServer {
     port: u32,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
 }
 
 impl GrpcServer {
-    pub fn new(port: u32, client_poll: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(port: u32, client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
         Self {
             port,
-            client_poll,
+            client_pool,
             cache_manager,
         }
     }

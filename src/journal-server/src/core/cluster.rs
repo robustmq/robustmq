@@ -35,7 +35,7 @@ pub struct JournalEngineClusterConfig {
 }
 
 pub async fn register_journal_node(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     config: JournalServerConfig,
 ) -> Result<(), CommonError> {
     let conf = journal_server_conf();
@@ -51,13 +51,13 @@ pub async fn register_journal_node(
         node_inner_addr: format!("{}:{}", get_local_ip(), conf.network.grpc_port),
         extend_info: serde_json::to_string(&extend)?,
     };
-    register_node(client_poll.clone(), config.placement_center, req.clone()).await?;
+    register_node(client_pool.clone(), config.placement_center, req.clone()).await?;
     info!("Node {} register successfully", config.node_id);
     Ok(())
 }
 
 pub async fn unregister_journal_node(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     config: JournalServerConfig,
 ) -> Result<(), CommonError> {
     let req = UnRegisterNodeRequest {
@@ -65,12 +65,12 @@ pub async fn unregister_journal_node(
         cluster_name: config.cluster_name,
         node_id: config.node_id,
     };
-    unregister_node(client_poll.clone(), config.placement_center, req.clone()).await?;
+    unregister_node(client_pool.clone(), config.placement_center, req.clone()).await?;
     info!("Node {} exits successfully", config.node_id);
     Ok(())
 }
 
-pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
+pub async fn report_heartbeat(client_pool: Arc<ClientPool>, stop_send: broadcast::Sender<bool>) {
     loop {
         let mut stop_recv = stop_send.subscribe();
         select! {
@@ -82,14 +82,14 @@ pub async fn report_heartbeat(client_poll: Arc<ClientPool>, stop_send: broadcast
                     }
                 }
             }
-            _ = report(client_poll.clone()) => {
+            _ = report(client_pool.clone()) => {
 
             }
         }
     }
 }
 
-async fn report(client_poll: Arc<ClientPool>) {
+async fn report(client_pool: Arc<ClientPool>) {
     let config = journal_server_conf();
     let req = HeartbeatRequest {
         cluster_name: config.cluster_name.clone(),
@@ -97,7 +97,7 @@ async fn report(client_poll: Arc<ClientPool>) {
         node_id: config.node_id,
     };
     match heartbeat(
-        client_poll.clone(),
+        client_pool.clone(),
         config.placement_center.clone(),
         req.clone(),
     )

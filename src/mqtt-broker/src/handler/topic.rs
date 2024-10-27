@@ -110,7 +110,7 @@ pub async fn try_init_topic<S>(
     topic_name: &str,
     metadata_cache: &Arc<CacheManager>,
     message_storage_adapter: &Arc<S>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
 ) -> Result<MqttTopic, CommonError>
 where
     S: StorageAdapter + Sync + Send + 'static + Clone,
@@ -118,7 +118,7 @@ where
     let topic = if let Some(tp) = metadata_cache.get_topic_by_name(topic_name) {
         tp
     } else {
-        let topic_storage = TopicStorage::new(client_poll.clone());
+        let topic_storage = TopicStorage::new(client_pool.clone());
         let topic_id = unique_id();
         let topic = MqttTopic::new(topic_id, topic_name.to_owned());
         topic_storage.save_topic(topic.clone()).await?;

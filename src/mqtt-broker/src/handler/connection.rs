@@ -211,7 +211,7 @@ pub async fn disconnect_connection(
     client_id: &str,
     connect_id: u64,
     cache_manager: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     connnection_manager: &Arc<ConnectionManager>,
     subscribe_manager: &Arc<SubscribeManager>,
 ) -> Result<(), CommonError> {
@@ -223,7 +223,7 @@ pub async fn disconnect_connection(
     subscribe_manager.stop_push_by_client_id(client_id);
 
     // Remove the Connect id of the Session in the Placement Center
-    let session_storage = SessionStorage::new(client_poll.clone());
+    let session_storage = SessionStorage::new(client_pool.clone());
     match session_storage
         .update_session(client_id.to_owned(), 0, 0, 0, now_second())
         .await

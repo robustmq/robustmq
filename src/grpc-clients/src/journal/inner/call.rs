@@ -22,7 +22,7 @@ use crate::journal::{retry_call, JournalEngineInterface, JournalEngineService};
 use crate::pool::ClientPool;
 
 pub async fn journal_inner_update_cache(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UpdateJournalCacheRequest,
 ) -> Result<UpdateJournalCacheReply, CommonError> {
@@ -30,7 +30,7 @@ pub async fn journal_inner_update_cache(
     match retry_call(
         JournalEngineService::Inner,
         JournalEngineInterface::UpdateCache,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )

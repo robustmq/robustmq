@@ -286,7 +286,7 @@ pub fn connect_validator(
 pub async fn publish_validator(
     protocol: &MqttProtocol,
     cache_manager: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     connection: &Connection,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
@@ -296,7 +296,7 @@ pub async fn publish_validator(
     if publish.qos == QoS::ExactlyOnce {
         match pkid_exists(
             cache_manager,
-            client_poll,
+            client_pool,
             &connection.client_id,
             publish.pkid,
         )
@@ -446,13 +446,13 @@ pub async fn publish_validator(
 pub async fn subscribe_validator(
     protocol: &MqttProtocol,
     cache_manager: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     connection: &Connection,
     subscribe: &Subscribe,
 ) -> Option<MqttPacket> {
     match pkid_exists(
         cache_manager,
-        client_poll,
+        client_pool,
         &connection.client_id,
         subscribe.packet_identifier,
     )
@@ -523,13 +523,13 @@ pub async fn subscribe_validator(
 pub async fn un_subscribe_validator(
     client_id: &str,
     cache_manager: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     connection: &Connection,
     un_subscribe: &Unsubscribe,
 ) -> Option<MqttPacket> {
     match pkid_exists(
         cache_manager,
-        client_poll,
+        client_pool,
         &connection.client_id,
         un_subscribe.pkid,
     )

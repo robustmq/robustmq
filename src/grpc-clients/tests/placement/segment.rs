@@ -29,7 +29,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn segment_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
         let cluster = unique_id();
@@ -45,7 +45,7 @@ mod tests {
             node_inner_addr: "127.0.0.1:3228".to_string(),
             ..Default::default()
         };
-        register_node(client_poll.clone(), addrs.clone(), request)
+        register_node(client_pool.clone(), addrs.clone(), request)
             .await
             .unwrap();
 
@@ -56,7 +56,7 @@ mod tests {
             shard_name: shard_name.clone(),
             replica: 1,
         };
-        let res = create_shard(client_poll.clone(), addrs.clone(), request)
+        let res = create_shard(client_pool.clone(), addrs.clone(), request)
             .await
             .unwrap();
         assert_eq!(res.replica.len(), 1);
@@ -68,7 +68,7 @@ mod tests {
             shard_name: shard_name.clone(),
             active_segment_next_num: 2,
         };
-        let res = create_next_segment(client_poll, addrs, request)
+        let res = create_next_segment(client_pool, addrs, request)
             .await
             .unwrap();
         assert_eq!(res.replica.len(), 1);

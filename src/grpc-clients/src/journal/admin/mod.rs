@@ -26,21 +26,21 @@ pub mod call;
 
 pub(crate) async fn admin_interface_call(
     _interface: JournalEngineInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     _request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match admin_client(client_poll.clone(), addr.clone()).await {
+    match admin_client(client_pool.clone(), addr.clone()).await {
         Ok(_client) => Ok(Vec::new()),
         Err(e) => Err(e),
     }
 }
 
 async fn admin_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<JournalAdminServiceManager>, CommonError> {
-    match client_poll.journal_admin_services_client(addr).await {
+    match client_pool.journal_admin_services_client(addr).await {
         Ok(client) => Ok(client),
         Err(e) => Err(e),
     }

@@ -38,10 +38,10 @@ use crate::pool::ClientPool;
 pub mod call;
 
 async fn mqtt_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<MqttServiceManager>, CommonError> {
-    match client_poll
+    match client_pool
         .placement_center_mqtt_services_client(addr)
         .await
     {
@@ -52,11 +52,11 @@ async fn mqtt_client(
 
 pub(crate) async fn mqtt_interface_call(
     interface: PlacementCenterInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match mqtt_client(client_poll.clone(), addr.clone()).await {
+    match mqtt_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result =
                 match interface {

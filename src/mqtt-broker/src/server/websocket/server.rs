@@ -49,7 +49,7 @@ pub struct WebSocketServerState<S> {
     sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
     auth_driver: Arc<AuthDriver>,
@@ -64,7 +64,7 @@ where
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
@@ -73,7 +73,7 @@ where
             cache_manager,
             connection_manager,
             message_storage_adapter,
-            client_poll,
+            client_pool,
             auth_driver,
             stop_sx,
         }
@@ -166,7 +166,7 @@ where
         state.cache_manager.clone(),
         state.message_storage_adapter.clone(),
         state.sucscribe_manager.clone(),
-        state.client_poll.clone(),
+        state.client_pool.clone(),
         state.connection_manager.clone(),
         state.auth_driver.clone(),
     );

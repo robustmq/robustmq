@@ -31,7 +31,7 @@ pub struct PeerMessage {
 
 pub struct RaftPeersManager {
     peer_message_recv: mpsc::Receiver<PeerMessage>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     send_thread_num: usize,
     sender_threads: HashMap<usize, Sender<PeerMessage>>,
     stop_send: broadcast::Sender<bool>,
@@ -40,13 +40,13 @@ pub struct RaftPeersManager {
 impl RaftPeersManager {
     pub fn new(
         peer_message_recv: mpsc::Receiver<PeerMessage>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         send_thread_num: usize,
         stop_send: broadcast::Sender<bool>,
     ) -> RaftPeersManager {
         RaftPeersManager {
             peer_message_recv,
-            client_poll,
+            client_pool,
             send_thread_num,
             stop_send,
             sender_threads: HashMap::new(),
@@ -63,7 +63,7 @@ impl RaftPeersManager {
                 index,
                 peer_message_recv,
                 self.stop_send.clone(),
-                self.client_poll.clone(),
+                self.client_pool.clone(),
             );
         }
 
@@ -109,7 +109,7 @@ fn start_child_send_thread(
     index: usize,
     mut recv: Receiver<PeerMessage>,
     stop_send: broadcast::Sender<bool>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 ) {
     tokio::spawn(async move {
         debug!("Raft peer child thread {} start successfully.", index);
@@ -130,7 +130,7 @@ fn start_child_send_thread(
                     if let Some(data) = val {
                         let addr = data.to;
                         let request = SendRaftMessageRequest { message: data.data };
-                        match send_raft_message(client_poll.clone(), vec![addr.clone()], request).await
+                        match send_raft_message(client_pool.clone(), vec![addr.clone()], request).await
                         {
                             Ok(_) => debug!("Send Raft message to node {} Successful.", addr),
                             Err(e) => error!(

@@ -67,7 +67,7 @@ async fn retry_call(
             MqttBrokerService::Placement => {
                 placement_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr,
                     request.clone(),
                 )
@@ -76,7 +76,7 @@ async fn retry_call(
             MqttBrokerService::Admin => {
                 admin_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr,
                     request.clone(),
                 )
