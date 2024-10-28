@@ -19,7 +19,7 @@ use std::time::Duration;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::runtime::create_runtime;
 use common_base::tools::now_second;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use handler::cache::CacheManager;
 use handler::heartbreat::report_heartbeat;
 use handler::keep_alive::ClientKeepAlive;
@@ -61,9 +61,9 @@ mod subscribe;
 
 pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     let conf = broker_mqtt_conf();
-    let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(5));
+    let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(5));
     let metadata_cache = Arc::new(CacheManager::new(
-        client_poll.clone(),
+        client_pool.clone(),
         conf.cluster_name.clone(),
     ));
     // let storage_type = conf.storage.storage_type.clone();
@@ -72,7 +72,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
     match storage_type {
         StorageType::Memory => {
             let message_storage_adapter = Arc::new(MemoryStorageAdapter::new());
-            let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+            let server = MqttBroker::new(client_pool, message_storage_adapter, metadata_cache);
             server.start(stop_send);
         }
         StorageType::Mysql => {
@@ -82,7 +82,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
             let pool = build_mysql_conn_pool(&conf.storage.mysql_addr).unwrap();
             let message_storage_adapter = Arc::new(MySQLStorageAdapter::new(pool.clone()));
             let server: MqttBroker<MySQLStorageAdapter> =
-                MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+                MqttBroker::new(client_pool, message_storage_adapter, metadata_cache);
             server.start(stop_send);
         }
         StorageType::RocksDB => {
@@ -93,7 +93,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
                 conf.storage.rocksdb_data_path.as_str(),
                 conf.storage.rocksdb_max_open_files.unwrap_or(10000),
             ));
-            let server = MqttBroker::new(client_poll, message_storage_adapter, metadata_cache);
+            let server = MqttBroker::new(client_pool, message_storage_adapter, metadata_cache);
             server.start(stop_send);
         }
         _ => {
@@ -105,7 +105,7 @@ pub fn start_mqtt_broker_server(stop_send: broadcast::Sender<bool>) {
 pub struct MqttBroker<S> {
     cache_manager: Arc<CacheManager>,
     runtime: Runtime,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
@@ -117,7 +117,7 @@ where
     S: StorageAdapter + Sync + Send + 'static + Clone,
 {
     pub fn new(
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
         cache_manager: Arc<CacheManager>,
     ) -> Self {
@@ -129,16 +129,16 @@ where
 
         let subscribe_manager = Arc::new(SubscribeManager::new(
             cache_manager.clone(),
-            client_poll.clone(),
+            client_pool.clone(),
         ));
 
         let connection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
 
-        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_poll.clone()));
+        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
         MqttBroker {
             runtime,
             cache_manager,
-            client_poll,
+            client_pool,
             message_storage_adapter,
             subscribe_manager,
             connection_manager,
@@ -163,7 +163,7 @@ where
         let cache = self.cache_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
         let subscribe_manager = self.subscribe_manager.clone();
-        let client_poll = self.client_poll.clone();
+        let client_pool = self.client_pool.clone();
         let connection_manager = self.connection_manager.clone();
         let auth_driver = self.auth_driver.clone();
 
@@ -173,7 +173,7 @@ where
                 cache,
                 connection_manager,
                 message_storage_adapter,
-                client_poll,
+                client_pool,
                 stop_send,
                 auth_driver,
             )
@@ -187,7 +187,7 @@ where
             conf.grpc_port,
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.message_storage_adapter.clone(),
         );
         self.runtime.spawn(async move {
@@ -218,7 +218,7 @@ where
             self.cache_manager.clone(),
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),
         );
@@ -230,7 +230,7 @@ where
             self.cache_manager.clone(),
             self.connection_manager.clone(),
             self.message_storage_adapter.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.auth_driver.clone(),
             stop_send.clone(),
         );
@@ -240,9 +240,9 @@ where
     }
 
     fn start_cluster_heartbeat_report(&self, stop_send: broadcast::Sender<bool>) {
-        let client_poll = self.client_poll.clone();
+        let client_pool = self.client_pool.clone();
         self.runtime.spawn(async move {
-            report_heartbeat(client_poll, stop_send).await;
+            report_heartbeat(client_pool, stop_send).await;
         });
     }
 
@@ -257,7 +257,7 @@ where
             self.cache_manager.clone(),
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -269,7 +269,7 @@ where
             self.message_storage_adapter.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -280,7 +280,7 @@ where
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
         );
 
         self.runtime.spawn(async move {
@@ -290,7 +290,7 @@ where
 
     fn start_keep_alive_thread(&self, stop_send: broadcast::Sender<bool>) {
         let mut keep_alive = ClientKeepAlive::new(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             self.subscribe_manager.clone(),
             self.connection_manager.clone(),
             self.cache_manager.clone(),
@@ -304,12 +304,12 @@ where
     fn start_system_topic_thread(&self, stop_send: broadcast::Sender<bool>) {
         let cache_manager = self.cache_manager.clone();
         let message_storage_adapter = self.message_storage_adapter.clone();
-        let client_poll = self.client_poll.clone();
+        let client_pool = self.client_pool.clone();
         self.runtime.spawn(async move {
             start_opservability(
                 cache_manager,
                 message_storage_adapter,
-                client_poll,
+                client_pool,
                 stop_send,
             )
             .await;
@@ -344,13 +344,13 @@ where
 
     fn register_node(&self) {
         let metadata_cache = self.cache_manager.clone();
-        let client_poll = self.client_poll.clone();
+        let client_pool = self.client_pool.clone();
         let auth_driver = self.auth_driver.clone();
         self.runtime.block_on(async move {
             metadata_cache.init_system_user().await;
             metadata_cache.load_metadata_cache(auth_driver).await;
 
-            let cluster_storage = ClusterStorage::new(client_poll.clone());
+            let cluster_storage = ClusterStorage::new(client_pool.clone());
             let config = broker_mqtt_conf();
             match cluster_storage.register_node(config).await {
                 Ok(_) => {
@@ -364,7 +364,7 @@ where
     }
 
     async fn stop_server(&self) {
-        let cluster_storage = ClusterStorage::new(self.client_poll.clone());
+        let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let config = broker_mqtt_conf();
         match cluster_storage.unregister_node(config).await {
             Ok(()) => {

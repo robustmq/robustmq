@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use common_base::tools::{get_local_ip, now_mills};
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::error;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
@@ -93,7 +93,7 @@ pub struct SystemTopicUnSubscribedEventMessge {
 pub async fn st_report_connected_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     session: &MqttSession,
     connection: &Connection,
     connect_id: u64,
@@ -129,7 +129,7 @@ pub async fn st_report_connected_event<S>(
                     write_topic_data(
                         message_storage_adapter,
                         metadata_cache,
-                        client_poll,
+                        client_pool,
                         topic_name,
                         record,
                     )
@@ -148,7 +148,7 @@ pub async fn st_report_connected_event<S>(
 pub async fn st_report_disconnected_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     session: &MqttSession,
     connection: &Connection,
     connect_id: u64,
@@ -183,7 +183,7 @@ pub async fn st_report_disconnected_event<S>(
                     write_topic_data(
                         message_storage_adapter,
                         metadata_cache,
-                        client_poll,
+                        client_pool,
                         topic_name,
                         record,
                     )
@@ -201,7 +201,7 @@ pub async fn st_report_disconnected_event<S>(
 pub async fn st_report_subscribed_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     connection: &Connection,
     connect_id: u64,
     connnection_manager: &Arc<ConnectionManager>,
@@ -240,7 +240,7 @@ pub async fn st_report_subscribed_event<S>(
                         write_topic_data(
                             message_storage_adapter,
                             metadata_cache,
-                            client_poll,
+                            client_pool,
                             topic_name,
                             record,
                         )
@@ -259,7 +259,7 @@ pub async fn st_report_subscribed_event<S>(
 pub async fn st_report_unsubscribed_event<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     connection: &Connection,
     connect_id: u64,
     connnection_manager: &Arc<ConnectionManager>,
@@ -289,7 +289,7 @@ pub async fn st_report_unsubscribed_event<S>(
                         write_topic_data(
                             message_storage_adapter,
                             metadata_cache,
-                            client_poll,
+                            client_pool,
                             topic_name,
                             record,
                         )

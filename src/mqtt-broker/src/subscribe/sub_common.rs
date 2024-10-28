@@ -21,7 +21,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::error::mqtt_broker::MqttBrokerError;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::error;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishProperties, QoS};
@@ -129,7 +129,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 }
 
 pub async fn get_share_sub_leader(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     group_name: String,
 ) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_mqtt_conf();
@@ -137,7 +137,7 @@ pub async fn get_share_sub_leader(
         cluster_name: conf.cluster_name.clone(),
         group_name,
     };
-    match placement_get_share_sub_leader(client_poll, conf.placement_center.clone(), req).await {
+    match placement_get_share_sub_leader(client_pool, conf.placement_center.clone(), req).await {
         Ok(reply) => Ok(reply),
         Err(e) => Err(e),
     }
@@ -412,7 +412,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::QoS;
 
@@ -532,8 +532,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_sub_topic_list_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+        let metadata_cache = Arc::new(CacheManager::new(client_pool, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
         let topic = MqttTopic::new(unique_id(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);

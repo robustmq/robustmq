@@ -23,10 +23,10 @@ use protocol::placement_center::placement_center_openraft::{
 
 use super::PlacementCenterInterface;
 use crate::placement::{retry_call, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn placement_openraft_vote(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: VoteRequest,
 ) -> Result<VoteReply, CommonError> {
@@ -34,7 +34,7 @@ pub async fn placement_openraft_vote(
     match retry_call(
         PlacementCenterService::OpenRaft,
         PlacementCenterInterface::Vote,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -49,7 +49,7 @@ pub async fn placement_openraft_vote(
 }
 
 pub async fn placement_openraft_append(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: AppendRequest,
 ) -> Result<AppendReply, CommonError> {
@@ -57,7 +57,7 @@ pub async fn placement_openraft_append(
     match retry_call(
         PlacementCenterService::OpenRaft,
         PlacementCenterInterface::Append,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -72,7 +72,7 @@ pub async fn placement_openraft_append(
 }
 
 pub async fn placement_openraft_snapshot(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SnapshotRequest,
 ) -> Result<SnapshotReply, CommonError> {
@@ -80,7 +80,7 @@ pub async fn placement_openraft_snapshot(
     match retry_call(
         PlacementCenterService::OpenRaft,
         PlacementCenterInterface::Snapshot,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -95,7 +95,7 @@ pub async fn placement_openraft_snapshot(
 }
 
 pub async fn placement_openraft_add_learner(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: AddLearnerRequest,
 ) -> Result<AddLearnerReply, CommonError> {
@@ -103,7 +103,7 @@ pub async fn placement_openraft_add_learner(
     match retry_call(
         PlacementCenterService::OpenRaft,
         PlacementCenterInterface::AddLearner,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -118,7 +118,7 @@ pub async fn placement_openraft_add_learner(
 }
 
 pub async fn placement_openraft_change_membership(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ChangeMembershipRequest,
 ) -> Result<ChangeMembershipReply, CommonError> {
@@ -126,7 +126,7 @@ pub async fn placement_openraft_change_membership(
     match retry_call(
         PlacementCenterService::OpenRaft,
         PlacementCenterInterface::ChangeMembership,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )

@@ -23,7 +23,7 @@ use controller::journal::call_node::{call_thread_manager, JournalInnerCallManage
 use controller::journal::controller::StorageEngineController;
 use controller::mqtt::MqttController;
 use controller::placement::controller::ClusterController;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::info;
 use openraft::Raft;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterServiceServer;
@@ -71,7 +71,7 @@ pub struct PlacementCenter {
     // Raft Global read and write pointer
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     // Global GRPC client connection pool
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     call_manager: Arc<JournalInnerCallManager>,
 }
 
@@ -84,7 +84,7 @@ impl Default for PlacementCenter {
 impl PlacementCenter {
     pub fn new() -> PlacementCenter {
         let config = placement_center_conf();
-        let client_poll = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(100));
         let rocksdb_engine_handler: Arc<RocksDBEngine> = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.rocksdb.data_path),
             config.rocksdb.max_open_files.unwrap(),
@@ -112,7 +112,7 @@ impl PlacementCenter {
             mqtt_cache,
             raft_machine_storage,
             rocksdb_engine_handler,
-            client_poll,
+            client_pool,
             call_manager,
         }
     }
@@ -127,14 +127,14 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
             self.call_manager.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
         ));
 
         self.init_cache();
 
         self.start_call_thread();
 
-        let openraft_node = create_raft_node(self.client_poll.clone(), data_route).await;
+        let openraft_node = create_raft_node(self.client_pool.clone(), data_route).await;
 
         let placement_center_storage = Arc::new(RaftMachineApply::new(
             raft_message_send,
@@ -239,7 +239,7 @@ impl PlacementCenter {
             self.rocksdb_engine_handler.clone(),
             self.cluster_cache.clone(),
             self.mqtt_cache.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             stop_send.clone(),
         );
         tokio::spawn(async move {
@@ -288,7 +288,7 @@ impl PlacementCenter {
             self.cluster_cache.clone(),
             self.engine_cache.clone(),
             self.call_manager.clone(),
-            self.client_poll.clone(),
+            self.client_pool.clone(),
         ));
 
         let stop_recv = stop_send.subscribe();
@@ -310,7 +310,7 @@ impl PlacementCenter {
         });
 
         let mut peers_manager =
-            RaftPeersManager::new(peer_message_recv, self.client_poll.clone(), 5, stop_send);
+            RaftPeersManager::new(peer_message_recv, self.client_pool.clone(), 5, stop_send);
 
         tokio::spawn(async move {
             peers_manager.start().await;
@@ -327,10 +327,10 @@ impl PlacementCenter {
     }
 
     fn start_call_thread(&self) {
-        let client_poll = self.client_poll.clone();
+        let client_pool = self.client_pool.clone();
         let call_manager = self.call_manager.clone();
         tokio::spawn(async move {
-            call_thread_manager(&call_manager, &client_poll).await;
+            call_thread_manager(&call_manager, &client_pool).await;
         });
     }
 

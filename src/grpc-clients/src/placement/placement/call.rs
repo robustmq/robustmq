@@ -27,10 +27,10 @@ use protocol::placement_center::placement_center_inner::{
 };
 
 use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn cluster_status(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ClusterStatusRequest,
 ) -> Result<ClusterStatusReply, CommonError> {
@@ -38,7 +38,7 @@ pub async fn cluster_status(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::ClusterStatus,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -53,7 +53,7 @@ pub async fn cluster_status(
 }
 
 pub async fn node_list(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: NodeListRequest,
 ) -> Result<NodeListReply, CommonError> {
@@ -61,7 +61,7 @@ pub async fn node_list(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::ListNode,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -76,7 +76,7 @@ pub async fn node_list(
 }
 
 pub async fn register_node(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: RegisterNodeRequest,
 ) -> Result<RegisterNodeReply, CommonError> {
@@ -84,7 +84,7 @@ pub async fn register_node(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::RegisterNode,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -99,7 +99,7 @@ pub async fn register_node(
 }
 
 pub async fn unregister_node(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UnRegisterNodeRequest,
 ) -> Result<UnRegisterNodeReply, CommonError> {
@@ -107,7 +107,7 @@ pub async fn unregister_node(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::UnRegisterNode,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -122,7 +122,7 @@ pub async fn unregister_node(
 }
 
 pub async fn heartbeat(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: HeartbeatRequest,
 ) -> Result<HeartbeatReply, CommonError> {
@@ -130,7 +130,7 @@ pub async fn heartbeat(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::Heartbeat,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -145,7 +145,7 @@ pub async fn heartbeat(
 }
 
 pub async fn send_raft_message(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SendRaftMessageRequest,
 ) -> Result<SendRaftMessageReply, CommonError> {
@@ -153,7 +153,7 @@ pub async fn send_raft_message(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::SendRaftMessage,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -168,7 +168,7 @@ pub async fn send_raft_message(
 }
 
 pub async fn send_raft_conf_change(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SendRaftConfChangeRequest,
 ) -> Result<SendRaftConfChangeReply, CommonError> {
@@ -176,7 +176,7 @@ pub async fn send_raft_conf_change(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::SendRaftConfChange,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -191,7 +191,7 @@ pub async fn send_raft_conf_change(
 }
 
 pub async fn set_resource_config(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetResourceConfigRequest,
 ) -> Result<SetResourceConfigReply, CommonError> {
@@ -199,7 +199,7 @@ pub async fn set_resource_config(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::SetReourceConfig,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -214,7 +214,7 @@ pub async fn set_resource_config(
 }
 
 pub async fn delete_resource_config(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteResourceConfigRequest,
 ) -> Result<DeleteResourceConfigReply, CommonError> {
@@ -222,7 +222,7 @@ pub async fn delete_resource_config(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::DeleteReourceConfig,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -237,7 +237,7 @@ pub async fn delete_resource_config(
 }
 
 pub async fn get_resource_config(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: GetResourceConfigRequest,
 ) -> Result<GetResourceConfigReply, CommonError> {
@@ -245,7 +245,7 @@ pub async fn get_resource_config(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::GetReourceConfig,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -260,7 +260,7 @@ pub async fn get_resource_config(
 }
 
 pub async fn set_idempotent_data(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetIdempotentDataRequest,
 ) -> Result<SetIdempotentDataReply, CommonError> {
@@ -268,7 +268,7 @@ pub async fn set_idempotent_data(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::SetIdempotentData,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -283,7 +283,7 @@ pub async fn set_idempotent_data(
 }
 
 pub async fn delete_idempotent_data(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteIdempotentDataRequest,
 ) -> Result<DeleteIdempotentDataReply, CommonError> {
@@ -291,7 +291,7 @@ pub async fn delete_idempotent_data(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::DeleteIdempotentData,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -306,7 +306,7 @@ pub async fn delete_idempotent_data(
 }
 
 pub async fn exists_idempotent_data(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ExistsIdempotentDataRequest,
 ) -> Result<ExistsIdempotentDataReply, CommonError> {
@@ -314,7 +314,7 @@ pub async fn exists_idempotent_data(
     match retry_call(
         PlacementCenterService::Placement,
         PlacementCenterInterface::ExistsIdempotentData,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )

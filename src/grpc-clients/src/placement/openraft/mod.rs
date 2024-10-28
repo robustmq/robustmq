@@ -25,17 +25,17 @@ use protocol::placement_center::placement_center_openraft::{
 use tonic::transport::Channel;
 
 use super::PlacementCenterInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 
 pub(crate) async fn openraft_interface_call(
     interface: PlacementCenterInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match openraft_client(client_poll.clone(), addr.clone()).await {
+    match openraft_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
                 PlacementCenterInterface::Vote => {
@@ -103,10 +103,10 @@ pub(crate) async fn openraft_interface_call(
 }
 
 async fn openraft_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
-    match client_poll
+    match client_pool
         .placement_center_openraft_services_client(addr)
         .await
     {

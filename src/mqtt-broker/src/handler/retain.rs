@@ -17,7 +17,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::error;
 use metadata_struct::mqtt::message::MqttMessage;
 use protocol::mqtt::common::{Publish, PublishProperties, QoS, RetainForwardRule};
@@ -39,7 +39,7 @@ use crate::subscribe::subscriber::Subscriber;
 
 pub async fn save_topic_retain_message(
     cache_manager: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     topic_name: String,
     client_id: &str,
     publish: &Publish,
@@ -49,7 +49,7 @@ pub async fn save_topic_retain_message(
         return Ok(());
     }
 
-    let topic_storage = TopicStorage::new(client_poll.clone());
+    let topic_storage = TopicStorage::new(client_pool.clone());
 
     if publish.payload.is_empty() {
         match topic_storage
@@ -89,7 +89,7 @@ pub async fn save_topic_retain_message(
 pub async fn try_send_retain_message(
     client_id: String,
     subscriber: Subscriber,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
     connection_manager: Arc<ConnectionManager>,
     stop_sx: broadcast::Sender<bool>,
@@ -106,7 +106,7 @@ pub async fn try_send_retain_message(
 
     tokio::spawn(async move {
         let topic_id_list = get_sub_topic_id_list(cache_manager.clone(), subscriber.sub_path).await;
-        let topic_storage = TopicStorage::new(client_poll.clone());
+        let topic_storage = TopicStorage::new(client_pool.clone());
         let cluster = cache_manager.get_cluster_info();
         for topic_id in topic_id_list {
             if let Some(topic_name) = cache_manager.topic_name_by_id(topic_id) {

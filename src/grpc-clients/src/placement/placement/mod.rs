@@ -30,17 +30,17 @@ use protocol::placement_center::placement_center_inner::{
 use tonic::transport::Channel;
 
 use super::PlacementCenterInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 
 pub(crate) async fn placement_interface_call(
     interface: PlacementCenterInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match placement_client(client_poll.clone(), addr.clone()).await {
+    match placement_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result: Result<Vec<u8>, CommonError> = match interface {
                     PlacementCenterInterface::ClusterStatus => {
@@ -177,10 +177,10 @@ pub(crate) async fn placement_interface_call(
 }
 
 async fn placement_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<PlacementServiceManager>, CommonError> {
-    match client_poll
+    match client_pool
         .placement_center_inner_services_client(addr)
         .await
     {

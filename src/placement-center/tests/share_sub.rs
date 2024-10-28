@@ -23,14 +23,14 @@ mod tests {
     use common_base::tools::unique_id;
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::placement::placement::call::register_node;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use log::info;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
 
     #[tokio::test]
     async fn test_share_sub() {
-        let client_poll = Arc::new(ClientPool::new(3));
+        let client_pool = Arc::new(ClientPool::new(3));
         let addrs = vec!["127.0.0.1:1228".to_string()];
 
         let cluster_type = ClusterType::MqttBrokerServer.into();
@@ -50,7 +50,7 @@ mod tests {
 
         sleep(Duration::from_secs(2));
 
-        let res = register_node(client_poll.clone(), addrs.clone(), request)
+        let res = register_node(client_pool.clone(), addrs.clone(), request)
             .await
             .unwrap();
         info!("{:?}", res);
@@ -61,7 +61,7 @@ mod tests {
             group_name,
         };
 
-        let resp = placement_get_share_sub_leader(client_poll.clone(), addrs.clone(), req)
+        let resp = placement_get_share_sub_leader(client_pool.clone(), addrs.clone(), req)
             .await
             .unwrap();
         println!("resp broker_id:{}", resp.broker_id);

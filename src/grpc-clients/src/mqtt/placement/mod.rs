@@ -21,16 +21,16 @@ use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_
 use tonic::transport::Channel;
 
 use super::MqttBrokerPlacementInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 pub mod inner;
 
 async fn placement_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
-    match client_poll.mqtt_broker_mqtt_services_client(addr).await {
+    match client_pool.mqtt_broker_mqtt_services_client(addr).await {
         Ok(client) => Ok(client),
         Err(e) => Err(e),
     }
@@ -38,11 +38,11 @@ async fn placement_client(
 
 pub(crate) async fn placement_interface_call(
     interface: MqttBrokerPlacementInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match placement_client(client_poll.clone(), addr.clone()).await {
+    match placement_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
                 MqttBrokerPlacementInterface::DeleteSession => {

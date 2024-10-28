@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use grpc_clients::mqtt::admin::call::cluster_status;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use protocol::broker_mqtt::broker_mqtt_admin::ClusterStatusRequest;
 
 use crate::{error_info, grpc_addr};
@@ -54,17 +54,17 @@ impl MqttBrokerCommand {
 
     pub async fn start(&self, params: MqttCliCommandParam) {
         let action_type = MqttActionType::from(params.action.clone());
-        let client_poll = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(100));
         match action_type {
             MqttActionType::STATUS => {
-                self.status(client_poll.clone(), params.clone()).await;
+                self.status(client_pool.clone(), params.clone()).await;
             }
         }
     }
 
-    async fn status(&self, client_poll: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn status(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(client_poll, grpc_addr(params.server), request).await {
+        match cluster_status(client_pool, grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("cluster name: {}", data.cluster_name);
                 println!("node list:");

@@ -19,7 +19,7 @@ mod tests {
     use grpc_clients::mqtt::admin::call::{
         cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::broker_mqtt::broker_mqtt_admin::{
         ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
@@ -29,11 +29,11 @@ mod tests {
 
     #[tokio::test]
     async fn cluster_status_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_mqtt_broker_addr()];
 
         let request = ClusterStatusRequest {};
-        match cluster_status(client_poll.clone(), addrs.clone(), request).await {
+        match cluster_status(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -43,7 +43,7 @@ mod tests {
 
     #[tokio::test]
     async fn user_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_mqtt_broker_addr()];
         let user_name: String = "user1".to_string();
         let password: String = "123456".to_string();
@@ -54,14 +54,14 @@ mod tests {
             is_superuser: false,
         };
 
-        match mqtt_broker_create_user(client_poll.clone(), addrs.clone(), user.clone()).await {
+        match mqtt_broker_create_user(client_pool.clone(), addrs.clone(), user.clone()).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
             }
         }
 
-        match mqtt_broker_list_user(client_poll.clone(), addrs.clone(), ListUserRequest {}).await {
+        match mqtt_broker_list_user(client_pool.clone(), addrs.clone(), ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = false;
                 for raw in data.users {
@@ -78,7 +78,7 @@ mod tests {
         };
 
         match mqtt_broker_delete_user(
-            client_poll.clone(),
+            client_pool.clone(),
             addrs.clone(),
             DeleteUserRequest {
                 username: user.username.clone(),
@@ -92,7 +92,7 @@ mod tests {
             }
         }
 
-        match mqtt_broker_list_user(client_poll.clone(), addrs.clone(), ListUserRequest {}).await {
+        match mqtt_broker_list_user(client_pool.clone(), addrs.clone(), ListUserRequest {}).await {
             Ok(data) => {
                 let mut flag = true;
                 for raw in data.users {

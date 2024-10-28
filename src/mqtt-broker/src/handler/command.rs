@@ -15,7 +15,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::info;
 use protocol::mqtt::common::{
     is_mqtt3, is_mqtt4, is_mqtt5, ConnectReturnCode, DisconnectReasonCode, MqttPacket, MqttProtocol,
@@ -49,7 +49,7 @@ where
         cache_manager: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
         sucscribe_manager: Arc<SubscribeManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         connnection_manager: Arc<ConnectionManager>,
         auth_driver: Arc<AuthDriver>,
     ) -> Self {
@@ -59,7 +59,7 @@ where
             connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
-            client_poll.clone(),
+            client_pool.clone(),
             auth_driver.clone(),
         );
         let mqtt4_service = MqttService::new(
@@ -68,7 +68,7 @@ where
             connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
-            client_poll.clone(),
+            client_pool.clone(),
             auth_driver.clone(),
         );
         let mqtt5_service = MqttService::new(
@@ -77,7 +77,7 @@ where
             connnection_manager.clone(),
             message_storage_adapter.clone(),
             sucscribe_manager.clone(),
-            client_poll.clone(),
+            client_pool.clone(),
             auth_driver.clone(),
         );
         Command {

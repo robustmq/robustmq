@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::info;
 use protocol::journal_server::journal_admin::journal_server_admin_service_server::JournalServerAdminServiceServer;
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerServiceServer;
@@ -27,15 +27,15 @@ use crate::server::grpc::inner::GrpcJournalServerInnerService;
 
 pub struct GrpcServer {
     port: u32,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
 }
 
 impl GrpcServer {
-    pub fn new(port: u32, client_poll: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+    pub fn new(port: u32, client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
         Self {
             port,
-            client_poll,
+            client_pool,
             cache_manager,
         }
     }

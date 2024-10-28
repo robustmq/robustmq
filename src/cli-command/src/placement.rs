@@ -18,7 +18,7 @@ use grpc_clients::placement::openraft::call::{
     placement_openraft_add_learner, placement_openraft_change_membership,
 };
 use grpc_clients::placement::placement::call::cluster_status;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use protocol::placement_center::placement_center_inner::ClusterStatusRequest;
 use protocol::placement_center::placement_center_openraft::{
     AddLearnerRequest, ChangeMembershipRequest, Node,
@@ -81,26 +81,26 @@ impl PlacementCenterCommand {
         PlacementCenterCommand {}
     }
     pub async fn start(&self, params: PlacementCliCommandParam) {
-        let client_poll = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(100));
 
         match params.action {
             PlacementActionType::Status => {
-                self.status(client_poll.clone(), params).await;
+                self.status(client_pool.clone(), params).await;
             }
             PlacementActionType::AddLearner(ref request) => {
-                self.add_learner(client_poll.clone(), params.clone(), request.clone())
+                self.add_learner(client_pool.clone(), params.clone(), request.clone())
                     .await;
             }
             PlacementActionType::ChangeMembership(ref request) => {
-                self.change_membership(client_poll.clone(), params.clone(), request.clone())
+                self.change_membership(client_pool.clone(), params.clone(), request.clone())
                     .await;
             }
         }
     }
 
-    async fn status(&self, client_poll: Arc<ClientPool>, params: PlacementCliCommandParam) {
+    async fn status(&self, client_pool: Arc<ClientPool>, params: PlacementCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(client_poll, grpc_addr(params.server), request).await {
+        match cluster_status(client_pool, grpc_addr(params.server), request).await {
             Ok(reply) => {
                 println!("{}", reply.content);
             }
@@ -113,7 +113,7 @@ impl PlacementCenterCommand {
 
     async fn add_learner(
         &self,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         params: PlacementCliCommandParam,
         cli_request: AddLearnerCliRequset,
     ) {
@@ -126,7 +126,7 @@ impl PlacementCenterCommand {
             blocking: cli_request.blocking,
         };
 
-        match placement_openraft_add_learner(client_poll, grpc_addr(params.server), request).await {
+        match placement_openraft_add_learner(client_pool, grpc_addr(params.server), request).await {
             Ok(reply) => {
                 println!("{:?}", reply.value);
             }
@@ -139,7 +139,7 @@ impl PlacementCenterCommand {
 
     async fn change_membership(
         &self,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         params: PlacementCliCommandParam,
         cli_request: ChangeMembershipCliRequest,
     ) {
@@ -148,7 +148,7 @@ impl PlacementCenterCommand {
             retain: cli_request.retain,
         };
 
-        match placement_openraft_change_membership(client_poll, grpc_addr(params.server), request)
+        match placement_openraft_change_membership(client_pool, grpc_addr(params.server), request)
             .await
         {
             Ok(reply) => {

@@ -21,7 +21,7 @@ mod tests {
     use grpc_clients::placement::placement::call::{
         cluster_status, delete_idempotent_data, register_node, set_resource_config, unregister_node,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{
         ClusterStatusRequest, ClusterType, DeleteIdempotentDataRequest, RegisterNodeRequest,
         SetResourceConfigRequest, UnRegisterNodeRequest,
@@ -31,12 +31,12 @@ mod tests {
 
     #[tokio::test]
     async fn register_node_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
 
-        match cluster_status(client_poll.clone(), addrs.clone(), request).await {
+        match cluster_status(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -58,7 +58,7 @@ mod tests {
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
-        match register_node(client_poll.clone(), addrs.clone(), request).await {
+        match register_node(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -74,7 +74,7 @@ mod tests {
             extend_info: extend_info.clone(),
         };
         match register_node(
-            client_poll.clone(),
+            client_pool.clone(),
             addrs.clone(),
             request_cluster_name_empty,
         )
@@ -94,7 +94,7 @@ mod tests {
             node_inner_addr: node_inner_addr.clone(),
             extend_info: extend_info.clone(),
         };
-        match register_node(client_poll.clone(), addrs.clone(), request_node_ip_empty).await {
+        match register_node(client_pool.clone(), addrs.clone(), request_node_ip_empty).await {
             Ok(_) => {
                 panic!("Should not passed because node_ip is empty");
             }
@@ -104,11 +104,11 @@ mod tests {
 
     #[tokio::test]
     async fn un_register_nodet_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_poll.clone(), addrs.clone(), request)
+        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
             .await
             .is_ok());
 
@@ -121,7 +121,7 @@ mod tests {
             cluster_name: cluster_name.clone(),
             node_id,
         };
-        assert!(unregister_node(client_poll.clone(), addrs.clone(), request)
+        assert!(unregister_node(client_pool.clone(), addrs.clone(), request)
             .await
             .is_ok());
 
@@ -131,7 +131,7 @@ mod tests {
             node_id,
         };
         assert!(unregister_node(
-            client_poll.clone(),
+            client_pool.clone(),
             addrs.clone(),
             request_cluster_name_empty
         )
@@ -141,11 +141,11 @@ mod tests {
 
     #[tokio::test]
     async fn delete_idempotent_data_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_poll.clone(), addrs.clone(), request)
+        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
             .await
             .is_ok());
 
@@ -155,7 +155,7 @@ mod tests {
             seq_num: 1235u64,
         };
         assert!(
-            delete_idempotent_data(client_poll.clone(), addrs.clone(), request)
+            delete_idempotent_data(client_pool.clone(), addrs.clone(), request)
                 .await
                 .is_ok()
         );
@@ -166,7 +166,7 @@ mod tests {
             seq_num: 1235u64,
         };
         assert!(
-            delete_idempotent_data(client_poll.clone(), addrs.clone(), request)
+            delete_idempotent_data(client_pool.clone(), addrs.clone(), request)
                 .await
                 .is_err()
         );
@@ -174,11 +174,11 @@ mod tests {
 
     #[tokio::test]
     async fn set_resource_config_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
         let request = ClusterStatusRequest::default();
-        assert!(cluster_status(client_poll.clone(), addrs.clone(), request)
+        assert!(cluster_status(client_pool.clone(), addrs.clone(), request)
             .await
             .is_ok());
 
@@ -192,7 +192,7 @@ mod tests {
             config: config.clone(),
         };
         assert!(
-            set_resource_config(client_poll.clone(), addrs.clone(), request)
+            set_resource_config(client_pool.clone(), addrs.clone(), request)
                 .await
                 .is_ok()
         );
@@ -203,7 +203,7 @@ mod tests {
             config,
         };
         assert!(set_resource_config(
-            client_poll.clone(),
+            client_pool.clone(),
             addrs.clone(),
             request_cluster_name_empty
         )

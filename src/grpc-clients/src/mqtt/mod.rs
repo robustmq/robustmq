@@ -21,7 +21,7 @@ use log::error;
 use placement::placement_interface_call;
 use tokio::time::sleep;
 
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone)]
@@ -50,7 +50,7 @@ pub mod placement;
 async fn retry_call(
     service: MqttBrokerService,
     interface: MqttBrokerPlacementInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
@@ -67,7 +67,7 @@ async fn retry_call(
             MqttBrokerService::Placement => {
                 placement_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr,
                     request.clone(),
                 )
@@ -76,7 +76,7 @@ async fn retry_call(
             MqttBrokerService::Admin => {
                 admin_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr,
                     request.clone(),
                 )

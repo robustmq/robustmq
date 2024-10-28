@@ -31,10 +31,10 @@ use protocol::placement_center::placement_center_mqtt::{
 
 use super::PlacementCenterInterface;
 use crate::placement::{retry_call, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn placement_get_share_sub_leader(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: GetShareSubLeaderRequest,
 ) -> Result<GetShareSubLeaderReply, CommonError> {
@@ -42,7 +42,7 @@ pub async fn placement_get_share_sub_leader(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::GetShareSubLeader,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -57,7 +57,7 @@ pub async fn placement_get_share_sub_leader(
 }
 
 pub async fn placement_create_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateUserRequest,
 ) -> Result<CreateUserReply, CommonError> {
@@ -65,7 +65,7 @@ pub async fn placement_create_user(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::CreateUser,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -80,7 +80,7 @@ pub async fn placement_create_user(
 }
 
 pub async fn placement_delete_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteUserRequest,
 ) -> Result<DeleteUserReply, CommonError> {
@@ -88,7 +88,7 @@ pub async fn placement_delete_user(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteUser,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -103,7 +103,7 @@ pub async fn placement_delete_user(
 }
 
 pub async fn placement_list_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListUserRequest,
 ) -> Result<ListUserReply, CommonError> {
@@ -111,7 +111,7 @@ pub async fn placement_list_user(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::ListUser,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -125,7 +125,7 @@ pub async fn placement_list_user(
     }
 }
 pub async fn placement_create_topic(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateTopicRequest,
 ) -> Result<CreateTopicReply, CommonError> {
@@ -133,7 +133,7 @@ pub async fn placement_create_topic(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::CreateTopic,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -148,7 +148,7 @@ pub async fn placement_create_topic(
 }
 
 pub async fn placement_delete_topic(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteTopicRequest,
 ) -> Result<DeleteTopicReply, CommonError> {
@@ -156,7 +156,7 @@ pub async fn placement_delete_topic(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteTopic,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -171,7 +171,7 @@ pub async fn placement_delete_topic(
 }
 
 pub async fn placement_list_topic(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListTopicRequest,
 ) -> Result<ListTopicReply, CommonError> {
@@ -179,7 +179,7 @@ pub async fn placement_list_topic(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::ListTopic,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -194,7 +194,7 @@ pub async fn placement_list_topic(
 }
 
 pub async fn placement_set_topic_retain_message(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SetTopicRetainMessageRequest,
 ) -> Result<SetTopicRetainMessageReply, CommonError> {
@@ -202,7 +202,7 @@ pub async fn placement_set_topic_retain_message(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::SetTopicRetainMessage,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -217,7 +217,7 @@ pub async fn placement_set_topic_retain_message(
 }
 
 pub async fn placement_create_session(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateSessionRequest,
 ) -> Result<CreateSessionReply, CommonError> {
@@ -225,7 +225,7 @@ pub async fn placement_create_session(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::CreateSession,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -240,7 +240,7 @@ pub async fn placement_create_session(
 }
 
 pub async fn placement_delete_session(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, CommonError> {
@@ -248,7 +248,7 @@ pub async fn placement_delete_session(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteSession,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -263,7 +263,7 @@ pub async fn placement_delete_session(
 }
 
 pub async fn placement_list_session(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListSessionRequest,
 ) -> Result<ListSessionReply, CommonError> {
@@ -271,7 +271,7 @@ pub async fn placement_list_session(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::ListSession,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -286,7 +286,7 @@ pub async fn placement_list_session(
 }
 
 pub async fn placement_update_session(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UpdateSessionRequest,
 ) -> Result<UpdateSessionReply, CommonError> {
@@ -294,7 +294,7 @@ pub async fn placement_update_session(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::UpdateSession,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -309,7 +309,7 @@ pub async fn placement_update_session(
 }
 
 pub async fn placement_save_last_will_message(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SaveLastWillMessageRequest,
 ) -> Result<SaveLastWillMessageReply, CommonError> {
@@ -317,7 +317,7 @@ pub async fn placement_save_last_will_message(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::SaveLastWillMessage,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -332,7 +332,7 @@ pub async fn placement_save_last_will_message(
 }
 
 pub async fn list_acl(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListAclRequest,
 ) -> Result<ListAclReply, CommonError> {
@@ -340,7 +340,7 @@ pub async fn list_acl(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::ListAcl,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -355,7 +355,7 @@ pub async fn list_acl(
 }
 
 pub async fn create_acl(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateAclRequest,
 ) -> Result<CreateAclReply, CommonError> {
@@ -363,7 +363,7 @@ pub async fn create_acl(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::CreateAcl,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -378,7 +378,7 @@ pub async fn create_acl(
 }
 
 pub async fn delete_acl(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteAclRequest,
 ) -> Result<DeleteAclRequestReply, CommonError> {
@@ -386,7 +386,7 @@ pub async fn delete_acl(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteAcl,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -401,7 +401,7 @@ pub async fn delete_acl(
 }
 
 pub async fn list_blacklist(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListBlacklistRequest,
 ) -> Result<ListBlacklistReply, CommonError> {
@@ -409,7 +409,7 @@ pub async fn list_blacklist(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::ListBlackList,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -424,7 +424,7 @@ pub async fn list_blacklist(
 }
 
 pub async fn create_blacklist(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateBlacklistRequest,
 ) -> Result<CreateBlacklistReply, CommonError> {
@@ -432,7 +432,7 @@ pub async fn create_blacklist(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::CreateBlackList,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -447,7 +447,7 @@ pub async fn create_blacklist(
 }
 
 pub async fn delete_blacklist(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteBlacklistRequest,
 ) -> Result<DeleteBlacklistReply, CommonError> {
@@ -455,7 +455,7 @@ pub async fn delete_blacklist(
     match retry_call(
         PlacementCenterService::Mqtt,
         PlacementCenterInterface::DeleteBlackList,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )

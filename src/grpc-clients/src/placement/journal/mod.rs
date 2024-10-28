@@ -26,17 +26,17 @@ use protocol::placement_center::placement_center_journal::{
 use tonic::transport::Channel;
 
 use super::PlacementCenterInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 
 pub async fn journal_interface_call(
     interface: PlacementCenterInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match journal_client(client_poll.clone(), addr.clone()).await {
+    match journal_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
                 PlacementCenterInterface::ListShard => {
@@ -116,10 +116,10 @@ pub async fn journal_interface_call(
 }
 
 pub async fn journal_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<JournalServiceManager>, CommonError> {
-    match client_poll
+    match client_pool
         .placement_center_journal_services_client(addr)
         .await
     {

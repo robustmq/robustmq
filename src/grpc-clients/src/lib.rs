@@ -31,7 +31,7 @@
 pub mod journal;
 pub mod mqtt;
 pub mod placement;
-pub mod poll;
+pub mod pool;
 
 // const MAX_RETRY_TIMES: usize = 10;
 

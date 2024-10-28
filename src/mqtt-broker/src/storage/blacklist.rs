@@ -17,17 +17,17 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use grpc_clients::placement::mqtt::call::list_blacklist;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use protocol::placement_center::placement_center_mqtt::ListBlacklistRequest;
 
 pub struct BlackListStorage {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl BlackListStorage {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        BlackListStorage { client_poll }
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        BlackListStorage { client_pool }
     }
 
     pub async fn list_blacklist(&self) -> Result<Vec<MqttAclBlackList>, CommonError> {
@@ -36,7 +36,7 @@ impl BlackListStorage {
             cluster_name: config.cluster_name.clone(),
         };
         match list_blacklist(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )

@@ -18,7 +18,7 @@ use std::time::Duration;
 use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::tools::now_second;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{error, info, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
@@ -37,21 +37,21 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 pub struct ClientKeepAlive {
     cache_manager: Arc<CacheManager>,
     stop_send: broadcast::Sender<bool>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     connnection_manager: Arc<ConnectionManager>,
     subscribe_manager: Arc<SubscribeManager>,
 }
 
 impl ClientKeepAlive {
     pub fn new(
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         subscribe_manager: Arc<SubscribeManager>,
         connnection_manager: Arc<ConnectionManager>,
         cache_manager: Arc<CacheManager>,
         stop_send: broadcast::Sender<bool>,
     ) -> Self {
         ClientKeepAlive {
-            client_poll,
+            client_pool,
             connnection_manager,
             cache_manager,
             stop_send,
@@ -105,7 +105,7 @@ impl ClientKeepAlive {
                                     &connection.client_id,
                                     connect_id,
                                     &self.cache_manager,
-                                    &self.client_poll,
+                                    &self.client_pool,
                                     &self.connnection_manager,
                                     &self.subscribe_manager,
                                 )
@@ -151,7 +151,7 @@ impl ClientKeepAlive {
                                     &connection.client_id,
                                     connect_id,
                                     &self.cache_manager,
-                                    &self.client_poll,
+                                    &self.client_pool,
                                     &self.connnection_manager,
                                     &self.subscribe_manager,
                                 )
@@ -240,7 +240,7 @@ mod test {
 
     use common_base::config::broker_mqtt::BrokerMqttConfig;
     use common_base::tools::{now_second, unique_id};
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use tokio::sync::broadcast;
     use tokio::time::sleep;
@@ -268,22 +268,22 @@ mod test {
             cluster_name: "test".to_string(),
             ..Default::default()
         };
-        let client_poll = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(100));
         let (stop_send, _) = broadcast::channel::<bool>(2);
 
         let cache_manager = Arc::new(CacheManager::new(
-            client_poll.clone(),
+            client_pool.clone(),
             conf.cluster_name.clone(),
         ));
 
         let subscribe_manager = Arc::new(SubscribeManager::new(
             cache_manager.clone(),
-            client_poll.clone(),
+            client_pool.clone(),
         ));
 
         let connnection_manager = Arc::new(ConnectionManager::new(cache_manager.clone()));
         let alive = ClientKeepAlive::new(
-            client_poll,
+            client_pool,
             subscribe_manager,
             connnection_manager,
             cache_manager.clone(),
