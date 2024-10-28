@@ -37,7 +37,7 @@ impl MySQLAuthStorageAdapter {
                 panic!("{}", e.to_string());
             }
         };
-        MySQLAuthStorageAdapter { pool: pool }
+        MySQLAuthStorageAdapter { pool }
     }
 
     fn table_user(&self) -> String {
