@@ -67,7 +67,12 @@ pub struct Network {
     #[serde(default = "default_network_tcp_port")]
     pub tcp_port: u32,
     #[serde(default = "default_network_tcps_port")]
-    pub tcps_port: u32,
+    pub tls_port: u32,
+
+    /// Whether to enable using TLS for gRPC.
+    #[serde(default)]
+    pub grpc_tls_enable: bool,
+
     #[serde(default)]
     pub tls_cert: String,
     #[serde(default)]
@@ -187,7 +192,7 @@ mod tests {
         assert_eq!(conf.placement_center, vec![String::from("127.0.0.1:1228")]);
         assert_eq!(conf.network.grpc_port, 2228);
         assert_eq!(conf.network.tcp_port, 3110);
-        assert_eq!(conf.network.tcps_port, 3111);
+        assert_eq!(conf.network.tls_port, 3111);
 
         assert_eq!(conf.system.runtime_work_threads, 100);
 
