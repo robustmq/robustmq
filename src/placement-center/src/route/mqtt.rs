@@ -31,12 +31,12 @@ use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 
 #[derive(Debug, Clone)]
-pub struct DataRouteMQTT {
+pub struct DataRouteMqtt {
     pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
-impl DataRouteMQTT {
+impl DataRouteMqtt {
     pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
-        DataRouteMQTT {
+        DataRouteMqtt {
             rocksdb_engine_handler,
         }
     }
