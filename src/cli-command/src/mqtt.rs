@@ -14,28 +14,56 @@
 
 use std::sync::Arc;
 
-use grpc_clients::mqtt::admin::call::cluster_status;
+use grpc_clients::mqtt::admin::call::{
+    cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
+};
 use grpc_clients::poll::ClientPool;
-use protocol::broker_mqtt::broker_mqtt_admin::ClusterStatusRequest;
+use metadata_struct::mqtt::user::MqttUser;
+use protocol::broker_mqtt::broker_mqtt_admin::{
+    ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
+};
 
 use crate::{error_info, grpc_addr};
 
 #[derive(Clone)]
 pub struct MqttCliCommandParam {
     pub server: String,
-    pub action: String,
+    pub action: MqttActionType,
 }
 
+#[derive(Clone)]
 pub enum MqttActionType {
-    STATUS,
+    Status,
+    CreateUser(CreateUserCliRequest),
+    DeleteUser(DeleteUserCliRequest),
+    ListUser,
 }
 
-impl From<String> for MqttActionType {
-    fn from(s: String) -> Self {
-        match s.as_str() {
-            "status" => MqttActionType::STATUS,
-            _ => panic!("Invalid action type {}", s),
+#[derive(Debug, Clone)]
+pub struct CreateUserCliRequest {
+    username: String,
+    password: String,
+    is_superuser: bool,
+}
+
+impl CreateUserCliRequest {
+    pub fn new(username: String, password: String, is_superuser: bool) -> Self {
+        CreateUserCliRequest {
+            username,
+            password,
+            is_superuser,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DeleteUserCliRequest {
+    username: String,
+}
+
+impl DeleteUserCliRequest {
+    pub fn new(username: String) -> Self {
+        DeleteUserCliRequest { username }
     }
 }
 
@@ -53,11 +81,22 @@ impl MqttBrokerCommand {
     }
 
     pub async fn start(&self, params: MqttCliCommandParam) {
-        let action_type = MqttActionType::from(params.action.clone());
+        // let action_type = MqttActionType::from(params.action.clone());
         let client_poll = Arc::new(ClientPool::new(100));
-        match action_type {
-            MqttActionType::STATUS => {
+        match params.action {
+            MqttActionType::Status => {
                 self.status(client_poll.clone(), params.clone()).await;
+            }
+            MqttActionType::CreateUser(ref request) => {
+                self.create_user(client_poll.clone(), params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::DeleteUser(ref request) => {
+                self.delete_user(client_poll.clone(), params.clone(), request.clone())
+                    .await;
+            }
+            MqttActionType::ListUser => {
+                self.list_user(client_poll.clone(), params.clone()).await;
             }
         }
     }
@@ -75,6 +114,67 @@ impl MqttBrokerCommand {
             }
             Err(e) => {
                 println!("MQTT broker cluster normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn create_user(
+        &self,
+        client_poll: Arc<ClientPool>,
+        params: MqttCliCommandParam,
+        cli_request: CreateUserCliRequest,
+    ) {
+        let request = CreateUserRequest {
+            username: cli_request.username,
+            password: cli_request.password,
+            is_superuser: cli_request.is_superuser,
+        };
+        match mqtt_broker_create_user(client_poll.clone(), grpc_addr(params.server), request).await
+        {
+            Ok(_) => {
+                println!("Created successfully!",)
+            }
+            Err(e) => {
+                println!("MQTT broker create user normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn delete_user(
+        &self,
+        client_poll: Arc<ClientPool>,
+        params: MqttCliCommandParam,
+        cli_request: DeleteUserCliRequest,
+    ) {
+        let request = DeleteUserRequest {
+            username: cli_request.username,
+        };
+        match mqtt_broker_delete_user(client_poll.clone(), grpc_addr(params.server), request).await
+        {
+            Ok(_) => {
+                println!("Deleted successfully!");
+            }
+            Err(e) => {
+                println!("MQTT broker delete user normal exception");
+                error_info(e.to_string());
+            }
+        }
+    }
+
+    async fn list_user(&self, client_poll: Arc<ClientPool>, params: MqttCliCommandParam) {
+        let request = ListUserRequest {};
+        match mqtt_broker_list_user(client_poll.clone(), grpc_addr(params.server), request).await {
+            Ok(data) => {
+                println!("user list:");
+                for user in data.users {
+                    let mqtt_user = serde_json::from_slice::<MqttUser>(user.as_slice()).unwrap();
+                    println!("{},", mqtt_user.username);
+                }
+            }
+            Err(e) => {
+                println!("MQTT broker list user exception");
                 error_info(e.to_string());
             }
         }

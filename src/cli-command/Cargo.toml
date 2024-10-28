@@ -25,4 +25,6 @@ axum.workspace = true
 thiserror.workspace = true
 grpc-clients.workspace = true
 common-base.workspace = true
+metadata-struct.workspace = true
 protocol.workspace = true
+serde_json.workspace = true

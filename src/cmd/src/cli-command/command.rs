@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use clap::{Parser, Subcommand};
-use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
+use cli_command::mqtt::{
+    CreateUserCliRequest, DeleteUserCliRequest, MqttActionType, MqttBrokerCommand,
+    MqttCliCommandParam,
+};
 use cli_command::placement::{
     AddLearnerCliRequset, ChangeMembershipCliRequest, PlacementActionType, PlacementCenterCommand,
     PlacementCliCommandParam,
@@ -56,7 +59,7 @@ enum MQTTAction {
     Status,
     CreateUser(CreateUserArgs),
     DeleteUser(DeleteUserArgs),
-    ListUer,
+    ListUser,
 }
 
 #[derive(clap::Args, Debug)]
@@ -143,7 +146,16 @@ async fn main() {
             let cmd = MqttBrokerCommand::new();
             let params = MqttCliCommandParam {
                 server: args.server,
-                action: args.action,
+                action: match args.action {
+                    MQTTAction::Status => MqttActionType::Status,
+                    MQTTAction::CreateUser(arg) => MqttActionType::CreateUser(
+                        CreateUserCliRequest::new(arg.username, arg.password, arg.is_superuser),
+                    ),
+                    MQTTAction::DeleteUser(arg) => {
+                        MqttActionType::DeleteUser(DeleteUserCliRequest::new(arg.username))
+                    }
+                    MQTTAction::ListUser => MqttActionType::ListUser,
+                },
             };
             cmd.start(params).await;
         }
