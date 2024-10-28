@@ -10,15 +10,16 @@ message JournalEngineError{
 
 /** Header **/
 enum ApiKey{
-    Read = 0;
-    Write = 1;
+    Unimplemented = 0;
+    Read = 1;
+    Write = 2;
     OffsetCommit = 3;
 
     GetClusterMetadata = 4;
     CreateShard = 5;
     DeleteShard = 6;
     
-    GetActiveSegment = 2;
+    GetActiveSegment = 7;
 }
 
 enum ApiVersion{
@@ -105,60 +106,6 @@ message DeleteShardResp{
     DeleteShardRespBody body = 2;
 }
 
-/**  Read Request **/
-message ReadReqBody{
-}
-
-message ReadRespBody{
-}
-
-message ReadReq{
-    ReqHeader header = 1;
-    ReadReqBody body = 2;
-}
-
-message ReadResp{
-    RespHeader header = 1;
-    ReadRespBody body = 2;
-}
-
-/** Write Request **/
-message WriteReqBody{
-    repeated  WriteReqMessage messages = 1;
-}
-
-message WriteReqMessage{
-    string namespace = 1;
-    string shard_name = 2;
-    uint64 segment = 3;
-    repeated string content = 4;
-}
-
-message WriteRespBody{
-    repeated WriteRespMessage status = 1;
-}
-
-message WriteRespMessage{
-    string namespace = 1;
-    string shard_name = 2;
-    uint64 segment = 3;
-    repeated WriteRespMessageStatus message_status = 4;
-}
-
-message WriteRespMessageStatus{
-    repeated uint64 offset = 1;
-    JournalEngineError error = 2;
-}
-
-message WriteReq{
-    ReqHeader header = 1;
-    WriteReqBody body = 2;
-}
-
-message WriteResp{
-    RespHeader header = 1;
-    WriteRespBody body = 2;
-}
 
 /** Get Active Segment **/
 message GetActiveSegmentReqBody{
@@ -189,6 +136,77 @@ message GetActiveSegmentRespShard{
 message GetActiveSegmentResp{
     RespHeader header = 1;
     GetActiveSegmentRespBody body = 2;
+}
+
+/** Write Request **/
+message WriteReqBody{
+    repeated  WriteReqMessage messages = 1;
+}
+
+message WriteReqMessage{
+    string namespace = 1;
+    string shard_name = 2;
+    uint32 segment = 3;
+    repeated string content = 4;
+}
+
+message WriteRespBody{
+    repeated WriteRespMessage status = 1;
+}
+
+message WriteRespMessage{
+    string namespace = 1;
+    string shard_name = 2;
+    uint32 segment = 3;
+    repeated WriteRespMessageStatus message_status = 4;
+}
+
+message WriteRespMessageStatus{
+    repeated uint64 offset = 1;
+    JournalEngineError error = 2;
+}
+
+message WriteReq{
+    ReqHeader header = 1;
+    WriteReqBody body = 2;
+}
+
+message WriteResp{
+    RespHeader header = 1;
+    WriteRespBody body = 2;
+}
+
+/**  Read Request **/
+message ReadReqBody{
+    repeated ReadReqMessage messages = 1;
+}
+
+message ReadReqMessage{
+    string namespace = 1;
+    string shard_name = 2;
+    repeated uint32 segment = 3;
+}
+
+message ReadRespBody{
+    repeated ReadRespMessage messages = 1;
+}
+
+message ReadRespMessage{
+    string namespace = 1;
+    string shard_name = 2;
+    uint32 segment = 3;
+    uint64 offset = 4;
+    bytes  messages = 5;
+}
+
+message ReadReq{
+    ReqHeader header = 1;
+    ReadReqBody body = 2;
+}
+
+message ReadResp{
+    RespHeader header = 1;
+    ReadRespBody body = 2;
 }
 
 /** Offset Commit **/

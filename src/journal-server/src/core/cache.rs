@@ -20,7 +20,7 @@ use grpc_clients::placement::journal::call::{list_segment, list_shard};
 use grpc_clients::placement::placement::call::node_list;
 use grpc_clients::poll::ClientPool;
 use log::{error, info};
-use metadata_struct::journal::segment::{JournalSegment, SegmentStatus};
+use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::shard::JournalShard;
 use metadata_struct::placement::node::BrokerNode;
 use protocol::journal_server::journal_inner::{
@@ -91,7 +91,7 @@ impl CacheManager {
         if let Some(shard) = self.shards.get(&key) {
             if let Some(segment) = self.get_segment(namespace, shard_name, shard.active_segment_seq)
             {
-                if segment.status == SegmentStatus::Idle || segment.status == SegmentStatus::Write {
+                if !segment.is_seal_up() {
                     return Some(segment);
                 }
             }

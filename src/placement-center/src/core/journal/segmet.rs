@@ -107,15 +107,6 @@ fn create_segment(
         ));
     }
 
-    let mut segment = JournalSegment {
-        cluster_name: shard_info.cluster_name.clone(),
-        namespace: shard_info.namespace.clone(),
-        shard_name: shard_info.shard_name.clone(),
-        leader_epoch: 0,
-        status: SegmentStatus::Idle,
-        ..Default::default()
-    };
-
     // Get the node copies at random
     let mut rng = thread_rng();
     let node_ids: Vec<u64> = node_list
@@ -132,9 +123,25 @@ fn create_segment(
             fold,
         });
     }
-    segment.segment_seq = segment_no;
-    segment.replicas = replicas.clone();
-    segment.isr = replicas.clone();
+
+    if replicas.len() != (shard_info.replica as usize) {
+        return Err(PlacementCenterError::NumberOfReplicasIsIncorrect(
+            shard_info.replica,
+            replicas.len(),
+        ));
+    }
+
+    let segment = JournalSegment {
+        cluster_name: shard_info.cluster_name.clone(),
+        namespace: shard_info.namespace.clone(),
+        shard_name: shard_info.shard_name.clone(),
+        leader_epoch: 0,
+        status: SegmentStatus::Idle,
+        segment_seq: segment_no,
+        leader: calc_leader_node(&replicas),
+        replicas: replicas.clone(),
+        isr: replicas.clone(),
+    };
 
     // save segment
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
@@ -144,6 +151,10 @@ fn create_segment(
     engine_cache.add_segment(segment.clone());
 
     Ok(segment)
+}
+
+fn calc_leader_node(replicas: &[Replica]) -> u64 {
+    replicas.first().unwrap().node_id
 }
 
 fn calc_node_fold(
