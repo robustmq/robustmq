@@ -22,7 +22,7 @@ use protocol::broker_mqtt::broker_mqtt_placement::{
 };
 
 use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn broker_mqtt_delete_session(
     client_pool: Arc<ClientPool>,
@@ -33,7 +33,7 @@ pub async fn broker_mqtt_delete_session(
     match retry_call(
         MqttBrokerService::Placement,
         MqttBrokerPlacementInterface::DeleteSession,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -56,7 +56,7 @@ pub async fn broker_mqtt_update_cache(
     match retry_call(
         MqttBrokerService::Placement,
         MqttBrokerPlacementInterface::UpdateCache,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -79,7 +79,7 @@ pub async fn send_last_will_message(
     match retry_call(
         MqttBrokerService::Placement,
         MqttBrokerPlacementInterface::SendLastWillMessage,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )

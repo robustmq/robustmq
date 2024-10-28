@@ -51,7 +51,7 @@ mod test {
     use std::sync::Arc;
 
     use common_base::config::broker_mqtt::BrokerMqttConfig;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::mqtt::common::Login;
 

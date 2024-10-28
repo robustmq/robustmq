@@ -50,7 +50,7 @@ pub mod placement;
 async fn retry_call(
     service: MqttBrokerService,
     interface: MqttBrokerPlacementInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {

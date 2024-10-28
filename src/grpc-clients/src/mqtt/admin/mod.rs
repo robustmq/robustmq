@@ -21,7 +21,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::mqtt_broker_admin_service_client::
 use tonic::transport::Channel;
 
 use super::MqttBrokerPlacementInterface;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub mod call;
 pub mod inner;
@@ -38,7 +38,7 @@ async fn admin_client(
 
 pub(crate) async fn admin_interface_call(
     interface: MqttBrokerPlacementInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {

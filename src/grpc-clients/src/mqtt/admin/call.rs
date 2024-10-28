@@ -22,7 +22,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 };
 
 use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn cluster_status(
     client_pool: Arc<ClientPool>,
@@ -33,7 +33,7 @@ pub async fn cluster_status(
     match retry_call(
         MqttBrokerService::Admin,
         MqttBrokerPlacementInterface::ClusterStatus,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -56,7 +56,7 @@ pub async fn mqtt_broker_list_user(
     match retry_call(
         MqttBrokerService::Admin,
         MqttBrokerPlacementInterface::ListUser,
-        client_poll,
+        client_pool,
         addrs,
         request_date,
     )
@@ -79,7 +79,7 @@ pub async fn mqtt_broker_create_user(
     match retry_call(
         MqttBrokerService::Admin,
         MqttBrokerPlacementInterface::CreateUser,
-        client_poll,
+        client_pool,
         addrs,
         request_date,
     )
@@ -102,7 +102,7 @@ pub async fn mqtt_broker_delete_user(
     match retry_call(
         MqttBrokerService::Admin,
         MqttBrokerPlacementInterface::DeleteUser,
-        client_poll,
+        client_pool,
         addrs,
         request_date,
     )
