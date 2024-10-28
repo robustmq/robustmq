@@ -29,7 +29,6 @@ pub struct GrpcServer {
     port: u32,
     client_poll: Arc<ClientPool>,
     cache_manager: Arc<CacheManager>,
-    tls_config: Option<tonic::transport::ServerTlsConfig>,
 }
 
 impl GrpcServer {
@@ -38,26 +37,10 @@ impl GrpcServer {
             port,
             client_poll,
             cache_manager,
-            tls_config: None,
         }
     }
-
-    pub fn new_with_tls(
-        port: u32,
-        client_pool: Arc<ClientPool>,
-        cache_manager: Arc<CacheManager>,
-        tls_config: tonic::transport::ServerTlsConfig,
-    ) -> Self {
-        Self {
-            port,
-            client_poll: client_pool,
-            cache_manager,
-            tls_config: Some(tls_config),
-        }
-    }
-
     pub async fn start(&self) -> Result<(), CommonError> {
-        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), self.port);
+        let addr = format!("0.0.0.0:{}", self.port).parse()?;
         info!(
             "Journal Engine Grpc Server start success. port:{}",
             self.port
@@ -65,13 +48,7 @@ impl GrpcServer {
         let admin_handler = GrpcJournalServerAdminService::new();
         let inner_handler = GrpcJournalServerInnerService::new(self.cache_manager.clone());
 
-        let mut server_builder = Server::builder();
-
-        if let Some(tls_config) = &self.tls_config {
-            server_builder = server_builder.tls_config(tls_config.clone())?;
-        }
-
-        server_builder
+        Server::builder()
             .add_service(JournalServerAdminServiceServer::new(admin_handler))
             .add_service(JournalServerInnerServiceServer::new(inner_handler))
             .serve(addr)

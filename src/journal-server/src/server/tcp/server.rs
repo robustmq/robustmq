@@ -65,7 +65,7 @@ pub async fn start_tcp_server(
         cache_manager,
         client_poll,
     );
-    server.start_tls(conf.network.tls_port).await;
+    server.start_tls(conf.network.tcps_port).await;
 }
 
 struct TcpServer {

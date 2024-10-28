@@ -26,7 +26,7 @@ pub fn default_http_port() -> usize {
 pub fn default_network() -> Network {
     Network {
         tcp_port: default_network_tcp_port(),
-        tls_port: default_network_tcps_port(),
+        tcps_port: default_network_tcps_port(),
         websocket_port: default_network_websocket_port(),
         websockets_port: default_network_websockets_port(),
         quic_port: default_network_quic_port(),
