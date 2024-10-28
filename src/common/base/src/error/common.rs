@@ -35,7 +35,7 @@ use std::string::FromUtf8Error;
 use thiserror::Error;
 use tonic::Status;
 
-use crate::error::mqtt_broker::MQTTBrokerError;
+use crate::error::mqtt_broker::MqttBrokerError;
 
 #[derive(Error, Debug)]
 pub enum CommonError {
@@ -58,7 +58,7 @@ pub enum CommonError {
     IoError(#[from] io::Error),
 
     #[error("{0}")]
-    MQTTBrokerError(#[from] MQTTBrokerError),
+    MqttBrokerError(#[from] MqttBrokerError),
 
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),

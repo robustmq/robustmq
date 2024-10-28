@@ -42,7 +42,7 @@ use super::default_mqtt::{
 use crate::tools::{read_file, try_create_fold};
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct BrokerMQTTConfig {
+pub struct BrokerMqttConfig {
     pub cluster_name: String,
     pub broker_id: u64,
     #[serde(default = "default_grpc_port")]
@@ -113,9 +113,9 @@ pub struct System {
     pub default_password: String,
 }
 
-static BROKER_MQTT_CONF: OnceLock<BrokerMQTTConfig> = OnceLock::new();
+static BROKER_MQTT_CONF: OnceLock<BrokerMqttConfig> = OnceLock::new();
 
-pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMQTTConfig {
+pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMqttConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     BROKER_MQTT_CONF.get_or_init(|| {
@@ -125,7 +125,7 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMQTTCo
                 panic!("{}", e.to_string())
             }
         };
-        let config: BrokerMQTTConfig = match toml::from_str(&content) {
+        let config: BrokerMqttConfig = match toml::from_str(&content) {
             Ok(da) => da,
             Err(e) => {
                 panic!("{}", e)
@@ -141,13 +141,13 @@ pub fn init_broker_mqtt_conf_by_path(config_path: &str) -> &'static BrokerMQTTCo
     })
 }
 
-pub fn init_broker_mqtt_conf_by_config(config: BrokerMQTTConfig) -> &'static BrokerMQTTConfig {
+pub fn init_broker_mqtt_conf_by_config(config: BrokerMqttConfig) -> &'static BrokerMqttConfig {
     // n.b. static items do not call [`Drop`] on program termination, so if
     // [`DeepThought`] impls Drop, that will not be used for this instance.
     BROKER_MQTT_CONF.get_or_init(|| config)
 }
 
-pub fn broker_mqtt_conf() -> &'static BrokerMQTTConfig {
+pub fn broker_mqtt_conf() -> &'static BrokerMqttConfig {
     match BROKER_MQTT_CONF.get() {
         Some(config) => config,
         None => {
@@ -158,7 +158,7 @@ pub fn broker_mqtt_conf() -> &'static BrokerMQTTConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path, BrokerMQTTConfig};
+    use super::{broker_mqtt_conf, init_broker_mqtt_conf_by_path, BrokerMqttConfig};
     use crate::tools::read_file;
 
     #[test]
@@ -170,7 +170,7 @@ mod tests {
 
         let content = read_file(&path).unwrap();
         println!("{}", content);
-        let config: BrokerMQTTConfig = match toml::from_str(&content) {
+        let config: BrokerMqttConfig = match toml::from_str(&content) {
             Ok(da) => da,
             Err(e) => {
                 panic!("{}", e)

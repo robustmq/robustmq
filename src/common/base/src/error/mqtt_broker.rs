@@ -17,7 +17,7 @@ use std::string::FromUtf8Error;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
-pub enum MQTTBrokerError {
+pub enum MqttBrokerError {
     #[error("{0}")]
     FromUtf8Error(#[from] FromUtf8Error),
 

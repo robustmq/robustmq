@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
     placement_create_topic, placement_delete_topic, placement_list_topic,
@@ -186,7 +186,7 @@ impl TopicStorage {
         let topic = match self.get_topic(topic_name.clone()).await {
             Ok(Some(data)) => data,
             Ok(None) => {
-                return Err(MQTTBrokerError::TopicDoesNotExist(topic_name.clone()).into());
+                return Err(MqttBrokerError::TopicDoesNotExist(topic_name.clone()).into());
             }
             Err(e) => {
                 return Err(e);

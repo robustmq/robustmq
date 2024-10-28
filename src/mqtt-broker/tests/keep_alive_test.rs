@@ -20,7 +20,7 @@ mod tests {
 
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use protocol::mqtt::common::{Connect, LastWill, Login, MQTTPacket};
+    use protocol::mqtt::common::{Connect, LastWill, Login, MqttPacket};
     use protocol::mqtt::mqttv4::codec::Mqtt4Codec;
     use tokio::net::TcpStream;
     use tokio::time::{sleep, Instant};
@@ -57,7 +57,7 @@ mod tests {
     }
 
     /// Build the connect content package for the mqtt4 protocol
-    fn build_mqtt4_pg_connect() -> MQTTPacket {
+    fn build_mqtt4_pg_connect() -> MqttPacket {
         let client_id = String::from("test_client_id");
         let login = Some(Login {
             username: "admin".to_string(),
@@ -75,6 +75,6 @@ mod tests {
             client_id,
             clean_session: true,
         };
-        MQTTPacket::Connect(4, connect, None, lastwill, None, login)
+        MqttPacket::Connect(4, connect, None, lastwill, None, login)
     }
 }

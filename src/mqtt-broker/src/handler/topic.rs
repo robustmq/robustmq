@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use common_base::tools::unique_id;
 use grpc_clients::poll::ClientPool;
 use metadata_struct::mqtt::topic::MqttTopic;
@@ -47,20 +47,20 @@ pub fn payload_format_validator(
     false
 }
 
-pub fn topic_name_validator(topic_name: &str) -> Result<(), MQTTBrokerError> {
+pub fn topic_name_validator(topic_name: &str) -> Result<(), MqttBrokerError> {
     if topic_name.is_empty() {
-        return Err(MQTTBrokerError::TopicNameIsEmpty);
+        return Err(MqttBrokerError::TopicNameIsEmpty);
     }
 
     let topic_slice: Vec<&str> = topic_name.split("/").collect();
     if topic_slice.first().unwrap() == &"/" {
-        return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
+        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(
             topic_name.to_owned(),
         ));
     }
 
     if topic_slice.last().unwrap() == &"/" {
-        return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
+        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(
             topic_name.to_owned(),
         ));
     }
@@ -68,7 +68,7 @@ pub fn topic_name_validator(topic_name: &str) -> Result<(), MQTTBrokerError> {
     let format_str = "^[A-Za-z0-9_+#/$]+$";
     let re = Regex::new(format_str).unwrap();
     if !re.is_match(topic_name) {
-        return Err(MQTTBrokerError::TopicNameIncorrectlyFormatted(
+        return Err(MqttBrokerError::TopicNameIncorrectlyFormatted(
             topic_name.to_owned(),
         ));
     }
@@ -80,7 +80,7 @@ pub fn get_topic_name(
     metadata_cache: &Arc<CacheManager>,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
-) -> Result<String, MQTTBrokerError> {
+) -> Result<String, MqttBrokerError> {
     let topic_alias = if let Some(pub_properties) = publish_properties {
         pub_properties.topic_alias
     } else {
@@ -90,14 +90,14 @@ pub fn get_topic_name(
     let topic = String::from_utf8(publish.topic.to_vec())?;
 
     if topic.is_empty() && topic_alias.is_none() {
-        return Err(MQTTBrokerError::TopicNameIsEmpty);
+        return Err(MqttBrokerError::TopicNameIsEmpty);
     }
 
     let topic_name = if topic.is_empty() {
         if let Some(tn) = metadata_cache.get_topic_alias(connect_id, topic_alias.unwrap()) {
             tn
         } else {
-            return Err(MQTTBrokerError::TopicNameInvalid());
+            return Err(MqttBrokerError::TopicNameInvalid());
         }
     } else {
         topic
@@ -138,7 +138,7 @@ where
 #[cfg(test)]
 mod test {
 
-    use common_base::error::mqtt_broker::MQTTBrokerError;
+    use common_base::error::mqtt_broker::MqttBrokerError;
 
     use super::topic_name_validator;
 
@@ -146,8 +146,8 @@ mod test {
     pub fn topic_name_validator_test() {
         let topic_name = "".to_string();
         if let Err(e) = topic_name_validator(&topic_name) {
-            // assert!(e.to_string() == MQTTBrokerError::TopicNameIsEmpty.to_string())
-            assert_eq!(e, MQTTBrokerError::TopicNameIsEmpty);
+            // assert!(e.to_string() == MqttBrokerError::TopicNameIsEmpty.to_string())
+            assert_eq!(e, MqttBrokerError::TopicNameIsEmpty);
         }
 
         let topic_name = "/test/test".to_string();

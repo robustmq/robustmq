@@ -19,7 +19,7 @@ use common_base::config::broker_mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
 use grpc_clients::poll::ClientPool;
 use log::{error, info};
-use protocol::mqtt::common::{Filter, MQTTProtocol, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
@@ -33,7 +33,7 @@ pub struct ShareSubShareSub {
     pub client_id: String,
     pub group_name: String,
     pub sub_name: String,
-    pub protocol: MQTTProtocol,
+    pub protocol: MqttProtocol,
     pub packet_identifier: u16,
     pub filter: Filter,
     pub subscription_identifier: Option<usize>,
@@ -125,7 +125,7 @@ impl SubscribeManager {
     pub async fn add_subscribe(
         &self,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
@@ -233,7 +233,7 @@ impl SubscribeManager {
         topic_name: String,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
@@ -304,7 +304,7 @@ impl SubscribeManager {
         topic_name: String,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         sub_identifier: Option<usize>,
         filter: Filter,
         group_name: String,
@@ -364,7 +364,7 @@ impl SubscribeManager {
         &self,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         sub_identifier: Option<usize>,
         filter: Filter,
         group_name: String,
@@ -390,7 +390,7 @@ impl SubscribeManager {
         topic_name: String,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         sub_identifier: Option<usize>,
         filter: Filter,
     ) {

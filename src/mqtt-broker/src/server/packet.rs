@@ -15,18 +15,18 @@
 use std::net::SocketAddr;
 
 use common_base::tools::now_mills;
-use protocol::mqtt::common::MQTTPacket;
+use protocol::mqtt::common::MqttPacket;
 
 #[derive(Clone, Debug)]
 pub struct RequestPackage {
     pub connection_id: u64,
     pub addr: SocketAddr,
-    pub packet: MQTTPacket,
+    pub packet: MqttPacket,
     pub receive_ms: u128,
 }
 
 impl RequestPackage {
-    pub fn new(connection_id: u64, addr: SocketAddr, packet: MQTTPacket) -> Self {
+    pub fn new(connection_id: u64, addr: SocketAddr, packet: MqttPacket) -> Self {
         Self {
             connection_id,
             addr,
@@ -39,11 +39,11 @@ impl RequestPackage {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ResponsePackage {
     pub connection_id: u64,
-    pub packet: MQTTPacket,
+    pub packet: MqttPacket,
 }
 
 impl ResponsePackage {
-    pub fn new(connection_id: u64, packet: MQTTPacket) -> Self {
+    pub fn new(connection_id: u64, packet: MqttPacket) -> Self {
         Self {
             connection_id,
             packet,

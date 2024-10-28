@@ -22,7 +22,7 @@ use grpc_clients::poll::ClientPool;
 use log::{error, info, warn};
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol};
+use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol};
 use serde::{Deserialize, Serialize};
 use tokio::select;
 use tokio::sync::broadcast::{self};
@@ -196,7 +196,7 @@ impl ClientKeepAlive {
                 }
             } else {
                 let live_time = ConnectionLiveTime {
-                    protobol: MQTTProtocol::MQTT5,
+                    protobol: MqttProtocol::Mqtt5,
                     keep_live: connection.keep_alive,
                     heartbeat: now_second(),
                 };
@@ -238,7 +238,7 @@ mod test {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use common_base::config::broker_mqtt::BrokerMQTTConfig;
+    use common_base::config::broker_mqtt::BrokerMqttConfig;
     use common_base::tools::{now_second, unique_id};
     use grpc_clients::poll::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
@@ -264,7 +264,7 @@ mod test {
 
     #[tokio::test]
     pub async fn get_expire_connection_test() {
-        let conf = BrokerMQTTConfig {
+        let conf = BrokerMqttConfig {
             cluster_name: "test".to_string(),
             ..Default::default()
         };

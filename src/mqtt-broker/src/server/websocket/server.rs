@@ -30,7 +30,7 @@ use futures_util::stream::StreamExt;
 use grpc_clients::poll::ClientPool;
 use log::{debug, error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
+use protocol::mqtt::common::{MqttPacket, MqttProtocol};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
@@ -203,7 +203,7 @@ async fn handle_socket<S>(
 
     connection_manager.add_websocket_write(tcp_connection.connection_id, sender);
     connection_manager.add_connection(tcp_connection.clone());
-    let mut protocol_version = MQTTProtocol::MQTT5;
+    let mut protocol_version = MqttProtocol::Mqtt5;
     let mut stop_rx = stop_sx.subscribe();
 
     loop {
@@ -233,7 +233,7 @@ async fn handle_socket<S>(
                                         )
                                         .await
                                     {
-                                        if let MQTTPacket::Connect(_,_,_,_,_,_) = packet {
+                                        if let MqttPacket::Connect(_,_,_,_,_,_) = packet {
                                             if let Some(pv) = connection_manager.get_connect_protocol(tcp_connection.connection_id){
                                                 protocol_version = pv.clone();
                                                 tcp_connection.set_protocol(pv);

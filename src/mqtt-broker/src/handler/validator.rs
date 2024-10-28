@@ -16,7 +16,7 @@ use std::cmp::min;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use futures::SinkExt;
 use grpc_clients::poll::ClientPool;
 use log::error;
@@ -24,7 +24,7 @@ use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
 use protocol::mqtt::common::{
     Connect, ConnectProperties, ConnectReturnCode, DisconnectReasonCode, LastWill,
-    LastWillProperties, Login, MQTTPacket, MQTTProtocol, PubAckReason, PubRecReason, Publish,
+    LastWillProperties, Login, MqttPacket, MqttProtocol, PubAckReason, PubRecReason, Publish,
     PublishProperties, QoS, Subscribe, SubscribeReasonCode, UnsubAckReason, Unsubscribe,
 };
 use tokio_util::codec::FramedWrite;
@@ -53,9 +53,9 @@ pub async fn tcp_establish_connection_check(
 ) -> bool {
     if connection_manager.tcp_connect_num_check() {
         let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MQTTProtocol::MQTT5.into(),
+            protocol_version: MqttProtocol::Mqtt5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
-                &MQTTProtocol::MQTT5,
+                &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::QuotaExceeded),
             ),
         };
@@ -78,9 +78,9 @@ pub async fn tcp_establish_connection_check(
 
     if is_connection_rate_exceeded() {
         let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MQTTProtocol::MQTT5.into(),
+            protocol_version: MqttProtocol::Mqtt5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
-                &MQTTProtocol::MQTT5,
+                &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::ConnectionRateExceeded),
             ),
         };
@@ -113,9 +113,9 @@ pub async fn tcp_tls_establish_connection_check(
 ) -> bool {
     if connection_manager.tcp_connect_num_check() {
         let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MQTTProtocol::MQTT5.into(),
+            protocol_version: MqttProtocol::Mqtt5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
-                &MQTTProtocol::MQTT5,
+                &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::QuotaExceeded),
             ),
         };
@@ -138,9 +138,9 @@ pub async fn tcp_tls_establish_connection_check(
 
     if is_connection_rate_exceeded() {
         let packet_wrapper = MqttPacketWrapper {
-            protocol_version: MQTTProtocol::MQTT5.into(),
+            protocol_version: MqttProtocol::Mqtt5.into(),
             packet: response_packet_mqtt_distinct_by_reason(
-                &MQTTProtocol::MQTT5,
+                &MqttProtocol::Mqtt5,
                 Some(DisconnectReasonCode::ConnectionRateExceeded),
             ),
         };
@@ -165,7 +165,7 @@ pub async fn tcp_tls_establish_connection_check(
 
 #[allow(clippy::too_many_arguments)]
 pub fn connect_validator(
-    protocol: &MQTTProtocol,
+    protocol: &MqttProtocol,
     cluster: &MqttClusterDynamicConfig,
     connect: &Connect,
     connect_properties: &Option<ConnectProperties>,
@@ -173,13 +173,13 @@ pub fn connect_validator(
     last_will_properties: &Option<LastWillProperties>,
     login: &Option<Login>,
     addr: &SocketAddr,
-) -> Option<MQTTPacket> {
+) -> Option<MqttPacket> {
     if cluster.security.is_self_protection_status {
         return Some(response_packet_mqtt_connect_fail(
             protocol,
             ConnectReturnCode::ServerBusy,
             connect_properties,
-            Some(MQTTBrokerError::ClusterIsInSelfProtection.to_string()),
+            Some(MqttBrokerError::ClusterIsInSelfProtection.to_string()),
         ));
     }
 
@@ -284,13 +284,13 @@ pub fn connect_validator(
 }
 
 pub async fn publish_validator(
-    protocol: &MQTTProtocol,
+    protocol: &MqttProtocol,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
-) -> Option<MQTTPacket> {
+) -> Option<MqttPacket> {
     let is_puback = publish.qos != QoS::ExactlyOnce;
 
     if publish.qos == QoS::ExactlyOnce {
@@ -335,7 +335,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubAckReason::PayloadFormatInvalid,
-                Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         } else {
             return Some(response_packet_mqtt_pubrec_fail(
@@ -343,7 +343,7 @@ pub async fn publish_validator(
                 connection,
                 publish.pkid,
                 PubRecReason::PayloadFormatInvalid,
-                Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
             ));
         }
     }
@@ -359,7 +359,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubAckReason::PayloadFormatInvalid,
-                        Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
                     ));
                 } else {
                     return Some(response_packet_mqtt_pubrec_fail(
@@ -367,7 +367,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubRecReason::PayloadFormatInvalid,
-                        Some(MQTTBrokerError::PacketLenthError(publish.payload.len()).to_string()),
+                        Some(MqttBrokerError::PacketLenthError(publish.payload.len()).to_string()),
                     ));
                 }
             }
@@ -425,7 +425,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubAckReason::UnspecifiedError,
-                        Some(MQTTBrokerError::TopicAliasTooLong(alias).to_string()),
+                        Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
                     ));
                 } else {
                     return Some(response_packet_mqtt_pubrec_fail(
@@ -433,7 +433,7 @@ pub async fn publish_validator(
                         connection,
                         publish.pkid,
                         PubRecReason::UnspecifiedError,
-                        Some(MQTTBrokerError::TopicAliasTooLong(alias).to_string()),
+                        Some(MqttBrokerError::TopicAliasTooLong(alias).to_string()),
                     ));
                 }
             }
@@ -444,12 +444,12 @@ pub async fn publish_validator(
 }
 
 pub async fn subscribe_validator(
-    protocol: &MQTTProtocol,
+    protocol: &MqttProtocol,
     cache_manager: &Arc<CacheManager>,
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
     subscribe: &Subscribe,
-) -> Option<MQTTPacket> {
+) -> Option<MqttPacket> {
     match pkid_exists(
         cache_manager,
         client_poll,
@@ -526,7 +526,7 @@ pub async fn un_subscribe_validator(
     client_poll: &Arc<ClientPool>,
     connection: &Connection,
     un_subscribe: &Unsubscribe,
-) -> Option<MQTTPacket> {
+) -> Option<MqttPacket> {
     match pkid_exists(
         cache_manager,
         client_poll,
@@ -587,7 +587,7 @@ pub async fn un_subscribe_validator(
                     connection,
                     un_subscribe.pkid,
                     vec![UnsubAckReason::NoSubscriptionExisted],
-                    Some(MQTTBrokerError::SubscriptionPathNotExists(path).to_string()),
+                    Some(MqttBrokerError::SubscriptionPathNotExists(path).to_string()),
                 ));
             }
         }

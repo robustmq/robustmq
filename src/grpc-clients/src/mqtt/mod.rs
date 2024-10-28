@@ -25,13 +25,13 @@ use crate::poll::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone)]
-pub enum MQTTBrokerService {
+pub enum MqttBrokerService {
     Placement,
     Admin,
 }
 
 #[derive(Clone, Debug)]
-pub enum MQTTBrokerPlacementInterface {
+pub enum MqttBrokerPlacementInterface {
     // placement
     DeleteSession,
     UpdateCache,
@@ -48,8 +48,8 @@ pub mod admin;
 pub mod placement;
 
 async fn retry_call(
-    service: MQTTBrokerService,
-    interface: MQTTBrokerPlacementInterface,
+    service: MqttBrokerService,
+    interface: MqttBrokerPlacementInterface,
     client_poll: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
@@ -64,7 +64,7 @@ async fn retry_call(
         let index = times % addrs.len();
         let addr = addrs.get(index).unwrap().clone();
         let result = match service {
-            MQTTBrokerService::Placement => {
+            MqttBrokerService::Placement => {
                 placement_interface_call(
                     interface.clone(),
                     client_poll.clone(),
@@ -73,7 +73,7 @@ async fn retry_call(
                 )
                 .await
             }
-            MQTTBrokerService::Admin => {
+            MqttBrokerService::Admin => {
                 admin_interface_call(
                     interface.clone(),
                     client_poll.clone(),

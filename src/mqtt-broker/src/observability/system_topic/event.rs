@@ -20,7 +20,7 @@ use grpc_clients::poll::ClientPool;
 use log::error;
 use metadata_struct::mqtt::message::MqttMessage;
 use metadata_struct::mqtt::session::MqttSession;
-use protocol::mqtt::common::{DisconnectReasonCode, MQTTProtocol, Subscribe, Unsubscribe};
+use protocol::mqtt::common::{DisconnectReasonCode, MqttProtocol, Subscribe, Unsubscribe};
 use serde::{Deserialize, Serialize};
 use storage_adapter::storage::StorageAdapter;
 
@@ -37,7 +37,7 @@ pub struct SystemTopicConnectedEventMessge {
     pub username: String,
     pub ts: u128,
     pub sockport: u16,
-    pub proto_ver: Option<MQTTProtocol>,
+    pub proto_ver: Option<MqttProtocol>,
     pub proto_name: String,
     pub keepalive: u16,
     pub ipaddress: String,
@@ -54,7 +54,7 @@ pub struct SystemTopicDisConnectedEventMessge {
     pub ts: u128,
     pub sockport: u16,
     pub reason: String,
-    pub proto_ver: Option<MQTTProtocol>,
+    pub proto_ver: Option<MqttProtocol>,
     pub proto_name: String,
     pub ipaddress: String,
     pub disconnected_at: u128,

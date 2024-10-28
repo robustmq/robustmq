@@ -29,7 +29,7 @@ use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_placement::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
-use protocol::mqtt::common::{MQTTProtocol, PublishProperties, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{MqttProtocol, PublishProperties, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
@@ -64,7 +64,7 @@ pub struct MetadataChangeData {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ConnectionLiveTime {
-    pub protobol: MQTTProtocol,
+    pub protobol: MqttProtocol,
     pub keep_live: u16,
     pub heartbeat: u64,
 }
@@ -166,7 +166,7 @@ impl CacheManager {
     pub fn add_client_subscribe(
         &self,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {

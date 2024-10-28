@@ -18,7 +18,7 @@ use std::sync::Arc;
 use grpc_clients::poll::ClientPool;
 use log::{debug, error};
 use protocol::mqtt::codec::MqttPacketWrapper;
-use protocol::mqtt::common::MQTTPacket;
+use protocol::mqtt::common::MqttPacket;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -150,7 +150,7 @@ pub(crate) fn response_child_process(
                                     }
                             }
 
-                            if let MQTTPacket::Disconnect(_, _) = response_package.packet {
+                            if let MqttPacket::Disconnect(_, _) = response_package.packet {
                                 if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){
                                     match disconnect_connection(
                                         &connection.client_id,

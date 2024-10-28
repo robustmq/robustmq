@@ -17,12 +17,12 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use common_base::tools::now_second;
 use grpc_clients::poll::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
@@ -517,13 +517,13 @@ async fn share_leader_publish_message_qos1(
 
     if let Some(conn) = metadata_cache.get_connection(connect_id) {
         if publish.payload.len() > (conn.max_packet_size as usize) {
-            return Err(MQTTBrokerError::PacketLenthError(publish.payload.len()).into());
+            return Err(MqttBrokerError::PacketLenthError(publish.payload.len()).into());
         }
     }
 
     let mut contain_properties = false;
     if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
-        if MQTTProtocol::is_mqtt5(&protocol) {
+        if MqttProtocol::is_mqtt5(&protocol) {
             contain_properties = true;
         }
     }
@@ -531,12 +531,12 @@ async fn share_leader_publish_message_qos1(
     let resp = if contain_properties {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+            packet: MqttPacket::Publish(publish.clone(), Some(publish_properties.clone())),
         }
     } else {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish.clone(), None),
+            packet: MqttPacket::Publish(publish.clone(), None),
         }
     };
 
@@ -607,7 +607,7 @@ where
                 break;
             }
         } else {
-            return Err(MQTTBrokerError::SubPublishWaitPubRecTimeout(client_id.to_owned()).into());
+            return Err(MqttBrokerError::SubPublishWaitPubRecTimeout(client_id.to_owned()).into());
         }
     }
 

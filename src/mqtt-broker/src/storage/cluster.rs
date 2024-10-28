@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig};
+use common_base::config::broker_mqtt::{broker_mqtt_conf, BrokerMqttConfig};
 use common_base::error::common::CommonError;
 use common_base::tools::get_local_ip;
 use grpc_clients::placement::placement::call::{
@@ -64,7 +64,7 @@ impl ClusterStorage {
         Ok(node_list)
     }
 
-    pub async fn register_node(&self, config: &BrokerMQTTConfig) -> Result<(), CommonError> {
+    pub async fn register_node(&self, config: &BrokerMqttConfig) -> Result<(), CommonError> {
         let local_ip = get_local_ip();
 
         let node = MqttNodeExtend {
@@ -95,7 +95,7 @@ impl ClusterStorage {
         Ok(())
     }
 
-    pub async fn unregister_node(&self, config: &BrokerMQTTConfig) -> Result<(), CommonError> {
+    pub async fn unregister_node(&self, config: &BrokerMqttConfig) -> Result<(), CommonError> {
         let req = UnRegisterNodeRequest {
             cluster_type: ClusterType::MqttBrokerServer.into(),
             cluster_name: config.cluster_name.clone(),

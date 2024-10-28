@@ -455,6 +455,4 @@ mod tests {
         assert_eq!(segment.replicas.len(), 2);
         assert_eq!(segment.status, SegmentStatus::Idle);
     }
-
-    fn build_ins() {}
 }
