@@ -17,7 +17,7 @@ use std::sync::Arc;
 use grpc_clients::mqtt::admin::call::{
     cluster_status, mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
 };
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_admin::{
     ClusterStatusRequest, CreateUserRequest, DeleteUserRequest, ListUserRequest,
@@ -81,29 +81,28 @@ impl MqttBrokerCommand {
     }
 
     pub async fn start(&self, params: MqttCliCommandParam) {
-        // let action_type = MqttActionType::from(params.action.clone());
-        let client_poll = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(100));
         match params.action {
             MqttActionType::Status => {
-                self.status(client_poll.clone(), params.clone()).await;
+                self.status(client_pool.clone(), params.clone()).await;
             }
             MqttActionType::CreateUser(ref request) => {
-                self.create_user(client_poll.clone(), params.clone(), request.clone())
+                self.create_user(client_pool.clone(), params.clone(), request.clone())
                     .await;
             }
             MqttActionType::DeleteUser(ref request) => {
-                self.delete_user(client_poll.clone(), params.clone(), request.clone())
+                self.delete_user(client_pool.clone(), params.clone(), request.clone())
                     .await;
             }
             MqttActionType::ListUser => {
-                self.list_user(client_poll.clone(), params.clone()).await;
+                self.list_user(client_pool.clone(), params.clone()).await;
             }
         }
     }
 
-    async fn status(&self, client_poll: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn status(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ClusterStatusRequest {};
-        match cluster_status(client_poll, grpc_addr(params.server), request).await {
+        match cluster_status(client_pool, grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("cluster name: {}", data.cluster_name);
                 println!("node list:");
@@ -121,7 +120,7 @@ impl MqttBrokerCommand {
 
     async fn create_user(
         &self,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         params: MqttCliCommandParam,
         cli_request: CreateUserCliRequest,
     ) {
@@ -130,7 +129,7 @@ impl MqttBrokerCommand {
             password: cli_request.password,
             is_superuser: cli_request.is_superuser,
         };
-        match mqtt_broker_create_user(client_poll.clone(), grpc_addr(params.server), request).await
+        match mqtt_broker_create_user(client_pool.clone(), grpc_addr(params.server), request).await
         {
             Ok(_) => {
                 println!("Created successfully!",)
@@ -144,14 +143,14 @@ impl MqttBrokerCommand {
 
     async fn delete_user(
         &self,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         params: MqttCliCommandParam,
         cli_request: DeleteUserCliRequest,
     ) {
         let request = DeleteUserRequest {
             username: cli_request.username,
         };
-        match mqtt_broker_delete_user(client_poll.clone(), grpc_addr(params.server), request).await
+        match mqtt_broker_delete_user(client_pool.clone(), grpc_addr(params.server), request).await
         {
             Ok(_) => {
                 println!("Deleted successfully!");
@@ -163,9 +162,9 @@ impl MqttBrokerCommand {
         }
     }
 
-    async fn list_user(&self, client_poll: Arc<ClientPool>, params: MqttCliCommandParam) {
+    async fn list_user(&self, client_pool: Arc<ClientPool>, params: MqttCliCommandParam) {
         let request = ListUserRequest {};
-        match mqtt_broker_list_user(client_poll.clone(), grpc_addr(params.server), request).await {
+        match mqtt_broker_list_user(client_pool.clone(), grpc_addr(params.server), request).await {
             Ok(data) => {
                 println!("user list:");
                 for user in data.users {

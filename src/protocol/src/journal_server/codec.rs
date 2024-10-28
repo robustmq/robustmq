@@ -192,6 +192,7 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
         }
 
         let header_len = header_byte.len();
+        print!("{}", header_len);
         let body_len = body_byte.len();
         let data_len = header_len + body_len;
         if data_len > Self::MAX_SIZE {
@@ -314,6 +315,7 @@ impl codec::Decoder for JournalServerCodec {
                         ApiKey::CreateShard => create_shard_req(body_bytes, header),
 
                         ApiKey::DeleteShard => delete_shard_req(body_bytes, header),
+                        _ => Err(Error::NotAvailableRequestType(req_type)),
                     },
                     Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
                 }
@@ -334,6 +336,7 @@ impl codec::Decoder for JournalServerCodec {
                     ApiKey::CreateShard => create_shard_resp(body_bytes, header),
 
                     ApiKey::DeleteShard => delete_shard_resp(body_bytes, header),
+                    _ => Err(Error::NotAvailableRequestType(req_type)),
                 },
                 Err(e) => Err(Error::DecodeHeaderError(e.to_string())),
             },
@@ -608,8 +611,8 @@ mod tests {
 
     use super::{JournalEnginePacket, JournalServerCodec};
     use crate::journal_server::journal_engine::{
-        ApiKey, ApiVersion, GetClusterMetadataReq, ReqHeader, RespHeader, WriteReq, WriteReqBody,
-        WriteResp, WriteRespBody,
+        ApiKey, ApiVersion, GetClusterMetadataReq, ReadReq, ReadReqBody, ReqHeader, RespHeader,
+        WriteReq, WriteReqBody, WriteResp, WriteRespBody,
     };
 
     #[test]
@@ -644,6 +647,25 @@ mod tests {
             header: Some(header),
         };
         let source = JournalEnginePacket::GetClusterMetadataReq(req);
+
+        let mut codec = JournalServerCodec::new();
+        let mut dst = bytes::BytesMut::new();
+        codec.encode(source.clone(), &mut dst).unwrap();
+        let target = codec.decode(&mut dst).unwrap().unwrap();
+        assert_eq!(source, target);
+    }
+
+    #[test]
+    fn read_codec_test() {
+        let header = ReqHeader {
+            api_key: ApiKey::Read.into(),
+            api_version: ApiVersion::V0.into(),
+        };
+
+        let source = JournalEnginePacket::ReadReq(ReadReq {
+            header: Some(header),
+            body: Some(ReadReqBody::default()),
+        });
 
         let mut codec = JournalServerCodec::new();
         let mut dst = bytes::BytesMut::new();

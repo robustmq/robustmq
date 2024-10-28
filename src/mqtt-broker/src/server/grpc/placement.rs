@@ -14,7 +14,7 @@
 
 use std::sync::Arc;
 
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::debug;
 use metadata_struct::mqtt::lastwill::LastWillData;
 use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_server::MqttBrokerPlacementService;
@@ -32,7 +32,7 @@ use crate::subscribe::subscribe_manager::SubscribeManager;
 pub struct GrpcPlacementServices<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     message_storage_adapter: Arc<S>,
 }
 
@@ -40,13 +40,13 @@ impl<S> GrpcPlacementServices<S> {
     pub fn new(
         metadata_cache: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         message_storage_adapter: Arc<S>,
     ) -> Self {
         GrpcPlacementServices {
             cache_manager: metadata_cache,
             subscribe_manager,
-            client_poll,
+            client_pool,
             message_storage_adapter,
         }
     }
@@ -106,7 +106,7 @@ where
         match send_last_will_message(
             &req.client_id,
             &self.cache_manager,
-            &self.client_poll,
+            &self.client_pool,
             &data.last_will,
             &data.last_will_properties,
             self.message_storage_adapter.clone(),

@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use tokio::select;
 use tokio::sync::broadcast;
@@ -30,7 +30,7 @@ pub(crate) async fn response_process(
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     mut response_queue_rx: Receiver<ResponsePackage>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let mut stop_rx = stop_sx.subscribe();
@@ -42,7 +42,7 @@ pub(crate) async fn response_process(
             stop_sx.clone(),
             connection_manager,
             cache_manager,
-            client_poll,
+            client_pool,
         );
 
         let mut response_process_seq = 1;
@@ -94,7 +94,7 @@ pub(crate) fn response_child_process(
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
     _cache_manager: Arc<CacheManager>,
-    _client_poll: Arc<ClientPool>,
+    _client_pool: Arc<ClientPool>,
 ) {
     for index in 1..=response_process_num {
         let (response_process_sx, mut response_process_rx) = mpsc::channel::<ResponsePackage>(100);

@@ -21,7 +21,7 @@ use inner::inner_interface_call;
 use log::error;
 use tokio::time::sleep;
 
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
 pub mod admin;
@@ -45,7 +45,7 @@ pub enum JournalEngineInterface {
 async fn retry_call(
     service: JournalEngineService,
     interface: JournalEngineInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
@@ -62,7 +62,7 @@ async fn retry_call(
             JournalEngineService::Inner => {
                 inner_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr,
                     request.clone(),
                 )
@@ -71,7 +71,7 @@ async fn retry_call(
             JournalEngineService::Admin => {
                 admin_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr,
                     request.clone(),
                 )

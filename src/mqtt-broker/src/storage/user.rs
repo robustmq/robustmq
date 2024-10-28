@@ -20,18 +20,18 @@ use dashmap::DashMap;
 use grpc_clients::placement::mqtt::call::{
     placement_create_user, placement_delete_user, placement_list_user,
 };
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_mqtt::{
     CreateUserRequest, DeleteUserRequest, ListUserRequest,
 };
 
 pub struct UserStorage {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 impl UserStorage {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        UserStorage { client_poll }
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        UserStorage { client_pool }
     }
 
     pub async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError> {
@@ -42,7 +42,7 @@ impl UserStorage {
             content: user_info.encode(),
         };
         match placement_create_user(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -60,7 +60,7 @@ impl UserStorage {
             user_name,
         };
         match placement_delete_user(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -78,7 +78,7 @@ impl UserStorage {
             user_name: username.clone(),
         };
         match placement_list_user(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -105,7 +105,7 @@ impl UserStorage {
             user_name: "".to_string(),
         };
         match placement_list_user(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -135,7 +135,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::broker_mqtt::init_broker_mqtt_conf_by_path;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
 
     use crate::storage::user::UserStorage;
 
@@ -147,8 +147,8 @@ mod tests {
         );
         init_broker_mqtt_conf_by_path(&path);
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let user_storage = UserStorage::new(client_poll);
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let user_storage = UserStorage::new(client_pool);
         let username = "test".to_string();
         let password = "test_password".to_string();
         let is_superuser = true;

@@ -20,11 +20,11 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Default, PartialEq, Debug, Serialize, Deserialize)]
-pub enum MQTTProtocol {
+pub enum MqttProtocol {
     #[default]
-    MQTT3,
-    MQTT4,
-    MQTT5,
+    Mqtt3,
+    Mqtt4,
+    Mqtt5,
 }
 
 pub fn is_mqtt3(protocol: u8) -> bool {
@@ -39,39 +39,39 @@ pub fn is_mqtt5(protocol: u8) -> bool {
     protocol == 5
 }
 
-impl MQTTProtocol {
+impl MqttProtocol {
     pub fn is_mqtt3(&self) -> bool {
-        MQTTProtocol::MQTT3.eq(self)
+        MqttProtocol::Mqtt3.eq(self)
     }
     pub fn is_mqtt4(&self) -> bool {
-        MQTTProtocol::MQTT4.eq(self)
+        MqttProtocol::Mqtt4.eq(self)
     }
     pub fn is_mqtt5(&self) -> bool {
-        MQTTProtocol::MQTT5.eq(self)
+        MqttProtocol::Mqtt5.eq(self)
     }
 }
 
-impl From<MQTTProtocol> for String {
-    fn from(protocol: MQTTProtocol) -> Self {
+impl From<MqttProtocol> for String {
+    fn from(protocol: MqttProtocol) -> Self {
         match protocol {
-            MQTTProtocol::MQTT3 => "MQTT3".into(),
-            MQTTProtocol::MQTT4 => "MQTT4".into(),
-            MQTTProtocol::MQTT5 => "MQTT5".into(),
+            MqttProtocol::Mqtt3 => "MQTT3".into(),
+            MqttProtocol::Mqtt4 => "MQTT4".into(),
+            MqttProtocol::Mqtt5 => "MQTT5".into(),
         }
     }
 }
 
-impl From<MQTTProtocol> for u8 {
-    fn from(protocol: MQTTProtocol) -> Self {
+impl From<MqttProtocol> for u8 {
+    fn from(protocol: MqttProtocol) -> Self {
         match protocol {
-            MQTTProtocol::MQTT3 => 3,
-            MQTTProtocol::MQTT4 => 4,
-            MQTTProtocol::MQTT5 => 5,
+            MqttProtocol::Mqtt3 => 3,
+            MqttProtocol::Mqtt4 => 4,
+            MqttProtocol::Mqtt5 => 5,
         }
     }
 }
 
-///MQTT packet type
+/// MQTT packet type
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PacketType {
@@ -92,7 +92,7 @@ pub enum PacketType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MQTTPacket {
+pub enum MqttPacket {
     Connect(
         u8,
         Connect,
@@ -1100,8 +1100,8 @@ pub enum Error {
 }
 
 pub trait Protocol {
-    fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<MQTTPacket, Error>;
-    fn write(&self, packet: MQTTPacket, write: &mut BytesMut) -> Result<usize, Error>;
+    fn read_mut(&mut self, stream: &mut BytesMut, max_size: usize) -> Result<MqttPacket, Error>;
+    fn write(&self, packet: MqttPacket, write: &mut BytesMut) -> Result<usize, Error>;
 }
 
 // This type is used to avoid #[warn(clippy::type_complexity)]

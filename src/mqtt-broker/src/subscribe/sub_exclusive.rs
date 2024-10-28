@@ -18,10 +18,10 @@ use std::time::Duration;
 use bytes::Bytes;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::mqtt::message::MqttMessage;
-use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MqttPacket, MqttProtocol, Publish, PublishProperties, QoS};
 use storage_adapter::storage::StorageAdapter;
 use tokio::sync::broadcast::{self};
 use tokio::time::sleep;
@@ -42,7 +42,7 @@ pub struct SubscribeExclusive<S> {
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     connection_manager: Arc<ConnectionManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     message_storage: Arc<S>,
 }
 
@@ -55,14 +55,14 @@ where
         cache_manager: Arc<CacheManager>,
         subscribe_manager: Arc<SubscribeManager>,
         connection_manager: Arc<ConnectionManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         SubscribeExclusive {
             message_storage,
             cache_manager,
             subscribe_manager,
             connection_manager,
-            client_poll,
+            client_pool,
         }
     }
 
@@ -110,7 +110,7 @@ where
             let cache_manager = self.cache_manager.clone();
             let connection_manager = self.connection_manager.clone();
             let subscribe_manager = self.subscribe_manager.clone();
-            let client_poll = self.client_poll.clone();
+            let client_pool = self.client_pool.clone();
 
             // Subscribe to the data push thread
             self.subscribe_manager
@@ -136,7 +136,7 @@ where
                 try_send_retain_message(
                     client_id.clone(),
                     subscriber.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     cache_manager.clone(),
                     connection_manager.clone(),
                     sub_thread_stop_sx.clone(),
@@ -395,7 +395,7 @@ pub async fn exclusive_publish_message_qos1(
 
         let mut contain_properties = false;
         if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
-            if MQTTProtocol::is_mqtt5(&protocol) {
+            if MqttProtocol::is_mqtt5(&protocol) {
                 contain_properties = true;
             }
         }
@@ -403,12 +403,12 @@ pub async fn exclusive_publish_message_qos1(
         let resp = if contain_properties {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MQTTPacket::Publish(publish.clone(), Some(publish_properties.clone())),
+                packet: MqttPacket::Publish(publish.clone(), Some(publish_properties.clone())),
             }
         } else {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MQTTPacket::Publish(publish.clone(), None),
+                packet: MqttPacket::Publish(publish.clone(), None),
             }
         };
 

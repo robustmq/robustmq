@@ -15,7 +15,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
 use protocol::journal_server::codec::JournalEnginePacket;
 use protocol::journal_server::journal_engine::{
@@ -42,12 +42,12 @@ pub struct Command {
 
 impl Command {
     pub fn new(
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
     ) -> Self {
         let cluster_handler = ClusterHandler::new(cache_manager.clone());
-        let shard_handler = ShardHandler::new(cache_manager.clone(), client_poll);
+        let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool);
         let data_handler = DataHandler::new(cache_manager, offset_manager);
         Command {
             cluster_handler,
@@ -186,8 +186,8 @@ impl Command {
                     ..Default::default()
                 };
                 match self.data_handler.read(request).await {
-                    Ok(status) => {
-                        resp.body = Some(ReadRespBody {});
+                    Ok(messages) => {
+                        resp.body = Some(ReadRespBody { messages });
                     }
                     Err(e) => {
                         header.error = Some(JournalEngineError {

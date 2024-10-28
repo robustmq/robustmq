@@ -209,7 +209,7 @@ mod test {
     use std::sync::Arc;
 
     use common_base::tools::now_second;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::acl::mqtt_acl::{
         MqttAcl, MqttAclAction, MqttAclPermission, MqttAclResourceType,
     };
@@ -223,10 +223,10 @@ mod test {
 
     #[tokio::test]
     pub async fn check_super_user_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
 
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -253,9 +253,9 @@ mod test {
 
     #[tokio::test]
     pub async fn check_black_list_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -339,10 +339,10 @@ mod test {
 
     #[tokio::test]
     pub async fn check_empty_acl_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -380,10 +380,10 @@ mod test {
 
     #[tokio::test]
     pub async fn check_user_wildcard_acl_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -446,10 +446,10 @@ mod test {
 
     #[tokio::test]
     pub async fn check_user_match_acl_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -512,10 +512,10 @@ mod test {
 
     #[tokio::test]
     pub async fn check_client_id_wildcard_acl_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),
@@ -578,10 +578,10 @@ mod test {
 
     #[tokio::test]
     pub async fn check_client_id_match_acl_test() {
-        let client_poll = Arc::new(ClientPool::new(1));
+        let client_pool = Arc::new(ClientPool::new(1));
         let cluster_name = "test".to_string();
         let topic_name = "tp-1".to_string();
-        let cache_manager = Arc::new(CacheManager::new(client_poll, cluster_name));
+        let cache_manager = Arc::new(CacheManager::new(client_pool, cluster_name));
         let user = MqttUser {
             username: "loboxu".to_string(),
             password: "lobo_123".to_string(),

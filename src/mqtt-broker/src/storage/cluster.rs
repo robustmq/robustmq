@@ -14,14 +14,14 @@
 
 use std::sync::Arc;
 
-use common_base::config::broker_mqtt::{broker_mqtt_conf, BrokerMQTTConfig};
+use common_base::config::broker_mqtt::{broker_mqtt_conf, BrokerMqttConfig};
 use common_base::error::common::CommonError;
 use common_base::tools::get_local_ip;
 use grpc_clients::placement::placement::call::{
     delete_resource_config, get_resource_config, heartbeat, node_list, register_node,
     set_resource_config, unregister_node,
 };
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::cluster::MqttClusterDynamicConfig;
 use metadata_struct::mqtt::node_extend::MqttNodeExtend;
 use metadata_struct::placement::node::BrokerNode;
@@ -31,12 +31,12 @@ use protocol::placement_center::placement_center_inner::{
 };
 
 pub struct ClusterStorage {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl ClusterStorage {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        ClusterStorage { client_poll }
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        ClusterStorage { client_pool }
     }
 
     pub async fn node_list(&self) -> Result<Vec<BrokerNode>, CommonError> {
@@ -46,7 +46,7 @@ impl ClusterStorage {
         };
 
         let reply = node_list(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             conf.placement_center.clone(),
             request,
         )
@@ -64,7 +64,7 @@ impl ClusterStorage {
         Ok(node_list)
     }
 
-    pub async fn register_node(&self, config: &BrokerMQTTConfig) -> Result<(), CommonError> {
+    pub async fn register_node(&self, config: &BrokerMqttConfig) -> Result<(), CommonError> {
         let local_ip = get_local_ip();
 
         let node = MqttNodeExtend {
@@ -86,7 +86,7 @@ impl ClusterStorage {
         };
 
         register_node(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             req.clone(),
         )
@@ -95,7 +95,7 @@ impl ClusterStorage {
         Ok(())
     }
 
-    pub async fn unregister_node(&self, config: &BrokerMQTTConfig) -> Result<(), CommonError> {
+    pub async fn unregister_node(&self, config: &BrokerMqttConfig) -> Result<(), CommonError> {
         let req = UnRegisterNodeRequest {
             cluster_type: ClusterType::MqttBrokerServer.into(),
             cluster_name: config.cluster_name.clone(),
@@ -103,7 +103,7 @@ impl ClusterStorage {
         };
 
         unregister_node(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             req.clone(),
         )
@@ -120,7 +120,7 @@ impl ClusterStorage {
         };
 
         heartbeat(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             req.clone(),
         )
@@ -143,7 +143,7 @@ impl ClusterStorage {
         };
 
         set_resource_config(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -161,7 +161,7 @@ impl ClusterStorage {
         };
 
         delete_resource_config(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -181,7 +181,7 @@ impl ClusterStorage {
         };
 
         match get_resource_config(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )
@@ -211,7 +211,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::config::broker_mqtt::{broker_mqtt_conf, init_broker_mqtt_conf_by_path};
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::cluster::{
         MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
     };
@@ -226,8 +226,8 @@ mod tests {
         );
         init_broker_mqtt_conf_by_path(&path);
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let cluster_storage = ClusterStorage::new(client_poll);
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let cluster_storage = ClusterStorage::new(client_pool);
 
         let mut config = broker_mqtt_conf().clone();
         config.broker_id = 1234u64;
@@ -256,8 +256,8 @@ mod tests {
         );
         init_broker_mqtt_conf_by_path(&path);
 
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(10));
-        let cluster_storage = ClusterStorage::new(client_poll);
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(10));
+        let cluster_storage = ClusterStorage::new(client_pool);
 
         let cluster_name = "robust_test".to_string();
         let cluster = MqttClusterDynamicConfig {

@@ -29,7 +29,7 @@ use cli_command::placement::{
 #[command(author="RobustMQ", version="0.0.1", about="Command line tool for RobustMQ", long_about = None)]
 #[command(next_line_help = true)]
 enum RobustMQCli {
-    Mqtt(MQTTArgs),
+    Mqtt(MqttArgs),
     Place(PlacementArgs),
     Journal(JournalArgs),
 }
@@ -46,7 +46,7 @@ pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling:
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ", about="Command line tool for mqtt broker", long_about = None)]
 #[command(next_line_help = true)]
-struct MQTTArgs {
+struct MqttArgs {
     #[arg(short, long,default_value_t =String::from("127.0.0.1:9981"))]
     server: String,
 

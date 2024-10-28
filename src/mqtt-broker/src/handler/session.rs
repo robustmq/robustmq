@@ -17,7 +17,7 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::mqtt::session::MqttSession;
 use protocol::mqtt::common::{Connect, ConnectProperties, LastWill, LastWillProperties};
 
@@ -33,7 +33,7 @@ pub async fn build_session(
     connect_properties: &Option<ConnectProperties>,
     last_will: &Option<LastWill>,
     last_will_properties: &Option<LastWillProperties>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     cache_manager: &Arc<CacheManager>,
 ) -> Result<(MqttSession, bool), CommonError> {
     let session_expiry = session_expiry_interval(cache_manager, connect_properties);
@@ -41,7 +41,7 @@ pub async fn build_session(
     let last_will_delay_interval = last_will_delay_interval(last_will_properties);
 
     let (mut session, new_session) = if connnect.clean_session {
-        let session_storage = SessionStorage::new(client_poll.clone());
+        let session_storage = SessionStorage::new(client_pool.clone());
         match session_storage.get_session(client_id.clone()).await {
             Ok(Some(session)) => (session, false),
             Ok(None) => (
@@ -81,10 +81,10 @@ pub async fn save_session(
     session: MqttSession,
     new_session: bool,
     client_id: String,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
 ) -> Result<(), CommonError> {
     let conf = broker_mqtt_conf();
-    let session_storage = SessionStorage::new(client_poll.clone());
+    let session_storage = SessionStorage::new(client_pool.clone());
     if new_session {
         match session_storage.set_session(client_id, &session).await {
             Ok(_) => {}
@@ -135,8 +135,8 @@ fn session_expiry_interval(
 mod test {
     use std::sync::Arc;
 
-    use common_base::config::broker_mqtt::BrokerMQTTConfig;
-    use grpc_clients::poll::ClientPool;
+    use common_base::config::broker_mqtt::BrokerMqttConfig;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::mqtt::common::ConnectProperties;
 
@@ -160,13 +160,13 @@ mod test {
 
     #[test]
     pub fn session_expiry_interval_test() {
-        let conf = BrokerMQTTConfig {
+        let conf = BrokerMqttConfig {
             cluster_name: "test".to_string(),
             ..Default::default()
         };
-        let client_poll = Arc::new(ClientPool::new(100));
+        let client_pool = Arc::new(ClientPool::new(100));
         let cache_manager = Arc::new(CacheManager::new(
-            client_poll.clone(),
+            client_pool.clone(),
             conf.cluster_name.clone(),
         ));
         let res = session_expiry_interval(&cache_manager, &None);

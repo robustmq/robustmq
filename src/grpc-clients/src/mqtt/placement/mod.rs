@@ -20,38 +20,38 @@ use mobc::{Connection, Manager};
 use protocol::broker_mqtt::broker_mqtt_placement::mqtt_broker_placement_service_client::MqttBrokerPlacementServiceClient;
 use tonic::transport::Channel;
 
-use super::MQTTBrokerPlacementInterface;
-use crate::poll::ClientPool;
+use super::MqttBrokerPlacementInterface;
+use crate::pool::ClientPool;
 
 pub mod call;
 pub mod inner;
 
 async fn placement_client(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
 ) -> Result<Connection<MqttBrokerPlacementServiceManager>, CommonError> {
-    match client_poll.mqtt_broker_mqtt_services_client(addr).await {
+    match client_pool.mqtt_broker_mqtt_services_client(addr).await {
         Ok(client) => Ok(client),
         Err(e) => Err(e),
     }
 }
 
 pub(crate) async fn placement_interface_call(
-    interface: MQTTBrokerPlacementInterface,
-    client_poll: Arc<ClientPool>,
+    interface: MqttBrokerPlacementInterface,
+    client_pool: Arc<ClientPool>,
     addr: String,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
-    match placement_client(client_poll.clone(), addr.clone()).await {
+    match placement_client(client_pool.clone(), addr.clone()).await {
         Ok(client) => {
             let result = match interface {
-                MQTTBrokerPlacementInterface::DeleteSession => {
+                MqttBrokerPlacementInterface::DeleteSession => {
                     inner_delete_session(client, request).await
                 }
-                MQTTBrokerPlacementInterface::UpdateCache => {
+                MqttBrokerPlacementInterface::UpdateCache => {
                     inner_update_cache(client, request).await
                 }
-                MQTTBrokerPlacementInterface::SendLastWillMessage => {
+                MqttBrokerPlacementInterface::SendLastWillMessage => {
                     inner_send_last_will_message(client, request).await
                 }
                 _ => {

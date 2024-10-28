@@ -27,7 +27,7 @@ use self::journal::journal_interface_call;
 use self::kv::kv_interface_call;
 use self::mqtt::mqtt_interface_call;
 use self::placement::placement_interface_call;
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 use crate::{retry_sleep_time, retry_times};
 
 #[derive(Clone, Debug)]
@@ -145,20 +145,20 @@ pub mod placement;
 async fn retry_call(
     service: PlacementCenterService,
     interface: PlacementCenterInterface,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: Vec<u8>,
 ) -> Result<Vec<u8>, CommonError> {
     let mut times = 1;
     loop {
-        let (addr, new_times) = calc_addr(&client_poll, &addrs, times, &service, &interface);
+        let (addr, new_times) = calc_addr(&client_pool, &addrs, times, &service, &interface);
         times = new_times;
 
         let result = match service {
             PlacementCenterService::Journal => {
                 journal_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr.clone(),
                     request.clone(),
                 )
@@ -168,7 +168,7 @@ async fn retry_call(
             PlacementCenterService::Kv => {
                 kv_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr.clone(),
                     request.clone(),
                 )
@@ -178,7 +178,7 @@ async fn retry_call(
             PlacementCenterService::Placement => {
                 placement_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr.clone(),
                     request.clone(),
                 )
@@ -188,7 +188,7 @@ async fn retry_call(
             PlacementCenterService::Mqtt => {
                 mqtt_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr.clone(),
                     request.clone(),
                 )
@@ -197,7 +197,7 @@ async fn retry_call(
             PlacementCenterService::OpenRaft => {
                 openraft_interface_call(
                     interface.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     addr.clone(),
                     request.clone(),
                 )
@@ -212,7 +212,7 @@ async fn retry_call(
             Err(e) => {
                 if is_has_to_forward(&e) {
                     if let Some(leader_addr) = get_forward_addr(&e) {
-                        client_poll.set_leader_addr(addr, leader_addr);
+                        client_pool.set_leader_addr(addr, leader_addr);
                     }
                 } else {
                     error!(
@@ -233,7 +233,7 @@ async fn retry_call(
 }
 
 fn calc_addr(
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     addrs: &[String],
     times: usize,
     service: &PlacementCenterService,
@@ -242,7 +242,7 @@ fn calc_addr(
     let index = times % addrs.len();
     let addr = addrs.get(index).unwrap().clone();
     if is_write_request(service, interface) {
-        if let Some(leader_addr) = client_poll.get_leader_addr(&addr) {
+        if let Some(leader_addr) = client_pool.get_leader_addr(&addr) {
             return (leader_addr, times + 1);
         }
     }

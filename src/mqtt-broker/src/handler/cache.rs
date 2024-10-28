@@ -18,7 +18,7 @@ use std::time::Duration;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::tools::now_second;
 use dashmap::DashMap;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::warn;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
@@ -29,7 +29,7 @@ use metadata_struct::mqtt::user::MqttUser;
 use protocol::broker_mqtt::broker_mqtt_placement::{
     MqttBrokerUpdateCacheActionType, MqttBrokerUpdateCacheResourceType, UpdateCacheRequest,
 };
-use protocol::mqtt::common::{MQTTProtocol, PublishProperties, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{MqttProtocol, PublishProperties, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
@@ -64,7 +64,7 @@ pub struct MetadataChangeData {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ConnectionLiveTime {
-    pub protobol: MQTTProtocol,
+    pub protobol: MqttProtocol,
     pub keep_live: u16,
     pub heartbeat: u64,
 }
@@ -97,7 +97,7 @@ pub struct ClientPkidData {
 
 #[derive(Clone)]
 pub struct CacheManager {
-    pub client_poll: Arc<ClientPool>,
+    pub client_pool: Arc<ClientPool>,
 
     // cluster_name
     pub cluster_name: String,
@@ -143,9 +143,9 @@ pub struct CacheManager {
 }
 
 impl CacheManager {
-    pub fn new(client_poll: Arc<ClientPool>, cluster_name: String) -> Self {
+    pub fn new(client_pool: Arc<ClientPool>, cluster_name: String) -> Self {
         CacheManager {
-            client_poll,
+            client_pool,
             cluster_name,
             cluster_info: DashMap::with_capacity(1),
             user_info: DashMap::with_capacity(8),
@@ -166,7 +166,7 @@ impl CacheManager {
     pub fn add_client_subscribe(
         &self,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
@@ -453,7 +453,7 @@ impl CacheManager {
     pub async fn load_metadata_cache(&self, auth_driver: Arc<AuthDriver>) {
         let conf = broker_mqtt_conf();
         // load cluster config
-        let cluster_storage = ClusterStorage::new(self.client_poll.clone());
+        let cluster_storage = ClusterStorage::new(self.client_pool.clone());
         let cluster = match cluster_storage
             .get_cluster_config(conf.cluster_name.clone())
             .await
@@ -470,7 +470,7 @@ impl CacheManager {
         self.set_cluster_info(cluster);
 
         // load all topic
-        let topic_storage = TopicStorage::new(self.client_poll.clone());
+        let topic_storage = TopicStorage::new(self.client_pool.clone());
         let topic_list = match topic_storage.topic_list().await {
             Ok(list) => list,
             Err(e) => {
@@ -525,7 +525,7 @@ impl CacheManager {
             password: conf.system.default_password.clone(),
             is_superuser: true,
         };
-        let user_storage = UserStorage::new(self.client_poll.clone());
+        let user_storage = UserStorage::new(self.client_pool.clone());
         match user_storage.save_user(system_user_info.clone()).await {
             Ok(_) => {
                 self.add_user(system_user_info);

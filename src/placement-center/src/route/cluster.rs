@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use common_base::tools::{now_mills, unique_id};
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::cluster::ClusterInfo;
@@ -46,7 +46,7 @@ use crate::storage::rocksdb::RocksDBEngine;
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cluster_cache: Arc<PlacementCacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     call_manager: Arc<JournalInnerCallManager>,
 }
 
@@ -55,13 +55,13 @@ impl DataRouteCluster {
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
         call_manager: Arc<JournalInnerCallManager>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         DataRouteCluster {
             rocksdb_engine_handler,
             cluster_cache,
             call_manager,
-            client_poll,
+            client_pool,
         }
     }
 
@@ -187,7 +187,7 @@ impl DataRouteCluster {
             update_cache_by_add_journal_node(
                 &node.cluster_name,
                 &self.call_manager,
-                &self.client_poll,
+                &self.client_pool,
                 node.clone(),
             )
             .await?;
@@ -200,7 +200,7 @@ impl DataRouteCluster {
             update_cache_by_delete_journal_node(
                 &node.cluster_name,
                 &self.call_manager,
-                &self.client_poll,
+                &self.client_pool,
                 node.clone(),
             )
             .await?;
@@ -216,7 +216,7 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::unique_id;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use prost::Message as _;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
 
@@ -250,13 +250,13 @@ mod tests {
             column_family_list(),
         ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
-        let client_poll = Arc::new(ClientPool::new(3));
+        let client_pool = Arc::new(ClientPool::new(3));
         let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
         let route = DataRouteCluster::new(
             rocksdb_engine.clone(),
             cluster_cache,
             call_manager,
-            client_poll,
+            client_pool,
         );
         route.register_node(data).await.unwrap();
 
@@ -264,10 +264,7 @@ mod tests {
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());
 
         let cluster = cluster_storage
-            .get(
-                &ClusterType::MqttBrokerServer.as_str_name().to_string(),
-                &cluster_name,
-            )
+            .get(ClusterType::MqttBrokerServer.as_str_name(), &cluster_name)
             .unwrap();
         let cl = cluster.unwrap();
         assert_eq!(cl.cluster_name, cluster_name);

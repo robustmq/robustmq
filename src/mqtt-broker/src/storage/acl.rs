@@ -17,17 +17,17 @@ use std::sync::Arc;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
 use grpc_clients::placement::mqtt::call::list_acl;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use protocol::placement_center::placement_center_mqtt::ListAclRequest;
 
 pub struct AclStorage {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl AclStorage {
-    pub fn new(client_poll: Arc<ClientPool>) -> Self {
-        AclStorage { client_poll }
+    pub fn new(client_pool: Arc<ClientPool>) -> Self {
+        AclStorage { client_pool }
     }
 
     pub async fn list_acl(&self) -> Result<Vec<MqttAcl>, CommonError> {
@@ -36,7 +36,7 @@ impl AclStorage {
             cluster_name: config.cluster_name.clone(),
         };
         match list_acl(
-            self.client_poll.clone(),
+            self.client_pool.clone(),
             config.placement_center.clone(),
             request,
         )

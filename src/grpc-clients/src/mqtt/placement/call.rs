@@ -21,19 +21,19 @@ use protocol::broker_mqtt::broker_mqtt_placement::{
     UpdateCacheReply, UpdateCacheRequest,
 };
 
-use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
-use crate::poll::ClientPool;
+use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
+use crate::pool::ClientPool;
 
 pub async fn broker_mqtt_delete_session(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSessionRequest,
 ) -> Result<DeleteSessionReply, CommonError> {
     let request_data = DeleteSessionRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Placement,
-        MQTTBrokerPlacementInterface::DeleteSession,
-        client_poll,
+        MqttBrokerService::Placement,
+        MqttBrokerPlacementInterface::DeleteSession,
+        client_pool,
         addrs,
         request_data,
     )
@@ -48,15 +48,15 @@ pub async fn broker_mqtt_delete_session(
 }
 
 pub async fn broker_mqtt_update_cache(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: UpdateCacheRequest,
 ) -> Result<UpdateCacheReply, CommonError> {
     let request_data = UpdateCacheRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Placement,
-        MQTTBrokerPlacementInterface::UpdateCache,
-        client_poll,
+        MqttBrokerService::Placement,
+        MqttBrokerPlacementInterface::UpdateCache,
+        client_pool,
         addrs,
         request_data,
     )
@@ -71,15 +71,15 @@ pub async fn broker_mqtt_update_cache(
 }
 
 pub async fn send_last_will_message(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: SendLastWillMessageRequest,
 ) -> Result<SendLastWillMessageReply, CommonError> {
     let request_data = SendLastWillMessageRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Placement,
-        MQTTBrokerPlacementInterface::SendLastWillMessage,
-        client_poll,
+        MqttBrokerService::Placement,
+        MqttBrokerPlacementInterface::SendLastWillMessage,
+        client_pool,
         addrs,
         request_data,
     )

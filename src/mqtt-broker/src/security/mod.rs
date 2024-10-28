@@ -21,9 +21,9 @@ use axum::async_trait;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::config::common::Auth;
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use dashmap::DashMap;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use login::plaintext::Plaintext;
 use login::Authentication;
 use metadata_struct::acl::mqtt_acl::{MqttAcl, MqttAclAction};
@@ -57,14 +57,14 @@ pub trait AuthStorageAdapter {
 
 pub struct AuthDriver {
     cache_manager: Arc<CacheManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     driver: Arc<dyn AuthStorageAdapter + Send + 'static + Sync>,
 }
 
 impl AuthDriver {
-    pub fn new(cache_manager: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> AuthDriver {
+    pub fn new(cache_manager: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> AuthDriver {
         let conf = broker_mqtt_conf();
-        let driver = match build_driver(client_poll.clone(), conf.auth.clone()) {
+        let driver = match build_driver(client_pool.clone(), conf.auth.clone()) {
             Ok(driver) => driver,
             Err(e) => {
                 panic!("{}", e.to_string());
@@ -73,12 +73,12 @@ impl AuthDriver {
         AuthDriver {
             cache_manager,
             driver,
-            client_poll,
+            client_pool,
         }
     }
 
     pub fn update_driver(&mut self, auth: Auth) -> Result<(), CommonError> {
-        let driver = match build_driver(self.client_poll.clone(), auth) {
+        let driver = match build_driver(self.client_pool.clone(), auth) {
             Ok(driver) => driver,
             Err(e) => {
                 return Err(e);
@@ -175,7 +175,7 @@ impl AuthDriver {
             }
             Err(e) => {
                 // If the user does not exist, try to get the user information from the storage layer
-                if e.to_string() == MQTTBrokerError::UserDoesNotExist.to_string() {
+                if e.to_string() == MqttBrokerError::UserDoesNotExist.to_string() {
                     return self.try_get_check_user_by_driver(username).await;
                 }
                 return Err(e.into());
@@ -217,13 +217,13 @@ impl AuthDriver {
 }
 
 pub fn build_driver(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     auth: Auth,
 ) -> Result<Arc<dyn AuthStorageAdapter + Send + 'static + Sync>, CommonError> {
     let storage_type = StorageType::from_str(&auth.storage_type)
         .map_err(|_| CommonError::UnavailableStorageType)?;
     if matches!(storage_type, StorageType::Placement) {
-        let driver = PlacementAuthStorageAdapter::new(client_poll);
+        let driver = PlacementAuthStorageAdapter::new(client_pool);
         return Ok(Arc::new(driver));
     }
 

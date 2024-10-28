@@ -18,7 +18,7 @@ mod tests {
 
     use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
     use grpc_clients::placement::placement::call::register_node;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
     use protocol::placement_center::placement_center_mqtt::GetShareSubLeaderRequest;
 
@@ -26,7 +26,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt_share_sub_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = "test_cluster".to_string();
         let group_name: String = "test_group".to_string();
@@ -41,7 +41,7 @@ mod tests {
             node_inner_addr: node_ip.clone(),
             extend_info: "".to_string(),
         };
-        match register_node(client_poll.clone(), addrs.clone(), request).await {
+        match register_node(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -52,7 +52,7 @@ mod tests {
             group_name: group_name.clone(),
             cluster_name: cluster_name.clone(),
         };
-        match placement_get_share_sub_leader(client_poll.clone(), addrs.clone(), request).await {
+        match placement_get_share_sub_leader(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag = false;
                 if data.broker_id == node_id

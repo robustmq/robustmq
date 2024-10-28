@@ -17,9 +17,9 @@ use std::time::Duration;
 
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use dashmap::DashMap;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{error, info};
-use protocol::mqtt::common::{Filter, MQTTProtocol, Subscribe, SubscribeProperties};
+use protocol::mqtt::common::{Filter, MqttProtocol, Subscribe, SubscribeProperties};
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::Sender;
 use tokio::time::sleep;
@@ -33,7 +33,7 @@ pub struct ShareSubShareSub {
     pub client_id: String,
     pub group_name: String,
     pub sub_name: String,
-    pub protocol: MQTTProtocol,
+    pub protocol: MqttProtocol,
     pub packet_identifier: u16,
     pub filter: Filter,
     pub subscription_identifier: Option<usize>,
@@ -51,7 +51,7 @@ pub struct ShareLeaderSubscribeData {
 
 #[derive(Clone)]
 pub struct SubscribeManager {
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     metadata_cache: Arc<CacheManager>,
 
     // (client_id_sub_name_topic_id, Subscriber)
@@ -77,9 +77,9 @@ pub struct SubscribeManager {
 }
 
 impl SubscribeManager {
-    pub fn new(metadata_cache: Arc<CacheManager>, client_poll: Arc<ClientPool>) -> Self {
+    pub fn new(metadata_cache: Arc<CacheManager>, client_pool: Arc<ClientPool>) -> Self {
         SubscribeManager {
-            client_poll,
+            client_pool,
             metadata_cache,
             exclusive_subscribe: DashMap::with_capacity(8),
             share_leader_subscribe: DashMap::with_capacity(8),
@@ -125,7 +125,7 @@ impl SubscribeManager {
     pub async fn add_subscribe(
         &self,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
@@ -233,7 +233,7 @@ impl SubscribeManager {
         topic_name: String,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         subscribe: Subscribe,
         subscribe_properties: Option<SubscribeProperties>,
     ) {
@@ -249,7 +249,7 @@ impl SubscribeManager {
                 let (group_name, sub_name) = decode_share_info(filter.path.clone());
 
                 if path_regex_match(topic_name.clone(), sub_name.clone()) {
-                    match get_share_sub_leader(self.client_poll.clone(), group_name.clone()).await {
+                    match get_share_sub_leader(self.client_pool.clone(), group_name.clone()).await {
                         Ok(reply) => {
                             if reply.broker_id == conf.broker_id {
                                 self.parse_share_subscribe_leader(
@@ -304,7 +304,7 @@ impl SubscribeManager {
         topic_name: String,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         sub_identifier: Option<usize>,
         filter: Filter,
         group_name: String,
@@ -364,7 +364,7 @@ impl SubscribeManager {
         &self,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         sub_identifier: Option<usize>,
         filter: Filter,
         group_name: String,
@@ -390,7 +390,7 @@ impl SubscribeManager {
         topic_name: String,
         topic_id: String,
         client_id: String,
-        protocol: MQTTProtocol,
+        protocol: MqttProtocol,
         sub_identifier: Option<usize>,
         filter: Filter,
     ) {

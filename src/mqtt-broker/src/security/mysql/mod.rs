@@ -31,13 +31,13 @@ pub struct MySQLAuthStorageAdapter {
 
 impl MySQLAuthStorageAdapter {
     pub fn new(addr: String) -> Self {
-        let poll = match build_mysql_conn_pool(&addr) {
+        let pool = match build_mysql_conn_pool(&addr) {
             Ok(data) => data,
             Err(e) => {
                 panic!("{}", e.to_string());
             }
         };
-        MySQLAuthStorageAdapter { pool: poll }
+        MySQLAuthStorageAdapter { pool }
     }
 
     fn table_user(&self) -> String {
@@ -147,8 +147,8 @@ mod tests {
     }
 
     fn init_user(addr: &str) {
-        let poll = build_mysql_conn_pool(addr).unwrap();
-        let mut conn = poll.get_conn().unwrap();
+        let pool = build_mysql_conn_pool(addr).unwrap();
+        let mut conn = pool.get_conn().unwrap();
         let values = [TAuthUser {
             username: username(),
             password: password(),

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use bincode::{deserialize, serialize};
 use common_base::error::common::CommonError;
 use grpc_clients::placement::openraft::OpenRaftServiceManager;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use mobc::Connection;
 use openraft::error::{InstallSnapshotError, RPCError, RaftError};
 use openraft::network::RPCOption;
@@ -33,15 +33,15 @@ use crate::raft::raftv2::typeconfig::TypeConfig;
 
 pub struct NetworkConnection {
     addr: String,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 }
 impl NetworkConnection {
-    pub fn new(addr: String, client_poll: Arc<ClientPool>) -> Self {
-        NetworkConnection { addr, client_poll }
+    pub fn new(addr: String, client_pool: Arc<ClientPool>) -> Self {
+        NetworkConnection { addr, client_pool }
     }
 
     async fn c(&mut self) -> Result<Connection<OpenRaftServiceManager>, CommonError> {
-        self.client_poll
+        self.client_pool
             .placement_center_openraft_services_client(self.addr.clone())
             .await
     }

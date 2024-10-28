@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use dashmap::DashMap;
 use grpc_clients::journal::inner::call::journal_inner_update_cache;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::shard::JournalShard;
@@ -71,7 +71,7 @@ impl JournalInnerCallManager {
 pub async fn add_call_message(
     call_manager: &Arc<JournalInnerCallManager>,
     cluster_name: &str,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     message: JournalInnerCallMessage,
 ) -> Result<(), PlacementCenterError> {
     for addr in call_manager
@@ -103,7 +103,7 @@ pub async fn add_call_message(
                 key.clone(),
                 addr,
                 call_manager.clone(),
-                client_poll.clone(),
+                client_pool.clone(),
                 stop_send.clone(),
             )
             .await;
@@ -126,7 +126,7 @@ pub async fn add_call_message(
 
 pub async fn call_thread_manager(
     call_manager: &Arc<JournalInnerCallManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
 ) {
     loop {
         // start thread
@@ -137,7 +137,7 @@ pub async fn call_thread_manager(
                     key.clone(),
                     node_sender.addr,
                     call_manager.clone(),
-                    client_poll.clone(),
+                    client_pool.clone(),
                     stop_send.clone(),
                 )
                 .await;
@@ -164,7 +164,7 @@ pub async fn start_call_thread(
     key: String,
     addr: String,
     call_manager: Arc<JournalInnerCallManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     stop_send: broadcast::Sender<bool>,
 ) {
     tokio::spawn(async move {
@@ -184,7 +184,7 @@ pub async fn start_call_thread(
                     },
                     val = data_recv.recv()=>{
                         if let Ok(data) = val{
-                            call_journal_update_cache(client_poll.clone(), addr.clone(), data).await;
+                            call_journal_update_cache(client_pool.clone(), addr.clone(), data).await;
                         }
                     }
                 }
@@ -196,7 +196,7 @@ pub async fn start_call_thread(
 pub async fn update_cache_by_add_journal_node(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     node: BrokerNode,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&node)?;
@@ -206,14 +206,14 @@ pub async fn update_cache_by_add_journal_node(
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_poll, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_journal_node(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     node: BrokerNode,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&node)?;
@@ -223,14 +223,14 @@ pub async fn update_cache_by_delete_journal_node(
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_poll, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_shard(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     shard_info: JournalShard,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&shard_info)?;
@@ -240,14 +240,14 @@ pub async fn update_cache_by_add_shard(
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_poll, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_shard(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     shard_info: JournalShard,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&shard_info)?;
@@ -257,14 +257,14 @@ pub async fn update_cache_by_delete_shard(
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_poll, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_add_segment(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     segment_info: JournalSegment,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&segment_info)?;
@@ -274,14 +274,14 @@ pub async fn update_cache_by_add_segment(
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_poll, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
     Ok(())
 }
 
 pub async fn update_cache_by_delete_segment(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     segment_info: JournalSegment,
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&segment_info)?;
@@ -291,12 +291,12 @@ pub async fn update_cache_by_delete_segment(
         cluster_name: cluster_name.to_string(),
         data,
     };
-    add_call_message(call_manager, cluster_name, client_poll, mesage).await?;
+    add_call_message(call_manager, cluster_name, client_pool, mesage).await?;
     Ok(())
 }
 
 pub async fn call_journal_update_cache(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addr: String,
     data: JournalInnerCallMessage,
 ) {
@@ -306,7 +306,7 @@ pub async fn call_journal_update_cache(
         resource_type: data.resource_type.into(),
         data: data.data.clone(),
     };
-    match journal_inner_update_cache(client_poll.clone(), vec![addr], request).await {
+    match journal_inner_update_cache(client_pool.clone(), vec![addr], request).await {
         Ok(resp) => {
             debug!("Calling Journal Engine returns information:{:?}", resp);
         }

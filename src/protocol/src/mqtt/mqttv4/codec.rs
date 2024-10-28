@@ -17,7 +17,7 @@ use tokio_util::codec;
 
 use super::{
     check, connack, connect, disconnect, ping, puback, pubcomp, publish, pubrec, pubrel, suback,
-    subscribe, unsuback, unsubscribe, Error, MQTTPacket, PacketType,
+    subscribe, unsuback, unsubscribe, Error, MqttPacket, PacketType,
 };
 
 #[derive(Clone, Debug)]
@@ -35,26 +35,26 @@ impl Mqtt4Codec {
     }
 }
 
-impl codec::Encoder<MQTTPacket> for Mqtt4Codec {
+impl codec::Encoder<MqttPacket> for Mqtt4Codec {
     type Error = super::Error;
-    fn encode(&mut self, packet: MQTTPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, packet: MqttPacket, buffer: &mut BytesMut) -> Result<(), Self::Error> {
         match packet {
-            MQTTPacket::Connect(_,connect, None, last_will, None, login) => {
+            MqttPacket::Connect(_,connect, None, last_will, None, login) => {
                 connect::write(&connect, &login, &last_will, buffer)?
             }
-            MQTTPacket::ConnAck(connack, _) => connack::write(&connack, buffer)?,
-            MQTTPacket::Publish(publish, None) => publish::write(&publish, buffer)?,
-            MQTTPacket::PubAck(puback, None) => puback::write(&puback, buffer)?,
-            MQTTPacket::PubRec(pubrec, None) => pubrec::write(&pubrec, buffer)?,
-            MQTTPacket::PubRel(pubrel, None) => pubrel::write(&pubrel, buffer)?,
-            MQTTPacket::PubComp(pubcomp, None) => pubcomp::write(&pubcomp, buffer)?,
-            MQTTPacket::Subscribe(subscribe, None) => subscribe::write(&subscribe, buffer)?,
-            MQTTPacket::SubAck(suback, None) => suback::write(&suback, buffer)?,
-            MQTTPacket::Unsubscribe(unsubscribe, None) => unsubscribe::write(&unsubscribe, buffer)?,
-            MQTTPacket::UnsubAck(unsuback, None) => unsuback::write(&unsuback, buffer)?,
-            MQTTPacket::PingReq(_) => ping::pingreq::write(buffer)?,
-            MQTTPacket::PingResp(_) => ping::pingresp::write(buffer)?,
-            MQTTPacket::Disconnect(disconnect, None) => disconnect::write(&disconnect, buffer)?,
+            MqttPacket::ConnAck(connack, _) => connack::write(&connack, buffer)?,
+            MqttPacket::Publish(publish, None) => publish::write(&publish, buffer)?,
+            MqttPacket::PubAck(puback, None) => puback::write(&puback, buffer)?,
+            MqttPacket::PubRec(pubrec, None) => pubrec::write(&pubrec, buffer)?,
+            MqttPacket::PubRel(pubrel, None) => pubrel::write(&pubrel, buffer)?,
+            MqttPacket::PubComp(pubcomp, None) => pubcomp::write(&pubcomp, buffer)?,
+            MqttPacket::Subscribe(subscribe, None) => subscribe::write(&subscribe, buffer)?,
+            MqttPacket::SubAck(suback, None) => suback::write(&suback, buffer)?,
+            MqttPacket::Unsubscribe(unsubscribe, None) => unsubscribe::write(&unsubscribe, buffer)?,
+            MqttPacket::UnsubAck(unsuback, None) => unsuback::write(&unsuback, buffer)?,
+            MqttPacket::PingReq(_) => ping::pingreq::write(buffer)?,
+            MqttPacket::PingResp(_) => ping::pingresp::write(buffer)?,
+            MqttPacket::Disconnect(disconnect, None) => disconnect::write(&disconnect, buffer)?,
 
             //Packet::
             _=> unreachable!(
@@ -66,7 +66,7 @@ impl codec::Encoder<MQTTPacket> for Mqtt4Codec {
 }
 
 impl codec::Decoder for Mqtt4Codec {
-    type Item = MQTTPacket;
+    type Item = MqttPacket;
     type Error = super::Error;
     fn decode(&mut self, stream: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let fixed_header = check(stream.iter(), 1000000)?;
@@ -78,26 +78,26 @@ impl codec::Decoder for Mqtt4Codec {
             PacketType::Connect => {
                 let (protocol_level, connect, login, lastwill) =
                     connect::read(fixed_header, packet)?;
-                MQTTPacket::Connect(protocol_level, connect, None, lastwill, None, login)
+                MqttPacket::Connect(protocol_level, connect, None, lastwill, None, login)
             }
-            PacketType::ConnAck => MQTTPacket::ConnAck(connack::read(fixed_header, packet)?, None),
-            PacketType::Publish => MQTTPacket::Publish(publish::read(fixed_header, packet)?, None),
-            PacketType::PubAck => MQTTPacket::PubAck(puback::read(fixed_header, packet)?, None),
-            PacketType::PubRec => MQTTPacket::PubRec(pubrec::read(fixed_header, packet)?, None),
-            PacketType::PubRel => MQTTPacket::PubRel(pubrel::read(fixed_header, packet)?, None),
-            PacketType::PubComp => MQTTPacket::PubComp(pubcomp::read(fixed_header, packet)?, None),
+            PacketType::ConnAck => MqttPacket::ConnAck(connack::read(fixed_header, packet)?, None),
+            PacketType::Publish => MqttPacket::Publish(publish::read(fixed_header, packet)?, None),
+            PacketType::PubAck => MqttPacket::PubAck(puback::read(fixed_header, packet)?, None),
+            PacketType::PubRec => MqttPacket::PubRec(pubrec::read(fixed_header, packet)?, None),
+            PacketType::PubRel => MqttPacket::PubRel(pubrel::read(fixed_header, packet)?, None),
+            PacketType::PubComp => MqttPacket::PubComp(pubcomp::read(fixed_header, packet)?, None),
             PacketType::Subscribe => {
-                MQTTPacket::Subscribe(subscribe::read(fixed_header, packet)?, None)
+                MqttPacket::Subscribe(subscribe::read(fixed_header, packet)?, None)
             }
-            PacketType::SubAck => MQTTPacket::SubAck(suback::read(fixed_header, packet)?, None),
+            PacketType::SubAck => MqttPacket::SubAck(suback::read(fixed_header, packet)?, None),
             PacketType::Unsubscribe => {
-                MQTTPacket::Unsubscribe(unsubscribe::read(fixed_header, packet)?, None)
+                MqttPacket::Unsubscribe(unsubscribe::read(fixed_header, packet)?, None)
             }
             PacketType::UnsubAck => {
-                MQTTPacket::UnsubAck(unsuback::read(fixed_header, packet)?, None)
+                MqttPacket::UnsubAck(unsuback::read(fixed_header, packet)?, None)
             }
-            PacketType::PingReq => MQTTPacket::PingReq(super::PingReq),
-            PacketType::PingResp => MQTTPacket::PingResp(super::PingResp),
+            PacketType::PingReq => MqttPacket::PingReq(super::PingReq),
+            PacketType::PingResp => MqttPacket::PingResp(super::PingResp),
             // MQTT V4 Disconnect packet gets handled in the previous check, this branch gets
             // hit when Disconnect packet has properties which are only valid for MQTT V5
             PacketType::Disconnect => return Err(Error::InvalidProtocol),

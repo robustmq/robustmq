@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use axum::async_trait;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 
 use super::Authentication;
 use crate::handler::cache::CacheManager;
@@ -38,11 +38,11 @@ impl Plaintext {
 
 #[async_trait]
 impl Authentication for Plaintext {
-    async fn apply(&self) -> Result<bool, MQTTBrokerError> {
+    async fn apply(&self) -> Result<bool, MqttBrokerError> {
         if let Some(user) = self.cache_manager.user_info.get(&self.username) {
             return Ok(user.password == self.password);
         }
-        return Err(MQTTBrokerError::UserDoesNotExist);
+        return Err(MqttBrokerError::UserDoesNotExist);
     }
 }
 
@@ -50,8 +50,8 @@ impl Authentication for Plaintext {
 mod test {
     use std::sync::Arc;
 
-    use common_base::config::broker_mqtt::BrokerMQTTConfig;
-    use grpc_clients::poll::ClientPool;
+    use common_base::config::broker_mqtt::BrokerMqttConfig;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::mqtt::common::Login;
 
@@ -61,13 +61,13 @@ mod test {
 
     #[tokio::test]
     pub async fn plaintext_test() {
-        let conf = BrokerMQTTConfig {
+        let conf = BrokerMqttConfig {
             cluster_name: "test".to_string(),
             ..Default::default()
         };
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
         let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
-            client_poll.clone(),
+            client_pool.clone(),
             conf.cluster_name.clone(),
         ));
         let username = "lobo".to_string();

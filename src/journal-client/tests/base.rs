@@ -17,8 +17,10 @@ mod tests {
     use futures::{SinkExt, StreamExt};
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
-        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetActiveSegmentReq,
-        GetActiveSegmentReqBody, GetActiveSegmentReqShard, GetClusterMetadataReq, ReqHeader,
+        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
+        GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentReqShard,
+        GetClusterMetadataReq, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
+        ReqHeader, WriteReq, WriteReqBody,
     };
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
@@ -71,18 +73,38 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_shard_test() {}
+    async fn delete_shard_test() {
+        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::DeleteShardReq(DeleteShardReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::DeleteShard.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(DeleteShardReqBody {
+                namespace: "n1".to_string(),
+                shard_name: "s1".to_string(),
+            }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
+    }
 
     #[tokio::test]
     async fn get_active_segment_test() {
         let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
-        let mut shards = Vec::new();
-        shards.push(GetActiveSegmentReqShard {
+        let shards = vec![GetActiveSegmentReqShard {
             namespace: "n1".to_string(),
             shard_name: "s1".to_string(),
-        });
+        }];
 
         let req_packet = JournalEnginePacket::GetActiveSegmentReq(GetActiveSegmentReq {
             header: Some(ReqHeader {
@@ -101,11 +123,69 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn write_base_test() {}
+    async fn write_base_test() {
+        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::WriteReq(WriteReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::Write.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(WriteReqBody::default()),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
+    }
 
     #[tokio::test]
-    async fn read_base_test() {}
+    async fn read_base_test() {
+        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::ReadReq(ReadReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::Read.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(ReadReqBody::default()),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
+    }
 
     #[tokio::test]
-    async fn offset_base_test() {}
+    async fn offset_base_test() {
+        let socket = TcpStream::connect("127.0.0.1:3110").await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::OffsetCommitReq(OffsetCommitReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::OffsetCommit.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(OffsetCommitReqBody {
+                namespace: "n1".to_string(),
+                group: "g1".to_string(),
+                ..Default::default()
+            }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(data) = stream.next().await {
+            let resp = data.unwrap();
+            println!("{:?}", resp);
+        }
+    }
 }

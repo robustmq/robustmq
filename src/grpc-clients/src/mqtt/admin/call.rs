@@ -21,19 +21,19 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
     DeleteUserRequest, ListUserReply, ListUserRequest,
 };
 
-use crate::mqtt::{retry_call, MQTTBrokerPlacementInterface, MQTTBrokerService};
-use crate::poll::ClientPool;
+use crate::mqtt::{retry_call, MqttBrokerPlacementInterface, MqttBrokerService};
+use crate::pool::ClientPool;
 
 pub async fn cluster_status(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ClusterStatusRequest,
 ) -> Result<ClusterStatusReply, CommonError> {
     let request_data = ClusterStatusRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Admin,
-        MQTTBrokerPlacementInterface::ClusterStatus,
-        client_poll,
+        MqttBrokerService::Admin,
+        MqttBrokerPlacementInterface::ClusterStatus,
+        client_pool,
         addrs,
         request_data,
     )
@@ -48,15 +48,15 @@ pub async fn cluster_status(
 }
 
 pub async fn mqtt_broker_list_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListUserRequest,
 ) -> Result<ListUserReply, CommonError> {
     let request_date = ListUserRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Admin,
-        MQTTBrokerPlacementInterface::ListUser,
-        client_poll,
+        MqttBrokerService::Admin,
+        MqttBrokerPlacementInterface::ListUser,
+        client_pool,
         addrs,
         request_date,
     )
@@ -71,15 +71,15 @@ pub async fn mqtt_broker_list_user(
 }
 
 pub async fn mqtt_broker_create_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateUserRequest,
 ) -> Result<CreateUserReply, CommonError> {
     let request_date = CreateUserRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Admin,
-        MQTTBrokerPlacementInterface::CreateUser,
-        client_poll,
+        MqttBrokerService::Admin,
+        MqttBrokerPlacementInterface::CreateUser,
+        client_pool,
         addrs,
         request_date,
     )
@@ -94,15 +94,15 @@ pub async fn mqtt_broker_create_user(
 }
 
 pub async fn mqtt_broker_delete_user(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteUserRequest,
 ) -> Result<DeleteUserReply, CommonError> {
     let request_date = DeleteUserRequest::encode_to_vec(&request);
     match retry_call(
-        MQTTBrokerService::Admin,
-        MQTTBrokerPlacementInterface::DeleteUser,
-        client_poll,
+        MqttBrokerService::Admin,
+        MqttBrokerPlacementInterface::DeleteUser,
+        client_pool,
         addrs,
         request_date,
     )

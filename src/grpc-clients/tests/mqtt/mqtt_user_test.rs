@@ -19,7 +19,7 @@ mod tests {
     use grpc_clients::placement::mqtt::call::{
         placement_create_user, placement_delete_user, placement_list_user,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::user::MqttUser;
     use protocol::placement_center::placement_center_mqtt::{
         CreateUserRequest, DeleteUserRequest, ListUserRequest,
@@ -29,7 +29,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt_user_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let user_name: String = "chungka".to_string();
         let password: String = "123456".to_string();
@@ -46,7 +46,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
             content: mqtt_user.encode(),
         };
-        match placement_create_user(client_poll.clone(), addrs.clone(), request).await {
+        match placement_create_user(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -58,7 +58,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_list_user(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_user(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {
@@ -79,7 +79,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_delete_user(client_poll.clone(), addrs.clone(), request).await {
+        match placement_delete_user(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -91,7 +91,7 @@ mod tests {
             user_name: mqtt_user.username.clone(),
         };
 
-        match placement_list_user(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_user(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.users {

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod index;
-
 pub struct Segment {
     pub namespace: String,
     pub shard_name: String,

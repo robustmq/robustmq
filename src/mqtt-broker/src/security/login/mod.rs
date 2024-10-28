@@ -15,7 +15,7 @@
 use std::net::SocketAddr;
 
 use axum::async_trait;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 
 pub mod http;
 pub mod jwt;
@@ -25,7 +25,7 @@ pub mod x509;
 
 #[async_trait]
 pub trait Authentication {
-    async fn apply(&self) -> Result<bool, MQTTBrokerError>;
+    async fn apply(&self) -> Result<bool, MqttBrokerError>;
 }
 
 pub fn is_ip_blacklist(_: &SocketAddr) -> bool {

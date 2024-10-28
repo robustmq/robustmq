@@ -32,8 +32,17 @@ pub enum JournalServerError {
     #[error("Shard {0} does not exist")]
     ShardNotExist(String),
 
-    #[error("Connection ID [0] information not found in cache.")]
+    #[error("Shard {0},segment {1} does not exist")]
+    SegmentNotExist(String, u32),
+
+    #[error("Connection ID {0} information not found in cache.")]
     NotFoundConnectionInCache(u64),
+
+    #[error("Segment {1} of the shard {0} has been sealed and is not allowed to be written.")]
+    SegmentHasBeenSealed(String, u32),
+
+    #[error("Current node is not the Leader of Segment {1} in the shard {0}")]
+    NotLeader(String, u32),
 }
 
 pub enum JournalServerErrorCode {}

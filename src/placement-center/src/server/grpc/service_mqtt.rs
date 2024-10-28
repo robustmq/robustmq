@@ -139,7 +139,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         let data = StorageData::new(
-            StorageDataType::MQTTCreateUser,
+            StorageDataType::MqttCreateUser,
             CreateUserRequest::encode_to_vec(&req),
         );
 
@@ -158,7 +158,7 @@ impl MqttService for GrpcMqttService {
         let req = request.into_inner();
 
         let data = StorageData::new(
-            StorageDataType::MQTTDeleteUser,
+            StorageDataType::MqttDeleteUser,
             DeleteUserRequest::encode_to_vec(&req),
         );
 
@@ -176,7 +176,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateTopicReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTCreateTopic,
+            StorageDataType::MqttCreateTopic,
             CreateTopicRequest::encode_to_vec(&req),
         );
 
@@ -194,7 +194,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteTopicReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTDeleteTopic,
+            StorageDataType::MqttDeleteTopic,
             DeleteTopicRequest::encode_to_vec(&req),
         );
 
@@ -286,7 +286,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateSessionReply>, Status> {
         let req: CreateSessionRequest = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTCreateSession,
+            StorageDataType::MqttCreateSession,
             CreateSessionRequest::encode_to_vec(&req),
         );
 
@@ -304,7 +304,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteSessionReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTDeleteSession,
+            StorageDataType::MqttDeleteSession,
             DeleteSessionRequest::encode_to_vec(&req),
         );
 
@@ -322,7 +322,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<SetTopicRetainMessageReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTSetTopicRetainMessage,
+            StorageDataType::MqttSetTopicRetainMessage,
             SetTopicRetainMessageRequest::encode_to_vec(&req),
         );
 
@@ -340,7 +340,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<UpdateSessionReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTUpdateSession,
+            StorageDataType::MqttUpdateSession,
             UpdateSessionRequest::encode_to_vec(&req),
         );
 
@@ -358,7 +358,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<SaveLastWillMessageReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTSaveLastWillMessage,
+            StorageDataType::MqttSaveLastWillMessage,
             SaveLastWillMessageRequest::encode_to_vec(&req),
         );
 
@@ -403,7 +403,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateAclReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTCreateAcl,
+            StorageDataType::MqttCreateAcl,
             CreateAclRequest::encode_to_vec(&req),
         );
 
@@ -421,7 +421,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteAclRequestReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTDeleteAcl,
+            StorageDataType::MqttDeleteAcl,
             DeleteAclRequest::encode_to_vec(&req),
         );
 
@@ -467,7 +467,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<CreateBlacklistReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTCreateBlacklist,
+            StorageDataType::MqttCreateBlacklist,
             CreateBlacklistRequest::encode_to_vec(&req),
         );
 
@@ -485,7 +485,7 @@ impl MqttService for GrpcMqttService {
     ) -> Result<Response<DeleteBlacklistReply>, Status> {
         let req = request.into_inner();
         let data = StorageData::new(
-            StorageDataType::MQTTDeleteBlacklist,
+            StorageDataType::MqttDeleteBlacklist,
             DeleteBlacklistRequest::encode_to_vec(&req),
         );
 

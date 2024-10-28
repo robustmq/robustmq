@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(conf.tcp_thread.request_queue_size, 2000);
         assert_eq!(conf.tcp_thread.response_queue_size, 2000);
 
-        assert_eq!(conf.prometheus.enable, false);
+        assert!(!conf.prometheus.enable);
         assert_eq!(conf.prometheus.model, "pull".to_string());
         assert_eq!(conf.prometheus.port, 9090);
         assert_eq!(conf.prometheus.interval, 10);

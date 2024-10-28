@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use broker::report_broker_info;
 use common_base::tools::get_local_ip;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use metadata_struct::adapter::record::Record;
 use storage_adapter::storage::StorageAdapter;
@@ -56,7 +56,7 @@ pub mod warn;
 pub struct SystemTopic<S> {
     pub metadata_cache: Arc<CacheManager>,
     pub message_storage_adapter: Arc<S>,
-    pub client_poll: Arc<ClientPool>,
+    pub client_pool: Arc<ClientPool>,
 }
 
 impl<S> SystemTopic<S>
@@ -66,12 +66,12 @@ where
     pub fn new(
         metadata_cache: Arc<CacheManager>,
         message_storage_adapter: Arc<S>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         SystemTopic {
             metadata_cache,
             message_storage_adapter,
-            client_poll,
+            client_pool,
         }
     }
 
@@ -96,7 +96,7 @@ where
 
     pub async fn report_info(&self) {
         report_broker_info(
-            &self.client_poll,
+            &self.client_pool,
             &self.metadata_cache,
             &self.message_storage_adapter,
         )
@@ -111,7 +111,7 @@ where
                 &new_topic_name,
                 &self.metadata_cache,
                 &self.message_storage_adapter,
-                &self.client_poll,
+                &self.client_pool,
             )
             .await
             {
@@ -148,7 +148,7 @@ fn replace_topic_name(mut topic_name: String) -> String {
 pub(crate) async fn write_topic_data<S>(
     message_storage_adapter: &Arc<S>,
     metadata_cache: &Arc<CacheManager>,
-    client_poll: &Arc<ClientPool>,
+    client_pool: &Arc<ClientPool>,
     topic_name: String,
     record: Record,
 ) where
@@ -158,7 +158,7 @@ pub(crate) async fn write_topic_data<S>(
         &topic_name,
         &metadata_cache.clone(),
         &message_storage_adapter.clone(),
-        &client_poll.clone(),
+        &client_pool.clone(),
     )
     .await
     {

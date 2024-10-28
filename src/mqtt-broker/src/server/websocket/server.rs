@@ -27,10 +27,10 @@ use axum_server::tls_rustls::RustlsConfig;
 use bytes::{BufMut, BytesMut};
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use futures_util::stream::StreamExt;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{MQTTPacket, MQTTProtocol};
+use protocol::mqtt::common::{MqttPacket, MqttProtocol};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
 use tokio::sync::broadcast::{self};
@@ -49,7 +49,7 @@ pub struct WebSocketServerState<S> {
     sucscribe_manager: Arc<SubscribeManager>,
     cache_manager: Arc<CacheManager>,
     message_storage_adapter: Arc<S>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
     connection_manager: Arc<ConnectionManager>,
     auth_driver: Arc<AuthDriver>,
@@ -64,7 +64,7 @@ where
         cache_manager: Arc<CacheManager>,
         connection_manager: Arc<ConnectionManager>,
         message_storage_adapter: Arc<S>,
-        client_poll: Arc<ClientPool>,
+        client_pool: Arc<ClientPool>,
         auth_driver: Arc<AuthDriver>,
         stop_sx: broadcast::Sender<bool>,
     ) -> Self {
@@ -73,7 +73,7 @@ where
             cache_manager,
             connection_manager,
             message_storage_adapter,
-            client_poll,
+            client_pool,
             auth_driver,
             stop_sx,
         }
@@ -166,7 +166,7 @@ where
         state.cache_manager.clone(),
         state.message_storage_adapter.clone(),
         state.sucscribe_manager.clone(),
-        state.client_poll.clone(),
+        state.client_pool.clone(),
         state.connection_manager.clone(),
         state.auth_driver.clone(),
     );
@@ -203,7 +203,7 @@ async fn handle_socket<S>(
 
     connection_manager.add_websocket_write(tcp_connection.connection_id, sender);
     connection_manager.add_connection(tcp_connection.clone());
-    let mut protocol_version = MQTTProtocol::MQTT5;
+    let mut protocol_version = MqttProtocol::Mqtt5;
     let mut stop_rx = stop_sx.subscribe();
 
     loop {
@@ -233,7 +233,7 @@ async fn handle_socket<S>(
                                         )
                                         .await
                                     {
-                                        if let MQTTPacket::Connect(_,_,_,_,_,_) = packet {
+                                        if let MqttPacket::Connect(_,_,_,_,_,_) = packet {
                                             if let Some(pv) = connection_manager.get_connect_protocol(tcp_connection.connection_id){
                                                 protocol_version = pv.clone();
                                                 tcp_connection.set_protocol(pv);

@@ -19,12 +19,12 @@ use axum::extract::ws::Message;
 use bytes::BytesMut;
 use common_base::config::broker_mqtt::broker_mqtt_conf;
 use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use grpc_clients::placement::mqtt::call::placement_get_share_sub_leader;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::error;
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::{MQTTPacket, MQTTProtocol, PubRel, Publish, PublishProperties, QoS};
+use protocol::mqtt::common::{MqttPacket, MqttProtocol, PubRel, Publish, PublishProperties, QoS};
 use protocol::placement_center::placement_center_mqtt::{
     GetShareSubLeaderReply, GetShareSubLeaderRequest,
 };
@@ -129,7 +129,7 @@ pub fn decode_share_info(sub_name: String) -> (String, String) {
 }
 
 pub async fn get_share_sub_leader(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     group_name: String,
 ) -> Result<GetShareSubLeaderReply, CommonError> {
     let conf = broker_mqtt_conf();
@@ -137,7 +137,7 @@ pub async fn get_share_sub_leader(
         cluster_name: conf.cluster_name.clone(),
         group_name,
     };
-    match placement_get_share_sub_leader(client_poll, conf.placement_center.clone(), req).await {
+    match placement_get_share_sub_leader(client_pool, conf.placement_center.clone(), req).await {
         Ok(reply) => Ok(reply),
         Err(e) => Err(e),
     }
@@ -193,7 +193,7 @@ pub async fn qos2_send_publish(
     publish: &Publish,
     publish_properties: &Option<PublishProperties>,
     stop_sx: &broadcast::Sender<bool>,
-) -> Result<(), MQTTBrokerError> {
+) -> Result<(), MqttBrokerError> {
     let mut retry_times = 0;
     let mut stop_rx = stop_sx.subscribe();
     loop {
@@ -206,7 +206,7 @@ pub async fn qos2_send_publish(
 
         if let Some(conn) = metadata_cache.get_connection(connect_id) {
             if publish.payload.len() > (conn.max_packet_size as usize) {
-                return Err(MQTTBrokerError::PacketLenthError(publish.payload.len()));
+                return Err(MqttBrokerError::PacketLenthError(publish.payload.len()));
             }
         }
 
@@ -216,7 +216,7 @@ pub async fn qos2_send_publish(
 
         let mut contain_properties = false;
         if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
-            if MQTTProtocol::is_mqtt5(&protocol) {
+            if MqttProtocol::is_mqtt5(&protocol) {
                 contain_properties = true;
             }
         }
@@ -224,12 +224,12 @@ pub async fn qos2_send_publish(
         let resp = if contain_properties {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MQTTPacket::Publish(publish.clone(), publish_properties.clone()),
+                packet: MqttPacket::Publish(publish.clone(), publish_properties.clone()),
             }
         } else {
             ResponsePackage {
                 connection_id: connect_id,
-                packet: MQTTPacket::Publish(publish.clone(), None),
+                packet: MqttPacket::Publish(publish.clone(), None),
             }
         };
 
@@ -287,7 +287,7 @@ pub async fn qos2_send_pubrel(
 
         let pubrel_resp = ResponsePackage {
             connection_id: connect_id,
-            packet: MQTTPacket::PubRel(pubrel, None),
+            packet: MqttPacket::PubRel(pubrel, None),
         };
 
         select! {
@@ -378,7 +378,7 @@ pub async fn publish_message_qos0(
 
     let mut contain_properties = false;
     if let Some(protocol) = connection_manager.get_connect_protocol(connect_id) {
-        if MQTTProtocol::is_mqtt5(&protocol) {
+        if MqttProtocol::is_mqtt5(&protocol) {
             contain_properties = true;
         }
     }
@@ -386,12 +386,12 @@ pub async fn publish_message_qos0(
     let resp = if contain_properties {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish.clone(), properties.clone()),
+            packet: MqttPacket::Publish(publish.clone(), properties.clone()),
         }
     } else {
         ResponsePackage {
             connection_id: connect_id,
-            packet: MQTTPacket::Publish(publish.clone(), None),
+            packet: MqttPacket::Publish(publish.clone(), None),
         }
     };
 
@@ -412,7 +412,7 @@ mod tests {
     use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::topic::MqttTopic;
     use protocol::mqtt::common::QoS;
 
@@ -532,8 +532,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_sub_topic_list_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(100));
-        let metadata_cache = Arc::new(CacheManager::new(client_poll, "test-cluster".to_string()));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(100));
+        let metadata_cache = Arc::new(CacheManager::new(client_pool, "test-cluster".to_string()));
         let topic_name = "/test/topic".to_string();
         let topic = MqttTopic::new(unique_id(), topic_name.clone());
         metadata_cache.add_topic(&topic_name, &topic);

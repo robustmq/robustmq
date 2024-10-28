@@ -15,10 +15,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::{debug, error};
 use protocol::mqtt::codec::MqttPacketWrapper;
-use protocol::mqtt::common::MQTTPacket;
+use protocol::mqtt::common::MqttPacket;
 use tokio::select;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc::{self, Receiver, Sender};
@@ -36,7 +36,7 @@ pub(crate) async fn response_process(
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
     mut response_queue_rx: Receiver<ResponsePackage>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let mut stop_rx = stop_sx.subscribe();
@@ -49,7 +49,7 @@ pub(crate) async fn response_process(
             connection_manager,
             cache_manager,
             subscribe_manager,
-            client_poll,
+            client_pool,
         );
 
         let mut response_process_seq = 1;
@@ -103,7 +103,7 @@ pub(crate) fn response_child_process(
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     subscribe_manager: Arc<SubscribeManager>,
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
 ) {
     for index in 1..=response_process_num {
         let (response_process_sx, mut response_process_rx) = mpsc::channel::<ResponsePackage>(100);
@@ -112,7 +112,7 @@ pub(crate) fn response_child_process(
         let mut raw_stop_rx = stop_sx.subscribe();
         let raw_connect_manager = connection_manager.clone();
         let raw_cache_manager = cache_manager.clone();
-        let raw_client_poll = client_poll.clone();
+        let raw_client_pool = client_pool.clone();
         let raw_subscribe_manager = subscribe_manager.clone();
         tokio::spawn(async move {
             debug!("TCP Server response process thread {index} start successfully.");
@@ -150,13 +150,13 @@ pub(crate) fn response_child_process(
                                     }
                             }
 
-                            if let MQTTPacket::Disconnect(_, _) = response_package.packet {
+                            if let MqttPacket::Disconnect(_, _) = response_package.packet {
                                 if let Some(connection) = raw_cache_manager.get_connection(response_package.connection_id){
                                     match disconnect_connection(
                                         &connection.client_id,
                                         connection.connect_id,
                                         &raw_cache_manager,
-                                        &raw_client_poll,
+                                        &raw_client_pool,
                                         &raw_connect_manager,
                                         &raw_subscribe_manager,
                                     ).await{

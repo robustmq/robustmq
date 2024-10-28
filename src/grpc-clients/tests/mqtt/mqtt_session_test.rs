@@ -20,7 +20,7 @@ mod tests {
         placement_create_session, placement_delete_session, placement_list_session,
         placement_update_session,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use metadata_struct::mqtt::session::MqttSession;
     use protocol::placement_center::placement_center_mqtt::{
         CreateSessionRequest, DeleteSessionRequest, ListSessionRequest, UpdateSessionRequest,
@@ -30,7 +30,7 @@ mod tests {
 
     #[tokio::test]
     async fn mqtt_session_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(3));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let addrs = vec![get_placement_addr()];
         let cluster_name: String = "test_cluster".to_string();
         let client_id: String = "test_cient_id".to_string();
@@ -55,7 +55,7 @@ mod tests {
             session: MqttSession::encode(&mqtt_session),
         };
 
-        match placement_create_session(client_poll.clone(), addrs.clone(), request).await {
+        match placement_create_session(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -67,7 +67,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_session(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
@@ -96,7 +96,7 @@ mod tests {
             distinct_time: mqtt_session.distinct_time.unwrap(),
         };
 
-        match placement_update_session(client_poll.clone(), addrs.clone(), request).await {
+        match placement_update_session(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -108,7 +108,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_session(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {
@@ -129,7 +129,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_delete_session(client_poll.clone(), addrs.clone(), request).await {
+        match placement_delete_session(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -141,7 +141,7 @@ mod tests {
             client_id: mqtt_session.client_id.clone(),
         };
 
-        match placement_list_session(client_poll.clone(), addrs.clone(), request).await {
+        match placement_list_session(client_pool.clone(), addrs.clone(), request).await {
             Ok(data) => {
                 let mut flag: bool = false;
                 for raw in data.sessions {

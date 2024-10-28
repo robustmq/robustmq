@@ -22,7 +22,7 @@ use futures::stream::SplitSink;
 use futures::SinkExt;
 use log::{debug, error, info};
 use protocol::mqtt::codec::{MqttCodec, MqttPacketWrapper};
-use protocol::mqtt::common::MQTTProtocol;
+use protocol::mqtt::common::MqttProtocol;
 use tokio::time::sleep;
 use tokio_util::codec::FramedWrite;
 
@@ -317,7 +317,7 @@ impl ConnectionManager {
         None
     }
 
-    pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MQTTProtocol> {
+    pub fn get_connect_protocol(&self, connect_id: u64) -> Option<MqttProtocol> {
         if let Some(connec) = self.connections.get(&connect_id) {
             return connec.protocol.clone();
         }
@@ -327,9 +327,9 @@ impl ConnectionManager {
     pub fn set_connect_protocol(&self, connect_id: u64, protocol: u8) {
         if let Some(mut connec) = self.connections.get_mut(&connect_id) {
             match protocol {
-                3 => connec.set_protocol(MQTTProtocol::MQTT3),
-                4 => connec.set_protocol(MQTTProtocol::MQTT4),
-                5 => connec.set_protocol(MQTTProtocol::MQTT5),
+                3 => connec.set_protocol(MqttProtocol::Mqtt3),
+                4 => connec.set_protocol(MqttProtocol::Mqtt4),
+                5 => connec.set_protocol(MqttProtocol::Mqtt5),
                 _ => {}
             };
         }

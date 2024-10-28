@@ -23,10 +23,10 @@ use protocol::placement_center::placement_center_journal::{
 };
 
 use crate::placement::{retry_call, PlacementCenterInterface, PlacementCenterService};
-use crate::poll::ClientPool;
+use crate::pool::ClientPool;
 
 pub async fn list_shard(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListShardRequest,
 ) -> Result<ListShardReply, CommonError> {
@@ -34,7 +34,7 @@ pub async fn list_shard(
     match retry_call(
         PlacementCenterService::Journal,
         PlacementCenterInterface::ListShard,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -49,7 +49,7 @@ pub async fn list_shard(
 }
 
 pub async fn create_shard(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateShardRequest,
 ) -> Result<CreateShardReply, CommonError> {
@@ -57,7 +57,7 @@ pub async fn create_shard(
     match retry_call(
         PlacementCenterService::Journal,
         PlacementCenterInterface::CreateShard,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -72,7 +72,7 @@ pub async fn create_shard(
 }
 
 pub async fn delete_shard(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteShardRequest,
 ) -> Result<DeleteShardReply, CommonError> {
@@ -80,7 +80,7 @@ pub async fn delete_shard(
     match retry_call(
         PlacementCenterService::Journal,
         PlacementCenterInterface::DeleteShard,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -95,7 +95,7 @@ pub async fn delete_shard(
 }
 
 pub async fn list_segment(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: ListSegmentRequest,
 ) -> Result<ListSegmentReply, CommonError> {
@@ -103,7 +103,7 @@ pub async fn list_segment(
     match retry_call(
         PlacementCenterService::Journal,
         PlacementCenterInterface::ListSegment,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -118,7 +118,7 @@ pub async fn list_segment(
 }
 
 pub async fn create_next_segment(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: CreateNextSegmentRequest,
 ) -> Result<CreateNextSegmentReply, CommonError> {
@@ -126,7 +126,7 @@ pub async fn create_next_segment(
     match retry_call(
         PlacementCenterService::Journal,
         PlacementCenterInterface::CreateSegment,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )
@@ -141,7 +141,7 @@ pub async fn create_next_segment(
 }
 
 pub async fn delete_segment(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     addrs: Vec<String>,
     request: DeleteSegmentRequest,
 ) -> Result<DeleteSegmentReply, CommonError> {
@@ -149,7 +149,7 @@ pub async fn delete_segment(
     match retry_call(
         PlacementCenterService::Journal,
         PlacementCenterInterface::DeleteSegment,
-        client_poll,
+        client_pool,
         addrs,
         request_data,
     )

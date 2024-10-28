@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use common_base::error::mqtt_broker::MQTTBrokerError;
+use common_base::error::mqtt_broker::MqttBrokerError;
 use log::{debug, error, info};
 use storage_adapter::storage::StorageAdapter;
 use tokio::select;
@@ -150,7 +150,7 @@ fn handler_child_process<S>(
                                     info!("{}","No backpacking is required for this request");
                                 }
                             } else {
-                                error!("{}", MQTTBrokerError::NotFoundConnectionInCache(packet.connection_id));
+                                error!("{}", MqttBrokerError::NotFoundConnectionInCache(packet.connection_id));
                             }
                         }
                     }

@@ -21,7 +21,7 @@ mod tests {
     use grpc_clients::placement::openraft::call::{
         placement_openraft_add_learner, placement_openraft_change_membership,
     };
-    use grpc_clients::poll::ClientPool;
+    use grpc_clients::pool::ClientPool;
     use protocol::placement_center::placement_center_openraft::{
         AddLearnerRequest, ChangeMembershipRequest, Node,
     };
@@ -30,7 +30,7 @@ mod tests {
 
     #[tokio::test]
     async fn placement_openraft_add_learner_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
         let node_id = 4;
@@ -45,7 +45,7 @@ mod tests {
             node: node.clone(),
             blocking,
         };
-        match placement_openraft_add_learner(client_poll.clone(), addrs.clone(), request).await {
+        match placement_openraft_add_learner(client_pool.clone(), addrs.clone(), request).await {
             Ok(_) => {}
             Err(e) => {
                 panic!("{:?}", e);
@@ -55,14 +55,14 @@ mod tests {
 
     #[tokio::test]
     async fn placement_openraft_change_membership_test() {
-        let client_poll: Arc<ClientPool> = Arc::new(ClientPool::new(1));
+        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(1));
         let addrs = vec![get_placement_addr()];
 
         let members = vec![1, 2, 3];
         let retain = false;
 
         let request = ChangeMembershipRequest { members, retain };
-        match placement_openraft_change_membership(client_poll.clone(), addrs.clone(), request)
+        match placement_openraft_change_membership(client_pool.clone(), addrs.clone(), request)
             .await
         {
             Ok(_) => {}

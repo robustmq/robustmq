@@ -18,7 +18,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::placement_center::placement_center_conf;
-use grpc_clients::poll::ClientPool;
+use grpc_clients::pool::ClientPool;
 use log::info;
 use openraft::{Config, Raft};
 
@@ -110,7 +110,7 @@ pub fn calc_init_node(nodes: &BTreeMap<u64, Node>) -> u64 {
 }
 
 pub async fn create_raft_node(
-    client_poll: Arc<ClientPool>,
+    client_pool: Arc<ClientPool>,
     route: Arc<DataRoute>,
 ) -> Raft<TypeConfig> {
     let config = Config {
@@ -125,7 +125,7 @@ pub async fn create_raft_node(
     let dir = Path::new(&path);
     let (log_store, state_machine_store) = new_storage(&dir, route).await;
 
-    let network = Network::new(client_poll);
+    let network = Network::new(client_pool);
 
     match openraft::Raft::new(
         conf.node.node_id,
