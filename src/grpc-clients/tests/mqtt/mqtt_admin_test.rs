@@ -34,7 +34,9 @@ mod tests {
 
         let request = ClusterStatusRequest {};
         match cluster_status(client_pool.clone(), addrs.clone(), request).await {
-            Ok(_) => {}
+            Ok(data) => {
+                println!("{:?}", data);
+            }
             Err(e) => {
                 panic!("{:?}", e);
             }

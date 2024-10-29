@@ -24,6 +24,9 @@ pub enum JournalServerError {
     CommonError(#[from] CommonError),
 
     #[error("{0}")]
+    StdIoError(#[from] std::io::Error),
+
+    #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0} request body cannot be empty")]
@@ -43,6 +46,12 @@ pub enum JournalServerError {
 
     #[error("Current node is not the Leader of Segment {1} in the shard {0}")]
     NotLeader(String, u32),
+
+    #[error("Segment file {0} already exists. We can't create Segment file again and again.")]
+    SegmentFileAlreadyExists(String),
+
+    #[error("Segment file {0} does not exist, maybe it hasn't been initialized yet.")]
+    SegmentFileNotExists(String),
 }
 
 pub enum JournalServerErrorCode {}

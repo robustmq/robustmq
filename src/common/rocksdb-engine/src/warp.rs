@@ -12,14 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod cluster;
-pub mod error;
-pub mod gc;
-pub mod group;
-pub mod namespace;
-pub mod offset;
-pub mod record;
-pub mod report;
-pub mod shard;
-pub mod write;
+use common_base::tools::now_second;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StorageDataWrap {
+    pub data: Vec<u8>,
+    pub create_time: u64,
+}
+
+impl StorageDataWrap {
+    pub fn new(data: Vec<u8>) -> Self {
+        StorageDataWrap {
+            data,
+            create_time: now_second(),
+        }
+    }
+}
