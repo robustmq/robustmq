@@ -732,7 +732,9 @@ dependencies = [
  "bytes",
  "common-base",
  "grpc-clients",
+ "metadata-struct",
  "protocol",
+ "serde_json",
  "thiserror",
 ]
 

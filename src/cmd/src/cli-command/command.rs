@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use clap::{Parser, Subcommand};
-use cli_command::mqtt::{MqttBrokerCommand, MqttCliCommandParam};
+use cli_command::mqtt::{
+    CreateUserCliRequest, DeleteUserCliRequest, MqttActionType, MqttBrokerCommand,
+    MqttCliCommandParam,
+};
 use cli_command::placement::{
     AddLearnerCliRequset, ChangeMembershipCliRequest, PlacementActionType, PlacementCenterCommand,
     PlacementCliCommandParam,
@@ -47,15 +50,45 @@ struct MqttArgs {
     #[arg(short, long,default_value_t =String::from("127.0.0.1:9981"))]
     server: String,
 
-    #[arg(short, long,default_value_t =String::from("status"))]
-    action: String,
+    #[clap(subcommand)]
+    action: MQTTAction,
+}
+
+#[derive(Debug, Subcommand)]
+enum MQTTAction {
+    Status,
+    CreateUser(CreateUserArgs),
+    DeleteUser(DeleteUserArgs),
+    ListUser,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: create user", long_about = None)]
+#[command(next_line_help = true)]
+struct CreateUserArgs {
+    #[arg(short, long, required = true)]
+    username: String,
+
+    #[arg(short, long, required = true)]
+    password: String,
+
+    #[arg(short, long, default_value_t = false)]
+    is_superuser: bool,
+}
+
+#[derive(clap::Args, Debug)]
+#[command(author="RobustMQ", about="action: delete user", long_about = None)]
+#[command(next_line_help = true)]
+struct DeleteUserArgs {
+    #[arg(short, long, required = true)]
+    username: String,
 }
 
 #[derive(clap::Args, Debug)]
 #[command(author="RobustMQ",  about="Command line tool for placement center", long_about = None)]
 #[command(next_line_help = true)]
 struct PlacementArgs {
-    #[arg(short, long, default_value_t =String::from("127.0.0.1:1228"))]
+    #[arg(short, long, default_value_t = String::from("127.0.0.1:1228"))]
     server: String,
 
     #[clap(subcommand)]
@@ -113,7 +146,16 @@ async fn main() {
             let cmd = MqttBrokerCommand::new();
             let params = MqttCliCommandParam {
                 server: args.server,
-                action: args.action,
+                action: match args.action {
+                    MQTTAction::Status => MqttActionType::Status,
+                    MQTTAction::CreateUser(arg) => MqttActionType::CreateUser(
+                        CreateUserCliRequest::new(arg.username, arg.password, arg.is_superuser),
+                    ),
+                    MQTTAction::DeleteUser(arg) => {
+                        MqttActionType::DeleteUser(DeleteUserCliRequest::new(arg.username))
+                    }
+                    MQTTAction::ListUser => MqttActionType::ListUser,
+                },
             };
             cmd.start(params).await;
         }
