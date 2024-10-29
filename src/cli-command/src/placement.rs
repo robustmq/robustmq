@@ -21,7 +21,7 @@ use grpc_clients::placement::placement::call::cluster_status;
 use grpc_clients::pool::ClientPool;
 use protocol::placement_center::placement_center_inner::ClusterStatusRequest;
 use protocol::placement_center::placement_center_openraft::{
-    AddLearnerRequest, ChangeMembershipRequest, Node,
+    AddLearnerRequest, ChangeMembershipRequest,
 };
 
 use crate::{error_info, grpc_addr};
@@ -35,37 +35,8 @@ pub struct PlacementCliCommandParam {
 #[derive(Clone)]
 pub enum PlacementActionType {
     Status,
-    AddLearner(AddLearnerCliRequset),
-    ChangeMembership(ChangeMembershipCliRequest),
-}
-
-#[derive(Clone)]
-pub struct AddLearnerCliRequset {
-    node_id: u64,
-    rpc_addr: String,
-    blocking: bool,
-}
-
-impl AddLearnerCliRequset {
-    pub fn new(node_id: u64, rpc_addr: String, blocking: bool) -> Self {
-        AddLearnerCliRequset {
-            node_id,
-            rpc_addr,
-            blocking,
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct ChangeMembershipCliRequest {
-    members: Vec<u64>,
-    retain: bool,
-}
-
-impl ChangeMembershipCliRequest {
-    pub fn new(members: Vec<u64>, retain: bool) -> Self {
-        ChangeMembershipCliRequest { members, retain }
-    }
+    AddLearner(AddLearnerRequest),
+    ChangeMembership(ChangeMembershipRequest),
 }
 
 pub struct PlacementCenterCommand {}
@@ -115,18 +86,11 @@ impl PlacementCenterCommand {
         &self,
         client_pool: Arc<ClientPool>,
         params: PlacementCliCommandParam,
-        cli_request: AddLearnerCliRequset,
+        cli_request: AddLearnerRequest,
     ) {
-        let request = AddLearnerRequest {
-            node_id: cli_request.node_id,
-            node: Some(Node {
-                node_id: cli_request.node_id,
-                rpc_addr: cli_request.rpc_addr,
-            }),
-            blocking: cli_request.blocking,
-        };
-
-        match placement_openraft_add_learner(client_pool, grpc_addr(params.server), request).await {
+        match placement_openraft_add_learner(client_pool, grpc_addr(params.server), cli_request)
+            .await
+        {
             Ok(reply) => {
                 println!("{:?}", reply.value);
             }
@@ -141,15 +105,14 @@ impl PlacementCenterCommand {
         &self,
         client_pool: Arc<ClientPool>,
         params: PlacementCliCommandParam,
-        cli_request: ChangeMembershipCliRequest,
+        cli_request: ChangeMembershipRequest,
     ) {
-        let request = ChangeMembershipRequest {
-            members: cli_request.members,
-            retain: cli_request.retain,
-        };
-
-        match placement_openraft_change_membership(client_pool, grpc_addr(params.server), request)
-            .await
+        match placement_openraft_change_membership(
+            client_pool,
+            grpc_addr(params.server),
+            cli_request,
+        )
+        .await
         {
             Ok(reply) => {
                 println!("{:?}", reply.value);

@@ -34,37 +34,9 @@ pub struct MqttCliCommandParam {
 #[derive(Clone)]
 pub enum MqttActionType {
     Status,
-    CreateUser(CreateUserCliRequest),
-    DeleteUser(DeleteUserCliRequest),
+    CreateUser(CreateUserRequest),
+    DeleteUser(DeleteUserRequest),
     ListUser,
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateUserCliRequest {
-    username: String,
-    password: String,
-    is_superuser: bool,
-}
-
-impl CreateUserCliRequest {
-    pub fn new(username: String, password: String, is_superuser: bool) -> Self {
-        CreateUserCliRequest {
-            username,
-            password,
-            is_superuser,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct DeleteUserCliRequest {
-    username: String,
-}
-
-impl DeleteUserCliRequest {
-    pub fn new(username: String) -> Self {
-        DeleteUserCliRequest { username }
-    }
 }
 
 pub struct MqttBrokerCommand {}
@@ -122,14 +94,10 @@ impl MqttBrokerCommand {
         &self,
         client_pool: Arc<ClientPool>,
         params: MqttCliCommandParam,
-        cli_request: CreateUserCliRequest,
+        cli_request: CreateUserRequest,
     ) {
-        let request = CreateUserRequest {
-            username: cli_request.username,
-            password: cli_request.password,
-            is_superuser: cli_request.is_superuser,
-        };
-        match mqtt_broker_create_user(client_pool.clone(), grpc_addr(params.server), request).await
+        match mqtt_broker_create_user(client_pool.clone(), grpc_addr(params.server), cli_request)
+            .await
         {
             Ok(_) => {
                 println!("Created successfully!",)
@@ -145,12 +113,10 @@ impl MqttBrokerCommand {
         &self,
         client_pool: Arc<ClientPool>,
         params: MqttCliCommandParam,
-        cli_request: DeleteUserCliRequest,
+        cli_request: DeleteUserRequest,
     ) {
-        let request = DeleteUserRequest {
-            username: cli_request.username,
-        };
-        match mqtt_broker_delete_user(client_pool.clone(), grpc_addr(params.server), request).await
+        match mqtt_broker_delete_user(client_pool.clone(), grpc_addr(params.server), cli_request)
+            .await
         {
             Ok(_) => {
                 println!("Deleted successfully!");
