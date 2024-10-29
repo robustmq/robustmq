@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod cluster;
-pub mod error;
-pub mod gc;
-pub mod group;
-pub mod namespace;
-pub mod offset;
-pub mod record;
-pub mod report;
-pub mod shard;
-pub mod write;
+pub const DB_COLUMN_FAMILY_INDEX: &str = "index";
+
+pub fn column_family_list() -> Vec<String> {
+    vec![DB_COLUMN_FAMILY_INDEX.to_string()]
+}
+
+pub fn storage_data_fold(path: &str) -> String {
+    format!("{}/_index", path)
+}

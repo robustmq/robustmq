@@ -39,8 +39,8 @@ start_pc_cluster(){
     then
         echo "placement-center node 3 started successfully. process no: $no3"
     fi
-
-    sleep 5
+    
+    echo "\n-------------------------------------\n"
 
     # cargo run --package cmd --bin cli-command place -s 127.0.0.1:1228 status
     # cargo run --package cmd --bin cli-command place -s 127.0.0.1:2228 status

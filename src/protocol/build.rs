@@ -20,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "src/journal_server/proto/admin.proto",
             "src/journal_server/proto/engine.proto",
             "src/journal_server/proto/inner.proto",
+            "src/journal_server/proto/record.proto",
         ],
         &["src/journal_server/proto/"], // specify the root location to search proto dependencies
     )?;
