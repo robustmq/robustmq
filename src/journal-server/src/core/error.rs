@@ -27,6 +27,9 @@ pub enum JournalServerError {
     StdIoError(#[from] std::io::Error),
 
     #[error("{0}")]
+    ProstDecodeError(#[from] prost::DecodeError),
+
+    #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("{0} request body cannot be empty")]
