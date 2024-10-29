@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use common_base::tools::file_exists;
-use tokio::fs::{create_dir, File};
+use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
 use crate::core::error::JournalServerError;
