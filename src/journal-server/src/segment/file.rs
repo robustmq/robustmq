@@ -16,9 +16,8 @@ use common_base::tools::{file_exists, try_create_fold};
 use prost::Message;
 use protocol::journal_server::journal_record::JournalRecord;
 use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
 
-use super::br_recode_vec;
 use crate::core::error::JournalServerError;
 
 #[derive(Default)]
@@ -52,11 +51,12 @@ impl SegmentFile {
     pub async fn write(&self, record: JournalRecord) -> Result<(), JournalServerError> {
         let segment_file = self.build_segment_file_path();
         let file = OpenOptions::new().append(true).open(segment_file).await?;
-
-        let mut data = JournalRecord::encode_to_vec(&record);
-        data.extend(br_recode_vec());
         let mut writer = tokio::io::BufWriter::new(file);
+
+        let data = JournalRecord::encode_to_vec(&record);
+        println!("{:#x?}", data);
         writer.write_all(data.as_ref()).await?;
+        writer.write_all(b"\n").await?;
         writer.flush().await?;
         Ok(())
     }
@@ -71,17 +71,27 @@ impl SegmentFile {
         let mut reader = tokio::io::BufReader::new(file);
 
         let mut results = Vec::new();
+        let mut already_size = 0;
+        loop {
+            if already_size > size {
+                break;
+            }
+            let mut data = Vec::new();
+            reader.read_until(b'\n', &mut data).await?;
 
-        let mut data = Vec::new();
-        reader.read_until(b'\n', &mut data).await?;
-        println!("size:{}", data.len());
+            // remove \n
+            let end = data.len() - 1;
+            let resp = &data[0..end];
+            if resp.len() == 0 {
+                continue;
+            }
 
-        // remove \n
-        let end = data.len() - 1;
-        let resp = &data[0..end];
+            println!("resp:{}", resp.len());
+            already_size = already_size + resp.len() as u64;
 
-        let record = JournalRecord::decode(resp.as_ref())?;
-        results.push(record);
+            let record = JournalRecord::decode(resp.as_ref())?;
+            results.push(record);
+        }
 
         Ok(results)
     }
@@ -145,7 +155,7 @@ mod tests {
 
         segment.create().await.unwrap();
 
-        let value = format!("data1-{}", 1);
+        let value = format!("data1#-{}", 1);
         let record = JournalRecord {
             content: value.as_bytes().to_vec(),
             create_time: now_second(),
@@ -156,18 +166,18 @@ mod tests {
             segment: 1,
             tag: "t1".to_string(),
         };
-        match segment.write(record).await {
+
+        match segment.write(record.clone()).await {
             Ok(()) => {}
             Err(e) => {
                 panic!("{:?}", e);
             }
         }
 
-        // let res = segment.read(Some(0), 0).await.unwrap();
-        // for raw in res {
-        //     // let msg = JournalRecord::decode(raw.as_ref()).unwrap();
-        //     println!("{:?}", raw);
-        // }
+        let res = segment.read(Some(0), 0).await.unwrap();
+        for raw in res {
+            println!("{:?}", raw);
+        }
     }
 
     #[tokio::test]
@@ -177,7 +187,7 @@ mod tests {
             content: content,
             create_time: now_second(),
             key: "k1".to_string(),
-            namespace: "n1".to_string(),
+            namespace: "n1#".to_string(),
             shard_name: "s1".to_string(),
             offset: 1000,
             segment: 1,
