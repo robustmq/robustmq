@@ -14,6 +14,7 @@
 # limitations under the License.
 
 sh example/mqtt-cluster/start.sh
+sleep 10
 
 # Run Cargo Test
 cargo nextest run

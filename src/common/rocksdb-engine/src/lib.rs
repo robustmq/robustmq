@@ -19,6 +19,9 @@ use rocksdb::{
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+pub mod engine;
+pub mod warp;
+
 #[derive(Debug)]
 pub struct RocksDBEngine {
     pub db: DB,

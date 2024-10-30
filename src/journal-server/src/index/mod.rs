@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod key_index;
-pub mod offset_index;
-pub mod time_index;
+pub mod engine;
+pub mod keys;
+pub mod message_key;
+pub mod offset;
+pub mod segment;
+pub mod tag;
+pub mod time;

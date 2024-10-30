@@ -12,14 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod cluster;
-pub mod error;
-pub mod gc;
-pub mod group;
-pub mod namespace;
-pub mod offset;
-pub mod record;
-pub mod report;
-pub mod shard;
-pub mod write;
+pub struct SegmentManager {}
+
+impl SegmentManager {}

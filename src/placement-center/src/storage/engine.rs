@@ -15,10 +15,14 @@
 use std::sync::Arc;
 
 use common_base::error::common::CommonError;
+use rocksdb_engine::engine::{
+    rocksdb_engine_delete, rocksdb_engine_exists, rocksdb_engine_get, rocksdb_engine_prefix_list,
+    rocksdb_engine_save,
+};
+use rocksdb_engine::warp::StorageDataWrap;
 use serde::Serialize;
 
 use super::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
-use super::StorageDataWrap;
 
 pub fn engine_save_by_cluster<T>(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
@@ -28,7 +32,7 @@ pub fn engine_save_by_cluster<T>(
 where
     T: Serialize,
 {
-    engine_save(
+    rocksdb_engine_save(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_CLUSTER,
         key_name,
@@ -40,134 +44,29 @@ pub fn engine_get_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<Option<StorageDataWrap>, CommonError> {
-    engine_get(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
+    rocksdb_engine_get(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
 }
 
 pub fn engine_exists_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<bool, CommonError> {
-    engine_exists(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
+    rocksdb_engine_exists(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
 }
 
 pub fn engine_delete_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     key_name: String,
 ) -> Result<(), CommonError> {
-    engine_delete(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
+    rocksdb_engine_delete(rocksdb_engine_handler, DB_COLUMN_FAMILY_CLUSTER, key_name)
 }
 pub fn engine_prefix_list_by_cluster(
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     prefix_key_name: String,
 ) -> Result<Vec<StorageDataWrap>, CommonError> {
-    engine_prefix_list(
+    rocksdb_engine_prefix_list(
         rocksdb_engine_handler,
         DB_COLUMN_FAMILY_CLUSTER,
         prefix_key_name,
     )
-}
-
-fn engine_save<T>(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
-    key_name: String,
-    value: T,
-) -> Result<(), CommonError>
-where
-    T: Serialize,
-{
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_CLUSTER.to_string(),
-        ));
-    };
-
-    let content = match serde_json::to_vec(&value) {
-        Ok(data) => data,
-        Err(e) => return Err(CommonError::CommmonError(e.to_string())),
-    };
-
-    let data = StorageDataWrap::new(content);
-    match rocksdb_engine_handler.write(cf, &key_name, &data) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
-    }
-}
-
-fn engine_get(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
-    key_name: String,
-) -> Result<Option<StorageDataWrap>, CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_CLUSTER.to_string(),
-        ));
-    };
-
-    rocksdb_engine_handler.read::<StorageDataWrap>(cf, &key_name)
-}
-
-fn engine_delete(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
-    key_name: String,
-) -> Result<(), CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_CLUSTER.to_string(),
-        ));
-    };
-
-    rocksdb_engine_handler.delete(cf, &key_name)
-}
-
-fn engine_exists(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
-    key_name: String,
-) -> Result<bool, CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_CLUSTER.to_string(),
-        ));
-    };
-
-    Ok(rocksdb_engine_handler.exist(cf, &key_name))
-}
-
-fn engine_prefix_list(
-    rocksdb_engine_handler: Arc<RocksDBEngine>,
-    comlumn_family: &str,
-    prefix_key_name: String,
-) -> Result<Vec<StorageDataWrap>, CommonError> {
-    let cf = if let Some(cf) = rocksdb_engine_handler.cf_handle(comlumn_family) {
-        cf
-    } else {
-        return Err(CommonError::RocksDBFamilyNotAvailable(
-            DB_COLUMN_FAMILY_CLUSTER.to_string(),
-        ));
-    };
-
-    let data_list = rocksdb_engine_handler.read_prefix(cf, &prefix_key_name);
-    let mut results = Vec::new();
-    if let Ok(raw) = data_list {
-        for (_, v) in raw {
-            match serde_json::from_slice::<StorageDataWrap>(v.as_ref()) {
-                Ok(v) => results.push(v),
-                Err(_) => {
-                    continue;
-                }
-            }
-        }
-    }
-    Ok(results)
 }

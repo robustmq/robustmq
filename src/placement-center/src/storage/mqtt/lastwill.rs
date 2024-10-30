@@ -12,25 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//  http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 use std::sync::Arc;
 
-use common_base::error::common::CommonError;
-use common_base::error::mqtt_broker::MqttBrokerError;
 use metadata_struct::mqtt::lastwill::LastWillData;
 
 use super::session::MqttSessionStorage;
+use crate::core::error::PlacementCenterError;
 use crate::storage::engine::{
     engine_delete_by_cluster, engine_get_by_cluster, engine_save_by_cluster,
 };
@@ -53,36 +40,35 @@ impl MqttLastWillStorage {
         cluster_name: &str,
         client_id: &str,
         last_will_message: LastWillData,
-    ) -> Result<(), CommonError> {
+    ) -> Result<(), PlacementCenterError> {
         let session_storage = MqttSessionStorage::new(self.rocksdb_engine_handler.clone());
         let results = session_storage.get(cluster_name, client_id)?;
         if results.is_none() {
-            return Err(MqttBrokerError::SessionDoesNotExist.into());
+            return Err(PlacementCenterError::SessionDoesNotExist);
         }
 
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message)
+        engine_save_by_cluster(self.rocksdb_engine_handler.clone(), key, last_will_message)?;
+        Ok(())
     }
 
     pub fn get(
         &self,
         cluster_name: &str,
         client_id: &str,
-    ) -> Result<Option<LastWillData>, CommonError> {
+    ) -> Result<Option<LastWillData>, PlacementCenterError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        match engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key) {
-            Ok(Some(data)) => match serde_json::from_slice::<LastWillData>(&data.data) {
-                Ok(lastwill) => Ok(Some(lastwill)),
-                Err(e) => Err(e.into()),
-            },
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
+        let result = engine_get_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+        if let Some(data) = result {
+            return Ok(Some(serde_json::from_slice::<LastWillData>(&data.data)?));
         }
+        Ok(None)
     }
 
-    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), CommonError> {
+    pub fn delete(&self, cluster_name: &str, client_id: &str) -> Result<(), PlacementCenterError> {
         let key = storage_key_mqtt_last_will(cluster_name, client_id);
-        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)
+        engine_delete_by_cluster(self.rocksdb_engine_handler.clone(), key)?;
+        Ok(())
     }
 }
 
