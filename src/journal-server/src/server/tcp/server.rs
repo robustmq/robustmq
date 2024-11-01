@@ -23,6 +23,7 @@ use tokio::sync::{broadcast, mpsc};
 use crate::core::cache::CacheManager;
 use crate::core::offset::OffsetManager;
 use crate::handler::command::Command;
+use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnectionType;
 use crate::server::connection_manager::ConnectionManager;
 use crate::server::packet::{RequestPackage, ResponsePackage};
@@ -36,10 +37,16 @@ pub async fn start_tcp_server(
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
     stop_sx: broadcast::Sender<bool>,
 ) {
     let conf = journal_server_conf();
-    let command = Command::new(client_pool.clone(), cache_manager.clone(), offset_manager);
+    let command = Command::new(
+        client_pool.clone(),
+        cache_manager.clone(),
+        offset_manager,
+        segment_file_manager,
+    );
 
     let proc_config = ProcessorConfig {
         accept_thread_num: conf.tcp_thread.accept_thread_num,
@@ -153,7 +160,7 @@ impl TcpServer {
         .await;
 
         self.network_connection_type = NetworkConnectionType::Tcp;
-        info!("MQTT TCP Server started successfully, listening port: {port}");
+        info!("Journal Engine Server started successfully, listening port: {port}");
     }
 
     pub async fn start_tls(&mut self, port: u32) {
@@ -198,6 +205,6 @@ impl TcpServer {
         )
         .await;
         self.network_connection_type = NetworkConnectionType::Tls;
-        info!("MQTT TCP TLS Server started successfully, listening port: {port}");
+        info!("Journal Engine TLS Server started successfully, listening port: {port}");
     }
 }

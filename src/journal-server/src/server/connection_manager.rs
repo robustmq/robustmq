@@ -140,7 +140,7 @@ impl ConnectionManager {
                         Err(e) => {
                             if times > response_max_try_mut_times {
                                 return Err(CommonError::CommmonError(format!(
-                                    "Failed to write data to the mqtt tcp client, error message: {e:?}"
+                                    "Failed to write data to the Journal engine client, error message: {e:?}"
                                 )));
                             }
                         }
@@ -191,7 +191,7 @@ impl ConnectionManager {
                         Err(e) => {
                             if times > response_max_try_mut_times {
                                 return Err(CommonError::CommmonError(format!(
-                                    "Failed to write data to the mqtt tcp client, error message: {e:?}"
+                                    "Failed to write data to the journal engine client, error message: {e:?}"
                                 )));
                             }
                         }

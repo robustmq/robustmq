@@ -23,22 +23,26 @@ use protocol::journal_server::journal_engine::{
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::core::offset::OffsetManager;
+use crate::segment::manager::SegmentFileManager;
 use crate::segment::write::write_data;
 
 #[derive(Clone)]
 pub struct DataHandler {
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
 }
 
 impl DataHandler {
     pub fn new(
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
+        segment_file_manager: Arc<SegmentFileManager>,
     ) -> DataHandler {
         DataHandler {
             cache_manager,
             offset_manager,
+            segment_file_manager,
         }
     }
 
@@ -89,7 +93,8 @@ impl DataHandler {
             }
         }
 
-        let results = write_data(&self.cache_manager, &req_body).await?;
+        let results =
+            write_data(&self.cache_manager, &self.segment_file_manager, &req_body).await?;
         Ok(results)
     }
 
