@@ -70,15 +70,13 @@ impl JournalServer {
         let connection_manager = Arc::new(ConnectionManager::new());
         let cache_manager = Arc::new(CacheManager::new());
         let offset_manager = Arc::new(OffsetManager::new(client_pool.clone()));
+
+        let segement_file_manager = Arc::new(SegmentFileManager::new());
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.storage.data_path),
             10000,
             column_family_list(),
         ));
-
-        let segement_file_manager =
-            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
-
         JournalServer {
             config,
             stop_send,
@@ -131,14 +129,12 @@ impl JournalServer {
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
         let offet_manager = self.offset_manager.clone();
-        let segement_file_manager = self.segement_file_manager.clone();
         self.server_runtime.spawn(async {
             start_tcp_server(
                 client_pool,
                 connection_manager,
                 cache_manager,
                 offet_manager,
-                segement_file_manager,
                 stop_sx,
             )
             .await;
