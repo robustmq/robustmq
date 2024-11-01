@@ -14,11 +14,11 @@
 
 use std::sync::Arc;
 
-use rocksdb_engine::engine::{rocksdb_engine_delete, rocksdb_engine_save};
+use rocksdb_engine::engine::{rocksdb_engine_delete, rocksdb_engine_get, rocksdb_engine_save};
 use rocksdb_engine::RocksDBEngine;
 
 use super::engine::DB_COLUMN_FAMILY_INDEX;
-use super::keys::offset_index_key;
+use super::keys::{offset_index_key, offset_segment_end, offset_segment_start};
 use crate::core::error::JournalServerError;
 
 pub struct OffsetIndexManager {
@@ -30,6 +30,74 @@ impl OffsetIndexManager {
         OffsetIndexManager {
             rocksdb_engine_handler,
         }
+    }
+
+    pub fn save_start_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+        offset: u64,
+    ) -> Result<(), JournalServerError> {
+        let key = offset_segment_start(namespace, shard_name, segment);
+        Ok(rocksdb_engine_save(
+            self.rocksdb_engine_handler.clone(),
+            DB_COLUMN_FAMILY_INDEX,
+            key,
+            offset,
+        )?)
+    }
+
+    pub fn get_start_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+    ) -> Result<u64, JournalServerError> {
+        let key = offset_segment_start(namespace, shard_name, segment);
+        if let Some(res) = rocksdb_engine_get(
+            self.rocksdb_engine_handler.clone(),
+            DB_COLUMN_FAMILY_INDEX,
+            key,
+        )? {
+            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+        }
+
+        Ok(0)
+    }
+
+    pub fn save_end_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+        offset: u64,
+    ) -> Result<(), JournalServerError> {
+        let key = offset_segment_end(namespace, shard_name, segment);
+        Ok(rocksdb_engine_save(
+            self.rocksdb_engine_handler.clone(),
+            DB_COLUMN_FAMILY_INDEX,
+            key,
+            offset,
+        )?)
+    }
+
+    pub fn get_end_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+    ) -> Result<u64, JournalServerError> {
+        let key = offset_segment_end(namespace, shard_name, segment);
+        if let Some(res) = rocksdb_engine_get(
+            self.rocksdb_engine_handler.clone(),
+            DB_COLUMN_FAMILY_INDEX,
+            key,
+        )? {
+            return Ok(serde_json::from_slice::<u64>(&res.data)?);
+        }
+
+        Ok(0)
     }
 
     pub fn save_offset_position(

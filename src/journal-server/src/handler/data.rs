@@ -23,6 +23,7 @@ use protocol::journal_server::journal_engine::{
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::core::offset::OffsetManager;
+use crate::segment::write::write_data;
 
 #[derive(Clone)]
 pub struct DataHandler {
@@ -51,7 +52,7 @@ impl DataHandler {
 
         let req_body = request.body.unwrap();
         let conf = journal_server_conf();
-        for message in req_body.messages {
+        for message in req_body.data.clone() {
             if self
                 .cache_manager
                 .get_shard(&message.namespace, &message.shard_name)
@@ -88,7 +89,8 @@ impl DataHandler {
             }
         }
 
-        Ok(Vec::new())
+        let results = write_data(&self.cache_manager, &req_body).await?;
+        Ok(results)
     }
 
     pub async fn read(&self, request: ReadReq) -> Result<Vec<ReadRespMessage>, JournalServerError> {

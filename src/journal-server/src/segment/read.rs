@@ -12,7 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use protocol::journal_server::journal_engine::WriteReqMessage;
-
-pub fn batch_write(datas: &[WriteReqMessage]) {}
-pub fn write_segment() {}
+pub fn read() {}

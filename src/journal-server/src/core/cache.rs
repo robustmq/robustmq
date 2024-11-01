@@ -28,9 +28,11 @@ use protocol::journal_server::journal_inner::{
 };
 use protocol::placement_center::placement_center_inner::NodeListRequest;
 use protocol::placement_center::placement_center_journal::{ListSegmentRequest, ListShardRequest};
+use rocksdb_engine::RocksDBEngine;
 
 use super::cluster::JournalEngineClusterConfig;
 use super::shard::delete_shard;
+use crate::segment::manager::{create_local_segment, SegmentFileManager};
 
 #[derive(Clone)]
 pub struct CacheManager {
@@ -56,6 +58,10 @@ impl CacheManager {
 
     pub fn add_node(&self, node: BrokerNode) {
         self.node_list.insert(node.node_id, node);
+    }
+
+    pub fn delete_node(&self, node_id: u64) {
+        self.node_list.remove(&node_id);
     }
 
     pub fn get_cluster(&self) -> JournalEngineClusterConfig {
@@ -141,142 +147,180 @@ impl CacheManager {
     fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}", namespace, shard_name)
     }
+}
 
-    pub fn update_cache(
-        &self,
-        action_type: JournalUpdateCacheActionType,
-        resource_type: JournalUpdateCacheResourceType,
-        data: &str,
-    ) {
-        match resource_type {
-            JournalUpdateCacheResourceType::JournalNode => self.parse_node(action_type, data),
-            JournalUpdateCacheResourceType::Shard => self.parse_shard(action_type, data),
-            JournalUpdateCacheResourceType::Segment => self.parse_segment(action_type, data),
+pub async fn update_cache(
+    cache_manager: &Arc<CacheManager>,
+    segement_file_manager: &Arc<SegmentFileManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    action_type: JournalUpdateCacheActionType,
+    resource_type: JournalUpdateCacheResourceType,
+    data: &str,
+) {
+    match resource_type {
+        JournalUpdateCacheResourceType::JournalNode => parse_node(cache_manager, action_type, data),
+        JournalUpdateCacheResourceType::Shard => parse_shard(cache_manager, action_type, data),
+        JournalUpdateCacheResourceType::Segment => {
+            parse_segment(
+                cache_manager,
+                segement_file_manager,
+                rocksdb_engine_handler,
+                action_type,
+                data,
+            )
+            .await
         }
     }
+}
 
-    fn parse_node(&self, action_type: JournalUpdateCacheActionType, data: &str) {
-        match action_type {
-            JournalUpdateCacheActionType::Add => match serde_json::from_str::<BrokerNode>(data) {
-                Ok(node) => {
-                    info!("Update the cache, add node, node id: {}", node.node_id);
-                    self.node_list.insert(node.node_id, node);
-                }
-                Err(e) => {
-                    error!(
-                        "Add node information failed to parse with error message :{},body:{}",
-                        e, data,
-                    );
-                }
-            },
-
-            JournalUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<BrokerNode>(data) {
-                    Ok(node) => {
-                        info!("Update the cache, remove node, node id: {}", node.node_id);
-                        self.node_list.remove(&node.node_id);
-                    }
-                    Err(e) => {
-                        error!(
-                        "Remove node information failed to parse with error message :{},body:{}",
-                        e, data,
-                    );
-                    }
-                }
+fn parse_node(
+    cache_manager: &Arc<CacheManager>,
+    action_type: JournalUpdateCacheActionType,
+    data: &str,
+) {
+    match action_type {
+        JournalUpdateCacheActionType::Add => match serde_json::from_str::<BrokerNode>(data) {
+            Ok(node) => {
+                info!("Update the cache, add node, node id: {}", node.node_id);
+                cache_manager.add_node(node);
             }
-        }
-    }
+            Err(e) => {
+                error!(
+                    "Add node information failed to parse with error message :{},body:{}",
+                    e, data,
+                );
+            }
+        },
 
-    fn parse_shard(&self, action_type: JournalUpdateCacheActionType, data: &str) {
-        match action_type {
-            JournalUpdateCacheActionType::Add => match serde_json::from_str::<JournalShard>(data) {
+        JournalUpdateCacheActionType::Delete => match serde_json::from_str::<BrokerNode>(data) {
+            Ok(node) => {
+                info!("Update the cache, remove node, node id: {}", node.node_id);
+                cache_manager.delete_node(node.node_id);
+            }
+            Err(e) => {
+                error!(
+                    "Remove node information failed to parse with error message :{},body:{}",
+                    e, data,
+                );
+            }
+        },
+    }
+}
+
+fn parse_shard(
+    cache_manager: &Arc<CacheManager>,
+    action_type: JournalUpdateCacheActionType,
+    data: &str,
+) {
+    match action_type {
+        JournalUpdateCacheActionType::Add => match serde_json::from_str::<JournalShard>(data) {
+            Ok(shard) => {
+                info!(
+                    "Update the cache, add shard, shard name: {}",
+                    shard.shard_name
+                );
+                cache_manager.add_shard(shard);
+            }
+            Err(e) => {
+                error!(
+                    "Add shard information failed to parse with error message :{},body:{}",
+                    e, data,
+                );
+            }
+        },
+
+        JournalUpdateCacheActionType::Delete => {
+            match serde_json::from_str::<JournalShard>(data) {
                 Ok(shard) => {
                     info!(
-                        "Update the cache, add shard, shard name: {}",
+                        "Update the cache, remove shard, shard name: {}",
                         shard.shard_name
                     );
-                    self.add_shard(shard);
+
+                    // Remove the shard and Segment information from the cache
+                    cache_manager.delete_shard(&shard.namespace, &shard.shard_name);
+
+                    // Delete the local segment file asynchronously
+                    tokio::spawn(async move {
+                        match delete_shard() {
+                            Ok(()) => {}
+                            Err(e) => {}
+                        }
+                    });
                 }
                 Err(e) => {
                     error!(
-                        "Add shard information failed to parse with error message :{},body:{}",
+                        "Remove shard information failed to parse with error message :{},body:{}",
                         e, data,
                     );
-                }
-            },
-
-            JournalUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<JournalShard>(data) {
-                    Ok(shard) => {
-                        info!(
-                            "Update the cache, remove shard, shard name: {}",
-                            shard.shard_name
-                        );
-
-                        // Remove the shard and Segment information from the cache
-                        self.delete_shard(&shard.namespace, &shard.shard_name);
-
-                        // Delete the local segment file asynchronously
-                        tokio::spawn(async move {
-                            match delete_shard() {
-                                Ok(()) => {}
-                                Err(e) => {}
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        error!(
-                            "Remove shard information failed to parse with error message :{},body:{}",
-                            e, data,
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    fn parse_segment(&self, action_type: JournalUpdateCacheActionType, data: &str) {
-        match action_type {
-            JournalUpdateCacheActionType::Add => {
-                match serde_json::from_str::<JournalSegment>(data) {
-                    Ok(segment) => {
-                        info!(
-                            "Update the cache, add segment, shard name: {}, segment no:{}",
-                            segment.shard_name, segment.segment_seq
-                        );
-                        self.add_segment(segment);
-                    }
-                    Err(e) => {
-                        error!(
-                            "Add segment information failed to parse with error message :{},body:{}",
-                            e, data,
-                        );
-                    }
-                }
-            }
-
-            JournalUpdateCacheActionType::Delete => {
-                match serde_json::from_str::<JournalSegment>(data) {
-                    Ok(segment) => {
-                        info!(
-                            "Update the cache, remove segment, shard name: {}, segment no:{}",
-                            segment.shard_name, segment.segment_seq
-                        );
-                        self.delete_segment(segment);
-                    }
-                    Err(e) => {
-                        error!(
-                            "Remove segment information failed to parse with error message :{},body:{}",
-                            e, data,
-                        );
-                    }
                 }
             }
         }
     }
 }
 
-pub async fn load_cache(client_pool: &Arc<ClientPool>, cache_manager: &Arc<CacheManager>) {
+async fn parse_segment(
+    cache_manager: &Arc<CacheManager>,
+    segement_file_manager: &Arc<SegmentFileManager>,
+    rocksdb_engine_handler: &Arc<RocksDBEngine>,
+    action_type: JournalUpdateCacheActionType,
+    data: &str,
+) {
+    match action_type {
+        JournalUpdateCacheActionType::Add => match serde_json::from_str::<JournalSegment>(data) {
+            Ok(segment) => {
+                info!(
+                    "Update the cache, add segment, shard name: {}, segment no:{}",
+                    segment.shard_name, segment.segment_seq
+                );
+                if cache_manager
+                    .get_segment(&segment.namespace, &segment.shard_name, segment.segment_seq)
+                    .is_some()
+                {
+                    return;
+                }
+
+                match create_local_segment(segement_file_manager, rocksdb_engine_handler, &segment)
+                    .await
+                {
+                    Ok(()) => {
+                        cache_manager.add_segment(segment);
+                    }
+                    Err(e) => {
+                        error!("Error creating local Segment file, error message: {}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                error!(
+                    "Add segment information failed to parse with error message :{},body:{}",
+                    e, data,
+                );
+            }
+        },
+
+        JournalUpdateCacheActionType::Delete => {
+            match serde_json::from_str::<JournalSegment>(data) {
+                Ok(segment) => {
+                    info!(
+                        "Update the cache, remove segment, shard name: {}, segment no:{}",
+                        segment.shard_name, segment.segment_seq
+                    );
+                    // self.delete_segment(segment);
+                    // todo
+                }
+                Err(e) => {
+                    error!(
+                        "Remove segment information failed to parse with error message :{},body:{}",
+                        e, data,
+                    );
+                }
+            }
+        }
+    }
+}
+
+pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool: &Arc<ClientPool>) {
     let conf = journal_server_conf();
     // load node
     let request = NodeListRequest {

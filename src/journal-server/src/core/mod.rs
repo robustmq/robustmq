@@ -22,4 +22,3 @@ pub mod offset;
 pub mod record;
 pub mod report;
 pub mod shard;
-pub mod write;
