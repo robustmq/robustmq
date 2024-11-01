@@ -45,3 +45,4 @@ placement-center.workspace = true
 journal-server.workspace = true
 cli-command.workspace = true
 clap-cargo = "0.14.1"
+protocol.workspace = true

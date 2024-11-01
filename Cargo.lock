@@ -759,6 +759,7 @@ dependencies = [
  "lazy_static",
  "mqtt-broker",
  "placement-center",
+ "protocol",
  "tokio",
 ]
 

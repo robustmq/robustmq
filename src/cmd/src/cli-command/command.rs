@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use clap::{Parser, Subcommand};
-use cli_command::mqtt::{
-    CreateUserCliRequest, DeleteUserCliRequest, MqttActionType, MqttBrokerCommand,
-    MqttCliCommandParam,
-};
+use cli_command::mqtt::{MqttActionType, MqttBrokerCommand, MqttCliCommandParam};
 use cli_command::placement::{
-    AddLearnerCliRequset, ChangeMembershipCliRequest, PlacementActionType, PlacementCenterCommand,
-    PlacementCliCommandParam,
+    PlacementActionType, PlacementCenterCommand, PlacementCliCommandParam,
+};
+use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
+use protocol::placement_center::placement_center_openraft::{
+    AddLearnerRequest, ChangeMembershipRequest, Node,
 };
 
 #[derive(Parser)] // requires `derive` feature
@@ -148,12 +148,14 @@ async fn main() {
                 server: args.server,
                 action: match args.action {
                     MQTTAction::Status => MqttActionType::Status,
-                    MQTTAction::CreateUser(arg) => MqttActionType::CreateUser(
-                        CreateUserCliRequest::new(arg.username, arg.password, arg.is_superuser),
-                    ),
-                    MQTTAction::DeleteUser(arg) => {
-                        MqttActionType::DeleteUser(DeleteUserCliRequest::new(arg.username))
-                    }
+                    MQTTAction::CreateUser(arg) => MqttActionType::CreateUser(CreateUserRequest {
+                        username: arg.username,
+                        password: arg.password,
+                        is_superuser: arg.is_superuser,
+                    }),
+                    MQTTAction::DeleteUser(arg) => MqttActionType::DeleteUser(DeleteUserRequest {
+                        username: arg.username,
+                    }),
                     MQTTAction::ListUser => MqttActionType::ListUser,
                 },
             };
@@ -165,14 +167,21 @@ async fn main() {
                 server: args.server,
                 action: match args.action {
                     PlacementAction::Status => PlacementActionType::Status,
-                    PlacementAction::AddLearner(arg) => PlacementActionType::AddLearner(
-                        AddLearnerCliRequset::new(arg.node_id, arg.rpc_addr, arg.blocking),
-                    ),
+                    PlacementAction::AddLearner(arg) => {
+                        PlacementActionType::AddLearner(AddLearnerRequest {
+                            node_id: arg.node_id,
+                            node: Some(Node {
+                                node_id: arg.node_id,
+                                rpc_addr: arg.rpc_addr,
+                            }),
+                            blocking: arg.blocking,
+                        })
+                    }
                     PlacementAction::ChangeMembership(arg) => {
-                        PlacementActionType::ChangeMembership(ChangeMembershipCliRequest::new(
-                            arg.members,
-                            arg.retain,
-                        ))
+                        PlacementActionType::ChangeMembership(ChangeMembershipRequest {
+                            members: arg.members,
+                            retain: arg.retain,
+                        })
                     }
                 },
             };
