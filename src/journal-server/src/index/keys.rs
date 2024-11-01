@@ -12,6 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub(crate) fn offset_segment_start(namespace: &str, shard_name: &str, segment: u32) -> String {
+    format!(
+        "/index/offset/start/{}/{}/{}",
+        namespace, shard_name, segment
+    )
+}
+
+pub(crate) fn offset_segment_end(namespace: &str, shard_name: &str, segment: u32) -> String {
+    format!("/index/offset/end/{}/{}/{}", namespace, shard_name, segment)
+}
+
 pub(crate) fn offset_index_key(
     namespace: &str,
     shard_name: &str,

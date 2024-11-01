@@ -31,6 +31,15 @@ impl JournalSegment {
     pub fn is_seal_up(&self) -> bool {
         self.status == SegmentStatus::PrepareSealUp || self.status == SegmentStatus::SealUp
     }
+
+    pub fn get_fold(&self, node_id: u64) -> Option<String> {
+        for rep in self.replicas.clone() {
+            if rep.node_id == node_id {
+                return Some(rep.fold);
+            }
+        }
+        None
+    }
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]

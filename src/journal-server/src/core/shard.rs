@@ -15,5 +15,6 @@
 use super::error::JournalServerError;
 
 pub fn delete_shard() -> Result<(), JournalServerError> {
+    // todo
     Ok(())
 }

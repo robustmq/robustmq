@@ -140,14 +140,20 @@ message GetActiveSegmentResp{
 
 /** Write Request **/
 message WriteReqBody{
-    repeated  WriteReqMessage messages = 1;
+    repeated  WriteReqSegmentMessages data = 1;
 }
 
-message WriteReqMessage{
+message WriteReqSegmentMessages{
     string namespace = 1;
     string shard_name = 2;
     uint32 segment = 3;
-    repeated string content = 4;
+    repeated WriteReqMessages messages = 4;
+}
+
+message WriteReqMessages {
+    string key = 1;
+    bytes value=2;
+    repeated string tags=3;
 }
 
 message WriteRespBody{
@@ -158,11 +164,11 @@ message WriteRespMessage{
     string namespace = 1;
     string shard_name = 2;
     uint32 segment = 3;
-    repeated WriteRespMessageStatus message_status = 4;
+    repeated WriteRespMessageStatus messages= 4;
 }
 
 message WriteRespMessageStatus{
-    repeated uint64 offset = 1;
+    uint64 offset = 1;
     JournalEngineError error = 2;
 }
 
