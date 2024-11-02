@@ -30,6 +30,7 @@ use super::data::DataHandler;
 use super::shard::ShardHandler;
 use crate::core::cache::CacheManager;
 use crate::core::offset::OffsetManager;
+use crate::segment::manager::SegmentFileManager;
 use crate::server::connection::NetworkConnection;
 use crate::server::connection_manager::ConnectionManager;
 
@@ -45,10 +46,11 @@ impl Command {
         client_pool: Arc<ClientPool>,
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
+        segment_file_manager: Arc<SegmentFileManager>,
     ) -> Self {
         let cluster_handler = ClusterHandler::new(cache_manager.clone());
         let shard_handler = ShardHandler::new(cache_manager.clone(), client_pool);
-        let data_handler = DataHandler::new(cache_manager, offset_manager);
+        let data_handler = DataHandler::new(cache_manager, offset_manager, segment_file_manager);
         Command {
             cluster_handler,
             shard_handler,
@@ -67,18 +69,25 @@ impl Command {
         match packet {
             /* Cluster Handler */
             JournalEnginePacket::GetClusterMetadataReq(request) => {
-                let header = RespHeader {
+                let mut header = RespHeader {
                     api_key: ApiKey::GetClusterMetadata.into(),
                     api_version: ApiVersion::V0.into(),
                     ..Default::default()
                 };
-                let resp = GetClusterMetadataResp {
-                    header: Some(header),
-                    body: Some(GetClusterMetadataRespBody {
-                        nodes: self.cluster_handler.get_cluster_metadata(),
-                    }),
-                };
 
+                let mut resp = GetClusterMetadataResp::default();
+                match self.cluster_handler.get_cluster_metadata() {
+                    Ok(data) => resp.body = Some(GetClusterMetadataRespBody { nodes: data }),
+                    Err(e) => {
+                        header.error = Some(JournalEngineError {
+                            code: 1,
+                            error: e.to_string(),
+                        });
+                        resp.body = Some(GetClusterMetadataRespBody::default());
+                    }
+                }
+
+                resp.header = Some(header);
                 return Some(JournalEnginePacket::GetClusterMetadataResp(resp));
             }
 

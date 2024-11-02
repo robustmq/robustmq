@@ -22,15 +22,18 @@ use protocol::journal_server::journal_engine::{
 use protocol::journal_server::journal_record::JournalRecord;
 
 use super::file::SegmentFile;
+use super::manager::SegmentFileManager;
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 
 pub async fn write_data(
     cache_manager: &Arc<CacheManager>,
+    segment_file_manager: &Arc<SegmentFileManager>,
     req_body: &WriteReqBody,
 ) -> Result<Vec<WriteRespMessage>, JournalServerError> {
     let conf = journal_server_conf();
     let mut results = Vec::new();
+
     for msg in req_body.data.clone() {
         let segment = if let Some(segment) =
             cache_manager.get_segment(&msg.namespace, &msg.shard_name, msg.segment)
@@ -67,6 +70,18 @@ pub async fn write_data(
         };
 
         let mut resp_message_status = Vec::new();
+
+        let segment_file = if let Some(segment_file) =
+            segment_file_manager.get_segment_file(&msg.namespace, &msg.shard_name, msg.segment)
+        {
+            segment_file
+        } else {
+            return Err(JournalServerError::SegmentFileNotExists(format!(
+                "{}-{}",
+                msg.shard_name, msg.segment
+            )));
+        };
+        let end_offset = segment_file.end_offset;
         for message in msg.messages {
             let record = JournalRecord {
                 content: message.value,
@@ -74,7 +89,7 @@ pub async fn write_data(
                 key: message.key,
                 namespace: msg.namespace.clone(),
                 shard_name: msg.shard_name.clone(),
-                offset: 1000,
+                offset: end_offset,
                 segment: msg.segment,
                 tags: message.tags,
             };
@@ -82,6 +97,11 @@ pub async fn write_data(
             match segment.write(record.clone()).await {
                 Ok(()) => {
                     status.offset = record.offset;
+                    segment_file_manager.incr_end_offset(
+                        &msg.namespace,
+                        &msg.shard_name,
+                        msg.segment,
+                    )?;
                 }
                 Err(e) => {
                     status.error = Some(JournalEngineError {
