@@ -205,6 +205,8 @@ mod tests {
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine_handler));
         let extend_info = JournalNodeExtend {
             data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
+            tcp_addr: "127.0.0.1:3110".to_string(),
+            tcps_addr: "127.0.0.1:3110".to_string(),
         };
 
         let node = BrokerNode {
@@ -255,6 +257,8 @@ mod tests {
 
         let extend_info = JournalNodeExtend {
             data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
+            tcp_addr: "127.0.0.1:3110".to_string(),
+            tcps_addr: "127.0.0.1:3110".to_string(),
         };
 
         let node = BrokerNode {
@@ -339,6 +343,8 @@ mod tests {
 
         let extend_info = JournalNodeExtend {
             data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
+            tcp_addr: "127.0.0.1:3110".to_string(),
+            tcps_addr: "127.0.0.1:3110".to_string(),
         };
 
         let node = BrokerNode {
@@ -416,6 +422,8 @@ mod tests {
 
         let extend_info = JournalNodeExtend {
             data_fold: vec!["/tmp/t1".to_string(), "/tmp/t2".to_string()],
+            tcp_addr: "127.0.0.1:3110".to_string(),
+            tcps_addr: "127.0.0.1:3110".to_string(),
         };
 
         let node = BrokerNode {

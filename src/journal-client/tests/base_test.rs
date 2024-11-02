@@ -59,7 +59,7 @@ mod tests {
                 api_version: ApiVersion::V0.into(),
             }),
             body: Some(CreateShardReqBody {
-                namespace: "n1".to_string(),
+                namespace: "b1".to_string(),
                 shard_name: "s1".to_string(),
                 replica_num: 1,
             }),
@@ -103,7 +103,7 @@ mod tests {
         let mut stream = Framed::new(socket, JournalServerCodec::new());
 
         let shards = vec![GetActiveSegmentReqShard {
-            namespace: "n1".to_string(),
+            namespace: "b1".to_string(),
             shard_name: "s1".to_string(),
         }];
 

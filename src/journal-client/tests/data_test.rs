@@ -14,19 +14,21 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use common_base::tools::unique_id;
     use dashmap::DashMap;
     use futures::{SinkExt, StreamExt};
     use journal_client::tool::resp_header_error;
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
-        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReqBody,
-        GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentReqShard,
-        GetClusterMetadataReq, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
-        ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
-        WriteReqSegmentMessages,
+        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, GetActiveSegmentReq,
+        GetActiveSegmentReqBody, GetActiveSegmentReqShard, GetClusterMetadataReq, ReadReq,
+        ReadReqBody, ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody,
+        WriteReqMessages, WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
+    use tokio::time::sleep;
     use tokio_util::codec::Framed;
 
     #[tokio::test]

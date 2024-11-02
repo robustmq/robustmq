@@ -130,19 +130,13 @@ mod tests {
     use common_base::config::journal_server::{
         init_journal_server_conf_by_path, journal_server_conf,
     };
-    use common_base::tools::{file_exists, now_second, unique_id};
+    use common_base::tools::{now_second, unique_id};
     use protocol::journal_server::journal_record::JournalRecord;
 
     use super::SegmentFile;
     #[tokio::test]
     async fn segment_create() {
-        let path = format!(
-            "{}/../../config/journal-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_journal_server_conf_by_path(&path);
-        let conf = journal_server_conf();
-        let data_fold = conf.storage.data_path.first().unwrap();
+        let data_fold = "/tmp/jl/tests";
 
         let namespace = "segment_create_v1";
         let shard_name = "s1";
@@ -160,13 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn segment_rw_test() {
-        let path = format!(
-            "{}/../../config/journal-server.toml",
-            env!("CARGO_MANIFEST_DIR")
-        );
-        init_journal_server_conf_by_path(&path);
-        let conf = journal_server_conf();
-        let data_fold = conf.storage.data_path.first().unwrap();
+        let data_fold = "/tmp/jl/tests";
 
         let namespace = unique_id();
         let shard_name = "s1";
