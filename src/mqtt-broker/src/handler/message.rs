@@ -49,10 +49,11 @@ mod tests {
     use metadata_struct::mqtt::cluster::{
         MqttClusterDynamicConfig, MqttClusterDynamicConfigProtocol,
     };
+    use metadata_struct::mqtt::message::MqttMessage;
     use protocol::mqtt::common::PublishProperties;
 
     use crate::handler::cache::CacheManager;
-    use crate::handler::message::build_message_expire;
+    use crate::handler::message::{build_message_expire, is_message_expire};
 
     #[test]
     fn build_message_expire_test() {
@@ -78,5 +79,22 @@ mod tests {
         };
         let res = build_message_expire(&cache_manager, &Some(publish_properties));
         assert_eq!(res, now_second() + 3);
+    }
+
+    #[test]
+    fn is_message_expire_test() {
+        let message = MqttMessage {
+            expiry_interval: now_second() - 10,
+            ..Default::default()
+        };
+
+        assert!(is_message_expire(&message));
+
+        let message = MqttMessage {
+            expiry_interval: now_second() + 10,
+            ..Default::default()
+        };
+
+        assert!(!is_message_expire(&message));
     }
 }

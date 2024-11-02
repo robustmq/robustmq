@@ -14,11 +14,9 @@
 
 use std::sync::Arc;
 
-use metadata_struct::journal::node_extend::JournalNodeExtend;
 use protocol::journal_server::journal_engine::GetClusterMetadataNode;
 
 use crate::core::cache::CacheManager;
-use crate::core::error::JournalServerError;
 
 #[derive(Clone)]
 pub struct ClusterHandler {
@@ -30,16 +28,15 @@ impl ClusterHandler {
         ClusterHandler { cache_manager }
     }
 
-    pub fn get_cluster_metadata(&self) -> Result<Vec<GetClusterMetadataNode>, JournalServerError> {
+    pub fn get_cluster_metadata(&self) -> Vec<GetClusterMetadataNode> {
         let mut result = Vec::new();
         for (node_id, node) in self.cache_manager.node_list.clone() {
-            let journal_extend = serde_json::from_str::<JournalNodeExtend>(&node.extend)?;
             result.push(GetClusterMetadataNode {
                 node_id,
                 tcp_addr: journal_extend.tcp_addr,
                 tcps_addr: journal_extend.tcps_addr,
             });
         }
-        Ok(result)
+        result
     }
 }
