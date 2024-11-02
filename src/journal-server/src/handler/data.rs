@@ -60,7 +60,8 @@ impl DataHandler {
             self.valitator(&message.namespace, &message.shard_name, message.segment)?;
         }
 
-        let results = write_data(&self.cache_manager, &req_body).await?;
+        let results =
+            write_data(&self.cache_manager, &self.segment_file_manager, &req_body).await?;
         Ok(results)
     }
 

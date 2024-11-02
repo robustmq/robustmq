@@ -71,12 +71,13 @@ impl JournalServer {
         let cache_manager = Arc::new(CacheManager::new());
         let offset_manager = Arc::new(OffsetManager::new(client_pool.clone()));
 
-        let segement_file_manager = Arc::new(SegmentFileManager::new());
         let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
             &storage_data_fold(&config.storage.data_path),
             10000,
             column_family_list(),
         ));
+        let segement_file_manager =
+            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
         JournalServer {
             config,
             stop_send,

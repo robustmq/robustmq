@@ -110,6 +110,7 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(CreateShardRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -132,6 +133,7 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(DeleteShardRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -154,6 +156,7 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(GetActiveSegmentRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -177,6 +180,7 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(WriteRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -199,6 +203,7 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(ReadRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -221,6 +226,7 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
+                        resp.body = Some(OffsetCommitRespBody::default());
                     }
                 }
                 resp.header = Some(header);

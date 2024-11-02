@@ -20,7 +20,7 @@ mod tests {
     use journal_client::tool::resp_header_error;
     use protocol::journal_server::codec::{JournalEnginePacket, JournalServerCodec};
     use protocol::journal_server::journal_engine::{
-        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
+        ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReqBody,
         GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentReqShard,
         GetClusterMetadataReq, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
         ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
@@ -141,6 +141,10 @@ mod tests {
         }
 
         // write data
+        let key = "k1".to_string();
+        let value = serde_json::to_vec("dsfaerwqrsf").unwrap();
+        let tags = vec!["t1".to_string()];
+
         for rep in segment_0_all_replicas {
             let rep_addr = server_nodes.get(&rep).unwrap();
             println!("{:?}", rep_addr.tcp_addr);
@@ -158,9 +162,9 @@ mod tests {
                         shard_name: shard_name.clone(),
                         segment: 0,
                         messages: vec![WriteReqMessages {
-                            key: "k1".to_string(),
-                            value: serde_json::to_vec("dsfaerwqrsf").unwrap(),
-                            tags: vec!["t1".to_string()],
+                            key: key.clone(),
+                            value: value.clone(),
+                            tags: tags.clone(),
                         }],
                     }],
                 }),
@@ -184,5 +188,46 @@ mod tests {
         }
 
         // read data
+        let socket = TcpStream::connect(server_addr).await.unwrap();
+        let mut stream = Framed::new(socket, JournalServerCodec::new());
+
+        let req_packet = JournalEnginePacket::ReadReq(ReadReq {
+            header: Some(ReqHeader {
+                api_key: ApiKey::Read.into(),
+                api_version: ApiVersion::V0.into(),
+            }),
+            body: Some(ReadReqBody {
+                messages: vec![ReadReqMessage {
+                    namespace: namespace.clone(),
+                    shard_name: shard_name.clone(),
+                    segments: vec![ReadReqMessageOffset {
+                        segment: 0,
+                        offset: 0,
+                    }],
+                }],
+            }),
+        });
+
+        let _ = stream.send(req_packet.clone()).await;
+
+        if let Some(Ok(resp)) = stream.next().await {
+            println!("{:?}", resp);
+            if let JournalEnginePacket::ReadResp(data) = resp {
+                println!("{:?}", data);
+                assert!(resp_header_error(&data.header.unwrap()).is_ok());
+                let body = data.body.unwrap();
+                let msg = body.messages.first().unwrap();
+                let raw_msg = msg.messages.first().unwrap();
+                assert_eq!(msg.namespace, namespace);
+                assert_eq!(msg.shard_name, shard_name);
+                assert_eq!(raw_msg.key, key);
+                assert_eq!(raw_msg.value, value);
+                assert_eq!(raw_msg.tags, tags);
+            } else {
+                assert!(false);
+            }
+        } else {
+            assert!(false);
+        }
     }
 }
