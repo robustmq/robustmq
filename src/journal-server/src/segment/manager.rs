@@ -37,12 +37,16 @@ pub struct SegmentFileMetadata {
 }
 pub struct SegmentFileManager {
     pub segment_files: DashMap<String, SegmentFileMetadata>,
+    pub rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl SegmentFileManager {
-    pub fn new() -> Self {
+    pub fn new(rocksdb_engine_handler: Arc<RocksDBEngine>) -> Self {
         let segment_files = DashMap::with_capacity(8);
-        SegmentFileManager { segment_files }
+        SegmentFileManager {
+            segment_files,
+            rocksdb_engine_handler,
+        }
     }
 
     pub fn add_segment_file(&self, segment_file: SegmentFileMetadata) {
@@ -52,6 +56,34 @@ impl SegmentFileManager {
             segment_file.segment_no,
         );
         self.segment_files.insert(key, segment_file);
+    }
+
+    pub fn get_segment_file(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+    ) -> Option<SegmentFileMetadata> {
+        let key = self.key(namespace, shard_name, segment);
+        if let Some(data) = self.segment_files.get(&key) {
+            return Some(data.clone());
+        }
+        None
+    }
+
+    pub fn incr_end_offset(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment: u32,
+    ) -> Result<(), JournalServerError> {
+        let key = self.key(namespace, shard_name, segment);
+        if let Some(mut data) = self.segment_files.get_mut(&key) {
+            data.end_offset += 1;
+            let offset_index = OffsetIndexManager::new(self.rocksdb_engine_handler.clone());
+            offset_index.save_end_offset(namespace, shard_name, segment, data.end_offset)?;
+        }
+        Ok(())
     }
 
     pub fn remove_segment_file(&self, namespace: &str, shard_name: &str, segment: u32) {
@@ -213,7 +245,8 @@ mod tests {
             10000,
             column_family_list(),
         ));
-        let segement_file_manager = Arc::new(SegmentFileManager::new());
+        let segement_file_manager =
+            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
 
         for path in data_fold.clone() {
             let path = Path::new(&path);

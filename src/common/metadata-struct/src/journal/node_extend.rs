@@ -17,4 +17,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone)]
 pub struct JournalNodeExtend {
     pub data_fold: Vec<String>,
+    pub tcp_addr: String,
+    pub tcp_addrs: String,
 }

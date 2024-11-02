@@ -192,7 +192,6 @@ impl codec::Encoder<JournalEnginePacket> for JournalServerCodec {
         }
 
         let header_len = header_byte.len();
-        print!("{}", header_len);
         let body_len = body_byte.len();
         let data_len = header_len + body_len;
         if data_len > Self::MAX_SIZE {

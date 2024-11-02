@@ -20,7 +20,8 @@ mod tests {
         ApiKey, ApiVersion, CreateShardReq, CreateShardReqBody, DeleteShardReq, DeleteShardReqBody,
         GetActiveSegmentReq, GetActiveSegmentReqBody, GetActiveSegmentReqShard,
         GetClusterMetadataReq, OffsetCommitReq, OffsetCommitReqBody, ReadReq, ReadReqBody,
-        ReqHeader, WriteReq, WriteReqBody,
+        ReadReqMessage, ReadReqMessageOffset, ReqHeader, WriteReq, WriteReqBody, WriteReqMessages,
+        WriteReqSegmentMessages,
     };
     use tokio::net::TcpStream;
     use tokio_util::codec::Framed;
@@ -132,7 +133,18 @@ mod tests {
                 api_key: ApiKey::Write.into(),
                 api_version: ApiVersion::V0.into(),
             }),
-            body: Some(WriteReqBody::default()),
+            body: Some(WriteReqBody {
+                data: vec![WriteReqSegmentMessages {
+                    namespace: "n1".to_string(),
+                    shard_name: "s1".to_string(),
+                    segment: 0,
+                    messages: vec![WriteReqMessages {
+                        key: "k1".to_string(),
+                        value: serde_json::to_vec("dsfaerwqr").unwrap(),
+                        tags: vec!["t1".to_string()],
+                    }],
+                }],
+            }),
         });
 
         let _ = stream.send(req_packet.clone()).await;
@@ -153,7 +165,16 @@ mod tests {
                 api_key: ApiKey::Read.into(),
                 api_version: ApiVersion::V0.into(),
             }),
-            body: Some(ReadReqBody::default()),
+            body: Some(ReadReqBody {
+                messages: vec![ReadReqMessage {
+                    namespace: "n1".to_string(),
+                    shard_name: "s1".to_string(),
+                    segments: vec![ReadReqMessageOffset {
+                        segment: 0,
+                        offset: 0,
+                    }],
+                }],
+            }),
         });
 
         let _ = stream.send(req_packet.clone()).await;

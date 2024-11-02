@@ -16,29 +16,34 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use protocol::journal_server::journal_engine::{
-    JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, ReadRespMessage, WriteReq,
-    WriteRespMessage,
+    JournalEngineError, OffsetCommitReq, OffsetCommitShardResp, ReadReq, ReadRespSegmentMessage,
+    WriteReq, WriteRespMessage,
 };
 
 use crate::core::cache::CacheManager;
 use crate::core::error::JournalServerError;
 use crate::core::offset::OffsetManager;
+use crate::segment::manager::SegmentFileManager;
+use crate::segment::read::read_data;
 use crate::segment::write::write_data;
 
 #[derive(Clone)]
 pub struct DataHandler {
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
+    segment_file_manager: Arc<SegmentFileManager>,
 }
 
 impl DataHandler {
     pub fn new(
         cache_manager: Arc<CacheManager>,
         offset_manager: Arc<OffsetManager>,
+        segment_file_manager: Arc<SegmentFileManager>,
     ) -> DataHandler {
         DataHandler {
             cache_manager,
             offset_manager,
+            segment_file_manager,
         }
     }
 
@@ -51,50 +56,34 @@ impl DataHandler {
         }
 
         let req_body = request.body.unwrap();
-        let conf = journal_server_conf();
         for message in req_body.data.clone() {
-            if self
-                .cache_manager
-                .get_shard(&message.namespace, &message.shard_name)
-                .is_none()
-            {
-                return Err(JournalServerError::ShardNotExist(message.shard_name));
-            }
-
-            let segment = if let Some(segment) = self.cache_manager.get_segment(
-                &message.namespace,
-                &message.shard_name,
-                message.segment,
-            ) {
-                segment
-            } else {
-                return Err(JournalServerError::SegmentNotExist(
-                    message.shard_name,
-                    message.segment,
-                ));
-            };
-
-            if segment.is_seal_up() {
-                return Err(JournalServerError::SegmentHasBeenSealed(
-                    message.shard_name,
-                    message.segment,
-                ));
-            }
-
-            if segment.leader != conf.node_id {
-                return Err(JournalServerError::NotLeader(
-                    message.shard_name,
-                    message.segment,
-                ));
-            }
+            self.valitator(&message.namespace, &message.shard_name, message.segment)?;
         }
 
-        let results = write_data(&self.cache_manager, &req_body).await?;
+        let results =
+            write_data(&self.cache_manager, &self.segment_file_manager, &req_body).await?;
         Ok(results)
     }
 
-    pub async fn read(&self, request: ReadReq) -> Result<Vec<ReadRespMessage>, JournalServerError> {
-        Ok(Vec::new())
+    pub async fn read(
+        &self,
+        request: ReadReq,
+    ) -> Result<Vec<ReadRespSegmentMessage>, JournalServerError> {
+        if request.body.is_none() {
+            return Err(JournalServerError::RequestBodyNotEmpty("write".to_string()));
+        }
+
+        let req_body = request.body.unwrap();
+        let conf = journal_server_conf();
+        for row in req_body.messages.clone() {
+            for segment in row.segments {
+                self.valitator(&row.namespace, &row.shard_name, segment.segment)?;
+            }
+        }
+
+        let conf = journal_server_conf();
+        let results = read_data(&self.cache_manager, &req_body, conf.node_id).await?;
+        Ok(results)
     }
 
     pub async fn offset_commit(
@@ -141,5 +130,48 @@ impl DataHandler {
             });
         }
         Ok(result)
+    }
+
+    fn valitator(
+        &self,
+        namespace: &str,
+        shard_name: &str,
+        segment_no: u32,
+    ) -> Result<(), JournalServerError> {
+        if self
+            .cache_manager
+            .get_shard(namespace, shard_name)
+            .is_none()
+        {
+            return Err(JournalServerError::ShardNotExist(shard_name.to_string()));
+        }
+
+        let segment = if let Some(segment) = self
+            .cache_manager
+            .get_segment(namespace, shard_name, segment_no)
+        {
+            segment
+        } else {
+            return Err(JournalServerError::SegmentNotExist(
+                shard_name.to_string(),
+                segment_no,
+            ));
+        };
+
+        if segment.is_seal_up() {
+            return Err(JournalServerError::SegmentHasBeenSealed(
+                shard_name.to_string(),
+                segment_no,
+            ));
+        }
+
+        let conf = journal_server_conf();
+        if segment.leader != conf.node_id {
+            return Err(JournalServerError::NotLeader(
+                shard_name.to_string(),
+                segment_no,
+            ));
+        }
+        Ok(())
     }
 }
