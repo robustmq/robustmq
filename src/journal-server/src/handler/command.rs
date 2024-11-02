@@ -69,18 +69,25 @@ impl Command {
         match packet {
             /* Cluster Handler */
             JournalEnginePacket::GetClusterMetadataReq(request) => {
-                let header = RespHeader {
+                let mut header = RespHeader {
                     api_key: ApiKey::GetClusterMetadata.into(),
                     api_version: ApiVersion::V0.into(),
                     ..Default::default()
                 };
-                let resp = GetClusterMetadataResp {
-                    header: Some(header),
-                    body: Some(GetClusterMetadataRespBody {
-                        nodes: self.cluster_handler.get_cluster_metadata(),
-                    }),
-                };
 
+                let mut resp = GetClusterMetadataResp::default();
+                match self.cluster_handler.get_cluster_metadata() {
+                    Ok(data) => resp.body = Some(GetClusterMetadataRespBody { nodes: data }),
+                    Err(e) => {
+                        header.error = Some(JournalEngineError {
+                            code: 1,
+                            error: e.to_string(),
+                        });
+                        resp.body = Some(GetClusterMetadataRespBody::default());
+                    }
+                }
+
+                resp.header = Some(header);
                 return Some(JournalEnginePacket::GetClusterMetadataResp(resp));
             }
 
@@ -103,7 +110,6 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
-                        resp.body = Some(CreateShardRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -126,7 +132,6 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
-                        resp.body = Some(DeleteShardRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -149,7 +154,6 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
-                        resp.body = Some(GetActiveSegmentRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -173,7 +177,6 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
-                        resp.body = Some(WriteRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -196,7 +199,6 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
-                        resp.body = Some(ReadRespBody::default());
                     }
                 }
                 resp.header = Some(header);
@@ -219,7 +221,6 @@ impl Command {
                             code: 1,
                             error: e.to_string(),
                         });
-                        resp.body = Some(OffsetCommitRespBody::default());
                     }
                 }
                 resp.header = Some(header);
