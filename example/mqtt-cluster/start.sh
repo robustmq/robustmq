@@ -23,7 +23,7 @@ start_pc_cluster(){
     sleep 3
 
     no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
     fi
@@ -51,7 +51,7 @@ start_mqtt_cluster(){
     nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/4.log &
     
     no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "mqtt cluster node 1 started successfully. process no: $no1"
     fi
@@ -65,7 +65,7 @@ start_journal_cluster(){
     nohup cargo run --package cmd --bin journal-server -- --conf=example/mqtt-cluster/journal-server/node-1.toml 2>/tmp/7.log &
     
     no1=`ps -ef | grep journal-server | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "journal-server node 1 started successfully. process no: $no1"
     fi

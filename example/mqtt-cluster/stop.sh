@@ -14,7 +14,7 @@
 
 stop_pc_cluster(){
     no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "kill placement center $no1"
         kill $no1
@@ -44,7 +44,7 @@ stop_pc_cluster(){
 
 stop_mqtt_cluster(){
     no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "kill mqtt-server $no1"
         kill $no1
@@ -53,7 +53,7 @@ stop_mqtt_cluster(){
 
 stop_journal_server(){
     no1=`ps -ef | grep journal-server  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "kill journal-server $no1"
         kill $no1
