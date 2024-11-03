@@ -14,16 +14,22 @@
 
 #![allow(dead_code, unused_variables)]
 
-use core::cache::{load_cache, CacheManager};
+use core::cache::{load_metadata_cache, CacheManager};
 use core::cluster::{register_journal_node, report_heartbeat, unregister_journal_node};
 use core::offset::OffsetManager;
+use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::journal_server::{journal_server_conf, JournalServerConfig};
 use common_base::metrics::register_prometheus_export;
 use common_base::runtime::create_runtime;
 use grpc_clients::pool::ClientPool;
+use index::engine::{column_family_list, storage_data_fold};
 use log::{error, info};
+use rocksdb_engine::RocksDBEngine;
+use segment::manager::{
+    load_local_segment_cache, metadata_and_local_segment_diff_check, SegmentFileManager,
+};
 use server::connection_manager::ConnectionManager;
 use server::grpc::server::GrpcServer;
 use server::tcp::server::start_tcp_server;
@@ -47,6 +53,8 @@ pub struct JournalServer {
     connection_manager: Arc<ConnectionManager>,
     cache_manager: Arc<CacheManager>,
     offset_manager: Arc<OffsetManager>,
+    segement_file_manager: Arc<SegmentFileManager>,
+    rocksdb_engine_handler: Arc<RocksDBEngine>,
 }
 
 impl JournalServer {
@@ -62,6 +70,14 @@ impl JournalServer {
         let connection_manager = Arc::new(ConnectionManager::new());
         let cache_manager = Arc::new(CacheManager::new());
         let offset_manager = Arc::new(OffsetManager::new(client_pool.clone()));
+
+        let rocksdb_engine_handler = Arc::new(RocksDBEngine::new(
+            &storage_data_fold(&config.storage.data_path),
+            10000,
+            column_family_list(),
+        ));
+        let segement_file_manager =
+            Arc::new(SegmentFileManager::new(rocksdb_engine_handler.clone()));
         JournalServer {
             config,
             stop_send,
@@ -71,6 +87,8 @@ impl JournalServer {
             connection_manager,
             cache_manager,
             offset_manager,
+            segement_file_manager,
+            rocksdb_engine_handler,
         }
     }
 
@@ -93,6 +111,8 @@ impl JournalServer {
             self.config.network.grpc_port,
             self.client_pool.clone(),
             self.cache_manager.clone(),
+            self.segement_file_manager.clone(),
+            self.rocksdb_engine_handler.clone(),
         );
         self.server_runtime.spawn(async move {
             match server.start().await {
@@ -110,12 +130,14 @@ impl JournalServer {
         let cache_manager = self.cache_manager.clone();
         let stop_sx = self.stop_send.clone();
         let offet_manager = self.offset_manager.clone();
+        let segement_file_manager = self.segement_file_manager.clone();
         self.server_runtime.spawn(async {
             start_tcp_server(
                 client_pool,
                 connection_manager,
                 cache_manager,
                 offet_manager,
+                segement_file_manager,
                 stop_sx,
             )
             .await;
@@ -162,7 +184,24 @@ impl JournalServer {
                     panic!("{}", e);
                 }
             }
-            load_cache(&self.client_pool, &self.cache_manager).await;
+            load_metadata_cache(&self.cache_manager, &self.client_pool).await;
+
+            for path in self.config.storage.data_path.clone() {
+                let path = Path::new(&path);
+                match load_local_segment_cache(
+                    path,
+                    &self.rocksdb_engine_handler,
+                    &self.segement_file_manager,
+                    &self.config.storage.data_path,
+                ) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        panic!("{}", e);
+                    }
+                }
+            }
+
+            metadata_and_local_segment_diff_check();
         });
     }
 

@@ -57,7 +57,8 @@ message GetClusterMetadataRespBody{
 
 message GetClusterMetadataNode{
     uint64 node_id = 1;
-    string node_addr = 2;
+    string tcp_addr = 2;
+    string tcps_addr = 3;
 }
 
 message GetClusterMetadataResp{
@@ -140,14 +141,20 @@ message GetActiveSegmentResp{
 
 /** Write Request **/
 message WriteReqBody{
-    repeated  WriteReqMessage messages = 1;
+    repeated  WriteReqSegmentMessages data = 1;
 }
 
-message WriteReqMessage{
+message WriteReqSegmentMessages{
     string namespace = 1;
     string shard_name = 2;
     uint32 segment = 3;
-    repeated string content = 4;
+    repeated WriteReqMessages messages = 4;
+}
+
+message WriteReqMessages {
+    string key = 1;
+    bytes value=2;
+    repeated string tags=3;
 }
 
 message WriteRespBody{
@@ -158,11 +165,11 @@ message WriteRespMessage{
     string namespace = 1;
     string shard_name = 2;
     uint32 segment = 3;
-    repeated WriteRespMessageStatus message_status = 4;
+    repeated WriteRespMessageStatus messages= 4;
 }
 
 message WriteRespMessageStatus{
-    repeated uint64 offset = 1;
+    uint64 offset = 1;
     JournalEngineError error = 2;
 }
 
@@ -178,25 +185,37 @@ message WriteResp{
 
 /**  Read Request **/
 message ReadReqBody{
-    repeated ReadReqMessage messages = 1;
+    repeated ReadReqMessage messages = 2;
 }
 
 message ReadReqMessage{
     string namespace = 1;
     string shard_name = 2;
-    repeated uint32 segment = 3;
+    repeated ReadReqMessageOffset segments = 3;
+}
+
+message ReadReqMessageOffset{
+    uint32 segment = 1;
+    uint64 offset = 2;
+
 }
 
 message ReadRespBody{
-    repeated ReadRespMessage messages = 1;
+    repeated ReadRespSegmentMessage messages = 1;
 }
 
-message ReadRespMessage{
+message ReadRespSegmentMessage{
     string namespace = 1;
     string shard_name = 2;
     uint32 segment = 3;
-    uint64 offset = 4;
-    bytes  messages = 5;
+    repeated ReadRespMessage messages=4;
+}
+
+message ReadRespMessage{
+    uint64 offset = 1;
+    string key = 2;
+    bytes value=3;
+    repeated string tags=4;
 }
 
 message ReadReq{

@@ -18,6 +18,12 @@ pub fn column_family_list() -> Vec<String> {
     vec![DB_COLUMN_FAMILY_INDEX.to_string()]
 }
 
-pub fn storage_data_fold(path: &str) -> String {
-    format!("{}/_index", path)
+pub fn storage_data_fold(data_fold: &Vec<String>) -> String {
+    if let Some(fold) = data_fold.first() {
+        return format!("{}/_index", fold);
+    }
+    panic!(
+        "No configuration data storage directory, configuration info :{:?}",
+        data_fold
+    );
 }

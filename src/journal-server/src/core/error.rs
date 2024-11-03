@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::num::ParseIntError;
+
 use common_base::error::common::CommonError;
 use thiserror::Error;
 
@@ -31,6 +33,9 @@ pub enum JournalServerError {
 
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
+
+    #[error("{0}")]
+    ParseIntError(#[from] ParseIntError),
 
     #[error("{0} request body cannot be empty")]
     RequestBodyNotEmpty(String),
@@ -55,6 +60,9 @@ pub enum JournalServerError {
 
     #[error("Segment file {0} does not exist, maybe it hasn't been initialized yet.")]
     SegmentFileNotExists(String),
+
+    #[error("Data directory configuration for Segment {0} on node {1} cannot be found, please check that the metadata information is correct")]
+    SegmentDataDirectoryNotFound(String, u64),
 }
 
 pub enum JournalServerErrorCode {}

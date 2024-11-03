@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::core::error::JournalServerError;
+
 pub mod engine;
 pub mod keys;
 pub mod message_key;
@@ -19,3 +21,7 @@ pub mod offset;
 pub mod segment;
 pub mod tag;
 pub mod time;
+
+pub fn delete_segment_all_index() -> Result<(), JournalServerError> {
+    Ok(())
+}

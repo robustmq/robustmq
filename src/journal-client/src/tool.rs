@@ -12,5 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(test)]
-mod tests {}
+use protocol::journal_server::journal_engine::{JournalEngineError, RespHeader};
+
+pub fn resp_header_error(resp: &RespHeader) -> Result<(), JournalEngineError> {
+    if let Some(err) = resp.error.clone() {
+        return Err(err);
+    }
+    Ok(())
+}

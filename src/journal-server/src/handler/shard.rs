@@ -174,7 +174,7 @@ impl ShardHandler {
             {
                 GetActiveSegmentRespShard {
                     namespace: raw.namespace.clone(),
-                    shard: raw.namespace.clone(),
+                    shard: raw.shard_name.clone(),
                     active_segment: Some(ClientSegmentMetadata {
                         segment_no: segment.segment_seq,
                         replicas: segment.replicas.iter().map(|rep| rep.node_id).collect(),
@@ -196,7 +196,7 @@ impl ShardHandler {
                 .await?;
                 GetActiveSegmentRespShard {
                     namespace: raw.namespace.clone(),
-                    shard: raw.namespace.clone(),
+                    shard: raw.shard_name.clone(),
                     active_segment: Some(ClientSegmentMetadata {
                         segment_no: reply.segment_no,
                         replicas: reply.replica,

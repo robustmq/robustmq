@@ -14,7 +14,5 @@
 
 pub mod file;
 pub mod manager;
-
-pub(crate) fn br_recode_vec() -> Vec<u8> {
-    "\n".as_bytes().to_vec()
-}
+pub mod read;
+pub mod write;

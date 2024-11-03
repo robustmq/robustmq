@@ -5,7 +5,7 @@ message JournalRecord{
     string key = 1;
     bytes content = 2;
     uint64 create_time = 3;
-    string tag = 4;
+    repeated string tags=4;
     uint64 offset = 5;
     string namespace = 6;
     string shard_name = 7;
