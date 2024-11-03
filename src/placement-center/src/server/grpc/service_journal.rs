@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use grpc_clients::pool::ClientPool;
 use metadata_struct::journal::segment::JournalSegment;
 use openraft::raft::ClientWriteResponse;
 use prost::Message;
@@ -28,11 +29,13 @@ use tonic::{Request, Response, Status};
 
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
+use crate::controller::journal::call_node::JournalInnerCallManager;
 use crate::core::error::PlacementCenterError;
-use crate::raft::raftv2::typeconfig::TypeConfig;
+use crate::core::journal::segmet::parse_replicas_vec;
+use crate::core::journal::shard::create_shard_by_req;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
-use crate::storage::journal::segment::{is_seal_up_segment, SegmentStorage};
+use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::shard::ShardStorage;
 
 pub struct GrpcEngineService {
@@ -40,6 +43,8 @@ pub struct GrpcEngineService {
     engine_cache: Arc<JournalCacheManager>,
     cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    call_manager: Arc<JournalInnerCallManager>,
+    client_pool: Arc<ClientPool>,
 }
 
 impl GrpcEngineService {
@@ -48,27 +53,20 @@ impl GrpcEngineService {
         engine_cache: Arc<JournalCacheManager>,
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        call_manager: Arc<JournalInnerCallManager>,
+        client_pool: Arc<ClientPool>,
     ) -> Self {
         GrpcEngineService {
             raft_machine_apply,
             engine_cache,
             cluster_cache,
             rocksdb_engine_handler,
+            call_manager,
+            client_pool,
         }
     }
 }
-impl GrpcEngineService {
-    fn parse_replicas_vec(
-        &self,
-        resp: ClientWriteResponse<TypeConfig>,
-    ) -> Result<JournalSegment, PlacementCenterError> {
-        if let Some(value) = resp.data.value {
-            let data = serde_json::from_slice::<JournalSegment>(&value)?;
-            return Ok(data);
-        }
-        Err(PlacementCenterError::ExecutionResultIsEmpty)
-    }
-}
+impl GrpcEngineService {}
 
 #[tonic::async_trait]
 impl EngineService for GrpcEngineService {
@@ -123,9 +121,6 @@ impl EngineService for GrpcEngineService {
     ) -> Result<Response<CreateShardReply>, Status> {
         let req = request.into_inner();
 
-        // Parameter validation
-
-        // Check if the cluster exists
         if !self
             .cluster_cache
             .cluster_list
@@ -136,98 +131,16 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        // Check that the number of available nodes in the cluster is sufficient
-        let num = self.cluster_cache.get_broker_num(&req.cluster_name) as u32;
-
-        if num < req.replica {
-            return Err(Status::cancelled(
-                PlacementCenterError::NotEnoughNodes(req.replica, num).to_string(),
-            ));
-        }
-
-        let shard_res =
-            self.engine_cache
-                .get_shard(&req.cluster_name, &req.namespace, &req.shard_name);
-
-        // Handle situations where the Shard already exists in order to support interface idempotency
-        if shard_res.is_some() {
-            let shard = shard_res.unwrap();
-            if let Some(segment) = self.engine_cache.get_segment(
-                &req.cluster_name,
-                &req.namespace,
-                &req.shard_name,
-                shard.active_segment_seq,
-            ) {
-                if !is_seal_up_segment(segment.status) {
-                    let replicas = segment.replicas.iter().map(|rep| rep.node_id).collect();
-                    return Ok(Response::new(CreateShardReply {
-                        segment_no: shard.active_segment_seq,
-                        replica: replicas,
-                    }));
-                }
-            }
-
-            let create_next_segment_request = CreateNextSegmentRequest {
-                cluster_name: req.cluster_name.clone(),
-                namespace: req.namespace.clone(),
-                shard_name: req.shard_name.clone(),
-                active_segment_next_num: 1,
-            };
-
-            let data = StorageData::new(
-                StorageDataType::JournalCreateNextSegment,
-                CreateNextSegmentRequest::encode_to_vec(&create_next_segment_request),
-            );
-            match self.raft_machine_apply.client_write(data).await {
-                Ok(Some(resp)) => match self.parse_replicas_vec(resp) {
-                    Ok(segment) => {
-                        let replica: Vec<u64> =
-                            segment.replicas.iter().map(|rep| rep.node_id).collect();
-
-                        return Ok(Response::new(CreateShardReply {
-                            segment_no: segment.segment_seq,
-                            replica,
-                        }));
-                    }
-                    Err(e) => {
-                        return Err(Status::cancelled(e.to_string()));
-                    }
-                },
-                Ok(None) => {
-                    return Err(Status::cancelled(
-                        PlacementCenterError::ExecutionResultIsEmpty.to_string(),
-                    ));
-                }
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            }
-        }
-
-        // Create a new Shard
-        let data = StorageData::new(
-            StorageDataType::JournalCreateShard,
-            CreateShardRequest::encode_to_vec(&req),
-        );
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(Some(resp)) => match self.parse_replicas_vec(resp) {
-                Ok(segment) => {
-                    let replica: Vec<u64> =
-                        segment.replicas.iter().map(|rep| rep.node_id).collect();
-
-                    return Ok(Response::new(CreateShardReply {
-                        segment_no: segment.segment_seq,
-                        replica,
-                    }));
-                }
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            },
-            Ok(None) => {
-                return Err(Status::cancelled(
-                    PlacementCenterError::ExecutionResultIsEmpty.to_string(),
-                ));
+        match create_shard_by_req(
+            &self.engine_cache,
+            &self.cluster_cache,
+            &self.raft_machine_apply,
+            &req,
+        )
+        .await
+        {
+            Ok(data) => {
+                return Ok(Response::new(data));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -364,7 +277,7 @@ impl EngineService for GrpcEngineService {
         );
 
         match self.raft_machine_apply.client_write(data).await {
-            Ok(Some(resp)) => match self.parse_replicas_vec(resp) {
+            Ok(Some(resp)) => match parse_replicas_vec(resp) {
                 Ok(segment) => {
                     let replica: Vec<u64> =
                         segment.replicas.iter().map(|rep| rep.node_id).collect();

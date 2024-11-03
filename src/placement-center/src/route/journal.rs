@@ -60,50 +60,14 @@ impl DataRouteJournal {
         }
     }
     pub async fn create_shard(&self, value: Vec<u8>) -> Result<Vec<u8>, PlacementCenterError> {
-        let req: CreateShardRequest = CreateShardRequest::decode(value.as_ref())?;
-
-        let shard_info = JournalShard {
-            shard_uid: unique_id(),
-            cluster_name: req.cluster_name.clone(),
-            namespace: req.namespace.clone(),
-            shard_name: req.shard_name.clone(),
-            replica: req.replica,
-            start_segment_seq: 0,
-            active_segment_seq: 0,
-            last_segment_seq: 0,
-            create_time: now_mills(),
-        };
-
-        // Save Shard && Update Cache
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
+
+        let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
         shard_storage.save(&shard_info)?;
+
         self.engine_cache.add_shard(&shard_info);
 
-        // Create your first Segment
-        let segment = create_first_segment(
-            &shard_info,
-            &self.engine_cache,
-            &self.cluster_cache,
-            &self.rocksdb_engine_handler,
-        )?;
-
-        // Update storage engine node cache
-        update_cache_by_add_shard(
-            &req.cluster_name,
-            &self.call_manager,
-            &self.client_pool,
-            shard_info,
-        )
-        .await?;
-        update_cache_by_add_segment(
-            &req.cluster_name,
-            &self.call_manager,
-            &self.client_pool,
-            segment.clone(),
-        )
-        .await?;
-
-        Ok(serde_json::to_vec(&segment)?)
+        Ok(value)
     }
 
     pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {

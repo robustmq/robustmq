@@ -17,6 +17,7 @@ use std::sync::Arc;
 use metadata_struct::journal::node_extend::JournalNodeExtend;
 use metadata_struct::journal::segment::{JournalSegment, Replica, SegmentStatus};
 use metadata_struct::journal::shard::JournalShard;
+use openraft::raft::ClientWriteResponse;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use rocksdb_engine::RocksDBEngine;
@@ -24,7 +25,18 @@ use rocksdb_engine::RocksDBEngine;
 use crate::cache::journal::JournalCacheManager;
 use crate::cache::placement::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
+use crate::raft::raftv2::typeconfig::TypeConfig;
 use crate::storage::journal::segment::SegmentStorage;
+
+pub fn parse_replicas_vec(
+    resp: ClientWriteResponse<TypeConfig>,
+) -> Result<JournalSegment, PlacementCenterError> {
+    if let Some(value) = resp.data.value {
+        let data = serde_json::from_slice::<JournalSegment>(&value)?;
+        return Ok(data);
+    }
+    Err(PlacementCenterError::ExecutionResultIsEmpty)
+}
 
 pub fn create_first_segment(
     shard_info: &JournalShard,
