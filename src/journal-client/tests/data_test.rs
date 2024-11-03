@@ -103,6 +103,7 @@ mod tests {
         } else {
             assert!(false);
         }
+        sleep(Duration::from_secs(3)).await;
 
         // get active shard
         let mut segment_0_all_replicas = Vec::new();

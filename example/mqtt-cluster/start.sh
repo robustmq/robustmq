@@ -18,8 +18,8 @@ sh example/mqtt-cluster/stop.sh
 start_pc_cluster(){
 
     nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/1.log &
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-2.toml 2>/tmp/2.log &
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml 2>/tmp/3.log &
+    # nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-2.toml 2>/tmp/2.log &
+    # nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml 2>/tmp/3.log &
     sleep 3
 
     no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
@@ -28,17 +28,17 @@ start_pc_cluster(){
         echo "placement-center node 1 started successfully. process no: $no1"
     fi
 
-    no2=`ps -ef | grep placement-center  | grep node-2 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no2 ]]
-    then
-        echo "placement-center node 2 started successfully. process no: $no2"
-    fi
+    # no2=`ps -ef | grep placement-center  | grep node-2 | grep -v grep | awk '{print $2}'`
+    # if [[ -n $no2 ]]
+    # then
+    #     echo "placement-center node 2 started successfully. process no: $no2"
+    # fi
 
-    no3=`ps -ef | grep placement-center  | grep node-3 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no3 ]]
-    then
-        echo "placement-center node 3 started successfully. process no: $no3"
-    fi
+    # no3=`ps -ef | grep placement-center  | grep node-3 | grep -v grep | awk '{print $2}'`
+    # if [[ -n $no3 ]]
+    # then
+    #     echo "placement-center node 3 started successfully. process no: $no3"
+    # fi
     
     echo "\n-------------------------------------\n"
 
