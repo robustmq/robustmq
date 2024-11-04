@@ -14,8 +14,8 @@
 
 use common_base::error::common::CommonError;
 use protocol::placement_center::placement_center_inner::{
-    DeleteIdempotentDataRequest, RegisterNodeRequest, SetResourceConfigRequest,
-    UnRegisterNodeRequest,
+    DeleteIdempotentDataRequest, RegisterNodeRequest, SetIdempotentDataRequest,
+    SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use tonic::Status;
 
@@ -69,6 +69,24 @@ impl ValidateExt for SetResourceConfigRequest {
                 CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
             ));
         }
+        Ok(())
+    }
+}
+
+impl ValidateExt for SetIdempotentDataRequest {
+    fn validate_ext(&self) -> Result<(), Status> {
+        if self.cluster_name.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("cluster name".to_string()).to_string(),
+            ));
+        }
+
+        if self.producer_id.is_empty() {
+            return Err(Status::cancelled(
+                CommonError::ParameterCannotBeNull("producer id".to_string()).to_string(),
+            ));
+        }
+
         Ok(())
     }
 }

@@ -17,7 +17,7 @@ mod common;
 mod tests {
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::placement_center_inner::{
-        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+        HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
     };
     use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
     use protocol::placement_center::placement_center_journal::{
@@ -25,8 +25,8 @@ mod tests {
     };
 
     use crate::common::{
-        cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, shard_name,
-        shard_replica,
+        cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,
+        seq_num, shard_name, shard_replica,
     };
 
     #[tokio::test]
@@ -79,6 +79,24 @@ mod tests {
         };
         client
             .un_register_node(tonic::Request::new(request))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_set_idempotent_data() {
+        let mut client = PlacementCenterServiceClient::connect(pc_addr())
+            .await
+            .unwrap();
+
+        let request = SetIdempotentDataRequest {
+            cluster_name: cluster_name(),
+            producer_id: producer_id(),
+            seq_num: seq_num(),
+        };
+
+        client
+            .set_idempotent_data(tonic::Request::new(request))
             .await
             .unwrap();
     }

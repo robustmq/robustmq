@@ -59,3 +59,13 @@ pub fn node_ip() -> String {
 pub fn extend_info() -> String {
     "extend info".to_string()
 }
+
+#[allow(dead_code)]
+pub fn producer_id() -> String {
+    "producer id".to_string()
+}
+
+#[allow(dead_code)]
+pub fn seq_num() -> u64 {
+    4
+}
