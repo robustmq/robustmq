@@ -13,17 +13,16 @@
 // limitations under the License.
 
 mod common;
+// extern crate mqtt_broker;
 
 #[cfg(test)]
 mod tests {
     use std::{
-        process,
-        sync::Arc,
-        thread::{self, Thread},
-        time::Duration,
+         net::{Ipv4Addr, SocketAddrV4}, process, sync::Arc, thread::{self, Thread}, time::Duration
     };
 
-    use common_base::tools::unique_id;
+    use axum_extra::headers::Date;
+    use common_base::{config::broker_mqtt::broker_mqtt_conf, tools::unique_id};
     use grpc_clients::{
         mqtt::admin::call::{
             mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
@@ -31,10 +30,12 @@ mod tests {
         pool::ClientPool,
     };
     use metadata_struct::mqtt::user::MqttUser;
+    use mqtt_broker::{handler::cache::CacheManager, security::AuthDriver};
     use paho_mqtt::{Client, ReasonCode};
-    use protocol::broker_mqtt::broker_mqtt_admin::{
+    use protocol::{broker_mqtt::broker_mqtt_admin::{
         CreateUserRequest, DeleteUserRequest, ListUserRequest,
-    };
+    }, mqtt::common::Login};
+    use std::net::SocketAddr;
 
     use crate::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
@@ -50,22 +51,32 @@ mod tests {
         let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
         let grpc_addr = vec![broker_grpc_addr()];
 
+        let conf = broker_mqtt_conf();
+        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
+            client_pool.clone(),
+            conf.cluster_name.clone(),
+        ));
+
+        let auth_driver = Arc::new(AuthDriver::new(cache_manager.clone(), client_pool.clone()));
+
         let username = "puser3".to_string();
         let password = "permission".to_string();
 
         //unregistered users are not allowed to create connections.
         v3_wrong_password_test(mqtt_version, &client_id, &addr, username.clone(), password.clone(), false, false);
 
-        create_user(client_pool.clone(), grpc_addr.clone(), username.clone(), password.clone());
+        create_user(client_pool.clone(), grpc_addr.clone(), username.clone(), password.clone()).await;
 
         //registered users are allowed to create connections.
         v3_session_present_test(mqtt_version, &client_id, &addr, username.clone(), password.clone(), false, false);
 
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone());
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
 
         //unregistered users are not allowed to create connections.
+
         v3_wrong_password_test(mqtt_version, &client_id, &addr, username.clone(), password.clone(), false, false);
     }
+
 
     #[tokio::test]
     async fn client4_permission_test(){
@@ -82,16 +93,57 @@ mod tests {
         //unregistered users are not allowed to create connections.
         v3_wrong_password_test(mqtt_version, &client_id, &addr, username.clone(), password.clone(), false, false);
 
-        create_user(client_pool.clone(), grpc_addr.clone(), username.clone(), password.clone());
+        create_user(client_pool.clone(), grpc_addr.clone(), username.clone(), password.clone()).await;
 
         //registered users are allowed to create connections.
         v3_session_present_test(mqtt_version, &client_id, &addr, username.clone(), password.clone(), false, false);
 
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone());
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
 
         //unregistered users are not allowed to create connections.
         v3_wrong_password_test(mqtt_version, &client_id, &addr, username.clone(), password.clone(), false, false);
     }
+
+    async fn permission_success(auth_driver: &AuthDriver, username: String, password: String){
+        let socket = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080));
+
+        let login = Some(Login {
+            username: username.clone(),
+            password: password.clone(),
+        });
+
+        let registered_user_permission_result = auth_driver.check_login_auth(&login,&None,&socket).await;
+
+        match registered_user_permission_result {
+            Ok(value) =>{
+                assert!(value,"registed user should pass permission");
+            },
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+    }
+
+    async fn permission_failture(auth_driver: &AuthDriver, username: String, password: String){
+        let socket = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080));
+
+        let login = Some(Login {
+            username: username.clone(),
+            password: password.clone(),
+        });
+
+        let unregistered_user_permission_result = auth_driver.check_login_auth(&login,&None,&socket).await;
+
+        match unregistered_user_permission_result {
+            Ok(value) =>{
+                assert!(!value,"unregisted user should not pass permission");
+            },
+            Err(e) => {
+                panic!("{:?}", e);
+            }
+        }
+    }
+
 
     #[tokio::test]
     async fn exist_user_test() {
@@ -186,7 +238,7 @@ mod tests {
 
         delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
 
-        password_test(
+        v3_wrong_password_test(
             mqtt_version,
             &client_id,
             &addr,

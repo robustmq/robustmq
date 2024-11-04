@@ -54,7 +54,7 @@ lazy_static! {
 
 pub mod handler;
 mod observability;
-mod security;
+pub mod security;
 mod server;
 pub mod storage;
 mod subscribe;
