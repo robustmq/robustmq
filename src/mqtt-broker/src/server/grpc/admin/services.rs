@@ -24,6 +24,7 @@ use protocol::broker_mqtt::broker_mqtt_admin::{
 };
 use tonic::{Request, Response, Status};
 
+use crate::handler::cache::CacheManager;
 use crate::storage::cluster::ClusterStorage;
 use crate::storage::user::UserStorage;
 
@@ -97,12 +98,25 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         let user_storage = UserStorage::new(self.client_pool.clone());
 
-        match user_storage.save_user(mqtt_user).await {
-            Ok(_) => return Ok(Response::new(CreateUserReply::default())),
+        match user_storage.save_user(mqtt_user.clone()).await {
+            Ok(_) => {},
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
+
+        let config = broker_mqtt_conf();
+
+        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
+            self.client_pool.clone(),
+            config.cluster_name.clone(),
+        ));
+
+        cache_manager.add_user(mqtt_user.clone());
+
+        println!("user---:{:?}",cache_manager.user_info);
+
+        return Ok(Response::new(CreateUserReply::default()))
     }
 
     async fn mqtt_broker_delete_user(
@@ -110,10 +124,25 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserReply>, Status> {
         let req = request.into_inner();
+        let username = req.username;
+
+        
+        let config = broker_mqtt_conf();
+
+        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
+            self.client_pool.clone(),
+            config.cluster_name.clone(),
+        ));
+
+        if let Some(user) = cache_manager.user_info.get(&username) {
+            let user_to_delete = serde_json::to_string(user.value()).unwrap();
+
+            cache_manager.del_user(user_to_delete);
+        };
 
         let user_storage = UserStorage::new(self.client_pool.clone());
 
-        match user_storage.delete_user(req.username).await {
+        match user_storage.delete_user(username.clone()).await {
             Ok(_) => return Ok(Response::new(DeleteUserReply::default())),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
