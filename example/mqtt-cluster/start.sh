@@ -18,27 +18,27 @@ sh example/mqtt-cluster/stop.sh
 start_pc_cluster(){
 
     nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-1.toml 2>/tmp/1.log &
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-2.toml 2>/tmp/2.log &
-    nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml 2>/tmp/3.log &
+    # nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-2.toml 2>/tmp/2.log &
+    # nohup cargo run --package cmd --bin placement-center -- --conf=example/mqtt-cluster/placement-center/node-3.toml 2>/tmp/3.log &
     sleep 3
 
     no1=`ps -ef | grep placement-center  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "placement-center node 1 started successfully. process no: $no1"
     fi
 
-    no2=`ps -ef | grep placement-center  | grep node-2 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no2 ]]
-    then
-        echo "placement-center node 2 started successfully. process no: $no2"
-    fi
+    # no2=`ps -ef | grep placement-center  | grep node-2 | grep -v grep | awk '{print $2}'`
+    # if [[ -n $no2 ]]
+    # then
+    #     echo "placement-center node 2 started successfully. process no: $no2"
+    # fi
 
-    no3=`ps -ef | grep placement-center  | grep node-3 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no3 ]]
-    then
-        echo "placement-center node 3 started successfully. process no: $no3"
-    fi
+    # no3=`ps -ef | grep placement-center  | grep node-3 | grep -v grep | awk '{print $2}'`
+    # if [[ -n $no3 ]]
+    # then
+    #     echo "placement-center node 3 started successfully. process no: $no3"
+    # fi
     
     echo "\n-------------------------------------\n"
 
@@ -51,7 +51,7 @@ start_mqtt_cluster(){
     nohup cargo run --package cmd --bin mqtt-server -- --conf=example/mqtt-cluster/mqtt-server/node-1.toml 2>/tmp/4.log &
     
     no1=`ps -ef | grep mqtt-server  | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "mqtt cluster node 1 started successfully. process no: $no1"
     fi
@@ -65,7 +65,7 @@ start_journal_cluster(){
     nohup cargo run --package cmd --bin journal-server -- --conf=example/mqtt-cluster/journal-server/node-1.toml 2>/tmp/7.log &
     
     no1=`ps -ef | grep journal-server | grep node-1 | grep -v grep | awk '{print $2}'`
-    if [[ -n $no1 ]]
+    if [ -n "$no1" ]
     then
         echo "journal-server node 1 started successfully. process no: $no1"
     fi

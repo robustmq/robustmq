@@ -54,6 +54,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         if req.cluster_name != conf.cluster_name {
             return Ok(Response::new(UpdateJournalCacheReply::default()));
         }
+        println!("{:?}", req.data);
         update_cache(
             &self.cache_manager,
             &self.segement_file_manager,
