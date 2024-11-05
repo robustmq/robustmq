@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod cache;
 pub mod cluster;
+pub mod controller;
 pub mod error;
-pub mod journal;
-pub mod mqtt;
+pub mod heartbeat;
 pub mod raft_node;

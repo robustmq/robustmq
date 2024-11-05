@@ -18,7 +18,11 @@ use common_base::error::common::CommonError;
 use mobc::{Connection, Manager};
 use prost::Message;
 use protocol::journal_server::journal_inner::journal_server_inner_service_client::JournalServerInnerServiceClient;
-use protocol::journal_server::journal_inner::{UpdateJournalCacheReply, UpdateJournalCacheRequest};
+use protocol::journal_server::journal_inner::{
+    DeleteSegmentFileReply, DeleteSegmentFileRequest, DeleteShardFileReply, DeleteShardFileRequest,
+    GetSegmentDeleteStatusReply, GetSegmentDeleteStatusRequest, GetShardDeleteStatusReply,
+    GetShardDeleteStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+};
 use tonic::transport::Channel;
 
 use super::JournalEngineInterface;
@@ -42,6 +46,46 @@ pub(crate) async fn inner_interface_call(
                         |data| UpdateJournalCacheRequest::decode(data),
                         |mut client, request| async move { client.update_cache(request).await },
                         UpdateJournalCacheReply::encode_to_vec,
+                    )
+                    .await
+                }
+                JournalEngineInterface::DeleteShardFile => client_call(
+                    client,
+                    request.clone(),
+                    |data| DeleteShardFileRequest::decode(data),
+                    |mut client, request| async move { client.delete_shard_file(request).await },
+                    DeleteShardFileReply::encode_to_vec,
+                )
+                .await,
+                JournalEngineInterface::GetShardDeleteStatus => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| GetShardDeleteStatusRequest::decode(data),
+                        |mut client, request| async move {
+                            client.get_shard_delete_status(request).await
+                        },
+                        GetShardDeleteStatusReply::encode_to_vec,
+                    )
+                    .await
+                }
+                JournalEngineInterface::DeleteSegmentFile => client_call(
+                    client,
+                    request.clone(),
+                    |data| DeleteSegmentFileRequest::decode(data),
+                    |mut client, request| async move { client.delete_segment_file(request).await },
+                    DeleteSegmentFileReply::encode_to_vec,
+                )
+                .await,
+                JournalEngineInterface::GetSegmentDeleteStatus => {
+                    client_call(
+                        client,
+                        request.clone(),
+                        |data| GetSegmentDeleteStatusRequest::decode(data),
+                        |mut client, request| async move {
+                            client.get_segment_delete_status(request).await
+                        },
+                        GetSegmentDeleteStatusReply::encode_to_vec,
                     )
                     .await
                 }

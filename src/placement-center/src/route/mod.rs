@@ -27,10 +27,10 @@ use data::{StorageData, StorageDataType};
 use grpc_clients::pool::ClientPool;
 use log::{error, info};
 
-use crate::cache::journal::JournalCacheManager;
-use crate::cache::placement::PlacementCacheManager;
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
+use crate::journal::cache::JournalCacheManager;
+use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::route::cluster::DataRouteCluster;
 use crate::route::journal::DataRouteJournal;
 use crate::route::kv::DataRouteKv;
@@ -62,13 +62,8 @@ impl DataRoute {
             call_manager.clone(),
             client_pool.clone(),
         );
-        let route_journal = DataRouteJournal::new(
-            rocksdb_engine_handler.clone(),
-            engine_cache.clone(),
-            cluster_cache.clone(),
-            call_manager.clone(),
-            client_pool.clone(),
-        );
+        let route_journal =
+            DataRouteJournal::new(rocksdb_engine_handler.clone(), engine_cache.clone());
         DataRoute {
             route_kv,
             route_mqtt,
@@ -136,9 +131,9 @@ impl DataRoute {
                 self.route_journal.delete_shard(storage_data.value).await?;
                 Ok(None)
             }
-            StorageDataType::JournalCreateNextSegment => Ok(Some(
+            StorageDataType::JournalCreateSegment => Ok(Some(
                 self.route_journal
-                    .create_next_segment(storage_data.value)
+                    .create_segment(storage_data.value)
                     .await?,
             )),
             StorageDataType::JournalDeleteSegment => {

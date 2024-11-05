@@ -15,14 +15,7 @@
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use cache::journal::{load_journal_cache, JournalCacheManager};
-use cache::mqtt::MqttCacheManager;
-use cache::placement::PlacementCacheManager;
 use common_base::config::placement_center::placement_center_conf;
-use controller::journal::call_node::{call_thread_manager, JournalInnerCallManager};
-use controller::journal::controller::StorageEngineController;
-use controller::mqtt::MqttController;
-use controller::placement::controller::ClusterController;
 use grpc_clients::pool::ClientPool;
 use log::info;
 use openraft::Raft;
@@ -44,6 +37,13 @@ use tokio::time::sleep;
 use tonic::transport::Server;
 
 use self::raft::raftv1::peer::PeerMessage;
+use crate::core::cache::PlacementCacheManager;
+use crate::core::controller::ClusterController;
+use crate::journal::cache::{load_journal_cache, JournalCacheManager};
+use crate::journal::controller::call_node::{call_thread_manager, JournalInnerCallManager};
+use crate::journal::controller::StorageEngineController;
+use crate::mqtt::cache::MqttCacheManager;
+use crate::mqtt::controller::MqttController;
 use crate::raft::raftv1::machine::RaftMachine;
 use crate::raft::raftv1::peer::RaftPeersManager;
 use crate::raft::raftv1::rocksdb::RaftMachineStorage;
@@ -52,9 +52,10 @@ use crate::raft::raftv2::typeconfig::TypeConfig;
 use crate::route::apply::{ClusterRaftModel, RaftMachineApply, RaftMessage};
 use crate::route::DataRoute;
 use crate::server::http::server::{start_http_server, HttpServerState};
-mod cache;
-mod controller;
+
 mod core;
+mod journal;
+mod mqtt;
 mod raft;
 mod route;
 mod server;
@@ -196,6 +197,8 @@ impl PlacementCenter {
             self.engine_cache.clone(),
             self.cluster_cache.clone(),
             self.rocksdb_engine_handler.clone(),
+            self.call_manager.clone(),
+            self.client_pool.clone(),
         );
 
         let openraft_handler = GrpcOpenRaftServices::new(raft_machine_apply.openraft_node.clone());
@@ -223,12 +226,12 @@ impl PlacementCenter {
     // Start Storage Engine Cluster Controller
     pub fn start_controller(
         &self,
-        placement_center_storage: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) {
         let ctrl = ClusterController::new(
             self.cluster_cache.clone(),
-            placement_center_storage.clone(),
+            raft_machine_apply.clone(),
             stop_send.clone(),
         );
         tokio::spawn(async move {
@@ -246,7 +249,12 @@ impl PlacementCenter {
             mqtt_controller.start().await;
         });
 
-        let journal_controller = StorageEngineController::new();
+        let journal_controller = StorageEngineController::new(
+            raft_machine_apply.clone(),
+            self.engine_cache.clone(),
+            self.cluster_cache.clone(),
+            self.client_pool.clone(),
+        );
         tokio::spawn(async move {
             journal_controller.start().await;
         });

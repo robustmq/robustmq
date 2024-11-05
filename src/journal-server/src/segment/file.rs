@@ -21,6 +21,7 @@ use protocol::journal_server::journal_record::JournalRecord;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
+use super::fold::{data_file_segment, data_fold_shard};
 use crate::core::error::JournalServerError;
 
 #[derive(Default)]
@@ -33,7 +34,7 @@ pub struct SegmentFile {
 
 impl SegmentFile {
     pub fn new(namespace: String, shard_name: String, segment_no: u32, data_fold: String) -> Self {
-        let data_fold = SegmentFile::build_shard_fold(&namespace, &shard_name, &data_fold);
+        let data_fold = data_fold_shard(&namespace, &shard_name, &data_fold);
         SegmentFile {
             namespace,
             shard_name,
@@ -44,7 +45,7 @@ impl SegmentFile {
 
     pub async fn create(&self) -> Result<File, JournalServerError> {
         try_create_fold(&self.data_fold)?;
-        let segment_file = self.build_segment_file_path();
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if file_exists(&segment_file) {
             return Err(JournalServerError::SegmentFileAlreadyExists(segment_file));
         }
@@ -52,7 +53,7 @@ impl SegmentFile {
     }
 
     pub async fn delete(&self) -> Result<(), JournalServerError> {
-        let segment_file = self.build_segment_file_path();
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         if !file_exists(&segment_file) {
             return Err(JournalServerError::SegmentFileNotExists(segment_file));
         }
@@ -60,7 +61,7 @@ impl SegmentFile {
     }
 
     pub async fn write(&self, record: JournalRecord) -> Result<(), JournalServerError> {
-        let segment_file = self.build_segment_file_path();
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = OpenOptions::new().append(true).open(segment_file).await?;
         let mut writer = tokio::io::BufWriter::new(file);
 
@@ -78,7 +79,7 @@ impl SegmentFile {
         start_offset: Option<u64>,
         size: u64,
     ) -> Result<Vec<JournalRecord>, JournalServerError> {
-        let segment_file = self.build_segment_file_path();
+        let segment_file = data_file_segment(&self.data_fold, self.segment_no);
         let file = File::open(segment_file).await?;
         let mut reader = tokio::io::BufReader::new(file);
 
@@ -113,23 +114,10 @@ impl SegmentFile {
 
         Ok(results)
     }
-
-    fn build_shard_fold(namespace: &str, shard_name: &str, data_fold: &str) -> String {
-        let file_name = format!("{}/{}", namespace, shard_name);
-        format!("{}/{}", data_fold, file_name)
-    }
-    fn build_segment_file_path(&self) -> String {
-        format!("{}/{}.msg", self.data_fold, self.segment_no)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs::remove_dir_all;
-
-    use common_base::config::journal_server::{
-        init_journal_server_conf_by_path, journal_server_conf,
-    };
     use common_base::tools::{now_second, unique_id};
     use protocol::journal_server::journal_record::JournalRecord;
 
@@ -138,7 +126,7 @@ mod tests {
     async fn segment_create() {
         let data_fold = "/tmp/jl/tests";
 
-        let namespace = "segment_create_v1";
+        let namespace = unique_id();
         let shard_name = "s1";
         let segment_no = 10;
         let segment = SegmentFile::new(
@@ -149,7 +137,6 @@ mod tests {
         );
         assert!(segment.create().await.is_ok());
         assert!(segment.create().await.is_err());
-        remove_dir_all(data_fold).unwrap();
     }
 
     #[tokio::test]

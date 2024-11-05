@@ -21,8 +21,8 @@ use common_base::config::placement_center::placement_center_conf;
 use log::info;
 
 use super::index::metrics;
-use crate::cache::journal::JournalCacheManager;
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
+use crate::journal::cache::JournalCacheManager;
 use crate::raft::raftv1::rocksdb::RaftMachineStorage;
 use crate::route::apply::RaftMachineApply;
 

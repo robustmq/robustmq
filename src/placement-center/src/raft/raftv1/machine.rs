@@ -33,7 +33,7 @@ use tokio::time::timeout;
 
 use super::rocksdb::RaftMachineStorage;
 use super::storage::RaftRocksDBStorage;
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::core::raft_node::RaftNode;
 use crate::raft::raftv1::peer::PeerMessage;

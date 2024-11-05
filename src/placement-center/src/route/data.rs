@@ -47,7 +47,7 @@ pub enum StorageDataType {
     // Journal
     JournalCreateShard,
     JournalDeleteShard,
-    JournalCreateNextSegment,
+    JournalCreateSegment,
     JournalDeleteSegment,
 
     // kv

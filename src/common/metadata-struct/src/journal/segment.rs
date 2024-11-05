@@ -56,4 +56,7 @@ pub enum SegmentStatus {
     Write,
     PrepareSealUp,
     SealUp,
+    PrepareDelete,
+    Deleteing,
+    Delete,
 }
