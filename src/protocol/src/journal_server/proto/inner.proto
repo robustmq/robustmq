@@ -3,8 +3,10 @@ package journal.inner;
 
 service JournalServerInnerService {
     rpc UpdateCache(UpdateJournalCacheRequest) returns(UpdateJournalCacheReply){}
+    rpc DeleteShardFile(DeleteShardFileRequest) returns(DeleteShardFileReply){}
+    rpc GetShardDeleteStatus(GetShardDeleteStatusRequest) returns(GetShardDeleteStatusReply){}
     rpc DeleteSegmentFile(DeleteSegmentFileRequest) returns(DeleteSegmentFileReply){}
-    rpc GetSegmentStatus(GetSegmentStatusRequest) returns(GetSegmentStatusReply){}
+    rpc GetSegmentDeleteStatus(GetSegmentDeleteStatusRequest) returns(GetSegmentDeleteStatusReply){}
 }
 
 message UpdateJournalCacheRequest{
@@ -16,20 +18,47 @@ message UpdateJournalCacheRequest{
 
 message UpdateJournalCacheReply{}
 
-message DeleteSegmentFileRequest{
+message DeleteShardFileRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+}
 
+message DeleteShardFileReply{
+    
+}
+
+message GetShardDeleteStatusRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+
+}
+
+message GetShardDeleteStatusReply{
+    bool status = 1;
+}
+
+message DeleteSegmentFileRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+    uint32 segment = 4;
 }
 
 message DeleteSegmentFileReply{
     
 }
 
-message GetSegmentStatusRequest{
-
+message GetSegmentDeleteStatusRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+    uint32 segment = 4;
 }
 
-message GetSegmentStatusReply{
-    
+message GetSegmentDeleteStatusReply{
+    bool status = 1;
 }
 
 enum JournalUpdateCacheActionType{

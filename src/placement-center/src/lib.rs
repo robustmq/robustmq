@@ -226,12 +226,12 @@ impl PlacementCenter {
     // Start Storage Engine Cluster Controller
     pub fn start_controller(
         &self,
-        placement_center_storage: Arc<RaftMachineApply>,
+        raft_machine_apply: Arc<RaftMachineApply>,
         stop_send: broadcast::Sender<bool>,
     ) {
         let ctrl = ClusterController::new(
             self.cluster_cache.clone(),
-            placement_center_storage.clone(),
+            raft_machine_apply.clone(),
             stop_send.clone(),
         );
         tokio::spawn(async move {
@@ -249,7 +249,12 @@ impl PlacementCenter {
             mqtt_controller.start().await;
         });
 
-        let journal_controller = StorageEngineController::new();
+        let journal_controller = StorageEngineController::new(
+            raft_machine_apply.clone(),
+            self.engine_cache.clone(),
+            self.cluster_cache.clone(),
+            self.client_pool.clone(),
+        );
         tokio::spawn(async move {
             journal_controller.start().await;
         });

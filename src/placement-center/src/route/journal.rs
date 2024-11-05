@@ -16,10 +16,6 @@ use std::sync::Arc;
 
 use metadata_struct::journal::segment::JournalSegment;
 use metadata_struct::journal::shard::JournalShard;
-use prost::Message as _;
-use protocol::placement_center::placement_center_journal::{
-    DeleteSegmentRequest, DeleteShardRequest,
-};
 
 use crate::core::error::PlacementCenterError;
 use crate::journal::cache::JournalCacheManager;
@@ -49,16 +45,16 @@ impl DataRouteJournal {
         let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
         shard_storage.save(&shard_info)?;
 
-        self.engine_cache.add_shard(&shard_info);
+        self.engine_cache.set_shard(&shard_info);
 
         Ok(value)
     }
 
     pub async fn delete_shard(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req = DeleteShardRequest::decode(value.as_ref())?;
-        let cluster_name = req.cluster_name;
-        let namespace = req.namespace;
-        let shard_name = req.shard_name;
+        let shard_info = serde_json::from_slice::<JournalShard>(&value)?;
+        let cluster_name = shard_info.cluster_name;
+        let namespace = shard_info.namespace;
+        let shard_name = shard_info.shard_name;
 
         let shard_storage = ShardStorage::new(self.rocksdb_engine_handler.clone());
         shard_storage.delete(&cluster_name, &namespace, &shard_name)?;
@@ -75,17 +71,17 @@ impl DataRouteJournal {
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
         segment_storage.save(segment.clone())?;
 
-        self.engine_cache.add_segment(&segment);
+        self.engine_cache.set_segment(&segment);
 
         Ok(value)
     }
 
     pub async fn delete_segment(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req: DeleteSegmentRequest = DeleteSegmentRequest::decode(value.as_ref())?;
-        let cluster_name = req.cluster_name;
-        let namespace = req.namespace;
-        let shard_name = req.shard_name;
-        let segment_seq = req.segment_seq;
+        let segment = serde_json::from_slice::<JournalSegment>(&value)?;
+        let cluster_name = segment.cluster_name;
+        let namespace = segment.namespace;
+        let shard_name = segment.shard_name;
+        let segment_seq = segment.segment_seq;
 
         let segment_storage = SegmentStorage::new(self.rocksdb_engine_handler.clone());
         segment_storage.delete(&cluster_name, &namespace, &shard_name, segment_seq)?;

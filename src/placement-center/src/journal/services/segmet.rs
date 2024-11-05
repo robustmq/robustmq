@@ -58,7 +58,7 @@ pub async fn create_segment_by_req(
     );
 
     if (raft_machine_apply.client_write(data).await?).is_some() {
-        engine_cache.add_segment(&segment);
+        engine_cache.set_segment(&segment);
 
         update_shard_last_segment(
             raft_machine_apply,
@@ -116,7 +116,7 @@ pub async fn delete_segment_by_req(
         )));
     };
 
-    prepare_seal_up_segment(engine_cache, raft_machine_apply, &mut segment).await?;
+    prepare_delete_segment(engine_cache, raft_machine_apply, &mut segment).await?;
 
     engine_cache.add_wait_delete_segment(&segment);
 
@@ -251,33 +251,34 @@ pub async fn starting_segment(
 
     sync_save_segment_info(raft_machine_apply, segment).await?;
 
-    engine_cache.add_segment(segment);
+    engine_cache.set_segment(segment);
     Ok(())
 }
 
-pub async fn prepare_seal_up_segment(
+pub async fn prepare_delete_segment(
     engine_cache: &Arc<JournalCacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
     segment: &mut JournalSegment,
 ) -> Result<(), PlacementCenterError> {
-    segment.status = SegmentStatus::PrepareSealUp;
+    segment.status = SegmentStatus::PrepareDelete;
     sync_save_segment_info(raft_machine_apply, segment).await?;
 
-    engine_cache.add_segment(segment);
+    engine_cache.set_segment(segment);
 
     Ok(())
 }
 
-pub async fn seal_up_segment(
+pub async fn deleteing_segment(
     engine_cache: &Arc<JournalCacheManager>,
     raft_machine_apply: &Arc<RaftMachineApply>,
-    segment: &mut JournalSegment,
+    segment: &JournalSegment,
 ) -> Result<(), PlacementCenterError> {
-    segment.status = SegmentStatus::PrepareSealUp;
+    let mut new_segment = segment.clone();
+    new_segment.status = SegmentStatus::Deleteing;
+    sync_save_segment_info(raft_machine_apply, &new_segment).await?;
 
-    sync_save_segment_info(raft_machine_apply, segment).await?;
+    engine_cache.set_segment(&new_segment);
 
-    engine_cache.add_segment(segment);
     Ok(())
 }
 
@@ -287,6 +288,20 @@ pub async fn sync_save_segment_info(
 ) -> Result<(), PlacementCenterError> {
     let data = StorageData::new(
         StorageDataType::JournalCreateSegment,
+        serde_json::to_vec(&segment)?,
+    );
+    if (raft_machine_apply.client_write(data).await?).is_some() {
+        return Ok(());
+    }
+    Err(PlacementCenterError::ExecutionResultIsEmpty)
+}
+
+pub async fn sync_delete_segment_info(
+    raft_machine_apply: &Arc<RaftMachineApply>,
+    segment: &JournalSegment,
+) -> Result<(), PlacementCenterError> {
+    let data = StorageData::new(
+        StorageDataType::JournalDeleteSegment,
         serde_json::to_vec(&segment)?,
     );
     if (raft_machine_apply.client_write(data).await?).is_some() {

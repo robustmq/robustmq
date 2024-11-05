@@ -34,5 +34,6 @@ pub enum JournalShardStatus {
     #[default]
     Run,
     PrepareDelete,
+    Deleteing,
     Delete,
 }

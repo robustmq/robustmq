@@ -37,6 +37,10 @@ pub enum JournalEngineService {
 pub enum JournalEngineInterface {
     // inner
     UpdateCache,
+    DeleteShardFile,
+    GetShardDeleteStatus,
+    DeleteSegmentFile,
+    GetSegmentDeleteStatus,
 
     // admin
     GetShardList,

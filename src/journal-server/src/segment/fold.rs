@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cache;
-pub mod cluster;
-pub mod error;
-pub mod gc;
-pub mod group;
-pub mod namespace;
-pub mod offset;
-pub mod record;
-pub mod report;
-pub mod segment;
-pub mod shard;
-pub mod write;
+pub fn data_fold_shard(namespace: &str, shard_name: &str, data_fold: &str) -> String {
+    let file_name = format!("{}/{}", namespace, shard_name);
+    format!("{}/{}", data_fold, file_name)
+}
+
+pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
+    format!("{}/{}.msg", data_fold, segment_no)
+}

@@ -12,55 +12,88 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+use std::time::Duration;
+
+use gc::{gc_segment_thread, gc_shard_thread};
+use grpc_clients::pool::ClientPool;
 use log::info;
 use preferred_election::PreferredElection;
+use tokio::time::sleep;
+
+use super::cache::JournalCacheManager;
+use crate::core::cache::PlacementCacheManager;
+use crate::route::apply::RaftMachineApply;
 
 pub mod call_node;
 pub mod gc;
 pub mod preferred_election;
 
-pub struct StorageEngineController {}
+pub struct StorageEngineController {
+    raft_machine_apply: Arc<RaftMachineApply>,
+    engine_cache: Arc<JournalCacheManager>,
+    cluster_cache: Arc<PlacementCacheManager>,
+    client_pool: Arc<ClientPool>,
+}
 
 impl StorageEngineController {
-    pub fn new() -> StorageEngineController {
-        let controller = StorageEngineController {};
-        controller.load_cache();
-        controller
+    pub fn new(
+        raft_machine_apply: Arc<RaftMachineApply>,
+        engine_cache: Arc<JournalCacheManager>,
+        cluster_cache: Arc<PlacementCacheManager>,
+        client_pool: Arc<ClientPool>,
+    ) -> Self {
+        StorageEngineController {
+            raft_machine_apply,
+            engine_cache,
+            cluster_cache,
+            client_pool,
+        }
     }
 
     pub async fn start(&self) {
-        self.resource_manager_thread();
+        self.delete_shard_gc_thread();
+        self.delete_segment_gc_thread();
         self.preferred_replica_election();
         info!("Storage Engine Controller started successfully");
     }
 
-    pub fn load_cache(&self) {
-        // let cluster_handler = ClusterStorage::new(self.rocksdb_engine_handler.clone());
-        // let cluster_list =
-        //     cluster_handler.list(Some(ClusterType::JournalServer.as_str_name().to_string()));
-
-        // let mut engine_cache = self.engine_cache.write().unwrap();
-        // let node_handler = NodeStorage::new(self.rocksdb_engine_handler.clone());
-        // let shard_handler = ShardStorage::new(self.rocksdb_engine_handler.clone());
-
-        // for cluster in cluster_list {
-        //     let cluster_name = cluster.cluster_name.clone();
-
-        //     // load shard cache
-        //     let shard_list = shard_handler.shard_list(cluster_name.clone());
-        //     for shard in shard_list {
-        //         engine_cache.add_shard(shard.clone());
-        //         let segment_list =
-        //             shard_handler.segment_list(cluster_name.clone(), shard.shard_name);
-        //         for segment in segment_list {
-        //             engine_cache.add_segment(segment);
-        //         }
-        //     }
-        // }
+    pub fn delete_shard_gc_thread(&self) {
+        let raft_machine_apply = self.raft_machine_apply.clone();
+        let engine_cache = self.engine_cache.clone();
+        let cluster_cache = self.cluster_cache.clone();
+        let client_pool = self.client_pool.clone();
+        tokio::spawn(async move {
+            loop {
+                gc_shard_thread(
+                    raft_machine_apply.clone(),
+                    engine_cache.clone(),
+                    cluster_cache.clone(),
+                    client_pool.clone(),
+                )
+                .await;
+                sleep(Duration::from_secs(5)).await;
+            }
+        });
     }
 
-    pub fn resource_manager_thread(&self) {
-        tokio::spawn(async move {});
+    pub fn delete_segment_gc_thread(&self) {
+        let raft_machine_apply = self.raft_machine_apply.clone();
+        let engine_cache = self.engine_cache.clone();
+        let cluster_cache = self.cluster_cache.clone();
+        let client_pool = self.client_pool.clone();
+        tokio::spawn(async move {
+            loop {
+                gc_segment_thread(
+                    raft_machine_apply.clone(),
+                    engine_cache.clone(),
+                    cluster_cache.clone(),
+                    client_pool.clone(),
+                )
+                .await;
+                sleep(Duration::from_secs(5)).await;
+            }
+        });
     }
 
     pub fn preferred_replica_election(&self) {

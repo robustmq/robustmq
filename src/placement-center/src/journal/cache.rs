@@ -53,7 +53,7 @@ impl JournalCacheManager {
         Some(res.clone())
     }
 
-    pub fn add_shard(&self, shard: &JournalShard) {
+    pub fn set_shard(&self, shard: &JournalShard) {
         self.shard_list.insert(
             self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
             shard.clone(),
@@ -94,7 +94,7 @@ impl JournalCacheManager {
         None
     }
 
-    pub fn add_segment(&self, segment: &JournalSegment) {
+    pub fn set_segment(&self, segment: &JournalSegment) {
         let key = self.shard_key(
             &segment.cluster_name,
             &segment.namespace,
@@ -167,7 +167,7 @@ impl JournalCacheManager {
         );
     }
 
-    fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
+    pub fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}_{}", cluster_name, namespace, shard_name)
     }
 
@@ -192,13 +192,13 @@ pub fn load_journal_cache(
     let shard_storage = ShardStorage::new(rocksdb_engine_handler.clone());
     let res = shard_storage.all_shard()?;
     for shard in res {
-        engine_cache.add_shard(&shard);
+        engine_cache.set_shard(&shard);
     }
 
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
     let res = segment_storage.all_segment()?;
     for segment in res {
-        engine_cache.add_segment(&segment);
+        engine_cache.set_segment(&segment);
     }
     Ok(())
 }
