@@ -49,7 +49,7 @@ mod tests {
         let password = "permission".to_string();
 
         //unregistered users are not allowed to create connections.
-        v5_wrong_password_test(
+        v5_permission_wrong_test(
             &client_id,
             &addr,
             username.clone(),
@@ -58,6 +58,7 @@ mod tests {
             false,
         );
 
+        //registered users are allowed to create connections.
         create_user(
             client_pool.clone(),
             grpc_addr.clone(),
@@ -65,9 +66,7 @@ mod tests {
             password.clone(),
         )
         .await;
-
-        //registered users are allowed to create connections.
-        v5_session_present_test(
+        v5_permission_success_test(
             &client_id,
             &addr,
             username.clone(),
@@ -93,10 +92,9 @@ mod tests {
             false,
         );
 
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
-
         //unregistered users are not allowed to create connections.
-        v5_wrong_password_test(
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+        v5_permission_wrong_test(
             &client_id,
             &addr,
             username.clone(),
@@ -106,7 +104,7 @@ mod tests {
         );
     }
 
-    fn v5_wrong_password_test(
+    fn v5_permission_wrong_test(
         client_id: &str,
         addr: &str,
         username: String,
@@ -133,7 +131,7 @@ mod tests {
         println!("Unable to connect:\n\t{:?}", err);
     }
 
-    fn v5_session_present_test(
+    fn v5_permission_success_test(
         client_id: &str,
         addr: &str,
         username: String,
@@ -157,45 +155,6 @@ mod tests {
             ws,
             ssl,
         );
-        match cli.connect(conn_opts) {
-            Ok(response) => {
-                let resp = response.connect_response().unwrap();
-                if ws {
-                    if ssl {
-                        assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
-                    } else {
-                        assert_eq!(format!("ws://{}", resp.server_uri), broker_ws_addr());
-                    }
-                } else if ssl {
-                    assert_eq!(format!("mqtts://{}", resp.server_uri), broker_ssl_addr());
-                } else {
-                    assert_eq!(format!("tcp://{}", resp.server_uri), broker_addr());
-                }
-                assert_eq!(mqtt_version, resp.mqtt_version);
-                // assert!(!resp.session_present);
-                assert_eq!(response.reason_code(), ReasonCode::Success);
-            }
-            Err(e) => {
-                println!("Unable to connect:\n\t{:?}", e);
-                process::exit(1);
-            }
-        }
-        distinct_conn(cli);
-
-        let create_opts = build_create_pros(client_id, addr);
-        let cli = Client::new(create_opts).unwrap_or_else(|err| {
-            println!("Error creating the client: {:?}", err);
-            process::exit(1);
-        });
-
-        let conn_opts = build_v5_conn_pros_by_user_information(
-            props.clone(),
-            username.clone(),
-            password.clone(),
-            ws,
-            ssl,
-        );
-
         match cli.connect(conn_opts) {
             Ok(response) => {
                 let resp = response.connect_response().unwrap();
