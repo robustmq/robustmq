@@ -21,15 +21,14 @@ mod tests {
     use common_base::tools::unique_id;
     use grpc_clients::{
         mqtt::admin::call::{
-            mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
+            mqtt_broker_create_user, mqtt_broker_delete_user,
         },
         pool::ClientPool,
     };
-    use metadata_struct::mqtt::user::MqttUser;
     use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
     use protocol::broker_mqtt::broker_mqtt_admin::{
-        CreateUserRequest, DeleteUserRequest, ListUserRequest,
+        CreateUserRequest, DeleteUserRequest,
     };
 
     use crate::common::{
@@ -466,28 +465,6 @@ mod tests {
             }
         }
         distinct_conn(cli);
-    }
-
-    async fn estimate_user_exist(
-        client_pool: Arc<ClientPool>,
-        addrs: Vec<String>,
-        username: String,
-    ) -> bool {
-        match mqtt_broker_list_user(client_pool.clone(), addrs.clone(), ListUserRequest {}).await {
-            Ok(data) => {
-                let mut flag = false;
-                for raw in data.users {
-                    let mqtt_user = serde_json::from_slice::<MqttUser>(raw.as_slice()).unwrap();
-                    if username == mqtt_user.username {
-                        flag = true;
-                    }
-                }
-                flag
-            }
-            Err(e) => {
-                panic!("{:?}", e);
-            }
-        }
     }
 
     async fn create_user(

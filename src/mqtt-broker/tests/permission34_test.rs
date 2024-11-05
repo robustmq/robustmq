@@ -18,30 +18,22 @@ mod common;
 #[cfg(test)]
 mod tests {
     use std::{
-        net::{Ipv4Addr, SocketAddrV4},
         process,
         sync::Arc,
-        thread::Thread,
-        time::Duration,
     };
 
     use common_base::tools::unique_id;
     use grpc_clients::{
         mqtt::admin::call::{
-            mqtt_broker_create_user, mqtt_broker_delete_user, mqtt_broker_list_user,
+            mqtt_broker_create_user, mqtt_broker_delete_user,
         },
         pool::ClientPool,
     };
-    use metadata_struct::mqtt::user::MqttUser;
     use paho_mqtt::{Client, ReasonCode};
-    use protocol::{
-        broker_mqtt::broker_mqtt_admin::{
-            mqtt_broker_admin_service_server::MqttBrokerAdminService, CreateUserRequest,
-            DeleteUserRequest, ListUserRequest,
-        },
-        mqtt::common::Login,
-    };
-    use std::net::SocketAddr;
+    use protocol::broker_mqtt::broker_mqtt_admin::{
+            CreateUserRequest,
+            DeleteUserRequest,
+        };
 
     use crate::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
@@ -197,10 +189,8 @@ mod tests {
             ws,
             ssl,
         );
-        println!("{:?}", conn_opts);
         let response = cli.connect(conn_opts).unwrap();
         let resp = response.connect_response().unwrap();
-        println!("{:?}", resp);
         if ws {
             if ssl {
                 assert_eq!(format!("wss://{}", resp.server_uri), broker_wss_addr());
