@@ -100,12 +100,20 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             is_superuser: req.is_superuser,
         };
 
-        let contains_admin = self.cache_manager.user_info.contains_key(&username);
-        if contains_admin {
-            return Err(Status::cancelled("user has beed existed"));
-        };
-
         let user_storage = UserStorage::new(self.client_pool.clone());
+
+        match user_storage.user_list().await {
+            Ok(date) => {
+                let is_existed = date.iter()
+                    .any(|user| *user.key() == username);
+                if is_existed {
+                    return Err(Status::cancelled("user has beed existed"));
+                }
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        } 
 
         match user_storage.save_user(mqtt_user.clone()).await {
             Ok(_) => {}
@@ -126,14 +134,22 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let req = request.into_inner();
         let username = req.username;
 
-        let contains_admin = self.cache_manager.user_info.contains_key(&username);
-        if contains_admin {
-            self.cache_manager.del_user(username.clone());
-        } else {
-            return Err(Status::cancelled("user does not exist"));
-        }
-
         let user_storage = UserStorage::new(self.client_pool.clone());
+
+        match user_storage.user_list().await {
+            Ok(date) => {
+                let is_existed = date.iter()
+                    .any(|user| *user.key() == username);
+                if !is_existed {
+                    return Err(Status::cancelled("user does not existed"));
+                }
+            }
+            Err(e) => {
+                return Err(Status::cancelled(e.to_string()));
+            }
+        } 
+
+        self.cache_manager.del_user(username.clone());
 
         match user_storage.delete_user(username.clone()).await {
             Ok(_) => return Ok(Response::new(DeleteUserReply::default())),
