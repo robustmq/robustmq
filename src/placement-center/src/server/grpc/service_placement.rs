@@ -262,6 +262,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<SetIdempotentDataRequest>,
     ) -> Result<Response<SetIdempotentDataReply>, Status> {
         let req = request.into_inner();
+        let _ = req.validate_ext()?;
         let data = StorageData::new(
             StorageDataType::ClusterSetIdempotentData,
             SetIdempotentDataRequest::encode_to_vec(&req),
