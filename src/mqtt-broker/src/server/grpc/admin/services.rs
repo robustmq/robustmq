@@ -104,8 +104,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         match user_storage.user_list().await {
             Ok(date) => {
-                let is_existed = date.iter()
-                    .any(|user| *user.key() == username);
+                let is_existed = date.iter().any(|user| *user.key() == username);
                 if is_existed {
                     return Err(Status::cancelled("user has beed existed"));
                 }
@@ -113,7 +112,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
-        } 
+        }
 
         match user_storage.save_user(mqtt_user.clone()).await {
             Ok(_) => {}
@@ -138,8 +137,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
 
         match user_storage.user_list().await {
             Ok(date) => {
-                let is_existed = date.iter()
-                    .any(|user| *user.key() == username);
+                let is_existed = date.iter().any(|user| *user.key() == username);
                 if !is_existed {
                     return Err(Status::cancelled("user does not existed"));
                 }
@@ -147,7 +145,7 @@ impl MqttBrokerAdminService for GrpcAdminServices {
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
-        } 
+        }
 
         self.cache_manager.del_user(username.clone());
 

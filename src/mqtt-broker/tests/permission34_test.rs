@@ -17,23 +17,14 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        process,
-        sync::Arc,
-    };
+    use std::process;
+    use std::sync::Arc;
 
     use common_base::tools::unique_id;
-    use grpc_clients::{
-        mqtt::admin::call::{
-            mqtt_broker_create_user, mqtt_broker_delete_user,
-        },
-        pool::ClientPool,
-    };
+    use grpc_clients::mqtt::admin::call::{mqtt_broker_create_user, mqtt_broker_delete_user};
+    use grpc_clients::pool::ClientPool;
     use paho_mqtt::{Client, ReasonCode};
-    use protocol::broker_mqtt::broker_mqtt_admin::{
-            CreateUserRequest,
-            DeleteUserRequest,
-        };
+    use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest,};
 
     use crate::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
