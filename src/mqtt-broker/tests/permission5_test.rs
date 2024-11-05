@@ -24,7 +24,7 @@ mod tests {
     use grpc_clients::pool::ClientPool;
     use mqtt_broker::handler::connection::REQUEST_RESPONSE_PREFIX_NAME;
     use paho_mqtt::{Client, PropertyCode, ReasonCode};
-    use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest,};
+    use protocol::broker_mqtt::broker_mqtt_admin::{CreateUserRequest, DeleteUserRequest};
 
     use crate::common::{
         broker_addr, broker_grpc_addr, broker_ssl_addr, broker_ws_addr, broker_wss_addr,
