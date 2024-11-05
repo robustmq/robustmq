@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::storage::keys::storage_key_mqtt_node_sub_group_leader;
 use crate::storage::placement::kv::KvStorage;
 use crate::storage::rocksdb::RocksDBEngine;
@@ -221,7 +221,7 @@ mod tests {
     use protocol::placement_center::placement_center_inner::ClusterType;
 
     use super::ShareSubLeader;
-    use crate::cache::placement::PlacementCacheManager;
+    use crate::core::cache::PlacementCacheManager;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 
     #[test]

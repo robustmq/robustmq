@@ -73,7 +73,7 @@ impl CacheManager {
         self.cluster.insert("local".to_string(), cluster);
     }
 
-    pub fn add_shard(&self, shard: JournalShard) {
+    pub fn set_shard(&self, shard: JournalShard) {
         let key = self.shard_key(&shard.namespace, &shard.shard_name);
         self.shards.insert(key, shard);
     }
@@ -106,7 +106,7 @@ impl CacheManager {
         None
     }
 
-    pub fn add_segment(&self, segment: JournalSegment) {
+    pub fn set_segment(&self, segment: JournalSegment) {
         let key = self.shard_key(&segment.namespace, &segment.shard_name);
         if let Some(segment_list) = self.segments.get(&key) {
             segment_list.insert(segment.segment_seq, segment);
@@ -179,7 +179,7 @@ fn parse_node(
     data: &str,
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Add => match serde_json::from_str::<BrokerNode>(data) {
+        JournalUpdateCacheActionType::Set => match serde_json::from_str::<BrokerNode>(data) {
             Ok(node) => {
                 info!("Update the cache, add node, node id: {}", node.node_id);
                 cache_manager.add_node(node);
@@ -213,13 +213,13 @@ fn parse_shard(
     data: &str,
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Add => match serde_json::from_str::<JournalShard>(data) {
+        JournalUpdateCacheActionType::Set => match serde_json::from_str::<JournalShard>(data) {
             Ok(shard) => {
                 info!(
                     "Update the cache, add shard, shard name: {}",
                     shard.shard_name
                 );
-                cache_manager.add_shard(shard);
+                cache_manager.set_shard(shard);
             }
             Err(e) => {
                 error!(
@@ -267,7 +267,7 @@ async fn parse_segment(
     data: &str,
 ) {
     match action_type {
-        JournalUpdateCacheActionType::Add => match serde_json::from_str::<JournalSegment>(data) {
+        JournalUpdateCacheActionType::Set => match serde_json::from_str::<JournalSegment>(data) {
             Ok(segment) => {
                 info!(
                     "Update the cache, add segment, shard name: {}, segment no:{}",
@@ -284,7 +284,7 @@ async fn parse_segment(
                     .await
                 {
                     Ok(()) => {
-                        cache_manager.add_segment(segment);
+                        cache_manager.set_segment(segment);
                     }
                     Err(e) => {
                         error!("Error creating local Segment file, error message: {}", e);
@@ -363,7 +363,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
                     data.len()
                 );
                 for shard in data {
-                    cache_manager.add_shard(shard);
+                    cache_manager.set_shard(shard);
                 }
             }
             Err(e) => {
@@ -391,7 +391,7 @@ pub async fn load_metadata_cache(cache_manager: &Arc<CacheManager>, client_pool:
                     data.len()
                 );
                 for shard in data {
-                    cache_manager.add_segment(shard);
+                    cache_manager.set_segment(shard);
                 }
             }
             Err(e) => {

@@ -2,7 +2,9 @@ syntax = "proto3";
 package journal.inner;
 
 service JournalServerInnerService {
-    rpc updateCache(UpdateJournalCacheRequest) returns(UpdateJournalCacheReply){}
+    rpc UpdateCache(UpdateJournalCacheRequest) returns(UpdateJournalCacheReply){}
+    rpc DeleteSegmentFile(DeleteSegmentFileRequest) returns(DeleteSegmentFileReply){}
+    rpc GetSegmentStatus(GetSegmentStatusRequest) returns(GetSegmentStatusReply){}
 }
 
 message UpdateJournalCacheRequest{
@@ -14,8 +16,24 @@ message UpdateJournalCacheRequest{
 
 message UpdateJournalCacheReply{}
 
+message DeleteSegmentFileRequest{
+
+}
+
+message DeleteSegmentFileReply{
+    
+}
+
+message GetSegmentStatusRequest{
+
+}
+
+message GetSegmentStatusReply{
+    
+}
+
 enum JournalUpdateCacheActionType{
-    Add = 0;
+    Set = 0;
     Delete = 1;
 }
 

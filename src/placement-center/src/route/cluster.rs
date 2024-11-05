@@ -29,11 +29,11 @@ use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest,
 };
 
-use crate::cache::placement::PlacementCacheManager;
-use crate::controller::journal::call_node::{
+use crate::core::cache::PlacementCacheManager;
+use crate::core::error::PlacementCenterError;
+use crate::journal::controller::call_node::{
     update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
 };
-use crate::core::error::PlacementCenterError;
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::placement::cluster::ClusterStorage;
@@ -220,8 +220,8 @@ mod tests {
     use prost::Message as _;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
 
-    use crate::cache::placement::PlacementCacheManager;
-    use crate::controller::journal::call_node::JournalInnerCallManager;
+    use crate::core::cache::PlacementCacheManager;
+    use crate::journal::controller::call_node::JournalInnerCallManager;
     use crate::route::cluster::DataRouteCluster;
     use crate::storage::placement::cluster::ClusterStorage;
     use crate::storage::placement::node::NodeStorage;

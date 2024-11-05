@@ -28,6 +28,8 @@ use crate::storage::journal::shard::ShardStorage;
 pub struct JournalCacheManager {
     pub shard_list: DashMap<String, JournalShard>,
     pub segment_list: DashMap<String, DashMap<u32, JournalSegment>>,
+    pub wait_delete_shard_list: DashMap<String, JournalShard>,
+    pub wait_delete_segment_list: DashMap<String, JournalSegment>,
 }
 
 impl JournalCacheManager {
@@ -35,6 +37,8 @@ impl JournalCacheManager {
         JournalCacheManager {
             shard_list: DashMap::with_capacity(8),
             segment_list: DashMap::with_capacity(256),
+            wait_delete_shard_list: DashMap::with_capacity(8),
+            wait_delete_segment_list: DashMap::with_capacity(8),
         }
     }
 
@@ -75,7 +79,22 @@ impl JournalCacheManager {
         None
     }
 
-    pub fn add_segment(&self, segment: JournalSegment) {
+    pub fn get_segment(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+        segment_seq: u32,
+    ) -> Option<JournalSegment> {
+        let key = self.shard_key(cluster_name, namespace, shard_name);
+        if let Some(segment_list) = self.segment_list.get(&key) {
+            let res = segment_list.get(&segment_seq)?;
+            return Some(res.clone());
+        }
+        None
+    }
+
+    pub fn add_segment(&self, segment: &JournalSegment) {
         let key = self.shard_key(
             &segment.cluster_name,
             &segment.namespace,
@@ -94,21 +113,6 @@ impl JournalCacheManager {
         }
     }
 
-    pub fn get_segment(
-        &self,
-        cluster_name: &str,
-        namespace: &str,
-        shard_name: &str,
-        segment_seq: u32,
-    ) -> Option<JournalSegment> {
-        let key = self.shard_key(cluster_name, namespace, shard_name);
-        if let Some(segment_list) = self.segment_list.get(&key) {
-            let res = segment_list.get(&segment_seq)?;
-            return Some(res.clone());
-        }
-        None
-    }
-
     pub fn remove_segment(
         &self,
         cluster_name: &str,
@@ -125,8 +129,59 @@ impl JournalCacheManager {
         }
     }
 
+    pub fn add_wait_delete_shard(&self, shard: &JournalShard) {
+        self.wait_delete_shard_list.insert(
+            self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
+            shard.clone(),
+        );
+    }
+
+    pub fn remove_wait_delete_shard(&self, shard: &JournalShard) {
+        self.wait_delete_shard_list.insert(
+            self.shard_key(&shard.cluster_name, &shard.namespace, &shard.shard_name),
+            shard.clone(),
+        );
+    }
+
+    pub fn add_wait_delete_segment(&self, segment: &JournalSegment) {
+        self.wait_delete_segment_list.insert(
+            self.segment_key(
+                &segment.cluster_name,
+                &segment.namespace,
+                &segment.shard_name,
+                segment.segment_seq,
+            ),
+            segment.clone(),
+        );
+    }
+
+    pub fn remove_wait_delete_segment(&self, segment: &JournalSegment) {
+        self.wait_delete_segment_list.insert(
+            self.segment_key(
+                &segment.cluster_name,
+                &segment.namespace,
+                &segment.shard_name,
+                segment.segment_seq,
+            ),
+            segment.clone(),
+        );
+    }
+
     fn shard_key(&self, cluster_name: &str, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}_{}", cluster_name, namespace, shard_name)
+    }
+
+    fn segment_key(
+        &self,
+        cluster_name: &str,
+        namespace: &str,
+        shard_name: &str,
+        segment_seq: u32,
+    ) -> String {
+        format!(
+            "{}_{}_{}_{}",
+            cluster_name, namespace, shard_name, segment_seq
+        )
     }
 }
 
@@ -143,7 +198,7 @@ pub fn load_journal_cache(
     let segment_storage = SegmentStorage::new(rocksdb_engine_handler.clone());
     let res = segment_storage.all_segment()?;
     for segment in res {
-        engine_cache.add_segment(segment);
+        engine_cache.add_segment(&segment);
     }
     Ok(())
 }

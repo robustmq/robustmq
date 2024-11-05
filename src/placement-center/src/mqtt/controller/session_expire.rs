@@ -24,8 +24,8 @@ use rocksdb_engine::warp::StorageDataWrap;
 use tokio::time::sleep;
 
 use super::call_broker::MqttBrokerCall;
-use crate::cache::mqtt::MqttCacheManager;
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
+use crate::mqtt::cache::MqttCacheManager;
 use crate::storage::keys::storage_key_mqtt_session_cluster_prefix;
 use crate::storage::mqtt::lastwill::MqttLastWillStorage;
 use crate::storage::rocksdb::{RocksDBEngine, DB_COLUMN_FAMILY_CLUSTER};
@@ -236,10 +236,9 @@ mod tests {
     use metadata_struct::mqtt::session::MqttSession;
     use tokio::time::sleep;
 
-    use super::SessionExpire;
-    use crate::cache::mqtt::MqttCacheManager;
-    use crate::cache::placement::PlacementCacheManager;
-    use crate::controller::mqtt::session_expire::ExpireLastWill;
+    use super::{ExpireLastWill, SessionExpire};
+    use crate::core::cache::PlacementCacheManager;
+    use crate::mqtt::cache::MqttCacheManager;
     use crate::storage::mqtt::session::MqttSessionStorage;
     use crate::storage::rocksdb::{column_family_list, RocksDBEngine};
 

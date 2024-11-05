@@ -15,9 +15,6 @@
 use std::sync::Arc;
 
 use grpc_clients::pool::ClientPool;
-use metadata_struct::journal::segment::JournalSegment;
-use openraft::raft::ClientWriteResponse;
-use prost::Message;
 use protocol::placement_center::placement_center_journal::engine_service_server::EngineService;
 use protocol::placement_center::placement_center_journal::{
     CreateNextSegmentReply, CreateNextSegmentRequest, CreateShardReply, CreateShardRequest,
@@ -27,14 +24,13 @@ use protocol::placement_center::placement_center_journal::{
 use rocksdb_engine::RocksDBEngine;
 use tonic::{Request, Response, Status};
 
-use crate::cache::journal::JournalCacheManager;
-use crate::cache::placement::PlacementCacheManager;
-use crate::controller::journal::call_node::JournalInnerCallManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::core::journal::segmet::parse_replicas_vec;
-use crate::core::journal::shard::create_shard_by_req;
+use crate::journal::cache::JournalCacheManager;
+use crate::journal::controller::call_node::JournalInnerCallManager;
+use crate::journal::services::segmet::{create_segment_by_req, delete_segment_by_req};
+use crate::journal::services::shard::{create_shard_by_req, delete_shard_by_req};
 use crate::route::apply::RaftMachineApply;
-use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::journal::segment::SegmentStorage;
 use crate::storage::journal::shard::ShardStorage;
 
@@ -135,6 +131,8 @@ impl EngineService for GrpcEngineService {
             &self.engine_cache,
             &self.cluster_cache,
             &self.raft_machine_apply,
+            &self.call_manager,
+            &self.client_pool,
             &req,
         )
         .await
@@ -164,22 +162,18 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        let shard = self
-            .engine_cache
-            .get_shard(&req.cluster_name, &req.namespace, &req.shard_name);
-        if shard.is_none() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ShardDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
-
-        // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::JournalDeleteShard,
-            DeleteShardRequest::encode_to_vec(&req),
-        );
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(DeleteShardReply::default())),
+        match delete_shard_by_req(
+            &self.raft_machine_apply,
+            &self.engine_cache,
+            &self.call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(data) => {
+                return Ok(Response::new(data));
+            }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
@@ -260,41 +254,18 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        let shard = self
-            .engine_cache
-            .get_shard(&req.cluster_name, &req.namespace, &req.shard_name);
-
-        if shard.is_none() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ShardDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
-
-        // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::JournalCreateNextSegment,
-            CreateNextSegmentRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(Some(resp)) => match parse_replicas_vec(resp) {
-                Ok(segment) => {
-                    let replica: Vec<u64> =
-                        segment.replicas.iter().map(|rep| rep.node_id).collect();
-
-                    return Ok(Response::new(CreateNextSegmentReply {
-                        segment_no: segment.segment_seq,
-                        replica,
-                    }));
-                }
-                Err(e) => {
-                    return Err(Status::cancelled(e.to_string()));
-                }
-            },
-            Ok(None) => {
-                return Err(Status::cancelled(
-                    PlacementCenterError::ExecutionResultIsEmpty.to_string(),
-                ));
+        match create_segment_by_req(
+            &self.engine_cache,
+            &self.cluster_cache,
+            &self.raft_machine_apply,
+            &self.call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(data) => {
+                return Ok(Response::new(data));
             }
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
@@ -318,24 +289,16 @@ impl EngineService for GrpcEngineService {
             ));
         }
 
-        let shard = self
-            .engine_cache
-            .get_shard(&req.cluster_name, &req.namespace, &req.shard_name);
-
-        if shard.is_none() {
-            return Err(Status::cancelled(
-                PlacementCenterError::ShardDoesNotExist(req.cluster_name).to_string(),
-            ));
-        }
-
-        // Raft state machine is used to store Node data
-        let data = StorageData::new(
-            StorageDataType::JournalDeleteSegment,
-            DeleteSegmentRequest::encode_to_vec(&req),
-        );
-
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(DeleteSegmentReply::default())),
+        match delete_segment_by_req(
+            &self.engine_cache,
+            &self.raft_machine_apply,
+            &self.call_manager,
+            &self.client_pool,
+            &req,
+        )
+        .await
+        {
+            Ok(data) => return Ok(Response::new(data)),
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }

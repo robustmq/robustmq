@@ -29,7 +29,7 @@ use tokio::select;
 use tokio::sync::broadcast::{self, Sender};
 use tokio::time::sleep;
 
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 
 #[derive(Clone)]
@@ -201,7 +201,7 @@ pub async fn update_cache_by_add_journal_node(
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&node)?;
     let mesage = JournalInnerCallMessage {
-        action_type: JournalUpdateCacheActionType::Add,
+        action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::JournalNode,
         cluster_name: cluster_name.to_string(),
         data,
@@ -227,7 +227,7 @@ pub async fn update_cache_by_delete_journal_node(
     Ok(())
 }
 
-pub async fn update_cache_by_add_shard(
+pub async fn update_cache_by_set_shard(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -235,7 +235,7 @@ pub async fn update_cache_by_add_shard(
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&shard_info)?;
     let mesage = JournalInnerCallMessage {
-        action_type: JournalUpdateCacheActionType::Add,
+        action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Shard,
         cluster_name: cluster_name.to_string(),
         data,
@@ -261,7 +261,7 @@ pub async fn update_cache_by_delete_shard(
     Ok(())
 }
 
-pub async fn update_cache_by_add_segment(
+pub async fn update_cache_by_set_segment(
     cluster_name: &str,
     call_manager: &Arc<JournalInnerCallManager>,
     client_pool: &Arc<ClientPool>,
@@ -269,7 +269,7 @@ pub async fn update_cache_by_add_segment(
 ) -> Result<(), PlacementCenterError> {
     let data = serde_json::to_string(&segment_info)?;
     let mesage = JournalInnerCallMessage {
-        action_type: JournalUpdateCacheActionType::Add,
+        action_type: JournalUpdateCacheActionType::Set,
         resource_type: JournalUpdateCacheResourceType::Segment,
         cluster_name: cluster_name.to_string(),
         data,

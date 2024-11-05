@@ -16,7 +16,10 @@ use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
 use protocol::journal_server::journal_inner::journal_server_inner_service_server::JournalServerInnerService;
-use protocol::journal_server::journal_inner::{UpdateJournalCacheReply, UpdateJournalCacheRequest};
+use protocol::journal_server::journal_inner::{
+    DeleteSegmentFileReply, DeleteSegmentFileRequest, GetSegmentStatusReply,
+    GetSegmentStatusRequest, UpdateJournalCacheReply, UpdateJournalCacheRequest,
+};
 use rocksdb_engine::RocksDBEngine;
 use tonic::{Request, Response, Status};
 
@@ -54,7 +57,7 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         if req.cluster_name != conf.cluster_name {
             return Ok(Response::new(UpdateJournalCacheReply::default()));
         }
-        println!("{:?}", req.data);
+
         update_cache(
             &self.cache_manager,
             &self.segement_file_manager,
@@ -66,5 +69,19 @@ impl JournalServerInnerService for GrpcJournalServerInnerService {
         .await;
 
         return Ok(Response::new(UpdateJournalCacheReply::default()));
+    }
+
+    async fn get_segment_status(
+        &self,
+        request: Request<GetSegmentStatusRequest>,
+    ) -> Result<Response<GetSegmentStatusReply>, Status> {
+        return Ok(Response::new(GetSegmentStatusReply::default()));
+    }
+
+    async fn delete_segment_file(
+        &self,
+        request: Request<DeleteSegmentFileRequest>,
+    ) -> Result<Response<DeleteSegmentFileReply>, Status> {
+        return Ok(Response::new(DeleteSegmentFileReply::default()));
     }
 }
