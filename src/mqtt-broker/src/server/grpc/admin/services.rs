@@ -30,11 +30,15 @@ use crate::storage::user::UserStorage;
 
 pub struct GrpcAdminServices {
     client_pool: Arc<ClientPool>,
+    cache_manager: Arc<CacheManager>,
 }
 
 impl GrpcAdminServices {
-    pub fn new(client_pool: Arc<ClientPool>) -> Self {
-        GrpcAdminServices { client_pool }
+    pub fn new(client_pool: Arc<ClientPool>, cache_manager: Arc<CacheManager>) -> Self {
+        GrpcAdminServices {
+            client_pool,
+            cache_manager,
+        }
     }
 }
 
@@ -89,34 +93,30 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserReply>, Status> {
         let req = request.into_inner();
-
+        let username = req.username.clone();
         let mqtt_user = MqttUser {
             username: req.username,
             password: req.password,
             is_superuser: req.is_superuser,
         };
 
+        let contains_admin = self.cache_manager.user_info.contains_key(&username);
+        if contains_admin {
+            return Err(Status::cancelled("user has beed existed"));
+        };
+
         let user_storage = UserStorage::new(self.client_pool.clone());
 
         match user_storage.save_user(mqtt_user.clone()).await {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
                 return Err(Status::cancelled(e.to_string()));
             }
         }
 
-        let config = broker_mqtt_conf();
+        self.cache_manager.add_user(mqtt_user.clone());
 
-        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
-            self.client_pool.clone(),
-            config.cluster_name.clone(),
-        ));
-
-        cache_manager.add_user(mqtt_user.clone());
-
-        println!("user---:{:?}",cache_manager.user_info);
-
-        return Ok(Response::new(CreateUserReply::default()))
+        return Ok(Response::new(CreateUserReply::default()));
     }
 
     async fn mqtt_broker_delete_user(
@@ -126,19 +126,12 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         let req = request.into_inner();
         let username = req.username;
 
-        
-        let config = broker_mqtt_conf();
-
-        let cache_manager: Arc<CacheManager> = Arc::new(CacheManager::new(
-            self.client_pool.clone(),
-            config.cluster_name.clone(),
-        ));
-
-        if let Some(user) = cache_manager.user_info.get(&username) {
-            let user_to_delete = serde_json::to_string(user.value()).unwrap();
-
-            cache_manager.del_user(user_to_delete);
-        };
+        let contains_admin = self.cache_manager.user_info.contains_key(&username);
+        if contains_admin {
+            self.cache_manager.del_user(username.clone());
+        } else {
+            return Err(Status::cancelled("user does not exist"));
+        }
 
         let user_storage = UserStorage::new(self.client_pool.clone());
 

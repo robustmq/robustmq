@@ -49,56 +49,6 @@ mod tests {
         let password = "permission".to_string();
 
         //unregistered users are not allowed to create connections.
-        v5_wrong_password_test(&client_id, &addr, username.clone(), password.clone(), false, false);
-
-        create_user(client_pool.clone(), grpc_addr.clone(), username.clone(), password.clone()).await;
-
-        //registered users are allowed to create connections.
-        v5_session_present_test(&client_id, &addr, username.clone(), password.clone(), false, false);
-        v5_response_test(&client_id, &addr, username.clone(), password.clone(), false, false);
-        v5_assigned_client_id_test(&addr, username.clone(), password.clone(), false, false);
-        v5_request_response_test(&client_id, &addr, username.clone(), password.clone(), false, false);
-
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
-
-        //unregistered users are not allowed to create connections.
-        v5_wrong_password_test(&client_id, &addr, username.clone(), password.clone(), false, false);
-    }
-
-    #[tokio::test]
-    async fn exist_user_test() {
-        let client_id = unique_id();
-        let addr = broker_addr();
-
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-
-        let username = "user6".to_string();
-        let password = "666666".to_string();
-
-        //判断用户是否存在
-        let is_user_exist =
-            estimate_user_exist(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
-        println!("user2此时是否存在？ {}", is_user_exist);
-
-        v5_session_present_test(
-            &client_id,
-            &addr,
-            username.clone(),
-            password.clone(),
-            false,
-            false,
-        );
-    }
-
-    #[tokio::test]
-    async fn unexist_user_perssion_test() {
-        let client_id = unique_id();
-        let addr = broker_addr();
-
-        let username = "user6".to_string();
-        let password = "666666".to_string();
-
         v5_wrong_password_test(
             &client_id,
             &addr,
@@ -107,18 +57,6 @@ mod tests {
             false,
             false,
         );
-    }
-
-    #[tokio::test]
-    async fn create_user_perssion_test() {
-        let client_id = unique_id();
-        let addr = broker_addr();
-
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-
-        let username = "user6".to_string();
-        let password = "666666".to_string();
 
         create_user(
             client_pool.clone(),
@@ -128,55 +66,7 @@ mod tests {
         )
         .await;
 
-        v5_session_present_test(
-            &client_id,
-            &addr,
-            username.clone(),
-            password.clone(),
-            false,
-            false,
-        );
-    }
-
-    #[tokio::test]
-    async fn dele_user_perssion_test() {
-        let client_id = unique_id();
-        let addr = broker_addr();
-
-        let client_pool: Arc<ClientPool> = Arc::new(ClientPool::new(3));
-        let grpc_addr = vec![broker_grpc_addr()];
-
-        let username = "user6".to_string();
-        let password = "666666".to_string();
-
-        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
-
-        v5_wrong_password_test(
-            &client_id,
-            &addr,
-            username.clone(),
-            password.clone(),
-            false,
-            false,
-        );
-    }
-
-    #[tokio::test]
-    async fn client5_connect_test() {
-        let client_id = unique_id();
-        let addr = broker_addr();
-
-        let username = "user6".to_string();
-        let password = "666666".to_string();
-
-        v5_wrong_password_test(
-            &client_id,
-            &addr,
-            username.clone(),
-            password.clone(),
-            false,
-            false,
-        );
+        //registered users are allowed to create connections.
         v5_session_present_test(
             &client_id,
             &addr,
@@ -195,6 +85,18 @@ mod tests {
         );
         v5_assigned_client_id_test(&addr, username.clone(), password.clone(), false, false);
         v5_request_response_test(
+            &client_id,
+            &addr,
+            username.clone(),
+            password.clone(),
+            false,
+            false,
+        );
+
+        delete_user(client_pool.clone(), grpc_addr.clone(), username.clone()).await;
+
+        //unregistered users are not allowed to create connections.
+        v5_wrong_password_test(
             &client_id,
             &addr,
             username.clone(),
