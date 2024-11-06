@@ -27,8 +27,6 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - name: Check disk space before running tests
-        run: df -h
       - name: Install dependencies (ubuntu-latest)
         run: |
           sudo apt-get install protobuf-compiler
@@ -40,14 +38,10 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run tests
         run: make test
-      - name: Check disk space after running tests
-        run: df -h
 
   rustfmt:
     runs-on: ubuntu-latest
     steps:
-      - name: Check disk space before running rustfmt
-        run: df -h
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
@@ -59,14 +53,10 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-      - name: Check disk space after running rustfmt
-        run: df -h
 
   clippy:
     runs-on: ubuntu-latest
     steps:
-       - name: Check disk space before running clippy
-        run: df -h
       - name: Install dependencies (ubuntu-latest)
         run: |
           sudo apt-get install protobuf-compiler
@@ -81,5 +71,3 @@ jobs:
         with:
           command: clippy
           args: --all -- --deny warnings
-      - name: Check disk space after running clippy
-        run: df -h
