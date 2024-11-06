@@ -15,9 +15,10 @@
 mod common;
 #[cfg(test)]
 mod tests {
+    use common_base::error::common::CommonError;
     use protocol::placement_center::placement_center_inner::placement_center_service_client::PlacementCenterServiceClient;
     use protocol::placement_center::placement_center_inner::{
-        HeartbeatRequest, RegisterNodeRequest, UnRegisterNodeRequest,
+        HeartbeatRequest, RegisterNodeRequest, SetIdempotentDataRequest, UnRegisterNodeRequest,
     };
     use protocol::placement_center::placement_center_journal::engine_service_client::EngineServiceClient;
     use protocol::placement_center::placement_center_journal::{
@@ -25,8 +26,8 @@ mod tests {
     };
 
     use crate::common::{
-        cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, shard_name,
-        shard_replica,
+        cluster_name, cluster_type, extend_info, namespace, node_id, node_ip, pc_addr, producer_id,
+        seq_num, shard_name, shard_replica,
     };
 
     #[tokio::test]
@@ -81,6 +82,53 @@ mod tests {
             .un_register_node(tonic::Request::new(request))
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_set_idempotent_data() {
+        let mut client = PlacementCenterServiceClient::connect(pc_addr())
+            .await
+            .unwrap();
+
+        let valid_request = SetIdempotentDataRequest {
+            cluster_name: cluster_name(),
+            producer_id: producer_id(),
+            seq_num: seq_num(),
+        };
+
+        let response = client
+            .set_idempotent_data(tonic::Request::new(valid_request.clone()))
+            .await;
+
+        assert!(response.is_ok());
+
+        let invalid_fields = vec![
+            ("cluster_name", String::new()),
+            ("producer_id", String::new()),
+        ];
+
+        for (field, value) in invalid_fields {
+            let mut invalid_request = valid_request.clone();
+            match field {
+                "cluster_name" => invalid_request.cluster_name = value,
+                "producer_id" => invalid_request.producer_id = value,
+                _ => unreachable!(),
+            }
+
+            let response = client
+                .set_idempotent_data(tonic::Request::new(invalid_request))
+                .await;
+
+            if let Err(ref e) = response {
+                assert!(response.is_err());
+                assert_eq!(e.code(), tonic::Code::Cancelled);
+                assert_eq!(
+                    e.message(),
+                    CommonError::ParameterCannotBeNull(field.replace("_", " ").to_string())
+                        .to_string()
+                );
+            }
+        }
     }
 
     #[tokio::test]

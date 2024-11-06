@@ -21,7 +21,7 @@ use log::{error, info};
 use prost::Message;
 use protocol::placement_center::placement_center_inner::{ClusterType, UnRegisterNodeRequest};
 
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 

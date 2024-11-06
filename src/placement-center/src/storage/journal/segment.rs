@@ -27,8 +27,9 @@ use crate::storage::keys::{
 };
 use crate::storage::rocksdb::RocksDBEngine;
 
-pub fn is_seal_up_segment(status: SegmentStatus) -> bool {
-    status == SegmentStatus::PrepareSealUp || status == SegmentStatus::SealUp
+#[allow(dead_code)]
+pub fn is_seal_up_segment(status: &SegmentStatus) -> bool {
+    *status == SegmentStatus::PrepareSealUp || *status == SegmentStatus::SealUp
 }
 
 pub struct SegmentStorage {

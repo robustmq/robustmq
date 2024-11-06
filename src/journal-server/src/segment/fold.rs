@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod journal;
-pub mod mqtt;
-pub mod placement;
+pub fn data_fold_shard(namespace: &str, shard_name: &str, data_fold: &str) -> String {
+    let file_name = format!("{}/{}", namespace, shard_name);
+    format!("{}/{}", data_fold, file_name)
+}
+
+pub fn data_file_segment(data_fold: &str, segment_no: u32) -> String {
+    format!("{}/{}.msg", data_fold, segment_no)
+}

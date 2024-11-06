@@ -19,8 +19,8 @@ use metadata_struct::mqtt::topic::MqttTopic;
 use metadata_struct::mqtt::user::MqttUser;
 use protocol::placement_center::placement_center_inner::ClusterType;
 
-use super::placement::PlacementCacheManager;
-use crate::controller::mqtt::session_expire::ExpireLastWill;
+use super::controller::session_expire::ExpireLastWill;
+use crate::core::cache::PlacementCacheManager;
 use crate::storage::mqtt::topic::MqttTopicStorage;
 use crate::storage::mqtt::user::MqttUserStorage;
 use crate::storage::rocksdb::RocksDBEngine;

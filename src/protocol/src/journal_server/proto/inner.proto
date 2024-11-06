@@ -2,7 +2,11 @@ syntax = "proto3";
 package journal.inner;
 
 service JournalServerInnerService {
-    rpc updateCache(UpdateJournalCacheRequest) returns(UpdateJournalCacheReply){}
+    rpc UpdateCache(UpdateJournalCacheRequest) returns(UpdateJournalCacheReply){}
+    rpc DeleteShardFile(DeleteShardFileRequest) returns(DeleteShardFileReply){}
+    rpc GetShardDeleteStatus(GetShardDeleteStatusRequest) returns(GetShardDeleteStatusReply){}
+    rpc DeleteSegmentFile(DeleteSegmentFileRequest) returns(DeleteSegmentFileReply){}
+    rpc GetSegmentDeleteStatus(GetSegmentDeleteStatusRequest) returns(GetSegmentDeleteStatusReply){}
 }
 
 message UpdateJournalCacheRequest{
@@ -14,8 +18,51 @@ message UpdateJournalCacheRequest{
 
 message UpdateJournalCacheReply{}
 
+message DeleteShardFileRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+}
+
+message DeleteShardFileReply{
+    
+}
+
+message GetShardDeleteStatusRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+
+}
+
+message GetShardDeleteStatusReply{
+    bool status = 1;
+}
+
+message DeleteSegmentFileRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+    uint32 segment = 4;
+}
+
+message DeleteSegmentFileReply{
+    
+}
+
+message GetSegmentDeleteStatusRequest{
+    string cluster_name = 1;
+    string namespace = 2;
+    string shard_name = 3;
+    uint32 segment = 4;
+}
+
+message GetSegmentDeleteStatusReply{
+    bool status = 1;
+}
+
 enum JournalUpdateCacheActionType{
-    Add = 0;
+    Set = 0;
     Delete = 1;
 }
 

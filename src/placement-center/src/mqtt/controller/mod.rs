@@ -23,8 +23,8 @@ use tokio::select;
 use tokio::sync::broadcast;
 use tokio::time::sleep;
 
-use crate::cache::mqtt::MqttCacheManager;
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
+use crate::mqtt::cache::MqttCacheManager;
 use crate::storage::rocksdb::RocksDBEngine;
 
 pub mod call_broker;

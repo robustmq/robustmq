@@ -25,8 +25,8 @@ use protocol::broker_mqtt::broker_mqtt_placement::{
 };
 
 use super::session_expire::ExpireLastWill;
-use crate::cache::mqtt::MqttCacheManager;
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
+use crate::mqtt::cache::MqttCacheManager;
 use crate::storage::mqtt::session::MqttSessionStorage;
 use crate::storage::rocksdb::RocksDBEngine;
 

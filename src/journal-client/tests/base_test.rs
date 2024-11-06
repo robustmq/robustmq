@@ -84,7 +84,7 @@ mod tests {
                 api_version: ApiVersion::V0.into(),
             }),
             body: Some(DeleteShardReqBody {
-                namespace: "n1".to_string(),
+                namespace: "b1".to_string(),
                 shard_name: "s1".to_string(),
             }),
         });
@@ -135,7 +135,7 @@ mod tests {
             }),
             body: Some(WriteReqBody {
                 data: vec![WriteReqSegmentMessages {
-                    namespace: "n1".to_string(),
+                    namespace: "b1".to_string(),
                     shard_name: "s1".to_string(),
                     segment: 0,
                     messages: vec![WriteReqMessages {
@@ -167,7 +167,7 @@ mod tests {
             }),
             body: Some(ReadReqBody {
                 messages: vec![ReadReqMessage {
-                    namespace: "n1".to_string(),
+                    namespace: "b1".to_string(),
                     shard_name: "s1".to_string(),
                     segments: vec![ReadReqMessageOffset {
                         segment: 0,

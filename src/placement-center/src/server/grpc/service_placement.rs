@@ -32,7 +32,7 @@ use raft::eraftpb::{ConfChange, Message as raftPreludeMessage};
 use tonic::{Request, Response, Status};
 
 use super::validate::ValidateExt;
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
@@ -262,6 +262,7 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<SetIdempotentDataRequest>,
     ) -> Result<Response<SetIdempotentDataReply>, Status> {
         let req = request.into_inner();
+        let _ = req.validate_ext()?;
         let data = StorageData::new(
             StorageDataType::ClusterSetIdempotentData,
             SetIdempotentDataRequest::encode_to_vec(&req),

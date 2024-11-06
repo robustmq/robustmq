@@ -19,7 +19,7 @@ use tokio::select;
 use tokio::sync::broadcast;
 
 use super::heartbeat::BrokerHeartbeat;
-use crate::cache::placement::PlacementCacheManager;
+use crate::core::cache::PlacementCacheManager;
 use crate::route::apply::RaftMachineApply;
 
 pub struct ClusterController {

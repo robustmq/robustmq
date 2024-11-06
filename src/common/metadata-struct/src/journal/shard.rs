@@ -25,5 +25,15 @@ pub struct JournalShard {
     pub start_segment_seq: u32,
     pub active_segment_seq: u32,
     pub last_segment_seq: u32,
+    pub status: JournalShardStatus,
     pub create_time: u128,
+}
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum JournalShardStatus {
+    #[default]
+    Run,
+    PrepareDelete,
+    Deleteing,
+    Delete,
 }
