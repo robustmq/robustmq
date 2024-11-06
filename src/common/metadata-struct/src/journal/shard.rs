@@ -29,6 +29,15 @@ pub struct JournalShard {
     pub create_time: u128,
 }
 
+impl JournalShard {
+    pub fn name(&self) -> String {
+        format!(
+            "{},{},{}",
+            self.cluster_name, self.namespace, self.shard_name
+        )
+    }
+}
+
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum JournalShardStatus {
     #[default]

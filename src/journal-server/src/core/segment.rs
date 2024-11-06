@@ -17,6 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use common_base::config::journal_server::journal_server_conf;
+use log::error;
 use protocol::journal_server::journal_inner::{
     DeleteSegmentFileRequest, GetSegmentDeleteStatusRequest,
 };
@@ -51,9 +52,8 @@ pub fn delete_local_segment(
 
         let segment_file = data_file_segment(&data_fold, req.segment);
         if Path::new(&segment_file).exists() {
-            match remove_dir_all(&segment_file) {
-                Ok(()) => {}
-                Err(e) => {}
+            if let Err(e) = remove_dir_all(&segment_file) {
+                error!("{}", e);
             }
         }
 
@@ -84,12 +84,12 @@ pub fn get_delete_segment_status(
     };
 
     let segment_file = data_file_segment(&data_fold, req.segment);
-    let file_flag = !Path::new(&segment_file).exists();
+    let file_exist = Path::new(&segment_file).exists();
 
     // Does the cache exist
-    let cache_flag = cache_manager
+    let cache_exist = cache_manager
         .get_segment(&req.namespace, &req.shard_name, req.segment)
-        .is_none();
+        .is_some();
 
-    Ok(file_flag && cache_flag)
+    Ok(!file_exist && !cache_exist)
 }
