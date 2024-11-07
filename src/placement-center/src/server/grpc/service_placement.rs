@@ -33,6 +33,7 @@ use tonic::{Request, Response, Status};
 
 use super::validate::ValidateExt;
 use crate::core::cache::PlacementCacheManager;
+use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::core::error::PlacementCenterError;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
@@ -110,6 +111,7 @@ impl PlacementCenterService for GrpcPlacementService {
             StorageDataType::ClusterRegisterNode,
             RegisterNodeRequest::encode_to_vec(&req),
         );
+        register_node_by_req(&req);
         match self.raft_machine_apply.client_write(data).await {
             Ok(_) => return Ok(Response::new(RegisterNodeReply::default())),
             Err(e) => {
@@ -125,6 +127,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
 
+        un_register_node_by_req(&req);
         let data = StorageData::new(
             StorageDataType::ClusterUngisterNode,
             UnRegisterNodeRequest::encode_to_vec(&req),
