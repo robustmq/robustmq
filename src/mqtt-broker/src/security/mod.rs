@@ -54,9 +54,9 @@ pub trait AuthStorageAdapter {
 
     async fn get_user(&self, username: String) -> Result<Option<MqttUser>, CommonError>;
 
-    async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError>; 
+    async fn save_user(&self, user_info: MqttUser) -> Result<(), CommonError>;
 
-    async fn delete_user(&self, username: String) -> Result<(), CommonError>; 
+    async fn delete_user(&self, username: String) -> Result<(), CommonError>;
 }
 
 pub struct AuthDriver {
@@ -109,7 +109,9 @@ impl AuthDriver {
             Ok(date) => {
                 let is_existed = date.iter().any(|user| *user.key() == user_info.username);
                 if is_existed {
-                    return Err(CommonError::CommmonError("user has beed existed".to_string()));
+                    return Err(CommonError::CommmonError(
+                        "user has beed existed".to_string(),
+                    ));
                 }
             }
             Err(e) => {
@@ -141,7 +143,6 @@ impl AuthDriver {
                 return Err(e);
             }
         };
-        
     }
 
     pub async fn check_login_auth(

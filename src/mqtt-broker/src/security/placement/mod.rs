@@ -53,7 +53,7 @@ impl AuthStorageAdapter for PlacementAuthStorageAdapter {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.save_user(user_info).await;
     }
-    
+
     async fn delete_user(&self, username: String) -> Result<(), CommonError> {
         let user_storage = UserStorage::new(self.client_pool.clone());
         return user_storage.delete_user(username).await;
