@@ -89,6 +89,7 @@ pub enum PacketType {
     PingReq,
     PingResp,
     Disconnect,
+    Auth,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -114,6 +115,7 @@ pub enum MqttPacket {
     Unsubscribe(Unsubscribe, Option<UnsubscribeProperties>),
     UnsubAck(UnsubAck, Option<UnsubAckProperties>),
     Disconnect(Disconnect, Option<DisconnectProperties>),
+    Auth(Auth, Option<AuthProperties>),
 }
 
 /// Packet type from a byte
@@ -1045,6 +1047,53 @@ pub struct DisconnectProperties {
 
     /// String which can be used by the client to identify aonther server to use
     pub server_reference: Option<String>,
+}
+
+//--------------------------- AUTH packet -------------------------------
+
+/// AUTH packet is for authentication, but only used in MQTT 5.0
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Auth {
+    pub reason: Option<AuthReason>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum AuthReason {
+    Success,
+    ContinueAuthentication,
+    ReAuthenticate,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AuthProperties {
+    /// authentication method
+    pub authentication_method: Option<String>,
+
+    /// authentication data
+    pub authentication_data: Option<Bytes>,
+
+    /// Human readable reason for the disconnect
+    pub reason_string: Option<String>,
+
+    /// List of user properties
+    pub user_properties: Vec<(String, String)>,
+}
+
+impl fmt::Display for Auth {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "reason_code:{:?}", self.reason)
+    }
+}
+
+impl fmt::Display for AuthProperties {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "authentication_method:{:?}, authentication_data:{:?},reason_string:{:?}, user_properties:{:?}",
+            self.authentication_method, self.authentication_data, self.reason_string, self.user_properties
+        )
+    }
 }
 
 /// Error during serialization and deserialization
