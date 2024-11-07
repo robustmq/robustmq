@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 rm -rf /home/runner/work/robustmq/robustmq/target
 
 sh example/mqtt-cluster/start.sh
