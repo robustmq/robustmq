@@ -143,11 +143,6 @@ impl CacheManager {
         None
     }
 
-    pub fn shard_exists(&self, namespace: &str, shard_name: &str) -> bool {
-        let key = self.shard_key(namespace, shard_name);
-        self.shards.contains_key(&key)
-    }
-
     fn shard_key(&self, namespace: &str, shard_name: &str) -> String {
         format!("{}_{}", namespace, shard_name)
     }
