@@ -128,21 +128,21 @@ impl AuthDriver {
                 let is_existed = date.iter().any(|user| *user.key() == username);
                 if !is_existed {
                     return Err(CommonError::CommmonError("user does not exist".to_string()));
-                }
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        }
-        match self.driver.delete_user(username.clone()).await {
-            Ok(()) => {
-                self.cache_manager.del_user(username.clone());
-                return Ok(());
+                };
             }
             Err(e) => {
                 return Err(e);
             }
         };
+        match self.driver.delete_user(username.clone()).await {
+            Ok(()) => {
+                self.cache_manager.del_user(username.clone());
+                Ok(())
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }
     }
 
     pub async fn check_login_auth(
