@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use common_base::error::common::CommonError;
 use common_base::tools::now_second;
+use grpc_clients::pool::ClientPool;
 use prost::Message;
 use protocol::placement_center::placement_center_inner::placement_center_service_server::PlacementCenterService;
 use protocol::placement_center::placement_center_inner::{
@@ -35,6 +36,7 @@ use super::validate::ValidateExt;
 use crate::core::cache::PlacementCacheManager;
 use crate::core::cluster::{register_node_by_req, un_register_node_by_req};
 use crate::core::error::PlacementCenterError;
+use crate::journal::controller::call_node::JournalInnerCallManager;
 use crate::route::apply::RaftMachineApply;
 use crate::route::data::{StorageData, StorageDataType};
 use crate::storage::placement::config::ResourceConfigStorage;
@@ -45,6 +47,8 @@ pub struct GrpcPlacementService {
     raft_machine_apply: Arc<RaftMachineApply>,
     cluster_cache: Arc<PlacementCacheManager>,
     rocksdb_engine_handler: Arc<RocksDBEngine>,
+    client_pool: Arc<ClientPool>,
+    call_manager: Arc<JournalInnerCallManager>,
 }
 
 impl GrpcPlacementService {
@@ -52,11 +56,15 @@ impl GrpcPlacementService {
         raft_machine_apply: Arc<RaftMachineApply>,
         cluster_cache: Arc<PlacementCacheManager>,
         rocksdb_engine_handler: Arc<RocksDBEngine>,
+        client_pool: Arc<ClientPool>,
+        call_manager: Arc<JournalInnerCallManager>,
     ) -> Self {
         GrpcPlacementService {
             raft_machine_apply,
             cluster_cache,
             rocksdb_engine_handler,
+            client_pool,
+            call_manager,
         }
     }
 }
@@ -105,15 +113,19 @@ impl PlacementCenterService for GrpcPlacementService {
         request: Request<RegisterNodeRequest>,
     ) -> Result<Response<RegisterNodeReply>, Status> {
         let req = request.into_inner();
+
         let _ = req.validate_ext()?;
 
-        let data = StorageData::new(
-            StorageDataType::ClusterAddNode,
-            RegisterNodeRequest::encode_to_vec(&req),
-        );
-        register_node_by_req(&req);
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(RegisterNodeReply::default())),
+        match register_node_by_req(
+            &self.cluster_cache,
+            &self.raft_machine_apply,
+            &self.client_pool,
+            &self.call_manager,
+            req,
+        )
+        .await
+        {
+            Ok(()) => return Ok(Response::new(RegisterNodeReply::default())),
             Err(e) => {
                 return Err(Status::internal(e.to_string()));
             }
@@ -127,15 +139,18 @@ impl PlacementCenterService for GrpcPlacementService {
         let req = request.into_inner();
         let _ = req.validate_ext()?;
 
-        un_register_node_by_req(&req);
-        let data = StorageData::new(
-            StorageDataType::ClusterDeleteNode,
-            UnRegisterNodeRequest::encode_to_vec(&req),
-        );
-        match self.raft_machine_apply.client_write(data).await {
-            Ok(_) => return Ok(Response::new(UnRegisterNodeReply::default())),
+        match un_register_node_by_req(
+            &self.cluster_cache,
+            &self.raft_machine_apply,
+            &self.client_pool,
+            &self.call_manager,
+            req,
+        )
+        .await
+        {
+            Ok(()) => return Ok(Response::new(UnRegisterNodeReply::default())),
             Err(e) => {
-                return Err(Status::cancelled(e.to_string()));
+                return Err(Status::internal(e.to_string()));
             }
         }
     }

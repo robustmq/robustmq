@@ -14,16 +14,14 @@
 
 use std::sync::Arc;
 
-use common_base::tools::{now_mills, unique_id};
-use grpc_clients::pool::ClientPool;
 use metadata_struct::acl::mqtt_acl::MqttAcl;
 use metadata_struct::acl::mqtt_blacklist::MqttAclBlackList;
 use metadata_struct::placement::cluster::ClusterInfo;
 use metadata_struct::placement::node::BrokerNode;
 use prost::Message as _;
 use protocol::placement_center::placement_center_inner::{
-    ClusterType, DeleteIdempotentDataRequest, DeleteResourceConfigRequest, RegisterNodeRequest,
-    SetIdempotentDataRequest, SetResourceConfigRequest, UnRegisterNodeRequest,
+    DeleteIdempotentDataRequest, DeleteResourceConfigRequest, SetIdempotentDataRequest,
+    SetResourceConfigRequest, UnRegisterNodeRequest,
 };
 use protocol::placement_center::placement_center_mqtt::{
     CreateAclRequest, CreateBlacklistRequest, DeleteAclRequest, DeleteBlacklistRequest,
@@ -31,9 +29,6 @@ use protocol::placement_center::placement_center_mqtt::{
 
 use crate::core::cache::PlacementCacheManager;
 use crate::core::error::PlacementCenterError;
-use crate::journal::controller::call_node::{
-    update_cache_by_add_journal_node, update_cache_by_delete_journal_node, JournalInnerCallManager,
-};
 use crate::storage::mqtt::acl::AclStorage;
 use crate::storage::mqtt::blacklist::MqttBlackListStorage;
 use crate::storage::placement::cluster::ClusterStorage;
@@ -46,119 +41,48 @@ use crate::storage::rocksdb::RocksDBEngine;
 pub struct DataRouteCluster {
     rocksdb_engine_handler: Arc<RocksDBEngine>,
     cluster_cache: Arc<PlacementCacheManager>,
-    client_pool: Arc<ClientPool>,
-    call_manager: Arc<JournalInnerCallManager>,
 }
 
 impl DataRouteCluster {
     pub fn new(
         rocksdb_engine_handler: Arc<RocksDBEngine>,
         cluster_cache: Arc<PlacementCacheManager>,
-        call_manager: Arc<JournalInnerCallManager>,
-        client_pool: Arc<ClientPool>,
     ) -> Self {
         DataRouteCluster {
             rocksdb_engine_handler,
             cluster_cache,
-            call_manager,
-            client_pool,
         }
     }
 
     pub async fn add_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())?;
-        let cluster_type = req.cluster_type();
-        let cluster_name = req.cluster_name;
-        let node = BrokerNode {
-            node_id: req.node_id,
-            node_ip: req.node_ip,
-            node_inner_addr: req.node_inner_addr,
-            extend: req.extend_info,
-            cluster_name: cluster_name.clone(),
-            cluster_type: cluster_type.as_str_name().to_string(),
-            create_time: now_mills(),
-        };
+        let node = serde_json::from_slice::<BrokerNode>(&value)?;
 
         let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
-        let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
-
-        // update cluster
-        if !self.cluster_cache.cluster_list.contains_key(&cluster_name) {
-            let cluster_info = ClusterInfo {
-                cluster_uid: unique_id(),
-                cluster_name: cluster_name.clone(),
-                cluster_type: cluster_type.as_str_name().to_string(),
-                create_time: now_mills(),
-            };
-            self.cluster_cache.add_broker_cluster(&cluster_info);
-            cluster_storage.save(&cluster_info)?;
-        }
-
-        // update node
-        self.cluster_cache.add_broker_node(node.clone());
         node_storage.save(&node)?;
 
-        // Call Broker/Journal to refresh the cluster cache
-        self.call_add_node_cache(&node).await?;
+        self.cluster_cache.add_broker_node(node);
 
         Ok(())
     }
 
-
     pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
-        let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())?;
-        let cluster_type = req.cluster_type();
-        let cluster_name = req.cluster_name;
-        let node = BrokerNode {
-            node_id: req.node_id,
-            node_ip: req.node_ip,
-            node_inner_addr: req.node_inner_addr,
-            extend: req.extend_info,
-            cluster_name: cluster_name.clone(),
-            cluster_type: cluster_type.as_str_name().to_string(),
-            create_time: now_mills(),
-        };
+        let cluster = serde_json::from_slice::<ClusterInfo>(&value)?;
 
-        let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
         let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
+        cluster_storage.save(&cluster)?;
 
-        // update cluster
-        if !self.cluster_cache.cluster_list.contains_key(&cluster_name) {
-            let cluster_info = ClusterInfo {
-                cluster_uid: unique_id(),
-                cluster_name: cluster_name.clone(),
-                cluster_type: cluster_type.as_str_name().to_string(),
-                create_time: now_mills(),
-            };
-            self.cluster_cache.add_broker_cluster(&cluster_info);
-            cluster_storage.save(&cluster_info)?;
-        }
-
-        // update node
-        self.cluster_cache.add_broker_node(node.clone());
-        node_storage.save(&node)?;
-
-        // Call Broker/Journal to refresh the cluster cache
-        self.call_add_node_cache(&node).await?;
-
+        self.cluster_cache.add_broker_cluster(&cluster);
         Ok(())
     }
 
     pub async fn delete_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
-        let cluster_name = req.cluster_name;
-        let node_id = req.node_id;
 
-        if let Some((_, node)) = self
-            .cluster_cache
-            .remove_broker_node(&cluster_name, node_id)
-        {
-            let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
-            node_storage.delete(&cluster_name, node_id)?;
+        let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        node_storage.delete(&req.cluster_name, req.node_id)?;
 
-            // Call Broker/Journal to refresh the cluster cache
-            self.call_delete_node_cache(&node).await?;
-        }
+        self.cluster_cache
+            .remove_broker_node(&req.cluster_name, req.node_id);
 
         Ok(())
     }
@@ -221,32 +145,6 @@ impl DataRouteCluster {
         blacklist_storage.delete(&req.cluster_name, &req.blacklist_type, &req.resource_name)?;
         Ok(())
     }
-
-    async fn call_add_node_cache(&self, node: &BrokerNode) -> Result<(), PlacementCenterError> {
-        if node.cluster_type == *ClusterType::JournalServer.as_str_name() {
-            update_cache_by_add_journal_node(
-                &node.cluster_name,
-                &self.call_manager,
-                &self.client_pool,
-                node.clone(),
-            )
-            .await?;
-        }
-        Ok(())
-    }
-
-    async fn call_delete_node_cache(&self, node: &BrokerNode) -> Result<(), PlacementCenterError> {
-        if node.cluster_type == *ClusterType::JournalServer.as_str_name() {
-            update_cache_by_delete_journal_node(
-                &node.cluster_name,
-                &self.call_manager,
-                &self.client_pool,
-                node.clone(),
-            )
-            .await?;
-        }
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -256,12 +154,10 @@ mod tests {
 
     use common_base::config::placement_center::placement_center_test_conf;
     use common_base::tools::unique_id;
-    use grpc_clients::pool::ClientPool;
     use prost::Message as _;
     use protocol::placement_center::placement_center_inner::{ClusterType, RegisterNodeRequest};
 
     use crate::core::cache::PlacementCacheManager;
-    use crate::journal::controller::call_node::JournalInnerCallManager;
     use crate::route::cluster::DataRouteCluster;
     use crate::storage::placement::cluster::ClusterStorage;
     use crate::storage::placement::node::NodeStorage;
@@ -290,14 +186,7 @@ mod tests {
             column_family_list(),
         ));
         let cluster_cache = Arc::new(PlacementCacheManager::new(rocksdb_engine.clone()));
-        let client_pool = Arc::new(ClientPool::new(3));
-        let call_manager = Arc::new(JournalInnerCallManager::new(cluster_cache.clone()));
-        let route = DataRouteCluster::new(
-            rocksdb_engine.clone(),
-            cluster_cache,
-            call_manager,
-            client_pool,
-        );
+        let route = DataRouteCluster::new(rocksdb_engine.clone(), cluster_cache);
         route.add_node(data).await.unwrap();
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
