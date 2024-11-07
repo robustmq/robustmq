@@ -93,16 +93,22 @@ impl DataRoute {
                 self.route_kv.delete(storage_data.value)?;
                 Ok(None)
             }
-            StorageDataType::ClusterRegisterNode => {
-                self.route_cluster.register_node(storage_data.value).await?;
+            StorageDataType::ClusterAddNode => {
+                self.route_cluster.add_node(storage_data.value).await?;
                 Ok(None)
             }
-            StorageDataType::ClusterUngisterNode => {
+            StorageDataType::ClusterDeleteNode => {
                 self.route_cluster
-                    .unregister_node(storage_data.value)
+                    .delete_node(storage_data.value)
                     .await?;
                 Ok(None)
             }
+
+            StorageDataType::ClusterAddCluster => {
+                self.route_cluster.add_cluster(storage_data.value).await?;
+                Ok(None)
+            }
+            StorageDataType::ClusterDeleteCluster => Ok(None),
 
             StorageDataType::ClusterSetResourceConfig => {
                 self.route_cluster.set_resource_config(storage_data.value)?;

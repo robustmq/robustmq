@@ -101,6 +101,10 @@ impl MqttBrokerAdminService for GrpcAdminServices {
         };
 
         let user_storage = UserStorage::new(self.client_pool.clone());
+        
+       if  self.cache_manager.user_info.contains_key(&username){
+        return Err(Status::cancelled("user has beed existed"));
+       }
 
         match user_storage.user_list().await {
             Ok(date) => {

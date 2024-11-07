@@ -65,7 +65,7 @@ impl DataRouteCluster {
         }
     }
 
-    pub async fn register_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+    pub async fn add_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())?;
         let cluster_type = req.cluster_type();
         let cluster_name = req.cluster_name;
@@ -104,7 +104,47 @@ impl DataRouteCluster {
         Ok(())
     }
 
-    pub async fn unregister_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+
+    pub async fn add_cluster(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
+        let req: RegisterNodeRequest = RegisterNodeRequest::decode(value.as_ref())?;
+        let cluster_type = req.cluster_type();
+        let cluster_name = req.cluster_name;
+        let node = BrokerNode {
+            node_id: req.node_id,
+            node_ip: req.node_ip,
+            node_inner_addr: req.node_inner_addr,
+            extend: req.extend_info,
+            cluster_name: cluster_name.clone(),
+            cluster_type: cluster_type.as_str_name().to_string(),
+            create_time: now_mills(),
+        };
+
+        let node_storage = NodeStorage::new(self.rocksdb_engine_handler.clone());
+        let cluster_storage = ClusterStorage::new(self.rocksdb_engine_handler.clone());
+
+        // update cluster
+        if !self.cluster_cache.cluster_list.contains_key(&cluster_name) {
+            let cluster_info = ClusterInfo {
+                cluster_uid: unique_id(),
+                cluster_name: cluster_name.clone(),
+                cluster_type: cluster_type.as_str_name().to_string(),
+                create_time: now_mills(),
+            };
+            self.cluster_cache.add_broker_cluster(&cluster_info);
+            cluster_storage.save(&cluster_info)?;
+        }
+
+        // update node
+        self.cluster_cache.add_broker_node(node.clone());
+        node_storage.save(&node)?;
+
+        // Call Broker/Journal to refresh the cluster cache
+        self.call_add_node_cache(&node).await?;
+
+        Ok(())
+    }
+
+    pub async fn delete_node(&self, value: Vec<u8>) -> Result<(), PlacementCenterError> {
         let req: UnRegisterNodeRequest = UnRegisterNodeRequest::decode(value.as_ref())?;
         let cluster_name = req.cluster_name;
         let node_id = req.node_id;
@@ -258,7 +298,7 @@ mod tests {
             call_manager,
             client_pool,
         );
-        route.register_node(data).await.unwrap();
+        route.add_node(data).await.unwrap();
 
         let node_storage = NodeStorage::new(rocksdb_engine.clone());
         let cluster_storage = ClusterStorage::new(rocksdb_engine.clone());

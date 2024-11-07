@@ -108,7 +108,7 @@ impl PlacementCenterService for GrpcPlacementService {
         let _ = req.validate_ext()?;
 
         let data = StorageData::new(
-            StorageDataType::ClusterRegisterNode,
+            StorageDataType::ClusterAddNode,
             RegisterNodeRequest::encode_to_vec(&req),
         );
         register_node_by_req(&req);
@@ -129,7 +129,7 @@ impl PlacementCenterService for GrpcPlacementService {
 
         un_register_node_by_req(&req);
         let data = StorageData::new(
-            StorageDataType::ClusterUngisterNode,
+            StorageDataType::ClusterDeleteNode,
             UnRegisterNodeRequest::encode_to_vec(&req),
         );
         match self.raft_machine_apply.client_write(data).await {
