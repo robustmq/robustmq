@@ -13,7 +13,12 @@
 # limitations under the License.
 
 name: Free Disk Space (Ubuntu)
-on: push
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   free-disk-space:
